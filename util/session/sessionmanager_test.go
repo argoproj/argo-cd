@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -24,28 +24,26 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test"
-	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
-	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
-	"github.com/argoproj/argo-cd/v3/util/password"
-	"github.com/argoproj/argo-cd/v3/util/settings"
-	utiltest "github.com/argoproj/argo-cd/v3/util/test"
+	"github.com/argoproj/argo-cd/v2/common"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/password"
+	"github.com/argoproj/argo-cd/v2/util/settings"
+	utiltest "github.com/argoproj/argo-cd/v2/util/test"
 )
 
 func getProjLister(objects ...runtime.Object) v1alpha1.AppProjectNamespaceLister {
 	return test.NewFakeProjListerFromInterface(apps.NewSimpleClientset(objects...).ArgoprojV1alpha1().AppProjects("argocd"))
 }
 
-func getKubeClient(t *testing.T, pass string, enabled bool, capabilities ...settings.AccountCapability) *fake.Clientset {
-	t.Helper()
+func getKubeClient(pass string, enabled bool, capabilities ...settings.AccountCapability) *fake.Clientset {
 	const defaultSecretKey = "Hello, world!"
 
 	bcrypt, err := password.HashPassword(pass)
-	require.NoError(t, err)
+	errors.CheckError(err)
 	if len(capabilities) == 0 {
 		capabilities = []settings.AccountCapability{settings.AccountCapabilityLogin, settings.AccountCapabilityApiKey}
 	}
@@ -54,7 +52,7 @@ func getKubeClient(t *testing.T, pass string, enabled bool, capabilities ...sett
 		capabilitiesStr = append(capabilitiesStr, string(capabilities[i]))
 	}
 
-	return fake.NewClientset(&corev1.ConfigMap{
+	return fake.NewSimpleClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: "argocd",
@@ -88,33 +86,36 @@ func TestSessionManager_AdminToken(t *testing.T) {
 	redisClient, closer := test.NewInMemoryRedis()
 	defer closer()
 
-	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "pass", true), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(redisClient))
 
 	token, err := mgr.Create("admin:login", 0, "123")
-	require.NoError(t, err, "Could not create token")
+	if err != nil {
+		t.Errorf("Could not create token: %v", err)
+	}
 
 	claims, newToken, err := mgr.Parse(token)
 	require.NoError(t, err)
 	assert.Empty(t, newToken)
 
-	mapClaims, err := jwtutil.MapClaims(claims)
-	require.NoError(t, err)
-	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
-	require.NoError(t, err)
-
-	assert.Equal(t, "admin", argoClaims.Subject)
+	mapClaims := *(claims.(*jwt.MapClaims))
+	subject := mapClaims["sub"].(string)
+	if subject != "admin" {
+		t.Errorf("Token claim subject \"%s\" does not match expected subject \"%s\".", subject, "admin")
+	}
 }
 
 func TestSessionManager_AdminToken_ExpiringSoon(t *testing.T) {
 	redisClient, closer := test.NewInMemoryRedis()
 	defer closer()
 
-	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "pass", true), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(redisClient))
 
 	token, err := mgr.Create("admin:login", int64(autoRegenerateTokenDuration.Seconds()-1), "123")
-	require.NoError(t, err)
+	if err != nil {
+		t.Errorf("Could not create token: %v", err)
+	}
 
 	// verify new token is generated is login token is expiring soon
 	_, newToken, err := mgr.Parse(token)
@@ -124,21 +125,16 @@ func TestSessionManager_AdminToken_ExpiringSoon(t *testing.T) {
 	// verify that new token is valid and for the same user
 	claims, _, err := mgr.Parse(newToken)
 	require.NoError(t, err)
-
-	mapClaims, err := jwtutil.MapClaims(claims)
-	require.NoError(t, err)
-
-	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
-	require.NoError(t, err)
-
-	assert.Equal(t, "admin", argoClaims.Subject)
+	mapClaims := *(claims.(*jwt.MapClaims))
+	subject := mapClaims["sub"].(string)
+	assert.Equal(t, "admin", subject)
 }
 
 func TestSessionManager_AdminToken_Revoked(t *testing.T) {
 	redisClient, closer := test.NewInMemoryRedis()
 	defer closer()
 
-	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "pass", true), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", true), "argocd")
 	storage := NewUserStateStorage(redisClient)
 
 	mgr := newSessionManager(settingsMgr, getProjLister(), storage)
@@ -146,37 +142,44 @@ func TestSessionManager_AdminToken_Revoked(t *testing.T) {
 	token, err := mgr.Create("admin:login", 0, "123")
 	require.NoError(t, err)
 
-	err = storage.RevokeToken(t.Context(), "123", time.Hour)
+	err = storage.RevokeToken(context.Background(), "123", time.Hour)
 	require.NoError(t, err)
 
 	_, _, err = mgr.Parse(token)
-	assert.EqualError(t, err, "token is revoked, please re-login")
+	require.Error(t, err)
+	assert.Equal(t, "token is revoked, please re-login", err.Error())
 }
 
 func TestSessionManager_AdminToken_Deactivated(t *testing.T) {
-	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "pass", false), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", false), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
 	token, err := mgr.Create("admin:login", 0, "abc")
-	require.NoError(t, err, "Could not create token")
+	if err != nil {
+		t.Errorf("Could not create token: %v", err)
+	}
 
 	_, _, err = mgr.Parse(token)
-	assert.ErrorContains(t, err, "account admin is disabled")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "account admin is disabled")
 }
 
 func TestSessionManager_AdminToken_LoginCapabilityDisabled(t *testing.T) {
-	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "pass", true, settings.AccountCapabilityLogin), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", true, settings.AccountCapabilityLogin), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
 	token, err := mgr.Create("admin", 0, "abc")
-	require.NoError(t, err, "Could not create token")
+	if err != nil {
+		t.Errorf("Could not create token: %v", err)
+	}
 
 	_, _, err = mgr.Parse(token)
-	assert.ErrorContains(t, err, "account admin does not have 'apiKey' capability")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "account admin does not have 'apiKey' capability")
 }
 
 func TestSessionManager_ProjectToken(t *testing.T) {
-	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "pass", true), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", true), "argocd")
 
 	t.Run("Valid Token", func(t *testing.T) {
 		proj := appv1.AppProject{
@@ -196,16 +199,8 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 		jwtToken, err := mgr.Create("proj:default:test", 100, "abc")
 		require.NoError(t, err)
 
-		claims, _, err := mgr.Parse(jwtToken)
+		_, _, err = mgr.Parse(jwtToken)
 		require.NoError(t, err)
-
-		mapClaims, err := jwtutil.MapClaims(claims)
-		require.NoError(t, err)
-
-		argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
-		require.NoError(t, err)
-
-		assert.Equal(t, "proj:default:test", argoClaims.Subject)
 	})
 
 	t.Run("Token Revoked", func(t *testing.T) {
@@ -223,16 +218,26 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 		require.NoError(t, err)
 
 		_, _, err = mgr.Parse(jwtToken)
-		assert.ErrorContains(t, err, "does not exist in project 'default'")
+		require.Error(t, err)
+
+		assert.Contains(t, err.Error(), "does not exist in project 'default'")
 	})
 }
 
+type claimsMock struct {
+	err error
+}
+
+func (cm *claimsMock) Valid() error {
+	return cm.err
+}
+
 type tokenVerifierMock struct {
-	claims jwt.Claims
+	claims *claimsMock
 	err    error
 }
 
-func (tm *tokenVerifierMock) VerifyToken(_ string) (jwt.Claims, string, error) {
+func (tm *tokenVerifierMock) VerifyToken(token string) (jwt.Claims, string, error) {
 	if tm.claims == nil {
 		return nil, "", tm.err
 	}
@@ -245,19 +250,21 @@ func strPointer(str string) *string {
 
 func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 	handlerFunc := func() func(http.ResponseWriter, *http.Request) {
-		return func(w http.ResponseWriter, _ *http.Request) {
+		return func(w http.ResponseWriter, r *http.Request) {
 			t.Helper()
 			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "application/text")
 			_, err := w.Write([]byte("Ok"))
-			require.NoError(t, err, "error writing response: %s", err)
+			if err != nil {
+				t.Fatalf("error writing response: %s", err)
+			}
 		}
 	}
 	type testCase struct {
 		name                 string
 		authDisabled         bool
 		cookieHeader         bool
-		verifiedClaims       *jwt.RegisteredClaims
+		verifiedClaims       *claimsMock
 		verifyTokenErr       error
 		expectedStatusCode   int
 		expectedResponseBody *string
@@ -268,9 +275,9 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will authenticate successfully",
 			authDisabled:         false,
 			cookieHeader:         true,
-			verifiedClaims:       &jwt.RegisteredClaims{},
+			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       nil,
-			expectedStatusCode:   http.StatusOK,
+			expectedStatusCode:   200,
 			expectedResponseBody: strPointer("Ok"),
 		},
 		{
@@ -279,25 +286,25 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			cookieHeader:         false,
 			verifiedClaims:       nil,
 			verifyTokenErr:       nil,
-			expectedStatusCode:   http.StatusOK,
+			expectedStatusCode:   200,
 			expectedResponseBody: strPointer("Ok"),
 		},
 		{
 			name:                 "will return 400 if no cookie header",
 			authDisabled:         false,
 			cookieHeader:         false,
-			verifiedClaims:       &jwt.RegisteredClaims{},
+			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       nil,
-			expectedStatusCode:   http.StatusBadRequest,
+			expectedStatusCode:   400,
 			expectedResponseBody: nil,
 		},
 		{
 			name:                 "will return 401 verify token fails",
 			authDisabled:         false,
 			cookieHeader:         true,
-			verifiedClaims:       &jwt.RegisteredClaims{},
+			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       stderrors.New("token error"),
-			expectedStatusCode:   http.StatusUnauthorized,
+			expectedStatusCode:   401,
 			expectedResponseBody: nil,
 		},
 		{
@@ -306,7 +313,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			cookieHeader:         true,
 			verifiedClaims:       nil,
 			verifyTokenErr:       nil,
-			expectedStatusCode:   http.StatusOK,
+			expectedStatusCode:   200,
 			expectedResponseBody: strPointer("Ok"),
 		},
 	}
@@ -323,7 +330,9 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			ts := httptest.NewServer(WithAuthMiddleware(tc.authDisabled, tm, mux))
 			defer ts.Close()
 			req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
-			require.NoErrorf(t, err, "error creating request: %s", err)
+			if err != nil {
+				t.Fatalf("error creating request: %s", err)
+			}
 			if tc.cookieHeader {
 				req.Header.Add("Cookie", "argocd.token=123456")
 			}
@@ -345,36 +354,29 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 	}
 }
 
-var (
-	loggedOutContext = context.Background()
-	//nolint:staticcheck
-	loggedInContext = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
-	//nolint:staticcheck
-	loggedInContextFederated = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "not-foo", "email": "bar", "groups": []string{"baz"}, "federated_claims": map[string]any{"user_id": "foo"}})
-)
+var loggedOutContext = context.Background()
+
+// nolint:staticcheck
+var loggedInContext = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
 
 func TestIss(t *testing.T) {
 	assert.Empty(t, Iss(loggedOutContext))
 	assert.Equal(t, "qux", Iss(loggedInContext))
-	assert.Equal(t, "qux", Iss(loggedInContextFederated))
 }
 
 func TestLoggedIn(t *testing.T) {
 	assert.False(t, LoggedIn(loggedOutContext))
 	assert.True(t, LoggedIn(loggedInContext))
-	assert.True(t, LoggedIn(loggedInContextFederated))
 }
 
 func TestUsername(t *testing.T) {
 	assert.Empty(t, Username(loggedOutContext))
 	assert.Equal(t, "bar", Username(loggedInContext))
-	assert.Equal(t, "bar", Username(loggedInContextFederated))
 }
 
-func TestGetUserIdentifier(t *testing.T) {
-	assert.Empty(t, GetUserIdentifier(loggedOutContext))
-	assert.Equal(t, "foo", GetUserIdentifier(loggedInContext))
-	assert.Equal(t, "foo", GetUserIdentifier(loggedInContextFederated))
+func TestSub(t *testing.T) {
+	assert.Empty(t, Sub(loggedOutContext))
+	assert.Equal(t, "foo", Sub(loggedInContext))
 }
 
 func TestGroups(t *testing.T) {
@@ -422,7 +424,7 @@ func TestVerifyUsernamePassword(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, password, !tc.disabled), "argocd")
+			settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(password, !tc.disabled), "argocd")
 
 			mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
@@ -480,8 +482,8 @@ func TestCacheValueGetters(t *testing.T) {
 	})
 
 	t.Run("Greater than allowed in environment overrides", func(t *testing.T) {
-		t.Setenv(envLoginMaxFailCount, strconv.Itoa(math.MaxInt32+1))
-		t.Setenv(envLoginMaxCacheSize, strconv.Itoa(math.MaxInt32+1))
+		t.Setenv(envLoginMaxFailCount, fmt.Sprintf("%d", math.MaxInt32+1))
+		t.Setenv(envLoginMaxCacheSize, fmt.Sprintf("%d", math.MaxInt32+1))
 
 		mlf := getMaxLoginFailures()
 		assert.Equal(t, defaultMaxLoginFailures, mlf)
@@ -492,7 +494,7 @@ func TestCacheValueGetters(t *testing.T) {
 }
 
 func TestLoginRateLimiter(t *testing.T) {
-	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "password", true), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
 	storage := NewUserStateStorage(nil)
 
 	mgr := newSessionManager(settingsMgr, getProjLister(), storage)
@@ -533,14 +535,15 @@ func TestMaxUsernameLength(t *testing.T) {
 	for i := 0; i < maxUsernameLength+1; i++ {
 		username += "a"
 	}
-	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "password", true), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 	err := mgr.VerifyUsernamePassword(username, "password")
-	assert.ErrorContains(t, err, fmt.Sprintf(usernameTooLongError, maxUsernameLength))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), fmt.Sprintf(usernameTooLongError, maxUsernameLength))
 }
 
 func TestMaxCacheSize(t *testing.T) {
-	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "password", true), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
 	invalidUsers := []string{"invalid1", "invalid2", "invalid3", "invalid4", "invalid5", "invalid6", "invalid7"}
@@ -556,7 +559,7 @@ func TestMaxCacheSize(t *testing.T) {
 }
 
 func TestFailedAttemptsExpiry(t *testing.T) {
-	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "password", true), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
 	invalidUsers := []string{"invalid1", "invalid2", "invalid3", "invalid4", "invalid5", "invalid6", "invalid7"}
@@ -583,7 +586,7 @@ func getKubeClientWithConfig(config map[string]string, secretConfig map[string][
 		mergedSecretConfig[key] = value
 	}
 
-	return fake.NewClientset(&corev1.ConfigMap{
+	return fake.NewSimpleClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: "argocd",
@@ -619,7 +622,7 @@ clientSecret: yyy
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(dexConfig, nil), "argocd")
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, nil), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 		// Use test server's client to avoid TLS issues.
@@ -653,7 +656,7 @@ rootCA: |
 `, oidcTestServer.URL, strings.ReplaceAll(string(cert), "\n", "\n  ")),
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(dexConfig, nil), "argocd")
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, nil), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
@@ -690,12 +693,12 @@ rootCA: |
 			"tls.key": utiltest.PrivateKey,
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
-		claims.Issuer = dexTestServer.URL + "/api/dex"
+		claims.Issuer = fmt.Sprintf("%s/api/dex", dexTestServer.URL)
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
 		require.NoError(t, err)
@@ -704,7 +707,7 @@ rootCA: |
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.ErrTokenVerification)
+		assert.ErrorIs(t, err, common.TokenVerificationErr)
 	})
 
 	t.Run("OIDC provider is external, TLS is configured", func(t *testing.T) {
@@ -725,7 +728,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			"tls.key": utiltest.PrivateKey,
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
@@ -739,7 +742,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.ErrTokenVerification)
+		assert.ErrorIs(t, err, common.TokenVerificationErr)
 	})
 
 	t.Run("OIDC provider is Dex, TLS is configured", func(t *testing.T) {
@@ -760,12 +763,12 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			"tls.key": utiltest.PrivateKey,
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
-		claims.Issuer = dexTestServer.URL + "/api/dex"
+		claims.Issuer = fmt.Sprintf("%s/api/dex", dexTestServer.URL)
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
 		require.NoError(t, err)
@@ -774,7 +777,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.ErrTokenVerification)
+		assert.ErrorIs(t, err, common.TokenVerificationErr)
 	})
 
 	t.Run("OIDC provider is external, TLS is configured, OIDCTLSInsecureSkipVerify is true", func(t *testing.T) {
@@ -796,7 +799,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			"tls.key": utiltest.PrivateKey,
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
@@ -825,7 +828,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			"oidc.tls.insecure.skip.verify": "true",
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(dexConfig, nil), "argocd")
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, nil), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
@@ -862,7 +865,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			"tls.key": utiltest.PrivateKey,
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, secretConfig), "argocd")
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
@@ -898,7 +901,7 @@ skipAudienceCheckWhenTokenHasNoAudience: true`, oidcTestServer.URL),
 			"tls.key": utiltest.PrivateKey,
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, secretConfig), "argocd")
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
@@ -934,7 +937,7 @@ skipAudienceCheckWhenTokenHasNoAudience: false`, oidcTestServer.URL),
 			"tls.key": utiltest.PrivateKey,
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, secretConfig), "argocd")
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
@@ -948,7 +951,7 @@ skipAudienceCheckWhenTokenHasNoAudience: false`, oidcTestServer.URL),
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.ErrTokenVerification)
+		assert.ErrorIs(t, err, common.TokenVerificationErr)
 	})
 
 	t.Run("OIDC provider is external, audience is client ID, no allowed list specified", func(t *testing.T) {
@@ -970,7 +973,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			"tls.key": utiltest.PrivateKey,
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, secretConfig), "argocd")
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
@@ -1007,7 +1010,7 @@ allowedAudiences:
 			"tls.key": utiltest.PrivateKey,
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, secretConfig), "argocd")
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
@@ -1044,7 +1047,7 @@ allowedAudiences:
 			"tls.key": utiltest.PrivateKey,
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, secretConfig), "argocd")
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
@@ -1058,7 +1061,7 @@ allowedAudiences:
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.ErrTokenVerification)
+		assert.ErrorIs(t, err, common.TokenVerificationErr)
 	})
 
 	t.Run("OIDC provider is external, audience is not client ID, and there is no allow list", func(t *testing.T) {
@@ -1080,7 +1083,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			"tls.key": utiltest.PrivateKey,
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, secretConfig), "argocd")
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
@@ -1094,7 +1097,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.ErrTokenVerification)
+		assert.ErrorIs(t, err, common.TokenVerificationErr)
 	})
 
 	t.Run("OIDC provider is external, audience is specified, but allow list is empty", func(t *testing.T) {
@@ -1117,7 +1120,7 @@ allowedAudiences: []`, oidcTestServer.URL),
 			"tls.key": utiltest.PrivateKey,
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, secretConfig), "argocd")
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
@@ -1131,7 +1134,7 @@ allowedAudiences: []`, oidcTestServer.URL),
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.ErrTokenVerification)
+		assert.ErrorIs(t, err, common.TokenVerificationErr)
 	})
 
 	// Make sure the logic works to allow any of the allowed audiences, not just the first one.
@@ -1155,7 +1158,7 @@ allowedAudiences: ["aud-a", "aud-b"]`, oidcTestServer.URL),
 			"tls.key": utiltest.PrivateKey,
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, secretConfig), "argocd")
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
@@ -1190,7 +1193,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			"tls.key": utiltest.PrivateKey,
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, secretConfig), "argocd")
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
@@ -1204,7 +1207,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.ErrTokenVerification)
+		assert.ErrorIs(t, err, common.TokenVerificationErr)
 	})
 }
 

@@ -1,7 +1,6 @@
 package helm
 
 import (
-	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -12,9 +11,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v3/util/config"
-	executil "github.com/argoproj/argo-cd/v3/util/exec"
-	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
+	"github.com/argoproj/argo-cd/v2/util/config"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
 )
 
 const (
@@ -32,20 +31,22 @@ type HelmRepository struct {
 // Helm provides wrapper functionality around the `helm` command.
 type Helm interface {
 	// Template returns a list of unstructured objects from a `helm template` command
-	Template(opts *TemplateOpts) (string, string, error)
+	Template(opts *TemplateOpts) (string, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
 	GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
 	DependencyBuild() error
+	// Init runs `helm init --client-only`
+	Init() error
 	// Dispose deletes temp resources
 	Dispose()
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
-func NewHelmApp(workDir string, repos []HelmRepository, isLocal bool, version string, proxy string, noProxy string, passCredentials bool) (Helm, error) {
-	cmd, err := NewCmd(workDir, version, proxy, noProxy)
+func NewHelmApp(workDir string, repos []HelmRepository, isLocal bool, version string, proxy string, passCredentials bool) (Helm, error) {
+	cmd, err := NewCmd(workDir, version, proxy)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new helm command: %w", err)
+		return nil, err
 	}
 	cmd.IsLocal = isLocal
 
@@ -66,12 +67,12 @@ func IsMissingDependencyErr(err error) bool {
 		strings.Contains(err.Error(), "found in Chart.yaml, but missing in charts/ directory")
 }
 
-func (h *helm) Template(templateOpts *TemplateOpts) (string, string, error) {
-	out, command, err := h.cmd.template(".", templateOpts)
+func (h *helm) Template(templateOpts *TemplateOpts) (string, error) {
+	out, err := h.cmd.template(".", templateOpts)
 	if err != nil {
-		return "", command, fmt.Errorf("failed to execute helm template command: %w", err)
+		return "", err
 	}
-	return out, command, nil
+	return out, nil
 }
 
 func (h *helm) DependencyBuild() error {
@@ -84,11 +85,7 @@ func (h *helm) DependencyBuild() error {
 		repo := h.repos[i]
 		if repo.EnableOci {
 			h.cmd.IsHelmOci = true
-			helmPassword, err := repo.GetPassword()
-			if err != nil {
-				return fmt.Errorf("failed to get password for helm registry: %w", err)
-			}
-			if repo.GetUsername() != "" && helmPassword != "" {
+			if repo.Creds.Username != "" && repo.Creds.Password != "" {
 				_, err := h.cmd.RegistryLogin(repo.Repo, repo.Creds)
 
 				defer func() {
@@ -96,31 +93,39 @@ func (h *helm) DependencyBuild() error {
 				}()
 
 				if err != nil {
-					return fmt.Errorf("failed to login to registry %s: %w", repo.Repo, err)
+					return err
 				}
 			}
 		} else {
 			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds, h.passCredentials)
 			if err != nil {
-				return fmt.Errorf("failed to add helm repository %s: %w", repo.Repo, err)
+				return err
 			}
 		}
 	}
 	h.repos = nil
 	_, err := h.cmd.dependencyBuild()
-	if err != nil {
-		return fmt.Errorf("failed to build helm dependencies: %w", err)
-	}
-	return nil
+	return err
+}
+
+func (h *helm) Init() error {
+	_, err := h.cmd.Init()
+	return err
 }
 
 func (h *helm) Dispose() {
 	h.cmd.Close()
 }
 
-func Version() (string, error) {
-	cmd := exec.Command("helm", "version", "--client", "--short")
+func Version(shortForm bool) (string, error) {
+	executable := "helm"
+	cmdArgs := []string{"version", "--client"}
+	if shortForm {
+		cmdArgs = append(cmdArgs, "--short")
+	}
+	cmd := exec.Command(executable, cmdArgs...)
 	// example version output:
+	// long: "version.BuildInfo{Version:\"v3.3.1\", GitCommit:\"249e5215cde0c3fa72e27eb7a30e8d55c9696144\", GitTreeState:\"clean\", GoVersion:\"go1.14.7\"}"
 	// short: "v3.3.1+g249e521"
 	version, err := executil.RunWithRedactor(cmd, redactor)
 	if err != nil {
@@ -135,7 +140,7 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 	if _, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, "values.yaml", []string{}); err == nil {
 		out, err := h.cmd.inspectValues(".")
 		if err != nil {
-			return nil, fmt.Errorf("failed to execute helm inspect values command: %w", err)
+			return nil, err
 		}
 		values = append(values, out)
 	} else {
@@ -148,13 +153,7 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 		if err == nil && (parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
 			fileValues, err = config.ReadRemoteFile(file)
 		} else {
-			_, fileReadErr := os.Stat(file)
-			if os.IsNotExist(fileReadErr) {
-				log.Debugf("File not found %s", file)
-				continue
-			}
-			if errors.Is(fileReadErr, os.ErrPermission) {
-				log.Debugf("File does not have permissions %s", file)
+			if _, err := os.Stat(file); os.IsNotExist(err) {
 				continue
 			}
 			fileValues, err = os.ReadFile(file)
@@ -167,7 +166,7 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 
 	output := map[string]string{}
 	for _, file := range values {
-		values := map[string]any{}
+		values := map[string]interface{}{}
 		if err := yaml.Unmarshal([]byte(file), &values); err != nil {
 			return nil, fmt.Errorf("failed to parse values: %w", err)
 		}
@@ -177,13 +176,13 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 	return output, nil
 }
 
-func flatVals(input any, output map[string]string, prefixes ...string) {
+func flatVals(input interface{}, output map[string]string, prefixes ...string) {
 	switch i := input.(type) {
-	case map[string]any:
+	case map[string]interface{}:
 		for k, v := range i {
 			flatVals(v, output, append(prefixes, k)...)
 		}
-	case []any:
+	case []interface{}:
 		p := append([]string(nil), prefixes...)
 		for j, v := range i {
 			flatVals(v, output, append(p[0:len(p)-1], fmt.Sprintf("%s[%v]", prefixes[len(p)-1], j))...)

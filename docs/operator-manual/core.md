@@ -12,7 +12,6 @@ installation:
 
 - Argo CD RBAC model
 - Argo CD API
-- Argo CD Notification Controller
 - OIDC based authentication
 
 The following features will be partially available (see the
@@ -78,9 +77,8 @@ the process) invoking the CLI needs to have access to the Argo CD
 namespace with the proper permission in the `Application` and
 `ApplicationSet` resources for executing a given command.
 
-To use [Argo CD CLI](https://argo-cd.readthedocs.io/en/stable/cli_installation) in core mode, it is required to pass the `--core`
-flag with the `login` subcommand. The `--core` flag is responsible for spawning a local Argo CD API server
-process that handles CLI and Web UI requests.
+To use Argo CD CLI in core mode, it is required to pass the `--core`
+flag with the `login` subcommand.
 
 Example:
 
@@ -98,3 +96,4 @@ argocd admin dashboard -n argocd
 ```
 
 Argo CD Web UI will be available at `http://localhost:8080`
+

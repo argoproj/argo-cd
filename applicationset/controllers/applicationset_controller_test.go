@@ -1,12 +1,16 @@
 package controllers
 
 import (
+	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/generators/mocks"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -21,6 +25,7 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	crtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -29,53 +34,303 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/generators"
-	"github.com/argoproj/argo-cd/v3/applicationset/generators/mocks"
-	appsetmetrics "github.com/argoproj/argo-cd/v3/applicationset/metrics"
-	"github.com/argoproj/argo-cd/v3/applicationset/utils"
-	argocommon "github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/applicationset/generators"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v2/util/collections"
+	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
-// getDefaultTestClientSet creates a Clientset with the default argo objects
-// and objects specified in parameters
-func getDefaultTestClientSet(obj ...runtime.Object) *kubefake.Clientset {
-	argoCDSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      argocommon.ArgoCDSecretName,
-			Namespace: "argocd",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
-		},
-		Data: map[string][]byte{
-			"admin.password":   nil,
-			"server.secretkey": nil,
-		},
+type generatorMock struct {
+	mock.Mock
+}
+
+func (g *generatorMock) GetTemplate(appSetGenerator *v1alpha1.ApplicationSetGenerator) *v1alpha1.ApplicationSetTemplate {
+	args := g.Called(appSetGenerator)
+
+	return args.Get(0).(*v1alpha1.ApplicationSetTemplate)
+}
+
+func (g *generatorMock) GenerateParams(appSetGenerator *v1alpha1.ApplicationSetGenerator, _ *v1alpha1.ApplicationSet, client client.Client) ([]map[string]interface{}, error) {
+	args := g.Called(appSetGenerator)
+
+	return args.Get(0).([]map[string]interface{}), args.Error(1)
+}
+
+func (g *generatorMock) Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (string, error) {
+	args := g.Called(tmpl, replaceMap, useGoTemplate, goTemplateOptions)
+
+	return args.Get(0).(string), args.Error(1)
+}
+
+type rendererMock struct {
+	mock.Mock
+}
+
+func (g *generatorMock) GetRequeueAfter(appSetGenerator *v1alpha1.ApplicationSetGenerator) time.Duration {
+	args := g.Called(appSetGenerator)
+
+	return args.Get(0).(time.Duration)
+}
+
+func (r *rendererMock) RenderTemplateParams(tmpl *v1alpha1.Application, syncPolicy *v1alpha1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (*v1alpha1.Application, error) {
+	args := r.Called(tmpl, params, useGoTemplate, goTemplateOptions)
+
+	if args.Error(1) != nil {
+		return nil, args.Error(1)
 	}
 
-	emptyArgoCDConfigMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      argocommon.ArgoCDConfigMapName,
-			Namespace: "argocd",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
+	return args.Get(0).(*v1alpha1.Application), args.Error(1)
+}
+
+func (r *rendererMock) Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (string, error) {
+	args := r.Called(tmpl, replaceMap, useGoTemplate, goTemplateOptions)
+
+	return args.Get(0).(string), args.Error(1)
+}
+
+func TestExtractApplications(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	for _, c := range []struct {
+		name                string
+		params              []map[string]interface{}
+		template            v1alpha1.ApplicationSetTemplate
+		generateParamsError error
+		rendererError       error
+		expectErr           bool
+		expectedReason      v1alpha1.ApplicationSetReasonType
+	}{
+		{
+			name:   "Generate two applications",
+			params: []map[string]interface{}{{"name": "app1"}, {"name": "app2"}},
+			template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:      "name",
+					Namespace: "namespace",
+					Labels:    map[string]string{"label_name": "label_value"},
+				},
+				Spec: v1alpha1.ApplicationSpec{},
+			},
+			expectedReason: "",
+		},
+		{
+			name:                "Handles error from the generator",
+			generateParamsError: fmt.Errorf("error"),
+			expectErr:           true,
+			expectedReason:      v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+		},
+		{
+			name:   "Handles error from the render",
+			params: []map[string]interface{}{{"name": "app1"}, {"name": "app2"}},
+			template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:      "name",
+					Namespace: "namespace",
+					Labels:    map[string]string{"label_name": "label_value"},
+				},
+				Spec: v1alpha1.ApplicationSpec{},
+			},
+			rendererError:  fmt.Errorf("error"),
+			expectErr:      true,
+			expectedReason: v1alpha1.ApplicationSetReasonRenderTemplateParamsError,
+		},
+	} {
+		cc := c
+		app := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+			},
+		}
+
+		t.Run(cc.name, func(t *testing.T) {
+			appSet := &v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+			}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(appSet).Build()
+
+			generatorMock := generatorMock{}
+			generator := v1alpha1.ApplicationSetGenerator{
+				List: &v1alpha1.ListGenerator{},
+			}
+
+			generatorMock.On("GenerateParams", &generator).
+				Return(cc.params, cc.generateParamsError)
+
+			generatorMock.On("GetTemplate", &generator).
+				Return(&v1alpha1.ApplicationSetTemplate{})
+
+			rendererMock := rendererMock{}
+
+			var expectedApps []v1alpha1.Application
+
+			if cc.generateParamsError == nil {
+				for _, p := range cc.params {
+					if cc.rendererError != nil {
+						rendererMock.On("RenderTemplateParams", getTempApplication(cc.template), p, false, []string(nil)).
+							Return(nil, cc.rendererError)
+					} else {
+						rendererMock.On("RenderTemplateParams", getTempApplication(cc.template), p, false, []string(nil)).
+							Return(&app, nil)
+						expectedApps = append(expectedApps, app)
+					}
+				}
+			}
+
+			r := ApplicationSetReconciler{
+				Client:   client,
+				Scheme:   scheme,
+				Recorder: record.NewFakeRecorder(1),
+				Generators: map[string]generators.Generator{
+					"List": &generatorMock,
+				},
+				Renderer:      &rendererMock,
+				KubeClientset: kubefake.NewSimpleClientset(),
+			}
+
+			got, reason, err := r.generateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{generator},
+					Template:   cc.template,
+				},
+			})
+
+			if cc.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, expectedApps, got)
+			assert.Equal(t, cc.expectedReason, reason)
+			generatorMock.AssertNumberOfCalls(t, "GenerateParams", 1)
+
+			if cc.generateParamsError == nil {
+				rendererMock.AssertNumberOfCalls(t, "RenderTemplateParams", len(cc.params))
+			}
+		})
+	}
+}
+
+func TestMergeTemplateApplications(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = v1alpha1.AddToScheme(scheme)
+	_ = v1alpha1.AddToScheme(scheme)
+
+	client := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+	for _, c := range []struct {
+		name             string
+		params           []map[string]interface{}
+		template         v1alpha1.ApplicationSetTemplate
+		overrideTemplate v1alpha1.ApplicationSetTemplate
+		expectedMerged   v1alpha1.ApplicationSetTemplate
+		expectedApps     []v1alpha1.Application
+	}{
+		{
+			name:   "Generate app",
+			params: []map[string]interface{}{{"name": "app1"}},
+			template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:      "name",
+					Namespace: "namespace",
+					Labels:    map[string]string{"label_name": "label_value"},
+				},
+				Spec: v1alpha1.ApplicationSpec{},
+			},
+			overrideTemplate: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:   "test",
+					Labels: map[string]string{"foo": "bar"},
+				},
+				Spec: v1alpha1.ApplicationSpec{},
+			},
+			expectedMerged: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:      "test",
+					Namespace: "namespace",
+					Labels:    map[string]string{"label_name": "label_value", "foo": "bar"},
+				},
+				Spec: v1alpha1.ApplicationSpec{},
+			},
+			expectedApps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test",
+						Namespace: "test",
+						Labels:    map[string]string{"foo": "bar"},
+					},
+					Spec: v1alpha1.ApplicationSpec{},
+				},
 			},
 		},
-		Data: map[string]string{},
-	}
+	} {
+		cc := c
 
-	objects := append(obj, emptyArgoCDConfigMap, argoCDSecret)
-	kubeclientset := kubefake.NewClientset(objects...)
-	return kubeclientset
+		t.Run(cc.name, func(t *testing.T) {
+			generatorMock := generatorMock{}
+			generator := v1alpha1.ApplicationSetGenerator{
+				List: &v1alpha1.ListGenerator{},
+			}
+
+			generatorMock.On("GenerateParams", &generator).
+				Return(cc.params, nil)
+
+			generatorMock.On("GetTemplate", &generator).
+				Return(&cc.overrideTemplate)
+
+			rendererMock := rendererMock{}
+
+			rendererMock.On("RenderTemplateParams", getTempApplication(cc.expectedMerged), cc.params[0], false, []string(nil)).
+				Return(&cc.expectedApps[0], nil)
+
+			r := ApplicationSetReconciler{
+				Client:   client,
+				Scheme:   scheme,
+				Recorder: record.NewFakeRecorder(1),
+				Generators: map[string]generators.Generator{
+					"List": &generatorMock,
+				},
+				Renderer:      &rendererMock,
+				KubeClientset: kubefake.NewSimpleClientset(),
+			}
+
+			got, _, _ := r.generateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{generator},
+					Template:   cc.template,
+				},
+			},
+			)
+
+			assert.Equal(t, cc.expectedApps, got)
+		})
+	}
 }
 
 func TestCreateOrUpdateInCluster(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	for _, c := range []struct {
@@ -102,10 +357,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "namespace",
+						Name: "app1",
 					},
-					Spec: v1alpha1.ApplicationSpec{Project: "default"},
 				},
 			},
 			expected: []v1alpha1.Application{
@@ -157,8 +410,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "namespace",
+						Name: "app1",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -216,8 +468,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app2",
-						Namespace: "namespace",
+						Name: "app2",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -276,7 +527,6 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "app1",
-						Namespace:   "namespace",
 						Labels:      map[string]string{"label-key": "label-value"},
 						Annotations: map[string]string{"annot-key": "annot-value"},
 					},
@@ -340,8 +590,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "namespace",
+						Name: "app1",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -407,8 +656,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "namespace",
+						Name: "app1",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -481,7 +729,6 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:        "app1",
-						Namespace:   "namespace",
 						Labels:      map[string]string{"label-key": "label-value"},
 						Annotations: map[string]string{"annot-key": "annot-value"},
 					},
@@ -559,8 +806,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "namespace",
+						Name: "app1",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -629,8 +875,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "namespace",
+						Name: "app1",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -680,8 +925,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "namespace",
+						Name: "app1",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -759,8 +1003,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "namespace",
+						Name: "app1",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -863,8 +1106,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "namespace",
+						Name: "app1",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -965,8 +1207,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "namespace",
+						Name: "app1",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -1047,8 +1288,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			desiredApps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "namespace",
+						Name: "app1",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -1087,21 +1327,19 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
 				Scheme:   scheme,
 				Recorder: record.NewFakeRecorder(len(initObjs) + len(c.expected)),
-				Metrics:  metrics,
 			}
 
-			err = r.createOrUpdateInCluster(t.Context(), log.NewEntry(log.StandardLogger()), c.appSet, c.desiredApps)
+			err = r.createOrUpdateInCluster(context.TODO(), log.NewEntry(log.StandardLogger()), c.appSet, c.desiredApps)
 			require.NoError(t, err)
 
 			for _, obj := range c.expected {
 				got := &v1alpha1.Application{}
-				_ = client.Get(t.Context(), crtclient.ObjectKey{
+				_ = client.Get(context.Background(), crtclient.ObjectKey{
 					Namespace: obj.Namespace,
 					Name:      obj.Name,
 				}, got)
@@ -1116,6 +1354,9 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	for _, c := range []struct {
@@ -1181,7 +1422,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 					Name:      "my-secret",
 					Namespace: "namespace",
 					Labels: map[string]string{
-						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
 					},
 				},
 				Data: map[string][]byte{
@@ -1195,31 +1436,29 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 
 			objects := append([]runtime.Object{}, secret)
 			kubeclientset := kubefake.NewSimpleClientset(objects...)
-			metrics := appsetmetrics.NewFakeAppsetMetrics()
-
-			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
 
 			r := ApplicationSetReconciler{
 				Client:        client,
 				Scheme:        scheme,
 				Recorder:      record.NewFakeRecorder(10),
 				KubeClientset: kubeclientset,
-				Metrics:       metrics,
-				ArgoDB:        argodb,
 			}
-			clusterList, err := utils.ListClusters(t.Context(), kubeclientset, "namespace")
-			require.NoError(t, err)
+			// settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "namespace")
+			// argoDB := db.NewDB("namespace", settingsMgr, r.KubeClientset)
+			// clusterList, err := argoDB.ListClusters(context.Background())
+			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace")
+			require.NoError(t, err, "Unexpected error")
 
 			appLog := log.WithFields(log.Fields{"app": app.Name, "appSet": ""})
 
 			appInputParam := app.DeepCopy()
 
-			err = r.removeFinalizerOnInvalidDestination(t.Context(), appSet, appInputParam, clusterList, appLog)
-			require.NoError(t, err)
+			err = r.removeFinalizerOnInvalidDestination(context.Background(), appSet, appInputParam, clusterList, appLog)
+			require.NoError(t, err, "Unexpected error")
 
 			retrievedApp := v1alpha1.Application{}
-			err = client.Get(t.Context(), crtclient.ObjectKeyFromObject(&app), &retrievedApp)
-			require.NoError(t, err)
+			err = client.Get(context.Background(), crtclient.ObjectKeyFromObject(&app), &retrievedApp)
+			require.NoError(t, err, "Unexpected error")
 
 			// App on the cluster should have the expected finalizers
 			assert.ElementsMatch(t, c.expectedFinalizers, retrievedApp.Finalizers)
@@ -1236,6 +1475,9 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	for _, c := range []struct {
@@ -1335,9 +1577,9 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-secret",
-					Namespace: "argocd",
+					Namespace: "namespace",
 					Labels: map[string]string{
-						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
 					},
 				},
 				Data: map[string][]byte{
@@ -1349,33 +1591,31 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 				},
 			}
 
-			kubeclientset := getDefaultTestClientSet(secret)
-			metrics := appsetmetrics.NewFakeAppsetMetrics()
-
-			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+			objects := append([]runtime.Object{}, secret)
+			kubeclientset := kubefake.NewSimpleClientset(objects...)
 
 			r := ApplicationSetReconciler{
 				Client:        client,
 				Scheme:        scheme,
 				Recorder:      record.NewFakeRecorder(10),
 				KubeClientset: kubeclientset,
-				Metrics:       metrics,
-				ArgoDB:        argodb,
 			}
-
-			clusterList, err := utils.ListClusters(t.Context(), kubeclientset, "argocd")
-			require.NoError(t, err)
+			// settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd")
+			// argoDB := db.NewDB("argocd", settingsMgr, r.KubeClientset)
+			// clusterList, err := argoDB.ListClusters(context.Background())
+			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace")
+			require.NoError(t, err, "Unexpected error")
 
 			appLog := log.WithFields(log.Fields{"app": app.Name, "appSet": ""})
 
 			appInputParam := app.DeepCopy()
 
-			err = r.removeFinalizerOnInvalidDestination(t.Context(), appSet, appInputParam, clusterList, appLog)
-			require.NoError(t, err)
+			err = r.removeFinalizerOnInvalidDestination(context.Background(), appSet, appInputParam, clusterList, appLog)
+			require.NoError(t, err, "Unexpected error")
 
 			retrievedApp := v1alpha1.Application{}
-			err = client.Get(t.Context(), crtclient.ObjectKeyFromObject(&app), &retrievedApp)
-			require.NoError(t, err)
+			err = client.Get(context.Background(), crtclient.ObjectKeyFromObject(&app), &retrievedApp)
+			require.NoError(t, err, "Unexpected error")
 
 			finalizerRemoved := len(retrievedApp.Finalizers) == 0
 
@@ -1390,6 +1630,9 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	for _, c := range []struct {
@@ -1432,27 +1675,25 @@ func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 			}
 
 			err := controllerutil.SetControllerReference(&appSet, &app, scheme)
-			require.NoError(t, err)
+			require.NoError(t, err, "Unexpected error")
 
 			initObjs := []crtclient.Object{&app, &appSet}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			r := ApplicationSetReconciler{
 				Client:        client,
 				Scheme:        scheme,
 				Recorder:      record.NewFakeRecorder(10),
 				KubeClientset: nil,
-				Metrics:       metrics,
 			}
 
-			err = r.removeOwnerReferencesOnDeleteAppSet(t.Context(), appSet)
-			require.NoError(t, err)
+			err = r.removeOwnerReferencesOnDeleteAppSet(context.Background(), appSet)
+			require.NoError(t, err, "Unexpected error")
 
 			retrievedApp := v1alpha1.Application{}
-			err = client.Get(t.Context(), crtclient.ObjectKeyFromObject(&app), &retrievedApp)
-			require.NoError(t, err)
+			err = client.Get(context.Background(), crtclient.ObjectKeyFromObject(&app), &retrievedApp)
+			require.NoError(t, err, "Unexpected error")
 
 			ownerReferencesRemoved := len(retrievedApp.OwnerReferences) == 0
 			assert.True(t, ownerReferencesRemoved)
@@ -1463,6 +1704,9 @@ func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 func TestCreateApplications(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -1484,8 +1728,7 @@ func TestCreateApplications(t *testing.T) {
 			apps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "namespace",
+						Name: "app1",
 					},
 				},
 			},
@@ -1540,8 +1783,7 @@ func TestCreateApplications(t *testing.T) {
 			apps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "namespace",
+						Name: "app1",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -1599,8 +1841,7 @@ func TestCreateApplications(t *testing.T) {
 			apps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app2",
-						Namespace: "namespace",
+						Name: "app2",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -1636,21 +1877,19 @@ func TestCreateApplications(t *testing.T) {
 			}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
 				Scheme:   scheme,
 				Recorder: record.NewFakeRecorder(len(initObjs) + len(c.expected)),
-				Metrics:  metrics,
 			}
 
-			err = r.createInCluster(t.Context(), log.NewEntry(log.StandardLogger()), c.appSet, c.apps)
+			err = r.createInCluster(context.TODO(), log.NewEntry(log.StandardLogger()), c.appSet, c.apps)
 			require.NoError(t, err)
 
 			for _, obj := range c.expected {
 				got := &v1alpha1.Application{}
-				_ = client.Get(t.Context(), crtclient.ObjectKey{
+				_ = client.Get(context.Background(), crtclient.ObjectKey{
 					Namespace: obj.Namespace,
 					Name:      obj.Name,
 				}, got)
@@ -1667,6 +1906,8 @@ func TestCreateApplications(t *testing.T) {
 func TestDeleteInCluster(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	for _, c := range []struct {
@@ -1778,23 +2019,21 @@ func TestDeleteInCluster(t *testing.T) {
 		}
 
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-		metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 		r := ApplicationSetReconciler{
 			Client:        client,
 			Scheme:        scheme,
 			Recorder:      record.NewFakeRecorder(len(initObjs) + len(c.expected)),
 			KubeClientset: kubefake.NewSimpleClientset(),
-			Metrics:       metrics,
 		}
 
-		err = r.deleteInCluster(t.Context(), log.NewEntry(log.StandardLogger()), c.appSet, c.desiredApps)
+		err = r.deleteInCluster(context.TODO(), log.NewEntry(log.StandardLogger()), c.appSet, c.desiredApps)
 		require.NoError(t, err)
 
 		// For each of the expected objects, verify they exist on the cluster
 		for _, obj := range c.expected {
 			got := &v1alpha1.Application{}
-			_ = client.Get(t.Context(), crtclient.ObjectKey{
+			_ = client.Get(context.Background(), crtclient.ObjectKey{
 				Namespace: obj.Namespace,
 				Name:      obj.Name,
 			}, got)
@@ -1808,12 +2047,12 @@ func TestDeleteInCluster(t *testing.T) {
 		// Verify each of the unexpected objs cannot be found
 		for _, obj := range c.notExpected {
 			got := &v1alpha1.Application{}
-			err := client.Get(t.Context(), crtclient.ObjectKey{
+			err := client.Get(context.Background(), crtclient.ObjectKey{
 				Namespace: obj.Namespace,
 				Name:      obj.Name,
 			}, got)
 
-			assert.EqualError(t, err, fmt.Sprintf("applications.argoproj.io %q not found", obj.Name))
+			assert.EqualError(t, err, fmt.Sprintf("applications.argoproj.io \"%s\" not found", obj.Name))
 		}
 	}
 }
@@ -1822,9 +2061,10 @@ func TestGetMinRequeueAfter(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
+	err = v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
-	metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 	generator := v1alpha1.ApplicationSetGenerator{
 		List:     &v1alpha1.ListGenerator{},
@@ -1832,15 +2072,15 @@ func TestGetMinRequeueAfter(t *testing.T) {
 		Clusters: &v1alpha1.ClusterGenerator{},
 	}
 
-	generatorMock0 := mocks.Generator{}
+	generatorMock0 := generatorMock{}
 	generatorMock0.On("GetRequeueAfter", &generator).
 		Return(generators.NoRequeueAfter)
 
-	generatorMock1 := mocks.Generator{}
+	generatorMock1 := generatorMock{}
 	generatorMock1.On("GetRequeueAfter", &generator).
 		Return(time.Duration(1) * time.Second)
 
-	generatorMock10 := mocks.Generator{}
+	generatorMock10 := generatorMock{}
 	generatorMock10.On("GetRequeueAfter", &generator).
 		Return(time.Duration(10) * time.Second)
 
@@ -1848,7 +2088,6 @@ func TestGetMinRequeueAfter(t *testing.T) {
 		Client:   client,
 		Scheme:   scheme,
 		Recorder: record.NewFakeRecorder(0),
-		Metrics:  metrics,
 		Generators: map[string]generators.Generator{
 			"List":     &generatorMock10,
 			"Git":      &generatorMock1,
@@ -1893,9 +2132,7 @@ func TestRequeueGeneratorFails(t *testing.T) {
 	generatorMock.On("GetTemplate", &generator).
 		Return(&v1alpha1.ApplicationSetTemplate{})
 	generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
-		Return([]map[string]any{}, errors.New("Simulated error generating params that could be related to an external service/API call"))
-
-	metrics := appsetmetrics.NewFakeAppsetMetrics()
+		Return([]map[string]interface{}{}, fmt.Errorf("Simulated error generating params that could be related to an external service/API call"))
 
 	r := ApplicationSetReconciler{
 		Client:   client,
@@ -1904,7 +2141,6 @@ func TestRequeueGeneratorFails(t *testing.T) {
 		Generators: map[string]generators.Generator{
 			"PullRequest": &generatorMock,
 		},
-		Metrics: metrics,
 	}
 
 	req := ctrl.Request{
@@ -1914,17 +2150,26 @@ func TestRequeueGeneratorFails(t *testing.T) {
 		},
 	}
 
-	res, err := r.Reconcile(t.Context(), req)
-	require.NoError(t, err)
+	res, err := r.Reconcile(context.Background(), req)
+	require.Error(t, err)
 	assert.Equal(t, ReconcileRequeueOnValidationError, res.RequeueAfter)
 }
 
 func TestValidateGeneratedApplications(t *testing.T) {
-	t.Parallel()
-
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
+
+	err = v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	client := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+	// Valid cluster
+	myCluster := v1alpha1.Cluster{
+		Server: "https://kubernetes.default.svc",
+		Name:   "my-cluster",
+	}
 
 	// Valid project
 	myProject := &v1alpha1.AppProject{
@@ -1946,13 +2191,11 @@ func TestValidateGeneratedApplications(t *testing.T) {
 		},
 	}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(myProject).Build()
-	metrics := appsetmetrics.NewFakeAppsetMetrics()
-
 	// Test a subset of the validations that 'validateGeneratedApplications' performs
 	for _, cc := range []struct {
 		name             string
 		apps             []v1alpha1.Application
+		expectedErrors   []string
 		validationErrors map[int]error
 	}{
 		{
@@ -1975,6 +2218,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
+			expectedErrors:   []string{},
 			validationErrors: map[int]error{},
 		},
 		{
@@ -1998,7 +2242,8 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			validationErrors: map[int]error{0: errors.New("application destination spec is invalid: application destination can't have both name and server defined: my-cluster my-server")},
+			expectedErrors:   []string{"application destination can't have both name and server defined"},
+			validationErrors: map[int]error{0: fmt.Errorf("application destination spec is invalid: application destination can't have both name and server defined: my-cluster my-server")},
 		},
 		{
 			name: "project mismatch should return error",
@@ -2020,7 +2265,8 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			validationErrors: map[int]error{0: errors.New("application references project DOES-NOT-EXIST which does not exist")},
+			expectedErrors:   []string{"application references project DOES-NOT-EXIST which does not exist"},
+			validationErrors: map[int]error{0: fmt.Errorf("application references project DOES-NOT-EXIST which does not exist")},
 		},
 		{
 			name: "valid app should return true",
@@ -2042,6 +2288,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
+			expectedErrors:   []string{},
 			validationErrors: map[int]error{},
 		},
 		{
@@ -2064,18 +2311,17 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			validationErrors: map[int]error{0: errors.New("application destination spec is invalid: there are no clusters with this name: nonexistent-cluster")},
+			expectedErrors:   []string{"there are no clusters with this name: nonexistent-cluster"},
+			validationErrors: map[int]error{0: fmt.Errorf("application destination spec is invalid: unable to find destination server: there are no clusters with this name: nonexistent-cluster")},
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
-			t.Parallel()
-
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-secret",
-					Namespace: "argocd",
+					Namespace: "namespace",
 					Labels: map[string]string{
-						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
 					},
 				},
 				Data: map[string][]byte{
@@ -2085,24 +2331,62 @@ func TestValidateGeneratedApplications(t *testing.T) {
 				},
 			}
 
-			kubeclientset := getDefaultTestClientSet(secret)
+			objects := append([]runtime.Object{}, secret)
+			kubeclientset := kubefake.NewSimpleClientset(objects...)
 
-			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+			argoDBMock := dbmocks.ArgoDB{}
+			argoDBMock.On("GetCluster", mock.Anything, "https://kubernetes.default.svc").Return(&myCluster, nil)
+			argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
+				myCluster,
+			}}, nil)
+
+			argoObjs := []runtime.Object{myProject}
+			for _, app := range cc.apps {
+				argoObjs = append(argoObjs, &app)
+			}
 
 			r := ApplicationSetReconciler{
-				Client:          client,
-				Scheme:          scheme,
-				Recorder:        record.NewFakeRecorder(1),
-				Generators:      map[string]generators.Generator{},
-				ArgoDB:          argodb,
-				ArgoCDNamespace: "namespace",
-				KubeClientset:   kubeclientset,
-				Metrics:         metrics,
+				Client:           client,
+				Scheme:           scheme,
+				Recorder:         record.NewFakeRecorder(1),
+				Generators:       map[string]generators.Generator{},
+				ArgoDB:           &argoDBMock,
+				ArgoCDNamespace:  "namespace",
+				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+				KubeClientset:    kubeclientset,
 			}
 
 			appSetInfo := v1alpha1.ApplicationSet{}
-			validationErrors, _ := r.validateGeneratedApplications(t.Context(), cc.apps, appSetInfo)
-			assert.Equal(t, cc.validationErrors, validationErrors)
+
+			validationErrors, _ := r.validateGeneratedApplications(context.TODO(), cc.apps, appSetInfo)
+			var errorMessages []string
+			for _, v := range validationErrors {
+				errorMessages = append(errorMessages, v.Error())
+			}
+
+			if len(errorMessages) == 0 {
+				assert.Empty(t, cc.expectedErrors, "Expected errors but none were seen")
+			} else {
+				// An error was returned: it should be expected
+				matched := false
+				for _, expectedErr := range cc.expectedErrors {
+					foundMatch := strings.Contains(strings.Join(errorMessages, ";"), expectedErr)
+					assert.True(t, foundMatch, "Unble to locate expected error: %s", cc.expectedErrors)
+					matched = matched || foundMatch
+				}
+				assert.True(t, matched, "An unexpected error occurrred: %v", err)
+				// validation message was returned: it should be expected
+				matched = false
+				foundMatch := reflect.DeepEqual(validationErrors, cc.validationErrors)
+				var message string
+				for _, v := range validationErrors {
+					message = v.Error()
+					break
+				}
+				assert.True(t, foundMatch, "Unble to locate validation message: %s", message)
+				matched = matched || foundMatch
+				assert.True(t, matched, "An unexpected error occurrred: %v", err)
+			}
 		})
 	}
 }
@@ -2110,6 +2394,8 @@ func TestValidateGeneratedApplications(t *testing.T) {
 func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	project := v1alpha1.AppProject{
@@ -2147,12 +2433,18 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 		},
 	}
 
-	kubeclientset := getDefaultTestClientSet()
+	kubeclientset := kubefake.NewSimpleClientset()
+	argoDBMock := dbmocks.ArgoDB{}
+	argoObjs := []runtime.Object{&project}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &project).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-	metrics := appsetmetrics.NewFakeAppsetMetrics()
-
-	argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
+	badCluster := v1alpha1.Cluster{Server: "https://bad-cluster", Name: "bad-cluster"}
+	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
+	argoDBMock.On("GetCluster", mock.Anything, "https://bad-cluster").Return(&badCluster, nil)
+	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
+		goodCluster,
+	}}, nil)
 
 	r := ApplicationSetReconciler{
 		Client:   client,
@@ -2162,11 +2454,11 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
-		ArgoDB:          argodb,
-		KubeClientset:   kubeclientset,
-		Policy:          v1alpha1.ApplicationsSyncPolicySync,
-		ArgoCDNamespace: "argocd",
-		Metrics:         metrics,
+		ArgoDB:           &argoDBMock,
+		ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+		KubeClientset:    kubeclientset,
+		Policy:           v1alpha1.ApplicationsSyncPolicySync,
+		ArgoCDNamespace:  "argocd",
 	}
 
 	req := ctrl.Request{
@@ -2177,19 +2469,19 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	}
 
 	// Verify that on validation error, no error is returned, but the object is requeued
-	res, err := r.Reconcile(t.Context(), req)
+	res, err := r.Reconcile(context.Background(), req)
 	require.NoError(t, err)
 	assert.Equal(t, ReconcileRequeueOnValidationError, res.RequeueAfter)
 
 	var app v1alpha1.Application
 
 	// make sure good app got created
-	err = r.Get(t.Context(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-project"}, &app)
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-project"}, &app)
 	require.NoError(t, err)
 	assert.Equal(t, "good-project", app.Name)
 
 	// make sure bad app was not created
-	err = r.Get(t.Context(), crtclient.ObjectKey{Namespace: "argocd", Name: "bad-project"}, &app)
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "bad-project"}, &app)
 	require.Error(t, err)
 }
 
@@ -2197,188 +2489,63 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
+	err = v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
 
-	testCases := []struct {
-		appset     v1alpha1.ApplicationSet
-		conditions []v1alpha1.ApplicationSetCondition
-		testfunc   func(t *testing.T, appset v1alpha1.ApplicationSet)
-	}{
-		{
-			appset: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Generators: []v1alpha1.ApplicationSetGenerator{
-						{List: &v1alpha1.ListGenerator{
-							Elements: []apiextensionsv1.JSON{{
-								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
-							}},
-						}},
-					},
-					Template: v1alpha1.ApplicationSetTemplate{},
-				},
-			},
-			conditions: []v1alpha1.ApplicationSetCondition{
-				{
-					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-					Message: "All applications have been generated successfully",
-					Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-				},
-			},
-			testfunc: func(t *testing.T, appset v1alpha1.ApplicationSet) {
-				t.Helper()
-				assert.Len(t, appset.Status.Conditions, 3)
-			},
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "name",
+			Namespace: "argocd",
 		},
-		{
-			appset: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Generators: []v1alpha1.ApplicationSetGenerator{
-						{List: &v1alpha1.ListGenerator{
-							Elements: []apiextensionsv1.JSON{{
-								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
-							}},
-						}},
-					},
-					Template: v1alpha1.ApplicationSetTemplate{},
-				},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{List: &v1alpha1.ListGenerator{
+					Elements: []apiextensionsv1.JSON{{
+						Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+					}},
+				}},
 			},
-			conditions: []v1alpha1.ApplicationSetCondition{
-				{
-					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-					Message: "All applications have been generated successfully",
-					Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-				},
-				{
-					Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
-					Message: "ApplicationSet Rollout Rollout started",
-					Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-				},
-			},
-			testfunc: func(t *testing.T, appset v1alpha1.ApplicationSet) {
-				t.Helper()
-				assert.Len(t, appset.Status.Conditions, 3)
-
-				isProgressingCondition := false
-
-				for _, condition := range appset.Status.Conditions {
-					if condition.Type == v1alpha1.ApplicationSetConditionRolloutProgressing {
-						isProgressingCondition = true
-						break
-					}
-				}
-
-				assert.False(t, isProgressingCondition, "no RolloutProgressing should be set for applicationsets that don't have rolling strategy")
-			},
+			Template: v1alpha1.ApplicationSetTemplate{},
 		},
-		{
-			appset: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Generators: []v1alpha1.ApplicationSetGenerator{
-						{List: &v1alpha1.ListGenerator{
-							Elements: []apiextensionsv1.JSON{{
-								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
-							}},
-						}},
-					},
-					Template: v1alpha1.ApplicationSetTemplate{},
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
-										{
-											Key:      "test",
-											Operator: "In",
-											Values:   []string{"test"},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			conditions: []v1alpha1.ApplicationSetCondition{
-				{
-					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-					Message: "All applications have been generated successfully",
-					Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-				},
-				{
-					Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
-					Message: "ApplicationSet Rollout Rollout started",
-					Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-				},
-			},
-			testfunc: func(t *testing.T, appset v1alpha1.ApplicationSet) {
-				t.Helper()
-				assert.Len(t, appset.Status.Conditions, 4)
+	}
 
-				isProgressingCondition := false
-
-				for _, condition := range appset.Status.Conditions {
-					if condition.Type == v1alpha1.ApplicationSetConditionRolloutProgressing {
-						isProgressingCondition = true
-						break
-					}
-				}
-
-				assert.True(t, isProgressingCondition, "RolloutProgressing should be set for rollout strategy appset")
-			},
-		},
+	appCondition := v1alpha1.ApplicationSetCondition{
+		Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+		Message: "All applications have been generated successfully",
+		Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
+		Status:  v1alpha1.ApplicationSetConditionStatusTrue,
 	}
 
 	kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+	argoDBMock := dbmocks.ArgoDB{}
+	argoObjs := []runtime.Object{}
 
-	for _, testCase := range testCases {
-		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testCase.appset).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).WithStatusSubresource(&testCase.appset).Build()
-		metrics := appsetmetrics.NewFakeAppsetMetrics()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 
-		argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
-
-		r := ApplicationSetReconciler{
-			Client:   client,
-			Scheme:   scheme,
-			Renderer: &utils.Render{},
-			Recorder: record.NewFakeRecorder(1),
-			Generators: map[string]generators.Generator{
-				"List": generators.NewListGenerator(),
-			},
-			ArgoDB:        argodb,
-			KubeClientset: kubeclientset,
-			Metrics:       metrics,
-		}
-
-		for _, condition := range testCase.conditions {
-			err = r.setApplicationSetStatusCondition(t.Context(), &testCase.appset, condition, true)
-			require.NoError(t, err)
-		}
-
-		testCase.testfunc(t, testCase.appset)
+	r := ApplicationSetReconciler{
+		Client:   client,
+		Scheme:   scheme,
+		Renderer: &utils.Render{},
+		Recorder: record.NewFakeRecorder(1),
+		Generators: map[string]generators.Generator{
+			"List": generators.NewListGenerator(),
+		},
+		ArgoDB:           &argoDBMock,
+		ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+		KubeClientset:    kubeclientset,
 	}
+
+	err = r.setApplicationSetStatusCondition(context.TODO(), &appSet, appCondition, true)
+	require.NoError(t, err)
+
+	assert.Len(t, appSet.Status.Conditions, 3)
 }
 
 func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alpha1.ApplicationsSyncPolicy, recordBuffer int, allowPolicyOverride bool) v1alpha1.Application {
-	t.Helper()
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	defaultProject := v1alpha1.AppProject{
@@ -2417,29 +2584,16 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		},
 	}
 
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-cluster",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
-			},
-		},
-		Data: map[string][]byte{
-			// Since this test requires the cluster to be an invalid destination, we
-			// always return a cluster named 'my-cluster2' (different from app 'my-cluster', above)
-			"name":   []byte("good-cluster"),
-			"server": []byte("https://good-cluster"),
-			"config": []byte("{\"username\":\"foo\",\"password\":\"foo\"}"),
-		},
-	}
+	kubeclientset := kubefake.NewSimpleClientset()
+	argoDBMock := dbmocks.ArgoDB{}
+	argoObjs := []runtime.Object{&defaultProject}
 
-	kubeclientset := getDefaultTestClientSet(secret)
-
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-	metrics := appsetmetrics.NewFakeAppsetMetrics()
-
-	argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
+	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
+	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
+		goodCluster,
+	}}, nil)
 
 	r := ApplicationSetReconciler{
 		Client:   client,
@@ -2449,12 +2603,12 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
-		ArgoDB:               argodb,
+		ArgoDB:               &argoDBMock,
 		ArgoCDNamespace:      "argocd",
+		ArgoAppClientset:     appclientset.NewSimpleClientset(argoObjs...),
 		KubeClientset:        kubeclientset,
 		Policy:               v1alpha1.ApplicationsSyncPolicySync,
 		EnablePolicyOverride: allowPolicyOverride,
-		Metrics:              metrics,
 	}
 
 	req := ctrl.Request{
@@ -2465,20 +2619,20 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	}
 
 	// Verify that on validation error, no error is returned, but the object is requeued
-	resCreate, err := r.Reconcile(t.Context(), req)
-	require.NoErrorf(t, err, "Reconcile failed with error: %v", err)
+	resCreate, err := r.Reconcile(context.Background(), req)
+	require.NoError(t, err)
 	assert.Equal(t, time.Duration(0), resCreate.RequeueAfter)
 
 	var app v1alpha1.Application
 
 	// make sure good app got created
-	err = r.Get(t.Context(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
 	require.NoError(t, err)
 	assert.Equal(t, "good-cluster", app.Name)
 
 	// Update resource
 	var retrievedApplicationSet v1alpha1.ApplicationSet
-	err = r.Get(t.Context(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &retrievedApplicationSet)
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &retrievedApplicationSet)
 	require.NoError(t, err)
 
 	retrievedApplicationSet.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
@@ -2488,13 +2642,13 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		Values: "global.test: test",
 	}
 
-	err = r.Update(t.Context(), &retrievedApplicationSet)
+	err = r.Client.Update(context.TODO(), &retrievedApplicationSet)
 	require.NoError(t, err)
 
-	resUpdate, err := r.Reconcile(t.Context(), req)
+	resUpdate, err := r.Reconcile(context.Background(), req)
 	require.NoError(t, err)
 
-	err = r.Get(t.Context(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
 	require.NoError(t, err)
 	assert.Equal(t, time.Duration(0), resUpdate.RequeueAfter)
 	assert.Equal(t, "good-cluster", app.Name)
@@ -2508,7 +2662,7 @@ func TestUpdateNotPerformedWithSyncPolicyCreateOnly(t *testing.T) {
 	app := applicationsUpdateSyncPolicyTest(t, applicationsSyncPolicy, 1, true)
 
 	assert.Nil(t, app.Spec.Source.Helm)
-	assert.Nil(t, app.Annotations)
+	assert.Nil(t, app.ObjectMeta.Annotations)
 }
 
 func TestUpdateNotPerformedWithSyncPolicyCreateDelete(t *testing.T) {
@@ -2517,7 +2671,7 @@ func TestUpdateNotPerformedWithSyncPolicyCreateDelete(t *testing.T) {
 	app := applicationsUpdateSyncPolicyTest(t, applicationsSyncPolicy, 1, true)
 
 	assert.Nil(t, app.Spec.Source.Helm)
-	assert.Nil(t, app.Annotations)
+	assert.Nil(t, app.ObjectMeta.Annotations)
 }
 
 func TestUpdatePerformedWithSyncPolicyCreateUpdate(t *testing.T) {
@@ -2526,8 +2680,8 @@ func TestUpdatePerformedWithSyncPolicyCreateUpdate(t *testing.T) {
 	app := applicationsUpdateSyncPolicyTest(t, applicationsSyncPolicy, 2, true)
 
 	assert.Equal(t, "global.test: test", app.Spec.Source.Helm.Values)
-	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.Annotations)
-	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.Labels)
+	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.ObjectMeta.Annotations)
+	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.ObjectMeta.Labels)
 }
 
 func TestUpdatePerformedWithSyncPolicySync(t *testing.T) {
@@ -2536,8 +2690,8 @@ func TestUpdatePerformedWithSyncPolicySync(t *testing.T) {
 	app := applicationsUpdateSyncPolicyTest(t, applicationsSyncPolicy, 2, true)
 
 	assert.Equal(t, "global.test: test", app.Spec.Source.Helm.Values)
-	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.Annotations)
-	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.Labels)
+	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.ObjectMeta.Annotations)
+	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.ObjectMeta.Labels)
 }
 
 func TestUpdatePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *testing.T) {
@@ -2546,14 +2700,15 @@ func TestUpdatePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *t
 	app := applicationsUpdateSyncPolicyTest(t, applicationsSyncPolicy, 2, false)
 
 	assert.Equal(t, "global.test: test", app.Spec.Source.Helm.Values)
-	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.Annotations)
-	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.Labels)
+	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.ObjectMeta.Annotations)
+	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.ObjectMeta.Labels)
 }
 
 func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alpha1.ApplicationsSyncPolicy, recordBuffer int, allowPolicyOverride bool) v1alpha1.ApplicationList {
-	t.Helper()
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	defaultProject := v1alpha1.AppProject{
@@ -2592,29 +2747,16 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		},
 	}
 
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-cluster",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
-			},
-		},
-		Data: map[string][]byte{
-			// Since this test requires the cluster to be an invalid destination, we
-			// always return a cluster named 'my-cluster2' (different from app 'my-cluster', above)
-			"name":   []byte("good-cluster"),
-			"server": []byte("https://good-cluster"),
-			"config": []byte("{\"username\":\"foo\",\"password\":\"foo\"}"),
-		},
-	}
+	kubeclientset := kubefake.NewSimpleClientset()
+	argoDBMock := dbmocks.ArgoDB{}
+	argoObjs := []runtime.Object{&defaultProject}
 
-	kubeclientset := getDefaultTestClientSet(secret)
-
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-	metrics := appsetmetrics.NewFakeAppsetMetrics()
-
-	argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
+	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
+	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
+		goodCluster,
+	}}, nil)
 
 	r := ApplicationSetReconciler{
 		Client:   client,
@@ -2624,12 +2766,12 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
-		ArgoDB:               argodb,
+		ArgoDB:               &argoDBMock,
 		ArgoCDNamespace:      "argocd",
+		ArgoAppClientset:     appclientset.NewSimpleClientset(argoObjs...),
 		KubeClientset:        kubeclientset,
 		Policy:               v1alpha1.ApplicationsSyncPolicySync,
 		EnablePolicyOverride: allowPolicyOverride,
-		Metrics:              metrics,
 	}
 
 	req := ctrl.Request{
@@ -2640,20 +2782,20 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	}
 
 	// Verify that on validation error, no error is returned, but the object is requeued
-	resCreate, err := r.Reconcile(t.Context(), req)
+	resCreate, err := r.Reconcile(context.Background(), req)
 	require.NoError(t, err)
 	assert.Equal(t, time.Duration(0), resCreate.RequeueAfter)
 
 	var app v1alpha1.Application
 
 	// make sure good app got created
-	err = r.Get(t.Context(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
 	require.NoError(t, err)
 	assert.Equal(t, "good-cluster", app.Name)
 
 	// Update resource
 	var retrievedApplicationSet v1alpha1.ApplicationSet
-	err = r.Get(t.Context(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &retrievedApplicationSet)
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &retrievedApplicationSet)
 	require.NoError(t, err)
 	retrievedApplicationSet.Spec.Generators = []v1alpha1.ApplicationSetGenerator{
 		{
@@ -2663,15 +2805,15 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		},
 	}
 
-	err = r.Update(t.Context(), &retrievedApplicationSet)
+	err = r.Client.Update(context.TODO(), &retrievedApplicationSet)
 	require.NoError(t, err)
 
-	resUpdate, err := r.Reconcile(t.Context(), req)
+	resUpdate, err := r.Reconcile(context.Background(), req)
 	require.NoError(t, err)
 
 	var apps v1alpha1.ApplicationList
 
-	err = r.List(t.Context(), &apps)
+	err = r.Client.List(context.TODO(), &apps)
 	require.NoError(t, err)
 	assert.Equal(t, time.Duration(0), resUpdate.RequeueAfter)
 
@@ -2699,7 +2841,7 @@ func TestDeletePerformedWithSyncPolicyCreateDelete(t *testing.T) {
 
 	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 3, true)
 
-	assert.NotNil(t, apps.Items[0].DeletionTimestamp)
+	assert.Empty(t, apps.Items)
 }
 
 func TestDeletePerformedWithSyncPolicySync(t *testing.T) {
@@ -2707,7 +2849,7 @@ func TestDeletePerformedWithSyncPolicySync(t *testing.T) {
 
 	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 3, true)
 
-	assert.NotNil(t, apps.Items[0].DeletionTimestamp)
+	assert.Empty(t, apps.Items)
 }
 
 func TestDeletePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *testing.T) {
@@ -2715,7 +2857,120 @@ func TestDeletePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *t
 
 	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 3, false)
 
-	assert.NotNil(t, apps.Items[0].DeletionTimestamp)
+	assert.Empty(t, apps.Items)
+}
+
+// Test app generation from a go template application set using a pull request generator
+func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
+	scheme := runtime.NewScheme()
+	client := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+	for _, cases := range []struct {
+		name        string
+		params      []map[string]interface{}
+		template    v1alpha1.ApplicationSetTemplate
+		expectedApp []v1alpha1.Application
+	}{
+		{
+			name: "Generate an application from a go template application set manifest using a pull request generator",
+			params: []map[string]interface{}{
+				{
+					"number":                                "1",
+					"branch":                                "branch1",
+					"branch_slug":                           "branchSlug1",
+					"head_sha":                              "089d92cbf9ff857a39e6feccd32798ca700fb958",
+					"head_short_sha":                        "089d92cb",
+					"branch_slugify_default":                "feat/a_really+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
+					"branch_slugify_smarttruncate_disabled": "feat/areallylongpullrequestnametotestargoslugificationandbranchnameshorteningfeature",
+					"branch_slugify_smarttruncate_enabled":  "feat/testwithsmarttruncateenabledramdomlonglistofcharacters",
+					"labels":                                []string{"label1"},
+				},
+			},
+			template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name: "AppSet-{{.branch}}-{{.number}}",
+					Labels: map[string]string{
+						"app1":         "{{index .labels 0}}",
+						"branch-test1": "AppSet-{{.branch_slugify_default | slugify }}",
+						"branch-test2": "AppSet-{{.branch_slugify_smarttruncate_disabled | slugify 49 false }}",
+						"branch-test3": "AppSet-{{.branch_slugify_smarttruncate_enabled | slugify 50 true }}",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Source: &v1alpha1.ApplicationSource{
+						RepoURL:        "https://testurl/testRepo",
+						TargetRevision: "{{.head_short_sha}}",
+					},
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "AppSet-{{.branch_slug}}-{{.head_sha}}",
+					},
+				},
+			},
+			expectedApp: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "AppSet-branch1-1",
+						Labels: map[string]string{
+							"app1":         "label1",
+							"branch-test1": "AppSet-feat-a-really-long-pull-request-name-to-test-argo",
+							"branch-test2": "AppSet-feat-areallylongpullrequestnametotestargoslugific",
+							"branch-test3": "AppSet-feat",
+						},
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://testurl/testRepo",
+							TargetRevision: "089d92cb",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "AppSet-branchSlug1-089d92cbf9ff857a39e6feccd32798ca700fb958",
+						},
+					},
+				},
+			},
+		},
+	} {
+		t.Run(cases.name, func(t *testing.T) {
+			generatorMock := generatorMock{}
+			generator := v1alpha1.ApplicationSetGenerator{
+				PullRequest: &v1alpha1.PullRequestGenerator{},
+			}
+
+			generatorMock.On("GenerateParams", &generator).
+				Return(cases.params, nil)
+
+			generatorMock.On("GetTemplate", &generator).
+				Return(&cases.template, nil)
+
+			appSetReconciler := ApplicationSetReconciler{
+				Client:   client,
+				Scheme:   scheme,
+				Recorder: record.NewFakeRecorder(1),
+				Generators: map[string]generators.Generator{
+					"PullRequest": &generatorMock,
+				},
+				Renderer:      &utils.Render{},
+				KubeClientset: kubefake.NewSimpleClientset(),
+			}
+
+			gotApp, _, _ := appSetReconciler.generateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					GoTemplate: true,
+					Generators: []v1alpha1.ApplicationSetGenerator{{
+						PullRequest: &v1alpha1.PullRequestGenerator{},
+					}},
+					Template: cases.template,
+				},
+			},
+			)
+			assert.EqualValues(t, cases.expectedApp[0].ObjectMeta.Name, gotApp[0].ObjectMeta.Name)
+			assert.EqualValues(t, cases.expectedApp[0].Spec.Source.TargetRevision, gotApp[0].Spec.Source.TargetRevision)
+			assert.EqualValues(t, cases.expectedApp[0].Spec.Destination.Namespace, gotApp[0].Spec.Destination.Namespace)
+			assert.True(t, collections.StringMapsEqual(cases.expectedApp[0].ObjectMeta.Labels, gotApp[0].ObjectMeta.Labels))
+		})
+	}
 }
 
 func TestPolicies(t *testing.T) {
@@ -2723,12 +2978,22 @@ func TestPolicies(t *testing.T) {
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
+	err = v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
 	defaultProject := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
 		Spec:       v1alpha1.AppProjectSpec{SourceRepos: []string{"*"}, Destinations: []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "https://kubernetes.default.svc"}}},
 	}
+	myCluster := v1alpha1.Cluster{
+		Server: "https://kubernetes.default.svc",
+		Name:   "my-cluster",
+	}
 
-	kubeclientset := getDefaultTestClientSet()
+	kubeclientset := kubefake.NewSimpleClientset()
+	argoDBMock := dbmocks.ArgoDB{}
+	argoDBMock.On("GetCluster", mock.Anything, "https://kubernetes.default.svc").Return(&myCluster, nil)
+	argoObjs := []runtime.Object{&defaultProject}
 
 	for _, c := range []struct {
 		name          string
@@ -2800,10 +3065,7 @@ func TestPolicies(t *testing.T) {
 				},
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-			metrics := appsetmetrics.NewFakeAppsetMetrics()
-
-			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
@@ -2813,11 +3075,11 @@ func TestPolicies(t *testing.T) {
 				Generators: map[string]generators.Generator{
 					"List": generators.NewListGenerator(),
 				},
-				ArgoDB:          argodb,
-				ArgoCDNamespace: "argocd",
-				KubeClientset:   kubeclientset,
-				Policy:          policy,
-				Metrics:         metrics,
+				ArgoDB:           &argoDBMock,
+				ArgoCDNamespace:  "argocd",
+				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+				KubeClientset:    kubeclientset,
+				Policy:           policy,
 			}
 
 			req := ctrl.Request{
@@ -2828,25 +3090,25 @@ func TestPolicies(t *testing.T) {
 			}
 
 			// Check if Application is created
-			res, err := r.Reconcile(t.Context(), req)
+			res, err := r.Reconcile(context.Background(), req)
 			require.NoError(t, err)
 			assert.Equal(t, time.Duration(0), res.RequeueAfter)
 
 			var app v1alpha1.Application
-			err = r.Get(t.Context(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
+			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
 			require.NoError(t, err)
 			assert.Equal(t, "value", app.Annotations["key"])
 
 			// Check if Application is updated
 			app.Annotations["key"] = "edited"
-			err = r.Update(t.Context(), &app)
+			err = r.Client.Update(context.TODO(), &app)
 			require.NoError(t, err)
 
-			res, err = r.Reconcile(t.Context(), req)
+			res, err = r.Reconcile(context.Background(), req)
 			require.NoError(t, err)
 			assert.Equal(t, time.Duration(0), res.RequeueAfter)
 
-			err = r.Get(t.Context(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
+			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
 			require.NoError(t, err)
 
 			if c.allowedUpdate {
@@ -2856,21 +3118,21 @@ func TestPolicies(t *testing.T) {
 			}
 
 			// Check if Application is deleted
-			err = r.Get(t.Context(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &appSet)
+			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &appSet)
 			require.NoError(t, err)
 			appSet.Spec.Generators[0] = v1alpha1.ApplicationSetGenerator{
 				List: &v1alpha1.ListGenerator{
 					Elements: []apiextensionsv1.JSON{},
 				},
 			}
-			err = r.Update(t.Context(), &appSet)
+			err = r.Client.Update(context.TODO(), &appSet)
 			require.NoError(t, err)
 
-			res, err = r.Reconcile(t.Context(), req)
+			res, err = r.Reconcile(context.Background(), req)
 			require.NoError(t, err)
 			assert.Equal(t, time.Duration(0), res.RequeueAfter)
 
-			err = r.Get(t.Context(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
+			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
 			require.NoError(t, err)
 			if c.allowedDelete {
 				assert.NotNil(t, app.DeletionTimestamp)
@@ -2885,8 +3147,12 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
+	err = v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
 
 	kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+	argoDBMock := dbmocks.ArgoDB{}
+	argoObjs := []runtime.Object{}
 
 	for _, cc := range []struct {
 		name                string
@@ -2960,9 +3226,6 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
-			metrics := appsetmetrics.NewFakeAppsetMetrics()
-
-			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
 
 			r := ApplicationSetReconciler{
 				Client:   client,
@@ -2972,12 +3235,12 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 				Generators: map[string]generators.Generator{
 					"List": generators.NewListGenerator(),
 				},
-				ArgoDB:        argodb,
-				KubeClientset: kubeclientset,
-				Metrics:       metrics,
+				ArgoDB:           &argoDBMock,
+				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+				KubeClientset:    kubeclientset,
 			}
 
-			err = r.setAppSetApplicationStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appStatuses)
+			err = r.setAppSetApplicationStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appStatuses)
 			require.NoError(t, err)
 
 			assert.Equal(t, cc.expectedAppStatuses, cc.appSet.Status.ApplicationStatus)
@@ -2990,8 +3253,10 @@ func TestBuildAppDependencyList(t *testing.T) {
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
+	err = v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
-	metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 	for _, cc := range []struct {
 		name            string
@@ -3721,20 +3986,21 @@ func TestBuildAppDependencyList(t *testing.T) {
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
-
-			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+			argoDBMock := dbmocks.ArgoDB{}
+			argoObjs := []runtime.Object{}
 
 			r := ApplicationSetReconciler{
-				Client:        client,
-				Scheme:        scheme,
-				Recorder:      record.NewFakeRecorder(1),
-				Generators:    map[string]generators.Generator{},
-				ArgoDB:        argodb,
-				KubeClientset: kubeclientset,
-				Metrics:       metrics,
+				Client:           client,
+				Scheme:           scheme,
+				Recorder:         record.NewFakeRecorder(1),
+				Generators:       map[string]generators.Generator{},
+				ArgoDB:           &argoDBMock,
+				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+				KubeClientset:    kubeclientset,
 			}
 
-			appDependencyList, appStepMap := r.buildAppDependencyList(log.NewEntry(log.StandardLogger()), cc.appSet, cc.apps)
+			appDependencyList, appStepMap, err := r.buildAppDependencyList(log.NewEntry(log.StandardLogger()), cc.appSet, cc.apps)
+			require.NoError(t, err, "expected no errors, but errors occurred")
 			assert.Equal(t, cc.expectedList, appDependencyList, "expected appDependencyList did not match actual")
 			assert.Equal(t, cc.expectedStepMap, appStepMap, "expected appStepMap did not match actual")
 		})
@@ -3746,8 +4012,10 @@ func TestBuildAppSyncMap(t *testing.T) {
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
+	err = v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
-	metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 	for _, cc := range []struct {
 		name              string
@@ -3765,17 +4033,8 @@ func TestBuildAppSyncMap(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 			},
@@ -3791,17 +4050,8 @@ func TestBuildAppSyncMap(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 			},
@@ -3823,17 +4073,8 @@ func TestBuildAppSyncMap(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 			},
@@ -3855,17 +4096,8 @@ func TestBuildAppSyncMap(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -3933,17 +4165,8 @@ func TestBuildAppSyncMap(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4011,17 +4234,8 @@ func TestBuildAppSyncMap(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4089,17 +4303,8 @@ func TestBuildAppSyncMap(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4167,17 +4372,8 @@ func TestBuildAppSyncMap(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4245,17 +4441,8 @@ func TestBuildAppSyncMap(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4389,20 +4576,21 @@ func TestBuildAppSyncMap(t *testing.T) {
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
-
-			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+			argoDBMock := dbmocks.ArgoDB{}
+			argoObjs := []runtime.Object{}
 
 			r := ApplicationSetReconciler{
-				Client:        client,
-				Scheme:        scheme,
-				Recorder:      record.NewFakeRecorder(1),
-				Generators:    map[string]generators.Generator{},
-				ArgoDB:        argodb,
-				KubeClientset: kubeclientset,
-				Metrics:       metrics,
+				Client:           client,
+				Scheme:           scheme,
+				Recorder:         record.NewFakeRecorder(1),
+				Generators:       map[string]generators.Generator{},
+				ArgoDB:           &argoDBMock,
+				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+				KubeClientset:    kubeclientset,
 			}
 
-			appSyncMap := r.buildAppSyncMap(cc.appSet, cc.appDependencyList, cc.appMap)
+			appSyncMap, err := r.buildAppSyncMap(context.TODO(), cc.appSet, cc.appDependencyList, cc.appMap)
+			require.NoError(t, err, "expected no errors, but errors occurred")
 			assert.Equal(t, cc.expectedMap, appSyncMap, "expected appSyncMap did not match actual")
 		})
 	}
@@ -4411,6 +4599,9 @@ func TestBuildAppSyncMap(t *testing.T) {
 func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	for _, cc := range []struct {
@@ -4429,17 +4620,8 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 			},
@@ -4455,17 +4637,8 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 			},
@@ -4487,9 +4660,6 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					},
 				},
 			},
-			appStepMap: map[string]int{
-				"app1": 0,
-			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
@@ -4509,17 +4679,8 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{},
@@ -4542,9 +4703,6 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					},
 				},
 			},
-			appStepMap: map[string]int{
-				"app1": 0,
-			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
@@ -4564,17 +4722,8 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4606,9 +4755,6 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					},
 				},
 			},
-			appStepMap: map[string]int{
-				"app1": 0,
-			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
@@ -4628,17 +4774,8 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4684,10 +4821,6 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					},
 				},
 			},
-			appStepMap: map[string]int{
-				"app1":             0,
-				"app2-multisource": 0,
-			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
@@ -4714,17 +4847,8 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4748,14 +4872,8 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						Health: v1alpha1.HealthStatus{
 							Status: health.HealthStatusProgressing,
 						},
-						Sync: v1alpha1.SyncStatus{
-							Revision: "Next",
-						},
 					},
 				},
-			},
-			appStepMap: map[string]int{
-				"app1": 0,
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
@@ -4776,17 +4894,8 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4814,14 +4923,10 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 							Phase: common.OperationRunning,
 						},
 						Sync: v1alpha1.SyncStatus{
-							Status:   v1alpha1.SyncStatusCodeSynced,
-							Revision: "Current",
+							Status: v1alpha1.SyncStatusCodeSynced,
 						},
 					},
 				},
-			},
-			appStepMap: map[string]int{
-				"app1": 0,
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
@@ -4842,17 +4947,8 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4880,14 +4976,10 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 							Phase: common.OperationSucceeded,
 						},
 						Sync: v1alpha1.SyncStatus{
-							Status:   v1alpha1.SyncStatusCodeSynced,
-							Revision: "Next",
+							Status: v1alpha1.SyncStatusCodeSynced,
 						},
 					},
 				},
-			},
-			appStepMap: map[string]int{
-				"app1": 0,
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
@@ -4908,17 +5000,8 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4946,14 +5029,10 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 							Phase: common.OperationSucceeded,
 						},
 						Sync: v1alpha1.SyncStatus{
-							Revision: "Current",
-							Status:   v1alpha1.SyncStatusCodeSynced,
+							Status: v1alpha1.SyncStatusCodeSynced,
 						},
 					},
 				},
-			},
-			appStepMap: map[string]int{
-				"app1": 0,
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
@@ -4974,17 +5053,8 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 			},
@@ -5033,17 +5103,8 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -5092,9 +5153,6 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					},
 				},
 			},
-			appStepMap: map[string]int{
-				"app1": 0,
-			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
@@ -5114,17 +5172,8 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -5173,14 +5222,79 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					},
 				},
 			},
-			appStepMap: map[string]int{
-				"app1": 0,
-			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
 					Message:         "Application resource completed a sync successfully, updating status from Pending to Progressing.",
 					Status:          "Progressing",
+					Step:            "1",
+					TargetRevisions: []string{"Next"},
+				},
+			},
+		},
+		{
+			name: "does not progresses a pending application with a successful sync triggered by controller with invalid revision to progressing",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							LastTransitionTime: &metav1.Time{
+								Time: time.Now().Add(time.Duration(-1) * time.Minute),
+							},
+							Message:         "",
+							Status:          "Pending",
+							Step:            "1",
+							TargetRevisions: []string{"Next"},
+						},
+					},
+				},
+			},
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Health: v1alpha1.HealthStatus{
+							Status: health.HealthStatusDegraded,
+						},
+						OperationState: &v1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+							StartedAt: metav1.Time{
+								Time: time.Now(),
+							},
+							Operation: v1alpha1.Operation{
+								InitiatedBy: v1alpha1.OperationInitiator{
+									Username:  "applicationset-controller",
+									Automated: true,
+								},
+							},
+							SyncResult: &v1alpha1.SyncOperationResult{
+								Revision: "Previous",
+							},
+						},
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "",
+					Status:          "Pending",
 					Step:            "1",
 					TargetRevisions: []string{"Next"},
 				},
@@ -5195,17 +5309,8 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -5240,83 +5345,10 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 							Phase: common.OperationSucceeded,
 						},
 						Sync: v1alpha1.SyncStatus{
-							Status:   v1alpha1.SyncStatusCodeSynced,
-							Revision: "Current",
+							Status: v1alpha1.SyncStatusCodeSynced,
 						},
 					},
 				},
-			},
-			appStepMap: map[string]int{
-				"app1": 0,
-			},
-			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
-				{
-					Application:     "app1",
-					Message:         "Application resource is already Healthy, updating status from Waiting to Healthy.",
-					Status:          "Healthy",
-					Step:            "1",
-					TargetRevisions: []string{"Current"},
-				},
-			},
-		},
-		{
-			name: "progresses a pending synced application with an old revision to progressing with the Current one",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application:     "app1",
-							Message:         "",
-							Status:          "Pending",
-							Step:            "1",
-							TargetRevisions: []string{"Old"},
-						},
-					},
-				},
-			},
-			apps: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-							SyncResult: &v1alpha1.SyncOperationResult{
-								Revision: "Current",
-							},
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status:    v1alpha1.SyncStatusCodeSynced,
-							Revisions: []string{"Current"},
-						},
-					},
-				},
-			},
-			appStepMap: map[string]int{
-				"app1": 0,
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
@@ -5331,23 +5363,22 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+			argoDBMock := dbmocks.ArgoDB{}
+			argoObjs := []runtime.Object{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
-			metrics := appsetmetrics.NewFakeAppsetMetrics()
-
-			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
 
 			r := ApplicationSetReconciler{
-				Client:        client,
-				Scheme:        scheme,
-				Recorder:      record.NewFakeRecorder(1),
-				Generators:    map[string]generators.Generator{},
-				ArgoDB:        argodb,
-				KubeClientset: kubeclientset,
-				Metrics:       metrics,
+				Client:           client,
+				Scheme:           scheme,
+				Recorder:         record.NewFakeRecorder(1),
+				Generators:       map[string]generators.Generator{},
+				ArgoDB:           &argoDBMock,
+				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+				KubeClientset:    kubeclientset,
 			}
 
-			appStatuses, err := r.updateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, cc.appStepMap)
+			appStatuses, err := r.updateApplicationSetApplicationStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, cc.appStepMap)
 
 			// opt out of testing the LastTransitionTime is accurate
 			for i := range appStatuses {
@@ -5363,6 +5394,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	for _, cc := range []struct {
@@ -6081,23 +6115,22 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+			argoDBMock := dbmocks.ArgoDB{}
+			argoObjs := []runtime.Object{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
-			metrics := appsetmetrics.NewFakeAppsetMetrics()
-
-			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
 
 			r := ApplicationSetReconciler{
-				Client:        client,
-				Scheme:        scheme,
-				Recorder:      record.NewFakeRecorder(1),
-				Generators:    map[string]generators.Generator{},
-				ArgoDB:        argodb,
-				KubeClientset: kubeclientset,
-				Metrics:       metrics,
+				Client:           client,
+				Scheme:           scheme,
+				Recorder:         record.NewFakeRecorder(1),
+				Generators:       map[string]generators.Generator{},
+				ArgoDB:           &argoDBMock,
+				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+				KubeClientset:    kubeclientset,
 			}
 
-			appStatuses, err := r.updateApplicationSetApplicationStatusProgress(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appSyncMap, cc.appStepMap)
+			appStatuses, err := r.updateApplicationSetApplicationStatusProgress(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appSyncMap, cc.appStepMap, cc.appMap)
 
 			// opt out of testing the LastTransitionTime is accurate
 			for i := range appStatuses {
@@ -6113,6 +6146,9 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 func TestUpdateResourceStatus(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	for _, cc := range []struct {
@@ -6293,23 +6329,22 @@ func TestUpdateResourceStatus(t *testing.T) {
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+			argoDBMock := dbmocks.ArgoDB{}
+			argoObjs := []runtime.Object{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&cc.appSet).WithObjects(&cc.appSet).Build()
-			metrics := appsetmetrics.NewFakeAppsetMetrics()
-
-			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
 
 			r := ApplicationSetReconciler{
-				Client:        client,
-				Scheme:        scheme,
-				Recorder:      record.NewFakeRecorder(1),
-				Generators:    map[string]generators.Generator{},
-				ArgoDB:        argodb,
-				KubeClientset: kubeclientset,
-				Metrics:       metrics,
+				Client:           client,
+				Scheme:           scheme,
+				Recorder:         record.NewFakeRecorder(1),
+				Generators:       map[string]generators.Generator{},
+				ArgoDB:           &argoDBMock,
+				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+				KubeClientset:    kubeclientset,
 			}
 
-			err := r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
+			err := r.updateResourcesStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
 
 			require.NoError(t, err, "expected no errors, but errors occurred")
 			assert.Equal(t, cc.expectedResources, cc.appSet.Status.Resources, "expected resources did not match actual")
@@ -6384,29 +6419,28 @@ func TestResourceStatusAreOrdered(t *testing.T) {
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+			argoDBMock := dbmocks.ArgoDB{}
+			argoObjs := []runtime.Object{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&cc.appSet).WithObjects(&cc.appSet).Build()
-			metrics := appsetmetrics.NewFakeAppsetMetrics()
-
-			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
 
 			r := ApplicationSetReconciler{
-				Client:        client,
-				Scheme:        scheme,
-				Recorder:      record.NewFakeRecorder(1),
-				Generators:    map[string]generators.Generator{},
-				ArgoDB:        argodb,
-				KubeClientset: kubeclientset,
-				Metrics:       metrics,
+				Client:           client,
+				Scheme:           scheme,
+				Recorder:         record.NewFakeRecorder(1),
+				Generators:       map[string]generators.Generator{},
+				ArgoDB:           &argoDBMock,
+				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+				KubeClientset:    kubeclientset,
 			}
 
-			err := r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
+			err := r.updateResourcesStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
 			require.NoError(t, err, "expected no errors, but errors occurred")
 
-			err = r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
+			err = r.updateResourcesStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
 			require.NoError(t, err, "expected no errors, but errors occurred")
 
-			err = r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
+			err = r.updateResourcesStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
 			require.NoError(t, err, "expected no errors, but errors occurred")
 
 			assert.Equal(t, cc.expectedResources, cc.appSet.Status.Resources, "expected resources did not match actual")
@@ -6414,13 +6448,13 @@ func TestResourceStatusAreOrdered(t *testing.T) {
 	}
 }
 
-func TestApplicationOwnsHandler(t *testing.T) {
+func TestOwnsHandler(t *testing.T) {
 	// progressive syncs do not affect create, delete, or generic
-	ownsHandler := getApplicationOwnsHandler(true)
+	ownsHandler := getOwnsHandlerPredicates(true)
 	assert.False(t, ownsHandler.CreateFunc(event.CreateEvent{}))
 	assert.True(t, ownsHandler.DeleteFunc(event.DeleteEvent{}))
 	assert.True(t, ownsHandler.GenericFunc(event.GenericEvent{}))
-	ownsHandler = getApplicationOwnsHandler(false)
+	ownsHandler = getOwnsHandlerPredicates(false)
 	assert.False(t, ownsHandler.CreateFunc(event.CreateEvent{}))
 	assert.True(t, ownsHandler.DeleteFunc(event.DeleteEvent{}))
 	assert.True(t, ownsHandler.GenericFunc(event.GenericEvent{}))
@@ -6600,7 +6634,7 @@ func TestApplicationOwnsHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ownsHandler = getApplicationOwnsHandler(tt.args.enableProgressiveSyncs)
+			ownsHandler = getOwnsHandlerPredicates(tt.args.enableProgressiveSyncs)
 			assert.Equalf(t, tt.want, ownsHandler.UpdateFunc(tt.args.e), "UpdateFunc(%v)", tt.args.e)
 		})
 	}
@@ -6670,263 +6704,9 @@ func TestMigrateStatus(t *testing.T) {
 				Client: client,
 			}
 
-			err := r.migrateStatus(t.Context(), &tc.appset)
+			err := r.migrateStatus(context.Background(), &tc.appset)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedStatus, tc.appset.Status)
-		})
-	}
-}
-
-func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
-	ownsHandler := getApplicationSetOwnsHandler()
-
-	buildAppSet := func(annotations map[string]string) *v1alpha1.ApplicationSet {
-		return &v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: annotations,
-			},
-		}
-	}
-
-	tests := []struct {
-		name      string
-		appSetOld crtclient.Object
-		appSetNew crtclient.Object
-		want      bool
-	}{
-		{
-			name: "Different Spec",
-			appSetOld: &v1alpha1.ApplicationSet{
-				Spec: v1alpha1.ApplicationSetSpec{
-					Generators: []v1alpha1.ApplicationSetGenerator{
-						{List: &v1alpha1.ListGenerator{}},
-					},
-				},
-			},
-			appSetNew: &v1alpha1.ApplicationSet{
-				Spec: v1alpha1.ApplicationSetSpec{
-					Generators: []v1alpha1.ApplicationSetGenerator{
-						{Git: &v1alpha1.GitGenerator{}},
-					},
-				},
-			},
-			want: true,
-		},
-		{
-			name:      "Different Annotations",
-			appSetOld: buildAppSet(map[string]string{"key1": "value1"}),
-			appSetNew: buildAppSet(map[string]string{"key1": "value2"}),
-			want:      true,
-		},
-		{
-			name: "Different Labels",
-			appSetOld: &v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"key1": "value1"},
-				},
-			},
-			appSetNew: &v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"key1": "value2"},
-				},
-			},
-			want: true,
-		},
-		{
-			name: "Different Finalizers",
-			appSetOld: &v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Finalizers: []string{"finalizer1"},
-				},
-			},
-			appSetNew: &v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Finalizers: []string{"finalizer2"},
-				},
-			},
-			want: true,
-		},
-		{
-			name: "No Changes",
-			appSetOld: &v1alpha1.ApplicationSet{
-				Spec: v1alpha1.ApplicationSetSpec{
-					Generators: []v1alpha1.ApplicationSetGenerator{
-						{List: &v1alpha1.ListGenerator{}},
-					},
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{"key1": "value1"},
-					Labels:      map[string]string{"key1": "value1"},
-					Finalizers:  []string{"finalizer1"},
-				},
-			},
-			appSetNew: &v1alpha1.ApplicationSet{
-				Spec: v1alpha1.ApplicationSetSpec{
-					Generators: []v1alpha1.ApplicationSetGenerator{
-						{List: &v1alpha1.ListGenerator{}},
-					},
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{"key1": "value1"},
-					Labels:      map[string]string{"key1": "value1"},
-					Finalizers:  []string{"finalizer1"},
-				},
-			},
-			want: false,
-		},
-		{
-			name: "annotation removed",
-			appSetOld: buildAppSet(map[string]string{
-				argocommon.AnnotationApplicationSetRefresh: "true",
-			}),
-			appSetNew: buildAppSet(map[string]string{}),
-			want:      false,
-		},
-		{
-			name: "annotation not removed",
-			appSetOld: buildAppSet(map[string]string{
-				argocommon.AnnotationApplicationSetRefresh: "true",
-			}),
-			appSetNew: buildAppSet(map[string]string{
-				argocommon.AnnotationApplicationSetRefresh: "true",
-			}),
-			want: false,
-		},
-		{
-			name:      "annotation added",
-			appSetOld: buildAppSet(map[string]string{}),
-			appSetNew: buildAppSet(map[string]string{
-				argocommon.AnnotationApplicationSetRefresh: "true",
-			}),
-			want: true,
-		},
-		{
-			name:      "old object is not an appset",
-			appSetOld: &v1alpha1.Application{},
-			appSetNew: buildAppSet(map[string]string{}),
-			want:      false,
-		},
-		{
-			name:      "new object is not an appset",
-			appSetOld: buildAppSet(map[string]string{}),
-			appSetNew: &v1alpha1.Application{},
-			want:      false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			requeue := ownsHandler.UpdateFunc(event.UpdateEvent{
-				ObjectOld: tt.appSetOld,
-				ObjectNew: tt.appSetNew,
-			})
-			assert.Equalf(t, tt.want, requeue, "ownsHandler.UpdateFunc(%v, %v)", tt.appSetOld, tt.appSetNew)
-		})
-	}
-}
-
-func TestApplicationSetOwnsHandlerGeneric(t *testing.T) {
-	ownsHandler := getApplicationSetOwnsHandler()
-	tests := []struct {
-		name string
-		obj  crtclient.Object
-		want bool
-	}{
-		{
-			name: "Object is ApplicationSet",
-			obj:  &v1alpha1.ApplicationSet{},
-			want: true,
-		},
-		{
-			name: "Object is not ApplicationSet",
-			obj:  &v1alpha1.Application{},
-			want: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			requeue := ownsHandler.GenericFunc(event.GenericEvent{
-				Object: tt.obj,
-			})
-			assert.Equalf(t, tt.want, requeue, "ownsHandler.GenericFunc(%v)", tt.obj)
-		})
-	}
-}
-
-func TestApplicationSetOwnsHandlerCreate(t *testing.T) {
-	ownsHandler := getApplicationSetOwnsHandler()
-	tests := []struct {
-		name string
-		obj  crtclient.Object
-		want bool
-	}{
-		{
-			name: "Object is ApplicationSet",
-			obj:  &v1alpha1.ApplicationSet{},
-			want: true,
-		},
-		{
-			name: "Object is not ApplicationSet",
-			obj:  &v1alpha1.Application{},
-			want: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			requeue := ownsHandler.CreateFunc(event.CreateEvent{
-				Object: tt.obj,
-			})
-			assert.Equalf(t, tt.want, requeue, "ownsHandler.CreateFunc(%v)", tt.obj)
-		})
-	}
-}
-
-func TestApplicationSetOwnsHandlerDelete(t *testing.T) {
-	ownsHandler := getApplicationSetOwnsHandler()
-	tests := []struct {
-		name string
-		obj  crtclient.Object
-		want bool
-	}{
-		{
-			name: "Object is ApplicationSet",
-			obj:  &v1alpha1.ApplicationSet{},
-			want: true,
-		},
-		{
-			name: "Object is not ApplicationSet",
-			obj:  &v1alpha1.Application{},
-			want: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			requeue := ownsHandler.DeleteFunc(event.DeleteEvent{
-				Object: tt.obj,
-			})
-			assert.Equalf(t, tt.want, requeue, "ownsHandler.DeleteFunc(%v)", tt.obj)
-		})
-	}
-}
-
-func TestShouldRequeueForApplicationSet(t *testing.T) {
-	type args struct {
-		appSetOld *v1alpha1.ApplicationSet
-		appSetNew *v1alpha1.ApplicationSet
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{name: "NilAppSet", args: args{appSetNew: &v1alpha1.ApplicationSet{}, appSetOld: nil}, want: false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, shouldRequeueForApplicationSet(tt.args.appSetOld, tt.args.appSetNew), "shouldRequeueForApplicationSet(%v, %v)", tt.args.appSetOld, tt.args.appSetNew)
 		})
 	}
 }

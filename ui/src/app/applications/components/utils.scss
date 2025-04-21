@@ -27,19 +27,3 @@
 .radio-button {
     margin-right: 0.1em;       
 }
-
-i.utils-health-status-icon {
-    min-width: 13px;
-    text-align: center;
-}
-
-.status-button {
-    display: inline;
-    border-radius: 5px;
-    vertical-align: middle;
-    padding: 2px;
-    border: 1px solid $argo-color-gray-5;
-    &:hover {
-        background-color: $argo-color-gray-4;
-    }
-}

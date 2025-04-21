@@ -22,8 +22,8 @@ As an example, imagine that we have two clusters:
 
 And our application YAMLs are defined in a Git repository:
 
-- [Argo Workflows controller](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-directory/cluster-addons/argo-workflows)
-- [Prometheus operator](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-directory/cluster-addons/prometheus-operator)
+- Argo Workflows controller (examples/git-generator-directory/cluster-addons/argo-workflows)
+- Prometheus operator (/examples/git-generator-directory/cluster-addons/prometheus-operator)
 
 Our goal is to deploy both applications onto both clusters, and, more generally, in the future to automatically deploy new applications in the Git repository, and to new clusters defined within Argo CD, as well.
 
@@ -420,3 +420,14 @@ For example, the below example would be invalid (cluster-generator must come aft
                   revision: HEAD
                   files:
                     - path: "examples/git-generator-files-discovery/cluster-config/engineering/{{.name}}**/config.json" # {{.name}} is produced by cluster generator
+
+1. When using a Matrix generator nested inside another Matrix or Merge generator, [Post Selectors](Generators-Post-Selector.md) for this nested generator's generators will only be applied when enabled via `spec.applyNestedSelectors`. You may also need to enable this even if your Post Selectors are not within the nested matrix or Merge generator, but are instead a sibling of a nested Matrix or Merge generator.
+
+        - matrix:
+            generators:
+              - matrix:
+                  generators:
+                    - list
+                        elements:
+                          - # (...)
+                      selector: { } # Only applied when applyNestedSelectors is true

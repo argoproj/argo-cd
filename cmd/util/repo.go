@@ -3,18 +3,18 @@ package util
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/common"
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 type RepoOptions struct {
 	Repo                           appsv1.Repository
 	Upsert                         bool
-	SshPrivateKeyPath              string //nolint:revive //FIXME(var-naming)
+	SshPrivateKeyPath              string
 	InsecureIgnoreHostKey          bool
 	InsecureSkipServerVerification bool
-	TlsClientCertPath              string //nolint:revive //FIXME(var-naming)
-	TlsClientCertKeyPath           string //nolint:revive //FIXME(var-naming)
+	TlsClientCertPath              string
+	TlsClientCertKeyPath           string
 	EnableLfs                      bool
 	EnableOci                      bool
 	GithubAppId                    int64
@@ -22,10 +22,8 @@ type RepoOptions struct {
 	GithubAppPrivateKeyPath        string
 	GitHubAppEnterpriseBaseURL     string
 	Proxy                          string
-	NoProxy                        string
 	GCPServiceAccountKeyPath       string
-	ForceHttpBasicAuth             bool //nolint:revive //FIXME(var-naming)
-	UseAzureWorkloadIdentity       bool
+	ForceHttpBasicAuth             bool
 }
 
 func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
@@ -34,7 +32,6 @@ func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
 	command.Flags().StringVar(&opts.Repo.Project, "project", "", "project of the repository")
 	command.Flags().StringVar(&opts.Repo.Username, "username", "", "username to the repository")
 	command.Flags().StringVar(&opts.Repo.Password, "password", "", "password to the repository")
-	command.Flags().StringVar(&opts.Repo.BearerToken, "bearer-token", "", "bearer token to the Git BitBucket Data Center repository")
 	command.Flags().StringVar(&opts.SshPrivateKeyPath, "ssh-private-key-path", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
 	command.Flags().StringVar(&opts.TlsClientCertPath, "tls-client-cert-path", "", "path to the TLS client cert (must be PEM format)")
 	command.Flags().StringVar(&opts.TlsClientCertKeyPath, "tls-client-cert-key-path", "", "path to the TLS client cert's key path (must be PEM format)")
@@ -47,8 +44,6 @@ func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
 	command.Flags().StringVar(&opts.GithubAppPrivateKeyPath, "github-app-private-key-path", "", "private key of the GitHub Application")
 	command.Flags().StringVar(&opts.GitHubAppEnterpriseBaseURL, "github-app-enterprise-base-url", "", "base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3")
 	command.Flags().StringVar(&opts.Proxy, "proxy", "", "use proxy to access repository")
-	command.Flags().StringVar(&opts.NoProxy, "no-proxy", "", "don't access these targets via proxy")
 	command.Flags().StringVar(&opts.GCPServiceAccountKeyPath, "gcp-service-account-key-path", "", "service account key for the Google Cloud Platform")
 	command.Flags().BoolVar(&opts.ForceHttpBasicAuth, "force-http-basic-auth", false, "whether to force use of basic auth when connecting repository via HTTP")
-	command.Flags().BoolVar(&opts.UseAzureWorkloadIdentity, "use-azure-workload-identity", false, "whether to use azure workload identity for authentication")
 }

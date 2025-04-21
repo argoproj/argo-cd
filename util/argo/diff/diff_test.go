@@ -7,12 +7,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	testutil "github.com/argoproj/argo-cd/v3/test"
-	argo "github.com/argoproj/argo-cd/v3/util/argo/diff"
-	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
-	"github.com/argoproj/argo-cd/v3/util/argo/testdata"
-	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	testutil "github.com/argoproj/argo-cd/v2/test"
+	argo "github.com/argoproj/argo-cd/v2/util/argo/diff"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 )
 
 func TestStateDiff(t *testing.T) {
@@ -147,12 +147,12 @@ func TestStateDiff(t *testing.T) {
 			replicas, found, err := unstructured.NestedFloat64(normalized.Object, "spec", "replicas")
 			require.NoError(t, err)
 			assert.True(t, found)
-			assert.InEpsilon(t, float64(tc.expectedNormalizedReplicas), replicas, 0.0001)
+			assert.Equal(t, float64(tc.expectedNormalizedReplicas), replicas)
 			predicted := testutil.YamlToUnstructured(string(result.PredictedLive))
 			predictedReplicas, found, err := unstructured.NestedFloat64(predicted.Object, "spec", "replicas")
 			require.NoError(t, err)
 			assert.True(t, found)
-			assert.InEpsilon(t, float64(tc.expectedPredictedReplicas), predictedReplicas, 0.0001)
+			assert.Equal(t, float64(tc.expectedPredictedReplicas), predictedReplicas)
 		})
 	}
 }
@@ -201,7 +201,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 		assert.Equal(t, f.trackingMethod, diffConfig.TrackingMethod())
 		assert.Equal(t, f.noCache, diffConfig.NoCache())
 		assert.Equal(t, f.ignoreRoles, diffConfig.IgnoreAggregatedRoles())
-		assert.Empty(t, diffConfig.AppName())
+		assert.Equal(t, "", diffConfig.AppName())
 		assert.Nil(t, diffConfig.StateCache())
 	})
 	t.Run("will initialize ignore differences if nil is passed", func(t *testing.T) {

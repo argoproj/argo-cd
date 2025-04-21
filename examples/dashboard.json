@@ -1508,8 +1508,7 @@
           "fieldConfig": {
             "defaults": {
               "links": [],
-              "unitScale": true,
-              "unit": "bytes"
+              "unitScale": true
             },
             "overrides": []
           },
@@ -1806,6 +1805,7 @@
       "title": "Controller Telemetry",
       "type": "row"
     },
+    
     {
       "collapsed": true,
       "datasource": {
@@ -1830,8 +1830,7 @@
           "fieldConfig": {
             "defaults": {
               "links": [],
-              "unitScale": true,
-              "unit": "bytes"
+              "unitScale": true
             },
             "overrides": []
           },
@@ -2844,14 +2843,6 @@
           "datasource": {
             "uid": "$datasource"
           },
-          "fieldConfig": {
-            "defaults": {
-              "links": [],
-              "unitScale": true,
-              "unit": "bytes"
-            },
-            "overrides": []
-          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
@@ -2892,7 +2883,7 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}",
+              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-repo-server-metrics\",namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{pod}}",
@@ -2977,7 +2968,7 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "go_goroutines{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}",
+              "expr": "go_goroutines{job=\"argocd-repo-server-metrics\",namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{pod}}",
@@ -3049,8 +3040,7 @@
           },
           "fieldConfig": {
             "defaults": {
-              "unitScale": true,
-              "unit": "bytes"
+              "unitScale": true
             },
             "overrides": []
           },
@@ -3280,7 +3270,7 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "go_gc_duration_seconds{job=\"argocd-server-metrics\", quantile=\"1\", namespace=~\"$namespace\"}",
+              "expr": "go_gc_duration_seconds{job=\"argocd-repo-server-metrics\", quantile=\"1\", namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 2,
               "legendFormat": "{{pod}}",
@@ -4024,7 +4014,7 @@
       "collapsed": true,
       "datasource": {
         "type": "prometheus",
-        "uid": "$datasource"
+        "uid": "prometheus"
       },
       "gridPos": {
         "h": 1,
@@ -4041,7 +4031,7 @@
           "dashes": false,
           "datasource": {
             "type": "prometheus",
-            "uid": "$datasource"
+            "uid": "prometheus"
           },
           "fieldConfig": {
             "defaults": {
@@ -4088,7 +4078,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "$datasource"
+                "uid": "prometheus"
               },
               "expr": "sum(increase(argocd_redis_request_total{namespace=~\"$namespace\"}[$interval])) by (failed)",
               "refId": "A"
@@ -4129,7 +4119,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "$datasource"
+            "uid": "prometheus"
           },
           "refId": "A"
         }
