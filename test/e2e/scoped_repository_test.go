@@ -3,15 +3,16 @@ package e2e
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
-	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
+
+	"github.com/stretchr/testify/assert"
+
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
-	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	projectFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/project"
 	repoFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestCreateRepositoryWithProject(t *testing.T) {
@@ -232,49 +233,40 @@ git         https://github.com/argoproj/argo-cd.git  false     false  false  fal
 		})
 }
 
-func TestCannotAccessProjectScopedRepoWithInvalidCreds(t *testing.T) {
-	// Create project A with valid credentials
+func TestCreateRepoWithSameURLInTwoProjects(t *testing.T) {
 	projectFixture.Given(t).
 		When().
-		Name("project-a").
+		Name("project-one").
 		Create().
 		Then()
 
-	Given(t).
-		Project("project-a").
-		Path(fixture.GuestbookPath).
-		And(func() {
-			// Add repository with valid credentials to project A
-			_, err := fixture.RunCli("repo", "add",
-				fixture.RepoURL(fixture.RepoURLTypeHTTPS),
-				"--project", "project-a",
-				"--username", fixture.GitUsername,
-				"--password", fixture.GitPassword,
-				"--insecure-skip-server-verification")
-			require.NoError(t, err)
-		}).
-		When().
-		CreateApp().
-		Then().
-		Expect(Success(""))
-	// Restart server to test cache behavior
-	fixture.RestartAPIServer(t)
-
-	// Create project B explicitly
 	projectFixture.Given(t).
 		When().
-		Name("project-b").
+		Name("project-two").
 		Create().
 		Then()
 
-	// Create project B and try to use the same repo without credentials
-	Given(t).
-		Project("project-b").
-		RepoURLType(fixture.RepoURLTypeHTTPS).
-		Path(fixture.GuestbookPath).
+	path := "https://github.com/argoproj/argo-cd.git"
+
+	// Create repository in first project
+	repoFixture.GivenWithSameState(t).
 		When().
-		IgnoreErrors().
-		CreateApp().
+		Path(path).
+		Project("project-one").
+		Create().
 		Then().
-		Expect(Error("", "repository not accessible"))
+		And(func(r *Repository, _ error) {
+			assert.Equal(t, r.Repo, path)
+		})
+
+	// Create repository with same URL in second project
+	repoFixture.GivenWithSameState(t).
+		When().
+		Path(path).
+		Project("project-two").
+		Create().
+		Then().
+		And(func(r *Repository, _ error) {
+			assert.Equal(t, r.Repo, path)
+		})
 }

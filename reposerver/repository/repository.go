@@ -1312,12 +1312,7 @@ func getResolvedRefValueFile(
 	gitRepoPaths io.TempPaths,
 ) (pathutil.ResolvedFilePath, error) {
 	pathStrings := strings.Split(rawValueFile, "/")
-
-	keyData, err := json.Marshal(map[string]string{"url": git.NormalizeGitURL(refSourceRepo)})
-	if err != nil {
-		return "", err
-	}
-	repoPath := gitRepoPaths.GetPathIfExists(string(keyData))
+	repoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(refSourceRepo))
 	if repoPath == "" {
 		return "", fmt.Errorf("failed to find repo %q", refSourceRepo)
 	}
@@ -2383,11 +2378,7 @@ func fileParameters(q *apiclient.RepoServerAppDetailsQuery) []v1alpha1.HelmFileP
 }
 
 func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (git.Client, error) {
-	keyData, err := json.Marshal(map[string]string{"url": git.NormalizeGitURL(repo.Repo)})
-	if err != nil {
-		return nil, err
-	}
-	repoPath, err := s.gitRepoPaths.GetPath(string(keyData))
+	repoPath, err := s.gitRepoPaths.GetPath(git.NormalizeGitURL(repo.Repo))
 	if err != nil {
 		return nil, err
 	}

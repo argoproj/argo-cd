@@ -126,10 +126,10 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 			chart:    {{Version: "1.0.0"}, {Version: version}},
 			oobChart: {{Version: "1.0.0"}, {Version: version}},
 		}}, nil)
-		helmClient.On("ExtractChart", chart, version, "", false, int64(0), false).Return("./testdata/my-chart", io.NopCloser, nil)
-		helmClient.On("ExtractChart", oobChart, version, "", false, int64(0), false).Return("./testdata2/out-of-bounds-chart", io.NopCloser, nil)
-		helmClient.On("CleanChartCache", chart, version, "").Return(nil)
-		helmClient.On("CleanChartCache", oobChart, version, "").Return(nil)
+		helmClient.On("ExtractChart", chart, version, false, int64(0), false).Return("./testdata/my-chart", io.NopCloser, nil)
+		helmClient.On("ExtractChart", oobChart, version, false, int64(0), false).Return("./testdata2/out-of-bounds-chart", io.NopCloser, nil)
+		helmClient.On("CleanChartCache", chart, version).Return(nil)
+		helmClient.On("CleanChartCache", oobChart, version).Return(nil)
 		helmClient.On("DependencyBuild").Return(nil)
 
 		paths.On("Add", mock.Anything, mock.Anything).Return(root, nil)
