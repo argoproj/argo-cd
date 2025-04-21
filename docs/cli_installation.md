@@ -51,15 +51,19 @@ rm argocd-linux-amd64
 You should now be able to run `argocd` commands.
 
 
-## Mac
+## Mac (Apple Silicon)
 
-### Homebrew
+### Install via Homebrew or cURL
+
+You can install the CLI using `Homebrew` or a `cURL` command:
+
+#### Homebrew
 
 ```bash
 brew install argocd
 ```
 
-### Download With Curl
+#### Download With cURL
 
 You can view the latest version of Argo CD at the link above or run the following command to grab the version:
 
