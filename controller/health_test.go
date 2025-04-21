@@ -16,9 +16,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/lua"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/lua"
 )
 
 var (
@@ -109,7 +109,6 @@ func TestSetApplicationHealth_ResourceHealthNotPersisted(t *testing.T) {
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, false)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
-	assert.NotNil(t, healthStatus.LastTransitionTime)
 
 	assert.Nil(t, resourceStatuses[0].Health)
 }

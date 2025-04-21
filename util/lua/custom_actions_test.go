@@ -15,8 +15,9 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 
-	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/cli"
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 type testNormalizer struct{}
@@ -25,8 +26,9 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 	if un == nil {
 		return nil
 	}
-	if un.GetKind() == "Job" {
-		err := unstructured.SetNestedField(un.Object, map[string]any{"name": "not sure why this works"}, "metadata")
+	switch un.GetKind() {
+	case "Job":
+		err := unstructured.SetNestedField(un.Object, map[string]interface{}{"name": "not sure why this works"}, "metadata")
 		if err != nil {
 			return fmt.Errorf("failed to normalize Job: %w", err)
 		}
@@ -102,7 +104,7 @@ type IndividualActionTest struct {
 }
 
 func TestLuaResourceActionsScript(t *testing.T) {
-	err := filepath.Walk("../../resource_customizations", func(path string, _ os.FileInfo, err error) error {
+	err := filepath.Walk("../../resource_customizations", func(path string, f os.FileInfo, err error) error {
 		if !strings.Contains(path, "action_test.yaml") {
 			return nil
 		}
@@ -115,12 +117,12 @@ func TestLuaResourceActionsScript(t *testing.T) {
 		require.NoError(t, err)
 		for i := range resourceTest.DiscoveryTests {
 			test := resourceTest.DiscoveryTests[i]
-			testName := "discovery/" + test.InputPath
+			testName := fmt.Sprintf("discovery/%s", test.InputPath)
 			t.Run(testName, func(t *testing.T) {
 				vm := VM{
 					UseOpenLibs: true,
 				}
-				obj := getObj(t, filepath.Join(dir, test.InputPath))
+				obj := getObj(filepath.Join(dir, test.InputPath))
 				discoveryLua, err := vm.GetResourceActionDiscovery(obj)
 				require.NoError(t, err)
 				result, err := vm.ExecuteResourceActionDiscovery(obj, discoveryLua)
@@ -141,7 +143,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 					// privileges that API server has.
 					// UseOpenLibs: true,
 				}
-				sourceObj := getObj(t, filepath.Join(dir, test.InputPath))
+				sourceObj := getObj(filepath.Join(dir, test.InputPath))
 				action, err := vm.GetResourceAction(sourceObj, test.Action)
 
 				require.NoError(t, err)
@@ -164,8 +166,9 @@ func TestLuaResourceActionsScript(t *testing.T) {
 						// TODO: maybe this should use a normalizer function instead of hard-coding the resource specifics here
 						if (result.GetKind() == "Job" && sourceObj.GetKind() == "CronJob") || (result.GetKind() == "Workflow" && (sourceObj.GetKind() == "CronWorkflow" || sourceObj.GetKind() == "WorkflowTemplate")) {
 							return u.GroupVersionKind() == result.GroupVersionKind() && strings.HasPrefix(u.GetName(), sourceObj.GetName()) && u.GetNamespace() == result.GetNamespace()
+						} else {
+							return u.GroupVersionKind() == result.GroupVersionKind() && u.GetName() == result.GetName() && u.GetNamespace() == result.GetNamespace()
 						}
-						return u.GroupVersionKind() == result.GroupVersionKind() && u.GetName() == result.GetName() && u.GetNamespace() == result.GetNamespace()
 					})
 
 					assert.NotNil(t, expectedObj)
@@ -174,9 +177,9 @@ func TestLuaResourceActionsScript(t *testing.T) {
 					// No default case since a not supported operation would have failed upon unmarshaling earlier
 					case PatchOperation:
 						// Patching is only allowed for the source resource, so the GVK + name + ns must be the same as the impacted resource
-						assert.Equal(t, sourceObj.GroupVersionKind(), result.GroupVersionKind())
-						assert.Equal(t, sourceObj.GetName(), result.GetName())
-						assert.Equal(t, sourceObj.GetNamespace(), result.GetNamespace())
+						assert.EqualValues(t, sourceObj.GroupVersionKind(), result.GroupVersionKind())
+						assert.EqualValues(t, sourceObj.GetName(), result.GetName())
+						assert.EqualValues(t, sourceObj.GetNamespace(), result.GetNamespace())
 					case CreateOperation:
 						switch result.GetKind() {
 						case "Job":
@@ -207,26 +210,28 @@ func TestLuaResourceActionsScript(t *testing.T) {
 func getExpectedObjectList(t *testing.T, path string) *unstructured.UnstructuredList {
 	t.Helper()
 	yamlBytes, err := os.ReadFile(path)
-	require.NoError(t, err)
+	errors.CheckError(err)
 	unstructuredList := &unstructured.UnstructuredList{}
 	yamlString := bytes.NewBuffer(yamlBytes).String()
 	if yamlString[0] == '-' {
 		// The string represents a new-style action array output, where each member is a wrapper around a k8s unstructured resource
-		objList := make([]map[string]any, 5)
+		objList := make([]map[string]interface{}, 5)
 		err = yaml.Unmarshal(yamlBytes, &objList)
-		require.NoError(t, err)
+		errors.CheckError(err)
 		unstructuredList.Items = make([]unstructured.Unstructured, len(objList))
 		// Append each map in objList to the Items field of the new object
 		for i, obj := range objList {
-			unstructuredObj, ok := obj["unstructuredObj"].(map[string]any)
-			assert.True(t, ok, "Wrong type of unstructuredObj")
+			unstructuredObj, ok := obj["unstructuredObj"].(map[string]interface{})
+			if !ok {
+				t.Error("Wrong type of unstructuredObj")
+			}
 			unstructuredList.Items[i] = unstructured.Unstructured{Object: unstructuredObj}
 		}
 	} else {
 		// The string represents an old-style action object output, which is a k8s unstructured resource
-		obj := make(map[string]any)
+		obj := make(map[string]interface{})
 		err = yaml.Unmarshal(yamlBytes, &obj)
-		require.NoError(t, err)
+		errors.CheckError(err)
 		unstructuredList.Items = make([]unstructured.Unstructured, 1)
 		unstructuredList.Items[0] = unstructured.Unstructured{Object: obj}
 	}
@@ -234,7 +239,7 @@ func getExpectedObjectList(t *testing.T, path string) *unstructured.Unstructured
 }
 
 func findFirstMatchingItem(items []unstructured.Unstructured, f func(unstructured.Unstructured) bool) *unstructured.Unstructured {
-	var matching *unstructured.Unstructured
+	var matching *unstructured.Unstructured = nil
 	for _, item := range items {
 		if f(item) {
 			matching = &item

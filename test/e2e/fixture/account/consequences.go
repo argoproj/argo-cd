@@ -3,15 +3,13 @@ package project
 import (
 	"context"
 	"errors"
-	"time"
 
-	"github.com/stretchr/testify/require"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
-
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
 // this implements the "then" part of given/when/then
@@ -53,9 +51,8 @@ func (c *Consequences) get() (*account.Account, error) {
 }
 
 func (c *Consequences) getCurrentUser() (*session.GetUserInfoResponse, error) {
-	c.context.t.Helper()
 	closer, client, err := fixture.ArgoCDClientset.NewSessionClient()
-	require.NoError(c.context.t, err)
+	CheckError(err)
 	defer io.Close(closer)
 	return client.GetUserInfo(context.Background(), &session.GetUserInfoRequest{})
 }
@@ -65,6 +62,5 @@ func (c *Consequences) Given() *Context {
 }
 
 func (c *Consequences) When() *Actions {
-	time.Sleep(fixture.WhenThenSleepInterval)
 	return c.actions
 }
