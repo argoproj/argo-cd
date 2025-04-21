@@ -813,6 +813,105 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 			expectedError:    errors.New("error generating params from git: paths error"),
 		},
 		{
+			name: "filter files according to file-path with exclude",
+			files: []v1alpha1.GitFileGeneratorItem{
+				{
+					Path: "**/config.json",
+				},
+				{
+					Path:    "p1/**/config.json",
+					Exclude: true,
+				},
+			},
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`{
+				   "cluster": {
+				       "owner": "john.doe@example.com",
+				       "name": "production",
+				       "address": "https://kubernetes.default.svc"
+				   },
+				   "key1": "val1",
+				   "key2": {
+				       "key2_1": "val2_1",
+				       "key2_2": {
+				           "key2_2_1": "val2_2_1"
+				       }
+				   },
+				   "key3": 123
+				}
+`),
+				"p1/config.json": []byte(`{
+				  "database": {
+				    "admin": "db.admin@example.com",
+				    "name": "user-data",
+				    "host": "db.internal.local",
+				    "settings": {
+				      "replicas": 3,
+				      "backup": "daily"
+				    }
+				  }
+				}
+`),
+				"p1/p2/config.json": []byte(``),
+			},
+			repoPathsError: nil,
+			expected: []map[string]any{
+				{
+					"cluster.owner":           "john.doe@example.com",
+					"cluster.name":            "production",
+					"cluster.address":         "https://kubernetes.default.svc",
+					"key1":                    "val1",
+					"key2.key2_1":             "val2_1",
+					"key2.key2_2.key2_2_1":    "val2_2_1",
+					"key3":                    "123",
+					"path":                    "cluster-config/production",
+					"path.basename":           "production",
+					"path[0]":                 "cluster-config",
+					"path[1]":                 "production",
+					"path.basenameNormalized": "production",
+					"path.filename":           "config.json",
+					"path.filenameNormalized": "config.json",
+				},
+			},
+		},
+		{
+			name: "filter files according to multiple file-paths with exclude",
+			files: []v1alpha1.GitFileGeneratorItem{
+				{Path: "**/config.json"},
+				{Path: "p1/app2/config.json", Exclude: true},
+				{Path: "p1/app3/config.json", Exclude: true},
+			},
+			repoFileContents: map[string][]byte{
+				"p1/config.json": []byte(`{
+					"cluster": {
+			"owner": "john.doe@example.com",
+			"name": "production",
+			"address": "https://kubernetes.default.svc",
+			"inner": {
+				"one" : "two"
+			}
+		}
+}`),
+				"p1/app2/config.json": []byte(`{}`), // for simplicity, file content is empty since it will be excluded
+				"p1/app3/config.json": []byte(`{}`), // for simplicity, file content is empty since it will be excluded
+			},
+			repoPathsError: nil,
+			expected: []map[string]any{
+				{
+					"cluster.owner":           "john.doe@example.com",
+					"cluster.name":            "production",
+					"cluster.address":         "https://kubernetes.default.svc",
+					"cluster.inner.one":       "two",
+					"path":                    "p1",
+					"path.basename":           "p1",
+					"path[0]":                 "p1",
+					"path.basenameNormalized": "p1",
+					"path.filename":           "config.json",
+					"path.filenameNormalized": "config.json",
+				},
+			},
+		},
+		{
 			name:  "test invalid JSON file returns error",
 			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
 			repoFileContents: map[string][]byte{
@@ -1123,6 +1222,146 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 			repoPathsError:   errors.New("paths error"),
 			expected:         []map[string]any{},
 			expectedError:    errors.New("error generating params from git: paths error"),
+		},
+		{
+			name: "filter files according to file-path with exclude",
+			files: []v1alpha1.GitFileGeneratorItem{
+				{
+					Path: "**/config.json",
+				},
+				{
+					Path:    "p1/**/config.json",
+					Exclude: true,
+				},
+			},
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`{
+				   "cluster": {
+				       "owner": "john.doe@example.com",
+				       "name": "production",
+				       "address": "https://kubernetes.default.svc"
+				   },
+				   "key1": "val1",
+				   "key2": {
+				       "key2_1": "val2_1",
+				       "key2_2": {
+				           "key2_2_1": "val2_2_1"
+				       }
+				   },
+				   "key3": 123
+}
+`),
+				"p1/p2/config.json": []byte(`{
+				  "service": {
+				    "maintainer": "dev.team@example.com",
+				    "serviceName": "auth-service",
+				    "endpoint": "http://auth.internal.svc",
+				    "config": {
+				      "retries": 5,
+				      "timeout": "30s"
+				    }
+				  }
+				}
+`),
+			},
+			repoPathsError: nil,
+			expected: []map[string]any{
+				{
+					"cluster": map[string]any{
+						"owner":   "john.doe@example.com",
+						"name":    "production",
+						"address": "https://kubernetes.default.svc",
+					},
+					"key1": "val1",
+					"key2": map[string]any{
+						"key2_1": "val2_1",
+						"key2_2": map[string]any{
+							"key2_2_1": "val2_2_1",
+						},
+					},
+					"key3": float64(123),
+					"path": map[string]any{
+						"path":               "cluster-config/production",
+						"basename":           "production",
+						"filename":           "config.json",
+						"basenameNormalized": "production",
+						"filenameNormalized": "config.json",
+						"segments": []string{
+							"cluster-config",
+							"production",
+						},
+					},
+				},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "filter files according to multiple file-paths with exclude",
+			files: []v1alpha1.GitFileGeneratorItem{
+				{Path: "**/config.json"},
+				{Path: "p1/app2/config.json", Exclude: true},
+				{Path: "p1/app3/config.json", Exclude: true},
+			},
+			repoFileContents: map[string][]byte{
+				"p1/config.json": []byte(`{
+					"cluster": {
+					"owner": "john.doe@example.com",
+					"name": "production",
+					"address": "https://kubernetes.default.svc",
+					"inner": {
+						"one" : "two"
+					}
+				}
+}`),
+				"p1/app2/config.json": []byte(`{
+                    "database": {
+                        "admin": "alice.smith@example.com",
+					    "env": "staging",
+					    "url": "postgres://db.internal.svc:5432",
+					    "settings": {
+					      "replicas": 3,
+					      "backup": "enabled"
+					    }
+                    }
+				}
+`),
+				"p1/app3/config.json": []byte(`{
+					"storage": {
+					    "owner": "charlie.brown@example.com",
+					    "bucketName": "app-assets",
+					    "region": "us-west-2",
+					    "options": {
+					      "versioning": true,
+					      "encryption": "AES256"
+					    }
+					}
+				}
+`),
+			},
+			repoPathsError: nil,
+			expected: []map[string]any{
+				{
+					"cluster": map[string]any{
+						"owner":   "john.doe@example.com",
+						"name":    "production",
+						"address": "https://kubernetes.default.svc",
+						"inner": map[string]any{
+							"one": "two",
+						},
+					},
+					"path": map[string]any{
+						"path":               "p1",
+						"basename":           "p1",
+						"filename":           "config.json",
+						"basenameNormalized": "p1",
+						"filenameNormalized": "config.json",
+						"segments": []string{
+							"p1",
+						},
+					},
+				},
+			},
+			expectedError: nil,
 		},
 		{
 			name:  "test invalid JSON file returns error",
