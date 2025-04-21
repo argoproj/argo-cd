@@ -3270,8 +3270,7 @@ func Test_getResolvedValueFiles(t *testing.T) {
 	tempDir := t.TempDir()
 	paths := io.NewRandomizedTempPaths(tempDir)
 
-	key, _ := json.Marshal(map[string]string{"url": git.NormalizeGitURL("https://github.com/org/repo1")})
-	paths.Add(string(key), path.Join(tempDir, "repo1"))
+	paths.Add(git.NormalizeGitURL("https://github.com/org/repo1"), path.Join(tempDir, "repo1"))
 
 	testCases := []struct {
 		name         string

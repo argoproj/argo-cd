@@ -5,7 +5,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	projectFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/project"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
@@ -61,41 +60,4 @@ func TestCanAddAppFromPrivateRepoWithCredCfg(t *testing.T) {
 		CreateApp().
 		Then().
 		Expect(Success(""))
-}
-
-// Tests that two projects that share a repo URL but one has valid creds and the other has invalid creds
-// will fail when the app is created with the project with the invalid creds.
-func TestProjectScopedRepoSameURLDifferentCreds(t *testing.T) {
-	projectFixture.Given(t).
-		When().
-		Name("valid-cred-project").
-		Create().
-		Then()
-	projectFixture.Given(t).
-		When().
-		Name("invalid-cred-project").
-		Create().
-		Then()
-
-	Given(t).
-		RepoURLType(fixture.RepoURLTypeHTTPS).
-		Path(fixture.LocalOrRemotePath("https-kustomize-base")).
-		And(func() {
-			errors.NewHandler(t).FailOnErr(fixture.RunCli("repo", "add", fixture.RepoURL(fixture.RepoURLTypeHTTPS), "--username", fixture.GitUsername, "--password", fixture.GitPassword, "--project", "valid-cred-project", "--insecure-skip-server-verification"))
-		}).
-		When().
-		CreateApp().
-		Then().
-		Expect(Success(""))
-
-	Given(t).
-		RepoURLType(fixture.RepoURLTypeHTTPS).
-		Path(fixture.LocalOrRemotePath("https-kustomize-base")).
-		And(func() {
-			errors.NewHandler(t).FailOnErr(fixture.RunCli("repo", "add", fixture.RepoURL(fixture.RepoURLTypeHTTPS), "--username", fixture.GitUsername, "--password", "wrong-password", "--project", "invalid-cred-project", "--insecure-skip-server-verification"))
-		}).
-		When().
-		CreateApp().
-		Then().
-		Expect(Error("", "repository not accessible"))
 }
