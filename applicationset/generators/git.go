@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v3/util/glob"
+
 	"github.com/jeremywohl/flatten"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/types"
@@ -67,6 +69,7 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 	// When the project field is templated, the contents of the git repo are required to run the git generator and get the templated value,
 	// but git generator cannot be called without verifying the commit signature.
 	// In this case, we skip the signature verification.
+	// If the project is templated, we skip the commit verification
 	if !strings.Contains(appSet.Spec.Template.Spec.Project, "{{") {
 		project := appSet.Spec.Template.Spec.Project
 		appProject := &argoprojiov1alpha1.AppProject{}
@@ -129,13 +132,14 @@ func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoproj
 
 func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, noRevisionCache, verifyCommit, useGoTemplate bool, project string, goTemplateOptions []string) ([]map[string]any, error) {
 	// Get all files that match the requested path string, removing duplicates
+	// allFiles is a map whose key is the file name with absolute path and value as the file content
 	allFiles := make(map[string][]byte)
 	for _, requestedPath := range appSetGenerator.Git.Files {
-		files, err := g.repos.GetFiles(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, project, requestedPath.Path, noRevisionCache, verifyCommit)
+		filesMap, err := g.repos.GetFiles(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, project, requestedPath.Path, noRevisionCache, verifyCommit)
 		if err != nil {
 			return nil, err
 		}
-		for filePath, content := range files {
+		for filePath, content := range filesMap {
 			allFiles[filePath] = content
 		}
 	}
@@ -148,13 +152,15 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	}
 	sort.Strings(allPaths)
 
+	files := g.filterAppsFiles(appSetGenerator.Git.Files, allPaths)
+
 	// Generate params from each path, and return
 	res := []map[string]any{}
-	for _, path := range allPaths {
+	for _, f := range files {
 		// A JSON / YAML file path can contain multiple sets of parameters (ie it is an array)
-		paramsArray, err := g.generateParamsFromGitFile(path, allFiles[path], appSetGenerator.Git.Values, useGoTemplate, goTemplateOptions, appSetGenerator.Git.PathParamPrefix)
+		paramsArray, err := g.generateParamsFromGitFile(f, allFiles[f], appSetGenerator.Git.Values, useGoTemplate, goTemplateOptions, appSetGenerator.Git.PathParamPrefix)
 		if err != nil {
-			return nil, fmt.Errorf("unable to process file '%s': %w", path, err)
+			return nil, fmt.Errorf("unable to process file '%s': %w", f, err)
 		}
 
 		res = append(res, paramsArray...)
@@ -236,6 +242,29 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 	}
 
 	return res, nil
+}
+
+func (g *GitGenerator) filterAppsFiles(files []argoprojiov1alpha1.GitFileGeneratorItem, allFilePaths []string) []string {
+	res := []string{}
+	for _, filePath := range allFilePaths {
+		appInclude := false
+		appExclude := false
+		for _, file := range files {
+			match := glob.Match(file.Path, filePath)
+			if match && !file.Exclude {
+				appInclude = true
+			}
+			if match && file.Exclude {
+				appExclude = true
+			}
+		}
+		// append only those file paths in the result that satisfies tha pattern
+		if appInclude && !appExclude {
+			res = append(res, filePath)
+		}
+	}
+
+	return res
 }
 
 func (g *GitGenerator) filterApps(directories []argoprojiov1alpha1.GitDirectoryGeneratorItem, allPaths []string) []string {
