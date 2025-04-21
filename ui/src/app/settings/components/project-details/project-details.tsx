@@ -4,7 +4,6 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
-import {Link} from 'react-router-dom';
 
 import {BadgePanel, CheckboxField, DataLoader, EditablePanel, ErrorNotification, MapInputField, Page, Query} from '../../../shared/components';
 import {AppContext, Consumer, AuthSettingsCtx} from '../../../shared/context';
@@ -221,7 +220,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                         },
                                                         {
                                                             key: 'windows',
-                                                            title: 'Sync Windows',
+                                                            title: 'Windows',
                                                             content: this.SyncWindowsTab(proj, ctx)
                                                         },
                                                         {
@@ -518,10 +517,6 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                             MANUALSYNC
                                             {helpTip('If the window allows manual syncs')}
                                         </div>
-                                        <div className='columns small-2'>
-                                            USE AND OPERATOR
-                                            {helpTip('Use AND operator while selecting the apps that match the configured selectors')}
-                                        </div>
                                     </div>
                                 </div>
                                 {(proj.spec.syncWindows || []).map((window, i) => (
@@ -539,7 +534,6 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                             <div className='columns small-2'>{(window.namespaces || ['-']).join(',')}</div>
                                             <div className='columns small-2'>{(window.clusters || ['-']).join(',')}</div>
                                             <div className='columns small-2'>{window.manualSync ? 'Enabled' : 'Disabled'}</div>
-                                            <div className='columns small-2'>{window.andOperator ? 'Enabled' : 'Disabled'}</div>
                                         </div>
                                     </div>
                                 ))}
@@ -609,16 +603,6 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                             view: (
                                 <div style={{margin: '8px 0'}}>
                                     <DataLoader load={() => services.projects.getLinks(proj.metadata.name)}>{links => <DeepLinks links={links.items} />}</DataLoader>
-                                </div>
-                            )
-                        },
-                        {
-                            title: 'APPLICATIONS',
-                            view: (
-                                <div>
-                                    <DataLoader load={() => services.applications.list([proj.metadata.name])}>
-                                        {apps => <Link to={'/applications?proj=' + proj.metadata.name}>{apps.items.length}</Link>}
-                                    </DataLoader>
                                 </div>
                             )
                         }

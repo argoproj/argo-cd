@@ -19,10 +19,6 @@ import {PopupManager} from './popup/popup-manager';
 async function doTest() {
     const navigation = await UiTestUtilities.init();
     try {
-        if (Configuration.ARGOCD_AUTH_USERNAME !== '') {
-            await navigation.getLoginPage().loginWithCredentials();
-        }
-
         const appsList: ApplicationsList = await navigation.clickApplicationsNavBarButton();
         const applicationCreatePanel: ApplicationCreatePanel = await appsList.clickNewAppButton();
 

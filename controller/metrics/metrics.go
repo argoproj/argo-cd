@@ -16,40 +16,38 @@ import (
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
-	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/git"
-	"github.com/argoproj/argo-cd/v3/util/healthz"
-	metricsutil "github.com/argoproj/argo-cd/v3/util/metrics"
-	"github.com/argoproj/argo-cd/v3/util/metrics/kubectl"
-	"github.com/argoproj/argo-cd/v3/util/profile"
+	"github.com/argoproj/argo-cd/v2/common"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	applister "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/healthz"
+	metricsutil "github.com/argoproj/argo-cd/v2/util/metrics"
+	"github.com/argoproj/argo-cd/v2/util/profile"
+
+	ctrl_metrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 type MetricsServer struct {
 	*http.Server
-	syncCounter                       *prometheus.CounterVec
-	kubectlExecCounter                *prometheus.CounterVec
-	kubectlExecPendingGauge           *prometheus.GaugeVec
-	orphanedResourcesGauge            *prometheus.GaugeVec
-	k8sRequestCounter                 *prometheus.CounterVec
-	clusterEventsCounter              *prometheus.CounterVec
-	redisRequestCounter               *prometheus.CounterVec
-	reconcileHistogram                *prometheus.HistogramVec
-	redisRequestHistogram             *prometheus.HistogramVec
-	resourceEventsProcessingHistogram *prometheus.HistogramVec
-	resourceEventsNumberGauge         *prometheus.GaugeVec
-	registry                          *prometheus.Registry
-	hostname                          string
-	cron                              *cron.Cron
+	syncCounter             *prometheus.CounterVec
+	kubectlExecCounter      *prometheus.CounterVec
+	kubectlExecPendingGauge *prometheus.GaugeVec
+	k8sRequestCounter       *prometheus.CounterVec
+	clusterEventsCounter    *prometheus.CounterVec
+	redisRequestCounter     *prometheus.CounterVec
+	reconcileHistogram      *prometheus.HistogramVec
+	redisRequestHistogram   *prometheus.HistogramVec
+	registry                *prometheus.Registry
+	hostname                string
+	cron                    *cron.Cron
 }
 
 const (
 	// MetricsPath is the endpoint to collect application metrics
 	MetricsPath = "/metrics"
+	// EnvVarLegacyControllerMetrics is a env var to re-enable deprecated prometheus metrics
+	EnvVarLegacyControllerMetrics = "ARGOCD_LEGACY_CONTROLLER_METRICS"
 )
 
 // Follow Prometheus naming practices
@@ -67,12 +65,34 @@ var (
 		nil,
 	)
 
+	// Deprecated
+	descAppCreated = prometheus.NewDesc(
+		"argocd_app_created_time",
+		"Creation time in unix timestamp for an application.",
+		descAppDefaultLabels,
+		nil,
+	)
+	// Deprecated: superseded by sync_status label in argocd_app_info
+	descAppSyncStatusCode = prometheus.NewDesc(
+		"argocd_app_sync_status",
+		"The application current sync status.",
+		append(descAppDefaultLabels, "sync_status"),
+		nil,
+	)
+	// Deprecated: superseded by health_status label in argocd_app_info
+	descAppHealthStatus = prometheus.NewDesc(
+		"argocd_app_health_status",
+		"The application current health status.",
+		append(descAppDefaultLabels, "health_status"),
+		nil,
+	)
+
 	syncCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_app_sync_total",
 			Help: "Number of application syncs.",
 		},
-		append(descAppDefaultLabels, "dest_server", "phase", "dry_run"),
+		append(descAppDefaultLabels, "dest_server", "phase"),
 	)
 
 	k8sRequestCounter = prometheus.NewCounterVec(
@@ -80,7 +100,7 @@ var (
 			Name: "argocd_app_k8s_request_total",
 			Help: "Number of kubernetes requests executed during application reconciliation.",
 		},
-		append(descAppDefaultLabels, "server", "response_code", "verb", "resource_kind", "resource_namespace", "dry_run"),
+		append(descAppDefaultLabels, "server", "response_code", "verb", "resource_kind", "resource_namespace"),
 	)
 
 	kubectlExecCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -124,32 +144,10 @@ var (
 		},
 		[]string{"hostname", "initiator"},
 	)
-
-	orphanedResourcesGauge = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "argocd_app_orphaned_resources_count",
-			Help: "Number of orphaned resources per application",
-		},
-		descAppDefaultLabels,
-	)
-
-	resourceEventsProcessingHistogram = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "argocd_resource_events_processing",
-			Help:    "Time to process resource events in seconds.",
-			Buckets: []float64{0.25, .5, 1, 2, 4, 8, 16},
-		},
-		[]string{"server"},
-	)
-
-	resourceEventsNumberGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "argocd_resource_events_processed_in_batch",
-		Help: "Number of resource events processed in batch",
-	}, []string{"server"})
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
-func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj any) bool, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string) (*MetricsServer, error) {
+func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string) (*MetricsServer, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
@@ -181,7 +179,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		// contains app controller specific metrics
 		registry,
 		// contains workqueue metrics, process and golang metrics
-		ctrlmetrics.Registry,
+		ctrl_metrics.Registry,
 	}, promhttp.HandlerOpts{}))
 	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
@@ -190,47 +188,36 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	registry.MustRegister(k8sRequestCounter)
 	registry.MustRegister(kubectlExecCounter)
 	registry.MustRegister(kubectlExecPendingGauge)
-	registry.MustRegister(orphanedResourcesGauge)
 	registry.MustRegister(reconcileHistogram)
 	registry.MustRegister(clusterEventsCounter)
 	registry.MustRegister(redisRequestCounter)
 	registry.MustRegister(redisRequestHistogram)
-	registry.MustRegister(resourceEventsProcessingHistogram)
-	registry.MustRegister(resourceEventsNumberGauge)
 
-	kubectlMetricsServer := kubectl.NewKubectlMetrics()
-	kubectlMetricsServer.RegisterWithClientGo()
-	kubectl.RegisterWithPrometheus(registry)
-
-	metricsServer := &MetricsServer{
+	return &MetricsServer{
 		registry: registry,
 		Server: &http.Server{
 			Addr:    addr,
 			Handler: mux,
 		},
-		syncCounter:                       syncCounter,
-		k8sRequestCounter:                 k8sRequestCounter,
-		kubectlExecCounter:                kubectlExecCounter,
-		kubectlExecPendingGauge:           kubectlExecPendingGauge,
-		orphanedResourcesGauge:            orphanedResourcesGauge,
-		reconcileHistogram:                reconcileHistogram,
-		clusterEventsCounter:              clusterEventsCounter,
-		redisRequestCounter:               redisRequestCounter,
-		redisRequestHistogram:             redisRequestHistogram,
-		resourceEventsProcessingHistogram: resourceEventsProcessingHistogram,
-		resourceEventsNumberGauge:         resourceEventsNumberGauge,
-		hostname:                          hostname,
+		syncCounter:             syncCounter,
+		k8sRequestCounter:       k8sRequestCounter,
+		kubectlExecCounter:      kubectlExecCounter,
+		kubectlExecPendingGauge: kubectlExecPendingGauge,
+		reconcileHistogram:      reconcileHistogram,
+		clusterEventsCounter:    clusterEventsCounter,
+		redisRequestCounter:     redisRequestCounter,
+		redisRequestHistogram:   redisRequestHistogram,
+		hostname:                hostname,
 		// This cron is used to expire the metrics cache.
 		// Currently clearing the metrics cache is logging and deleting from the map
 		// so there is no possibility of panic, but we will add a chain to keep robfig/cron v1 behavior.
 		cron: cron.New(cron.WithChain(cron.Recover(cron.PrintfLogger(log.StandardLogger())))),
-	}
-
-	return metricsServer, nil
+	}, nil
 }
 
-func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo, db db.ArgoDB, clusterLabels []string) {
-	collector := NewClusterCollector(ctx, source, db.ListClusters, clusterLabels)
+func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo) {
+	collector := &clusterCollector{infoSource: source}
+	go collector.Run(ctx)
 	m.registry.MustRegister(collector)
 }
 
@@ -239,8 +226,7 @@ func (m *MetricsServer) IncSync(app *argoappv1.Application, state *argoappv1.Ope
 	if !state.Phase.Completed() {
 		return
 	}
-	isDryRun := app.Operation != nil && app.Operation.DryRun()
-	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), app.Spec.Destination.Server, string(state.Phase), strconv.FormatBool(isDryRun)).Inc()
+	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), app.Spec.Destination.Server, string(state.Phase)).Inc()
 }
 
 func (m *MetricsServer) IncKubectlExec(command string) {
@@ -255,10 +241,6 @@ func (m *MetricsServer) DecKubectlExecPending(command string) {
 	m.kubectlExecPendingGauge.WithLabelValues(m.hostname, command).Dec()
 }
 
-func (m *MetricsServer) SetOrphanedResourcesMetric(app *argoappv1.Application, numOrphanedResources int) {
-	m.orphanedResourcesGauge.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject()).Set(float64(numOrphanedResources))
-}
-
 // IncClusterEventsCount increments the number of cluster events
 func (m *MetricsServer) IncClusterEventsCount(server, group, kind string) {
 	m.clusterEventsCounter.WithLabelValues(server, group, kind).Inc()
@@ -267,16 +249,14 @@ func (m *MetricsServer) IncClusterEventsCount(server, group, kind string) {
 // IncKubernetesRequest increments the kubernetes requests counter for an application
 func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, server, statusCode, verb, resourceKind, resourceNamespace string) {
 	var namespace, name, project string
-	isDryRun := false
 	if app != nil {
 		namespace = app.Namespace
 		name = app.Name
 		project = app.Spec.GetProject()
-		isDryRun = app.Operation != nil && app.Operation.DryRun()
 	}
 	m.k8sRequestCounter.WithLabelValues(
 		namespace, name, project, server, statusCode,
-		verb, resourceKind, resourceNamespace, strconv.FormatBool(isDryRun),
+		verb, resourceKind, resourceNamespace,
 	).Inc()
 }
 
@@ -287,12 +267,6 @@ func (m *MetricsServer) IncRedisRequest(failed bool) {
 // ObserveRedisRequestDuration observes redis request duration
 func (m *MetricsServer) ObserveRedisRequestDuration(duration time.Duration) {
 	m.redisRequestHistogram.WithLabelValues(m.hostname, common.ApplicationController).Observe(duration.Seconds())
-}
-
-// ObserveResourceEventsProcessingDuration observes resource events processing duration
-func (m *MetricsServer) ObserveResourceEventsProcessingDuration(server string, duration time.Duration, processedEventsNumber int) {
-	m.resourceEventsProcessingHistogram.WithLabelValues(server).Observe(duration.Seconds())
-	m.resourceEventsNumberGauge.WithLabelValues(server).Set(float64(processedEventsNumber))
 }
 
 // IncReconcile increments the reconcile counter for an application
@@ -308,7 +282,7 @@ func (m *MetricsServer) HasExpiration() bool {
 // SetExpiration reset Prometheus metrics based on time duration interval
 func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 	if m.HasExpiration() {
-		return errors.New("expiration is already set")
+		return errors.New("Expiration is already set")
 	}
 
 	_, err := m.cron.AddFunc(fmt.Sprintf("@every %s", cacheExpiration), func() {
@@ -316,15 +290,11 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 		m.syncCounter.Reset()
 		m.kubectlExecCounter.Reset()
 		m.kubectlExecPendingGauge.Reset()
-		m.orphanedResourcesGauge.Reset()
 		m.k8sRequestCounter.Reset()
 		m.clusterEventsCounter.Reset()
 		m.redisRequestCounter.Reset()
 		m.reconcileHistogram.Reset()
 		m.redisRequestHistogram.Reset()
-		m.resourceEventsProcessingHistogram.Reset()
-		m.resourceEventsNumberGauge.Reset()
-		kubectl.ResetAll()
 	})
 	if err != nil {
 		return err
@@ -336,13 +306,13 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 
 type appCollector struct {
 	store         applister.ApplicationLister
-	appFilter     func(obj any) bool
+	appFilter     func(obj interface{}) bool
 	appLabels     []string
 	appConditions []string
 }
 
 // NewAppCollector returns a prometheus collector for application metrics
-func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string) prometheus.Collector {
+func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, appLabels []string, appConditions []string) prometheus.Collector {
 	return &appCollector{
 		store:         appLister,
 		appFilter:     appFilter,
@@ -352,7 +322,7 @@ func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj a
 }
 
 // NewAppRegistry creates a new prometheus registry that collects applications
-func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string) *prometheus.Registry {
+func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, appLabels []string, appConditions []string) *prometheus.Registry {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions))
 	return registry
@@ -367,6 +337,8 @@ func (c *appCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- descAppConditions
 	}
 	ch <- descAppInfo
+	ch <- descAppSyncStatusCode
+	ch <- descAppHealthStatus
 }
 
 // Collect implements the prometheus.Collector interface
@@ -415,7 +387,7 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 		healthStatus = health.HealthStatusUnknown
 	}
 
-	autoSyncEnabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled()
+	autoSyncEnabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil
 
 	addGauge(descAppInfo, 1, strconv.FormatBool(autoSyncEnabled), git.NormalizeGitURL(app.Spec.GetSource().RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation)
 
@@ -439,5 +411,22 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 		for conditionType, count := range conditionCount {
 			addGauge(descAppConditions, float64(count), conditionType)
 		}
+	}
+
+	// Deprecated controller metrics
+	if os.Getenv(EnvVarLegacyControllerMetrics) == "true" {
+		addGauge(descAppCreated, float64(app.CreationTimestamp.Unix()))
+
+		addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeSynced), string(argoappv1.SyncStatusCodeSynced))
+		addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeOutOfSync), string(argoappv1.SyncStatusCodeOutOfSync))
+		addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeUnknown || syncStatus == ""), string(argoappv1.SyncStatusCodeUnknown))
+
+		healthStatus := app.Status.Health.Status
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusUnknown || healthStatus == ""), string(health.HealthStatusUnknown))
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusProgressing), string(health.HealthStatusProgressing))
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusSuspended), string(health.HealthStatusSuspended))
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusHealthy), string(health.HealthStatusHealthy))
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusDegraded), string(health.HealthStatusDegraded))
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusMissing), string(health.HealthStatusMissing))
 	}
 }

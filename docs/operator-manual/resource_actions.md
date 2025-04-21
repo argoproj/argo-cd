@@ -80,7 +80,7 @@ The `discovery.lua` script must return a table where the key name represents the
 
 Each action name must be represented in the list of `definitions` with an accompanying `action.lua` script to control the resource modifications. The `obj` is a global variable which contains the resource. Each action script returns an optionally modified version of the resource. In this example, we are simply setting `.spec.suspend` to either `true` or `false`.
 
-By default, defining a resource action customization will override any built-in action for this resource kind. As of Argo CD version 2.13.0, if you want to retain the built-in actions, you can set the `mergeBuiltinActions` key to `true`. Your custom actions will have precedence over the built-in actions.
+By default, defining a resource action customization will override any built-in action for this resource kind. If you want to retain the built-in actions, you can set the `mergeBuiltinActions` key to `true`. Your custom actions will have precedence over the built-in actions.
 ```yaml        
 resource.customizations.actions.argoproj.io_Rollout: |
   mergeBuiltinActions: true
@@ -202,22 +202,4 @@ resource.customizations.actions.ConfigMap: |
       result[1] = impactedResource1
       result[2] = impactedResource2
       return result		  
-```
-
-### Action Icons and Display Names
-
-By default, an action will appear in the UI by the name specified in the `actions` key, and it will have no icon. You 
-can customize the display name and icon of an action by adding the `iconClass` and `displayName` keys to the action 
-definition.
-
-The icon class name is the name of a FontAwesome icon from [the set of free icons](https://fontawesome.com/search?ic=free).
-The `fa-fw` class ensures that the icon is displayed with a fixed width, to avoid alignment issues with other icons.
-
-```lua
-local actions = {}
-actions["create-workflow"] = {
-  ["iconClass"] = "fa fa-fw fa-play",
-  ["displayName"] = "Create Workflow"
-}
-return actions
 ```
