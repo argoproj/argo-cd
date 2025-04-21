@@ -36,9 +36,8 @@ func TestCannotAddAppFromClientCertRepoWithoutCfg(t *testing.T) {
 // make sure you can create an app from a private repo, if the repo is set-up
 func TestCanAddAppFromPrivateRepoWithRepoCfg(t *testing.T) {
 	Given(t).
-		CustomCACertAdded().
 		RepoURLType(fixture.RepoURLTypeHTTPS).
-		Path("guestbook").
+		Path(fixture.LocalOrRemotePath("https-kustomize-base")).
 		And(func() {
 			// I use CLI, but you could also modify the settings, we get a free test of the CLI here
 			errors.NewHandler(t).FailOnErr(fixture.RunCli("repo", "add", fixture.RepoURL(fixture.RepoURLTypeHTTPS), "--username", fixture.GitUsername, "--password", fixture.GitPassword, "--insecure-skip-server-verification"))
@@ -57,7 +56,7 @@ func TestCanAddAppFromPrivateRepoWithCredCfg(t *testing.T) {
 		HTTPSCredentialsUserPassAdded().
 		HTTPSRepoURLAdded(false).
 		RepoURLType(fixture.RepoURLTypeHTTPS).
-		Path("guestbook").
+		Path(fixture.LocalOrRemotePath("https-kustomize-base")).
 		When().
 		CreateApp().
 		Then().
