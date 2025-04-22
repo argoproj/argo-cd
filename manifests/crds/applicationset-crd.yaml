@@ -1422,7 +1422,6 @@ spec:
                               path:
                                 type: string
                             required:
-                            - exclude
                             - path
                             type: object
                           type: array
@@ -4135,7 +4134,6 @@ spec:
                                         path:
                                           type: string
                                       required:
-                                      - exclude
                                       - path
                                       type: object
                                     type: array
@@ -9976,7 +9974,6 @@ spec:
                                         path:
                                           type: string
                                       required:
-                                      - exclude
                                       - path
                                       type: object
                                     type: array
