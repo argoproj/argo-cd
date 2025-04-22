@@ -30,6 +30,7 @@ type GitGenerator struct {
 	namespace string
 }
 
+// NewGitGenerator creates a new instance of Git Generator
 func NewGitGenerator(repos services.Repos, namespace string) Generator {
 	g := &GitGenerator{
 		repos:     repos,
@@ -39,13 +40,17 @@ func NewGitGenerator(repos services.Repos, namespace string) Generator {
 	return g
 }
 
+// GetTemplate returns the ApplicationSetTemplate associated with the Git generator
+// from the provided ApplicationSetGenerator. This template defines how each
+// generated Argo CD Application should be rendered.
 func (g *GitGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
 	return &appSetGenerator.Git.Template
 }
 
+// GetRequeueAfter returns the duration after which the Git generator should be
+// requeued for reconciliation. If RequeueAfterSeconds is set in the generator spec,
+// it uses that value. Otherwise, it falls back to a default requeue interval (3 minutes).
 func (g *GitGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) time.Duration {
-	// Return a requeue default of 3 minutes, if no default is specified.
-
 	if appSetGenerator.Git.RequeueAfterSeconds != nil {
 		return time.Duration(*appSetGenerator.Git.RequeueAfterSeconds) * time.Second
 	}
@@ -53,6 +58,8 @@ func (g *GitGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Appli
 	return getDefaultRequeueAfter()
 }
 
+// GenerateParams generates a list of parameter maps for the ApplicationSet by evaluating the Git generator's configuration.
+// It supports both directory-based and file-based Git generators.
 func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
 		return nil, ErrEmptyAppSetGenerator
@@ -105,8 +112,10 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 	return res, nil
 }
 
+// generateParamsForGitDirectories generates parameters for an ApplicationSet using a directory-based Git generator.
+// It fetches all directories from the given Git repository and revision, optionally using a revision cache and verifying commits.
+// It then filters the directories based on the generator's configuration and renders parameters for the resulting applications
 func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, noRevisionCache, verifyCommit, useGoTemplate bool, project string, goTemplateOptions []string) ([]map[string]any, error) {
-	// Directories, not files
 	allPaths, err := g.repos.GetDirectories(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, project, noRevisionCache, verifyCommit)
 	if err != nil {
 		return nil, fmt.Errorf("error getting directories from repo: %w", err)
@@ -130,44 +139,49 @@ func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoproj
 	return res, nil
 }
 
+// generateParamsForGitFiles generates parameters for an ApplicationSet using a file-based Git generator.
+// It retrieves and processes specified files from the Git repository, supporting both YAML and JSON formats,
+// and returns a list of parameter maps extracted from the content.
 func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, noRevisionCache, verifyCommit, useGoTemplate bool, project string, goTemplateOptions []string) ([]map[string]any, error) {
-	// Get all files that match the requested path string, removing duplicates
-	// allFiles is a map whose key is the file name with absolute path and value as the file content
-	allFiles := make(map[string][]byte)
-	for _, requestedPath := range appSetGenerator.Git.Files {
-		filesMap, err := g.repos.GetFiles(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, project, requestedPath.Path, noRevisionCache, verifyCommit)
+	// fileContentMap maps absolute file paths to their byte content
+	fileContentMap := make(map[string][]byte)
+
+	for _, fileRequest := range appSetGenerator.Git.Files {
+		retrievedFiles, err := g.repos.GetFiles(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, project, fileRequest.Path, noRevisionCache, verifyCommit)
 		if err != nil {
 			return nil, err
 		}
-		for filePath, content := range filesMap {
-			allFiles[filePath] = content
+		for absPath, content := range retrievedFiles {
+			fileContentMap[absPath] = content
 		}
 	}
 
-	// Extract the unduplicated map into a list, and sort by path to ensure a deterministic
-	// processing order in the subsequent step
-	allPaths := []string{}
-	for path := range allFiles {
-		allPaths = append(allPaths, path)
+	// Get a sorted list of file paths to ensure deterministic processing order
+	var filePaths []string
+	for path := range fileContentMap {
+		filePaths = append(filePaths, path)
 	}
-	sort.Strings(allPaths)
+	sort.Strings(filePaths)
 
-	files := g.filterAppsFiles(appSetGenerator.Git.Files, allPaths)
+	// Filter to only include files defined in the generator config
+	targetFilePaths := g.filterAppsFiles(appSetGenerator.Git.Files, filePaths)
 
-	// Generate params from each path, and return
-	res := []map[string]any{}
-	for _, f := range files {
+	var allParams []map[string]any
+	for _, filePath := range targetFilePaths {
 		// A JSON / YAML file path can contain multiple sets of parameters (ie it is an array)
-		paramsArray, err := g.generateParamsFromGitFile(f, allFiles[f], appSetGenerator.Git.Values, useGoTemplate, goTemplateOptions, appSetGenerator.Git.PathParamPrefix)
+		paramsFromFileArray, err := g.generateParamsFromGitFile(filePath, fileContentMap[filePath], appSetGenerator.Git.Values, useGoTemplate, goTemplateOptions, appSetGenerator.Git.PathParamPrefix)
 		if err != nil {
-			return nil, fmt.Errorf("unable to process file '%s': %w", f, err)
+			return nil, fmt.Errorf("unable to process file '%s': %w", filePath, err)
 		}
-
-		res = append(res, paramsArray...)
+		allParams = append(allParams, paramsFromFileArray...)
 	}
-	return res, nil
+
+	return allParams, nil
 }
 
+// generateParamsFromGitFile parses the content of a Git-tracked file and generates a slice of parameter maps.
+// The file can contain a single YAML/JSON object or an array of such objects. Depending on the useGoTemplate flag,
+// it either preserves structure for Go templating or flattens the objects for use as plain key-value parameters.
 func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []byte, values map[string]string, useGoTemplate bool, goTemplateOptions []string, pathParamPrefix string) ([]map[string]any, error) {
 	objectsFound := []map[string]any{}
 
@@ -244,6 +258,8 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 	return res, nil
 }
 
+// filterAppsFiles filters a list of file paths based on inclusion and exclusion patterns defined in GitFileGeneratorItems.
+// It uses doublestar globbing to support complex patterns like "**/*.yaml".
 func (g *GitGenerator) filterAppsFiles(files []argoprojiov1alpha1.GitFileGeneratorItem, allFilePaths []string) []string {
 	res := []string{}
 	for _, filePath := range allFilePaths {
@@ -251,8 +267,13 @@ func (g *GitGenerator) filterAppsFiles(files []argoprojiov1alpha1.GitFileGenerat
 		appExclude := false
 		for _, file := range files {
 			// since path.Match() doesn't natively support the ** double-star pattern for globbing
-			// we use existing glob library used by Argo CD already
-			match, _ := doublestar.Match(file.Path, filePath)
+			// we use the doublestar package - https://github.com/bmatcuk/doublestar
+			match, err := doublestar.Match(file.Path, filePath)
+			if err != nil {
+				log.WithError(err).WithField("itemPath", file).
+					WithField("path", filePath).Error("error while matching path to item path")
+				continue
+			}
 			if match && !file.Exclude {
 				appInclude = true
 			}
@@ -269,6 +290,8 @@ func (g *GitGenerator) filterAppsFiles(files []argoprojiov1alpha1.GitFileGenerat
 	return res
 }
 
+// filterApps filters the list of all application paths based on inclusion and exclusion rules
+// defined in GitDirectoryGeneratorItems. Each item can either include or exclude matching paths.
 func (g *GitGenerator) filterApps(directories []argoprojiov1alpha1.GitDirectoryGeneratorItem, allPaths []string) []string {
 	res := []string{}
 	for _, appPath := range allPaths {
@@ -297,6 +320,9 @@ func (g *GitGenerator) filterApps(directories []argoprojiov1alpha1.GitDirectoryG
 	return res
 }
 
+// generateParamsFromApps generates a list of parameter maps based on the given app paths.
+// Each app path is converted into a parameter object with path metadata (basename, segments, etc.).
+// It supports both Go templates and flat key-value parameters.
 func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, useGoTemplate bool, goTemplateOptions []string) ([]map[string]any, error) {
 	res := make([]map[string]any, len(requestedApps))
 	for i, a := range requestedApps {
@@ -339,6 +365,7 @@ func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGene
 	return res, nil
 }
 
+// resolveProjectName resolves a project name whether templated or not
 func resolveProjectName(project string) string {
 	if strings.Contains(project, "{{") {
 		return ""
