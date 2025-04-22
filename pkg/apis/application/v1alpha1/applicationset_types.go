@@ -422,7 +422,7 @@ type GitDirectoryGeneratorItem struct {
 
 type GitFileGeneratorItem struct {
 	Path    string `json:"path" protobuf:"bytes,1,name=path"`
-	Exclude bool   `json:"exclude" protobuf:"bytes,2,name=exclude"`
+	Exclude bool   `json:"exclude,omitempty" protobuf:"bytes,2,name=exclude"`
 }
 
 // SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.
