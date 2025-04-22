@@ -53,7 +53,6 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
         fieldApi: {getValue, setValue}
     } = props;
     const automated = getValue() as models.Automated;
-
     return (
         <React.Fragment>
             <label>Sync Policy</label>
@@ -61,11 +60,16 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
                 value={automated ? auto : manual}
                 options={[manual, auto]}
                 onChange={opt => {
-                    setValue(opt.value === auto ? {prune: false, selfHeal: false} : null);
+                    setValue(opt.value === auto ? {prune: false, selfHeal: false, enabled: true} : null);
                 }}
             />
             {automated && (
                 <div className='application-create-panel__sync-params'>
+                    <div className='checkbox-container'>
+                        <Checkbox onChange={val => setValue({...automated, enabled: val})} checked={automated.enabled === undefined ? true : automated.enabled} id='policyEnable' />
+                        <label htmlFor='policyEnable'>Enable Auto-Sync</label>
+                        <HelpIcon title='If checked, application will automatically sync when changes are detected' />
+                    </div>
                     <div className='checkbox-container'>
                         <Checkbox onChange={val => setValue({...automated, prune: val})} checked={!!automated.prune} id='policyPrune' />
                         <label htmlFor='policyPrune'>Prune Resources</label>
@@ -170,6 +174,16 @@ export const ApplicationCreatePanel = (props: {
         }
     }
 
+    const onCreateApp = (data: models.Application) => {
+        if (destinationComboValue === 'URL') {
+            delete data.spec.destination.name;
+        } else {
+            delete data.spec.destination.server;
+        }
+
+        props.createApp(data);
+    };
+
     return (
         <React.Fragment>
             <DataLoader
@@ -223,7 +237,7 @@ export const ApplicationCreatePanel = (props: {
                                     })}
                                     defaultValues={app}
                                     formDidUpdate={state => debouncedOnAppChanged(state.values as any)}
-                                    onSubmit={props.createApp}
+                                    onSubmit={onCreateApp}
                                     getApi={props.getFormApi}>
                                     {api => {
                                         const generalPanel = () => (
@@ -304,7 +318,10 @@ export const ApplicationCreatePanel = (props: {
                                                             qeId='application-create-field-repository-url'
                                                             field='spec.source.repoURL'
                                                             component={AutocompleteField}
-                                                            componentProps={{items: repos}}
+                                                            componentProps={{
+                                                                items: repos,
+                                                                filterSuggestions: true
+                                                            }}
                                                         />
                                                     </div>
                                                     <div className='columns small-2'>
@@ -396,7 +413,8 @@ export const ApplicationCreatePanel = (props: {
                                                                             field='spec.source.targetRevision'
                                                                             component={AutocompleteField}
                                                                             componentProps={{
-                                                                                items: (selectedChart && selectedChart.versions) || []
+                                                                                items: (selectedChart && selectedChart.versions) || [],
+                                                                                filterSuggestions: true
                                                                             }}
                                                                         />
                                                                         <RevisionHelpIcon type='helm' />
@@ -419,7 +437,10 @@ export const ApplicationCreatePanel = (props: {
                                                                 label='Cluster URL'
                                                                 qeId='application-create-field-cluster-url'
                                                                 field='spec.destination.server'
-                                                                componentProps={{items: clusters.map(cluster => cluster.server)}}
+                                                                componentProps={{
+                                                                    items: clusters.map(cluster => cluster.server),
+                                                                    filterSuggestions: true
+                                                                }}
                                                                 component={AutocompleteField}
                                                             />
                                                         </div>
@@ -430,7 +451,10 @@ export const ApplicationCreatePanel = (props: {
                                                                 label='Cluster Name'
                                                                 qeId='application-create-field-cluster-name'
                                                                 field='spec.destination.name'
-                                                                componentProps={{items: clusters.map(cluster => cluster.name)}}
+                                                                componentProps={{
+                                                                    items: clusters.map(cluster => cluster.name),
+                                                                    filterSuggestions: true
+                                                                }}
                                                                 component={AutocompleteField}
                                                             />
                                                         </div>

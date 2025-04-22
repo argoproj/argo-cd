@@ -1,8 +1,8 @@
 package pull_request
 
 import (
-	"github.com/argoproj/argo-cd/v2/applicationset/services/github_app_auth"
-	"github.com/argoproj/argo-cd/v2/applicationset/services/internal/github_app"
+	"github.com/argoproj/argo-cd/v3/applicationset/services/github_app_auth"
+	"github.com/argoproj/argo-cd/v3/applicationset/services/internal/github_app"
 )
 
 func NewGithubAppService(g github_app_auth.Authentication, url, owner, repo string, labels []string) (PullRequestService, error) {
