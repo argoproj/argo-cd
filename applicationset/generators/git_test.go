@@ -2,7 +2,6 @@ package generators
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -912,6 +911,40 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 			},
 		},
 		{
+			name:  "examples test case to filter files according to multiple file-paths with exclude",
+			files: []v1alpha1.GitFileGeneratorItem{{Path: "cluster-config/**/config.json"}, {Path: "cluster-config/*/dev/config.json", Exclude: true}},
+			repoFileContents: map[string][]byte{
+				"cluster-config/engineering/dev/config.json": []byte(`
+cluster:
+  owner: foo.bar@example.com
+  name: staging
+  address: https://kubernetes.default.svc
+`),
+				"cluster-config/engineering/prod/config.json": []byte(`
+cluster:
+  owner: john.doe@example.com
+  name: production
+  address: https://kubernetes.default.svc
+`),
+			},
+			repoPathsError: nil,
+			expected: []map[string]any{
+				{
+					"cluster.owner":           "john.doe@example.com",
+					"cluster.name":            "production",
+					"cluster.address":         "https://kubernetes.default.svc",
+					"path":                    "cluster-config/engineering/prod",
+					"path.basename":           "prod",
+					"path[0]":                 "cluster-config",
+					"path[1]":                 "engineering",
+					"path[2]":                 "prod",
+					"path.basenameNormalized": "prod",
+					"path.filename":           "config.json",
+					"path.filenameNormalized": "config.json",
+				},
+			},
+		},
+		{
 			name:  "test compatibility with new git file generator globbing pattern without exclude filter",
 			files: []v1alpha1.GitFileGeneratorItem{{Path: "some-path/*.yaml"}},
 			repoFileContents: map[string][]byte{
@@ -1190,7 +1223,6 @@ cluster:
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
 
 			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
-			fmt.Println(got, err)
 
 			if testCaseCopy.expectedError != nil {
 				require.EqualError(t, err, testCaseCopy.expectedError.Error())
@@ -1686,7 +1718,6 @@ cluster:
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
 
 			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
-			fmt.Println(got, err)
 
 			if testCaseCopy.expectedError != nil {
 				require.EqualError(t, err, testCaseCopy.expectedError.Error())
