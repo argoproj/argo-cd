@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/util/glob"
+	"github.com/bmatcuk/doublestar/v4"
 
 	"github.com/jeremywohl/flatten"
 	log "github.com/sirupsen/logrus"
@@ -250,7 +250,9 @@ func (g *GitGenerator) filterAppsFiles(files []argoprojiov1alpha1.GitFileGenerat
 		appInclude := false
 		appExclude := false
 		for _, file := range files {
-			match := glob.Match(file.Path, filePath)
+			// since path.Match() doesn't natively support the ** double-star pattern for globbing
+			// we use existing glob library used by Argo CD already
+			match, _ := doublestar.Match(file.Path, filePath)
 			if match && !file.Exclude {
 				appInclude = true
 			}
@@ -258,7 +260,7 @@ func (g *GitGenerator) filterAppsFiles(files []argoprojiov1alpha1.GitFileGenerat
 				appExclude = true
 			}
 		}
-		// append only those file paths in the result that satisfies tha pattern
+		// append only those file paths in the result that satisfies the path pattern
 		if appInclude && !appExclude {
 			res = append(res, filePath)
 		}

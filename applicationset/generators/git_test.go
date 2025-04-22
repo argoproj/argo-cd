@@ -912,6 +912,83 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 			},
 		},
 		{
+			name:  "test compatibility with new git file generator globbing pattern without exclude filter",
+			files: []v1alpha1.GitFileGeneratorItem{{Path: "some-path/*.yaml"}},
+			repoFileContents: map[string][]byte{
+				"some-path/values.yaml": []byte(`
+cluster:
+  owner: john.doe@example.com
+  name: production
+  address: https://kubernetes.default.svc
+`),
+				"some-path/staging/values.yaml": []byte(`
+cluster:
+  owner: foo.bar@example.com
+  name: staging
+  address: https://kubernetes.default.svc
+`),
+			},
+			repoPathsError: nil,
+			expected: []map[string]any{
+				{
+					"cluster.owner":           "john.doe@example.com",
+					"cluster.name":            "production",
+					"cluster.address":         "https://kubernetes.default.svc",
+					"path":                    "some-path",
+					"path.basename":           "some-path",
+					"path[0]":                 "some-path",
+					"path.basenameNormalized": "some-path",
+					"path.filename":           "values.yaml",
+					"path.filenameNormalized": "values.yaml",
+				},
+			},
+			expectedError: nil,
+		},
+		{
+			name:  "test compatibility with new git file generator globbing pattern with exclude filter",
+			files: []v1alpha1.GitFileGeneratorItem{{Path: "cluster-charts/*/*/values.yaml"}, {Path: "cluster-charts/*/values.yaml", Exclude: true}},
+			repoFileContents: map[string][]byte{
+				"cluster-charts/cluster1/mychart/values.yaml": []byte(`
+env: staging
+`),
+				"cluster-charts/cluster1/myotherchart/values.yaml": []byte(`
+env: prod
+`),
+				"cluster-charts/cluster1/mychart/charts/mysubchart/values.yaml": []byte(`
+env: testing
+`),
+				"cluster-charts/cluster2/values.yaml": []byte(`
+env: dev
+`),
+			},
+			repoPathsError: nil,
+			expected: []map[string]any{
+				{
+					"env":                     "staging",
+					"path":                    "cluster-charts/cluster1/mychart",
+					"path.filenameNormalized": "values.yaml",
+					"path[0]":                 "cluster-charts",
+					"path[1]":                 "cluster1",
+					"path[2]":                 "mychart",
+					"path.basename":           "mychart",
+					"path.filename":           "values.yaml",
+					"path.basenameNormalized": "mychart",
+				},
+				{
+					"env":                     "prod",
+					"path":                    "cluster-charts/cluster1/myotherchart",
+					"path.filenameNormalized": "values.yaml",
+					"path[0]":                 "cluster-charts",
+					"path[1]":                 "cluster1",
+					"path[2]":                 "myotherchart",
+					"path.basename":           "myotherchart",
+					"path.filename":           "values.yaml",
+					"path.basenameNormalized": "myotherchart",
+				},
+			},
+			expectedError: nil,
+		},
+		{
 			name:  "test invalid JSON file returns error",
 			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
 			repoFileContents: map[string][]byte{
