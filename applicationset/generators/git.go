@@ -164,7 +164,10 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	sort.Strings(filePaths)
 
 	// Filter to only include files defined in the generator config
-	targetFilePaths := g.filterAppsFiles(appSetGenerator.Git.Files, filePaths)
+	targetFilePaths, err := g.filterFiles(appSetGenerator.Git.Files, filePaths)
+	if err != nil {
+		return nil, err
+	}
 
 	var allParams []map[string]any
 	for _, filePath := range targetFilePaths {
@@ -258,42 +261,33 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 	return res, nil
 }
 
-// filterAppsFiles filters a list of file paths based on inclusion and exclusion patterns defined in GitFileGeneratorItems.
+// filterFiles filters a list of file paths based on inclusion and exclusion patterns defined in GitFileGeneratorItems.
 // It uses doublestar globbing to support complex patterns like "**/*.yaml".
-func (g *GitGenerator) filterAppsFiles(files []argoprojiov1alpha1.GitFileGeneratorItem, allFilePaths []string) []string {
-	res := []string{}
+func (g *GitGenerator) filterFiles(files []argoprojiov1alpha1.GitFileGeneratorItem, allFilePaths []string) ([]string, error) {
+	var res []string
 	for _, filePath := range allFilePaths {
 		appInclude := false
-		appExclude := false
 		for _, file := range files {
-			// since path.Match() doesn't natively support the ** double-star pattern for globbing
-			// we use the doublestar package - https://github.com/bmatcuk/doublestar
 			match, err := doublestar.Match(file.Path, filePath)
 			if err != nil {
-				log.WithError(err).WithField("itemPath", file).
-					WithField("path", filePath).Error("error while matching path to item path")
-				continue
+				return nil, fmt.Errorf("error while matching file path %q with pattern %q: %w", filePath, file.Path, err)
 			}
-			if match && !file.Exclude {
-				appInclude = true
-			}
-			if match && file.Exclude {
-				appExclude = true
+			if match {
+				appInclude = !file.Exclude
 			}
 		}
 		// append only those file paths in the result that satisfies the path pattern
-		if appInclude && !appExclude {
+		if appInclude {
 			res = append(res, filePath)
 		}
 	}
-
-	return res
+	return res, nil
 }
 
 // filterApps filters the list of all application paths based on inclusion and exclusion rules
 // defined in GitDirectoryGeneratorItems. Each item can either include or exclude matching paths.
 func (g *GitGenerator) filterApps(directories []argoprojiov1alpha1.GitDirectoryGeneratorItem, allPaths []string) []string {
-	res := []string{}
+	var res []string
 	for _, appPath := range allPaths {
 		appInclude := false
 		appExclude := false
