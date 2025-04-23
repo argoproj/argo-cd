@@ -26,7 +26,7 @@ Hooks marked with Skip will not be applied.
 
 Here is a graphical overview of the sync process:
 
-![phases](how_phases_work.md)
+![phases](how_phases_work.png)
 
 You can use this simple lifecycle method in various scenarios. For example you can run an essential check as a PreSync hook. If it fails then the whole sync operation will stop preventing the deployment from taking place. In a similar manner you can run smoke tests as PostSync hooks. If they succeed you know that your application has passed the validation. If they fail then the whole deployment will be marked as failed and Argo CD can then notify you in order to take further actions.
 
@@ -63,7 +63,7 @@ There is currently a delay between each sync wave in order to give other control
 
 While you can use sync waves on their own, for maximum flexibility you can combine them with hooks. This way you can use sync phases for coarse grained ordering and sync waves for defining the exact order of a resource within an individual phase.
 
-![waves](how_waves_work.md)
+![waves](how_waves_work.png)
 
 When Argo CD starts a sync, it orders the resources in the following precedence:
 
