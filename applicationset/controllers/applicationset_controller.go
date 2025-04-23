@@ -1001,7 +1001,7 @@ func appSyncEnabledForNextStep(appset *argov1alpha1.ApplicationSet, app argov1al
 }
 
 func isRollingSyncStrategy(appset *argov1alpha1.ApplicationSet) bool {
-	// It's only RollingSync if it's especifically set by the type
+	// It's only RollingSync if the type specifically sets it
 	return appset.Spec.Strategy != nil && appset.Spec.Strategy.Type == "RollingSync" && appset.Spec.Strategy.RollingSync != nil
 }
 
