@@ -8,7 +8,7 @@ The Email notification service sends email notifications using SMTP protocol and
 * `port` - the SMTP server port
 * `username` - username
 * `password` - password
-* `from` - user email address
+* `from` - from email address
 * `html` - optional bool, true or false
 * `insecure_skip_verify` - optional bool, true or false
 
@@ -22,7 +22,8 @@ When configuring Gmail as the SMTP service:
 To Generate an app password, follow this link https://myaccount.google.com/apppasswords
 
 !!! note
-    This applies to personal Gmail accounts (non-Google Workspace). For Google Workspace users, SMTP settings and authentication methods may differ.
+    This applies to personal Gmail accounts (non-Google Workspace). For Google Workspace users, SMTP settings 
+    and authentication methods may differ.
 
 ## Example
 
@@ -36,7 +37,7 @@ metadata:
 data:
   service.email.gmail: |
     username: $email-username
-    password: $app-password
+    password: $password
     host: smtp.gmail.com
     port: 465
     from: $email-username
