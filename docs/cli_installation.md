@@ -53,9 +53,9 @@ You should now be able to run `argocd` commands.
 
 ## Mac (Apple Silicon)
 
-### Install via Homebrew or cURL
+### Install via Homebrew or Curl
 
-You can install the CLI using `Homebrew` or a `cURL` command:
+You can install the CLI using `Homebrew` or a `Curl` command:
 
 #### Homebrew
 
@@ -63,7 +63,7 @@ You can install the CLI using `Homebrew` or a `cURL` command:
 brew install argocd
 ```
 
-#### Download With cURL
+#### Download With Curl
 
 You can view the latest version of Argo CD at the link above or run the following command to grab the version:
 
@@ -74,7 +74,7 @@ VERSION=$(curl --silent "https://api.github.com/repos/argoproj/argo-cd/releases/
 Replace `VERSION` in the command below with the version of Argo CD you would like to download:
 
 ```bash
-curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/download/$VERSION/argocd-darwin-$(uname -m)
+curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/download/$VERSION/argocd-darwin-arm64
 ```
 
 Install the Argo CD CLI binary:
