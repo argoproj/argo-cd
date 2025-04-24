@@ -39,6 +39,40 @@ func newBackupObject(trackingValue string, trackingLabel bool, trackingAnnotatio
 	return kube.MustToUnstructured(&cm)
 }
 
+func newCustomBackupObject() *unstructured.Unstructured {
+	cm := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-configmap",
+			Namespace: "namespace",
+			Labels: map[string]string{
+				"env": "dev",
+			},
+		},
+		Data: map[string]string{
+			"foo": "bar",
+		},
+	}
+
+	return kube.MustToUnstructured(&cm)
+}
+
+func newCustomLiveObject() *unstructured.Unstructured {
+	cm := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-configmap",
+			Namespace: "namespace",
+			Labels: map[string]string{
+				"env": "prod",
+			},
+		},
+		Data: map[string]string{
+			"abc": "def",
+		},
+	}
+
+	return kube.MustToUnstructured(&cm)
+}
+
 func newConfigmapObject() *unstructured.Unstructured {
 	cm := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -358,6 +392,34 @@ status: {}
 			} else {
 				assert.Empty(t, content)
 			}
+		})
+	}
+}
+
+func Test_importResources(t *testing.T) {
+	type args struct {
+		bak  *unstructured.Unstructured
+		live *unstructured.Unstructured
+	}
+
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "It should update the live object according to the backup object",
+			args: args{
+				bak:  newCustomBackupObject(),
+				live: newCustomLiveObject(),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			updatedLive := updateLive(tt.args.bak, tt.args.live, false)
+			assert.Equal(t, tt.args.bak.GetLabels()["env"], updatedLive.GetLabels()["env"])
+			assert.Equal(t, tt.args.bak.GetAnnotations()[common.AnnotationKeyAppInstance], updatedLive.GetAnnotations()[common.AnnotationKeyAppInstance])
 		})
 	}
 }
