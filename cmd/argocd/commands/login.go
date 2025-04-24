@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"html"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -41,6 +42,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 		username         string
 		password         string
 		sso              bool
+		ssoHost          string
 		ssoPort          int
 		skipTestTLS      bool
 		ssoLaunchBrowser bool
@@ -137,7 +139,7 @@ argocd login cd.argoproj.io --core`,
 					errors.CheckError(err)
 					oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
 					errors.CheckError(err)
-					tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser)
+					tokenString, refreshToken = oauth2Login(ctx, ssoHost, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser)
 				}
 				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 				claims := jwt.MapClaims{}
@@ -186,6 +188,7 @@ argocd login cd.argoproj.io --core`,
 	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
 	command.Flags().BoolVar(&sso, "sso", false, "Perform SSO login")
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
+	command.Flags().StringVar(&ssoHost, "sso-host", "localhost", "Host to run the local OAuth2 login application")
 	command.Flags().
 		BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
 	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the system default browser when performing SSO login")
@@ -209,13 +212,15 @@ func userDisplayName(claims *claimsutil.ArgoClaims) string {
 // returns the JWT token and a refresh token (if supported)
 func oauth2Login(
 	ctx context.Context,
+	host string,
 	port int,
 	oidcSettings *settingspkg.OIDCConfig,
 	oauth2conf *oauth2.Config,
 	provider *oidc.Provider,
 	ssoLaunchBrowser bool,
 ) (string, string) {
-	oauth2conf.RedirectURL = fmt.Sprintf("http://localhost:%d/auth/callback", port)
+	bindAddr := net.JoinHostPort(host, strconv.Itoa(port))
+	oauth2conf.RedirectURL = fmt.Sprintf("http://%s/auth/callback", bindAddr)
 	oidcConf, err := oidcutil.ParseConfig(provider)
 	errors.CheckError(err)
 	log.Debug("OIDC Configuration:")
@@ -309,7 +314,7 @@ func oauth2Login(
 		fmt.Fprint(w, successPage)
 		completionChan <- ""
 	}
-	srv := &http.Server{Addr: "localhost:" + strconv.Itoa(port)}
+	srv := &http.Server{Addr: bindAddr}
 	http.HandleFunc("/auth/callback", callbackHandler)
 
 	// Redirect user to login & consent page to ask for permission for the scopes specified above.
