@@ -1,1 +1,1 @@
-> ⚠️ This page has moved. See [New Page](sync_waves.md)
+> ⚠️ This page has moved. See [New Page](sync-waves.md)
