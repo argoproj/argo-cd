@@ -88,10 +88,7 @@ async function isExpiredSSO() {
     return false;
 }
 
-export class App extends React.Component<
-    {},
-    {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; authSettings: AuthSettings}
-> {
+export class App extends React.Component<{}, {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; authSettings: AuthSettings}> {
     public static childContextTypes = {
         history: PropTypes.object,
         apis: PropTypes.object
