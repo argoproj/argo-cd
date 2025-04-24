@@ -598,8 +598,8 @@ func TestUpdateLive(t *testing.T) {
 					"data": map[string]any{
 						"foo": "bar",
 					},
-					"kind":      "ApplicationSet",
-					"spec":      nil,
+					"kind": "ApplicationSet",
+					"spec": nil,
 				},
 			},
 		},
