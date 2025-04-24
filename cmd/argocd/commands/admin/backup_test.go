@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/security"
 
@@ -16,7 +17,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 )
 
-func newBackupObject(trackingValue string, trackingLabel bool, trackingAnnotation bool) *unstructured.Unstructured {
+func newBackupObject(trackingValue string, trackingLabel bool, trackingAnnotation bool, kind string) *unstructured.Unstructured {
 	cm := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-configmap",
@@ -36,6 +37,10 @@ func newBackupObject(trackingValue string, trackingLabel bool, trackingAnnotatio
 			common.AnnotationKeyAppInstance: trackingValue,
 		})
 	}
+	if kind != "" {
+		cm.Kind = kind
+	}
+
 	return kube.MustToUnstructured(&cm)
 }
 
@@ -375,34 +380,34 @@ func Test_updateTracking(t *testing.T) {
 		{
 			name: "update annotation when present in live",
 			args: args{
-				bak:  newBackupObject("bak", false, true),
-				live: newBackupObject("live", false, true),
+				bak:  newBackupObject("bak", false, true, ""),
+				live: newBackupObject("live", false, true, ""),
 			},
-			expected: newBackupObject("live", false, true),
+			expected: newBackupObject("live", false, true, ""),
 		},
 		{
 			name: "update default label when present in live",
 			args: args{
-				bak:  newBackupObject("bak", true, true),
-				live: newBackupObject("live", true, true),
+				bak:  newBackupObject("bak", true, true, ""),
+				live: newBackupObject("live", true, true, ""),
 			},
-			expected: newBackupObject("live", true, true),
+			expected: newBackupObject("live", true, true, ""),
 		},
 		{
 			name: "do not update if live object does not have tracking",
 			args: args{
-				bak:  newBackupObject("bak", true, true),
-				live: newBackupObject("live", false, false),
+				bak:  newBackupObject("bak", true, true, ""),
+				live: newBackupObject("live", false, false, ""),
 			},
-			expected: newBackupObject("bak", true, true),
+			expected: newBackupObject("bak", true, true, ""),
 		},
 		{
 			name: "do not update if bak object does not have tracking",
 			args: args{
-				bak:  newBackupObject("bak", false, false),
-				live: newBackupObject("live", true, true),
+				bak:  newBackupObject("bak", false, false, ""),
+				live: newBackupObject("live", true, true, ""),
 			},
-			expected: newBackupObject("bak", false, false),
+			expected: newBackupObject("bak", false, false, ""),
 		},
 	}
 	for _, tt := range tests {
@@ -482,6 +487,127 @@ func TestIsSkipLabelMatches(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := isSkipLabelMatches(tt.obj, tt.skipLabels)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestUpdateLive(t *testing.T) {
+	tests := []struct {
+		name          string
+		bak           *unstructured.Unstructured
+		live          *unstructured.Unstructured
+		stopOperation bool
+		expected      *unstructured.Unstructured
+	}{
+		{
+			name:          "Update live object with backup object for ConfigMap",
+			bak:           newBackupObject("bak", true, true, "ConfigMap"),
+			live:          newBackupObject("live", false, false, "ConfigMap"),
+			stopOperation: true,
+			expected: &unstructured.Unstructured{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"name":      "my-configmap",
+						"namespace": "namespace",
+						"labels": map[string]any{
+							common.LabelKeyAppInstance: "bak",
+						},
+						"annotations": map[string]any{
+							common.AnnotationKeyAppInstance: "bak",
+						},
+						"creationTimestamp": nil,
+					},
+					"data": map[string]any{
+						"foo": "bar",
+					},
+					"kind": "ConfigMap",
+				},
+			},
+		},
+		{
+			name:          "Update live object with backup object for AppProjectKind",
+			bak:           newBackupObject("bak", true, true, application.AppProjectKind),
+			live:          newBackupObject("live", false, false, application.AppProjectKind),
+			stopOperation: true,
+			expected: &unstructured.Unstructured{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"name":      "my-configmap",
+						"namespace": "namespace",
+						"labels": map[string]any{
+							common.LabelKeyAppInstance: "bak",
+						},
+						"annotations": map[string]any{
+							common.AnnotationKeyAppInstance: "bak",
+						},
+						"creationTimestamp": nil,
+					},
+					"data": map[string]any{
+						"foo": "bar",
+					},
+					"kind": application.AppProjectKind,
+					"spec": nil,
+				},
+			},
+		},
+		{
+			name:          "Update live object with backup object for ApplicationKind",
+			bak:           newBackupObject("bak", true, true, application.ApplicationKind),
+			live:          newBackupObject("live", false, false, application.ApplicationKind),
+			stopOperation: true,
+			expected: &unstructured.Unstructured{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"name":      "my-configmap",
+						"namespace": "namespace",
+						"labels": map[string]any{
+							common.LabelKeyAppInstance: "bak",
+						},
+						"annotations": map[string]any{
+							common.AnnotationKeyAppInstance: "bak",
+						},
+						"creationTimestamp": nil,
+					},
+					"data": map[string]any{
+						"foo": "bar",
+					},
+					"kind":      application.ApplicationKind,
+					"spec":      nil,
+					"operation": nil,
+				},
+			},
+		},
+		{
+			name:          "Update live object with backup object for ApplicationSet",
+			bak:           newBackupObject("bak", true, true, "ApplicationSet"),
+			live:          newBackupObject("live", false, false, "ApplicationSet"),
+			stopOperation: true,
+			expected: &unstructured.Unstructured{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"name":      "my-configmap",
+						"namespace": "namespace",
+						"labels": map[string]any{
+							common.LabelKeyAppInstance: "bak",
+						},
+						"annotations": map[string]any{
+							common.AnnotationKeyAppInstance: "bak",
+						},
+						"creationTimestamp": nil,
+					},
+					"data": map[string]any{
+						"foo": "bar",
+					},
+					"kind":      "ApplicationSet",
+					"spec":      nil,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			newLive := updateLive(tt.bak, tt.live, tt.stopOperation)
+			assert.Equal(t, tt.expected, newLive)
 		})
 	}
 }
