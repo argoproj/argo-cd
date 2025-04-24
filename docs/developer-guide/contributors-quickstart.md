@@ -20,7 +20,7 @@ Before starting, ensure you have the following tools installed with the specifie
 
 ### Fork and Clone the Repository
 
-1. Fork the Argo CD repository to your personal Github Account
+1. Fork the Argo CD repository to your personal GitHub Account
 
 2. Clone the forked repository:
 ```shell
