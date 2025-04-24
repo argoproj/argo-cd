@@ -29,7 +29,7 @@ type BitbucketCloudPullRequestDestination struct {
 }
 
 type BitbucketCloudPullRequestDestinationBranch struct {
-	BitbucketCloudPullRequestSourceBranch
+	Name string `json:"name"`
 }
 
 type BitbucketCloudPullRequestSource struct {
