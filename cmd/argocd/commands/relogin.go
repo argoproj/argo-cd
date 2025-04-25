@@ -21,7 +21,7 @@ import (
 func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		password         string
-		callback          string
+		callback         string
 		ssoPort          int
 		ssoLaunchBrowser bool
 	)

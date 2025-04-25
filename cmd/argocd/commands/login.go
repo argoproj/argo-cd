@@ -41,7 +41,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 		username         string
 		password         string
 		sso              bool
-		callback          string
+		callback         string
 		ssoPort          int
 		skipTestTLS      bool
 		ssoLaunchBrowser bool
@@ -223,7 +223,7 @@ func oauth2Login(
 		redirectBase = "http://localhost:" + strconv.Itoa(port)
 	}
 
-	oauth2conf.RedirectURL = fmt.Sprintf("%s/auth/callback", redirectBase)
+	oauth2conf.RedirectURL = redirectBase + "/auth/callback"
 	oidcConf, err := oidcutil.ParseConfig(provider)
 	errors.CheckError(err)
 	log.Debug("OIDC Configuration:")
