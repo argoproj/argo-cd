@@ -20,7 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
-func selectPodForPortForward(clientSet *kubernetes.Clientset, namespace string, podSelectors ...string) (*corev1.Pod, error) {
+func selectPodForPortForward(clientSet kubernetes.Interface, namespace string, podSelectors ...string) (*corev1.Pod, error) {
 	for _, podSelector := range podSelectors {
 		pods, err := clientSet.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{
 			LabelSelector: podSelector,
