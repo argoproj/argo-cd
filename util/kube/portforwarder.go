@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/util/podutils"
 
 	"github.com/argoproj/argo-cd/v3/util/io"
 )
@@ -29,11 +30,13 @@ func selectPodForPortForward(clientSet kubernetes.Interface, namespace string, p
 			return nil, err
 		}
 
-		if len(pods.Items) > 0 {
-			return &pods.Items[0], nil
+		for _, po := range pods.Items {
+			if po.Status.Phase == corev1.PodRunning && podutils.IsPodReady(&po) {
+				return &po, nil
+			}
 		}
 	}
-	return nil, fmt.Errorf("cannot find pod with selector: %v - use the --{component}-name flag in this command or set the environmental variable (Refer to https://argo-cd.readthedocs.io/en/stable/user-guide/environment-variables), to change the Argo CD component name in the CLI", podSelectors)
+	return nil, fmt.Errorf("cannot find ready pod with selector: %v - use the --{component}-name flag in this command or set the environmental variable (Refer to https://argo-cd.readthedocs.io/en/stable/user-guide/environment-variables), to change the Argo CD component name in the CLI", podSelectors)
 }
 
 func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOverrides, podSelectors ...string) (int, error) {
