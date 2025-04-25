@@ -20,6 +20,22 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
+func selectPodForPortForward(clientSet *kubernetes.Clientset, namespace string, podSelectors ...string) (*corev1.Pod, error) {
+	for _, podSelector := range podSelectors {
+		pods, err := clientSet.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{
+			LabelSelector: podSelector,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		if len(pods.Items) > 0 {
+			return &pods.Items[0], nil
+		}
+	}
+	return nil, fmt.Errorf("cannot find pod with selector: %v - use the --{component}-name flag in this command or set the environmental variable (Refer to https://argo-cd.readthedocs.io/en/stable/user-guide/environment-variables), to change the Argo CD component name in the CLI", podSelectors)
+}
+
 func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOverrides, podSelectors ...string) (int, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
@@ -41,24 +57,9 @@ func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOv
 		return -1, err
 	}
 
-	var pod *corev1.Pod
-
-	for _, podSelector := range podSelectors {
-		pods, err := clientSet.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{
-			LabelSelector: podSelector,
-		})
-		if err != nil {
-			return -1, err
-		}
-
-		if len(pods.Items) > 0 {
-			pod = &pods.Items[0]
-			break
-		}
-	}
-
-	if pod == nil {
-		return -1, fmt.Errorf("cannot find pod with selector: %v - use the --{component}-name flag in this command or set the environmental variable (Refer to https://argo-cd.readthedocs.io/en/stable/user-guide/environment-variables), to change the Argo CD component name in the CLI", podSelectors)
+	pod, err := selectPodForPortForward(clientSet, namespace, podSelectors...)
+	if err != nil {
+		return -1, err
 	}
 
 	url := clientSet.CoreV1().RESTClient().Post().
