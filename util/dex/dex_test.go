@@ -171,6 +171,17 @@ connectors:
     - name: your-github-org
 `
 
+var goodDexConfigWithExplicitRedirectURI = `
+connectors:
+- type: github
+  id: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: $dex.github.clientSecret
+    redirectURI: https://custom.org/callback
+`
+
 var goodSecrets = map[string]string{
 	"dex.github.clientSecret": "foobar",
 	"dex.acme.clientSecret":   "barfoo",
@@ -368,6 +379,28 @@ func Test_GenerateDexConfig(t *testing.T) {
 			assert.True(t, needsRedirectURI(c))
 		}
 		assert.False(t, needsRedirectURI("invalid"))
+	})
+
+	t.Run("Explicit connector redirectURI overrides default", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfigWithExplicitRedirectURI,
+		}
+		config, err := GenerateDexConfigYAML(&s, false)
+		require.NoError(t, err)
+		var dexCfg map[string]any
+		err = yaml.Unmarshal(config, &dexCfg)
+		require.NoError(t, err)
+		connectors := dexCfg["connectors"].([]any)
+		require.NotNil(t, connectors)
+		require.Len(t, connectors, 1)
+		connector := connectors[0].(map[string]any)
+		require.NotNil(t, connector)
+		connectorConfig := connector["config"].(map[string]any)
+		require.NotNil(t, connectorConfig)
+		redirectURI := connectorConfig["redirectURI"].(string)
+		require.NotNil(t, redirectURI)
+		assert.Equal(t, "https://custom.org/callback", redirectURI)
 	})
 
 	t.Run("Custom static clients", func(t *testing.T) {

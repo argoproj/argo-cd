@@ -108,10 +108,6 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 		dexCfg["staticClients"] = []any{argoCDStaticClient, argoCDCLIStaticClient, argoCDPKCEStaticClient}
 	}
 
-	dexRedirectURL, err := argocdSettings.DexRedirectURL()
-	if err != nil {
-		return nil, err
-	}
 	connectors, ok := dexCfg["connectors"].([]any)
 	if !ok {
 		return nil, errors.New("malformed Dex configuration found")
@@ -129,7 +125,13 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 		if !ok {
 			return nil, errors.New("malformed Dex configuration found")
 		}
-		connectorCfg["redirectURI"] = dexRedirectURL
+		if _, ok := connectorCfg["redirectURI"]; !ok {
+			dexRedirectURL, err := argocdSettings.DexRedirectURL()
+			if err != nil {
+				return nil, err
+			}
+			connectorCfg["redirectURI"] = dexRedirectURL
+		}
 		connector["config"] = connectorCfg
 		connectors[i] = connector
 	}
