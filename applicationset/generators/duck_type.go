@@ -62,12 +62,12 @@ func (g *DuckTypeGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Appl
 
 func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
-		return nil, EmptyAppSetGeneratorError
+		return nil, ErrEmptyAppSetGenerator
 	}
 
 	// Not likely to happen
 	if appSetGenerator.ClusterDecisionResource == nil {
-		return nil, EmptyAppSetGeneratorError
+		return nil, ErrEmptyAppSetGenerator
 	}
 
 	// ListCluster from Argo CD's util/db package will include the local cluster in the list of clusters
@@ -97,13 +97,13 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 	// Validate the fields
 	if kind == "" || versionIdx < 1 {
 		log.Warningf("kind=%v, resourceName=%v, versionIdx=%v", kind, resourceName, versionIdx)
-		return nil, errors.New("There is a problem with the apiVersion, kind or resourceName provided")
+		return nil, errors.New("there is a problem with the apiVersion, kind or resourceName provided")
 	}
 
 	if (resourceName == "" && labelSelector.MatchLabels == nil && labelSelector.MatchExpressions == nil) ||
 		(resourceName != "" && (labelSelector.MatchExpressions != nil || labelSelector.MatchLabels != nil)) {
 		log.Warningf("You must choose either resourceName=%v, labelSelector.matchLabels=%v or labelSelect.matchExpressions=%v", resourceName, labelSelector.MatchLabels, labelSelector.MatchExpressions)
-		return nil, errors.New("There is a problem with the definition of the ClusterDecisionResource generator")
+		return nil, errors.New("there is a problem with the definition of the ClusterDecisionResource generator")
 	}
 
 	// Split up the apiVersion

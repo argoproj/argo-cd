@@ -39,7 +39,7 @@ func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 
 	// Each key/value pair in the config map must exactly contain one public key, with the (short) GPG key ID as key
 	if len(parsed) != 1 {
-		return nil, errors.New("More than one key found in input data")
+		return nil, errors.New("more than one key found in input data")
 	}
 
 	var retKey *appsv1.GnuPGPublicKey
@@ -52,7 +52,7 @@ func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 		retKey.KeyData = keyData
 		return retKey, nil
 	}
-	return nil, errors.New("Could not find the GPG key")
+	return nil, errors.New("could not find the GPG key")
 }
 
 // ListConfiguredGPGPublicKeys returns a list of all configured GPG public keys from the ConfigMap
@@ -71,14 +71,14 @@ func (db *db) ListConfiguredGPGPublicKeys(_ context.Context) (map[string]*appsv1
 	for k, p := range keysCM.Data {
 		expectedKeyID := gpg.KeyID(k)
 		if expectedKeyID == "" {
-			return nil, fmt.Errorf("Found entry with key '%s' in ConfigMap, but this is not a valid PGP key ID", k)
+			return nil, fmt.Errorf("found entry with key '%s' in ConfigMap, but this is not a valid PGP key ID", k)
 		}
 		parsedKey, err := validatePGPKey(p)
 		if err != nil {
-			return nil, fmt.Errorf("Could not parse GPG key for entry '%s': %s", expectedKeyID, err.Error())
+			return nil, fmt.Errorf("could not parse GPG key for entry '%s': %s", expectedKeyID, err.Error())
 		}
 		if expectedKeyID != parsedKey.KeyID {
-			return nil, fmt.Errorf("Key parsed for entry with key ID '%s' had different key ID '%s'", expectedKeyID, parsedKey.KeyID)
+			return nil, fmt.Errorf("key parsed for entry with key ID '%s' had different key ID '%s'", expectedKeyID, parsedKey.KeyID)
 		}
 		result[parsedKey.KeyID] = parsedKey
 	}
@@ -128,7 +128,7 @@ func (db *db) DeleteGPGPublicKey(ctx context.Context, keyID string) error {
 	}
 
 	if _, ok := keysCM.Data[keyID]; !ok {
-		return fmt.Errorf("No such key configured: %s", keyID)
+		return fmt.Errorf("no such key configured: %s", keyID)
 	}
 
 	delete(keysCM.Data, keyID)

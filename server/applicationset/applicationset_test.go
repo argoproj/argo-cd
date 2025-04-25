@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/pkg/sync"
+	"github.com/argoproj/pkg/v2/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -277,15 +277,15 @@ func TestListAppSetsInNamespaceWithLabels(t *testing.T) {
 	testNamespace := "test-namespace"
 	appSetServer := newTestAppSetServer(t, newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet1"
-		appset.ObjectMeta.Namespace = testNamespace
+		appset.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
 	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet2"
-		appset.ObjectMeta.Namespace = testNamespace
+		appset.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value2"})
 	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet3"
-		appset.ObjectMeta.Namespace = testNamespace
+		appset.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value3"})
 	}))
 	appSetServer.enabledNamespaces = []string{testNamespace}
@@ -317,15 +317,15 @@ func TestListAppSetsWithoutNamespace(t *testing.T) {
 	testNamespace := "test-namespace"
 	appSetServer := newTestNamespacedAppSetServer(t, newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet1"
-		appset.ObjectMeta.Namespace = testNamespace
+		appset.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
 	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet2"
-		appset.ObjectMeta.Namespace = testNamespace
+		appset.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value2"})
 	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet3"
-		appset.ObjectMeta.Namespace = testNamespace
+		appset.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value3"})
 	}))
 	appSetServer.enabledNamespaces = []string{testNamespace}
@@ -365,7 +365,7 @@ func TestCreateAppSetTemplatedProject(t *testing.T) {
 func TestCreateAppSetWrongNamespace(t *testing.T) {
 	testAppSet := newTestAppSet()
 	appServer := newTestAppSetServer(t)
-	testAppSet.ObjectMeta.Namespace = "NOT-ALLOWED"
+	testAppSet.Namespace = "NOT-ALLOWED"
 	createReq := applicationset.ApplicationSetCreateRequest{
 		Applicationset: testAppSet,
 	}
@@ -507,21 +507,21 @@ func TestDeleteAppSet(t *testing.T) {
 
 func TestUpdateAppSet(t *testing.T) {
 	appSet := newTestAppSet(func(appset *appsv1.ApplicationSet) {
-		appset.ObjectMeta.Annotations = map[string]string{
+		appset.Annotations = map[string]string{
 			"annotation-key1": "annotation-value1",
 			"annotation-key2": "annotation-value2",
 		}
-		appset.ObjectMeta.Labels = map[string]string{
+		appset.Labels = map[string]string{
 			"label-key1": "label-value1",
 			"label-key2": "label-value2",
 		}
 	})
 
 	newAppSet := newTestAppSet(func(appset *appsv1.ApplicationSet) {
-		appset.ObjectMeta.Annotations = map[string]string{
+		appset.Annotations = map[string]string{
 			"annotation-key1": "annotation-value1-updated",
 		}
-		appset.ObjectMeta.Labels = map[string]string{
+		appset.Labels = map[string]string{
 			"label-key1": "label-value1-updated",
 		}
 	})
