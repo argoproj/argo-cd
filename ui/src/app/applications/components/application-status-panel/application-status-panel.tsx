@@ -14,11 +14,11 @@ import {
     HydrateOperationPhaseIcon,
     hydrationStatusMessage,
     getProgressiveSyncStatusColor,
-    getProgressiveSyncStatusIcon,
-    getAppCurrentVersion
+    getProgressiveSyncStatusIcon
 } from '../utils';
 import {getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage, getAppDefaultSyncRevision, getAppDefaultOperationSyncRevision} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
+import * as utils from '../utils';
 import {COLORS} from '../../../shared/components/colors';
 
 import './application-status-panel.scss';
@@ -259,7 +259,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                 appNamespace={application.metadata.namespace}
                                 type={''}
                                 revision={application.status.sourceHydrator.currentOperation.drySHA}
-                                versionId={getAppCurrentVersion(application)}
+                                versionId={utils.getAppCurrentVersion(application)}
                             />
                         )}
                     </div>
@@ -300,7 +300,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                     appNamespace={application.metadata.namespace}
                                     type={source?.chart && 'helm'}
                                     revision={revision}
-                                    versionId={getAppCurrentVersion(application)}
+                                    versionId={utils.getAppCurrentVersion(application)}
                                 />
                             </div>
                         )}
@@ -343,7 +343,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                 appNamespace={application.metadata.namespace}
                                 type={source?.chart && 'helm'}
                                 revision={operationStateRevision}
-                                versionId={getAppCurrentVersion(application)}
+                                versionId={utils.getAppCurrentVersion(application)}
                             />
                         )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
                     </React.Fragment>
