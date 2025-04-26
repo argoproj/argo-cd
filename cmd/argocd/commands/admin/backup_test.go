@@ -6,6 +6,8 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/security"
+	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
@@ -36,40 +38,6 @@ func newBackupObject(trackingValue string, trackingLabel bool, trackingAnnotatio
 			common.AnnotationKeyAppInstance: trackingValue,
 		})
 	}
-	return kube.MustToUnstructured(&cm)
-}
-
-func newCustomBackupObject() *unstructured.Unstructured {
-	cm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-configmap",
-			Namespace: "namespace",
-			Labels: map[string]string{
-				"env": "dev",
-			},
-		},
-		Data: map[string]string{
-			"foo": "bar",
-		},
-	}
-
-	return kube.MustToUnstructured(&cm)
-}
-
-func newCustomLiveObject() *unstructured.Unstructured {
-	cm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-configmap",
-			Namespace: "namespace",
-			Labels: map[string]string{
-				"env": "prod",
-			},
-		},
-		Data: map[string]string{
-			"abc": "def",
-		},
-	}
-
 	return kube.MustToUnstructured(&cm)
 }
 
@@ -398,8 +366,8 @@ status: {}
 
 func Test_importResources(t *testing.T) {
 	type args struct {
-		bak  *unstructured.Unstructured
-		live *unstructured.Unstructured
+		bak  string
+		live string
 	}
 
 	tests := []struct {
@@ -409,19 +377,167 @@ func Test_importResources(t *testing.T) {
 		{
 			name: "It should update the live object according to the backup object",
 			args: args{
-				bak:  newCustomBackupObject(),
-				live: newCustomLiveObject(),
+				bak: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-configmap
+  namespace: namespace
+  labels:
+    env: dev
+  annotations:
+    argocd.argoproj.io/instance: test-instance
+  finalizers:
+    - test.finalizer.io
+data:
+  foo: bar
+`,
+				live: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-configmap
+  namespace: namespace
+  labels:
+    env: prod
+  annotations:
+    argocd.argoproj.io/instance: old-instance
+  finalizers: []
+data:
+  foo: old
+`,
+			},
+		},
+		{
+			name: "It should update the data of the live object according to the backup object",
+			args: args{
+				bak: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-configmap
+  namespace: namespace
+data:
+  foo: bar
+`,
+				live: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-configmap
+  namespace: namespace
+data:
+  foo: old				
+`,
+			},
+		},
+		{
+			name: "Spec should be updated correctly in live object according to the backup object",
+			args: args{
+				bak: `apiVersion: v1
+kind: Application
+metadata:
+  name: app
+  namespace: argocd
+spec:
+  source:
+    repoURL: https://github.com/example/updated.git
+  destination:
+    namespace: default
+    server: https://kubernetes.default.svc
+`,
+				live: `apiVersion: v1
+kind: Application
+metadata:
+  name: app
+  namespace: argocd
+spec:
+  source:
+    repoURL: https://github.com/example/old.git
+  destination:
+    namespace: default
+    server: https://kubernetes.default.svc
+`,
+			},
+		},
+		{
+			name: "It should update live object's spec according to the backup object",
+			args: args{
+				bak: `apiVersion: v1
+kind: ApplicationSet
+metadata:
+  name: my-appset
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - clusters: dev
+  template:
+    metadata:
+      name: '{{appName}}'
+    spec: {}
+`,
+				live: `apiVersion: v1
+kind: ApplicationSet
+metadata:
+  name: my-appset
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - clusters: prod
+  template:
+    metadata:
+      name: '{{appName}}'
+    spec: {}
+`,
+			},
+		},
+		{
+			name: "It shouldn't update the live object if it's same as the backup object",
+			args: args{
+				bak: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-cm
+  namespace: argocd
+  labels:
+    env: dev
+data:
+  foo: bar
+`,
+				live: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-cm
+  namespace: argocd
+  labels:
+    env: dev
+data:
+  foo: bar
+`,
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			updatedLive := updateLive(tt.args.bak, tt.args.live, false)
-			assert.Equal(t, tt.args.bak.GetLabels()["env"], updatedLive.GetLabels()["env"])
-			assert.Equal(t, tt.args.bak.GetAnnotations()[common.AnnotationKeyAppInstance], updatedLive.GetAnnotations()[common.AnnotationKeyAppInstance])
+			bakObj := decodeYAMLToUnstructured(t, tt.args.bak)
+			liveObj := decodeYAMLToUnstructured(t, tt.args.live)
+
+			updatedLive := updateLive(bakObj, liveObj, false)
+
+			assert.Equal(t, bakObj.GetLabels(), updatedLive.GetLabels())
+			assert.Equal(t, bakObj.GetAnnotations(), updatedLive.GetAnnotations())
+			assert.Equal(t, bakObj.GetFinalizers(), updatedLive.GetFinalizers())
+			assert.Equal(t, bakObj.Object["data"], updatedLive.Object["data"])
 		})
 	}
+}
+
+func decodeYAMLToUnstructured(t *testing.T, yamlStr string) *unstructured.Unstructured {
+	var m map[string]interface{}
+	err := yaml.Unmarshal([]byte(yamlStr), &m)
+	require.NoError(t, err)
+	return &unstructured.Unstructured{Object: m}
 }
 
 func Test_updateTracking(t *testing.T) {
