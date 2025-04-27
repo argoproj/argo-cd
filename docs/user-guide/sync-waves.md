@@ -1,6 +1,6 @@
 # Sync Phases and Waves
 
-If you want to easily run a specific task or deploy a specific resource before or after the main sync operation you can use sync phases and hooks.
+Sync phases and hooks define when resources are applied such as before or after the main sync operation. This makes it possible to define jobs, or any other resource to run or be applied in any specific order.
 
 Argo CD has the following hook types:
 
