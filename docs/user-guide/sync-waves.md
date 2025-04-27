@@ -13,7 +13,7 @@ Argo CD has the following hook types:
 | `SyncFail` | Executes when the sync operation fails. |
 | `PostDelete` | Executes after all Application resources are deleted. _Available starting in v2.10._ |
 
-To assign a resource to a specific phase you need to use the argocd.argoproj.io/hook annotation. During a Sync operation, Argo CD will apply the resource during the appropriate phase of the deployment. Hooks can be any type of Kubernetes resource kind, but tend to be Pod, Job or Argo Workflows. Multiple hooks can be specified as a comma separated list.
+Adding the argocd.argoproj.io/hook annotation to a resource will assign it to a specific phase. During a Sync operation, Argo CD will apply the resource during the appropriate phase of the deployment. Hooks can be any type of Kubernetes resource kind, but tend to be Pod, Job or Argo Workflows. Multiple hooks can be specified as a comma separated list.
 
 ## How phases work?
 
