@@ -516,6 +516,29 @@ data:
 `,
 			},
 		},
+		{
+			name: "Resources should be created when they're missing from live",
+			args: args{
+				bak: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-cm
+  namespace: argocd
+  labels:
+    env: dev
+data:
+  foo: bar
+`,
+				live: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-cm
+  namespaces: argocd
+  labels:
+    env: dev
+`,
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -534,7 +557,9 @@ data:
 }
 
 func decodeYAMLToUnstructured(t *testing.T, yamlStr string) *unstructured.Unstructured {
-	var m map[string]interface{}
+	t.Helper()
+
+	var m map[string]any
 	err := yaml.Unmarshal([]byte(yamlStr), &m)
 	require.NoError(t, err)
 	return &unstructured.Unstructured{Object: m}
