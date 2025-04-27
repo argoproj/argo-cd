@@ -17,7 +17,7 @@ Adding the argocd.argoproj.io/hook annotation to a resource will assign it to a 
 
 ## How phases work?
 
-Once you have assigned resources to different phases, during a sync operation Argo CD will do the following.
+Argo CD will respect resources assigned to different phases, during a sync operation Argo CD will do the following.
 
 Apply all the resources marked as PreSync hooks. If any of them fails the whole sync process will stop and will be marked as failed
 Apply all the resources marked as Sync hooks. If any of them fails the whole sync process will be marked as failed. Hooks marked with SyncFail will also run
