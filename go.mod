@@ -15,7 +15,7 @@ require (
 	github.com/argoproj/gitops-engine v0.7.1-0.20250420064138-d65e9d92277d
 	github.com/argoproj/notifications-engine v0.4.1-0.20250309174002-87bf0576a872
 	github.com/argoproj/pkg/v2 v2.0.1
-	github.com/aws/aws-sdk-go v1.55.6
+	github.com/aws/aws-sdk-go v1.55.7
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.15.0
@@ -62,7 +62,7 @@ require (
 	github.com/jarcoal/httpmock v1.4.0
 	github.com/jeremywohl/flatten v1.0.2-0.20211013061545-07e4a09fb8e4
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
-	github.com/ktrysmt/go-bitbucket v0.9.82
+	github.com/ktrysmt/go-bitbucket v0.9.83
 	github.com/mattn/go-isatty v0.0.20
 	github.com/mattn/go-zglob v0.0.6
 	github.com/microsoft/azure-devops-go-api/azuredevops/v7 v7.1.1-0.20241014080628-3045bdf43455
@@ -96,7 +96,7 @@ require (
 	golang.org/x/term v0.31.0
 	golang.org/x/time v0.11.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250218202821-56aae31c358a
-	google.golang.org/grpc v1.71.1
+	google.golang.org/grpc v1.72.0
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
