@@ -16,16 +16,16 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 
-	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/security"
-	"github.com/argoproj/argo-cd/v3/util/session"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/security"
+	"github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -345,7 +345,6 @@ type Manager struct {
 	settings    SettingsGetter
 	application ApplicationGetter
 	project     ProjectGetter
-	cluster     argo.ClusterGetter
 	rbac        RbacEnforcer
 	registry    ExtensionRegistry
 	metricsReg  ExtensionMetricsRegistry
@@ -365,14 +364,13 @@ type ExtensionMetricsRegistry interface {
 }
 
 // NewManager will initialize a new manager.
-func NewManager(log *log.Entry, namespace string, sg SettingsGetter, ag ApplicationGetter, pg ProjectGetter, cg argo.ClusterGetter, rbac RbacEnforcer, ug UserGetter) *Manager {
+func NewManager(log *log.Entry, namespace string, sg SettingsGetter, ag ApplicationGetter, pg ProjectGetter, rbac RbacEnforcer, ug UserGetter) *Manager {
 	return &Manager{
 		log:         log,
 		namespace:   namespace,
 		settings:    sg,
 		application: ag,
 		project:     pg,
-		cluster:     cg,
 		rbac:        rbac,
 		userGetter:  ug,
 	}
@@ -697,11 +695,7 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 	if proj == nil {
 		return nil, fmt.Errorf("invalid project provided in the %q header", HeaderArgoCDProjectName)
 	}
-	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, m.cluster)
-	if err != nil {
-		return nil, fmt.Errorf("error getting destination cluster: %w", err)
-	}
-	permitted, err := proj.IsDestinationPermitted(destCluster, app.Spec.Destination.Namespace, m.project.GetClusters)
+	permitted, err := proj.IsDestinationPermitted(app.Spec.Destination, m.project.GetClusters)
 	if err != nil {
 		return nil, fmt.Errorf("error validating project destinations: %w", err)
 	}
@@ -783,14 +777,7 @@ func (m *Manager) CallExtension() func(http.ResponseWriter, *http.Request) {
 		user := m.userGetter.GetUser(r.Context())
 		groups := m.userGetter.GetGroups(r.Context())
 		prepareRequest(r, m.namespace, extName, app, user, groups)
-		m.log.WithFields(log.Fields{
-			HeaderArgoCDUsername:        user,
-			HeaderArgoCDGroups:          strings.Join(groups, ","),
-			HeaderArgoCDNamespace:       m.namespace,
-			HeaderArgoCDApplicationName: fmt.Sprintf("%s:%s", app.GetNamespace(), app.GetName()),
-			"extension":                 extName,
-			"path":                      r.URL.Path,
-		}).Info("sending proxy extension request")
+		m.log.Debugf("proxing request for extension %q", extName)
 		// httpsnoop package is used to properly wrap the responseWriter
 		// and avoid optional intefaces issue:
 		// https://github.com/felixge/httpsnoop#why-this-package-exists

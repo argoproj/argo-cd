@@ -10,9 +10,9 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/services/mocks"
+	"github.com/argoproj/argo-cd/v2/applicationset/services/mocks"
 
-	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
@@ -27,19 +27,19 @@ func TestMatchValues(t *testing.T) {
 		name     string
 		elements []apiextensionsv1.JSON
 		selector *metav1.LabelSelector
-		expected []map[string]any
+		expected []map[string]interface{}
 	}{
 		{
 			name:     "no filter",
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url"}`)}},
 			selector: &metav1.LabelSelector{},
-			expected: []map[string]any{{"cluster": "cluster", "url": "url"}},
+			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url"}},
 		},
 		{
 			name:     "nil",
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url"}`)}},
 			selector: nil,
-			expected: []map[string]any{{"cluster": "cluster", "url": "url"}},
+			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url"}},
 		},
 		{
 			name:     "values.foo should be foo but is ignore element",
@@ -49,7 +49,7 @@ func TestMatchValues(t *testing.T) {
 					"values.foo": "foo",
 				},
 			},
-			expected: []map[string]any{},
+			expected: []map[string]interface{}{},
 		},
 		{
 			name:     "values.foo should be bar",
@@ -59,7 +59,7 @@ func TestMatchValues(t *testing.T) {
 					"values.foo": "bar",
 				},
 			},
-			expected: []map[string]any{{"cluster": "cluster", "url": "url", "values.foo": "bar"}},
+			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url", "values.foo": "bar"}},
 		},
 	}
 
@@ -101,19 +101,19 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 		name     string
 		elements []apiextensionsv1.JSON
 		selector *metav1.LabelSelector
-		expected []map[string]any
+		expected []map[string]interface{}
 	}{
 		{
 			name:     "no filter",
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url"}`)}},
 			selector: &metav1.LabelSelector{},
-			expected: []map[string]any{{"cluster": "cluster", "url": "url"}},
+			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url"}},
 		},
 		{
 			name:     "nil",
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url"}`)}},
 			selector: nil,
-			expected: []map[string]any{{"cluster": "cluster", "url": "url"}},
+			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url"}},
 		},
 		{
 			name:     "values.foo should be foo but is ignore element",
@@ -123,7 +123,7 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 					"values.foo": "foo",
 				},
 			},
-			expected: []map[string]any{},
+			expected: []map[string]interface{}{},
 		},
 		{
 			name:     "values.foo should be bar",
@@ -133,7 +133,7 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 					"values.foo": "bar",
 				},
 			},
-			expected: []map[string]any{{"cluster": "cluster", "url": "url", "values": map[string]any{"foo": "bar"}}},
+			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url", "values": map[string]interface{}{"foo": "bar"}}},
 		},
 		{
 			name:     "values.0 should be bar",
@@ -143,7 +143,7 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 					"values.0": "bar",
 				},
 			},
-			expected: []map[string]any{{"cluster": "cluster", "url": "url", "values": []any{"bar"}}},
+			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url", "values": []interface{}{"bar"}}},
 		},
 	}
 
@@ -184,14 +184,14 @@ func TestTransForm(t *testing.T) {
 	testCases := []struct {
 		name     string
 		selector *metav1.LabelSelector
-		expected []map[string]any
+		expected []map[string]interface{}
 	}{
 		{
 			name: "server filter",
 			selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"server": "https://production-01.example.com"},
 			},
-			expected: []map[string]any{{
+			expected: []map[string]interface{}{{
 				"metadata.annotations.foo.argoproj.io":           "production",
 				"metadata.labels.argocd.argoproj.io/secret-type": "cluster",
 				"metadata.labels.environment":                    "production",
@@ -207,7 +207,7 @@ func TestTransForm(t *testing.T) {
 			selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"server": "https://some-really-long-url-that-will-exceed-63-characters.com"},
 			},
-			expected: []map[string]any{{
+			expected: []map[string]interface{}{{
 				"metadata.annotations.foo.argoproj.io":           "production",
 				"metadata.labels.argocd.argoproj.io/secret-type": "cluster",
 				"metadata.labels.environment":                    "production",
@@ -342,7 +342,7 @@ func getMockClusterGenerator() Generator {
 	appClientset := kubefake.NewSimpleClientset(runtimeClusters...)
 
 	fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
-	return NewClusterGenerator(context.Background(), fakeClient, appClientset, "namespace")
+	return NewClusterGenerator(fakeClient, context.Background(), appClientset, "namespace")
 }
 
 func getMockGitGenerator() Generator {
@@ -413,7 +413,7 @@ func TestInterpolateGenerator(t *testing.T) {
 			},
 		},
 	}
-	gitGeneratorParams := map[string]any{
+	gitGeneratorParams := map[string]interface{}{
 		"path":                    "p1/p2/app3",
 		"path.basename":           "app3",
 		"path[0]":                 "p1",
@@ -442,7 +442,7 @@ func TestInterpolateGenerator(t *testing.T) {
 			Template: argov1alpha1.ApplicationSetTemplate{},
 		},
 	}
-	clusterGeneratorParams := map[string]any{
+	clusterGeneratorParams := map[string]interface{}{
 		"name": "production_01/west", "server": "https://production-01.example.com",
 	}
 	interpolatedGenerator, err = InterpolateGenerator(requestedGenerator, clusterGeneratorParams, false, nil)
@@ -468,8 +468,8 @@ func TestInterpolateGenerator_go(t *testing.T) {
 			},
 		},
 	}
-	gitGeneratorParams := map[string]any{
-		"path": map[string]any{
+	gitGeneratorParams := map[string]interface{}{
+		"path": map[string]interface{}{
 			"path":     "p1/p2/app3",
 			"segments": []string{"p1", "p2", "app3"},
 		},
@@ -497,7 +497,7 @@ func TestInterpolateGenerator_go(t *testing.T) {
 			Template: argov1alpha1.ApplicationSetTemplate{},
 		},
 	}
-	clusterGeneratorParams := map[string]any{
+	clusterGeneratorParams := map[string]interface{}{
 		"name": "production_01/west", "server": "https://production-01.example.com",
 	}
 	interpolatedGenerator, err = InterpolateGenerator(requestedGenerator, clusterGeneratorParams, true, nil)
@@ -512,7 +512,7 @@ func TestInterpolateGenerator_go(t *testing.T) {
 func TestInterpolateGeneratorError(t *testing.T) {
 	type args struct {
 		requestedGenerator *argov1alpha1.ApplicationSetGenerator
-		params             map[string]any
+		params             map[string]interface{}
 		useGoTemplate      bool
 		goTemplateOptions  []string
 	}
@@ -530,7 +530,7 @@ func TestInterpolateGeneratorError(t *testing.T) {
 		}, want: argov1alpha1.ApplicationSetGenerator{}, expectedErrStr: "generator is empty"},
 		{name: "No Params", args: args{
 			requestedGenerator: &argov1alpha1.ApplicationSetGenerator{},
-			params:             map[string]any{},
+			params:             map[string]interface{}{},
 			useGoTemplate:      false,
 			goTemplateOptions:  nil,
 		}, want: argov1alpha1.ApplicationSetGenerator{}, expectedErrStr: ""},
@@ -545,7 +545,7 @@ func TestInterpolateGeneratorError(t *testing.T) {
 					"resolved":  "{{ index .rmap (default .override .test) }}",
 				},
 			}},
-			params: map[string]any{
+			params: map[string]interface{}{
 				"name":     "in-cluster",
 				"override": "foo",
 			},

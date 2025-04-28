@@ -42,7 +42,7 @@ spec:
     namespace: nginx
 ```
 
-!!! note "When using Helm there are multiple ways to provide values"
+!!! note "When using multiple ways to provide values"
     Order of precedence is `parameters > valuesObject > values > valueFiles > helm repository values.yaml` (see [Here](./helm.md#helm-value-precedence) for a more detailed example)
 
 See [here](../operator-manual/declarative-setup.md#helm-chart-repositories) for more info about how to configure private Helm repositories.
@@ -390,9 +390,9 @@ RUN helm plugin install ${GCS_PLUGIN_REPO} --version ${GCS_PLUGIN_VERSION}
 ENV HELM_PLUGINS="/home/argocd/.local/share/helm/plugins/"
 ```
 
-The `HELM_PLUGINS` environment property required for ArgoCD to locale plugins correctly.
+You have to remember about `HELM_PLUGINS` environment property - this is required for plugins to work correctly.
 
-Once built, use the custom image for ArgoCD installation.
+After that you have to use your custom image for ArgoCD installation.
 
 ### Using `initContainers`
 Another option is to install Helm plugins via Kubernetes `initContainers`.
@@ -517,6 +517,7 @@ spec:
     helm:
       skipSchemaValidation: true
 ```
+
 
 
 ## Helm `--skip-tests`

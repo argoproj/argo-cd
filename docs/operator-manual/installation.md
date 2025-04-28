@@ -31,10 +31,6 @@ Not recommended for production use. This type of installation is typically used 
   Argo CD instances for different teams, where each instance will be deploying applications to
   external clusters. It will still be possible to deploy to the same cluster (kubernetes.svc.default)
   with inputted credentials (i.e. `argocd cluster add <CONTEXT> --in-cluster --namespace <YOUR NAMESPACE>`).
-  With the default roles included, you will only be able to deploy Argo CD resources (Applications, ApplicationSets
-  and AppProjects)  in the same cluster, as it's only supporting the GitOps mode with real deployments being
-  done to external clusters.
-  You can modify that by defining new roles and binding them to the `argocd-application-controller` service account.
 
   > Note: Argo CD CRDs are not included into [namespace-install.yaml](https://github.com/argoproj/argo-cd/blob/master/manifests/namespace-install.yaml).
   > and have to be installed separately. The CRD manifests are located in the [manifests/crds](https://github.com/argoproj/argo-cd/blob/master/manifests/crds) directory.

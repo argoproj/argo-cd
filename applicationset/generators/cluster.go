@@ -7,16 +7,16 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/utils"
-	"github.com/argoproj/argo-cd/v3/common"
-	argoappsetv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/argoproj/argo-cd/v2/common"
+	argoappsetv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 var _ Generator = (*ClusterGenerator)(nil)
@@ -33,7 +33,7 @@ type ClusterGenerator struct {
 
 var render = &utils.Render{}
 
-func NewClusterGenerator(ctx context.Context, c client.Client, clientset kubernetes.Interface, namespace string) Generator {
+func NewClusterGenerator(c client.Client, ctx context.Context, clientset kubernetes.Interface, namespace string) Generator {
 	settingsManager := settings.NewSettingsManager(ctx, clientset, namespace)
 
 	g := &ClusterGenerator{
@@ -56,21 +56,21 @@ func (g *ClusterGenerator) GetTemplate(appSetGenerator *argoappsetv1alpha1.Appli
 	return &appSetGenerator.Clusters.Template
 }
 
-func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator, appSet *argoappsetv1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
+func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator, appSet *argoappsetv1alpha1.ApplicationSet, _ client.Client) ([]map[string]interface{}, error) {
 	logCtx := log.WithField("applicationset", appSet.GetName()).WithField("namespace", appSet.GetNamespace())
 	if appSetGenerator == nil {
-		return nil, ErrEmptyAppSetGenerator
+		return nil, EmptyAppSetGeneratorError
 	}
 
 	if appSetGenerator.Clusters == nil {
-		return nil, ErrEmptyAppSetGenerator
+		return nil, EmptyAppSetGeneratorError
 	}
 
 	// Do not include the local cluster in the cluster parameters IF there is a non-empty selector
 	// - Since local clusters do not have secrets, they do not have labels to match against
 	ignoreLocalClusters := len(appSetGenerator.Clusters.Selector.MatchExpressions) > 0 || len(appSetGenerator.Clusters.Selector.MatchLabels) > 0
 
-	// ListCluster will include the local cluster in the list of clusters
+	// ListCluster from Argo CD's util/db package will include the local cluster in the list of clusters
 	clustersFromArgoCD, err := utils.ListClusters(g.ctx, g.clientset, g.namespace)
 	if err != nil {
 		return nil, fmt.Errorf("error listing clusters: %w", err)
@@ -85,22 +85,22 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 		return nil, fmt.Errorf("error getting cluster secrets: %w", err)
 	}
 
-	res := []map[string]any{}
+	res := []map[string]interface{}{}
 
 	secretsFound := []corev1.Secret{}
 
 	isFlatMode := appSetGenerator.Clusters.FlatList
 	logCtx.Debugf("Using flat mode = %t for cluster generator", isFlatMode)
-	clustersParams := make([]map[string]any, 0)
+	clustersParams := make([]map[string]interface{}, 0)
 
-	for _, cluster := range clustersFromArgoCD {
+	for _, cluster := range clustersFromArgoCD.Items {
 		// If there is a secret for this cluster, then it's a non-local cluster, so it will be
 		// handled by the next step.
 		if secretForCluster, exists := clusterSecrets[cluster.Name]; exists {
 			secretsFound = append(secretsFound, secretForCluster)
 		} else if !ignoreLocalClusters {
 			// If there is no secret for the cluster, it's the local cluster, so handle it here.
-			params := map[string]any{}
+			params := map[string]interface{}{}
 			params["name"] = cluster.Name
 			params["nameNormalized"] = cluster.Name
 			params["server"] = cluster.Server
@@ -123,7 +123,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 
 	// For each matching cluster secret (non-local clusters only)
 	for _, cluster := range secretsFound {
-		params := map[string]any{}
+		params := map[string]interface{}{}
 
 		params["name"] = string(cluster.Data["name"])
 		params["nameNormalized"] = utils.SanitizeName(string(cluster.Data["name"]))
@@ -137,23 +137,23 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 		}
 
 		if appSet.Spec.GoTemplate {
-			meta := map[string]any{}
+			meta := map[string]interface{}{}
 
-			if len(cluster.Annotations) > 0 {
-				meta["annotations"] = cluster.Annotations
+			if len(cluster.ObjectMeta.Annotations) > 0 {
+				meta["annotations"] = cluster.ObjectMeta.Annotations
 			}
-			if len(cluster.Labels) > 0 {
-				meta["labels"] = cluster.Labels
+			if len(cluster.ObjectMeta.Labels) > 0 {
+				meta["labels"] = cluster.ObjectMeta.Labels
 			}
 
 			params["metadata"] = meta
 		} else {
-			for key, value := range cluster.Annotations {
-				params["metadata.annotations."+key] = value
+			for key, value := range cluster.ObjectMeta.Annotations {
+				params[fmt.Sprintf("metadata.annotations.%s", key)] = value
 			}
 
-			for key, value := range cluster.Labels {
-				params["metadata.labels."+key] = value
+			for key, value := range cluster.ObjectMeta.Labels {
+				params[fmt.Sprintf("metadata.labels.%s", key)] = value
 			}
 		}
 
@@ -172,7 +172,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 	}
 
 	if isFlatMode {
-		res = append(res, map[string]any{
+		res = append(res, map[string]interface{}{
 			"clusters": clustersParams,
 		})
 	}
@@ -188,7 +188,7 @@ func (g *ClusterGenerator) getSecretsByClusterName(log *log.Entry, appSetGenerat
 		return nil, fmt.Errorf("error converting label selector: %w", err)
 	}
 
-	if err := g.List(context.Background(), clusterSecretList, client.MatchingLabelsSelector{Selector: secretSelector}); err != nil {
+	if err := g.Client.List(context.Background(), clusterSecretList, client.MatchingLabelsSelector{Selector: secretSelector}); err != nil {
 		return nil, err
 	}
 	log.Debugf("clusters matching labels: %d", len(clusterSecretList.Items))
