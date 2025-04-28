@@ -88,10 +88,7 @@ async function isExpiredSSO() {
     return false;
 }
 
-export class App extends React.Component<
-    {},
-    {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; extensionsLoaded: boolean; authSettings: AuthSettings}
-> {
+export class App extends React.Component<{}, {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; authSettings: AuthSettings}> {
     public static childContextTypes = {
         history: PropTypes.object,
         apis: PropTypes.object
@@ -111,7 +108,7 @@ export class App extends React.Component<
 
     constructor(props: {}) {
         super(props);
-        this.state = {popupProps: null, error: null, showVersionPanel: false, navItems: [], routes: null, extensionsLoaded: false, authSettings: null};
+        this.state = {popupProps: null, error: null, showVersionPanel: false, navItems: [], routes: null, authSettings: null};
         this.popupManager = new PopupManager();
         this.notificationsManager = new NotificationsManager();
         this.navigationManager = new NavigationManager(history);
@@ -151,7 +148,7 @@ export class App extends React.Component<
             document.head.appendChild(link);
         }
 
-        this.setState({...this.state, navItems: this.navItems, routes: this.routes, extensionsLoaded: false, authSettings});
+        this.setState({...this.state, navItems: this.navItems, routes: this.routes, authSettings});
     }
 
     public componentWillUnmount() {
@@ -222,7 +219,6 @@ export class App extends React.Component<
                                             />
                                         );
                                     })}
-                                    {this.state.extensionsLoaded && <Redirect path='*' to='/' />}
                                 </Switch>
                             </Router>
                         </AuthSettingsCtx.Provider>
@@ -294,6 +290,6 @@ export class App extends React.Component<
         extendedRoutes[extension.path] = {
             component: component as React.ComponentType<React.ComponentProps<any>>
         };
-        this.setState({...this.state, navItems: extendedNavItems, routes: extendedRoutes, extensionsLoaded: true});
+        this.setState({...this.state, navItems: extendedNavItems, routes: extendedRoutes});
     }
 }
