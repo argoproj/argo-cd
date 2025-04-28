@@ -1,4 +1,4 @@
-# Helm
+ # Helm
 
 ## Declarative
 
@@ -170,7 +170,7 @@ Values injections have the following order of precedence
     highest -> parameters
 ```
 
-So valuesObject trumps values, and both valuesObject and values trump valueFiles.
+So valuesObject trumps values - therefore values will be ignored, and both valuesObject and values trump valueFiles.
 Parameters trump all of them.
 
 Precedence of multiple valueFiles:
