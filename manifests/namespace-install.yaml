@@ -84,7 +84,6 @@ rules:
   - argoproj.io
   resources:
   - applications
-  - applicationsets
   - appprojects
   verbs:
   - create
@@ -407,100 +406,6 @@ subjects:
   name: argocd-server
 ---
 apiVersion: v1
-data:
-  resource.customizations.ignoreResourceUpdates.ConfigMap: |
-    jqPathExpressions:
-      # Ignore the cluster-autoscaler status
-      - '.metadata.annotations."cluster-autoscaler.kubernetes.io/last-updated"'
-      # Ignore the annotation of the legacy Leases election
-      - '.metadata.annotations."control-plane.alpha.kubernetes.io/leader"'
-  resource.customizations.ignoreResourceUpdates.Endpoints: |
-    jsonPointers:
-      - /metadata
-      - /subsets
-  resource.customizations.ignoreResourceUpdates.all: |
-    jsonPointers:
-      - /status
-  resource.customizations.ignoreResourceUpdates.apps_ReplicaSet: |
-    jqPathExpressions:
-      - '.metadata.annotations."deployment.kubernetes.io/desired-replicas"'
-      - '.metadata.annotations."deployment.kubernetes.io/max-replicas"'
-      - '.metadata.annotations."rollout.argoproj.io/desired-replicas"'
-  resource.customizations.ignoreResourceUpdates.argoproj.io_Application: |
-    jqPathExpressions:
-      - '.metadata.annotations."notified.notifications.argoproj.io"'
-      - '.metadata.annotations."argocd.argoproj.io/refresh"'
-      - '.metadata.annotations."argocd.argoproj.io/hydrate"'
-      - '.operation'
-  resource.customizations.ignoreResourceUpdates.argoproj.io_Rollout: |
-    jqPathExpressions:
-      - '.metadata.annotations."notified.notifications.argoproj.io"'
-  resource.customizations.ignoreResourceUpdates.autoscaling_HorizontalPodAutoscaler: |
-    jqPathExpressions:
-      - '.metadata.annotations."autoscaling.alpha.kubernetes.io/behavior"'
-      - '.metadata.annotations."autoscaling.alpha.kubernetes.io/conditions"'
-      - '.metadata.annotations."autoscaling.alpha.kubernetes.io/metrics"'
-      - '.metadata.annotations."autoscaling.alpha.kubernetes.io/current-metrics"'
-  resource.customizations.ignoreResourceUpdates.discovery.k8s.io_EndpointSlice: |
-    jsonPointers:
-      - /metadata
-      - /endpoints
-      - /ports
-  resource.exclusions: |
-    ### Network resources created by the Kubernetes control plane and excluded to reduce the number of watched events and UI clutter
-    - apiGroups:
-      - ''
-      - discovery.k8s.io
-      kinds:
-      - Endpoints
-      - EndpointSlice
-    ### Internal Kubernetes resources excluded reduce the number of watched events
-    - apiGroups:
-      - coordination.k8s.io
-      kinds:
-      - Lease
-    ### Internal Kubernetes Authz/Authn resources excluded reduce the number of watched events
-    - apiGroups:
-      - authentication.k8s.io
-      - authorization.k8s.io
-      kinds:
-      - SelfSubjectReview
-      - TokenReview
-      - LocalSubjectAccessReview
-      - SelfSubjectAccessReview
-      - SelfSubjectRulesReview
-      - SubjectAccessReview
-    ### Intermediate Certificate Request excluded reduce the number of watched events
-    - apiGroups:
-      - certificates.k8s.io
-      kinds:
-      - CertificateSigningRequest
-    - apiGroups:
-      - cert-manager.io
-      kinds:
-      - CertificateRequest
-    ### Cilium internal resources excluded reduce the number of watched events and UI Clutter
-    - apiGroups:
-      - cilium.io
-      kinds:
-      - CiliumIdentity
-      - CiliumEndpoint
-      - CiliumEndpointSlice
-    ### Kyverno intermediate and reporting resources excluded reduce the number of watched events and improve performance
-    - apiGroups:
-      - kyverno.io
-      - reports.kyverno.io
-      - wgpolicyk8s.io
-      kinds:
-      - PolicyReport
-      - ClusterPolicyReport
-      - EphemeralReport
-      - ClusterEphemeralReport
-      - AdmissionReport
-      - ClusterAdmissionReport
-      - BackgroundScanReport
-      - ClusterBackgroundScanReport
-      - UpdateRequest
 kind: ConfigMap
 metadata:
   labels:
@@ -828,12 +733,6 @@ spec:
               key: applicationsetcontroller.log.level
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
-          valueFrom:
-            configMapKeyRef:
-              key: log.format.timestamp
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN
           valueFrom:
             configMapKeyRef:
@@ -924,7 +823,7 @@ spec:
               key: applicationsetcontroller.requeue.after
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.14.11
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -1026,12 +925,6 @@ spec:
               key: dexserver.log.level
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
-          valueFrom:
-            configMapKeyRef:
-              key: log.format.timestamp
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_DEX_SERVER_DISABLE_TLS
           valueFrom:
             configMapKeyRef:
@@ -1067,7 +960,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.14.11
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -1139,12 +1032,6 @@ spec:
               key: notificationscontroller.log.level
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
-          valueFrom:
-            configMapKeyRef:
-              key: log.format.timestamp
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
@@ -1163,7 +1050,7 @@ spec:
               key: notificationscontroller.repo.server.plaintext
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.14.11
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
@@ -1249,7 +1136,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: redis:7.2.7-alpine
+        image: redis:7.0.15-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -1265,7 +1152,7 @@ spec:
         - argocd
         - admin
         - redis-initial-password
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.14.11
         imagePullPolicy: IfNotPresent
         name: secret-init
         securityContext:
@@ -1344,12 +1231,6 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.log.level
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
-          valueFrom:
-            configMapKeyRef:
-              key: log.format.timestamp
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_REPO_SERVER_PARALLELISM_LIMIT
@@ -1442,12 +1323,6 @@ spec:
               key: otlp.headers
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_REPO_SERVER_OTLP_ATTRS
-          valueFrom:
-            configMapKeyRef:
-              key: otlp.attrs
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
           valueFrom:
             configMapKeyRef:
@@ -1538,7 +1413,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.14.11
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -1590,7 +1465,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.14.11
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -1884,12 +1759,6 @@ spec:
               key: otlp.headers
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_SERVER_OTLP_ATTRS
-          valueFrom:
-            configMapKeyRef:
-              key: otlp.attrs
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
@@ -1956,13 +1825,7 @@ spec:
               key: hydrator.enabled
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_SYNC_WITH_REPLACE_ALLOWED
-          valueFrom:
-            configMapKeyRef:
-              key: server.sync.replace.allowed
-              name: argocd-cmd-params-cm
-              optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.14.11
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -2152,12 +2015,6 @@ spec:
               key: controller.log.level
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
-          valueFrom:
-            configMapKeyRef:
-              key: log.format.timestamp
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_CACHE_EXPIRATION
           valueFrom:
             configMapKeyRef:
@@ -2260,12 +2117,6 @@ spec:
               key: otlp.headers
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_ATTRS
-          valueFrom:
-            configMapKeyRef:
-              key: otlp.attrs
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
@@ -2328,7 +2179,7 @@ spec:
               optional: true
         - name: KUBECACHEDIR
           value: /tmp/kubecache
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.14.11
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:

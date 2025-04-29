@@ -11,10 +11,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/lua"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/lua"
 )
 
 // setApplicationHealth updates the health statuses of all resources performed in the comparison
@@ -80,15 +80,15 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			appHealth.Status = healthStatus.Status
 		}
 	}
-	// if the status didn't change, don't update the timestamp
-	if app.Status.Health.Status == appHealth.Status && app.Status.Health.LastTransitionTime != nil {
-		appHealth.LastTransitionTime = app.Status.Health.LastTransitionTime
-	} else {
-		now := metav1.Now()
-		appHealth.LastTransitionTime = &now
-	}
 	if persistResourceHealth {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationInline
+		// if the status didn't change, don't update the timestamp
+		if app.Status.Health.Status == appHealth.Status && app.Status.Health.LastTransitionTime != nil {
+			appHealth.LastTransitionTime = app.Status.Health.LastTransitionTime
+		} else {
+			now := metav1.Now()
+			appHealth.LastTransitionTime = &now
+		}
 	} else {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationAppTree
 	}
