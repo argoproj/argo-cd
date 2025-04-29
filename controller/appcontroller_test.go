@@ -203,26 +203,26 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	cancelApp := test.StartInformer(ctx, ctrl.appInformer)
 	defer cancelApp()
 	clusterCacheMock := mocks.ClusterCache{}
-	clusterCacheMock.On("IsNamespaced", mock.Anything).Return(true, nil)
+	clusterCacheMock.On("IsNamespaced", mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
 	clusterCacheMock.On("GetOpenAPISchema").Return(nil, nil)
 	clusterCacheMock.On("GetGVKParser").Return(nil)
 
 	mockStateCache := mockstatecache.LiveStateCache{}
 	ctrl.appStateManager.(*appStateManager).liveStateCache = &mockStateCache
 	ctrl.stateCache = &mockStateCache
-	mockStateCache.On("IsNamespaced", mock.Anything, mock.Anything).Return(true, nil)
-	mockStateCache.On("GetManagedLiveObjs", mock.Anything, mock.Anything, mock.Anything).Return(data.managedLiveObjs, nil)
-	mockStateCache.On("GetVersionsInfo", mock.Anything).Return("v1.2.3", nil, nil)
+	mockStateCache.On("IsNamespaced", mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
+	mockStateCache.On("GetManagedLiveObjs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(data.managedLiveObjs, nil)
+	mockStateCache.On("GetVersionsInfo", mock.Anything, mock.Anything, mock.Anything).Return("v1.2.3", nil, nil)
 	response := make(map[kube.ResourceKey]v1alpha1.ResourceNode)
 	for k, v := range data.namespacedResources {
 		response[k] = v.ResourceNode
 	}
-	mockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything).Return(response, nil)
-	mockStateCache.On("IterateResources", mock.Anything, mock.Anything).Return(nil)
-	mockStateCache.On("GetClusterCache", mock.Anything).Return(&clusterCacheMock, nil)
-	mockStateCache.On("IterateHierarchyV2", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		keys := args[1].([]kube.ResourceKey)
-		action := args[2].(func(child v1alpha1.ResourceNode, appName string) bool)
+	mockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
+	mockStateCache.On("IterateResources", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockStateCache.On("GetClusterCache", mock.Anything, mock.Anything).Return(&clusterCacheMock, nil)
+	mockStateCache.On("IterateHierarchyV2", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		keys := args[2].([]kube.ResourceKey)
+		action := args[3].(func(child v1alpha1.ResourceNode, appName string) bool)
 		for _, key := range keys {
 			appName := ""
 			if res, ok := data.namespacedResources[key]; ok {
@@ -2243,7 +2243,7 @@ func TestGetAppHosts(t *testing.T) {
 	}
 	ctrl := newFakeController(t.Context(), data, nil)
 	mockStateCache := &mockstatecache.LiveStateCache{}
-	mockStateCache.On("IterateResources", mock.Anything, mock.MatchedBy(func(callback func(res *clustercache.Resource, info *statecache.ResourceInfo)) bool {
+	mockStateCache.On("IterateResources", mock.Anything, mock.Anything, mock.MatchedBy(func(callback func(res *clustercache.Resource, info *statecache.ResourceInfo)) bool {
 		// node resource
 		callback(&clustercache.Resource{
 			Ref: corev1.ObjectReference{Name: "minikube", Kind: "Node", APIVersion: "v1"},

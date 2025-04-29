@@ -78,7 +78,7 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			acdClient := headless.NewClientOrDie(clientOpts, c)
+			acdClient := headless.NewClientOrDie(ctx, clientOpts, c)
 			conn, appIf := acdClient.NewApplicationSetClientOrDie(ctx)
 			defer argoio.Close(conn)
 
@@ -134,7 +134,7 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			argocdClient := headless.NewClientOrDie(clientOpts, c)
+			argocdClient := headless.NewClientOrDie(ctx, clientOpts, c)
 			fileURL := args[0]
 			appsets, err := cmdutil.ConstructApplicationSet(fileURL)
 			errors.CheckError(err)
@@ -226,7 +226,7 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			argocdClient := headless.NewClientOrDie(clientOpts, c)
+			argocdClient := headless.NewClientOrDie(ctx, clientOpts, c)
 			fileURL := args[0]
 			appsets, err := cmdutil.ConstructApplicationSet(fileURL)
 			errors.CheckError(err)
@@ -295,7 +295,7 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
-			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie(ctx)
+			conn, appIf := headless.NewClientOrDie(ctx, clientOpts, c).NewApplicationSetClientOrDie(ctx)
 			defer argoio.Close(conn)
 			appsets, err := appIf.List(ctx, &applicationset.ApplicationSetListQuery{Selector: selector, Projects: projects, AppsetNamespace: appSetNamespace})
 			errors.CheckError(err)
@@ -340,7 +340,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie(ctx)
+			conn, appIf := headless.NewClientOrDie(ctx, clientOpts, c).NewApplicationSetClientOrDie(ctx)
 			defer argoio.Close(conn)
 			isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 			numOfApps := len(args)

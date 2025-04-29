@@ -72,12 +72,12 @@ func Test_selectPodForPortForward(t *testing.T) {
 	)
 
 	// Test selecting the pod
-	selectedPod, err := selectPodForPortForward(client, "default", "app=test-app")
+	selectedPod, err := selectPodForPortForward(t.Context(), client, "default", "app=test-app")
 	require.NoError(t, err)
 	require.Equal(t, "test-pod", selectedPod.Name)
 
 	// Test selecting the working pod
-	selectedPod2, err := selectPodForPortForward(client, "default", "app=test2")
+	selectedPod2, err := selectPodForPortForward(t.Context(), client, "default", "app=test2")
 	require.NoError(t, err)
 	require.Equal(t, "test2-pod-working", selectedPod2.Name)
 }

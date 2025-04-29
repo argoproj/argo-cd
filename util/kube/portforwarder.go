@@ -21,9 +21,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
-func selectPodForPortForward(clientSet kubernetes.Interface, namespace string, podSelectors ...string) (*corev1.Pod, error) {
+func selectPodForPortForward(ctx context.Context, clientSet kubernetes.Interface, namespace string, podSelectors ...string) (*corev1.Pod, error) {
 	for _, podSelector := range podSelectors {
-		pods, err := clientSet.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{
+		pods, err := clientSet.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 			LabelSelector: podSelector,
 		})
 		if err != nil {
@@ -60,7 +60,7 @@ func PortForward(ctx context.Context, targetPort int, namespace string, override
 		return -1, err
 	}
 
-	pod, err := selectPodForPortForward(clientSet, namespace, podSelectors...)
+	pod, err := selectPodForPortForward(ctx, clientSet, namespace, podSelectors...)
 	if err != nil {
 		return -1, err
 	}

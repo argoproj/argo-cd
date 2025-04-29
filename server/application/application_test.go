@@ -2790,8 +2790,8 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotNil(t, app)
-		require.Equal(t, "argocd-1", t.Context(), app.Namespace)
-		require.Equal(t, "test-app", t.Context(), app.Name)
+		require.Equal(t, "argocd-1", app.Namespace)
+		require.Equal(t, "test-app", app.Name)
 	})
 	t.Run("Get application in other namespace when project is not allowed", func(t *testing.T) {
 		t.Parallel()
@@ -2836,8 +2836,8 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotNil(t, app)
-		assert.Equal(t, "test-app", t.Context(), app.Name)
-		assert.Equal(t, "argocd-1", t.Context(), app.Namespace)
+		assert.Equal(t, "test-app", app.Name)
+		assert.Equal(t, "argocd-1", app.Namespace)
 	})
 
 	t.Run("Create application in other namespace when not allowed by project", func(t *testing.T) {

@@ -56,7 +56,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				PlainText:         configCtx.Server.PlainText,
 				Headers:           globalClientOpts.Headers,
 			}
-			acdClient := headless.NewClientOrDie(&clientOpts, c)
+			acdClient := headless.NewClientOrDie(ctx, &clientOpts, c)
 			claims, err := configCtx.User.Claims()
 			errors.CheckError(err)
 			if claims.Issuer == session.SessionManagerClaimsIssuer {

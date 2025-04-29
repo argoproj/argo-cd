@@ -106,7 +106,7 @@ test   true     login, apiKey`, output)
 
 	clientOpts := ArgoCDClientset.ClientOptions()
 	clientOpts.AuthToken = token
-	testAccountClientset := headless.NewClientOrDie(&clientOpts, &cobra.Command{})
+	testAccountClientset := headless.NewClientOrDie(ctx, &clientOpts, &cobra.Command{})
 
 	closer, client := testAccountClientset.NewSessionClientOrDie(ctx)
 	defer io.Close(closer)

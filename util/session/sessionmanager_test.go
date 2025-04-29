@@ -345,10 +345,9 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 	}
 }
 
-type claims string
+var claimsKey = "claims"
 
-var claimsKey claims = "claims"
-
+//nolint:staticcheck
 func TestIss(t *testing.T) {
 	ctx := t.Context()
 	assert.Empty(t, Iss(ctx))
@@ -358,6 +357,7 @@ func TestIss(t *testing.T) {
 	assert.Equal(t, "qux", Iss(loggedInContextFederated))
 }
 
+//nolint:staticcheck
 func TestLoggedIn(t *testing.T) {
 	ctx := t.Context()
 	assert.False(t, LoggedIn(ctx))
@@ -367,6 +367,7 @@ func TestLoggedIn(t *testing.T) {
 	assert.True(t, LoggedIn(loggedInContextFederated))
 }
 
+//nolint:staticcheck
 func TestUsername(t *testing.T) {
 	ctx := t.Context()
 	assert.Empty(t, Username(ctx))
@@ -376,6 +377,7 @@ func TestUsername(t *testing.T) {
 	assert.Equal(t, "bar", Username(loggedInContextFederated))
 }
 
+//nolint:staticcheck
 func TestGetUserIdentifier(t *testing.T) {
 	ctx := t.Context()
 	assert.Empty(t, GetUserIdentifier(ctx))
@@ -385,6 +387,7 @@ func TestGetUserIdentifier(t *testing.T) {
 	assert.Equal(t, "foo", GetUserIdentifier(loggedInContextFederated))
 }
 
+//nolint:staticcheck
 func TestGroups(t *testing.T) {
 	ctx := t.Context()
 	assert.Empty(t, Groups(ctx, []string{"groups"}))

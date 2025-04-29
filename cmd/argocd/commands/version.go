@@ -93,7 +93,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions, serverVersion *versio
 }
 
 func getServerVersion(ctx context.Context, options *argocdclient.ClientOptions, c *cobra.Command) *version.VersionMessage {
-	conn, versionIf := headless.NewClientOrDie(options, c).NewVersionClientOrDie(ctx)
+	conn, versionIf := headless.NewClientOrDie(ctx, options, c).NewVersionClientOrDie(ctx)
 	defer argoio.Close(conn)
 
 	v, err := versionIf.Version(ctx, &empty.Empty{})

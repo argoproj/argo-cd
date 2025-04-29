@@ -73,7 +73,7 @@ argocd proj windows disable-manual-sync default 0`,
 			id, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
 
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie(ctx)
+			conn, projIf := headless.NewClientOrDie(ctx, clientOpts, c).NewProjectClientOrDie(ctx)
 			defer io.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
@@ -119,7 +119,7 @@ argocd proj windows enable-manual-sync my-app-project --message "Manual sync ini
 			id, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
 
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie(ctx)
+			conn, projIf := headless.NewClientOrDie(ctx, clientOpts, c).NewProjectClientOrDie(ctx)
 			defer io.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
@@ -180,7 +180,7 @@ argocd proj windows add PROJECT \
 				os.Exit(1)
 			}
 			projName := args[0]
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie(ctx)
+			conn, projIf := headless.NewClientOrDie(ctx, clientOpts, c).NewProjectClientOrDie(ctx)
 			defer io.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
@@ -229,7 +229,7 @@ argocd proj windows delete new-project 1`,
 			id, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
 
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie(ctx)
+			conn, projIf := headless.NewClientOrDie(ctx, clientOpts, c).NewProjectClientOrDie(ctx)
 			defer io.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
@@ -281,7 +281,7 @@ argocd proj windows update PROJECT ID \
 			id, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
 
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie(ctx)
+			conn, projIf := headless.NewClientOrDie(ctx, clientOpts, c).NewProjectClientOrDie(ctx)
 			defer io.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
@@ -332,7 +332,7 @@ argocd proj windows list test-project`,
 				os.Exit(1)
 			}
 			projName := args[0]
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie(ctx)
+			conn, projIf := headless.NewClientOrDie(ctx, clientOpts, c).NewProjectClientOrDie(ctx)
 			defer io.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})

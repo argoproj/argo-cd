@@ -315,9 +315,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 }
 
 // NewClientOrDie creates a new API client from a set of config options, or fails fatally if the new client creation fails.
-func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.Client {
-	ctx := c.Context()
-
+func NewClientOrDie(ctx context.Context, opts *apiclient.ClientOptions, c *cobra.Command) apiclient.Client {
 	ctxStr := initialize.RetrieveContextIfChanged(c.Flag("context"))
 	// If we're in core mode, start the API server on the fly and configure the client `opts` to use it.
 	// If we're not in core mode, this function call will do nothing.

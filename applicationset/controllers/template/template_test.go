@@ -91,7 +91,7 @@ func TestGenerateApplications(t *testing.T) {
 				List: &v1alpha1.ListGenerator{},
 			}
 
-			generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
+			generatorMock.On("GenerateParams", mock.Anything, &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
 				Return(cc.params, cc.generateParamsError)
 
 			generatorMock.On("GetTemplate", &generator).
@@ -205,7 +205,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 				List: &v1alpha1.ListGenerator{},
 			}
 
-			generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
+			generatorMock.On("GenerateParams", mock.Anything, &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
 				Return(cc.params, nil)
 
 			generatorMock.On("GetTemplate", &generator).
@@ -317,7 +317,7 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 				PullRequest: &v1alpha1.PullRequestGenerator{},
 			}
 
-			generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
+			generatorMock.On("GenerateParams", mock.Anything, &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
 				Return(cases.params, nil)
 
 			generatorMock.On("GetTemplate", &generator).

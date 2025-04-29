@@ -124,7 +124,7 @@ argocd login cd.argoproj.io --core`,
 			var tokenString string
 			var refreshToken string
 			if !globalClientOpts.Core {
-				acdClient := headless.NewClientOrDie(&clientOpts, c)
+				acdClient := headless.NewClientOrDie(ctx, &clientOpts, c)
 				setConn, setIf := acdClient.NewSettingsClientOrDie(ctx)
 				defer io.Close(setConn)
 				if !sso {
