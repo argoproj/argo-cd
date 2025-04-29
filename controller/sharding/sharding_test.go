@@ -961,7 +961,7 @@ func TestGetClusterSharding(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.envsSetter(t)
 			defer tc.cleanup()
-			shardingCache, err := GetClusterSharding(kubeclientset, settingsMgr, "round-robin", tc.useDynamicSharding)
+			shardingCache, err := GetClusterSharding(t.Context(), kubeclientset, settingsMgr, "round-robin", tc.useDynamicSharding)
 
 			if shardingCache != nil {
 				clusterSharding := shardingCache.(*ClusterSharding)

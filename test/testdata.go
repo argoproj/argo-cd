@@ -1,3 +1,4 @@
+//nolint:forbidigo // for initialization for test
 package test
 
 import (
@@ -142,7 +143,15 @@ type interfaceLister struct {
 }
 
 func (l interfaceLister) List(selector labels.Selector) ([]*v1alpha1.AppProject, error) {
-	res, err := l.appProjects.List(context.Background(), metav1.ListOptions{LabelSelector: selector.String()})
+	return l.list(context.Background(), selector)
+}
+
+func (l interfaceLister) ListWithContext(ctx context.Context, selector labels.Selector) ([]*v1alpha1.AppProject, error) {
+	return l.list(ctx, selector)
+}
+
+func (l interfaceLister) list(ctx context.Context, selector labels.Selector) ([]*v1alpha1.AppProject, error) {
+	res, err := l.appProjects.List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return nil, err
 	}
@@ -154,18 +163,26 @@ func (l interfaceLister) List(selector labels.Selector) ([]*v1alpha1.AppProject,
 }
 
 func (l interfaceLister) Get(name string) (*v1alpha1.AppProject, error) {
-	return l.appProjects.Get(context.Background(), name, metav1.GetOptions{})
+	return l.get(context.Background(), name)
+}
+
+func (l interfaceLister) GetWithContext(ctx context.Context, name string) (*v1alpha1.AppProject, error) {
+	return l.get(ctx, name)
+}
+
+func (l interfaceLister) get(ctx context.Context, name string) (*v1alpha1.AppProject, error) {
+	return l.appProjects.Get(ctx, name, metav1.GetOptions{})
 }
 
 func NewFakeProjListerFromInterface(appProjects appclient.AppProjectInterface) applister.AppProjectNamespaceLister {
 	return &interfaceLister{appProjects: appProjects}
 }
 
-func NewFakeProjLister(objects ...runtime.Object) applister.AppProjectNamespaceLister {
+func NewFakeProjLister(ctx context.Context, objects ...runtime.Object) applister.AppProjectNamespaceLister {
 	fakeAppClientset := apps.NewSimpleClientset(objects...)
 	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
-	cancel := StartInformer(projInformer)
+	cancel := StartInformer(ctx, projInformer)
 	defer cancel()
 	return factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(FakeArgoCDNamespace)
 }

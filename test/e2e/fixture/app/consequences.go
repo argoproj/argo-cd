@@ -113,15 +113,15 @@ func (c *Consequences) app() *v1alpha1.Application {
 }
 
 func (c *Consequences) get() (*v1alpha1.Application, error) {
-	return fixture.AppClientset.ArgoprojV1alpha1().Applications(c.context.AppNamespace()).Get(context.Background(), c.context.AppName(), metav1.GetOptions{})
+	return fixture.AppClientset.ArgoprojV1alpha1().Applications(c.context.AppNamespace()).Get(c.context.t.Context(), c.context.AppName(), metav1.GetOptions{})
 }
 
-func (c *Consequences) resource(kind, name, namespace string) v1alpha1.ResourceStatus {
+func (c *Consequences) resource(ctx context.Context, kind, name, namespace string) v1alpha1.ResourceStatus {
 	c.context.t.Helper()
-	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient(ctx)
 	require.NoError(c.context.t, err)
 	defer util.Close(closer)
-	app, err := client.Get(context.Background(), &applicationpkg.ApplicationQuery{
+	app, err := client.Get(ctx, &applicationpkg.ApplicationQuery{
 		Name:         ptr.To(c.context.AppName()),
 		Projects:     []string{c.context.project},
 		AppNamespace: ptr.To(c.context.appNamespace),

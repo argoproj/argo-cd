@@ -47,28 +47,28 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*
 	}
 }
 
-func (c *Cache) GetItem(key string, item any) error {
-	return c.Cache.GetItem(key, item)
+func (c *Cache) GetItem(ctx context.Context, key string, item any) error {
+	return c.Cache.GetItem(ctx, key, item)
 }
 
-func (c *Cache) SetItem(key string, item any, expiration time.Duration, delete bool) error {
-	return c.Cache.SetItem(key, item, &cacheutil.CacheActionOpts{Expiration: expiration, Delete: delete})
+func (c *Cache) SetItem(ctx context.Context, key string, item any, expiration time.Duration, delete bool) error {
+	return c.Cache.SetItem(ctx, key, item, &cacheutil.CacheActionOpts{Expiration: expiration, Delete: delete})
 }
 
 func appManagedResourcesKey(appName string) string {
 	return "app|managed-resources|" + appName
 }
 
-func (c *Cache) GetAppManagedResources(appName string, res *[]*appv1.ResourceDiff) error {
-	err := c.GetItem(appManagedResourcesKey(appName), &res)
+func (c *Cache) GetAppManagedResources(ctx context.Context, appName string, res *[]*appv1.ResourceDiff) error {
+	err := c.GetItem(ctx, appManagedResourcesKey(appName), &res)
 	return err
 }
 
-func (c *Cache) SetAppManagedResources(appName string, managedResources []*appv1.ResourceDiff) error {
+func (c *Cache) SetAppManagedResources(ctx context.Context, appName string, managedResources []*appv1.ResourceDiff) error {
 	sort.Slice(managedResources, func(i, j int) bool {
 		return managedResources[i].FullName() < managedResources[j].FullName()
 	})
-	return c.SetItem(appManagedResourcesKey(appName), managedResources, c.appStateCacheExpiration, managedResources == nil)
+	return c.SetItem(ctx, appManagedResourcesKey(appName), managedResources, c.appStateCacheExpiration, managedResources == nil)
 }
 
 func appResourcesTreeKey(appName string, shard int64) string {
@@ -83,12 +83,12 @@ func clusterInfoKey(server string) string {
 	return "cluster|info|" + server
 }
 
-func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) error {
-	err := c.GetItem(appResourcesTreeKey(appName, 0), &res)
+func (c *Cache) GetAppResourcesTree(ctx context.Context, appName string, res *appv1.ApplicationTree) error {
+	err := c.GetItem(ctx, appResourcesTreeKey(appName, 0), &res)
 	if res.ShardsCount > 1 {
 		for i := int64(1); i < res.ShardsCount; i++ {
 			var shard appv1.ApplicationTree
-			if err = c.GetItem(appResourcesTreeKey(appName, i), &shard); err != nil {
+			if err = c.GetItem(ctx, appResourcesTreeKey(appName, i), &shard); err != nil {
 				return err
 			}
 			res.Merge(&shard)
@@ -101,9 +101,9 @@ func (c *Cache) OnAppResourcesTreeChanged(ctx context.Context, appName string, c
 	return c.Cache.OnUpdated(ctx, appManagedResourcesKey(appName), callback)
 }
 
-func (c *Cache) SetAppResourcesTree(appName string, resourcesTree *appv1.ApplicationTree) error {
+func (c *Cache) SetAppResourcesTree(ctx context.Context, appName string, resourcesTree *appv1.ApplicationTree) error {
 	if resourcesTree == nil {
-		if err := c.SetItem(appResourcesTreeKey(appName, 0), resourcesTree, c.appStateCacheExpiration, true); err != nil {
+		if err := c.SetItem(ctx, appResourcesTreeKey(appName, 0), resourcesTree, c.appStateCacheExpiration, true); err != nil {
 			return err
 		}
 	} else {
@@ -111,20 +111,20 @@ func (c *Cache) SetAppResourcesTree(appName string, resourcesTree *appv1.Applica
 		// from controller to Redis. Controller still stores each shard in cache but util/cache/twolevelclient.go
 		// forwards request to Redis only if shard actually changes.
 		for i, shard := range resourcesTree.GetShards(treeShardSize) {
-			if err := c.SetItem(appResourcesTreeKey(appName, int64(i)), shard, c.appStateCacheExpiration, false); err != nil {
+			if err := c.SetItem(ctx, appResourcesTreeKey(appName, int64(i)), shard, c.appStateCacheExpiration, false); err != nil {
 				return err
 			}
 		}
 	}
 
-	return c.Cache.NotifyUpdated(appManagedResourcesKey(appName))
+	return c.Cache.NotifyUpdated(ctx, appManagedResourcesKey(appName))
 }
 
-func (c *Cache) SetClusterInfo(server string, info *appv1.ClusterInfo) error {
-	return c.SetItem(clusterInfoKey(server), info, clusterInfoCacheExpiration, info == nil)
+func (c *Cache) SetClusterInfo(ctx context.Context, server string, info *appv1.ClusterInfo) error {
+	return c.SetItem(ctx, clusterInfoKey(server), info, clusterInfoCacheExpiration, info == nil)
 }
 
-func (c *Cache) GetClusterInfo(server string, res *appv1.ClusterInfo) error {
-	err := c.GetItem(clusterInfoKey(server), &res)
+func (c *Cache) GetClusterInfo(ctx context.Context, server string, res *appv1.ClusterInfo) error {
+	err := c.GetItem(ctx, clusterInfoKey(server), &res)
 	return err
 }

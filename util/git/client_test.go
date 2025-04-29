@@ -61,7 +61,7 @@ func Test_nativeGitClient_Fetch(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch(t.Context(), "")
 	require.NoError(t, err)
 }
 
@@ -78,7 +78,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	err = runCmd(tempDir, "git", "branch", "test/foo")
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch(t.Context(), "")
 	require.NoError(t, err)
 
 	err = runCmd(tempDir, "git", "branch", "-d", "test/foo")
@@ -86,7 +86,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	err = runCmd(tempDir, "git", "branch", "test/foo/bar")
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch(t.Context(), "")
 	require.NoError(t, err)
 }
 
@@ -177,10 +177,10 @@ func Test_ChangedFiles(t *testing.T) {
 	err = runCmd(client.Root(), "git", "commit", "-m", "Changes", "-a")
 	require.NoError(t, err)
 
-	previousSHA, err := client.LsRemote("some-tag")
+	previousSHA, err := client.LsRemote(t.Context(), "some-tag")
 	require.NoError(t, err)
 
-	commitSHA, err := client.LsRemote("HEAD")
+	commitSHA, err := client.LsRemote(t.Context(), "HEAD")
 	require.NoError(t, err)
 
 	// Invalid commits, error
@@ -229,7 +229,7 @@ func Test_SemverTags(t *testing.T) {
 		err = runCmd(client.Root(), "git", "tag", tag)
 		require.NoError(t, err)
 
-		sha, err := client.LsRemote("HEAD")
+		sha, err := client.LsRemote(t.Context(), "HEAD")
 		require.NoError(t, err)
 
 		mapTagRefs[tag] = sha
@@ -332,7 +332,7 @@ func Test_SemverTags(t *testing.T) {
 		expected: mapTagRefs["2024-banana"],
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
-			commitSHA, err := client.LsRemote(tc.ref)
+			commitSHA, err := client.LsRemote(t.Context(), tc.ref)
 			if tc.error {
 				require.Error(t, err)
 				return
@@ -386,14 +386,14 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch(t.Context(), "")
 	require.NoError(t, err)
 
-	commitSHA, err := client.LsRemote("HEAD")
+	commitSHA, err := client.LsRemote(t.Context(), "HEAD")
 	require.NoError(t, err)
 
 	// Call Checkout() with submoduleEnabled=false.
-	_, err = client.Checkout(commitSHA, false)
+	_, err = client.Checkout(t.Context(), commitSHA, false)
 	require.NoError(t, err)
 
 	// Check if submodule url does not exist in .git/config
@@ -401,7 +401,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	require.Error(t, err)
 
 	// Call Submodule() via Checkout() with submoduleEnabled=true.
-	_, err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(t.Context(), commitSHA, true)
 	require.NoError(t, err)
 
 	// Check if the .gitmodule URL is reflected in .git/config
@@ -416,7 +416,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	require.NoError(t, err)
 
 	// Call Submodule()
-	err = client.Submodule()
+	err = client.Submodule(t.Context())
 	require.NoError(t, err)
 
 	// Check if the URL change in .gitmodule is reflected in .git/config
@@ -456,7 +456,7 @@ func Test_IsRevisionPresent(t *testing.T) {
 	err = runCmd(client.Root(), "git", "commit", "-m", "Initial Commit", "-a")
 	require.NoError(t, err)
 
-	commitSHA, err := client.LsRemote("HEAD")
+	commitSHA, err := client.LsRemote(t.Context(), "HEAD")
 	require.NoError(t, err)
 
 	// Ensure revision for HEAD is present locally.
@@ -573,7 +573,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		err = runCmd(tempDir, "git", "checkout", baseBranch)
 		require.NoError(t, err)
 
-		out, err = client.CheckoutOrOrphan(expectedBranch, false)
+		out, err = client.CheckoutOrOrphan(t.Context(), expectedBranch, false)
 		require.NoError(t, err, "error output: ", out)
 
 		// get current branch, verify current branch
@@ -620,7 +620,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		out, err := client.SetAuthor("test", "test@example.com")
 		require.NoError(t, err, "error output: %s", out)
 
-		err = client.Fetch("")
+		err = client.Fetch(t.Context(), "")
 		require.NoError(t, err)
 
 		// checkout to origin base branch
@@ -632,7 +632,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		require.NoError(t, err)
 		baseCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
 
-		out, err = client.CheckoutOrOrphan(expectedBranch, false)
+		out, err = client.CheckoutOrOrphan(t.Context(), expectedBranch, false)
 		require.NoError(t, err, "error output: ", out)
 
 		// get current branch, verify current branch
@@ -704,7 +704,7 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		err = runCmd(tempDir, "git", "checkout", baseBranch)
 		require.NoError(t, err)
 
-		out, err = client.CheckoutOrNew(expectedBranch, baseBranch, false)
+		out, err = client.CheckoutOrNew(t.Context(), expectedBranch, baseBranch, false)
 		require.NoError(t, err, "error output: ", out)
 
 		// get current branch, verify current branch
@@ -751,7 +751,7 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		expectedCommitHash, err := client.CommitSHA()
 		require.NoError(t, err)
 
-		out, err = client.CheckoutOrNew(expectedBranch, baseBranch, false)
+		out, err = client.CheckoutOrNew(t.Context(), expectedBranch, baseBranch, false)
 		require.NoError(t, err, "error output: ", out)
 
 		// get current branch, verify current branch
@@ -834,17 +834,17 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 	out, err := client.SetAuthor("test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(branch)
+	err = client.Fetch(t.Context(), branch)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false)
+	out, err = client.Checkout(t.Context(), branch, false)
 	require.NoError(t, err, "error output: ", out)
 
 	// make a file then commit and push
 	err = runCmd(client.Root(), "touch", "README.md")
 	require.NoError(t, err)
 
-	out, err = client.CommitAndPush(branch, "docs: README")
+	out, err = client.CommitAndPush(t.Context(), branch, "docs: README")
 	require.NoError(t, err, "error output: %s", out)
 
 	// get current commit hash of the cloned repository
@@ -864,7 +864,7 @@ func Test_newAuth_AzureWorkloadIdentity(t *testing.T) {
 
 	creds := AzureWorkloadIdentityCreds{store: NoopCredsStore{}, tokenProvider: tokenprovider}
 
-	auth, err := newAuth("", creds)
+	auth, err := newAuth(t.Context(), "", creds)
 	require.NoError(t, err)
 	_, ok := auth.(*githttp.TokenAuth)
 	require.Truef(t, ok, "expected TokenAuth but got %T", auth)
@@ -910,7 +910,7 @@ func TestNewAuth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			auth, err := newAuth(tt.repoURL, tt.creds)
+			auth, err := newAuth(t.Context(), tt.repoURL, tt.creds)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("newAuth() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -973,7 +973,7 @@ func Test_nativeGitClient_runCredentialedCmd(t *testing.T) {
 				creds: tt.creds,
 			}
 
-			err := client.runCredentialedCmd("status")
+			err := client.runCredentialedCmd(t.Context(), "status")
 			if (err != nil) != tt.expectedErr {
 				t.Errorf("runCredentialedCmd() error = %v, expectedErr %v", err, tt.expectedErr)
 				return
@@ -998,7 +998,7 @@ type mockCreds struct {
 	environErr bool
 }
 
-func (m *mockCreds) Environ() (io.Closer, []string, error) {
+func (m *mockCreds) Environ(_ context.Context) (io.Closer, []string, error) {
 	if m.environErr {
 		return nil, nil, errors.New("error getting environment")
 	}

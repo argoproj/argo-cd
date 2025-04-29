@@ -77,7 +77,7 @@ argocd login cd.argoproj.io --core`,
 
 				if !skipTestTLS {
 					dialTime := 30 * time.Second
-					tlsTestResult, err := grpc_util.TestTLS(server, dialTime)
+					tlsTestResult, err := grpc_util.TestTLS(ctx, server, dialTime)
 					errors.CheckError(err)
 					if !tlsTestResult.TLS {
 						if !globalClientOpts.PlainText {
@@ -125,7 +125,7 @@ argocd login cd.argoproj.io --core`,
 			var refreshToken string
 			if !globalClientOpts.Core {
 				acdClient := headless.NewClientOrDie(&clientOpts, c)
-				setConn, setIf := acdClient.NewSettingsClientOrDie()
+				setConn, setIf := acdClient.NewSettingsClientOrDie(ctx)
 				defer io.Close(setConn)
 				if !sso {
 					tokenString = passwordLogin(ctx, acdClient, username, password)
@@ -359,7 +359,7 @@ func oauth2Login(
 
 func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username, password string) string {
 	username, password = cli.PromptCredentials(username, password)
-	sessConn, sessionIf := acdClient.NewSessionClientOrDie()
+	sessConn, sessionIf := acdClient.NewSessionClientOrDie(ctx)
 	defer io.Close(sessConn)
 	sessionRequest := sessionpkg.SessionCreateRequest{
 		Username: username,

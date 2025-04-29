@@ -258,8 +258,8 @@ func (c *Cache) SetClient(client CacheClient) {
 	c.client = client
 }
 
-func (c *Cache) RenameItem(oldKey string, newKey string, expiration time.Duration) error {
-	return c.client.Rename(fmt.Sprintf("%s|%s", oldKey, common.CacheVersion), fmt.Sprintf("%s|%s", newKey, common.CacheVersion), expiration)
+func (c *Cache) RenameItem(ctx context.Context, oldKey string, newKey string, expiration time.Duration) error {
+	return c.client.Rename(ctx, fmt.Sprintf("%s|%s", oldKey, common.CacheVersion), fmt.Sprintf("%s|%s", newKey, common.CacheVersion), expiration)
 }
 
 func (c *Cache) generateFullKey(key string) string {
@@ -270,7 +270,7 @@ func (c *Cache) generateFullKey(key string) string {
 }
 
 // Sets or deletes an item in cache
-func (c *Cache) SetItem(key string, item any, opts *CacheActionOpts) error {
+func (c *Cache) SetItem(ctx context.Context, key string, item any, opts *CacheActionOpts) error {
 	if item == nil {
 		return errors.New("cannot set nil item in cache")
 	}
@@ -280,24 +280,24 @@ func (c *Cache) SetItem(key string, item any, opts *CacheActionOpts) error {
 	fullKey := c.generateFullKey(key)
 	client := c.GetClient()
 	if opts.Delete {
-		return client.Delete(fullKey)
+		return client.Delete(ctx, fullKey)
 	}
-	return client.Set(&Item{Key: fullKey, Object: item, CacheActionOpts: *opts})
+	return client.Set(ctx, &Item{Key: fullKey, Object: item, CacheActionOpts: *opts})
 }
 
-func (c *Cache) GetItem(key string, item any) error {
+func (c *Cache) GetItem(ctx context.Context, key string, item any) error {
 	key = c.generateFullKey(key)
 	if item == nil {
 		return fmt.Errorf("cannot get item into a nil for key %s", key)
 	}
 	client := c.GetClient()
-	return client.Get(key, item)
+	return client.Get(ctx, key, item)
 }
 
 func (c *Cache) OnUpdated(ctx context.Context, key string, callback func() error) error {
 	return c.client.OnUpdated(ctx, c.generateFullKey(key), callback)
 }
 
-func (c *Cache) NotifyUpdated(key string) error {
-	return c.client.NotifyUpdated(c.generateFullKey(key))
+func (c *Cache) NotifyUpdated(ctx context.Context, key string) error {
+	return c.client.NotifyUpdated(ctx, c.generateFullKey(key))
 }

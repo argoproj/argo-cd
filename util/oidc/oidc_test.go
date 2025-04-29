@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
@@ -99,15 +100,15 @@ func TestIDTokenClaims(t *testing.T) {
 
 type fakeProvider struct{}
 
-func (p *fakeProvider) Endpoint() (*oauth2.Endpoint, error) {
+func (p *fakeProvider) Endpoint(_ context.Context) (*oauth2.Endpoint, error) {
 	return &oauth2.Endpoint{}, nil
 }
 
-func (p *fakeProvider) ParseConfig() (*OIDCConfiguration, error) {
+func (p *fakeProvider) ParseConfig(_ context.Context) (*OIDCConfiguration, error) {
 	return nil, nil
 }
 
-func (p *fakeProvider) Verify(_ string, _ *settings.ArgoCDSettings) (*gooidc.IDToken, error) {
+func (p *fakeProvider) Verify(_ context.Context, _ string, _ *settings.ArgoCDSettings) (*gooidc.IDToken, error) {
 	return nil, nil
 }
 
@@ -1084,14 +1085,14 @@ func TestGetUserInfo(t *testing.T) {
 					newValue, err = crypto.Encrypt([]byte(item.value), encryptionKey)
 					require.NoError(t, err)
 				}
-				err := a.clientCache.Set(&cache.Item{
+				err := a.clientCache.Set(t.Context(), &cache.Item{
 					Key:    item.key,
 					Object: newValue,
 				})
 				require.NoError(t, err)
 			}
 
-			got, unauthenticated, err := a.GetUserInfo(tt.idpClaims, ts.URL, tt.userInfoPath)
+			got, unauthenticated, err := a.GetUserInfo(t.Context(), tt.idpClaims, ts.URL, tt.userInfoPath)
 			assert.Equal(t, tt.expectedOutput, got)
 			assert.Equal(t, tt.expectUnauthenticated, unauthenticated)
 			if tt.expectError {
@@ -1101,7 +1102,7 @@ func TestGetUserInfo(t *testing.T) {
 			}
 			for _, item := range tt.expectedCacheItems {
 				var tmpValue []byte
-				err := a.clientCache.Get(item.key, &tmpValue)
+				err := a.clientCache.Get(t.Context(), item.key, &tmpValue)
 				if item.expectError {
 					require.Error(t, err)
 				} else {

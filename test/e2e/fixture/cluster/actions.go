@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	"context"
 	"errors"
 	"log"
 	"strings"
@@ -40,9 +39,9 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 }
 
 func (a *Actions) Create() *Actions {
-	_, clusterClient, _ := fixture.ArgoCDClientset.NewClusterClient()
+	_, clusterClient, _ := fixture.ArgoCDClientset.NewClusterClient(a.context.t.Context())
 
-	_, err := clusterClient.Create(context.Background(), &clusterpkg.ClusterCreateRequest{
+	_, err := clusterClient.Create(a.context.t.Context(), &clusterpkg.ClusterCreateRequest{
 		Cluster: &v1alpha1.Cluster{
 			Server:             a.context.server,
 			Name:               a.context.name,
@@ -83,7 +82,7 @@ func (a *Actions) CreateWithRBAC() *Actions {
 	}
 	client := kubernetes.NewForConfigOrDie(conf)
 
-	_, err = clusterauth.InstallClusterManagerRBAC(client, "kube-system", []string{}, common.BearerTokenTimeout)
+	_, err = clusterauth.InstallClusterManagerRBAC(a.context.t.Context(), client, "kube-system", []string{}, common.BearerTokenTimeout)
 	if err != nil {
 		a.lastError = err
 		return a

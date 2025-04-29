@@ -37,44 +37,44 @@ func TestCacheClient(t *testing.T) {
 	for _, client := range []CacheClient{clientMemCache, redisCache, twoLevelClient} {
 		cache := NewCache(client)
 		t.Run("SetItem", func(t *testing.T) {
-			err := cache.SetItem("foo", "bar", &CacheActionOpts{Expiration: 60 * time.Second, DisableOverwrite: true, Delete: false})
+			err := cache.SetItem(t.Context(), "foo", "bar", &CacheActionOpts{Expiration: 60 * time.Second, DisableOverwrite: true, Delete: false})
 			require.NoError(t, err)
 			var output string
-			err = cache.GetItem("foo", &output)
+			err = cache.GetItem(t.Context(), "foo", &output)
 			require.NoError(t, err)
 			assert.Equal(t, "bar", output)
 		})
 		t.Run("SetCacheItem W/Disable Overwrite", func(t *testing.T) {
-			err := cache.SetItem("foo", "bar", &CacheActionOpts{Expiration: 60 * time.Second, DisableOverwrite: true, Delete: false})
+			err := cache.SetItem(t.Context(), "foo", "bar", &CacheActionOpts{Expiration: 60 * time.Second, DisableOverwrite: true, Delete: false})
 			require.NoError(t, err)
 			var output string
-			err = cache.GetItem("foo", &output)
+			err = cache.GetItem(t.Context(), "foo", &output)
 			require.NoError(t, err)
 			assert.Equal(t, "bar", output)
-			err = cache.SetItem("foo", "bar", &CacheActionOpts{Expiration: 60 * time.Second, DisableOverwrite: true, Delete: false})
+			err = cache.SetItem(t.Context(), "foo", "bar", &CacheActionOpts{Expiration: 60 * time.Second, DisableOverwrite: true, Delete: false})
 			require.NoError(t, err)
-			err = cache.GetItem("foo", &output)
+			err = cache.GetItem(t.Context(), "foo", &output)
 			require.NoError(t, err)
 			assert.Equal(t, "bar", output, "output should not have changed with DisableOverwrite set to true")
 		})
 		t.Run("GetItem", func(t *testing.T) {
 			var val string
-			err := cache.GetItem("foo", &val)
+			err := cache.GetItem(t.Context(), "foo", &val)
 			require.NoError(t, err)
 			assert.Equal(t, "bar", val)
 		})
 		t.Run("DeleteItem", func(t *testing.T) {
-			err := cache.SetItem("foo", "bar", &CacheActionOpts{Expiration: 0, Delete: true})
+			err := cache.SetItem(t.Context(), "foo", "bar", &CacheActionOpts{Expiration: 0, Delete: true})
 			require.NoError(t, err)
 			var val string
-			err = cache.GetItem("foo", &val)
+			err = cache.GetItem(t.Context(), "foo", &val)
 			require.Error(t, err)
 			assert.Empty(t, val)
 		})
 		t.Run("Check for nil items", func(t *testing.T) {
-			err := cache.SetItem("foo", nil, &CacheActionOpts{Expiration: 0, Delete: true})
+			err := cache.SetItem(t.Context(), "foo", nil, &CacheActionOpts{Expiration: 0, Delete: true})
 			require.ErrorContains(t, err, "cannot set nil item")
-			err = cache.GetItem("foo", nil)
+			err = cache.GetItem(t.Context(), "foo", nil)
 			assert.ErrorContains(t, err, "cannot get item")
 		})
 	}

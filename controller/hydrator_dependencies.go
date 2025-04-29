@@ -21,17 +21,17 @@ in the hydrator and app controller work in the app controller. The only purpose 
 safe, minimal access to certain app controller functionality to avoid duplicate code.
 */
 
-func (ctrl *ApplicationController) GetProcessableAppProj(app *appv1.Application) (*appv1.AppProject, error) {
-	return ctrl.getAppProj(app)
+func (ctrl *ApplicationController) GetProcessableAppProj(ctx context.Context, app *appv1.Application) (*appv1.AppProject, error) {
+	return ctrl.getAppProj(ctx, app)
 }
 
 // GetProcessableApps returns a list of applications that are processable by the controller.
-func (ctrl *ApplicationController) GetProcessableApps() (*appv1.ApplicationList, error) {
+func (ctrl *ApplicationController) GetProcessableApps(ctx context.Context) (*appv1.ApplicationList, error) {
 	// getAppList already filters out applications that are not processable by the controller.
-	return ctrl.getAppList(metav1.ListOptions{})
+	return ctrl.getAppList(ctx, metav1.ListOptions{})
 }
 
-func (ctrl *ApplicationController) GetRepoObjs(origApp *appv1.Application, drySource appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
+func (ctrl *ApplicationController) GetRepoObjs(ctx context.Context, origApp *appv1.Application, drySource appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
 	drySources := []appv1.ApplicationSource{drySource}
 	dryRevisions := []string{revision}
 
@@ -50,7 +50,7 @@ func (ctrl *ApplicationController) GetRepoObjs(origApp *appv1.Application, drySo
 	delete(app.Annotations, appv1.AnnotationKeyManifestGeneratePaths)
 
 	// FIXME: use cache and revision cache
-	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(app, drySources, appLabelKey, dryRevisions, true, true, false, project, false, false)
+	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(ctx, app, drySources, appLabelKey, dryRevisions, true, true, false, project, false, false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get repo objects: %w", err)
 	}
@@ -66,23 +66,23 @@ func (ctrl *ApplicationController) GetWriteCredentials(ctx context.Context, repo
 	return ctrl.db.GetWriteRepository(ctx, repoURL, project)
 }
 
-func (ctrl *ApplicationController) RequestAppRefresh(appName string, appNamespace string) error {
+func (ctrl *ApplicationController) RequestAppRefresh(ctx context.Context, appName string, appNamespace string) error {
 	// We request a refresh by setting the annotation instead of by adding it to the refresh queue, because there is no
 	// guarantee that the hydrator is running on the same controller shard as is processing the application.
 
 	// This function is called for each app after a hydrate operation is completed so that the app controller can pick
 	// up the newly-hydrated changes. So we set hydrate=false to avoid a hydrate loop.
-	_, err := argoutil.RefreshApp(ctrl.applicationClientset.ArgoprojV1alpha1().Applications(appNamespace), appName, appv1.RefreshTypeNormal, false)
+	_, err := argoutil.RefreshApp(ctx, ctrl.applicationClientset.ArgoprojV1alpha1().Applications(appNamespace), appName, appv1.RefreshTypeNormal, false)
 	if err != nil {
 		return fmt.Errorf("failed to request app refresh: %w", err)
 	}
 	return nil
 }
 
-func (ctrl *ApplicationController) PersistAppHydratorStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus) {
+func (ctrl *ApplicationController) PersistAppHydratorStatus(ctx context.Context, orig *appv1.Application, newStatus *appv1.SourceHydratorStatus) {
 	status := orig.Status.DeepCopy()
 	status.SourceHydrator = *newStatus
-	ctrl.persistAppStatus(orig, status)
+	ctrl.persistAppStatus(ctx, orig, status)
 }
 
 func (ctrl *ApplicationController) AddHydrationQueueItem(key hydrator.HydrationQueueKey) {

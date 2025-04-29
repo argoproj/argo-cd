@@ -35,7 +35,7 @@ func TestGenerateListParams(t *testing.T) {
 			Spec: argoprojiov1alpha1.ApplicationSetSpec{},
 		}
 
-		got, err := listGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+		got, err := listGenerator.GenerateParams(t.Context(), &argoprojiov1alpha1.ApplicationSetGenerator{
 			List: &argoprojiov1alpha1.ListGenerator{
 				Elements: testCase.elements,
 			},
@@ -72,7 +72,7 @@ func TestGenerateListParamsGoTemplate(t *testing.T) {
 			},
 		}
 
-		got, err := listGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+		got, err := listGenerator.GenerateParams(t.Context(), &argoprojiov1alpha1.ApplicationSetGenerator{
 			List: &argoprojiov1alpha1.ListGenerator{
 				Elements: testCase.elements,
 			},

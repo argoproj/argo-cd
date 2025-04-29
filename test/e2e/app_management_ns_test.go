@@ -542,7 +542,7 @@ func TestNamespacedManipulateApplicationResources(t *testing.T) {
 
 			deployment := resources[index]
 
-			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient(t.Context())
 			require.NoError(t, err)
 			defer io.Close(closer)
 
@@ -561,7 +561,7 @@ func TestNamespacedManipulateApplicationResources(t *testing.T) {
 }
 
 func TestNamespacedAppWithSecrets(t *testing.T) {
-	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient(t.Context())
 	require.NoError(t, err)
 	defer io.Close(closer)
 
@@ -790,7 +790,7 @@ func TestNamespacedKnownTypesInCRDDiffing(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		When().
 		And(func() {
-			require.NoError(t, fixture.SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, fixture.SetResourceOverrides(t.Context(), map[string]ResourceOverride{
 				"argoproj.io/Dummy": {
 					KnownTypeFields: []KnownTypeField{{
 						Field: "spec",
@@ -859,7 +859,7 @@ func TestNamespacedResourceAction(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient(t.Context())
 			require.NoError(t, err)
 			defer io.Close(closer)
 
@@ -1033,7 +1033,7 @@ func assertNSResourceActions(t *testing.T, appName string, successful bool) {
 		}
 	}
 
-	closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie()
+	closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie(t.Context())
 	defer io.Close(closer)
 
 	deploymentResource, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
@@ -1142,7 +1142,7 @@ func TestNamespacedPermissions(t *testing.T) {
 		When().
 		// remove projet permissions and "refresh" app
 		And(func() {
-			projActions.UpdateProject(func(proj *AppProject) {
+			projActions.UpdateProject(t.Context(), func(proj *AppProject) {
 				proj.Spec.Destinations = nil
 				proj.Spec.SourceRepos = nil
 			})
@@ -1153,7 +1153,7 @@ func TestNamespacedPermissions(t *testing.T) {
 		Expect(Condition(ApplicationConditionInvalidSpecError, destinationError)).
 		Expect(Condition(ApplicationConditionInvalidSpecError, sourceError)).
 		And(func(app *Application) {
-			closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie()
+			closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie(t.Context())
 			defer io.Close(closer)
 			tree, err := cdClient.ResourceTree(t.Context(), &applicationpkg.ResourcesQuery{ApplicationName: &app.Name, AppNamespace: &app.Namespace})
 			require.NoError(t, err)
@@ -1166,7 +1166,7 @@ func TestNamespacedPermissions(t *testing.T) {
 			projActions.
 				AddDestination("*", "*").
 				AddSource("*").
-				UpdateProject(func(proj *AppProject) {
+				UpdateProject(t.Context(), func(proj *AppProject) {
 					proj.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{{Group: "*", Kind: "Deployment"}}
 				})
 		}).
@@ -2170,7 +2170,7 @@ definitions:
 		SetTrackingMethod("annotation").
 		Path("crd-subresource").
 		And(func() {
-			require.NoError(t, fixture.SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, fixture.SetResourceOverrides(t.Context(), map[string]ResourceOverride{
 				"argoproj.io/StatusSubResource": {
 					Actions: actions,
 				},
@@ -2258,7 +2258,7 @@ func TestNamespacedAppWaitOperationInProgress(t *testing.T) {
 		SetAppNamespace(fixture.AppNamespace()).
 		SetTrackingMethod("annotation").
 		And(func() {
-			require.NoError(t, fixture.SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, fixture.SetResourceOverrides(t.Context(), map[string]ResourceOverride{
 				"batch/Job": {
 					HealthLua: `return { status = 'Running' }`,
 				},
@@ -2376,7 +2376,7 @@ func TestNamespacedDisableManifestGeneration(t *testing.T) {
 		}).
 		When().
 		And(func() {
-			require.NoError(t, fixture.SetEnableManifestGeneration(map[ApplicationSourceType]bool{
+			require.NoError(t, fixture.SetEnableManifestGeneration(t.Context(), map[ApplicationSourceType]bool{
 				ApplicationSourceTypeKustomize: false,
 			}))
 		}).

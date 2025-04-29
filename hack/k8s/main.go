@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"time"
 
@@ -44,8 +45,10 @@ func main() {
 	}
 	errors.CheckError(err)
 
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt) //nolint:forbidigo // Since initialzation
+	defer cancel()
 	cmd := exec.Command("kubectl", "apply", "-k", "manifests/base/config")
 	cmd.Env = []string{"KUBECONFIG=" + kubeConfigPath}
 	errors.CheckError(cmd.Run())
-	<-context.Background().Done()
+	<-ctx.Done()
 }

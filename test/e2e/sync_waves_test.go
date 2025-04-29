@@ -20,7 +20,7 @@ func TestFixingDegradedApp(t *testing.T) {
 		IgnoreErrors().
 		CreateApp().
 		And(func() {
-			require.NoError(t, SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, SetResourceOverrides(t.Context(), map[string]ResourceOverride{
 				"ConfigMap": {
 					HealthLua: `return { status = obj.metadata.annotations and obj.metadata.annotations['health'] or 'Degraded' }`,
 				},

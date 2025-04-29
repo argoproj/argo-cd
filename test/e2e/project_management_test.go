@@ -445,7 +445,7 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 }
 
-func createAndConfigGlobalProject() error {
+func createAndConfigGlobalProject(ctx context.Context) error {
 	// Create global project
 	projectGlobalName := "proj-g-" + fixture.Name()
 	_, err := fixture.RunCli("proj", "create", projectGlobalName,
@@ -458,7 +458,7 @@ func createAndConfigGlobalProject() error {
 		return err
 	}
 
-	projGlobal, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectGlobalName, metav1.GetOptions{})
+	projGlobal, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(ctx, projectGlobalName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -483,7 +483,7 @@ func createAndConfigGlobalProject() error {
 	win := &v1alpha1.SyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "1h", Applications: []string{"*"}}
 	projGlobal.Spec.SyncWindows = append(projGlobal.Spec.SyncWindows, win)
 
-	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(context.Background(), projGlobal, metav1.UpdateOptions{})
+	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(ctx, projGlobal, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -513,7 +513,7 @@ func createAndConfigGlobalProject() error {
 
 func TestGetVirtualProjectNoMatch(t *testing.T) {
 	fixture.EnsureCleanState(t)
-	err := createAndConfigGlobalProject()
+	err := createAndConfigGlobalProject(t.Context())
 	require.NoError(t, err)
 
 	// Create project which does not match global project settings
@@ -544,7 +544,7 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 
 func TestGetVirtualProjectMatch(t *testing.T) {
 	fixture.EnsureCleanState(t)
-	err := createAndConfigGlobalProject()
+	err := createAndConfigGlobalProject(t.Context())
 	require.NoError(t, err)
 
 	// Create project which matches global project settings

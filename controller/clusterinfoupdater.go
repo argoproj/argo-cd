@@ -37,7 +37,7 @@ type clusterInfoUpdater struct {
 	appLister     v1alpha1.ApplicationNamespaceLister
 	cache         *appstatecache.Cache
 	clusterFilter func(cluster *appv1.Cluster) bool
-	projGetter    func(app *appv1.Application) (*appv1.AppProject, error)
+	projGetter    func(ctx context.Context, app *appv1.Application) (*appv1.AppProject, error)
 	namespace     string
 	lastUpdated   time.Time
 }
@@ -48,14 +48,14 @@ func NewClusterInfoUpdater(
 	appLister v1alpha1.ApplicationNamespaceLister,
 	cache *appstatecache.Cache,
 	clusterFilter func(cluster *appv1.Cluster) bool,
-	projGetter func(app *appv1.Application) (*appv1.AppProject, error),
+	projGetter func(ctx context.Context, app *appv1.Application) (*appv1.AppProject, error),
 	namespace string,
 ) *clusterInfoUpdater {
 	return &clusterInfoUpdater{infoSource, db, appLister, cache, clusterFilter, projGetter, namespace, time.Time{}}
 }
 
 func (c *clusterInfoUpdater) Run(ctx context.Context) {
-	c.updateClusters()
+	c.updateClusters(ctx)
 	ticker := time.NewTicker(clusterInfoTimeout)
 	for {
 		select {
@@ -63,17 +63,17 @@ func (c *clusterInfoUpdater) Run(ctx context.Context) {
 			ticker.Stop()
 			return
 		case <-ticker.C:
-			c.updateClusters()
+			c.updateClusters(ctx)
 		}
 	}
 }
 
-func (c *clusterInfoUpdater) updateClusters() {
+func (c *clusterInfoUpdater) updateClusters(ctx context.Context) {
 	if time.Since(c.lastUpdated) < clusterInfoTimeout {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), clusterInfoTimeout)
+	ctx, cancel := context.WithTimeout(ctx, clusterInfoTimeout)
 	defer func() {
 		cancel()
 		c.lastUpdated = time.Now()
@@ -120,14 +120,14 @@ func (c *clusterInfoUpdater) updateClusterInfo(ctx context.Context, cluster appv
 	}
 
 	updated := c.getUpdatedClusterInfo(ctx, apps, cluster, info, metav1.Now())
-	return c.cache.SetClusterInfo(cluster.Server, &updated)
+	return c.cache.SetClusterInfo(ctx, cluster.Server, &updated)
 }
 
 func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*appv1.Application, cluster appv1.Cluster, info *cache.ClusterInfo, now metav1.Time) appv1.ClusterInfo {
 	var appCount int64
 	for _, a := range apps {
 		if c.projGetter != nil {
-			proj, err := c.projGetter(a)
+			proj, err := c.projGetter(ctx, a)
 			if err != nil || !proj.IsAppNamespacePermitted(a, c.namespace) {
 				continue
 			}

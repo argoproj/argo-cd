@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -133,7 +134,7 @@ type DiffConfig interface {
 	Validate() error
 	// DiffFromCache will verify if it should retrieve the cached ResourceDiff based on this
 	// DiffConfig.
-	DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDiff)
+	DiffFromCache(ctx context.Context, appName string) (bool, []*v1alpha1.ResourceDiff)
 	// Ignores Application level ignore difference configurations.
 	Ignores() []v1alpha1.ResourceIgnoreDifferences
 	// Overrides is map of system configurations to override the Application ones.
@@ -284,8 +285,8 @@ type NormalizationResult struct {
 
 // StateDiff will apply all required normalizations and calculate the diffs between
 // the live and the config/desired states.
-func StateDiff(live, config *unstructured.Unstructured, diffConfig DiffConfig) (diff.DiffResult, error) {
-	results, err := StateDiffs([]*unstructured.Unstructured{live}, []*unstructured.Unstructured{config}, diffConfig)
+func StateDiff(ctx context.Context, live, config *unstructured.Unstructured, diffConfig DiffConfig) (diff.DiffResult, error) {
+	results, err := StateDiffs(ctx, []*unstructured.Unstructured{live}, []*unstructured.Unstructured{config}, diffConfig)
 	if err != nil {
 		return diff.DiffResult{}, err
 	}
@@ -297,7 +298,7 @@ func StateDiff(live, config *unstructured.Unstructured, diffConfig DiffConfig) (
 
 // StateDiffs will apply all required normalizations and calculate the diffs between
 // the live and the config/desired states.
-func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConfig) (*diff.DiffResultList, error) {
+func StateDiffs(ctx context.Context, lives, configs []*unstructured.Unstructured, diffConfig DiffConfig) (*diff.DiffResultList, error) {
 	normResults, err := preDiffNormalize(lives, configs, diffConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to perform pre-diff normalization: %w", err)
@@ -323,7 +324,7 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 		diffOpts = append(diffOpts, diff.WithLogr(*diffConfig.Logger()))
 	}
 
-	useCache, cachedDiff := diffConfig.DiffFromCache(diffConfig.AppName())
+	useCache, cachedDiff := diffConfig.DiffFromCache(ctx, diffConfig.AppName())
 	if useCache && cachedDiff != nil {
 		cached, err := diffArrayCached(normResults.Targets, normResults.Lives, cachedDiff, diffOpts...)
 		if err != nil {
@@ -392,13 +393,13 @@ func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unst
 // DiffFromCache will verify if it should retrieve the cached ResourceDiff based on this
 // DiffConfig. Returns true and the cached ResourceDiff if configured to use the cache.
 // Returns false and nil otherwise.
-func (c *diffConfig) DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDiff) {
+func (c *diffConfig) DiffFromCache(ctx context.Context, appName string) (bool, []*v1alpha1.ResourceDiff) {
 	if c.noCache || c.stateCache == nil || appName == "" {
 		return false, nil
 	}
 	cachedDiff := make([]*v1alpha1.ResourceDiff, 0)
 	if c.stateCache != nil {
-		err := c.stateCache.GetAppManagedResources(appName, &cachedDiff)
+		err := c.stateCache.GetAppManagedResources(ctx, appName, &cachedDiff)
 		if err != nil {
 			log.Errorf("DiffFromCache error: error getting managed resources for app %s: %s", appName, err)
 			return false, nil

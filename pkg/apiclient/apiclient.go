@@ -71,32 +71,32 @@ type Client interface {
 	ClientOptions() ClientOptions
 	HTTPClient() (*http.Client, error)
 	OIDCConfig(context.Context, *settingspkg.Settings) (*oauth2.Config, *oidc.Provider, error)
-	NewRepoClient() (io.Closer, repositorypkg.RepositoryServiceClient, error)
-	NewRepoClientOrDie() (io.Closer, repositorypkg.RepositoryServiceClient)
-	NewRepoCredsClient() (io.Closer, repocredspkg.RepoCredsServiceClient, error)
-	NewRepoCredsClientOrDie() (io.Closer, repocredspkg.RepoCredsServiceClient)
-	NewCertClient() (io.Closer, certificatepkg.CertificateServiceClient, error)
-	NewCertClientOrDie() (io.Closer, certificatepkg.CertificateServiceClient)
-	NewClusterClient() (io.Closer, clusterpkg.ClusterServiceClient, error)
-	NewClusterClientOrDie() (io.Closer, clusterpkg.ClusterServiceClient)
-	NewGPGKeyClient() (io.Closer, gpgkeypkg.GPGKeyServiceClient, error)
-	NewGPGKeyClientOrDie() (io.Closer, gpgkeypkg.GPGKeyServiceClient)
-	NewApplicationClient() (io.Closer, applicationpkg.ApplicationServiceClient, error)
-	NewApplicationSetClient() (io.Closer, applicationsetpkg.ApplicationSetServiceClient, error)
-	NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient)
-	NewApplicationSetClientOrDie() (io.Closer, applicationsetpkg.ApplicationSetServiceClient)
-	NewNotificationClient() (io.Closer, notificationpkg.NotificationServiceClient, error)
-	NewNotificationClientOrDie() (io.Closer, notificationpkg.NotificationServiceClient)
-	NewSessionClient() (io.Closer, sessionpkg.SessionServiceClient, error)
-	NewSessionClientOrDie() (io.Closer, sessionpkg.SessionServiceClient)
-	NewSettingsClient() (io.Closer, settingspkg.SettingsServiceClient, error)
-	NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient)
-	NewVersionClient() (io.Closer, versionpkg.VersionServiceClient, error)
-	NewVersionClientOrDie() (io.Closer, versionpkg.VersionServiceClient)
-	NewProjectClient() (io.Closer, projectpkg.ProjectServiceClient, error)
-	NewProjectClientOrDie() (io.Closer, projectpkg.ProjectServiceClient)
-	NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error)
-	NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient)
+	NewRepoClient(ctx context.Context) (io.Closer, repositorypkg.RepositoryServiceClient, error)
+	NewRepoClientOrDie(ctx context.Context) (io.Closer, repositorypkg.RepositoryServiceClient)
+	NewRepoCredsClient(ctx context.Context) (io.Closer, repocredspkg.RepoCredsServiceClient, error)
+	NewRepoCredsClientOrDie(ctx context.Context) (io.Closer, repocredspkg.RepoCredsServiceClient)
+	NewCertClient(ctx context.Context) (io.Closer, certificatepkg.CertificateServiceClient, error)
+	NewCertClientOrDie(ctx context.Context) (io.Closer, certificatepkg.CertificateServiceClient)
+	NewClusterClient(ctx context.Context) (io.Closer, clusterpkg.ClusterServiceClient, error)
+	NewClusterClientOrDie(ctx context.Context) (io.Closer, clusterpkg.ClusterServiceClient)
+	NewGPGKeyClient(ctx context.Context) (io.Closer, gpgkeypkg.GPGKeyServiceClient, error)
+	NewGPGKeyClientOrDie(ctx context.Context) (io.Closer, gpgkeypkg.GPGKeyServiceClient)
+	NewApplicationClient(ctx context.Context) (io.Closer, applicationpkg.ApplicationServiceClient, error)
+	NewApplicationSetClient(ctx context.Context) (io.Closer, applicationsetpkg.ApplicationSetServiceClient, error)
+	NewApplicationClientOrDie(ctx context.Context) (io.Closer, applicationpkg.ApplicationServiceClient)
+	NewApplicationSetClientOrDie(ctx context.Context) (io.Closer, applicationsetpkg.ApplicationSetServiceClient)
+	NewNotificationClient(ctx context.Context) (io.Closer, notificationpkg.NotificationServiceClient, error)
+	NewNotificationClientOrDie(ctx context.Context) (io.Closer, notificationpkg.NotificationServiceClient)
+	NewSessionClient(ctx context.Context) (io.Closer, sessionpkg.SessionServiceClient, error)
+	NewSessionClientOrDie(ctx context.Context) (io.Closer, sessionpkg.SessionServiceClient)
+	NewSettingsClient(ctx context.Context) (io.Closer, settingspkg.SettingsServiceClient, error)
+	NewSettingsClientOrDie(ctx context.Context) (io.Closer, settingspkg.SettingsServiceClient)
+	NewVersionClient(ctx context.Context) (io.Closer, versionpkg.VersionServiceClient, error)
+	NewVersionClientOrDie(ctx context.Context) (io.Closer, versionpkg.VersionServiceClient)
+	NewProjectClient(ctx context.Context) (io.Closer, projectpkg.ProjectServiceClient, error)
+	NewProjectClientOrDie(ctx context.Context) (io.Closer, projectpkg.ProjectServiceClient)
+	NewAccountClient(ctx context.Context) (io.Closer, accountpkg.AccountServiceClient, error)
+	NewAccountClientOrDie(ctx context.Context) (io.Closer, accountpkg.AccountServiceClient)
 	WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent
 }
 
@@ -150,7 +150,7 @@ type client struct {
 }
 
 // NewClient creates a new API client from a set of config options.
-func NewClient(opts *ClientOptions) (Client, error) {
+func NewClient(ctx context.Context, opts *ClientOptions) (Client, error) {
 	var c client
 	localCfg, err := localconfig.ReadLocalConfig(opts.ConfigPath)
 	if err != nil {
@@ -209,7 +209,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 			opts.KubeOverrides = &clientcmd.ConfigOverrides{}
 		}
 		serverPodLabelSelector := common.LabelKeyAppName + "=" + opts.ServerName
-		port, err := kube.PortForward(8080, opts.PortForwardNamespace, opts.KubeOverrides, serverPodLabelSelector)
+		port, err := kube.PortForward(ctx, 8080, opts.PortForwardNamespace, opts.KubeOverrides, serverPodLabelSelector)
 		if err != nil {
 			return nil, err
 		}
@@ -285,17 +285,17 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		}
 		// test if we need to set it to true
 		// if a call to grpc failed, then try again with GRPCWeb
-		conn, versionIf, err := c.NewVersionClient()
+		conn, versionIf, err := c.NewVersionClient(ctx)
 		if err == nil {
 			defer argoio.Close(conn)
-			_, err = versionIf.Version(context.Background(), &empty.Empty{})
+			_, err = versionIf.Version(ctx, &empty.Empty{})
 		}
 		if err != nil {
 			c.GRPCWeb = true
-			conn, versionIf := c.NewVersionClientOrDie()
+			conn, versionIf := c.NewVersionClientOrDie(ctx)
 			defer argoio.Close(conn)
 
-			_, err := versionIf.Version(context.Background(), &empty.Empty{})
+			_, err := versionIf.Version(ctx, &empty.Empty{})
 			if err == nil {
 				log.Warnf("Failed to invoke grpc call. Use flag --grpc-web in grpc calls. To avoid this warning message, use flag --grpc-web.")
 			} else {
@@ -304,7 +304,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		}
 	}
 	if localCfg != nil {
-		err = c.refreshAuthToken(localCfg, ctxName, opts.ConfigPath)
+		err = c.refreshAuthToken(ctx, localCfg, ctxName, opts.ConfigPath)
 		if err != nil {
 			return nil, err
 		}
@@ -389,7 +389,7 @@ func (c *client) HTTPClient() (*http.Client, error) {
 }
 
 // refreshAuthToken refreshes a JWT auth token if it is invalid (e.g. expired)
-func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, configPath string) error {
+func (c *client) refreshAuthToken(ctx context.Context, localCfg *localconfig.LocalConfig, ctxName, configPath string) error {
 	if c.RefreshToken == "" {
 		// If we have no refresh token, there's no point in doing anything
 		return nil
@@ -411,7 +411,7 @@ func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, co
 	}
 
 	log.Debug("Auth token no longer valid. Refreshing")
-	rawIDToken, refreshToken, err := c.redeemRefreshToken()
+	rawIDToken, refreshToken, err := c.redeemRefreshToken(ctx)
 	if err != nil {
 		return err
 	}
@@ -430,8 +430,8 @@ func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, co
 }
 
 // redeemRefreshToken performs the exchange of a refresh_token for a new id_token and refresh_token
-func (c *client) redeemRefreshToken() (string, string, error) {
-	setConn, setIf, err := c.NewSettingsClient()
+func (c *client) redeemRefreshToken(ctx context.Context) (string, string, error) {
+	setConn, setIf, err := c.NewSettingsClient(ctx)
 	if err != nil {
 		return "", "", err
 	}
@@ -440,7 +440,7 @@ func (c *client) redeemRefreshToken() (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
-	ctx := oidc.ClientContext(context.Background(), httpClient)
+	ctx = oidc.ClientContext(ctx, httpClient)
 	acdSet, err := setIf.Get(ctx, &settingspkg.SettingsQuery{})
 	if err != nil {
 		return "", "", err
@@ -465,8 +465,8 @@ func (c *client) redeemRefreshToken() (string, string, error) {
 }
 
 // NewClientOrDie creates a new API client from a set of config options, or fails fatally if the new client creation fails.
-func NewClientOrDie(opts *ClientOptions) Client {
-	client, err := NewClient(opts)
+func NewClientOrDie(ctx context.Context, opts *ClientOptions) Client {
+	client, err := NewClient(ctx, opts)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -489,7 +489,7 @@ func (c jwtCredentials) GetRequestMetadata(context.Context, ...string) (map[stri
 	}, nil
 }
 
-func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
+func (c *client) newConn(ctx context.Context) (*grpc.ClientConn, io.Closer, error) {
 	closers := make([]io.Closer, 0)
 	serverAddr := c.ServerAddr
 	network := "tcp"
@@ -526,8 +526,6 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor(retryOpts...)))
 	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_util.OTELUnaryClientInterceptor()))
 	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_util.OTELStreamClientInterceptor()))
-
-	ctx := context.Background()
 
 	headers, err := parseHeaders(c.Headers)
 	if err != nil {
@@ -583,8 +581,8 @@ func (c *client) ClientOptions() ClientOptions {
 	}
 }
 
-func (c *client) NewRepoClient() (io.Closer, repositorypkg.RepositoryServiceClient, error) {
-	conn, closer, err := c.newConn()
+func (c *client) NewRepoClient(ctx context.Context) (io.Closer, repositorypkg.RepositoryServiceClient, error) {
+	conn, closer, err := c.newConn(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -592,16 +590,16 @@ func (c *client) NewRepoClient() (io.Closer, repositorypkg.RepositoryServiceClie
 	return closer, repoIf, nil
 }
 
-func (c *client) NewRepoClientOrDie() (io.Closer, repositorypkg.RepositoryServiceClient) {
-	conn, repoIf, err := c.NewRepoClient()
+func (c *client) NewRepoClientOrDie(ctx context.Context) (io.Closer, repositorypkg.RepositoryServiceClient) {
+	conn, repoIf, err := c.NewRepoClient(ctx)
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, repoIf
 }
 
-func (c *client) NewRepoCredsClient() (io.Closer, repocredspkg.RepoCredsServiceClient, error) {
-	conn, closer, err := c.newConn()
+func (c *client) NewRepoCredsClient(ctx context.Context) (io.Closer, repocredspkg.RepoCredsServiceClient, error) {
+	conn, closer, err := c.newConn(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -609,16 +607,16 @@ func (c *client) NewRepoCredsClient() (io.Closer, repocredspkg.RepoCredsServiceC
 	return closer, repoIf, nil
 }
 
-func (c *client) NewRepoCredsClientOrDie() (io.Closer, repocredspkg.RepoCredsServiceClient) {
-	conn, repoIf, err := c.NewRepoCredsClient()
+func (c *client) NewRepoCredsClientOrDie(ctx context.Context) (io.Closer, repocredspkg.RepoCredsServiceClient) {
+	conn, repoIf, err := c.NewRepoCredsClient(ctx)
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, repoIf
 }
 
-func (c *client) NewCertClient() (io.Closer, certificatepkg.CertificateServiceClient, error) {
-	conn, closer, err := c.newConn()
+func (c *client) NewCertClient(ctx context.Context) (io.Closer, certificatepkg.CertificateServiceClient, error) {
+	conn, closer, err := c.newConn(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -626,16 +624,16 @@ func (c *client) NewCertClient() (io.Closer, certificatepkg.CertificateServiceCl
 	return closer, certIf, nil
 }
 
-func (c *client) NewCertClientOrDie() (io.Closer, certificatepkg.CertificateServiceClient) {
-	conn, certIf, err := c.NewCertClient()
+func (c *client) NewCertClientOrDie(ctx context.Context) (io.Closer, certificatepkg.CertificateServiceClient) {
+	conn, certIf, err := c.NewCertClient(ctx)
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, certIf
 }
 
-func (c *client) NewClusterClient() (io.Closer, clusterpkg.ClusterServiceClient, error) {
-	conn, closer, err := c.newConn()
+func (c *client) NewClusterClient(ctx context.Context) (io.Closer, clusterpkg.ClusterServiceClient, error) {
+	conn, closer, err := c.newConn(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -643,16 +641,16 @@ func (c *client) NewClusterClient() (io.Closer, clusterpkg.ClusterServiceClient,
 	return closer, clusterIf, nil
 }
 
-func (c *client) NewClusterClientOrDie() (io.Closer, clusterpkg.ClusterServiceClient) {
-	conn, clusterIf, err := c.NewClusterClient()
+func (c *client) NewClusterClientOrDie(ctx context.Context) (io.Closer, clusterpkg.ClusterServiceClient) {
+	conn, clusterIf, err := c.NewClusterClient(ctx)
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, clusterIf
 }
 
-func (c *client) NewGPGKeyClient() (io.Closer, gpgkeypkg.GPGKeyServiceClient, error) {
-	conn, closer, err := c.newConn()
+func (c *client) NewGPGKeyClient(ctx context.Context) (io.Closer, gpgkeypkg.GPGKeyServiceClient, error) {
+	conn, closer, err := c.newConn(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -660,16 +658,16 @@ func (c *client) NewGPGKeyClient() (io.Closer, gpgkeypkg.GPGKeyServiceClient, er
 	return closer, gpgkeyIf, nil
 }
 
-func (c *client) NewGPGKeyClientOrDie() (io.Closer, gpgkeypkg.GPGKeyServiceClient) {
-	conn, gpgkeyIf, err := c.NewGPGKeyClient()
+func (c *client) NewGPGKeyClientOrDie(ctx context.Context) (io.Closer, gpgkeypkg.GPGKeyServiceClient) {
+	conn, gpgkeyIf, err := c.NewGPGKeyClient(ctx)
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, gpgkeyIf
 }
 
-func (c *client) NewApplicationClient() (io.Closer, applicationpkg.ApplicationServiceClient, error) {
-	conn, closer, err := c.newConn()
+func (c *client) NewApplicationClient(ctx context.Context) (io.Closer, applicationpkg.ApplicationServiceClient, error) {
+	conn, closer, err := c.newConn(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -677,8 +675,8 @@ func (c *client) NewApplicationClient() (io.Closer, applicationpkg.ApplicationSe
 	return closer, appIf, nil
 }
 
-func (c *client) NewApplicationSetClient() (io.Closer, applicationsetpkg.ApplicationSetServiceClient, error) {
-	conn, closer, err := c.newConn()
+func (c *client) NewApplicationSetClient(ctx context.Context) (io.Closer, applicationsetpkg.ApplicationSetServiceClient, error) {
+	conn, closer, err := c.newConn(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -686,16 +684,16 @@ func (c *client) NewApplicationSetClient() (io.Closer, applicationsetpkg.Applica
 	return closer, appIf, nil
 }
 
-func (c *client) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
-	conn, appIf, err := c.NewApplicationClient()
+func (c *client) NewApplicationClientOrDie(ctx context.Context) (io.Closer, applicationpkg.ApplicationServiceClient) {
+	conn, appIf, err := c.NewApplicationClient(ctx)
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, appIf
 }
 
-func (c *client) NewNotificationClient() (io.Closer, notificationpkg.NotificationServiceClient, error) {
-	conn, closer, err := c.newConn()
+func (c *client) NewNotificationClient(ctx context.Context) (io.Closer, notificationpkg.NotificationServiceClient, error) {
+	conn, closer, err := c.newConn(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -703,24 +701,24 @@ func (c *client) NewNotificationClient() (io.Closer, notificationpkg.Notificatio
 	return closer, notifIf, nil
 }
 
-func (c *client) NewNotificationClientOrDie() (io.Closer, notificationpkg.NotificationServiceClient) {
-	conn, notifIf, err := c.NewNotificationClient()
+func (c *client) NewNotificationClientOrDie(ctx context.Context) (io.Closer, notificationpkg.NotificationServiceClient) {
+	conn, notifIf, err := c.NewNotificationClient(ctx)
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, notifIf
 }
 
-func (c *client) NewApplicationSetClientOrDie() (io.Closer, applicationsetpkg.ApplicationSetServiceClient) {
-	conn, repoIf, err := c.NewApplicationSetClient()
+func (c *client) NewApplicationSetClientOrDie(ctx context.Context) (io.Closer, applicationsetpkg.ApplicationSetServiceClient) {
+	conn, repoIf, err := c.NewApplicationSetClient(ctx)
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, repoIf
 }
 
-func (c *client) NewSessionClient() (io.Closer, sessionpkg.SessionServiceClient, error) {
-	conn, closer, err := c.newConn()
+func (c *client) NewSessionClient(ctx context.Context) (io.Closer, sessionpkg.SessionServiceClient, error) {
+	conn, closer, err := c.newConn(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -728,16 +726,16 @@ func (c *client) NewSessionClient() (io.Closer, sessionpkg.SessionServiceClient,
 	return closer, sessionIf, nil
 }
 
-func (c *client) NewSessionClientOrDie() (io.Closer, sessionpkg.SessionServiceClient) {
-	conn, sessionIf, err := c.NewSessionClient()
+func (c *client) NewSessionClientOrDie(ctx context.Context) (io.Closer, sessionpkg.SessionServiceClient) {
+	conn, sessionIf, err := c.NewSessionClient(ctx)
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, sessionIf
 }
 
-func (c *client) NewSettingsClient() (io.Closer, settingspkg.SettingsServiceClient, error) {
-	conn, closer, err := c.newConn()
+func (c *client) NewSettingsClient(ctx context.Context) (io.Closer, settingspkg.SettingsServiceClient, error) {
+	conn, closer, err := c.newConn(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -745,16 +743,16 @@ func (c *client) NewSettingsClient() (io.Closer, settingspkg.SettingsServiceClie
 	return closer, setIf, nil
 }
 
-func (c *client) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
-	conn, setIf, err := c.NewSettingsClient()
+func (c *client) NewSettingsClientOrDie(ctx context.Context) (io.Closer, settingspkg.SettingsServiceClient) {
+	conn, setIf, err := c.NewSettingsClient(ctx)
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, setIf
 }
 
-func (c *client) NewVersionClient() (io.Closer, versionpkg.VersionServiceClient, error) {
-	conn, closer, err := c.newConn()
+func (c *client) NewVersionClient(ctx context.Context) (io.Closer, versionpkg.VersionServiceClient, error) {
+	conn, closer, err := c.newConn(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -762,16 +760,16 @@ func (c *client) NewVersionClient() (io.Closer, versionpkg.VersionServiceClient,
 	return closer, versionIf, nil
 }
 
-func (c *client) NewVersionClientOrDie() (io.Closer, versionpkg.VersionServiceClient) {
-	conn, versionIf, err := c.NewVersionClient()
+func (c *client) NewVersionClientOrDie(ctx context.Context) (io.Closer, versionpkg.VersionServiceClient) {
+	conn, versionIf, err := c.NewVersionClient(ctx)
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, versionIf
 }
 
-func (c *client) NewProjectClient() (io.Closer, projectpkg.ProjectServiceClient, error) {
-	conn, closer, err := c.newConn()
+func (c *client) NewProjectClient(ctx context.Context) (io.Closer, projectpkg.ProjectServiceClient, error) {
+	conn, closer, err := c.newConn(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -779,16 +777,16 @@ func (c *client) NewProjectClient() (io.Closer, projectpkg.ProjectServiceClient,
 	return closer, projIf, nil
 }
 
-func (c *client) NewProjectClientOrDie() (io.Closer, projectpkg.ProjectServiceClient) {
-	conn, projIf, err := c.NewProjectClient()
+func (c *client) NewProjectClientOrDie(ctx context.Context) (io.Closer, projectpkg.ProjectServiceClient) {
+	conn, projIf, err := c.NewProjectClient(ctx)
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, projIf
 }
 
-func (c *client) NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error) {
-	conn, closer, err := c.newConn()
+func (c *client) NewAccountClient(ctx context.Context) (io.Closer, accountpkg.AccountServiceClient, error) {
+	conn, closer, err := c.newConn(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -796,8 +794,8 @@ func (c *client) NewAccountClient() (io.Closer, accountpkg.AccountServiceClient,
 	return closer, usrIf, nil
 }
 
-func (c *client) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient) {
-	conn, usrIf, err := c.NewAccountClient()
+func (c *client) NewAccountClientOrDie(ctx context.Context) (io.Closer, accountpkg.AccountServiceClient) {
+	conn, usrIf, err := c.NewAccountClient(ctx)
 	if err != nil {
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
@@ -813,7 +811,7 @@ func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, 
 	go func() {
 		defer close(appEventsCh)
 		for !cancelled {
-			conn, appIf, err := c.NewApplicationClient()
+			conn, appIf, err := c.NewApplicationClient(ctx)
 			if err == nil {
 				var wc applicationpkg.ApplicationService_WatchClient
 				wc, err = appIf.Watch(ctx, &applicationpkg.ApplicationQuery{

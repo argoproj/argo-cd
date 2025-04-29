@@ -99,7 +99,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	err = s.settingsMgr.UpdateAccount(updatedUsername, func(acc *settings.Account) error {
+	err = s.settingsMgr.UpdateAccount(ctx, updatedUsername, func(acc *settings.Account) error {
 		acc.PasswordHash = hashedPassword
 		now := time.Now().UTC()
 		acc.PasswordMtime = &now
@@ -212,7 +212,7 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 	}
 
 	var tokenString string
-	err := s.settingsMgr.UpdateAccount(r.Name, func(account *settings.Account) error {
+	err := s.settingsMgr.UpdateAccount(ctx, r.Name, func(account *settings.Account) error {
 		if account.TokenIndex(id) > -1 {
 			return fmt.Errorf("account already has token with id '%s'", id)
 		}
@@ -250,7 +250,7 @@ func (s *Server) DeleteToken(ctx context.Context, r *account.DeleteTokenRequest)
 		return nil, fmt.Errorf("permission denied to delete account %s: %w", r.Name, err)
 	}
 
-	err := s.settingsMgr.UpdateAccount(r.Name, func(account *settings.Account) error {
+	err := s.settingsMgr.UpdateAccount(ctx, r.Name, func(account *settings.Account) error {
 		if index := account.TokenIndex(r.Id); index > -1 {
 			account.Tokens = append(account.Tokens[:index], account.Tokens[index+1:]...)
 			return nil

@@ -209,7 +209,7 @@ func TestCustomHTTPClient(t *testing.T) {
 	}
 }
 
-func TestLsRemote(t *testing.T) {
+func TestLsRemotet(t *testing.T) {
 	clnt, err := NewClientExt("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
@@ -268,7 +268,7 @@ func TestLsRemote(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			commitSHA, err := clnt.LsRemote(tc.revision)
+			commitSHA, err := clnt.LsRemote(t.Context(), tc.revision)
 			require.NoError(t, err)
 			assert.True(t, IsCommitSHA(commitSHA))
 			if tc.expectedCommit != "" {
@@ -279,7 +279,7 @@ func TestLsRemote(t *testing.T) {
 
 	// We do not resolve truncated git hashes and return the commit as-is if it appears to be a commit
 	t.Run("truncated commit", func(t *testing.T) {
-		commitSHA, err := clnt.LsRemote("4e22a3c")
+		commitSHA, err := clnt.LsRemote(t.Context(), "4e22a3c")
 		require.NoError(t, err)
 		assert.False(t, IsCommitSHA(commitSHA))
 		assert.True(t, IsTruncatedCommitSHA(commitSHA))
@@ -292,7 +292,7 @@ func TestLsRemote(t *testing.T) {
 		}
 
 		for _, revision := range xfail {
-			_, err := clnt.LsRemote(revision)
+			_, err := clnt.LsRemote(t.Context(), revision)
 			assert.ErrorContains(t, err, "unable to resolve")
 		}
 	})
@@ -309,17 +309,17 @@ func TestLFSClient(t *testing.T) {
 	client, err := NewClientExt("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true, "", "")
 	require.NoError(t, err)
 
-	commitSHA, err := client.LsRemote("HEAD")
+	commitSHA, err := client.LsRemote(t.Context(), "HEAD")
 	require.NoError(t, err)
 	assert.NotEmpty(t, commitSHA)
 
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch(t.Context(), "")
 	require.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(t.Context(), commitSHA, true)
 	require.NoError(t, err)
 
 	largeFiles, err := client.LsLargeFiles()
@@ -351,13 +351,13 @@ func TestVerifyCommitSignature(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch(t.Context(), "")
 	require.NoError(t, err)
 
-	commitSHA, err := client.LsRemote("HEAD")
+	commitSHA, err := client.LsRemote(t.Context(), "HEAD")
 	require.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(t.Context(), commitSHA, true)
 	require.NoError(t, err)
 
 	// 28027897aad1262662096745f2ce2d4c74d02b7f is a commit that is signed in the repo
@@ -401,20 +401,20 @@ func TestNewFactory(t *testing.T) {
 
 		client, err := NewClientExt(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false, "", "")
 		require.NoError(t, err)
-		commitSHA, err := client.LsRemote("HEAD")
+		commitSHA, err := client.LsRemote(t.Context(), "HEAD")
 		require.NoError(t, err)
 
 		err = client.Init()
 		require.NoError(t, err)
 
-		err = client.Fetch("")
+		err = client.Fetch(t.Context(), "")
 		require.NoError(t, err)
 
 		// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
-		err = client.Fetch("")
+		err = client.Fetch(t.Context(), "")
 		require.NoError(t, err)
 
-		_, err = client.Checkout(commitSHA, true)
+		_, err = client.Checkout(t.Context(), commitSHA, true)
 		require.NoError(t, err)
 
 		revisionMetadata, err := client.RevisionMetadata(commitSHA)
@@ -439,7 +439,7 @@ func TestListRevisions(t *testing.T) {
 	client, err := NewClientExt(repoURL, dir, NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
-	lsResult, err := client.LsRefs()
+	lsResult, err := client.LsRefs(t.Context())
 	require.NoError(t, err)
 
 	testBranch := "master"
@@ -512,14 +512,14 @@ func TestAnnotatedTagHandling(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test annotated tag resolution
-	commitSHA, err := client.LsRemote("v1.0.0") // Known annotated tag
+	commitSHA, err := client.LsRemote(t.Context(), "v1.0.0") // Known annotated tag
 	require.NoError(t, err)
 
 	// Verify we get commit SHA, not tag SHA
 	assert.True(t, IsCommitSHA(commitSHA))
 
 	// Test tag reference handling
-	refs, err := client.LsRefs()
+	refs, err := client.LsRefs(t.Context())
 	require.NoError(t, err)
 
 	// Verify tag exists in the list and points to a valid commit SHA

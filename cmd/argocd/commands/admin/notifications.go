@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"context"
 	"log"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -22,7 +23,7 @@ import (
 
 var applications = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.ApplicationPlural}
 
-func NewNotificationsCommand() *cobra.Command {
+func NewNotificationsCommand(ctx context.Context) *cobra.Command {
 	var (
 		argocdRepoServer          string
 		argocdRepoServerPlaintext bool
@@ -34,8 +35,8 @@ func NewNotificationsCommand() *cobra.Command {
 		"notifications",
 		"argocd admin notifications",
 		applications,
-		settings.GetFactorySettingsForCLI(&argocdService, "argocd-notifications-secret", "argocd-notifications-cm", false),
-		func(clientConfig clientcmd.ClientConfig) {
+		settings.GetFactorySettingsForCLI(ctx, &argocdService, "argocd-notifications-secret", "argocd-notifications-cm", false),
+		func(ctx context.Context, clientConfig clientcmd.ClientConfig) {
 			k8sCfg, err := clientConfig.ClientConfig()
 			if err != nil {
 				log.Fatalf("Failed to parse k8s config: %v", err)
@@ -59,7 +60,7 @@ func NewNotificationsCommand() *cobra.Command {
 				tlsConfig.Certificates = pool
 			}
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, 5, tlsConfig)
-			argocdService, err = service.NewArgoCDService(kubernetes.NewForConfigOrDie(k8sCfg), ns, repoClientset)
+			argocdService, err = service.NewArgoCDService(ctx, kubernetes.NewForConfigOrDie(k8sCfg), ns, repoClientset)
 			if err != nil {
 				log.Fatalf("Failed to initialize Argo CD service: %v", err)
 			}

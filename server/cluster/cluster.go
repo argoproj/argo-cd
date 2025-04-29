@@ -76,7 +76,7 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 		}
 	}
 	err = kube.RunAllAsync(len(items), func(i int) error {
-		items[i] = *s.toAPIResponse(&items[i])
+		items[i] = *s.toAPIResponse(ctx, &items[i])
 		return nil
 	})
 	if err != nil {
@@ -177,7 +177,7 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 		}
 	}
 
-	err = s.cache.SetClusterInfo(c.Server, &appv1.ClusterInfo{
+	err = s.cache.SetClusterInfo(ctx, c.Server, &appv1.ClusterInfo{
 		ServerVersion: serverVersion,
 		ConnectionState: appv1.ConnectionState{
 			Status:     appv1.ConnectionStatusSuccessful,
@@ -187,7 +187,7 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 	if err != nil {
 		return nil, fmt.Errorf("error setting cluster info in cache: %w", err)
 	}
-	return s.toAPIResponse(clust), err
+	return s.toAPIResponse(ctx, clust), err
 }
 
 // Get returns a cluster from a query
@@ -197,7 +197,7 @@ func (s *Server) Get(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clust
 		return nil, fmt.Errorf("error verifying access to update cluster: %w", err)
 	}
 
-	return s.toAPIResponse(c), nil
+	return s.toAPIResponse(ctx, c), nil
 }
 
 func (s *Server) getClusterWith403IfNotExist(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Cluster, error) {
@@ -334,7 +334,7 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 	if err != nil {
 		return nil, fmt.Errorf("failed to update cluster in database: %w", err)
 	}
-	err = s.cache.SetClusterInfo(clust.Server, &appv1.ClusterInfo{
+	err = s.cache.SetClusterInfo(ctx, clust.Server, &appv1.ClusterInfo{
 		ServerVersion: serverVersion,
 		ConnectionState: appv1.ConnectionState{
 			Status:     appv1.ConnectionStatusSuccessful,
@@ -344,7 +344,7 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 	if err != nil {
 		return nil, fmt.Errorf("failed to set cluster info in cache: %w", err)
 	}
-	return s.toAPIResponse(clust), nil
+	return s.toAPIResponse(ctx, clust), nil
 }
 
 // Delete deletes a cluster by server/name
@@ -429,7 +429,7 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 		if err != nil {
 			return nil, fmt.Errorf("failed to create Kubernetes clientset: %w", err)
 		}
-		newSecret, err := clusterauth.GenerateNewClusterManagerSecret(kubeclientset, claims)
+		newSecret, err := clusterauth.GenerateNewClusterManagerSecret(ctx, kubeclientset, claims)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate new cluster manager secret: %w", err)
 		}
@@ -451,7 +451,7 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 		if err != nil {
 			return nil, fmt.Errorf("failed to update cluster in database: %w", err)
 		}
-		err = s.cache.SetClusterInfo(clust.Server, &appv1.ClusterInfo{
+		err = s.cache.SetClusterInfo(ctx, clust.Server, &appv1.ClusterInfo{
 			ServerVersion: serverVersion,
 			ConnectionState: appv1.ConnectionState{
 				Status:     appv1.ConnectionStatusSuccessful,
@@ -461,7 +461,7 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 		if err != nil {
 			return nil, fmt.Errorf("failed to set cluster info in cache: %w", err)
 		}
-		err = clusterauth.RotateServiceAccountSecrets(kubeclientset, claims, newSecret)
+		err = clusterauth.RotateServiceAccountSecrets(ctx, kubeclientset, claims, newSecret)
 		if err != nil {
 			return nil, fmt.Errorf("failed to rotate service account secrets: %w", err)
 		}
@@ -470,8 +470,8 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 	return &cluster.ClusterResponse{}, nil
 }
 
-func (s *Server) toAPIResponse(clust *appv1.Cluster) *appv1.Cluster {
-	_ = s.cache.GetClusterInfo(clust.Server, &clust.Info)
+func (s *Server) toAPIResponse(ctx context.Context, clust *appv1.Cluster) *appv1.Cluster {
+	_ = s.cache.GetClusterInfo(ctx, clust.Server, &clust.Info)
 
 	clust.Config.Password = ""
 	clust.Config.BearerToken = ""
@@ -504,5 +504,5 @@ func (s *Server) InvalidateCache(ctx context.Context, q *cluster.ClusterQuery) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to update cluster in database: %w", err)
 	}
-	return s.toAPIResponse(cls), nil
+	return s.toAPIResponse(ctx, cls), nil
 }

@@ -262,7 +262,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 	for _, obj := range objects {
 		app, ok := obj.(*v1alpha1.Application)
 		if ok {
-			err := appStateCache.SetAppManagedResources(app.Name, []*v1alpha1.ResourceDiff{})
+			err := appStateCache.SetAppManagedResources(t.Context(), app.Name, []*v1alpha1.ResourceDiff{})
 			require.NoError(t, err)
 
 			// Pre-populate the resource tree based on the app's resources.
@@ -279,7 +279,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 					},
 				}
 			}
-			err = appStateCache.SetAppResourcesTree(app.Name, &v1alpha1.ApplicationTree{
+			err = appStateCache.SetAppResourcesTree(t.Context(), app.Name, &v1alpha1.ApplicationTree{
 				Nodes: nodes,
 			})
 			require.NoError(t, err)
@@ -425,7 +425,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 	for _, obj := range objects {
 		app, ok := obj.(*v1alpha1.Application)
 		if ok {
-			err := appStateCache.SetAppManagedResources(app.Name, []*v1alpha1.ResourceDiff{})
+			err := appStateCache.SetAppManagedResources(b.Context(), app.Name, []*v1alpha1.ResourceDiff{})
 			require.NoError(b, err)
 
 			// Pre-populate the resource tree based on the app's resources.
@@ -442,7 +442,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 					},
 				}
 			}
-			err = appStateCache.SetAppResourcesTree(app.Name, &v1alpha1.ApplicationTree{
+			err = appStateCache.SetAppResourcesTree(b.Context(), app.Name, &v1alpha1.ApplicationTree{
 				Nodes: nodes,
 			})
 			require.NoError(b, err)
@@ -2429,7 +2429,7 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 	}}
 	appServer := newTestAppServer(t, testApp)
 	appStateCache := appstate.NewCache(cacheClient, time.Minute)
-	err := appStateCache.SetAppResourcesTree(testApp.Name, &v1alpha1.ApplicationTree{Nodes: []v1alpha1.ResourceNode{{
+	err := appStateCache.SetAppResourcesTree(t.Context(), testApp.Name, &v1alpha1.ApplicationTree{Nodes: []v1alpha1.ResourceNode{{
 		ResourceRef: v1alpha1.ResourceRef{
 			Group:     "apps",
 			Kind:      "Deployment",
@@ -2445,7 +2445,7 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 
 	appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
-	appServer.inferResourcesStatusHealth(testApp)
+	appServer.inferResourcesStatusHealth(t.Context(), testApp)
 
 	assert.Equal(t, health.HealthStatusDegraded, testApp.Status.Resources[0].Health.Status)
 	assert.Nil(t, testApp.Status.Resources[1].Health)
@@ -2535,7 +2535,7 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 		appServer := newTestAppServer(t, testApp, createJobDenyingProj, kube.MustToUnstructured(&cronJob))
 		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
-		err := appStateCache.SetAppResourcesTree(testApp.Name, &v1alpha1.ApplicationTree{Nodes: nodes})
+		err := appStateCache.SetAppResourcesTree(t.Context(), testApp.Name, &v1alpha1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
 
 		appResponse, runErr := appServer.RunResourceAction(t.Context(), &application.ResourceActionRunRequest{
@@ -2561,7 +2561,7 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&cronJob))
 		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
-		err := appStateCache.SetAppResourcesTree(testApp.Name, &v1alpha1.ApplicationTree{Nodes: nodes})
+		err := appStateCache.SetAppResourcesTree(t.Context(), testApp.Name, &v1alpha1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
 
 		appResponse, runErr := appServer.RunResourceAction(t.Context(), &application.ResourceActionRunRequest{
@@ -2632,7 +2632,7 @@ func TestRunOldStyleResourceAction(t *testing.T) {
 		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&deployment))
 		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
-		err := appStateCache.SetAppResourcesTree(testApp.Name, &v1alpha1.ApplicationTree{Nodes: nodes})
+		err := appStateCache.SetAppResourcesTree(t.Context(), testApp.Name, &v1alpha1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
 
 		appResponse, runErr := appServer.RunResourceAction(t.Context(), &application.ResourceActionRunRequest{
@@ -2790,8 +2790,8 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotNil(t, app)
-		require.Equal(t, "argocd-1", app.Namespace)
-		require.Equal(t, "test-app", app.Name)
+		require.Equal(t, "argocd-1", t.Context(), app.Namespace)
+		require.Equal(t, "test-app", t.Context(), app.Name)
 	})
 	t.Run("Get application in other namespace when project is not allowed", func(t *testing.T) {
 		t.Parallel()
@@ -2836,8 +2836,8 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotNil(t, app)
-		assert.Equal(t, "test-app", app.Name)
-		assert.Equal(t, "argocd-1", app.Namespace)
+		assert.Equal(t, "test-app", t.Context(), app.Name)
+		assert.Equal(t, "argocd-1", t.Context(), app.Namespace)
 	})
 
 	t.Run("Create application in other namespace when not allowed by project", func(t *testing.T) {

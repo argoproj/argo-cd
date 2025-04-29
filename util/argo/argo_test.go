@@ -41,7 +41,7 @@ func TestRefreshApp(t *testing.T) {
 	testApp.Namespace = "default"
 	appClientset := appclientset.NewSimpleClientset(&testApp)
 	appIf := appClientset.ArgoprojV1alpha1().Applications("default")
-	_, err := RefreshApp(appIf, "test-app", argoappv1.RefreshTypeNormal, true)
+	_, err := RefreshApp(t.Context(), appIf, "test-app", argoappv1.RefreshTypeNormal, true)
 	require.NoError(t, err)
 	// For some reason, the fake Application interface doesn't reflect the patch status after Patch(),
 	// so can't verify it was set in unit tests.
@@ -879,7 +879,7 @@ func TestValidatePermissions(t *testing.T) {
 func TestSetAppOperations(t *testing.T) {
 	t.Run("Application not existing", func(t *testing.T) {
 		appIf := appclientset.NewSimpleClientset().ArgoprojV1alpha1().Applications("default")
-		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
+		app, err := SetAppOperation(t.Context(), appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
 		require.Error(t, err)
 		assert.Nil(t, app)
 	})
@@ -893,7 +893,7 @@ func TestSetAppOperations(t *testing.T) {
 			Operation: &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}},
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
-		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
+		app, err := SetAppOperation(t.Context(), appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
 		require.ErrorContains(t, err, "operation is already in progress")
 		assert.Nil(t, app)
 	})
@@ -906,7 +906,7 @@ func TestSetAppOperations(t *testing.T) {
 			},
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
-		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: nil})
+		app, err := SetAppOperation(t.Context(), appIf, "someapp", &argoappv1.Operation{Sync: nil})
 		require.ErrorContains(t, err, "Operation unspecified")
 		assert.Nil(t, app)
 	})
@@ -919,7 +919,7 @@ func TestSetAppOperations(t *testing.T) {
 			},
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
-		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
+		app, err := SetAppOperation(t.Context(), appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
 		require.NoError(t, err)
 		assert.NotNil(t, app)
 	})

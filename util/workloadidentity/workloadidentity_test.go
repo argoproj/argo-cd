@@ -26,7 +26,7 @@ func TestNewWorkloadIdentityTokenProvider_Success(t *testing.T) {
 	provider := WorkloadIdentityTokenProvider{tokenCredential: MockTokenCredential{}}
 
 	// Test the NewWorkloadIdentityTokenProvider function
-	_, err := provider.GetToken("https://management.core.windows.net/.default")
+	_, err := provider.GetToken(t.Context(), "https://management.core.windows.net/.default")
 	require.NoError(t, err, "Expected no error from GetToken")
 }
 
@@ -35,7 +35,7 @@ func TestGetToken_Success(t *testing.T) {
 	provider := WorkloadIdentityTokenProvider{tokenCredential: MockTokenCredential{mockedToken: "mocked_token"}}
 	scope := "https://management.core.windows.net/.default"
 
-	token, err := provider.GetToken(scope)
+	token, err := provider.GetToken(t.Context(), scope)
 	require.NoError(t, err, "Expected no error from GetToken")
 	assert.Equal(t, "mocked_token", token, "Expected token to match")
 }
@@ -45,7 +45,7 @@ func TestGetToken_Failure(t *testing.T) {
 	provider := WorkloadIdentityTokenProvider{tokenCredential: MockTokenCredential{mockedToken: "mocked_token", mockedError: errors.New("Expected error from GetToken")}}
 	scope := "https://management.core.windows.net/.default"
 
-	token, err := provider.GetToken(scope)
+	token, err := provider.GetToken(t.Context(), scope)
 	require.Error(t, err, "Expected error from GetToken")
 	assert.Empty(t, token, "Expected token to be empty on error")
 }
@@ -54,7 +54,7 @@ func TestGetToken_InitError(t *testing.T) {
 	initError = errors.New("initialization error")
 	provider := WorkloadIdentityTokenProvider{tokenCredential: MockTokenCredential{mockedToken: "mocked_token", mockedError: errors.New("Expected error from GetToken")}}
 
-	token, err := provider.GetToken("https://management.core.windows.net/.default")
+	token, err := provider.GetToken(t.Context(), "https://management.core.windows.net/.default")
 	require.Error(t, err, "Expected error from GetToken due to initialization error")
 	assert.Empty(t, token, "Expected token to be empty on initialization error")
 }

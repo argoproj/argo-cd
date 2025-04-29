@@ -34,7 +34,7 @@ func TestGetAccessTokenShouldReturnTokenFromCacheIfPresent(t *testing.T) {
 	storeAzureToken(cacheKey, "testToken", time.Hour)
 
 	// Retrieve the token from the cache
-	token, err := creds.GetAccessToken()
+	token, err := creds.GetAccessToken(t.Context())
 	require.NoError(t, err, "Error getting access token")
 	assert.Equal(t, "testToken", token, "The retrieved token should match the stored token")
 }
@@ -50,7 +50,7 @@ func TestGetPasswordShouldReturnTokenFromCacheIfPresent(t *testing.T) {
 	storeAzureToken(cacheKey, "testToken", time.Hour)
 
 	// Retrieve the token from the cache
-	token, err := creds.GetPassword()
+	token, err := creds.GetPassword(t.Context())
 	require.NoError(t, err, "Error getting access token")
 	assert.Equal(t, "testToken", token, "The retrieved token should match the stored token")
 }
@@ -83,7 +83,7 @@ func TestGetPasswordShouldGenerateTokenIfNotPresentInCache(t *testing.T) {
 	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
 
 	// Retrieve the token from the cache
-	token, err := creds.GetPassword()
+	token, err := creds.GetPassword(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, "newRefreshToken", token, "The retrieved token should match the stored token")
 }
@@ -199,7 +199,7 @@ func TestGetAccessTokenAfterChallenge_Success(t *testing.T) {
 		"service": "registry.example.com",
 	}
 
-	refreshToken, err := creds.getAccessTokenAfterChallenge(tokenParams)
+	refreshToken, err := creds.getAccessTokenAfterChallenge(t.Context(), tokenParams)
 	require.NoError(t, err)
 	assert.Equal(t, "newRefreshToken", refreshToken)
 }
@@ -224,7 +224,7 @@ func TestGetAccessTokenAfterChallenge_Failure(t *testing.T) {
 		"service": "registry.example.com",
 	}
 
-	refreshToken, err := creds.getAccessTokenAfterChallenge(tokenParams)
+	refreshToken, err := creds.getAccessTokenAfterChallenge(t.Context(), tokenParams)
 	require.ErrorContains(t, err, "failed to get refresh token")
 	assert.Empty(t, refreshToken)
 }
@@ -249,7 +249,7 @@ func TestGetAccessTokenAfterChallenge_MalformedResponse(t *testing.T) {
 		"service": "registry.example.com",
 	}
 
-	refreshToken, err := creds.getAccessTokenAfterChallenge(tokenParams)
+	refreshToken, err := creds.getAccessTokenAfterChallenge(t.Context(), tokenParams)
 	require.ErrorContains(t, err, "failed to unmarshal response body")
 	assert.Empty(t, refreshToken)
 }

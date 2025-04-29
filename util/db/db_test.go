@@ -404,7 +404,7 @@ func TestGetApplicationControllerReplicas(t *testing.T) {
 	expectedReplicas := int32(2)
 	t.Setenv(common.EnvControllerReplicas, "2")
 	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
-	replicas := db.GetApplicationControllerReplicas()
+	replicas := db.GetApplicationControllerReplicas(t.Context())
 	assert.Equal(t, int(expectedReplicas), replicas)
 
 	expectedReplicas = int32(3)
@@ -419,6 +419,6 @@ func TestGetApplicationControllerReplicas(t *testing.T) {
 	})
 	t.Setenv(common.EnvControllerReplicas, "2")
 	db = NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
-	replicas = db.GetApplicationControllerReplicas()
+	replicas = db.GetApplicationControllerReplicas(t.Context())
 	assert.Equal(t, int(expectedReplicas), replicas)
 }

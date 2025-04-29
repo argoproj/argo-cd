@@ -79,7 +79,7 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				os.Exit(1)
 			}
 			acdClient := headless.NewClientOrDie(clientOpts, c)
-			conn, appIf := acdClient.NewApplicationSetClientOrDie()
+			conn, appIf := acdClient.NewApplicationSetClientOrDie(ctx)
 			defer argoio.Close(conn)
 
 			appSetName, appSetNs := argo.ParseFromQualifiedName(args[0], "")
@@ -149,7 +149,7 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 					errors.Fatal(errors.ErrorGeneric, fmt.Sprintf("Error creating ApplicationSet %s. ApplicationSet does not have Name field set", appset))
 				}
 
-				conn, appIf := argocdClient.NewApplicationSetClientOrDie()
+				conn, appIf := argocdClient.NewApplicationSetClientOrDie(ctx)
 				defer argoio.Close(conn)
 
 				// Get app before creating to see if it is being updated or no change
@@ -240,7 +240,7 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 				errors.Fatal(errors.ErrorGeneric, fmt.Sprintf("Error generating apps for ApplicationSet %s. ApplicationSet does not have Name field set", appset))
 			}
 
-			conn, appIf := argocdClient.NewApplicationSetClientOrDie()
+			conn, appIf := argocdClient.NewApplicationSetClientOrDie(ctx)
 			defer argoio.Close(conn)
 
 			req := applicationset.ApplicationSetGenerateRequest{
@@ -295,7 +295,7 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
-			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie()
+			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie(ctx)
 			defer argoio.Close(conn)
 			appsets, err := appIf.List(ctx, &applicationset.ApplicationSetListQuery{Selector: selector, Projects: projects, AppsetNamespace: appSetNamespace})
 			errors.CheckError(err)
@@ -340,7 +340,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie()
+			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie(ctx)
 			defer argoio.Close(conn)
 			isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 			numOfApps := len(args)

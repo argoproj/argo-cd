@@ -16,16 +16,17 @@ import (
 )
 
 func TestAddRemovePublicRepo(t *testing.T) {
+	ctx := t.Context()
 	app.Given(t).And(func() {
 		repoURL := fixture.RepoURL(fixture.RepoURLTypeFile)
 		_, err := fixture.RunCli("repo", "add", repoURL)
 		require.NoError(t, err)
 
-		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
+		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient(ctx)
 		require.NoError(t, err)
 		defer argoio.Close(conn)
 
-		repo, err := repoClient.ListRepositories(t.Context(), &repositorypkg.RepoQuery{})
+		repo, err := repoClient.ListRepositories(ctx, &repositorypkg.RepoQuery{})
 
 		require.NoError(t, err)
 		exists := false
@@ -40,7 +41,7 @@ func TestAddRemovePublicRepo(t *testing.T) {
 		_, err = fixture.RunCli("repo", "rm", repoURL)
 		require.NoError(t, err)
 
-		repo, err = repoClient.ListRepositories(t.Context(), &repositorypkg.RepoQuery{})
+		repo, err = repoClient.ListRepositories(ctx, &repositorypkg.RepoQuery{})
 		require.NoError(t, err)
 		exists = false
 		for i := range repo.Items {
@@ -54,6 +55,7 @@ func TestAddRemovePublicRepo(t *testing.T) {
 }
 
 func TestGetRepoWithInheritedCreds(t *testing.T) {
+	ctx := t.Context()
 	app.Given(t).And(func() {
 		// create repo credentials
 		errors.NewHandler(t).FailOnErr(fixture.RunCli("repocreds", "add", fixture.RepoURL(fixture.RepoURLTypeHTTPSOrg), "--github-app-id", fixture.GithubAppID, "--github-app-installation-id", fixture.GithubAppInstallationID, "--github-app-private-key-path", repos.CertKeyPath(t)))
@@ -64,11 +66,11 @@ func TestGetRepoWithInheritedCreds(t *testing.T) {
 		errors.NewHandler(t).FailOnErr(fixture.RunCli("repo", "add", repoURL, "--username", fixture.GitUsername, "--password", fixture.GitPassword, "--insecure-skip-server-verification"))
 
 		// Then, we remove username/password so that the repo inherits the credentials from our repocreds
-		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
+		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient(ctx)
 		require.NoError(t, err)
 		defer argoio.Close(conn)
 
-		_, err = repoClient.UpdateRepository(t.Context(), &repositorypkg.RepoUpdateRequest{
+		_, err = repoClient.UpdateRepository(ctx, &repositorypkg.RepoUpdateRequest{
 			Repo: &v1alpha1.Repository{
 				Repo: repoURL,
 			},
@@ -100,6 +102,7 @@ func TestUpsertExistingRepo(t *testing.T) {
 }
 
 func TestAddRemoveHelmRepo(t *testing.T) {
+	ctx := t.Context()
 	app.Given(t).CustomCACertAdded().And(func() {
 		_, err := fixture.RunCli("repo", "add", fixture.RepoURL(fixture.RepoURLTypeHelm),
 			"--name", "testrepo",
@@ -110,11 +113,11 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 			"--tls-client-cert-key-path", repos.CertKeyPath(t))
 		require.NoError(t, err)
 
-		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
+		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient(ctx)
 		require.NoError(t, err)
 		defer argoio.Close(conn)
 
-		repo, err := repoClient.ListRepositories(t.Context(), &repositorypkg.RepoQuery{})
+		repo, err := repoClient.ListRepositories(ctx, &repositorypkg.RepoQuery{})
 
 		require.NoError(t, err)
 		exists := false
@@ -129,7 +132,7 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 		_, err = fixture.RunCli("repo", "rm", fixture.RepoURL(fixture.RepoURLTypeHelm))
 		require.NoError(t, err)
 
-		repo, err = repoClient.ListRepositories(t.Context(), &repositorypkg.RepoQuery{})
+		repo, err = repoClient.ListRepositories(ctx, &repositorypkg.RepoQuery{})
 		require.NoError(t, err)
 		exists = false
 		for i := range repo.Items {
@@ -143,6 +146,7 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 }
 
 func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
+	ctx := t.Context()
 	app.Given(t).And(func() {
 		_, err := fixture.RunCli("repo", "add", fixture.RepoURL(fixture.RepoURLTypeHelm),
 			"--name", "testrepo",
@@ -155,12 +159,12 @@ func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
 
 		require.NoError(t, err)
 
-		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
+		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient(ctx)
 		require.NoError(t, err)
 
 		defer argoio.Close(conn)
 
-		repo, err := repoClient.ListRepositories(t.Context(), &repositorypkg.RepoQuery{})
+		repo, err := repoClient.ListRepositories(ctx, &repositorypkg.RepoQuery{})
 
 		require.NoError(t, err)
 

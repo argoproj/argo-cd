@@ -137,7 +137,7 @@ func TestStateDiff(t *testing.T) {
 			dc := diffConfig(t, tc.params())
 
 			// when
-			result, err := argo.StateDiff(tc.liveState, tc.desiredState, dc)
+			result, err := argo.StateDiff(t.Context(), tc.liveState, tc.desiredState, dc)
 
 			// then
 			require.NoError(t, err)

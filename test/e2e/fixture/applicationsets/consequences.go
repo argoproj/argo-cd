@@ -75,8 +75,8 @@ func (c *Consequences) When() *Actions {
 	return c.actions
 }
 
-func (c *Consequences) app(name string) *v1alpha1.Application {
-	apps := c.apps()
+func (c *Consequences) app(ctx context.Context, name string) *v1alpha1.Application {
+	apps := c.apps(ctx)
 
 	for index, app := range apps {
 		if app.Name == name {
@@ -87,7 +87,7 @@ func (c *Consequences) app(name string) *v1alpha1.Application {
 	return nil
 }
 
-func (c *Consequences) apps() []v1alpha1.Application {
+func (c *Consequences) apps(ctx context.Context) []v1alpha1.Application {
 	c.context.t.Helper()
 	var namespace string
 	if c.context.switchToNamespace != "" {
@@ -97,7 +97,7 @@ func (c *Consequences) apps() []v1alpha1.Application {
 	}
 
 	fixtureClient := utils.GetE2EFixtureK8sClient(c.context.t)
-	list, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).List(context.Background(), metav1.ListOptions{})
+	list, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, metav1.ListOptions{})
 	errors.CheckError(err)
 
 	if list == nil {
@@ -107,7 +107,7 @@ func (c *Consequences) apps() []v1alpha1.Application {
 	return list.Items
 }
 
-func (c *Consequences) applicationSet(applicationSetName string) *v1alpha1.ApplicationSet {
+func (c *Consequences) applicationSet(ctx context.Context, applicationSetName string) *v1alpha1.ApplicationSet {
 	c.context.t.Helper()
 	fixtureClient := utils.GetE2EFixtureK8sClient(c.context.t)
 
@@ -119,7 +119,7 @@ func (c *Consequences) applicationSet(applicationSetName string) *v1alpha1.Appli
 		appSetClientSet = fixtureClient.AppSetClientset
 	}
 
-	list, err := appSetClientSet.Get(context.Background(), c.actions.context.name, metav1.GetOptions{})
+	list, err := appSetClientSet.Get(ctx, c.actions.context.name, metav1.GetOptions{})
 	errors.CheckError(err)
 
 	var appSet v1alpha1.ApplicationSet

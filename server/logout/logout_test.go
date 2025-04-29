@@ -1,6 +1,7 @@
 package logout
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -243,31 +244,31 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	settingsManagerWithoutOIDCAndMultipleURLs := settings.NewSettingsManager(t.Context(), kubeClientWithoutOIDCAndMultipleURLs, "default")
 	settingsManagerWithOIDCConfigButNoURL := settings.NewSettingsManager(t.Context(), kubeClientWithOIDCConfigButNoURL, "default")
 
-	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
+	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, test.NewFakeProjLister(t.Context()), "", nil, session.NewUserStateStorage(nil))
 
 	oidcHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfig, sessionManager, rootPath, baseHRef, "default")
-	oidcHandler.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
+	oidcHandler.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
 		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
 	}
 	nonoidcHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithoutOIDCConfig, sessionManager, "", baseHRef, "default")
-	nonoidcHandler.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
+	nonoidcHandler.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
 		return &jwt.RegisteredClaims{Issuer: session.SessionManagerClaimsIssuer}, "", nil
 	}
 	oidcHandlerWithoutLogoutURL := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfigButNoLogoutURL, sessionManager, "", baseHRef, "default")
-	oidcHandlerWithoutLogoutURL.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
+	oidcHandlerWithoutLogoutURL.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
 		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
 	}
 	nonoidcHandlerWithMultipleURLs := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithoutOIDCAndMultipleURLs, sessionManager, "", baseHRef, "default")
-	nonoidcHandlerWithMultipleURLs.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
+	nonoidcHandlerWithMultipleURLs.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
@@ -275,7 +276,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	}
 
 	oidcHandlerWithoutBaseURL := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfigButNoURL, sessionManager, "argocd", baseHRef, "default")
-	oidcHandlerWithoutBaseURL.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
+	oidcHandlerWithoutBaseURL.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}

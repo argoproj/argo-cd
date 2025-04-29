@@ -29,13 +29,13 @@ func TestNormalizeObjectWithMatchedGroupKind(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, has)
 
-	err = normalizer.Normalize(deployment)
+	err = normalizer.NormalizeContext(t.Context(), deployment)
 	require.NoError(t, err)
 	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
 	require.NoError(t, err)
 	assert.False(t, has)
 
-	err = normalizer.Normalize(nil)
+	err = normalizer.NormalizeContext(t.Context(), nil)
 	require.Error(t, err)
 }
 
@@ -50,7 +50,7 @@ func TestNormalizeNoMatchedGroupKinds(t *testing.T) {
 
 	deployment := test.NewDeployment()
 
-	err = normalizer.Normalize(deployment)
+	err = normalizer.NormalizeContext(t.Context(), deployment)
 	require.NoError(t, err)
 
 	_, hasSpec, err := unstructured.NestedMap(deployment.Object, "spec")
@@ -73,7 +73,7 @@ func TestNormalizeMatchedResourceOverrides(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, has)
 
-	err = normalizer.Normalize(deployment)
+	err = normalizer.NormalizeContext(t.Context(), deployment)
 	require.NoError(t, err)
 	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
 	require.NoError(t, err)
@@ -123,14 +123,14 @@ func TestNormalizeMissingJsonPointer(t *testing.T) {
 
 	deployment := test.NewDeployment()
 
-	err = normalizer.Normalize(deployment)
+	err = normalizer.NormalizeContext(t.Context(), deployment)
 	require.NoError(t, err)
 
 	crd := unstructured.Unstructured{}
 	err = yaml.Unmarshal([]byte(testCRDYAML), &crd)
 	require.NoError(t, err)
 
-	err = normalizer.Normalize(&crd)
+	err = normalizer.NormalizeContext(t.Context(), &crd)
 	require.NoError(t, err)
 }
 
@@ -149,7 +149,7 @@ func TestNormalizeGlobMatch(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, has)
 
-	err = normalizer.Normalize(deployment)
+	err = normalizer.NormalizeContext(t.Context(), deployment)
 	require.NoError(t, err)
 	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
 	require.NoError(t, err)
@@ -178,7 +178,7 @@ func TestNormalizeJQPathExpression(t *testing.T) {
 	assert.True(t, has)
 	assert.Len(t, actualInitContainers, 2)
 
-	err = normalizer.Normalize(deployment)
+	err = normalizer.NormalizeContext(t.Context(), deployment)
 	require.NoError(t, err)
 	actualInitContainers, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "initContainers")
 	require.NoError(t, err)
@@ -215,7 +215,7 @@ func TestNormalizeJQPathExpressionWithError(t *testing.T) {
 	originalDeployment, err := deployment.MarshalJSON()
 	require.NoError(t, err)
 
-	err = normalizer.Normalize(deployment)
+	err = normalizer.NormalizeContext(t.Context(), deployment)
 	require.NoError(t, err)
 
 	normalizedDeployment, err := deployment.MarshalJSON()
@@ -243,11 +243,11 @@ func TestNormalizeExpectedErrorAreSilenced(t *testing.T) {
 	require.NoError(t, err)
 
 	// Error: "error in remove for path: '/invalid': Unable to remove nonexistent key: invalid: missing value"
-	_, err = jsonPatch.Apply(deploymentData)
+	_, err = jsonPatch.Apply(t.Context(), deploymentData)
 	assert.False(t, shouldLogError(err))
 
 	// Error: "remove operation does not apply: doc is missing path: \"/invalid/json/path\": missing value"
-	_, err = jqPatch.Apply(deploymentData)
+	_, err = jqPatch.Apply(t.Context(), deploymentData)
 	assert.False(t, shouldLogError(err))
 
 	assert.True(t, shouldLogError(errors.New("An error that should not be ignored")))
@@ -271,7 +271,7 @@ func TestJqPathExpressionFailWithTimeout(t *testing.T) {
 	deploymentData, err := json.Marshal(deployment)
 	require.NoError(t, err)
 
-	_, err = jqPatch.Apply(deploymentData)
+	_, err = jqPatch.Apply(t.Context(), deploymentData)
 	assert.ErrorContains(t, err, "JQ patch execution timed out")
 }
 
@@ -288,7 +288,7 @@ func TestJQPathExpressionReturnsHelpfulError(t *testing.T) {
 	require.NoError(t, err)
 
 	out := test.CaptureLogEntries(func() {
-		err = normalizer.Normalize(configMap)
+		err = normalizer.NormalizeContext(t.Context(), configMap)
 		require.NoError(t, err)
 	})
 	assert.Contains(t, out, "fromjson cannot be applied")

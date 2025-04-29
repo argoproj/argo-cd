@@ -300,14 +300,14 @@ func createClusterIndexByClusterIdMap(getCluster clusterAccessor) map[string]int
 // The function takes the shard number from the environment variable (default value -1, if not set) and passes it to this function.
 // If the shard value passed to this function is -1, that is, the shard was not set as an environment variable,
 // we default the shard number to 0 for computing the default config map.
-func GetOrUpdateShardFromConfigMap(kubeClient kubernetes.Interface, settingsMgr *settings.SettingsManager, replicas, shard int) (int, error) {
+func GetOrUpdateShardFromConfigMap(ctx context.Context, kubeClient kubernetes.Interface, settingsMgr *settings.SettingsManager, replicas, shard int) (int, error) {
 	hostname, err := osHostnameFunction()
 	if err != nil {
 		return -1, err
 	}
 
 	// fetch the shard mapping configMap
-	shardMappingCM, err := kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Get(context.Background(), common.ArgoCDAppControllerShardConfigMapName, metav1.GetOptions{})
+	shardMappingCM, err := kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Get(ctx, common.ArgoCDAppControllerShardConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return -1, fmt.Errorf("error getting sharding config map: %w", err)
@@ -322,7 +322,7 @@ func GetOrUpdateShardFromConfigMap(kubeClient kubernetes.Interface, settingsMgr 
 		if err != nil {
 			return -1, fmt.Errorf("error generating default shard mapping configmap %w", err)
 		}
-		if _, err = kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Create(context.Background(), shardMappingCM, metav1.CreateOptions{}); err != nil {
+		if _, err = kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Create(ctx, shardMappingCM, metav1.CreateOptions{}); err != nil {
 			return -1, fmt.Errorf("error creating shard mapping configmap %w", err)
 		}
 		// return 0 as the controller is assigned to shard 0 while generating default shard mapping ConfigMap
@@ -343,7 +343,7 @@ func GetOrUpdateShardFromConfigMap(kubeClient kubernetes.Interface, settingsMgr 
 	}
 	shardMappingCM.Data[ShardControllerMappingKey] = string(updatedShardMappingData)
 
-	_, err = kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Update(context.Background(), shardMappingCM, metav1.UpdateOptions{})
+	_, err = kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Update(ctx, shardMappingCM, metav1.UpdateOptions{})
 	if err != nil {
 		return -1, err
 	}
@@ -454,11 +454,11 @@ func getDefaultShardMappingData(replicas int) []shardApplicationControllerMappin
 	return shardMappingData
 }
 
-func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.SettingsManager, shardingAlgorithm string, enableDynamicClusterDistribution bool) (ClusterShardingCache, error) {
+func GetClusterSharding(ctx context.Context, kubeClient kubernetes.Interface, settingsMgr *settings.SettingsManager, shardingAlgorithm string, enableDynamicClusterDistribution bool) (ClusterShardingCache, error) {
 	var replicasCount int
 	if enableDynamicClusterDistribution {
 		applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
-		appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+		appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(ctx, applicationControllerName, metav1.GetOptions{})
 		// if app controller deployment is not found when dynamic cluster distribution is enabled error out
 		if err != nil {
 			return nil, fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment: %w", err)
@@ -480,7 +480,7 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 			// retry 3 times if we find a conflict while updating shard mapping configMap.
 			// If we still see conflicts after the retries, wait for next iteration of heartbeat process.
 			for i := 0; i <= common.AppControllerHeartbeatUpdateRetryCount; i++ {
-				shardNumber, err = GetOrUpdateShardFromConfigMap(kubeClient, settingsMgr, replicasCount, shardNumber)
+				shardNumber, err = GetOrUpdateShardFromConfigMap(ctx, kubeClient, settingsMgr, replicasCount, shardNumber)
 				if err != nil && !apierrors.IsConflict(err) {
 					err = fmt.Errorf("unable to get shard due to error updating the sharding config map: %w", err)
 					break

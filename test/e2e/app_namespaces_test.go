@@ -76,7 +76,7 @@ func TestForbiddenNamespace(t *testing.T) {
 func TestDeletingNamespacedAppStuckInSync(t *testing.T) {
 	ctx := Given(t)
 	ctx.And(func() {
-		require.NoError(t, SetResourceOverrides(map[string]ResourceOverride{
+		require.NoError(t, SetResourceOverrides(t.Context(), map[string]ResourceOverride{
 			"ConfigMap": {
 				HealthLua: `return { status = obj.annotations and obj.annotations['health'] or 'Progressing' }`,
 			},

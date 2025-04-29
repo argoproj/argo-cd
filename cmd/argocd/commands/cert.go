@@ -68,7 +68,7 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
-			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
+			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie(ctx)
 			defer io.Close(conn)
 
 			if len(args) != 1 {
@@ -151,7 +151,7 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
-			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
+			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie(ctx)
 			defer io.Close(conn)
 
 			var sshKnownHostsLists []string
@@ -225,7 +225,7 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
+			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie(ctx)
 			defer io.Close(conn)
 			hostNamePattern := args[0]
 
@@ -288,7 +288,7 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				}
 			}
 
-			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
+			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie(ctx)
 			defer io.Close(conn)
 			certificates, err := certIf.ListCertificates(ctx, &certificatepkg.RepositoryCertificateQuery{HostNamePattern: hostNamePattern, CertType: certType})
 			errors.CheckError(err)

@@ -64,7 +64,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				tokenString = passwordLogin(ctx, acdClient, localconfig.GetUsername(claims.Subject), password)
 			} else {
 				fmt.Println("Reinitiating SSO login")
-				setConn, setIf := acdClient.NewSettingsClientOrDie()
+				setConn, setIf := acdClient.NewSettingsClientOrDie(ctx)
 				defer argoio.Close(setConn)
 				httpClient, err := acdClient.HTTPClient()
 				errors.CheckError(err)

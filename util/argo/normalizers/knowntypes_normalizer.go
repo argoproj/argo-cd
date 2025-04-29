@@ -1,6 +1,7 @@
 package normalizers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -149,7 +150,20 @@ func remarshal(fieldVal any, field knownTypeField) (any, error) {
 
 // Normalize re-format custom resource fields using built-in Kubernetes types JSON marshaler.
 // This technique allows avoiding false drift detections in CRDs that import data structures from Kubernetes codebase.
+// Deprecated: use NormalizeContext instead
 func (n *knownTypesNormalizer) Normalize(un *unstructured.Unstructured) error {
+	return n.NormalizeContext(context.Background(), un) //nolint:forbidigo // for backward compatibility
+}
+
+// NormalizeContext re-format custom resource fields using built-in Kubernetes types JSON marshaler.
+// This technique allows avoiding false drift detections in CRDs that import data structures from Kubernetes codebase.
+func (n *knownTypesNormalizer) NormalizeContext(ctx context.Context, un *unstructured.Unstructured) error {
+	return n.normalize(ctx, un)
+}
+
+// Normalize re-format custom resource fields using built-in Kubernetes types JSON marshaler.
+// This technique allows avoiding false drift detections in CRDs that import data structures from Kubernetes codebase.
+func (n *knownTypesNormalizer) normalize(_ context.Context, un *unstructured.Unstructured) error {
 	if fields, ok := n.typeFields[un.GroupVersionKind().GroupKind()]; ok {
 		for _, field := range fields {
 			err := normalize(un.Object, field, field.fieldPath)

@@ -23,11 +23,11 @@ import (
 // case of dex reverse proxy), which presents a chicken-and-egg problem of (1) serving dex over
 // HTTP, and (2) querying the OIDC provider (ourself) to initialize the OIDC client.
 type Provider interface {
-	Endpoint() (*oauth2.Endpoint, error)
+	Endpoint(ctx context.Context) (*oauth2.Endpoint, error)
 
-	ParseConfig() (*OIDCConfiguration, error)
+	ParseConfig(ctx context.Context) (*OIDCConfiguration, error)
 
-	Verify(tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error)
+	Verify(ctx context.Context, tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error)
 }
 
 type providerImpl struct {
@@ -47,11 +47,11 @@ func NewOIDCProvider(issuerURL string, client *http.Client) Provider {
 }
 
 // oidcProvider lazily initializes, memoizes, and returns the OIDC provider.
-func (p *providerImpl) provider() (*gooidc.Provider, error) {
+func (p *providerImpl) provider(ctx context.Context) (*gooidc.Provider, error) {
 	if p.goOIDCProvider != nil {
 		return p.goOIDCProvider, nil
 	}
-	prov, err := p.newGoOIDCProvider()
+	prov, err := p.newGoOIDCProvider(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -61,9 +61,9 @@ func (p *providerImpl) provider() (*gooidc.Provider, error) {
 
 // newGoOIDCProvider creates a new instance of go-oidc.Provider querying the well known oidc
 // configuration path (http://example-argocd.com/api/dex/.well-known/openid-configuration)
-func (p *providerImpl) newGoOIDCProvider() (*gooidc.Provider, error) {
+func (p *providerImpl) newGoOIDCProvider(ctx context.Context) (*gooidc.Provider, error) {
 	log.Infof("Initializing OIDC provider (issuer: %s)", p.issuerURL)
-	ctx := gooidc.ClientContext(context.Background(), p.client)
+	ctx = gooidc.ClientContext(ctx, p.client)
 	prov, err := gooidc.NewProvider(ctx, p.issuerURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query provider %q: %w", p.issuerURL, err)
@@ -85,7 +85,7 @@ func (t tokenVerificationError) Error() string {
 	return "token verification failed for all audiences: " + strings.Join(errorStrings, ", ")
 }
 
-func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error) {
+func (p *providerImpl) Verify(ctx context.Context, tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error) {
 	// According to the JWT spec, the aud claim is optional. The spec also says (emphasis mine):
 	//
 	//   If the principal processing the claim does not identify itself with a value in the "aud" claim _when this
@@ -110,7 +110,7 @@ func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDS
 
 	var idToken *gooidc.IDToken
 	if !unverifiedHasAudClaim {
-		idToken, err = p.verify("", tokenString, argoSettings.SkipAudienceCheckWhenTokenHasNoAudience())
+		idToken, err = p.verify(ctx, "", tokenString, argoSettings.SkipAudienceCheckWhenTokenHasNoAudience())
 	} else {
 		allowedAudiences := argoSettings.OAuth2AllowedAudiences()
 		if len(allowedAudiences) == 0 {
@@ -119,7 +119,7 @@ func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDS
 		tokenVerificationErrors := make(map[string]error)
 		// Token must be verified for at least one allowed audience
 		for _, aud := range allowedAudiences {
-			idToken, err = p.verify(aud, tokenString, false)
+			idToken, err = p.verify(ctx, aud, tokenString, false)
 			tokenExpiredError := &gooidc.TokenExpiredError{}
 			if errors.As(err, &tokenExpiredError) {
 				// If the token is expired, we won't bother checking other audiences. It's important to return a
@@ -149,9 +149,8 @@ func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDS
 	return idToken, nil
 }
 
-func (p *providerImpl) verify(clientID, tokenString string, skipClientIDCheck bool) (*gooidc.IDToken, error) {
-	ctx := context.Background()
-	prov, err := p.provider()
+func (p *providerImpl) verify(ctx context.Context, clientID, tokenString string, skipClientIDCheck bool) (*gooidc.IDToken, error) {
+	prov, err := p.provider(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +168,7 @@ func (p *providerImpl) verify(clientID, tokenString string, skipClientIDCheck bo
 		if !strings.Contains(err.Error(), "failed to verify signature") {
 			return nil, err
 		}
-		newProvider, retryErr := p.newGoOIDCProvider()
+		newProvider, retryErr := p.newGoOIDCProvider(ctx)
 		if retryErr != nil {
 			// return original error if we fail to re-initialize OIDC
 			return nil, err
@@ -187,8 +186,8 @@ func (p *providerImpl) verify(clientID, tokenString string, skipClientIDCheck bo
 	return idToken, nil
 }
 
-func (p *providerImpl) Endpoint() (*oauth2.Endpoint, error) {
-	prov, err := p.provider()
+func (p *providerImpl) Endpoint(ctx context.Context) (*oauth2.Endpoint, error) {
+	prov, err := p.provider(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -197,8 +196,8 @@ func (p *providerImpl) Endpoint() (*oauth2.Endpoint, error) {
 }
 
 // ParseConfig parses the OIDC Config into the concrete datastructure
-func (p *providerImpl) ParseConfig() (*OIDCConfiguration, error) {
-	prov, err := p.provider()
+func (p *providerImpl) ParseConfig(ctx context.Context) (*OIDCConfiguration, error) {
+	prov, err := p.provider(ctx)
 	if err != nil {
 		return nil, err
 	}

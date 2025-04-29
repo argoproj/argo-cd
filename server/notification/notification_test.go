@@ -66,10 +66,10 @@ func TestNotificationServer(t *testing.T) {
 	}
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
 
-	argocdService, err := service.NewArgoCDService(kubeclientset, testNamespace, mockRepoClient)
+	argocdService, err := service.NewArgoCDService(ctx, kubeclientset, testNamespace, mockRepoClient)
 	require.NoError(t, err)
 	defer argocdService.Close()
-	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm", false), testNamespace, secretInformer, configMapInformer)
+	apiFactory := api.NewFactory(settings.GetFactorySettings(ctx, argocdService, "argocd-notifications-secret", "argocd-notifications-cm", false), testNamespace, secretInformer, configMapInformer)
 
 	t.Run("TestListServices", func(t *testing.T) {
 		server := NewServer(apiFactory)

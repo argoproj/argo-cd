@@ -444,7 +444,7 @@ func testHookFinalizer(t *testing.T, hookType HookType) {
 	t.Helper()
 	Given(t).
 		And(func() {
-			require.NoError(t, SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, SetResourceOverrides(t.Context(), map[string]ResourceOverride{
 				lua.GetConfigMapKey(schema.FromAPIVersionAndKind("batch/v1", "Job")): {
 					HealthLua: `
 						local hs = {}

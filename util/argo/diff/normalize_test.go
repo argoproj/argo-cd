@@ -46,7 +46,7 @@ func TestNormalize(t *testing.T) {
 		f := setup(t, ignores)
 
 		// when
-		result, err := diff.Normalize(f.lives, f.targets, f.diffConfig)
+		result, err := diff.Normalize(t.Context(), f.lives, f.targets, f.diffConfig)
 
 		// then
 		require.NoError(t, err)
@@ -75,7 +75,7 @@ func TestNormalize(t *testing.T) {
 		f := setup(t, ignores)
 
 		// when
-		normalized, err := diff.Normalize(f.lives, f.targets, f.diffConfig)
+		normalized, err := diff.Normalize(t.Context(), f.lives, f.targets, f.diffConfig)
 
 		// then
 		require.NoError(t, err)
@@ -99,7 +99,7 @@ func TestNormalize(t *testing.T) {
 		f := setup(t, ignores)
 
 		// when
-		result, err := diff.Normalize(f.lives, f.targets, f.diffConfig)
+		result, err := diff.Normalize(t.Context(), f.lives, f.targets, f.diffConfig)
 
 		// then
 		require.NoError(t, err)

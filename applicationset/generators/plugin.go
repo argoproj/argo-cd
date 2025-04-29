@@ -27,15 +27,13 @@ var _ Generator = (*PluginGenerator)(nil)
 
 type PluginGenerator struct {
 	client    client.Client
-	ctx       context.Context
 	clientset kubernetes.Interface
 	namespace string
 }
 
-func NewPluginGenerator(ctx context.Context, client client.Client, clientset kubernetes.Interface, namespace string) Generator {
+func NewPluginGenerator(_ context.Context, client client.Client, clientset kubernetes.Interface, namespace string) Generator {
 	g := &PluginGenerator{
 		client:    client,
-		ctx:       ctx,
 		clientset: clientset,
 		namespace: namespace,
 	}
@@ -56,7 +54,7 @@ func (g *PluginGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Applic
 	return &appSetGenerator.Plugin.Template
 }
 
-func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
+func (g *PluginGenerator) GenerateParams(ctx context.Context, appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
 		return nil, ErrEmptyAppSetGenerator
 	}
@@ -64,8 +62,6 @@ func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 	if appSetGenerator.Plugin == nil {
 		return nil, ErrEmptyAppSetGenerator
 	}
-
-	ctx := context.Background()
 
 	providerConfig := appSetGenerator.Plugin
 

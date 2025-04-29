@@ -220,7 +220,7 @@ func (c *Context) SSHCredentialsAdded() *Context {
 
 func (c *Context) ProjectSpec(spec v1alpha1.AppProjectSpec) *Context {
 	c.t.Helper()
-	require.NoError(c.t, fixture.SetProjectSpec(c.project, spec))
+	require.NoError(c.t, fixture.SetProjectSpec(c.t.Context(), c.project, spec))
 	return c
 }
 
@@ -333,13 +333,13 @@ func (c *Context) NameSuffix(nameSuffix string) *Context {
 
 func (c *Context) ResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) *Context {
 	c.t.Helper()
-	require.NoError(c.t, fixture.SetResourceOverrides(overrides))
+	require.NoError(c.t, fixture.SetResourceOverrides(c.t.Context(), overrides))
 	return c
 }
 
 func (c *Context) ResourceFilter(filter settings.ResourcesFilter) *Context {
 	c.t.Helper()
-	require.NoError(c.t, fixture.SetResourceFilter(filter))
+	require.NoError(c.t, fixture.SetResourceFilter(c.t.Context(), filter))
 	return c
 }
 
@@ -410,13 +410,13 @@ func (c *Context) HelmSkipTests() *Context {
 
 func (c *Context) SetTrackingMethod(trackingMethod string) *Context {
 	c.t.Helper()
-	require.NoError(c.t, fixture.SetTrackingMethod(trackingMethod))
+	require.NoError(c.t, fixture.SetTrackingMethod(c.t.Context(), trackingMethod))
 	return c
 }
 
 func (c *Context) SetInstallationID(installationID string) *Context {
 	c.t.Helper()
-	require.NoError(c.t, fixture.SetInstallationID(installationID))
+	require.NoError(c.t, fixture.SetInstallationID(c.t.Context(), installationID))
 	return c
 }
 

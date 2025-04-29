@@ -24,7 +24,6 @@ var _ Generator = (*ClusterGenerator)(nil)
 // ClusterGenerator generates Applications for some or all clusters registered with ArgoCD.
 type ClusterGenerator struct {
 	client.Client
-	ctx       context.Context
 	clientset kubernetes.Interface
 	// namespace is the Argo CD namespace
 	namespace       string
@@ -38,7 +37,6 @@ func NewClusterGenerator(ctx context.Context, c client.Client, clientset kuberne
 
 	g := &ClusterGenerator{
 		Client:          c,
-		ctx:             ctx,
 		clientset:       clientset,
 		namespace:       namespace,
 		settingsManager: settingsManager,
@@ -56,7 +54,7 @@ func (g *ClusterGenerator) GetTemplate(appSetGenerator *argoappsetv1alpha1.Appli
 	return &appSetGenerator.Clusters.Template
 }
 
-func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator, appSet *argoappsetv1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
+func (g *ClusterGenerator) GenerateParams(ctx context.Context, appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator, appSet *argoappsetv1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	logCtx := log.WithField("applicationset", appSet.GetName()).WithField("namespace", appSet.GetNamespace())
 	if appSetGenerator == nil {
 		return nil, ErrEmptyAppSetGenerator
@@ -71,7 +69,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 	ignoreLocalClusters := len(appSetGenerator.Clusters.Selector.MatchExpressions) > 0 || len(appSetGenerator.Clusters.Selector.MatchLabels) > 0
 
 	// ListCluster will include the local cluster in the list of clusters
-	clustersFromArgoCD, err := utils.ListClusters(g.ctx, g.clientset, g.namespace)
+	clustersFromArgoCD, err := utils.ListClusters(ctx, g.clientset, g.namespace)
 	if err != nil {
 		return nil, fmt.Errorf("error listing clusters: %w", err)
 	}
@@ -80,7 +78,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 		return nil, nil
 	}
 
-	clusterSecrets, err := g.getSecretsByClusterName(logCtx, appSetGenerator)
+	clusterSecrets, err := g.getSecretsByClusterName(ctx, logCtx, appSetGenerator)
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster secrets: %w", err)
 	}
@@ -179,7 +177,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 	return res, nil
 }
 
-func (g *ClusterGenerator) getSecretsByClusterName(log *log.Entry, appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) (map[string]corev1.Secret, error) {
+func (g *ClusterGenerator) getSecretsByClusterName(ctx context.Context, log *log.Entry, appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) (map[string]corev1.Secret, error) {
 	clusterSecretList := &corev1.SecretList{}
 
 	selector := metav1.AddLabelToSelector(&appSetGenerator.Clusters.Selector, common.LabelKeySecretType, common.LabelValueSecretTypeCluster)
@@ -188,7 +186,7 @@ func (g *ClusterGenerator) getSecretsByClusterName(log *log.Entry, appSetGenerat
 		return nil, fmt.Errorf("error converting label selector: %w", err)
 	}
 
-	if err := g.List(context.Background(), clusterSecretList, client.MatchingLabelsSelector{Selector: secretSelector}); err != nil {
+	if err := g.List(ctx, clusterSecretList, client.MatchingLabelsSelector{Selector: secretSelector}); err != nil {
 		return nil, err
 	}
 	log.Debugf("clusters matching labels: %d", len(clusterSecretList.Items))

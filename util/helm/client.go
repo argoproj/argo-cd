@@ -41,16 +41,16 @@ var (
 )
 
 type indexCache interface {
-	SetHelmIndex(repo string, indexData []byte) error
-	GetHelmIndex(repo string, indexData *[]byte) error
+	SetHelmIndex(ctx context.Context, repo string, indexData []byte) error
+	GetHelmIndex(ctx context.Context, repo string, indexData *[]byte) error
 }
 
 type Client interface {
 	CleanChartCache(chart string, version string) error
-	ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error)
-	GetIndex(noCache bool, maxIndexSize int64) (*Index, error)
-	GetTags(chart string, noCache bool) (*TagsList, error)
-	TestHelmOCI() (bool, error)
+	ExtractChart(ctx context.Context, chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error)
+	GetIndex(ctx context.Context, noCache bool, maxIndexSize int64) (*Index, error)
+	GetTags(ctx context.Context, chart string, noCache bool) (*TagsList, error)
+	TestHelmOCI(ctx context.Context) (bool, error)
 }
 
 type ClientOpts func(c *nativeHelmChart)
@@ -138,7 +138,7 @@ func untarChart(tempDir string, cachedChartPath string, manifestMaxExtractedSize
 	return files.Untgz(tempDir, reader, manifestMaxExtractedSize, false)
 }
 
-func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error) {
+func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error) {
 	// always use Helm V3 since we don't have chart content to determine correct Helm version
 	helmCmd, err := NewCmdWithVersion("", c.enableOci, c.proxy, c.noProxy)
 	if err != nil {
@@ -178,12 +178,12 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 		defer func() { _ = os.RemoveAll(tempDest) }()
 
 		if c.enableOci {
-			helmPassword, err := c.creds.GetPassword()
+			helmPassword, err := c.creds.GetPassword(ctx)
 			if err != nil {
 				return "", nil, fmt.Errorf("failed to get password for helm registry: %w", err)
 			}
 			if helmPassword != "" && c.creds.GetUsername() != "" {
-				_, err = helmCmd.RegistryLogin(c.repoURL, c.creds)
+				_, err = helmCmd.RegistryLogin(ctx, c.repoURL, c.creds)
 				if err != nil {
 					_ = os.RemoveAll(tempDir)
 					return "", nil, fmt.Errorf("error logging into OCI registry: %w", err)
@@ -201,7 +201,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 				return "", nil, fmt.Errorf("error pulling OCI chart: %w", err)
 			}
 		} else {
-			_, err = helmCmd.Fetch(c.repoURL, chart, version, tempDest, c.creds, passCredentials)
+			_, err = helmCmd.Fetch(ctx, c.repoURL, chart, version, tempDest, c.creds, passCredentials)
 			if err != nil {
 				_ = os.RemoveAll(tempDir)
 				return "", nil, fmt.Errorf("error fetching chart: %w", err)
@@ -235,13 +235,13 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 	}), nil
 }
 
-func (c *nativeHelmChart) GetIndex(noCache bool, maxIndexSize int64) (*Index, error) {
+func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSize int64) (*Index, error) {
 	indexLock.Lock(c.repoURL)
 	defer indexLock.Unlock(c.repoURL)
 
 	var data []byte
 	if !noCache && c.indexCache != nil {
-		if err := c.indexCache.GetHelmIndex(c.repoURL, &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
+		if err := c.indexCache.GetHelmIndex(ctx, c.repoURL, &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
 			log.Warnf("Failed to load index cache for repo: %s: %v", c.repoURL, err)
 		}
 	}
@@ -249,14 +249,14 @@ func (c *nativeHelmChart) GetIndex(noCache bool, maxIndexSize int64) (*Index, er
 	if len(data) == 0 {
 		start := time.Now()
 		var err error
-		data, err = c.loadRepoIndex(maxIndexSize)
+		data, err = c.loadRepoIndex(ctx, maxIndexSize)
 		if err != nil {
 			return nil, fmt.Errorf("error loading repo index: %w", err)
 		}
 		log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get index")
 
 		if c.indexCache != nil {
-			if err := c.indexCache.SetHelmIndex(c.repoURL, data); err != nil {
+			if err := c.indexCache.SetHelmIndex(ctx, c.repoURL, data); err != nil {
 				log.Warnf("Failed to store index cache for repo: %s: %v", c.repoURL, err)
 			}
 		}
@@ -271,7 +271,7 @@ func (c *nativeHelmChart) GetIndex(noCache bool, maxIndexSize int64) (*Index, er
 	return index, nil
 }
 
-func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
+func (c *nativeHelmChart) TestHelmOCI(ctx context.Context) (bool, error) {
 	start := time.Now()
 
 	tmpDir, err := os.MkdirTemp("", "helm")
@@ -288,12 +288,12 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 
 	// Looks like there is no good way to test access to OCI repo if credentials are not provided
 	// just assume it is accessible
-	helmPassword, err := c.creds.GetPassword()
+	helmPassword, err := c.creds.GetPassword(ctx)
 	if err != nil {
 		return false, fmt.Errorf("failed to get password for helm registry: %w", err)
 	}
 	if c.creds.GetUsername() != "" && helmPassword != "" {
-		_, err = helmCmd.RegistryLogin(c.repoURL, c.creds)
+		_, err = helmCmd.RegistryLogin(ctx, c.repoURL, c.creds)
 		if err != nil {
 			return false, fmt.Errorf("error logging into OCI registry: %w", err)
 		}
@@ -306,7 +306,7 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 	return true, nil
 }
 
-func (c *nativeHelmChart) loadRepoIndex(maxIndexSize int64) ([]byte, error) {
+func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64) ([]byte, error) {
 	indexURL, err := getIndexURL(c.repoURL)
 	if err != nil {
 		return nil, fmt.Errorf("error getting index URL: %w", err)
@@ -316,7 +316,7 @@ func (c *nativeHelmChart) loadRepoIndex(maxIndexSize int64) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error creating HTTP request: %w", err)
 	}
-	helmPassword, err := c.creds.GetPassword()
+	helmPassword, err := c.creds.GetPassword(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get password for helm registry: %w", err)
 	}
@@ -416,7 +416,7 @@ func getIndexURL(rawURL string) (string, error) {
 	return repoURL.String(), nil
 }
 
-func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error) {
+func (c *nativeHelmChart) GetTags(ctx context.Context, chart string, noCache bool) (*TagsList, error) {
 	if !c.enableOci {
 		return nil, ErrOCINotEnabled
 	}
@@ -427,7 +427,7 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 
 	var data []byte
 	if !noCache && c.indexCache != nil {
-		if err := c.indexCache.GetHelmIndex(tagsURL, &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
+		if err := c.indexCache.GetHelmIndex(ctx, tagsURL, &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
 			log.Warnf("Failed to load index cache for repo: %s: %v", tagsURL, err)
 		}
 	}
@@ -451,7 +451,7 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 
 		repoHost, _, _ := strings.Cut(tagsURL, "/")
 
-		helmPassword, err := c.creds.GetPassword()
+		helmPassword, err := c.creds.GetPassword(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get password for helm registry: %w", err)
 		}
@@ -474,7 +474,6 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 			Credential: credential,
 		}
 
-		ctx := context.Background()
 		err = repo.Tags(ctx, "", func(tagsResult []string) error {
 			for _, tag := range tagsResult {
 				// By convention: Change underscore (_) back to plus (+) to get valid SemVer
@@ -492,7 +491,7 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 		).Info("took to get tags")
 
 		if c.indexCache != nil {
-			if err := c.indexCache.SetHelmIndex(tagsURL, data); err != nil {
+			if err := c.indexCache.SetHelmIndex(ctx, tagsURL, data); err != nil {
 				log.Warnf("Failed to store tags list cache for repo: %s: %v", tagsURL, err)
 			}
 		}

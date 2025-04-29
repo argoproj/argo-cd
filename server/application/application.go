@@ -412,7 +412,7 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *v1alpha1.AppProject,
 	enabledSourceTypes map[string]bool,
 ) error,
 ) error {
-	closer, client, err := s.repoClientset.NewRepoServerClient()
+	closer, client, err := s.repoClientset.NewRepoServerClient(ctx)
 	if err != nil {
 		return fmt.Errorf("error creating repo server client: %w", err)
 	}
@@ -504,7 +504,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		}
 
 		// Store the map of all sources having ref field into a map for applications with sources field
-		refSources, err := argo.GetRefSources(context.Background(), sources, appSpec.Project, s.db.GetRepository, []string{}, false)
+		refSources, err := argo.GetRefSources(ctx, sources, appSpec.Project, s.db.GetRepository, []string{}, false)
 		if err != nil {
 			return fmt.Errorf("failed to get ref sources: %w", err)
 		}
@@ -735,7 +735,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 		return nil, err
 	}
 
-	s.inferResourcesStatusHealth(a)
+	s.inferResourcesStatusHealth(ctx, a)
 
 	if q.Refresh == nil {
 		return a, nil
@@ -754,7 +754,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 	})
 	defer unsubscribe()
 
-	app, err := argo.RefreshApp(appIf, appName, refreshType, true)
+	app, err := argo.RefreshApp(ctx, appIf, appName, refreshType, true)
 	if err != nil {
 		return nil, fmt.Errorf("error refreshing the app: %w", err)
 	}
@@ -968,7 +968,7 @@ func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newAp
 		if err != nil {
 			return nil, fmt.Errorf("error getting application: %w", err)
 		}
-		s.inferResourcesStatusHealth(app)
+		s.inferResourcesStatusHealth(ctx, app)
 	}
 	return nil, status.Errorf(codes.Internal, "Failed to update application. Too many conflicts")
 }
@@ -1199,7 +1199,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		if !permitted {
 			return
 		}
-		s.inferResourcesStatusHealth(&a)
+		s.inferResourcesStatusHealth(ws.Context(), &a)
 		err := ws.Send(&v1alpha1.ApplicationWatchEvent{
 			Type:        eventType,
 			Application: a,
@@ -1347,7 +1347,7 @@ func (s *Server) getCachedAppState(ctx context.Context, a *v1alpha1.Application,
 func (s *Server) getAppResources(ctx context.Context, a *v1alpha1.Application) (*v1alpha1.ApplicationTree, error) {
 	var tree v1alpha1.ApplicationTree
 	err := s.getCachedAppState(ctx, a, func() error {
-		return s.cache.GetAppResourcesTree(a.InstanceName(s.ns), &tree)
+		return s.cache.GetAppResourcesTree(ctx, a.InstanceName(s.ns), &tree)
 	})
 	if err != nil {
 		if errors.Is(err, ErrCacheMiss) {
@@ -1527,7 +1527,7 @@ func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application
 	cacheKey := argo.AppInstanceName(q.GetApplicationName(), q.GetAppNamespace(), s.ns)
 	return s.cache.OnAppResourcesTreeChanged(ws.Context(), cacheKey, func() error {
 		var tree v1alpha1.ApplicationTree
-		err := s.cache.GetAppResourcesTree(cacheKey, &tree)
+		err := s.cache.GetAppResourcesTree(ws.Context(), cacheKey, &tree)
 		if err != nil {
 			return fmt.Errorf("error getting app resource tree: %w", err)
 		}
@@ -1550,7 +1550,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	if err != nil {
 		return nil, fmt.Errorf("error getting repository by URL: %w", err)
 	}
-	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error creating repo server client: %w", err)
 	}
@@ -1581,7 +1581,7 @@ func (s *Server) RevisionChartDetails(ctx context.Context, q *application.Revisi
 	if err != nil {
 		return nil, fmt.Errorf("error getting repository by URL: %w", err)
 	}
-	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error creating repo server client: %w", err)
 	}
@@ -1678,7 +1678,7 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 
 	items := make([]*v1alpha1.ResourceDiff, 0)
 	err = s.getCachedAppState(ctx, a, func() error {
-		return s.cache.GetAppManagedResources(a.InstanceName(s.ns), &items)
+		return s.cache.GetAppManagedResources(ctx, a.InstanceName(s.ns), &items)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error getting cached app managed resources: %w", err)
@@ -1923,7 +1923,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, err
 	}
 
-	s.inferResourcesStatusHealth(a)
+	s.inferResourcesStatusHealth(ctx, a)
 
 	canSync, err := proj.Spec.SyncWindows.Matches(a).CanSync(true)
 	if err != nil {
@@ -2006,7 +2006,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	appName := syncReq.GetName()
 	appNs := s.appNamespaceOrDefault(syncReq.GetAppNamespace())
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(appNs)
-	a, err = argo.SetAppOperation(appIf, appName, &op)
+	a, err = argo.SetAppOperation(ctx, appIf, appName, &op)
 	if err != nil {
 		return nil, fmt.Errorf("error setting app operation: %w", err)
 	}
@@ -2074,7 +2074,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 		return nil, err
 	}
 
-	s.inferResourcesStatusHealth(a)
+	s.inferResourcesStatusHealth(ctx, a)
 
 	if a.DeletionTimestamp != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "application is deleting")
@@ -2122,7 +2122,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	appName := rollbackReq.GetName()
 	appNs := s.appNamespaceOrDefault(rollbackReq.GetAppNamespace())
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(appNs)
-	a, err = argo.SetAppOperation(appIf, appName, &op)
+	a, err = argo.SetAppOperation(ctx, appIf, appName, &op)
 	if err != nil {
 		return nil, fmt.Errorf("error setting app operation: %w", err)
 	}
@@ -2170,7 +2170,7 @@ func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *v1alpha1.Appli
 		return nil, nil, err
 	}
 
-	getProjectClusters := func(project string) ([]*v1alpha1.Cluster, error) {
+	getProjectClusters := func(ctx context.Context, project string) ([]*v1alpha1.Cluster, error) {
 		return s.db.GetProjectClusters(ctx, project)
 	}
 
@@ -2184,7 +2184,7 @@ func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *v1alpha1.Appli
 		return nil, nil, nil
 	}
 
-	permitted, err := proj.IsDestinationPermitted(destCluster, app.Spec.Destination.Namespace, getProjectClusters)
+	permitted, err := proj.IsDestinationPermitted(ctx, destCluster, app.Spec.Destination.Namespace, getProjectClusters)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -2273,7 +2273,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *v1alpha1.Application,
 	if err != nil {
 		return "", "", fmt.Errorf("error getting repository by URL: %w", err)
 	}
-	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient(ctx)
 	if err != nil {
 		return "", "", fmt.Errorf("error getting repo server client: %w", err)
 	}
@@ -2339,7 +2339,7 @@ func (s *Server) logAppEvent(ctx context.Context, a *v1alpha1.Application, reaso
 	}
 	message := fmt.Sprintf("%s %s", user, action)
 	eventLabels := argo.GetAppEventLabels(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db)
-	s.auditLogger.LogAppEvent(a, eventInfo, message, user, eventLabels)
+	s.auditLogger.LogAppEvent(ctx, a, eventInfo, message, user, eventLabels)
 }
 
 func (s *Server) logResourceEvent(ctx context.Context, res *v1alpha1.ResourceNode, reason string, action string) {
@@ -2349,7 +2349,7 @@ func (s *Server) logResourceEvent(ctx context.Context, res *v1alpha1.ResourceNod
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	s.auditLogger.LogResourceEvent(res, eventInfo, message, user)
+	s.auditLogger.LogResourceEvent(ctx, res, eventInfo, message, user)
 }
 
 func (s *Server) ListResourceActions(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ResourceActionsListResponse, error) {
@@ -2362,7 +2362,7 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 		return nil, fmt.Errorf("error getting resource overrides: %w", err)
 	}
 
-	availableActions, err := s.getAvailableActions(resourceOverrides, obj)
+	availableActions, err := s.getAvailableActions(ctx, resourceOverrides, obj)
 	if err != nil {
 		return nil, fmt.Errorf("error getting available actions: %w", err)
 	}
@@ -2401,7 +2401,7 @@ func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacReque
 	return
 }
 
-func (s *Server) getAvailableActions(resourceOverrides map[string]v1alpha1.ResourceOverride, obj *unstructured.Unstructured) ([]v1alpha1.ResourceAction, error) {
+func (s *Server) getAvailableActions(ctx context.Context, resourceOverrides map[string]v1alpha1.ResourceOverride, obj *unstructured.Unstructured) ([]v1alpha1.ResourceAction, error) {
 	luaVM := lua.VM{
 		ResourceOverrides: resourceOverrides,
 	}
@@ -2413,7 +2413,7 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]v1alpha1.Resou
 	if len(discoveryScripts) == 0 {
 		return []v1alpha1.ResourceAction{}, nil
 	}
-	availableActions, err := luaVM.ExecuteResourceActionDiscovery(obj, discoveryScripts)
+	availableActions, err := luaVM.ExecuteResourceActionDiscovery(ctx, obj, discoveryScripts)
 	if err != nil {
 		return nil, fmt.Errorf("error executing Lua discovery script: %w", err)
 	}
@@ -2455,7 +2455,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return nil, fmt.Errorf("error getting Lua resource action: %w", err)
 	}
 
-	newObjects, err := luaVM.ExecuteResourceAction(liveObj, action.ActionLua)
+	newObjects, err := luaVM.ExecuteResourceAction(ctx, liveObj, action.ActionLua)
 	if err != nil {
 		return nil, fmt.Errorf("error executing Lua resource action: %w", err)
 	}
@@ -2487,7 +2487,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	// the dry-run for relevant apply/delete operation would have to be invoked as well.
 	for _, impactedResource := range newObjects {
 		newObj := impactedResource.UnstructuredObj
-		err := s.verifyResourcePermitted(destCluster, proj, newObj)
+		err := s.verifyResourcePermitted(ctx, destCluster, proj, newObj)
 		if err != nil {
 			return nil, err
 		}
@@ -2579,9 +2579,9 @@ func (s *Server) patchResource(ctx context.Context, config *rest.Config, liveObj
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) verifyResourcePermitted(destCluster *v1alpha1.Cluster, proj *v1alpha1.AppProject, obj *unstructured.Unstructured) error {
-	permitted, err := proj.IsResourcePermitted(schema.GroupKind{Group: obj.GroupVersionKind().Group, Kind: obj.GroupVersionKind().Kind}, obj.GetNamespace(), destCluster, func(project string) ([]*v1alpha1.Cluster, error) {
-		clusters, err := s.db.GetProjectClusters(context.TODO(), project)
+func (s *Server) verifyResourcePermitted(ctx context.Context, destCluster *v1alpha1.Cluster, proj *v1alpha1.AppProject, obj *unstructured.Unstructured) error {
+	permitted, err := proj.IsResourcePermitted(ctx, schema.GroupKind{Group: obj.GroupVersionKind().Group, Kind: obj.GroupVersionKind().Kind}, obj.GetNamespace(), destCluster, func(_ context.Context, project string) ([]*v1alpha1.Cluster, error) {
+		clusters, err := s.db.GetProjectClusters(ctx, project)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get project clusters: %w", err)
 		}
@@ -2663,10 +2663,10 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 	return res, nil
 }
 
-func (s *Server) inferResourcesStatusHealth(app *v1alpha1.Application) {
+func (s *Server) inferResourcesStatusHealth(ctx context.Context, app *v1alpha1.Application) {
 	if app.Status.ResourceHealthSource == v1alpha1.ResourceHealthLocationAppTree {
 		tree := &v1alpha1.ApplicationTree{}
-		if err := s.cache.GetAppResourcesTree(app.Name, tree); err == nil {
+		if err := s.cache.GetAppResourcesTree(ctx, app.Name, tree); err == nil {
 			healthByKey := map[kube.ResourceKey]*v1alpha1.HealthStatus{}
 			for _, node := range tree.Nodes {
 				if node.Health != nil {

@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -56,20 +57,20 @@ type Refs struct {
 }
 
 type gitRefCache interface {
-	SetGitReferences(repo string, references []*plumbing.Reference) error
-	GetOrLockGitReferences(repo string, lockId string, references *[]*plumbing.Reference) (string, error)
-	UnlockGitReferences(repo string, lockId string) error
+	SetGitReferences(ctx context.Context, repo string, references []*plumbing.Reference) error
+	GetOrLockGitReferences(ctx context.Context, repo string, lockId string, references *[]*plumbing.Reference) (string, error)
+	UnlockGitReferences(ctx context.Context, repo string, lockId string) error
 }
 
 // Client is a generic git client interface
 type Client interface {
 	Root() string
 	Init() error
-	Fetch(revision string) error
-	Submodule() error
-	Checkout(revision string, submoduleEnabled bool) (string, error)
-	LsRefs() (*Refs, error)
-	LsRemote(revision string) (string, error)
+	Fetch(ctx context.Context, revision string) error
+	Submodule(ctx context.Context) error
+	Checkout(ctx context.Context, revision string, submoduleEnabled bool) (string, error)
+	LsRefs(ctx context.Context) (*Refs, error)
+	LsRemote(ctx context.Context, revision string) (string, error)
 	LsFiles(path string, enableNewGitFileGlobbing bool) ([]string, error)
 	LsLargeFiles() ([]string, error)
 	CommitSHA() (string, error)
@@ -81,14 +82,14 @@ type Client interface {
 	// SetAuthor sets the author name and email in the git configuration.
 	SetAuthor(name, email string) (string, error)
 	// CheckoutOrOrphan checks out the branch. If the branch does not exist, it creates an orphan branch.
-	CheckoutOrOrphan(branch string, submoduleEnabled bool) (string, error)
+	CheckoutOrOrphan(ctx context.Context, branch string, submoduleEnabled bool) (string, error)
 	// CheckoutOrNew checks out the given branch. If the branch does not exist, it creates an empty branch based on
 	// the base branch.
-	CheckoutOrNew(branch, base string, submoduleEnabled bool) (string, error)
+	CheckoutOrNew(ctx context.Context, branch, base string, submoduleEnabled bool) (string, error)
 	// RemoveContents removes all files from the git repository.
 	RemoveContents() (string, error)
 	// CommitAndPush commits and pushes changes to the target branch.
-	CommitAndPush(branch, message string) (string, error)
+	CommitAndPush(ctx context.Context, branch, message string) (string, error)
 }
 
 type EventHandlers struct {
@@ -267,7 +268,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 	return customHTTPClient
 }
 
-func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
+func newAuth(ctx context.Context, repoURL string, creds Creds) (transport.AuthMethod, error) {
 	switch creds := creds.(type) {
 	case SSHCreds:
 		var sshUser string
@@ -302,7 +303,7 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		}
 		return &auth, nil
 	case GitHubAppCreds:
-		token, err := creds.getAccessToken()
+		token, err := creds.getAccessToken(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -321,7 +322,7 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		auth := githttp.BasicAuth{Username: username, Password: token}
 		return &auth, nil
 	case AzureWorkloadIdentityCreds:
-		token, err := creds.GetAzureDevOpsAccessToken()
+		token, err := creds.GetAzureDevOpsAccessToken(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get access token from creds: %w", err)
 		}
@@ -371,12 +372,12 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 	return m.enableLfs
 }
 
-func (m *nativeGitClient) fetch(revision string) error {
+func (m *nativeGitClient) fetch(ctx context.Context, revision string) error {
 	var err error
 	if revision != "" {
-		err = m.runCredentialedCmd("fetch", "origin", revision, "--tags", "--force", "--prune")
+		err = m.runCredentialedCmd(ctx, "fetch", "origin", revision, "--tags", "--force", "--prune")
 	} else {
-		err = m.runCredentialedCmd("fetch", "origin", "--tags", "--force", "--prune")
+		err = m.runCredentialedCmd(ctx, "fetch", "origin", "--tags", "--force", "--prune")
 	}
 	return err
 }
@@ -396,19 +397,19 @@ func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 }
 
 // Fetch fetches latest updates from origin
-func (m *nativeGitClient) Fetch(revision string) error {
+func (m *nativeGitClient) Fetch(ctx context.Context, revision string) error {
 	if m.OnFetch != nil {
 		done := m.OnFetch(m.repoURL)
 		defer done()
 	}
 
-	err := m.fetch(revision)
+	err := m.fetch(ctx, revision)
 
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
 		largeFiles, err := m.LsLargeFiles()
 		if err == nil && len(largeFiles) > 0 {
-			err = m.runCredentialedCmd("lfs", "fetch", "--all")
+			err = m.runCredentialedCmd(ctx, "lfs", "fetch", "--all")
 			if err != nil {
 				return err
 			}
@@ -469,15 +470,15 @@ func (m *nativeGitClient) LsLargeFiles() ([]string, error) {
 }
 
 // Submodule embed other repositories into this repository
-func (m *nativeGitClient) Submodule() error {
-	if err := m.runCredentialedCmd("submodule", "sync", "--recursive"); err != nil {
+func (m *nativeGitClient) Submodule(ctx context.Context) error {
+	if err := m.runCredentialedCmd(ctx, "submodule", "sync", "--recursive"); err != nil {
 		return err
 	}
-	return m.runCredentialedCmd("submodule", "update", "--init", "--recursive")
+	return m.runCredentialedCmd(ctx, "submodule", "update", "--init", "--recursive")
 }
 
 // Checkout checks out the specified revision
-func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (string, error) {
+func (m *nativeGitClient) Checkout(ctx context.Context, revision string, submoduleEnabled bool) (string, error) {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
@@ -499,7 +500,7 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (stri
 	}
 	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
 		if submoduleEnabled {
-			if err := m.Submodule(); err != nil {
+			if err := m.Submodule(ctx); err != nil {
 				return "", fmt.Errorf("failed to update submodules: %w", err)
 			}
 		}
@@ -515,7 +516,7 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (stri
 	return "", nil
 }
 
-func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
+func (m *nativeGitClient) getRefs(ctx context.Context) ([]*plumbing.Reference, error) {
 	myLockUUID, err := uuid.NewRandom()
 	myLockId := ""
 	if err != nil {
@@ -527,7 +528,7 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 	needsUnlock := true
 	if m.gitRefCache != nil && m.loadRefFromCache {
 		var res []*plumbing.Reference
-		foundLockId, err := m.gitRefCache.GetOrLockGitReferences(m.repoURL, myLockId, &res)
+		foundLockId, err := m.gitRefCache.GetOrLockGitReferences(ctx, m.repoURL, myLockId, &res)
 		isLockOwner := myLockId == foundLockId
 		if !isLockOwner && err == nil {
 			// Valid value already in cache
@@ -540,7 +541,7 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 		// Defer a soft reset of the cache lock, if the value is set this call will be ignored
 		defer func() {
 			if needsUnlock {
-				err := m.gitRefCache.UnlockGitReferences(m.repoURL, myLockId)
+				err := m.gitRefCache.UnlockGitReferences(ctx, m.repoURL, myLockId)
 				if err != nil {
 					log.Debugf("Error unlocking git references from cache: %v", err)
 				}
@@ -564,13 +565,13 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 	if err != nil {
 		return nil, err
 	}
-	auth, err := newAuth(m.repoURL, m.creds)
+	auth, err := newAuth(ctx, m.repoURL, m.creds)
 	if err != nil {
 		return nil, err
 	}
 	res, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds, m.proxy, m.noProxy)
 	if err == nil && m.gitRefCache != nil {
-		if err := m.gitRefCache.SetGitReferences(m.repoURL, res); err != nil {
+		if err := m.gitRefCache.SetGitReferences(ctx, m.repoURL, res); err != nil {
 			log.Warnf("Failed to store git references to cache: %v", err)
 		} else {
 			// Since we successfully overwrote the lock with valid data, we don't need to unlock
@@ -581,8 +582,8 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 	return res, err
 }
 
-func (m *nativeGitClient) LsRefs() (*Refs, error) {
-	refs, err := m.getRefs()
+func (m *nativeGitClient) LsRefs(ctx context.Context) (*Refs, error) {
+	refs, err := m.getRefs(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -614,9 +615,9 @@ func (m *nativeGitClient) LsRefs() (*Refs, error) {
 // it will return the revision string. Otherwise, it returns an error indicating that the revision could
 // not be resolved. This method runs with in-memory storage and is safe to run concurrently,
 // or to be run without a git repository locally cloned.
-func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
+func (m *nativeGitClient) LsRemote(ctx context.Context, revision string) (res string, err error) {
 	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
-		res, err = m.lsRemote(revision)
+		res, err = m.lsRemote(ctx, revision)
 		if err == nil {
 			return
 		} else if apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
@@ -634,12 +635,12 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 	return
 }
 
-func (m *nativeGitClient) lsRemote(revision string) (string, error) {
+func (m *nativeGitClient) lsRemote(ctx context.Context, revision string) (string, error) {
 	if IsCommitSHA(revision) {
 		return revision, nil
 	}
 
-	refs, err := m.getRefs()
+	refs, err := m.getRefs(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to list refs: %w", err)
 	}
@@ -855,8 +856,8 @@ func (m *nativeGitClient) SetAuthor(name, email string) (string, error) {
 }
 
 // CheckoutOrOrphan checks out the branch. If the branch does not exist, it creates an orphan branch.
-func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool) (string, error) {
-	out, err := m.Checkout(branch, submoduleEnabled)
+func (m *nativeGitClient) CheckoutOrOrphan(ctx context.Context, branch string, submoduleEnabled bool) (string, error) {
+	out, err := m.Checkout(ctx, branch, submoduleEnabled)
 	if err != nil {
 		// If the branch doesn't exist, create it as an orphan branch.
 		if !strings.Contains(err.Error(), "did not match any file(s) known to git") {
@@ -874,7 +875,7 @@ func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool)
 		}
 
 		// Push the commit.
-		err = m.runCredentialedCmd("push", "origin", branch)
+		err = m.runCredentialedCmd(ctx, "push", "origin", branch)
 		if err != nil {
 			return "", fmt.Errorf("failed to push to branch: %w", err)
 		}
@@ -884,15 +885,15 @@ func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool)
 
 // CheckoutOrNew checks out the given branch. If the branch does not exist, it creates an empty branch based on
 // the base branch.
-func (m *nativeGitClient) CheckoutOrNew(branch, base string, submoduleEnabled bool) (string, error) {
-	out, err := m.Checkout(branch, submoduleEnabled)
+func (m *nativeGitClient) CheckoutOrNew(ctx context.Context, branch, base string, submoduleEnabled bool) (string, error) {
+	out, err := m.Checkout(ctx, branch, submoduleEnabled)
 	if err != nil {
 		if !strings.Contains(err.Error(), "did not match any file(s) known to git") {
 			return out, fmt.Errorf("failed to checkout branch: %w", err)
 		}
 		// If the branch does not exist, create any empty branch based on the sync branch
 		// First, checkout the sync branch.
-		out, err = m.Checkout(base, submoduleEnabled)
+		out, err = m.Checkout(ctx, base, submoduleEnabled)
 		if err != nil {
 			return out, fmt.Errorf("failed to checkout sync branch: %w", err)
 		}
@@ -915,7 +916,7 @@ func (m *nativeGitClient) RemoveContents() (string, error) {
 }
 
 // CommitAndPush commits and pushes changes to the target branch.
-func (m *nativeGitClient) CommitAndPush(branch, message string) (string, error) {
+func (m *nativeGitClient) CommitAndPush(ctx context.Context, branch, message string) (string, error) {
 	out, err := m.runCmd("add", ".")
 	if err != nil {
 		return out, fmt.Errorf("failed to add files: %w", err)
@@ -934,7 +935,7 @@ func (m *nativeGitClient) CommitAndPush(branch, message string) (string, error) 
 		defer done()
 	}
 
-	err = m.runCredentialedCmd("push", "origin", branch)
+	err = m.runCredentialedCmd(ctx, "push", "origin", branch)
 	if err != nil {
 		return "", fmt.Errorf("failed to push: %w", err)
 	}
@@ -956,8 +957,8 @@ func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 }
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
-func (m *nativeGitClient) runCredentialedCmd(args ...string) error {
-	closer, environ, err := m.creds.Environ()
+func (m *nativeGitClient) runCredentialedCmd(ctx context.Context, args ...string) error {
+	closer, environ, err := m.creds.Environ(ctx)
 	if err != nil {
 		return err
 	}

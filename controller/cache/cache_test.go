@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"errors"
 	"net"
 	"net/url"
@@ -39,7 +40,7 @@ func (n netError) Error() string   { return string(n) }
 func (n netError) Timeout() bool   { return false }
 func (n netError) Temporary() bool { return false }
 
-func TestHandleModEvent_HasChanges(_ *testing.T) {
+func TestHandleModEvent_HasChanges(t *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
 	clusterCache.On("Invalidate", mock.Anything, mock.Anything).Return(nil).Once()
 	clusterCache.On("EnsureSynced").Return(nil).Once()
@@ -52,7 +53,7 @@ func TestHandleModEvent_HasChanges(_ *testing.T) {
 		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
 	}
 
-	clustersCache.handleModEvent(&appv1.Cluster{
+	clustersCache.handleModEvent(t.Context(), &appv1.Cluster{
 		Server: "https://mycluster",
 		Config: appv1.ClusterConfig{Username: "foo"},
 	}, &appv1.Cluster{
@@ -71,7 +72,7 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 	clustersCache := liveStateCache{
 		db:          nil,
 		appInformer: nil,
-		onObjectUpdated: func(_ map[string]bool, _ corev1.ObjectReference) {
+		onObjectUpdated: func(_ context.Context, _ map[string]bool, _ corev1.ObjectReference) {
 		},
 		kubectl:       nil,
 		settingsMgr:   &argosettings.SettingsManager{},
@@ -84,7 +85,7 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 		lock:             sync.RWMutex{},
 	}
 
-	clustersCache.handleModEvent(&appv1.Cluster{
+	clustersCache.handleModEvent(t.Context(), &appv1.Cluster{
 		Server: "https://mycluster",
 		Config: appv1.ClusterConfig{Username: "foo"},
 	}, &appv1.Cluster{
@@ -96,7 +97,7 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 	assert.Len(t, clustersCache.clusters, 1)
 }
 
-func TestHandleModEvent_NoChanges(_ *testing.T) {
+func TestHandleModEvent_NoChanges(t *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
 	clusterCache.On("Invalidate", mock.Anything).Panic("should not invalidate")
 	clusterCache.On("EnsureSynced").Return(nil).Panic("should not re-sync")
@@ -109,7 +110,7 @@ func TestHandleModEvent_NoChanges(_ *testing.T) {
 		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
 	}
 
-	clustersCache.handleModEvent(&appv1.Cluster{
+	clustersCache.handleModEvent(t.Context(), &appv1.Cluster{
 		Server: "https://mycluster",
 		Config: appv1.ClusterConfig{Username: "bar"},
 	}, &appv1.Cluster{
@@ -125,7 +126,7 @@ func TestHandleAddEvent_ClusterExcluded(t *testing.T) {
 		clusters:        map[string]cache.ClusterCache{},
 		clusterSharding: sharding.NewClusterSharding(db, 0, 2, common.DefaultShardingAlgorithm),
 	}
-	clustersCache.handleAddEvent(&appv1.Cluster{
+	clustersCache.handleAddEvent(t.Context(), &appv1.Cluster{
 		Server: "https://mycluster",
 		Config: appv1.ClusterConfig{Username: "bar"},
 	})
@@ -210,7 +211,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 			}
 		}()
 		// Run in background
-		go clustersCache.handleDeleteEvent(testCluster.Server)
+		go clustersCache.handleDeleteEvent(t.Context(), testCluster.Server)
 		// Allow execution to continue on clusters cache call to trigger lock
 		ensureSyncedCompleted.Lock()
 		invalidateCompleted.Lock()
@@ -740,7 +741,7 @@ func Test_GetVersionsInfo_error_redacted(t *testing.T) {
 			Password: "password",
 		},
 	}
-	_, _, err := c.GetVersionsInfo(cluster)
+	_, _, err := c.GetVersionsInfo(t.Context(), cluster)
 	require.Error(t, err)
 	assert.NotContains(t, err.Error(), "password")
 }

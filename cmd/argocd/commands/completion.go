@@ -230,7 +230,7 @@ $ source ~/.config/fish/completions/argocd.fish
 				os.Exit(1)
 			}
 			shell := args[0]
-			rootCommand := NewCommand()
+			rootCommand := NewCommand(cmd.Context())
 			rootCommand.BashCompletionFunction = bashCompletionFunc
 			availableCompletions := map[string]func(out io.Writer, cmd *cobra.Command) error{
 				"bash": runCompletionBash,

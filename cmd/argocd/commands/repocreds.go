@@ -158,7 +158,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 				}
 			}
 
-			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDie(ctx)
 			defer io.Close(conn)
 
 			// If the user set a username, but didn't supply password via --password,
@@ -220,7 +220,7 @@ func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDie(ctx)
 			defer io.Close(conn)
 
 			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
@@ -282,7 +282,7 @@ func NewRepoCredsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
-			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDie(ctx)
 			defer io.Close(conn)
 			repos, err := repoIf.ListRepositoryCredentials(ctx, &repocredspkg.RepoCredsQuery{})
 			errors.CheckError(err)

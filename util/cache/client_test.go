@@ -14,26 +14,27 @@ type testStruct struct {
 }
 
 func TestCache(t *testing.T) {
+	ctx := t.Context()
 	c := NewInMemoryCache(time.Hour)
 	var obj testStruct
-	err := c.Get("key", &obj)
+	err := c.Get(ctx, "key", &obj)
 	assert.Equal(t, err, ErrCacheMiss)
 	cacheObj := testStruct{
 		Foo: "foo",
 		Bar: []byte("bar"),
 	}
-	_ = c.Set(&Item{
+	_ = c.Set(ctx, &Item{
 		Key:    "key",
 		Object: &cacheObj,
 	})
 	cacheObj.Foo = "baz"
-	err = c.Get("key", &obj)
+	err = c.Get(ctx, "key", &obj)
 	require.NoError(t, err)
 	assert.Equal(t, "foo", obj.Foo)
 	assert.Equal(t, "bar", string(obj.Bar))
 
-	err = c.Delete("key")
+	err = c.Delete(ctx, "key")
 	require.NoError(t, err)
-	err = c.Get("key", &obj)
+	err = c.Get(ctx, "key", &obj)
 	assert.Equal(t, err, ErrCacheMiss)
 }

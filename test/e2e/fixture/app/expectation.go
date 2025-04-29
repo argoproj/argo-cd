@@ -109,7 +109,7 @@ func StatusExists() Expectation {
 
 func Namespace(name string, block func(app *v1alpha1.Application, ns *corev1.Namespace)) Expectation {
 	return func(c *Consequences) (state, string) {
-		ns, err := namespace(name)
+		ns, err := namespace(c.context.t.Context(), name)
 		if err != nil {
 			return failed, "namespace not found " + err.Error()
 		}
@@ -128,14 +128,14 @@ func HealthIs(expected health.HealthStatusCode) Expectation {
 
 func ResourceSyncStatusIs(kind, resource string, expected v1alpha1.SyncStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
-		actual := c.resource(kind, resource, "").Status
+		actual := c.resource(c.context.t.Context(), kind, resource, "").Status
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' sync status should be %s, is %s", kind, resource, expected, actual))
 	}
 }
 
 func ResourceSyncStatusWithNamespaceIs(kind, resource, namespace string, expected v1alpha1.SyncStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
-		actual := c.resource(kind, resource, namespace).Status
+		actual := c.resource(c.context.t.Context(), kind, resource, namespace).Status
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' sync status should be %s, is %s", kind, resource, expected, actual))
 	}
 }
@@ -143,7 +143,7 @@ func ResourceSyncStatusWithNamespaceIs(kind, resource, namespace string, expecte
 func ResourceHealthIs(kind, resource string, expected health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		var actual health.HealthStatusCode
-		resourceHealth := c.resource(kind, resource, "").Health
+		resourceHealth := c.resource(c.context.t.Context(), kind, resource, "").Health
 		if resourceHealth != nil {
 			actual = resourceHealth.Status
 		} else {
@@ -157,7 +157,7 @@ func ResourceHealthIs(kind, resource string, expected health.HealthStatusCode) E
 func ResourceHealthWithNamespaceIs(kind, resource, namespace string, expected health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		var actual health.HealthStatusCode
-		resourceHealth := c.resource(kind, resource, namespace).Health
+		resourceHealth := c.resource(c.context.t.Context(), kind, resource, namespace).Health
 		if resourceHealth != nil {
 			actual = resourceHealth.Status
 		} else {
@@ -244,8 +244,8 @@ func DoesNotExistNow() Expectation {
 }
 
 func Pod(predicate func(p corev1.Pod) bool) Expectation {
-	return func(_ *Consequences) (state, string) {
-		pods, err := pods()
+	return func(c *Consequences) (state, string) {
+		pods, err := pods(c.context.t.Context())
 		if err != nil {
 			return failed, err.Error()
 		}
@@ -259,8 +259,8 @@ func Pod(predicate func(p corev1.Pod) bool) Expectation {
 }
 
 func NotPod(predicate func(p corev1.Pod) bool) Expectation {
-	return func(_ *Consequences) (state, string) {
-		pods, err := pods()
+	return func(c *Consequences) (state, string) {
+		pods, err := pods(c.context.t.Context())
 		if err != nil {
 			return failed, err.Error()
 		}
@@ -273,15 +273,15 @@ func NotPod(predicate func(p corev1.Pod) bool) Expectation {
 	}
 }
 
-func pods() (*corev1.PodList, error) {
+func pods(ctx context.Context) (*corev1.PodList, error) {
 	fixture.KubeClientset.CoreV1()
-	pods, err := fixture.KubeClientset.CoreV1().Pods(fixture.DeploymentNamespace()).List(context.Background(), metav1.ListOptions{})
+	pods, err := fixture.KubeClientset.CoreV1().Pods(fixture.DeploymentNamespace()).List(ctx, metav1.ListOptions{})
 	return pods, err
 }
 
 func NoNamespace(name string) Expectation {
-	return func(_ *Consequences) (state, string) {
-		_, err := namespace(name)
+	return func(c *Consequences) (state, string) {
+		_, err := namespace(c.context.t.Context(), name)
 		if err != nil {
 			return succeeded, "namespace not found"
 		}
@@ -290,14 +290,14 @@ func NoNamespace(name string) Expectation {
 	}
 }
 
-func namespace(name string) (*corev1.Namespace, error) {
+func namespace(ctx context.Context, name string) (*corev1.Namespace, error) {
 	fixture.KubeClientset.CoreV1()
-	return fixture.KubeClientset.CoreV1().Namespaces().Get(context.Background(), name, metav1.GetOptions{})
+	return fixture.KubeClientset.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
 }
 
 func event(namespace string, reason string, message string) Expectation {
 	return func(c *Consequences) (state, string) {
-		list, err := fixture.KubeClientset.CoreV1().Events(namespace).List(context.Background(), metav1.ListOptions{
+		list, err := fixture.KubeClientset.CoreV1().Events(namespace).List(c.context.t.Context(), metav1.ListOptions{
 			FieldSelector: fields.SelectorFromSet(map[string]string{
 				"involvedObject.name":      c.context.AppName(),
 				"involvedObject.namespace": namespace,

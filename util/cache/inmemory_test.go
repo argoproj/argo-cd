@@ -13,16 +13,17 @@ type foo struct {
 }
 
 func TestInMemoryCache(t *testing.T) {
+	ctx := t.Context()
 	cache := NewInMemoryCache(1 * time.Hour)
 	// https://stackoverflow.com/questions/46671636/gob-decode-giving-decodevalue-of-unassignable-value-error
 	obj := &foo{}
 	// cache miss
-	err := cache.Get("my-key", obj)
+	err := cache.Get(ctx, "my-key", obj)
 	assert.Equal(t, ErrCacheMiss, err)
 	// cache hit
-	err = cache.Set(&Item{Key: "my-key", Object: &foo{Bar: "bar"}})
+	err = cache.Set(ctx, &Item{Key: "my-key", Object: &foo{Bar: "bar"}})
 	require.NoError(t, err)
-	err = cache.Get("my-key", obj)
+	err = cache.Get(ctx, "my-key", obj)
 	require.NoError(t, err)
 	assert.Equal(t, &foo{Bar: "bar"}, obj)
 }

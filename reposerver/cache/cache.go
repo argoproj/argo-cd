@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -145,14 +146,15 @@ func listApps(repoURL, revision string) string {
 	return fmt.Sprintf("ldir|%s|%s", repoURL, revision)
 }
 
-func (c *Cache) ListApps(repoURL, revision string) (map[string]string, error) {
+func (c *Cache) ListApps(ctx context.Context, repoURL, revision string) (map[string]string, error) {
 	res := make(map[string]string)
-	err := c.cache.GetItem(listApps(repoURL, revision), &res)
+	err := c.cache.GetItem(ctx, listApps(repoURL, revision), &res)
 	return res, err
 }
 
-func (c *Cache) SetApps(repoURL, revision string, apps map[string]string) error {
+func (c *Cache) SetApps(ctx context.Context, repoURL, revision string, apps map[string]string) error {
 	return c.cache.SetItem(
+		ctx,
 		listApps(repoURL, revision),
 		apps,
 		&cacheutil.CacheActionOpts{
@@ -166,20 +168,21 @@ func helmIndexRefsKey(repo string) string {
 }
 
 // SetHelmIndex stores helm repository index.yaml content to cache
-func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
+func (c *Cache) SetHelmIndex(ctx context.Context, repo string, indexData []byte) error {
 	if indexData == nil {
 		// Logged as warning upstream
 		return errors.New("helm index data is nil, skipping cache")
 	}
 	return c.cache.SetItem(
+		ctx,
 		helmIndexRefsKey(repo),
 		indexData,
 		&cacheutil.CacheActionOpts{Expiration: c.revisionCacheExpiration})
 }
 
 // GetHelmIndex retrieves helm repository index.yaml content from cache
-func (c *Cache) GetHelmIndex(repo string, indexData *[]byte) error {
-	return c.cache.GetItem(helmIndexRefsKey(repo), indexData)
+func (c *Cache) GetHelmIndex(ctx context.Context, repo string, indexData *[]byte) error {
+	return c.cache.GetItem(ctx, helmIndexRefsKey(repo), indexData)
 }
 
 func gitRefsKey(repo string) string {
@@ -187,12 +190,12 @@ func gitRefsKey(repo string) string {
 }
 
 // SetGitReferences saves resolved Git repository references to cache
-func (c *Cache) SetGitReferences(repo string, references []*plumbing.Reference) error {
+func (c *Cache) SetGitReferences(ctx context.Context, repo string, references []*plumbing.Reference) error {
 	var input [][2]string
 	for i := range references {
 		input = append(input, references[i].Strings())
 	}
-	return c.cache.SetItem(gitRefsKey(repo), input, &cacheutil.CacheActionOpts{Expiration: c.revisionCacheExpiration})
+	return c.cache.SetItem(ctx, gitRefsKey(repo), input, &cacheutil.CacheActionOpts{Expiration: c.revisionCacheExpiration})
 }
 
 // Converts raw cache items to plumbing.Reference objects
@@ -209,11 +212,11 @@ func GitRefCacheItemToReferences(cacheItem [][2]string) *[]*plumbing.Reference {
 
 // TryLockGitRefCache attempts to lock the key for the Git repository references if the key doesn't exist, returns the value of
 // GetGitReferences after calling the SET
-func (c *Cache) TryLockGitRefCache(repo string, lockId string, references *[]*plumbing.Reference) (string, error) {
+func (c *Cache) TryLockGitRefCache(ctx context.Context, repo string, lockId string, references *[]*plumbing.Reference) (string, error) {
 	// This try set with DisableOverwrite is important for making sure that only one process is able to claim ownership
 	// A normal get + set, or just set would cause ownership to go to whoever the last writer was, and during race conditions
 	// leads to duplicate requests
-	err := c.cache.SetItem(gitRefsKey(repo), [][2]string{{cacheutil.CacheLockedValue, lockId}}, &cacheutil.CacheActionOpts{
+	err := c.cache.SetItem(ctx, gitRefsKey(repo), [][2]string{{cacheutil.CacheLockedValue, lockId}}, &cacheutil.CacheActionOpts{
 		Expiration:       c.revisionCacheLockTimeout,
 		DisableOverwrite: true,
 	})
@@ -221,13 +224,13 @@ func (c *Cache) TryLockGitRefCache(repo string, lockId string, references *[]*pl
 		// Log but ignore this error since we'll want to retry, failing to obtain the lock should not throw an error
 		log.Errorf("Error attempting to acquire git references cache lock: %v", err)
 	}
-	return c.GetGitReferences(repo, references)
+	return c.GetGitReferences(ctx, repo, references)
 }
 
 // Retrieves the cache item for git repo references. Returns foundLockId, error
-func (c *Cache) GetGitReferences(repo string, references *[]*plumbing.Reference) (string, error) {
+func (c *Cache) GetGitReferences(ctx context.Context, repo string, references *[]*plumbing.Reference) (string, error) {
 	var input [][2]string
-	err := c.cache.GetItem(gitRefsKey(repo), &input)
+	err := c.cache.GetItem(ctx, gitRefsKey(repo), &input)
 	valueExists := len(input) > 0 && len(input[0]) > 0
 	switch {
 	// Unexpected Error
@@ -249,17 +252,17 @@ func (c *Cache) GetGitReferences(repo string, references *[]*plumbing.Reference)
 
 // GetOrLockGitReferences retrieves the git references if they exist, otherwise creates a lock and returns so the caller can populate the cache
 // Returns isLockOwner, localLockId, error
-func (c *Cache) GetOrLockGitReferences(repo string, lockId string, references *[]*plumbing.Reference) (string, error) {
+func (c *Cache) GetOrLockGitReferences(ctx context.Context, repo string, lockId string, references *[]*plumbing.Reference) (string, error) {
 	// Value matches the ttl on the lock in TryLockGitRefCache
 	waitUntil := time.Now().Add(c.revisionCacheLockTimeout)
 	// Wait only the maximum amount of time configured for the lock
 	// if the configured time is zero then the for loop will never run and instead act as the owner immediately
 	for time.Now().Before(waitUntil) {
 		// Get current cache state
-		if foundLockId, err := c.GetGitReferences(repo, references); foundLockId == lockId || err != nil || (references != nil && len(*references) > 0) {
+		if foundLockId, err := c.GetGitReferences(ctx, repo, references); foundLockId == lockId || err != nil || (references != nil && len(*references) > 0) {
 			return foundLockId, err
 		}
-		if foundLockId, err := c.TryLockGitRefCache(repo, lockId, references); foundLockId == lockId || err != nil || (references != nil && len(*references) > 0) {
+		if foundLockId, err := c.TryLockGitRefCache(ctx, repo, lockId, references); foundLockId == lockId || err != nil || (references != nil && len(*references) > 0) {
 			return foundLockId, err
 		}
 		time.Sleep(1 * time.Second)
@@ -273,17 +276,17 @@ func (c *Cache) GetOrLockGitReferences(repo string, lockId string, references *[
 }
 
 // UnlockGitReferences unlocks the key for the Git repository references if needed
-func (c *Cache) UnlockGitReferences(repo string, lockId string) error {
+func (c *Cache) UnlockGitReferences(ctx context.Context, repo string, lockId string) error {
 	var input [][2]string
 	var err error
-	if err = c.cache.GetItem(gitRefsKey(repo), &input); err == nil &&
+	if err = c.cache.GetItem(ctx, gitRefsKey(repo), &input); err == nil &&
 		input != nil &&
 		len(input) > 0 &&
 		len(input[0]) > 1 &&
 		input[0][0] == cacheutil.CacheLockedValue &&
 		input[0][1] == lockId {
 		// We have the lock, so remove it
-		return c.cache.SetItem(gitRefsKey(repo), input, &cacheutil.CacheActionOpts{Delete: true})
+		return c.cache.SetItem(ctx, gitRefsKey(repo), input, &cacheutil.CacheActionOpts{Delete: true})
 	}
 	return err
 }
@@ -327,14 +330,14 @@ func LogDebugManifestCacheKeyFields(message string, reason string, revision stri
 	}
 }
 
-func (c *Cache) SetNewRevisionManifests(newRevision string, revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, refSourceCommitSHAs ResolvedRevisions, installationID string) error {
+func (c *Cache) SetNewRevisionManifests(ctx context.Context, newRevision string, revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, refSourceCommitSHAs ResolvedRevisions, installationID string) error {
 	oldKey := manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs, installationID)
 	newKey := manifestCacheKey(newRevision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs, installationID)
-	return c.cache.RenameItem(oldKey, newKey, c.repoCacheExpiration)
+	return c.cache.RenameItem(ctx, oldKey, newKey, c.repoCacheExpiration)
 }
 
-func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse, refSourceCommitSHAs ResolvedRevisions, installationID string) error {
-	err := c.cache.GetItem(manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs, installationID), res)
+func (c *Cache) GetManifests(ctx context.Context, revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse, refSourceCommitSHAs ResolvedRevisions, installationID string) error {
+	err := c.cache.GetItem(ctx, manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs, installationID), res)
 	if err != nil {
 		return err
 	}
@@ -350,7 +353,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, s
 
 		LogDebugManifestCacheKeyFields("deleting manifests cache", "manifest hash did not match or cached response is empty", revision, appSrc, srcRefs, clusterInfo, namespace, trackingMethod, appLabelKey, appName, refSourceCommitSHAs)
 
-		err = c.DeleteManifests(revision, appSrc, srcRefs, clusterInfo, namespace, trackingMethod, appLabelKey, appName, refSourceCommitSHAs, installationID)
+		err = c.DeleteManifests(ctx, revision, appSrc, srcRefs, clusterInfo, namespace, trackingMethod, appLabelKey, appName, refSourceCommitSHAs, installationID)
 		if err != nil {
 			return fmt.Errorf("unable to delete manifest after hash mismatch: %w", err)
 		}
@@ -370,7 +373,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, s
 	return nil
 }
 
-func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse, refSourceCommitSHAs ResolvedRevisions, installationID string) error {
+func (c *Cache) SetManifests(ctx context.Context, revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse, refSourceCommitSHAs ResolvedRevisions, installationID string) error {
 	// Generate and apply the cache entry hash, before writing
 	if res != nil {
 		res = res.shallowCopy()
@@ -382,6 +385,7 @@ func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, s
 	}
 
 	return c.cache.SetItem(
+		ctx,
 		manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs, installationID),
 		res,
 		&cacheutil.CacheActionOpts{
@@ -390,8 +394,9 @@ func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, s
 		})
 }
 
-func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace, trackingMethod, appLabelKey, appName string, refSourceCommitSHAs ResolvedRevisions, installationID string) error {
+func (c *Cache) DeleteManifests(ctx context.Context, revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace, trackingMethod, appLabelKey, appName string, refSourceCommitSHAs ResolvedRevisions, installationID string) error {
 	return c.cache.SetItem(
+		ctx,
 		manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs, installationID),
 		"",
 		&cacheutil.CacheActionOpts{Delete: true})
@@ -404,12 +409,13 @@ func appDetailsCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRef
 	return fmt.Sprintf("appdetails|%s|%d|%s", revision, appSourceKey(appSrc, srcRefs, refSourceCommitSHAs), trackingMethod)
 }
 
-func (c *Cache) GetAppDetails(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, res *apiclient.RepoAppDetailsResponse, trackingMethod appv1.TrackingMethod, refSourceCommitSHAs ResolvedRevisions) error {
-	return c.cache.GetItem(appDetailsCacheKey(revision, appSrc, srcRefs, trackingMethod, refSourceCommitSHAs), res)
+func (c *Cache) GetAppDetails(ctx context.Context, revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, res *apiclient.RepoAppDetailsResponse, trackingMethod appv1.TrackingMethod, refSourceCommitSHAs ResolvedRevisions) error {
+	return c.cache.GetItem(ctx, appDetailsCacheKey(revision, appSrc, srcRefs, trackingMethod, refSourceCommitSHAs), res)
 }
 
-func (c *Cache) SetAppDetails(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, res *apiclient.RepoAppDetailsResponse, trackingMethod appv1.TrackingMethod, refSourceCommitSHAs ResolvedRevisions) error {
+func (c *Cache) SetAppDetails(ctx context.Context, revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, res *apiclient.RepoAppDetailsResponse, trackingMethod appv1.TrackingMethod, refSourceCommitSHAs ResolvedRevisions) error {
 	return c.cache.SetItem(
+		ctx,
 		appDetailsCacheKey(revision, appSrc, srcRefs, trackingMethod, refSourceCommitSHAs),
 		res,
 		&cacheutil.CacheActionOpts{
@@ -422,13 +428,14 @@ func revisionMetadataKey(repoURL, revision string) string {
 	return fmt.Sprintf("revisionmetadata|%s|%s", repoURL, revision)
 }
 
-func (c *Cache) GetRevisionMetadata(repoURL, revision string) (*appv1.RevisionMetadata, error) {
+func (c *Cache) GetRevisionMetadata(ctx context.Context, repoURL, revision string) (*appv1.RevisionMetadata, error) {
 	item := &appv1.RevisionMetadata{}
-	return item, c.cache.GetItem(revisionMetadataKey(repoURL, revision), item)
+	return item, c.cache.GetItem(ctx, revisionMetadataKey(repoURL, revision), item)
 }
 
-func (c *Cache) SetRevisionMetadata(repoURL, revision string, item *appv1.RevisionMetadata) error {
+func (c *Cache) SetRevisionMetadata(ctx context.Context, repoURL, revision string, item *appv1.RevisionMetadata) error {
 	return c.cache.SetItem(
+		ctx,
 		revisionMetadataKey(repoURL, revision),
 		item,
 		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
@@ -438,13 +445,14 @@ func revisionChartDetailsKey(repoURL, chart, revision string) string {
 	return fmt.Sprintf("chartdetails|%s|%s|%s", repoURL, chart, revision)
 }
 
-func (c *Cache) GetRevisionChartDetails(repoURL, chart, revision string) (*appv1.ChartDetails, error) {
+func (c *Cache) GetRevisionChartDetails(ctx context.Context, repoURL, chart, revision string) (*appv1.ChartDetails, error) {
 	item := &appv1.ChartDetails{}
-	return item, c.cache.GetItem(revisionChartDetailsKey(repoURL, chart, revision), item)
+	return item, c.cache.GetItem(ctx, revisionChartDetailsKey(repoURL, chart, revision), item)
 }
 
-func (c *Cache) SetRevisionChartDetails(repoURL, chart, revision string, item *appv1.ChartDetails) error {
+func (c *Cache) SetRevisionChartDetails(ctx context.Context, repoURL, chart, revision string, item *appv1.ChartDetails) error {
 	return c.cache.SetItem(
+		ctx,
 		revisionChartDetailsKey(repoURL, chart, revision),
 		item,
 		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
@@ -454,32 +462,34 @@ func gitFilesKey(repoURL, revision, pattern string) string {
 	return fmt.Sprintf("gitfiles|%s|%s|%s", repoURL, revision, pattern)
 }
 
-func (c *Cache) SetGitFiles(repoURL, revision, pattern string, files map[string][]byte) error {
+func (c *Cache) SetGitFiles(ctx context.Context, repoURL, revision, pattern string, files map[string][]byte) error {
 	return c.cache.SetItem(
+		ctx,
 		gitFilesKey(repoURL, revision, pattern),
 		&files,
 		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
 }
 
-func (c *Cache) GetGitFiles(repoURL, revision, pattern string) (map[string][]byte, error) {
+func (c *Cache) GetGitFiles(ctx context.Context, repoURL, revision, pattern string) (map[string][]byte, error) {
 	var item map[string][]byte
-	return item, c.cache.GetItem(gitFilesKey(repoURL, revision, pattern), &item)
+	return item, c.cache.GetItem(ctx, gitFilesKey(repoURL, revision, pattern), &item)
 }
 
 func gitDirectoriesKey(repoURL, revision string) string {
 	return fmt.Sprintf("gitdirs|%s|%s", repoURL, revision)
 }
 
-func (c *Cache) SetGitDirectories(repoURL, revision string, directories []string) error {
+func (c *Cache) SetGitDirectories(ctx context.Context, repoURL, revision string, directories []string) error {
 	return c.cache.SetItem(
+		ctx,
 		gitDirectoriesKey(repoURL, revision),
 		&directories,
 		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
 }
 
-func (c *Cache) GetGitDirectories(repoURL, revision string) ([]string, error) {
+func (c *Cache) GetGitDirectories(ctx context.Context, repoURL, revision string) ([]string, error) {
 	var item []string
-	return item, c.cache.GetItem(gitDirectoriesKey(repoURL, revision), &item)
+	return item, c.cache.GetItem(ctx, gitDirectoriesKey(repoURL, revision), &item)
 }
 
 func (cmr *CachedManifestResponse) shallowCopy() *CachedManifestResponse {

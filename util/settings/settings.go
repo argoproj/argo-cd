@@ -641,7 +641,7 @@ func (mgr *SettingsManager) GetSecretsInformer() (cache.SharedIndexInformer, err
 	return mgr.secretsInformer, nil
 }
 
-func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) error {
+func (mgr *SettingsManager) updateSecret(ctx context.Context, callback func(*corev1.Secret) error) error {
 	argoCDSecret, err := mgr.getSecret()
 	createSecret := false
 	if err != nil {
@@ -668,9 +668,9 @@ func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) er
 	}
 
 	if createSecret {
-		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Create(context.Background(), argoCDSecret, metav1.CreateOptions{})
+		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Create(ctx, argoCDSecret, metav1.CreateOptions{})
 	} else {
-		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Update(context.Background(), argoCDSecret, metav1.UpdateOptions{})
+		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Update(ctx, argoCDSecret, metav1.UpdateOptions{})
 	}
 	if err != nil {
 		return err
@@ -679,7 +679,7 @@ func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) er
 	return mgr.ResyncInformers()
 }
 
-func (mgr *SettingsManager) updateConfigMap(callback func(*corev1.ConfigMap) error) error {
+func (mgr *SettingsManager) updateConfigMap(ctx context.Context, callback func(*corev1.ConfigMap) error) error {
 	argoCDCM, err := mgr.getConfigMap()
 	createCM := false
 	if err != nil {
@@ -705,9 +705,9 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*corev1.ConfigMap) err
 	}
 
 	if createCM {
-		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Create(context.Background(), argoCDCM, metav1.CreateOptions{})
+		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Create(ctx, argoCDCM, metav1.CreateOptions{})
 	} else {
-		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(context.Background(), argoCDCM, metav1.UpdateOptions{})
+		_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(ctx, argoCDCM, metav1.UpdateOptions{})
 	}
 
 	if err != nil {
@@ -1570,8 +1570,8 @@ func (mgr *SettingsManager) externalServerTLSCertificate() (*tls.Certificate, er
 }
 
 // SaveSettings serializes ArgoCDSettings and upserts it into K8s secret/configmap
-func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
-	err := mgr.updateConfigMap(func(argoCDCM *corev1.ConfigMap) error {
+func (mgr *SettingsManager) SaveSettings(ctx context.Context, settings *ArgoCDSettings) error {
+	err := mgr.updateConfigMap(ctx, func(argoCDCM *corev1.ConfigMap) error {
 		if settings.URL != "" {
 			argoCDCM.Data[settingURLKey] = settings.URL
 		} else {
@@ -1606,7 +1606,7 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		return err
 	}
 
-	return mgr.updateSecret(func(argoCDSecret *corev1.Secret) error {
+	return mgr.updateSecret(ctx, func(argoCDSecret *corev1.Secret) error {
 		argoCDSecret.Data[settingServerSignatureKey] = settings.ServerSignature
 		if settings.WebhookGitHubSecret != "" {
 			argoCDSecret.Data[settingsWebhookGitHubSecretKey] = []byte(settings.WebhookGitHubSecret)
@@ -2043,7 +2043,7 @@ func isIncompleteSettingsError(err error) bool {
 }
 
 // InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
-func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoCDSettings, error) {
+func (mgr *SettingsManager) InitializeSettings(ctx context.Context, insecureModeEnabled bool) (*ArgoCDSettings, error) {
 	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
 
 	cdSettings, err := mgr.GetSettings()
@@ -2062,7 +2062,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		cdSettings.ServerSignature = signature
 		log.Info("Initialized server signature")
 	}
-	err = mgr.UpdateAccount(common.ArgoCDAdminUsername, func(adminAccount *Account) error {
+	err = mgr.UpdateAccount(ctx, common.ArgoCDAdminUsername, func(adminAccount *Account) error {
 		if adminAccount.Enabled {
 			now := time.Now().UTC()
 			if adminAccount.PasswordHash == "" {
@@ -2124,7 +2124,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		log.Info("Initialized TLS certificate")
 	}
 
-	err = mgr.SaveSettings(cdSettings)
+	err = mgr.SaveSettings(ctx, cdSettings)
 	if apierrors.IsConflict(err) {
 		// assume settings are initialized by another instance of api server
 		log.Warnf("conflict when initializing settings. assuming updated by another replica")

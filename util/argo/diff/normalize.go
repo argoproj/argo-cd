@@ -1,6 +1,8 @@
 package diff
 
 import (
+	"context"
+
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 
@@ -10,7 +12,7 @@ import (
 
 // Normalize applies the full normalization on the lives and configs resources based
 // on the provided DiffConfig.
-func Normalize(lives, configs []*unstructured.Unstructured, diffConfig DiffConfig) (*NormalizationResult, error) {
+func Normalize(ctx context.Context, lives, configs []*unstructured.Unstructured, diffConfig DiffConfig) (*NormalizationResult, error) {
 	result, err := preDiffNormalize(lives, configs, diffConfig)
 	if err != nil {
 		return nil, err
@@ -22,7 +24,7 @@ func Normalize(lives, configs []*unstructured.Unstructured, diffConfig DiffConfi
 
 	for _, live := range result.Lives {
 		if live != nil {
-			err = diffNormalizer.Normalize(live)
+			err = diffNormalizer.NormalizeContext(ctx, live)
 			if err != nil {
 				return nil, err
 			}
@@ -30,7 +32,7 @@ func Normalize(lives, configs []*unstructured.Unstructured, diffConfig DiffConfi
 	}
 	for _, target := range result.Targets {
 		if target != nil {
-			err = diffNormalizer.Normalize(target)
+			err = diffNormalizer.NormalizeContext(ctx, target)
 			if err != nil {
 				return nil, err
 			}
@@ -59,8 +61,13 @@ type composableNormalizer struct {
 
 // Normalize performs resource normalization.
 func (n *composableNormalizer) Normalize(un *unstructured.Unstructured) error {
+	return n.NormalizeContext(context.Background(), un) //nolint:forbidigo // for backward compatibility
+}
+
+// Normalize performs resource normalization.
+func (n *composableNormalizer) NormalizeContext(ctx context.Context, un *unstructured.Unstructured) error {
 	for i := range n.normalizers {
-		if err := n.normalizers[i].Normalize(un); err != nil {
+		if err := n.normalizers[i].NormalizeContext(ctx, un); err != nil {
 			return err
 		}
 	}

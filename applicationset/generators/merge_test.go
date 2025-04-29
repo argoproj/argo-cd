@@ -172,7 +172,7 @@ func TestMergeGenerate(t *testing.T) {
 				},
 			)
 
-			got, err := mergeGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+			got, err := mergeGenerator.GenerateParams(t.Context(), &argoprojiov1alpha1.ApplicationSetGenerator{
 				Merge: &argoprojiov1alpha1.MergeGenerator{
 					Generators: testCaseCopy.baseGenerators,
 					MergeKeys:  testCaseCopy.mergeKeys,

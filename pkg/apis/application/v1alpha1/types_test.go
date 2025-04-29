@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -239,7 +240,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 				Server: data.appDest.Server,
 				Name:   data.appDest.Name,
 			}
-			permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(_ string) ([]*Cluster, error) {
+			permitted, _ := proj.IsDestinationPermitted(t.Context(), destCluster, data.appDest.Namespace, func(_ context.Context, _ string) ([]*Cluster, error) {
 				return []*Cluster{}, nil
 			})
 			assert.Equal(t, data.isPermitted, permitted)
@@ -410,7 +411,7 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 			Server: data.appDest.Server,
 			Name:   data.appDest.Name,
 		}
-		permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(_ string) ([]*Cluster, error) {
+		permitted, _ := proj.IsDestinationPermitted(t.Context(), destCluster, data.appDest.Namespace, func(_ context.Context, _ string) ([]*Cluster, error) {
 			return []*Cluster{}, nil
 		})
 		assert.Equalf(t, data.isPermitted, permitted, "appDest mismatch for %+v with project destinations %+v", data.appDest, data.projDest)
@@ -486,7 +487,7 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 			Server: data.appDest.Server,
 			Name:   data.appDest.Name,
 		}
-		permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(_ string) ([]*Cluster, error) {
+		permitted, _ := proj.IsDestinationPermitted(t.Context(), destCluster, data.appDest.Namespace, func(_ context.Context, _ string) ([]*Cluster, error) {
 			return data.clusters, nil
 		})
 		assert.Equal(t, data.isPermitted, permitted)
@@ -500,7 +501,7 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 			}},
 		},
 	}
-	_, err := proj.IsDestinationPermitted(&Cluster{Server: "https://my-cluster.123.com"}, "default", func(_ string) ([]*Cluster, error) {
+	_, err := proj.IsDestinationPermitted(t.Context(), &Cluster{Server: "https://my-cluster.123.com"}, "default", func(_ context.Context, _ string) ([]*Cluster, error) {
 		return nil, errors.New("some error")
 	})
 	assert.ErrorContains(t, err, "could not retrieve project clusters")

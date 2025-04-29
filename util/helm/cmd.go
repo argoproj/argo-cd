@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -76,7 +77,7 @@ func (c Cmd) run(args ...string) (string, string, error) {
 	return out, fullCommand, nil
 }
 
-func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
+func (c *Cmd) RegistryLogin(ctx context.Context, repo string, creds Creds) (string, error) {
 	args := []string{"registry", "login"}
 	args = append(args, repo)
 
@@ -84,7 +85,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 		args = append(args, "--username", creds.GetUsername())
 	}
 
-	helmPassword, err := creds.GetPassword()
+	helmPassword, err := creds.GetPassword(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get password for helm registry: %w", err)
 	}
@@ -134,7 +135,7 @@ func (c *Cmd) RegistryLogout(repo string, _ Creds) (string, error) {
 	return out, nil
 }
 
-func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool) (string, error) {
+func (c *Cmd) RepoAdd(ctx context.Context, name string, url string, opts Creds, passCredentials bool) (string, error) {
 	tmp, err := os.MkdirTemp("", "helm")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temporary directory for repo: %w", err)
@@ -147,7 +148,7 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 		args = append(args, "--username", opts.GetUsername())
 	}
 
-	helmPassword, err := opts.GetPassword()
+	helmPassword, err := opts.GetPassword(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get password for helm registry: %w", err)
 	}
@@ -225,7 +226,7 @@ func writeToTmp(data []byte) (string, argoio.Closer, error) {
 	}), nil
 }
 
-func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, passCredentials bool) (string, error) {
+func (c *Cmd) Fetch(ctx context.Context, repo, chartName, version, destination string, creds Creds, passCredentials bool) (string, error) {
 	args := []string{"pull", "--destination", destination}
 	if version != "" {
 		args = append(args, "--version", version)
@@ -234,7 +235,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 		args = append(args, "--username", creds.GetUsername())
 	}
 
-	helmPassword, err := creds.GetPassword()
+	helmPassword, err := creds.GetPassword(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get password for helm registry: %w", err)
 	}

@@ -19,8 +19,8 @@ import (
 )
 
 // StartInformer is a helper to start an informer, wait for its cache to sync and return a cancel func
-func StartInformer(informer cache.SharedIndexInformer) context.CancelFunc {
-	ctx, cancel := context.WithCancel(context.Background())
+func StartInformer(ctx context.Context, informer cache.SharedIndexInformer) context.CancelFunc {
+	ctx, cancel := context.WithCancel(ctx)
 	go informer.Run(ctx.Done())
 	if !cache.WaitForCacheSync(ctx.Done(), informer.HasSynced) {
 		log.Fatal("Timed out waiting for informer cache to sync")

@@ -232,7 +232,7 @@ type tokenVerifierMock struct {
 	err    error
 }
 
-func (tm *tokenVerifierMock) VerifyToken(_ string) (jwt.Claims, string, error) {
+func (tm *tokenVerifierMock) VerifyToken(_ context.Context, _ string) (jwt.Claims, string, error) {
 	if tm.claims == nil {
 		return nil, "", tm.err
 	}
@@ -345,40 +345,50 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 	}
 }
 
-var (
-	loggedOutContext = context.Background()
-	//nolint:staticcheck
-	loggedInContext = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
-	//nolint:staticcheck
-	loggedInContextFederated = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "not-foo", "email": "bar", "groups": []string{"baz"}, "federated_claims": map[string]any{"user_id": "foo"}})
-)
+type claims string
+
+var claimsKey claims = "claims"
 
 func TestIss(t *testing.T) {
-	assert.Empty(t, Iss(loggedOutContext))
+	ctx := t.Context()
+	assert.Empty(t, Iss(ctx))
+	loggedInContext := context.WithValue(ctx, claimsKey, &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
 	assert.Equal(t, "qux", Iss(loggedInContext))
+	loggedInContextFederated := context.WithValue(ctx, claimsKey, &jwt.MapClaims{"iss": "qux", "sub": "not-foo", "email": "bar", "groups": []string{"baz"}, "federated_claims": map[string]any{"user_id": "foo"}})
 	assert.Equal(t, "qux", Iss(loggedInContextFederated))
 }
 
 func TestLoggedIn(t *testing.T) {
-	assert.False(t, LoggedIn(loggedOutContext))
+	ctx := t.Context()
+	assert.False(t, LoggedIn(ctx))
+	loggedInContext := context.WithValue(ctx, claimsKey, &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
 	assert.True(t, LoggedIn(loggedInContext))
+	loggedInContextFederated := context.WithValue(ctx, claimsKey, &jwt.MapClaims{"iss": "qux", "sub": "not-foo", "email": "bar", "groups": []string{"baz"}, "federated_claims": map[string]any{"user_id": "foo"}})
 	assert.True(t, LoggedIn(loggedInContextFederated))
 }
 
 func TestUsername(t *testing.T) {
-	assert.Empty(t, Username(loggedOutContext))
+	ctx := t.Context()
+	assert.Empty(t, Username(ctx))
+	loggedInContext := context.WithValue(ctx, claimsKey, &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
 	assert.Equal(t, "bar", Username(loggedInContext))
+	loggedInContextFederated := context.WithValue(ctx, claimsKey, &jwt.MapClaims{"iss": "qux", "sub": "not-foo", "email": "bar", "groups": []string{"baz"}, "federated_claims": map[string]any{"user_id": "foo"}})
 	assert.Equal(t, "bar", Username(loggedInContextFederated))
 }
 
 func TestGetUserIdentifier(t *testing.T) {
-	assert.Empty(t, GetUserIdentifier(loggedOutContext))
+	ctx := t.Context()
+	assert.Empty(t, GetUserIdentifier(ctx))
+	loggedInContext := context.WithValue(ctx, claimsKey, &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
 	assert.Equal(t, "foo", GetUserIdentifier(loggedInContext))
+	loggedInContextFederated := context.WithValue(ctx, claimsKey, &jwt.MapClaims{"iss": "qux", "sub": "not-foo", "email": "bar", "groups": []string{"baz"}, "federated_claims": map[string]any{"user_id": "foo"}})
 	assert.Equal(t, "foo", GetUserIdentifier(loggedInContextFederated))
 }
 
 func TestGroups(t *testing.T) {
-	assert.Empty(t, Groups(loggedOutContext, []string{"groups"}))
+	ctx := t.Context()
+	assert.Empty(t, Groups(ctx, []string{"groups"}))
+	loggedInContext := context.WithValue(t.Context(), claimsKey, &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
 	assert.Equal(t, []string{"baz"}, Groups(loggedInContext, []string{"groups"}))
 }
 
@@ -633,7 +643,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		assert.NotContains(t, err.Error(), "oidc: id token signed with unsupported algorithm")
 	})
 
@@ -665,7 +675,7 @@ rootCA: |
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		// If the root CA is being respected, we won't get this error. The error message is environment-dependent, so
 		// we check for either of the error messages associated with a failed cert check.
 		assert.NotContains(t, err.Error(), "certificate is not trusted")
@@ -702,7 +712,7 @@ rootCA: |
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -737,7 +747,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -772,7 +782,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -808,7 +818,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		assert.NotContains(t, err.Error(), "certificate is not trusted")
 		assert.NotContains(t, err.Error(), "certificate signed by unknown authority")
 	})
@@ -837,7 +847,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		// This is the error thrown when the test server's certificate _is_ being verified.
 		assert.NotContains(t, err.Error(), "certificate is not trusted")
 		assert.NotContains(t, err.Error(), "certificate signed by unknown authority")
@@ -874,7 +884,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 	})
 
@@ -910,7 +920,7 @@ skipAudienceCheckWhenTokenHasNoAudience: true`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.NoError(t, err)
 	})
 
@@ -946,7 +956,7 @@ skipAudienceCheckWhenTokenHasNoAudience: false`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -982,7 +992,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.NoError(t, err)
 	})
 
@@ -1019,7 +1029,7 @@ allowedAudiences:
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.NoError(t, err)
 	})
 
@@ -1056,7 +1066,7 @@ allowedAudiences:
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -1092,7 +1102,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -1129,7 +1139,7 @@ allowedAudiences: []`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -1167,7 +1177,7 @@ allowedAudiences: ["aud-a", "aud-b"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.NoError(t, err)
 	})
 
@@ -1202,7 +1212,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})

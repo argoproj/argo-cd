@@ -93,7 +93,7 @@ has appropriate RBAC permissions to change other accounts.
 				os.Exit(1)
 			}
 			acdClient := headless.NewClientOrDie(clientOpts, c)
-			conn, usrIf := acdClient.NewAccountClientOrDie()
+			conn, usrIf := acdClient.NewAccountClientOrDie(ctx)
 			defer io.Close(conn)
 
 			userInfo := getCurrentAccount(ctx, acdClient)
@@ -172,7 +172,7 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 				os.Exit(1)
 			}
 
-			conn, client := headless.NewClientOrDie(clientOpts, c).NewSessionClientOrDie()
+			conn, client := headless.NewClientOrDie(clientOpts, c).NewSessionClientOrDie(ctx)
 			defer io.Close(conn)
 
 			response, err := client.GetUserInfo(ctx, &session.GetUserInfoRequest{})
@@ -228,7 +228,7 @@ Resources: %v
 				os.Exit(1)
 			}
 
-			conn, client := headless.NewClientOrDie(clientOpts, c).NewAccountClientOrDie()
+			conn, client := headless.NewClientOrDie(clientOpts, c).NewAccountClientOrDie(ctx)
 			defer io.Close(conn)
 
 			response, err := client.CanI(ctx, &accountpkg.CanIRequest{
@@ -266,7 +266,7 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
-			conn, client := headless.NewClientOrDie(clientOpts, c).NewAccountClientOrDie()
+			conn, client := headless.NewClientOrDie(clientOpts, c).NewAccountClientOrDie(ctx)
 			defer io.Close(conn)
 
 			response, err := client.ListAccounts(ctx, &accountpkg.ListAccountRequest{})
@@ -290,7 +290,7 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 }
 
 func getCurrentAccount(ctx context.Context, clientset argocdclient.Client) session.GetUserInfoResponse {
-	conn, client := clientset.NewSessionClientOrDie()
+	conn, client := clientset.NewSessionClientOrDie(ctx)
 	defer io.Close(conn)
 	userInfo, err := client.GetUserInfo(ctx, &session.GetUserInfoRequest{})
 	errors.CheckError(err)
@@ -319,7 +319,7 @@ argocd account get --account <account-name>`,
 				account = getCurrentAccount(ctx, clientset).Username
 			}
 
-			conn, client := clientset.NewAccountClientOrDie()
+			conn, client := clientset.NewAccountClientOrDie(ctx)
 			defer io.Close(conn)
 
 			acc, err := client.GetAccount(ctx, &accountpkg.GetAccountRequest{Name: account})
@@ -387,7 +387,7 @@ argocd account generate-token --account <account-name>`,
 			ctx := c.Context()
 
 			clientset := headless.NewClientOrDie(clientOpts, c)
-			conn, client := clientset.NewAccountClientOrDie()
+			conn, client := clientset.NewAccountClientOrDie(ctx)
 			defer io.Close(conn)
 			if account == "" {
 				account = getCurrentAccount(ctx, clientset).Username
@@ -429,7 +429,7 @@ argocd account delete-token --account <account-name> ID`,
 			id := args[0]
 
 			clientset := headless.NewClientOrDie(clientOpts, c)
-			conn, client := clientset.NewAccountClientOrDie()
+			conn, client := clientset.NewAccountClientOrDie(ctx)
 			defer io.Close(conn)
 			if account == "" {
 				account = getCurrentAccount(ctx, clientset).Username

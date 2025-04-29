@@ -66,7 +66,7 @@ func newTestAccountServerExt(t *testing.T, ctx context.Context, enforceFn rbac.C
 	}
 	kubeclientset := fake.NewClientset(cm, secret)
 	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
-	sessionMgr := sessionutil.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, sessionutil.NewUserStateStorage(nil))
+	sessionMgr := sessionutil.NewSessionManager(settingsMgr, test.NewFakeProjLister(ctx), "", nil, sessionutil.NewUserStateStorage(nil))
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	enforcer.SetClaimsEnforcerFunc(enforceFn)
 

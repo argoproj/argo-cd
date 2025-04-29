@@ -61,7 +61,7 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, ign
 
 	// Apply ignoreApplicationDifferences rules to remove ignored fields from both the live and the desired state. This
 	// prevents those differences from appearing in the diff and therefore in the patch.
-	err := applyIgnoreDifferences(ignoreAppDifferences, normalizedLive, obj, ignoreNormalizerOpts)
+	err := applyIgnoreDifferences(ctx, ignoreAppDifferences, normalizedLive, obj, ignoreNormalizerOpts)
 	if err != nil {
 		return controllerutil.OperationResultNone, fmt.Errorf("failed to apply ignore differences: %w", err)
 	}
@@ -135,7 +135,7 @@ func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj client.Object) 
 }
 
 // applyIgnoreDifferences applies the ignore differences rules to the found application. It modifies the applications in place.
-func applyIgnoreDifferences(applicationSetIgnoreDifferences argov1alpha1.ApplicationSetIgnoreDifferences, found *argov1alpha1.Application, generatedApp *argov1alpha1.Application, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts) error {
+func applyIgnoreDifferences(ctx context.Context, applicationSetIgnoreDifferences argov1alpha1.ApplicationSetIgnoreDifferences, found *argov1alpha1.Application, generatedApp *argov1alpha1.Application, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts) error {
 	if len(applicationSetIgnoreDifferences) == 0 {
 		return nil
 	}
@@ -156,7 +156,7 @@ func applyIgnoreDifferences(applicationSetIgnoreDifferences argov1alpha1.Applica
 	if err != nil {
 		return fmt.Errorf("failed to convert found application to unstructured: %w", err)
 	}
-	result, err := argodiff.Normalize([]*unstructured.Unstructured{unstructuredFound}, []*unstructured.Unstructured{unstructuredGenerated}, diffConfig)
+	result, err := argodiff.Normalize(ctx, []*unstructured.Unstructured{unstructuredFound}, []*unstructured.Unstructured{unstructuredGenerated}, diffConfig)
 	if err != nil {
 		return fmt.Errorf("failed to normalize application spec: %w", err)
 	}

@@ -19,22 +19,23 @@ import (
 )
 
 func TestCreateAndUseAccount(t *testing.T) {
-	ctx := accountFixture.Given(t)
-	ctx.
+	ctx := t.Context()
+	actx := accountFixture.Given(t)
+	actx.
 		Name("test").
 		When().
 		Create().
 		Then().
-		And(func(account *account.Account, _ error) {
-			assert.Equal(t, account.Name, ctx.GetName())
+		And(ctx, func(account *account.Account, _ error) {
+			assert.Equal(t, account.Name, actx.GetName())
 			assert.Equal(t, []string{"login"}, account.Capabilities)
 		}).
 		When().
 		Login().
 		Then().
-		CurrentUser(func(user *session.GetUserInfoResponse, _ error) {
+		CurrentUser(ctx, func(user *session.GetUserInfoResponse, _ error) {
 			assert.True(t, user.LoggedIn)
-			assert.Equal(t, user.Username, ctx.GetName())
+			assert.Equal(t, user.Username, actx.GetName())
 		})
 }
 
@@ -80,6 +81,7 @@ func TestCanIGetLogsDeny(t *testing.T) {
 }
 
 func TestCreateAndUseAccountCLI(t *testing.T) {
+	ctx := t.Context()
 	EnsureCleanState(t)
 
 	output, err := RunCli("account", "list")
@@ -88,7 +90,7 @@ func TestCreateAndUseAccountCLI(t *testing.T) {
 	assert.Equal(t, `NAME   ENABLED  CAPABILITIES
 admin  true     login`, output)
 
-	errors.CheckError(SetAccounts(map[string][]string{
+	errors.CheckError(SetAccounts(ctx, map[string][]string{
 		"test": {"login", "apiKey"},
 	}))
 
@@ -106,7 +108,7 @@ test   true     login, apiKey`, output)
 	clientOpts.AuthToken = token
 	testAccountClientset := headless.NewClientOrDie(&clientOpts, &cobra.Command{})
 
-	closer, client := testAccountClientset.NewSessionClientOrDie()
+	closer, client := testAccountClientset.NewSessionClientOrDie(ctx)
 	defer io.Close(closer)
 
 	info, err := client.GetUserInfo(t.Context(), &session.GetUserInfoRequest{})
@@ -118,7 +120,7 @@ test   true     login, apiKey`, output)
 func TestLoginBadCredentials(t *testing.T) {
 	EnsureCleanState(t)
 
-	closer, sessionClient := ArgoCDClientset.NewSessionClientOrDie()
+	closer, sessionClient := ArgoCDClientset.NewSessionClientOrDie(t.Context())
 	defer io.Close(closer)
 
 	requests := []session.SessionCreateRequest{{

@@ -62,7 +62,7 @@ func TestLogAppProjEvent(t *testing.T) {
 	}
 
 	output := captureLogEntries(func() {
-		logger.LogAppProjEvent(&proj, ei, "This is a test message", "")
+		logger.LogAppProjEvent(t.Context(), &proj, ei, "This is a test message", "")
 	})
 
 	assert.Contains(t, output, "level=info")
@@ -75,7 +75,7 @@ func TestLogAppProjEvent(t *testing.T) {
 
 	// If K8s Event Disable Log
 	output = captureLogEntries(func() {
-		logger.LogAppProjEvent(&proj, ei, "This is a test message", "")
+		logger.LogAppProjEvent(t.Context(), &proj, ei, "This is a test message", "")
 	})
 
 	assert.Empty(t, output)
@@ -106,7 +106,7 @@ func TestLogAppEvent(t *testing.T) {
 	}
 
 	output := captureLogEntries(func() {
-		logger.LogAppEvent(&app, ei, "This is a test message", "", nil)
+		logger.LogAppEvent(t.Context(), &app, ei, "This is a test message", "", nil)
 	})
 
 	assert.Contains(t, output, "level=info")
@@ -121,7 +121,7 @@ func TestLogAppEvent(t *testing.T) {
 
 	// If K8s Event Disable Log
 	output = captureLogEntries(func() {
-		logger.LogAppEvent(&app, ei, "This is a test message", "", nil)
+		logger.LogAppEvent(t.Context(), &app, ei, "This is a test message", "", nil)
 	})
 
 	assert.Empty(t, output)
@@ -148,7 +148,7 @@ func TestLogResourceEvent(t *testing.T) {
 	}
 
 	output := captureLogEntries(func() {
-		logger.LogResourceEvent(&res, ei, "This is a test message", "")
+		logger.LogResourceEvent(t.Context(), &res, ei, "This is a test message", "")
 	})
 
 	assert.Contains(t, output, "level=info")
@@ -161,7 +161,7 @@ func TestLogResourceEvent(t *testing.T) {
 
 	// If K8s Event Disable Log
 	output = captureLogEntries(func() {
-		logger.LogResourceEvent(&res, ei, "This is a test message", "")
+		logger.LogResourceEvent(t.Context(), &res, ei, "This is a test message", "")
 	})
 
 	assert.Empty(t, output)

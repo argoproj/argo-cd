@@ -103,8 +103,8 @@ func (r *redisCache) unmarshal(data []byte, obj any) error {
 	return nil
 }
 
-func (r *redisCache) Rename(oldKey string, newKey string, _ time.Duration) error {
-	err := r.client.Rename(context.TODO(), r.getKey(oldKey), r.getKey(newKey)).Err()
+func (r *redisCache) Rename(ctx context.Context, oldKey string, newKey string, _ time.Duration) error {
+	err := r.client.Rename(ctx, r.getKey(oldKey), r.getKey(newKey)).Err()
 	if err != nil && err.Error() == "ERR no such key" {
 		err = ErrCacheMiss
 	}
@@ -112,7 +112,7 @@ func (r *redisCache) Rename(oldKey string, newKey string, _ time.Duration) error
 	return err
 }
 
-func (r *redisCache) Set(item *Item) error {
+func (r *redisCache) Set(_ context.Context, item *Item) error {
 	expiration := item.CacheActionOpts.Expiration
 	if expiration == 0 {
 		expiration = r.expiration
@@ -131,9 +131,9 @@ func (r *redisCache) Set(item *Item) error {
 	})
 }
 
-func (r *redisCache) Get(key string, obj any) error {
+func (r *redisCache) Get(ctx context.Context, key string, obj any) error {
 	var data []byte
-	err := r.cache.Get(context.TODO(), r.getKey(key), &data)
+	err := r.cache.Get(ctx, r.getKey(key), &data)
 	if errors.Is(err, rediscache.ErrCacheMiss) {
 		err = ErrCacheMiss
 	}
@@ -143,8 +143,8 @@ func (r *redisCache) Get(key string, obj any) error {
 	return r.unmarshal(data, obj)
 }
 
-func (r *redisCache) Delete(key string) error {
-	return r.cache.Delete(context.TODO(), r.getKey(key))
+func (r *redisCache) Delete(ctx context.Context, key string) error {
+	return r.cache.Delete(ctx, r.getKey(key))
 }
 
 func (r *redisCache) OnUpdated(ctx context.Context, key string, callback func() error) error {
@@ -164,8 +164,8 @@ func (r *redisCache) OnUpdated(ctx context.Context, key string, callback func() 
 	}
 }
 
-func (r *redisCache) NotifyUpdated(key string) error {
-	return r.client.Publish(context.TODO(), key, "").Err()
+func (r *redisCache) NotifyUpdated(ctx context.Context, key string) error {
+	return r.client.Publish(ctx, key, "").Err()
 }
 
 type MetricsRegistry interface {

@@ -1,6 +1,7 @@
 package kustomize
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -39,7 +40,7 @@ type BuildOpts struct {
 // Kustomize provides wrapper functionality around the `kustomize` command.
 type Kustomize interface {
 	// Build returns a list of unstructured objects from a `kustomize build` command and extract supported parameters
-	Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, buildOpts *BuildOpts) ([]*unstructured.Unstructured, []Image, []string, error)
+	Build(ctx context.Context, opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, buildOpts *BuildOpts) ([]*unstructured.Unstructured, []Image, []string, error)
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
@@ -124,7 +125,7 @@ func mapToEditAddArgs(val map[string]string) []string {
 	return args
 }
 
-func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, buildOpts *BuildOpts) ([]*unstructured.Unstructured, []Image, []string, error) {
+func (k *kustomize) Build(ctx context.Context, opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, buildOpts *BuildOpts) ([]*unstructured.Unstructured, []Image, []string, error) {
 	// commands stores all the commands that were run as part of this build.
 	var commands []string
 
@@ -133,7 +134,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		env = append(env, envVars.Environ()...)
 	}
 
-	closer, environ, err := k.creds.Environ()
+	closer, environ, err := k.creds.Environ(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}

@@ -3,6 +3,8 @@
 package mocks
 
 import (
+	context "context"
+
 	git "github.com/argoproj/argo-cd/v3/util/git"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -42,9 +44,9 @@ func (_m *Client) ChangedFiles(revision string, targetRevision string) ([]string
 	return r0, r1
 }
 
-// Checkout provides a mock function with given fields: revision, submoduleEnabled
-func (_m *Client) Checkout(revision string, submoduleEnabled bool) (string, error) {
-	ret := _m.Called(revision, submoduleEnabled)
+// Checkout provides a mock function with given fields: ctx, revision, submoduleEnabled
+func (_m *Client) Checkout(ctx context.Context, revision string, submoduleEnabled bool) (string, error) {
+	ret := _m.Called(ctx, revision, submoduleEnabled)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Checkout")
@@ -52,17 +54,17 @@ func (_m *Client) Checkout(revision string, submoduleEnabled bool) (string, erro
 
 	var r0 string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string, bool) (string, error)); ok {
-		return rf(revision, submoduleEnabled)
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) (string, error)); ok {
+		return rf(ctx, revision, submoduleEnabled)
 	}
-	if rf, ok := ret.Get(0).(func(string, bool) string); ok {
-		r0 = rf(revision, submoduleEnabled)
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) string); ok {
+		r0 = rf(ctx, revision, submoduleEnabled)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(string, bool) error); ok {
-		r1 = rf(revision, submoduleEnabled)
+	if rf, ok := ret.Get(1).(func(context.Context, string, bool) error); ok {
+		r1 = rf(ctx, revision, submoduleEnabled)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -70,9 +72,9 @@ func (_m *Client) Checkout(revision string, submoduleEnabled bool) (string, erro
 	return r0, r1
 }
 
-// CheckoutOrNew provides a mock function with given fields: branch, base, submoduleEnabled
-func (_m *Client) CheckoutOrNew(branch string, base string, submoduleEnabled bool) (string, error) {
-	ret := _m.Called(branch, base, submoduleEnabled)
+// CheckoutOrNew provides a mock function with given fields: ctx, branch, base, submoduleEnabled
+func (_m *Client) CheckoutOrNew(ctx context.Context, branch string, base string, submoduleEnabled bool) (string, error) {
+	ret := _m.Called(ctx, branch, base, submoduleEnabled)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CheckoutOrNew")
@@ -80,17 +82,17 @@ func (_m *Client) CheckoutOrNew(branch string, base string, submoduleEnabled boo
 
 	var r0 string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string, string, bool) (string, error)); ok {
-		return rf(branch, base, submoduleEnabled)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, bool) (string, error)); ok {
+		return rf(ctx, branch, base, submoduleEnabled)
 	}
-	if rf, ok := ret.Get(0).(func(string, string, bool) string); ok {
-		r0 = rf(branch, base, submoduleEnabled)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, bool) string); ok {
+		r0 = rf(ctx, branch, base, submoduleEnabled)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(string, string, bool) error); ok {
-		r1 = rf(branch, base, submoduleEnabled)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, bool) error); ok {
+		r1 = rf(ctx, branch, base, submoduleEnabled)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -98,9 +100,9 @@ func (_m *Client) CheckoutOrNew(branch string, base string, submoduleEnabled boo
 	return r0, r1
 }
 
-// CheckoutOrOrphan provides a mock function with given fields: branch, submoduleEnabled
-func (_m *Client) CheckoutOrOrphan(branch string, submoduleEnabled bool) (string, error) {
-	ret := _m.Called(branch, submoduleEnabled)
+// CheckoutOrOrphan provides a mock function with given fields: ctx, branch, submoduleEnabled
+func (_m *Client) CheckoutOrOrphan(ctx context.Context, branch string, submoduleEnabled bool) (string, error) {
+	ret := _m.Called(ctx, branch, submoduleEnabled)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CheckoutOrOrphan")
@@ -108,17 +110,17 @@ func (_m *Client) CheckoutOrOrphan(branch string, submoduleEnabled bool) (string
 
 	var r0 string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string, bool) (string, error)); ok {
-		return rf(branch, submoduleEnabled)
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) (string, error)); ok {
+		return rf(ctx, branch, submoduleEnabled)
 	}
-	if rf, ok := ret.Get(0).(func(string, bool) string); ok {
-		r0 = rf(branch, submoduleEnabled)
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) string); ok {
+		r0 = rf(ctx, branch, submoduleEnabled)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(string, bool) error); ok {
-		r1 = rf(branch, submoduleEnabled)
+	if rf, ok := ret.Get(1).(func(context.Context, string, bool) error); ok {
+		r1 = rf(ctx, branch, submoduleEnabled)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -126,9 +128,9 @@ func (_m *Client) CheckoutOrOrphan(branch string, submoduleEnabled bool) (string
 	return r0, r1
 }
 
-// CommitAndPush provides a mock function with given fields: branch, message
-func (_m *Client) CommitAndPush(branch string, message string) (string, error) {
-	ret := _m.Called(branch, message)
+// CommitAndPush provides a mock function with given fields: ctx, branch, message
+func (_m *Client) CommitAndPush(ctx context.Context, branch string, message string) (string, error) {
+	ret := _m.Called(ctx, branch, message)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CommitAndPush")
@@ -136,17 +138,17 @@ func (_m *Client) CommitAndPush(branch string, message string) (string, error) {
 
 	var r0 string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string, string) (string, error)); ok {
-		return rf(branch, message)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (string, error)); ok {
+		return rf(ctx, branch, message)
 	}
-	if rf, ok := ret.Get(0).(func(string, string) string); ok {
-		r0 = rf(branch, message)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) string); ok {
+		r0 = rf(ctx, branch, message)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = rf(branch, message)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, branch, message)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -182,17 +184,17 @@ func (_m *Client) CommitSHA() (string, error) {
 	return r0, r1
 }
 
-// Fetch provides a mock function with given fields: revision
-func (_m *Client) Fetch(revision string) error {
-	ret := _m.Called(revision)
+// Fetch provides a mock function with given fields: ctx, revision
+func (_m *Client) Fetch(ctx context.Context, revision string) error {
+	ret := _m.Called(ctx, revision)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Fetch")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(revision)
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, revision)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -314,9 +316,9 @@ func (_m *Client) LsLargeFiles() ([]string, error) {
 	return r0, r1
 }
 
-// LsRefs provides a mock function with no fields
-func (_m *Client) LsRefs() (*git.Refs, error) {
-	ret := _m.Called()
+// LsRefs provides a mock function with given fields: ctx
+func (_m *Client) LsRefs(ctx context.Context) (*git.Refs, error) {
+	ret := _m.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for LsRefs")
@@ -324,19 +326,19 @@ func (_m *Client) LsRefs() (*git.Refs, error) {
 
 	var r0 *git.Refs
 	var r1 error
-	if rf, ok := ret.Get(0).(func() (*git.Refs, error)); ok {
-		return rf()
+	if rf, ok := ret.Get(0).(func(context.Context) (*git.Refs, error)); ok {
+		return rf(ctx)
 	}
-	if rf, ok := ret.Get(0).(func() *git.Refs); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(context.Context) *git.Refs); ok {
+		r0 = rf(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*git.Refs)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -344,9 +346,9 @@ func (_m *Client) LsRefs() (*git.Refs, error) {
 	return r0, r1
 }
 
-// LsRemote provides a mock function with given fields: revision
-func (_m *Client) LsRemote(revision string) (string, error) {
-	ret := _m.Called(revision)
+// LsRemote provides a mock function with given fields: ctx, revision
+func (_m *Client) LsRemote(ctx context.Context, revision string) (string, error) {
+	ret := _m.Called(ctx, revision)
 
 	if len(ret) == 0 {
 		panic("no return value specified for LsRemote")
@@ -354,17 +356,17 @@ func (_m *Client) LsRemote(revision string) (string, error) {
 
 	var r0 string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string) (string, error)); ok {
-		return rf(revision)
+	if rf, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
+		return rf(ctx, revision)
 	}
-	if rf, ok := ret.Get(0).(func(string) string); ok {
-		r0 = rf(revision)
+	if rf, ok := ret.Get(0).(func(context.Context, string) string); ok {
+		r0 = rf(ctx, revision)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(revision)
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, revision)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -476,17 +478,17 @@ func (_m *Client) SetAuthor(name string, email string) (string, error) {
 	return r0, r1
 }
 
-// Submodule provides a mock function with no fields
-func (_m *Client) Submodule() error {
-	ret := _m.Called()
+// Submodule provides a mock function with given fields: ctx
+func (_m *Client) Submodule(ctx context.Context) error {
+	ret := _m.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Submodule")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func() error); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = rf(ctx)
 	} else {
 		r0 = ret.Error(0)
 	}

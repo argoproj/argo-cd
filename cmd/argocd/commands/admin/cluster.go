@@ -99,7 +99,7 @@ func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClien
 		overrides := clientcmd.ConfigOverrides{}
 		redisHaProxyPodLabelSelector := common.LabelKeyAppName + "=" + redisHaProxyName
 		redisPodLabelSelector := common.LabelKeyAppName + "=" + redisName
-		port, err := kubeutil.PortForward(6379, namespace, &overrides,
+		port, err := kubeutil.PortForward(ctx, 6379, namespace, &overrides,
 			redisHaProxyPodLabelSelector, redisPodLabelSelector)
 		if err != nil {
 			return nil, err
@@ -159,7 +159,7 @@ func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClien
 			for ns := range nsSet {
 				namespaces = append(namespaces, ns)
 			}
-			_ = cache.GetClusterInfo(cluster.Server, &cluster.Info)
+			_ = cache.GetClusterInfo(ctx, cluster.Server, &cluster.Info)
 			clusters[batchStart+i] = ClusterWithInfo{cluster, clusterShard, namespaces}
 			return nil
 		})
@@ -628,7 +628,7 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 					InstallHint: clusterOpts.ExecProviderInstallHint,
 				}
 			case generateToken:
-				bearerToken, err = GenerateToken(clusterOpts, conf)
+				bearerToken, err = GenerateToken(ctx, clusterOpts, conf)
 				errors.CheckError(err)
 			case bearerToken == "":
 				bearerToken = "bearer-token"
@@ -681,11 +681,11 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 	return command
 }
 
-func GenerateToken(clusterOpts cmdutil.ClusterOptions, conf *rest.Config) (string, error) {
+func GenerateToken(ctx context.Context, clusterOpts cmdutil.ClusterOptions, conf *rest.Config) (string, error) {
 	clientset, err := kubernetes.NewForConfig(conf)
 	errors.CheckError(err)
 
-	bearerToken, err := clusterauth.GetServiceAccountBearerToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount, common.BearerTokenTimeout)
+	bearerToken, err := clusterauth.GetServiceAccountBearerToken(ctx, clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount, common.BearerTokenTimeout)
 	if err != nil {
 		return "", err
 	}

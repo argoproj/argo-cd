@@ -731,7 +731,7 @@ func TestManipulateApplicationResources(t *testing.T) {
 
 			deployment := resources[index]
 
-			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient(t.Context())
 			require.NoError(t, err)
 			defer io.Close(closer)
 
@@ -774,7 +774,7 @@ func assetSecretDataHidden(t *testing.T, manifest string) {
 }
 
 func TestAppWithSecrets(t *testing.T) {
-	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient(t.Context())
 	require.NoError(t, err)
 	defer io.Close(closer)
 
@@ -990,7 +990,7 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		When().
 		And(func() {
-			require.NoError(t, fixture.SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, fixture.SetResourceOverrides(t.Context(), map[string]ResourceOverride{
 				"argoproj.io/Dummy": {
 					KnownTypeFields: []KnownTypeField{{
 						Field: "spec",
@@ -1071,7 +1071,7 @@ func TestOldStyleResourceAction(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient(t.Context())
 			require.NoError(t, err)
 			defer io.Close(closer)
 
@@ -1177,7 +1177,7 @@ func TestNewStyleResourceActionPermitted(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient(t.Context())
 			require.NoError(t, err)
 			defer io.Close(closer)
 
@@ -1289,7 +1289,7 @@ func TestNewStyleResourceActionMixedOk(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient(t.Context())
 			require.NoError(t, err)
 			defer io.Close(closer)
 
@@ -1467,7 +1467,7 @@ func assertResourceActions(t *testing.T, appName string, successful bool) {
 		}
 	}
 
-	closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie()
+	closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie(t.Context())
 	defer io.Close(closer)
 
 	deploymentResource, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
@@ -1568,7 +1568,7 @@ func TestPermissions(t *testing.T) {
 		When().
 		// remove projet permissions and "refresh" app
 		And(func() {
-			projActions.UpdateProject(func(proj *AppProject) {
+			projActions.UpdateProject(t.Context(), func(proj *AppProject) {
 				proj.Spec.Destinations = nil
 				proj.Spec.SourceRepos = nil
 			})
@@ -1579,7 +1579,7 @@ func TestPermissions(t *testing.T) {
 		Expect(Condition(ApplicationConditionInvalidSpecError, destinationError)).
 		Expect(Condition(ApplicationConditionInvalidSpecError, sourceError)).
 		And(func(app *Application) {
-			closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie()
+			closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie(t.Context())
 			defer io.Close(closer)
 			appName, appNs := argo.ParseFromQualifiedName(app.Name, "")
 			fmt.Printf("APP NAME: %s\n", appName)
@@ -1594,7 +1594,7 @@ func TestPermissions(t *testing.T) {
 			projActions.
 				AddDestination("*", "*").
 				AddSource("*").
-				UpdateProject(func(proj *AppProject) {
+				UpdateProject(t.Context(), func(proj *AppProject) {
 					proj.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{{Group: "*", Kind: "Deployment"}}
 				})
 		}).
@@ -2387,7 +2387,7 @@ definitions:
 	Given(t).
 		Path("crd-subresource").
 		And(func() {
-			require.NoError(t, fixture.SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, fixture.SetResourceOverrides(t.Context(), map[string]ResourceOverride{
 				"argoproj.io/StatusSubResource": {
 					Actions: actions,
 				},
@@ -2472,7 +2472,7 @@ func TestAppWaitOperationInProgress(t *testing.T) {
 	ctx := Given(t)
 	ctx.
 		And(func() {
-			require.NoError(t, fixture.SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, fixture.SetResourceOverrides(t.Context(), map[string]ResourceOverride{
 				"batch/Job": {
 					HealthLua: `return { status = 'Running' }`,
 				},
@@ -2581,7 +2581,7 @@ func TestDisableManifestGeneration(t *testing.T) {
 		}).
 		When().
 		And(func() {
-			require.NoError(t, fixture.SetEnableManifestGeneration(map[ApplicationSourceType]bool{
+			require.NoError(t, fixture.SetEnableManifestGeneration(t.Context(), map[ApplicationSourceType]bool{
 				ApplicationSourceTypeKustomize: false,
 			}))
 		}).
@@ -2692,7 +2692,7 @@ func TestSwitchTrackingMethod(t *testing.T) {
 func TestSwitchTrackingLabel(t *testing.T) {
 	ctx := Given(t)
 
-	require.NoError(t, fixture.SetTrackingMethod(string(argo.TrackingMethodLabel)))
+	require.NoError(t, fixture.SetTrackingMethod(t.Context(), string(argo.TrackingMethodLabel)))
 	ctx.
 		Path("deployment").
 		When().
@@ -2786,7 +2786,7 @@ func TestSwitchTrackingLabel(t *testing.T) {
 func TestAnnotationTrackingExtraResources(t *testing.T) {
 	ctx := Given(t)
 
-	require.NoError(t, fixture.SetTrackingMethod(string(argo.TrackingMethodAnnotation)))
+	require.NoError(t, fixture.SetTrackingMethod(t.Context(), string(argo.TrackingMethodAnnotation)))
 	ctx.
 		Path("deployment").
 		When().
@@ -2955,7 +2955,8 @@ func TestInstallationID(t *testing.T) {
 		SetTrackingMethod(string(argo.TrackingMethodAnnotation)).
 		And(func() {
 			_, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(
-				t.Context(), &corev1.ConfigMap{
+				t.Context(),
+				&corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-configmap",
 						Annotations: map[string]string{
@@ -3000,7 +3001,8 @@ func TestDeletionConfirmation(t *testing.T) {
 	ctx.
 		And(func() {
 			_, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(
-				t.Context(), &corev1.ConfigMap{
+				t.Context(),
+				&corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-configmap",
 						Labels: map[string]string{

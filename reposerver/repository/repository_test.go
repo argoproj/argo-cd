@@ -317,7 +317,7 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 
 	cachedFakeResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}, Revision: mock.Anything}
 
-	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse}, nil, "")
+	err := service.cache.SetManifests(t.Context(), mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse}, nil, "")
 	require.NoError(t, err)
 
 	res, err := service.GenerateManifest(t.Context(), &q)
@@ -342,7 +342,7 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 
-	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: nil}, nil, "")
+	err := service.cache.SetManifests(t.Context(), mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: nil}, nil, "")
 	require.NoError(t, err)
 
 	res, err := service.GenerateManifest(t.Context(), &q)
@@ -410,7 +410,7 @@ func TestGenerateManifest_RefOnlyShortCircuit(t *testing.T) {
 	})
 	assert.True(t, lsremoteCalled, "ls-remote should be called when the source is ref only")
 	var revisions [][2]string
-	require.NoError(t, cacheMocks.cacheutilCache.GetItem("git-refs|"+repoRemote, &revisions))
+	require.NoError(t, cacheMocks.cacheutilCache.GetItem(t.Context(), "git-refs|"+repoRemote, &revisions))
 	assert.ElementsMatch(t, [][2]string{{"refs/heads/main", revision}, {"HEAD", "ref: refs/heads/main"}}, revisions)
 }
 
@@ -471,7 +471,7 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 		RefSources:         map[string]*v1alpha1.RefTarget{"$ref": {TargetRevision: "HEAD", Repo: *repo}},
 	}
-	err = cacheMocks.cacheutilCache.SetItem("git-refs|"+repoRemote, [][2]string{{"HEAD", revision}}, nil)
+	err = cacheMocks.cacheutilCache.SetItem(t.Context(), "git-refs|"+repoRemote, [][2]string{{"HEAD", revision}}, nil)
 	require.NoError(t, err)
 	_, err = service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
@@ -774,7 +774,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 		assert.NotNil(t, manifestRequest)
 
 		cachedManifestResponse := &cache.CachedManifestResponse{}
-		err := service.cache.GetManifests(mock.Anything, manifestRequest.ApplicationSource, manifestRequest.RefSources, manifestRequest, manifestRequest.Namespace, "", manifestRequest.AppLabelKey, manifestRequest.AppName, cachedManifestResponse, nil, "")
+		err := service.cache.GetManifests(t.Context(), mock.Anything, manifestRequest.ApplicationSource, manifestRequest.RefSources, manifestRequest, manifestRequest.Namespace, "", manifestRequest.AppLabelKey, manifestRequest.AppName, cachedManifestResponse, nil, "")
 		require.NoError(t, err)
 		return cachedManifestResponse
 	}
@@ -1826,11 +1826,11 @@ func TestService_newHelmClientResolveRevision(t *testing.T) {
 	service := newService(t, ".")
 
 	t.Run("EmptyRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "", "", true)
+		_, _, err := service.newHelmClientResolveRevision(t.Context(), &v1alpha1.Repository{}, "", "", true)
 		assert.EqualError(t, err, "invalid revision '': improper constraint: ")
 	})
 	t.Run("InvalidRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "???", "", true)
+		_, _, err := service.newHelmClientResolveRevision(t.Context(), &v1alpha1.Repository{}, "???", "", true)
 		assert.EqualError(t, err, "invalid revision '???': improper constraint: ???", true)
 	})
 }
@@ -2117,7 +2117,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			// Try to pull from the cache with a `source` that does not include any overrides. Overrides should not be
 			// part of the cache key, because you can't get the overrides without a repo operation. And avoiding repo
 			// operations is the point of the cache.
-			err = service.cache.GetManifests(mock.Anything, source, v1alpha1.RefTargetRevisionMapping{}, &v1alpha1.ClusterInfo{}, "", "", "", "test", res, nil, "")
+			err = service.cache.GetManifests(t.Context(), mock.Anything, source, v1alpha1.RefTargetRevisionMapping{}, &v1alpha1.ClusterInfo{}, "", "", "", "test", res, nil, "")
 			require.NoError(t, err)
 		})
 	})
@@ -3042,13 +3042,13 @@ func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
 	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
-	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
+	pullSha, err := gitClient.LsRemote(t.Context(), "refs/pull/123/head")
 	require.NoError(t, err)
 
-	err = checkoutRevision(gitClient, "does-not-exist", false)
+	err = checkoutRevision(t.Context(), gitClient, "does-not-exist", false)
 	require.Error(t, err)
 
-	err = checkoutRevision(gitClient, pullSha, false)
+	err = checkoutRevision(t.Context(), gitClient, pullSha, false)
 	require.NoError(t, err)
 }
 
@@ -3060,7 +3060,7 @@ func TestCheckoutRevisionPresentSkipFetch(t *testing.T) {
 	gitClient.On("IsRevisionPresent", revision).Return(true)
 	gitClient.On("Checkout", revision, mock.Anything).Return("", nil)
 
-	err := checkoutRevision(gitClient, revision, false)
+	err := checkoutRevision(t.Context(), gitClient, revision, false)
 	require.NoError(t, err)
 }
 
@@ -3073,7 +3073,7 @@ func TestCheckoutRevisionNotPresentCallFetch(t *testing.T) {
 	gitClient.On("Fetch", "").Return(nil)
 	gitClient.On("Checkout", revision, mock.Anything).Return("", nil)
 
-	err := checkoutRevision(gitClient, revision, false)
+	err := checkoutRevision(t.Context(), gitClient, revision, false)
 	require.NoError(t, err)
 }
 
@@ -3089,7 +3089,7 @@ func TestFetch(t *testing.T) {
 	gitClient.On("IsRevisionPresent", revision1).Once().Return(true)
 	gitClient.On("IsRevisionPresent", revision2).Once().Return(true)
 
-	err := fetch(gitClient, []string{revision1, revision2})
+	err := fetch(t.Context(), gitClient, []string{revision1, revision2})
 	require.NoError(t, err)
 }
 
@@ -3122,13 +3122,13 @@ func TestFetchRevisionCanGetNonstandardRefs(t *testing.T) {
 	err = gitClient.Init()
 	require.NoError(t, err)
 
-	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
+	pullSha, err := gitClient.LsRemote(t.Context(), "refs/pull/123/head")
 	require.NoError(t, err)
 
-	err = fetch(gitClient, []string{"does-not-exist"})
+	err = fetch(t.Context(), gitClient, []string{"does-not-exist"})
 	require.Error(t, err)
 
-	err = fetch(gitClient, []string{pullSha})
+	err = fetch(t.Context(), gitClient, []string{pullSha})
 	require.NoError(t, err)
 }
 
@@ -3979,7 +3979,7 @@ func TestGetRefs_CacheWithLockDisabled(t *testing.T) {
 			defer wg.Done()
 			client, err := git.NewClient("file://"+dir, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 			require.NoError(t, err)
-			refs, err := client.LsRefs()
+			refs, err := client.LsRefs(t.Context())
 			require.NoError(t, err)
 			assert.NotNil(t, refs)
 			assert.NotEmpty(t, refs.Branches, "Expected branches to be populated")
@@ -4006,7 +4006,7 @@ func TestGetRefs_CacheDisabled(t *testing.T) {
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	client, err := git.NewClient("file://"+dir, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, false))
 	require.NoError(t, err)
-	refs, err := client.LsRefs()
+	refs, err := client.LsRefs(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, refs)
 	assert.NotEmpty(t, refs.Branches, "Expected branches to be populated")
@@ -4035,7 +4035,7 @@ func TestGetRefs_CacheWithLock(t *testing.T) {
 			defer wg.Done()
 			client, err := git.NewClient("file://"+dir, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 			require.NoError(t, err)
-			refs, err := client.LsRefs()
+			refs, err := client.LsRefs(t.Context())
 			require.NoError(t, err)
 			assert.NotNil(t, refs)
 			assert.NotEmpty(t, refs.Branches, "Expected branches to be populated")
@@ -4064,13 +4064,13 @@ func TestGetRefs_CacheUnlockedOnUpdateFailed(t *testing.T) {
 	repoURL := "file://" + dir
 	client, err := git.NewClient(repoURL, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 	require.NoError(t, err)
-	refs, err := client.LsRefs()
+	refs, err := client.LsRefs(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, refs)
 	assert.NotEmpty(t, refs.Branches, "Expected branches to be populated")
 	assert.NotEmpty(t, refs.Branches[0])
 	var output [][2]string
-	err = cacheMocks.cacheutilCache.GetItem(fmt.Sprintf("git-refs|%s|%s", repoURL, common.CacheVersion), &output)
+	err = cacheMocks.cacheutilCache.GetItem(t.Context(), fmt.Sprintf("git-refs|%s|%s", repoURL, common.CacheVersion), &output)
 	require.Error(t, err, "Should be a cache miss")
 	assert.Empty(t, output, "Expected cache to be empty for key")
 	cacheMocks.mockCache.AssertNumberOfCalls(t, "UnlockGitReferences", 0)
@@ -4095,7 +4095,7 @@ func TestGetRefs_CacheLockTryLockGitRefCacheError(t *testing.T) {
 	// log.SetOutput(&buf)
 	client, err := git.NewClient(repoURL, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 	require.NoError(t, err)
-	refs, err := client.LsRefs()
+	refs, err := client.LsRefs(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, refs)
 }
@@ -4120,7 +4120,7 @@ func TestGetRevisionChartDetails(t *testing.T) {
 		root := t.TempDir()
 		service := newService(t, root)
 		repoURL := "file://" + root
-		err := service.cache.SetRevisionChartDetails(repoURL, "my-chart", "1.1.0", &v1alpha1.ChartDetails{
+		err := service.cache.SetRevisionChartDetails(t.Context(), repoURL, "my-chart", "1.1.0", &v1alpha1.ChartDetails{
 			Description: "test-description",
 			Home:        "test-home",
 			Maintainers: []string{"test-maintainer"},

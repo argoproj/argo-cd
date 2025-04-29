@@ -196,10 +196,11 @@ func init() {
 	argoCDAppControllerName = GetEnvWithDefault(EnvArgoCDAppControllerName, common.DefaultApplicationControllerName)
 
 	dialTime := 30 * time.Second
-	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress, dialTime)
+	tlsTestResult, err := grpcutil.TestTLS(context.Background(), apiServerAddress, dialTime) //nolint:forbidigo // Since initialization for test
 	errors.CheckError(err)
 
-	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{
+	//nolint:forbidigo // Since initialization for test.
+	ArgoCDClientset, err = apiclient.NewClient(context.Background(), &apiclient.ClientOptions{
 		Insecure:          true,
 		ServerAddr:        apiServerAddress,
 		PlainText:         !tlsTestResult.TLS,
@@ -213,7 +214,7 @@ func init() {
 
 	plainText = !tlsTestResult.TLS
 
-	errors.CheckError(LoginAs(adminUsername))
+	errors.CheckError(LoginAs(context.Background(), adminUsername)) //nolint:forbidigo // Since initialization for test
 
 	log.WithFields(log.Fields{"apiServerAddress": apiServerAddress}).Info("initialized")
 
@@ -242,14 +243,14 @@ func init() {
 	}
 }
 
-func loginAs(username, password string) error {
-	closer, client, err := ArgoCDClientset.NewSessionClient()
+func loginAs(ctx context.Context, username, password string) error {
+	closer, client, err := ArgoCDClientset.NewSessionClient(ctx)
 	if err != nil {
 		return err
 	}
 	defer io.Close(closer)
 
-	userInfoResponse, err := client.GetUserInfo(context.Background(), &sessionpkg.GetUserInfoRequest{})
+	userInfoResponse, err := client.GetUserInfo(ctx, &sessionpkg.GetUserInfoRequest{})
 	if err != nil {
 		return err
 	}
@@ -257,13 +258,13 @@ func loginAs(username, password string) error {
 		return nil
 	}
 
-	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: username, Password: password})
+	sessionResponse, err := client.Create(ctx, &sessionpkg.SessionCreateRequest{Username: username, Password: password})
 	if err != nil {
 		return err
 	}
 	token = sessionResponse.Token
 
-	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{
+	ArgoCDClientset, err = apiclient.NewClient(ctx, &apiclient.ClientOptions{
 		Insecure:          true,
 		ServerAddr:        apiServerAddress,
 		AuthToken:         token,
@@ -277,12 +278,12 @@ func loginAs(username, password string) error {
 	return err
 }
 
-func LoginAs(username string) error {
+func LoginAs(ctx context.Context, username string) error {
 	password := DefaultTestUserPassword
 	if username == "admin" {
 		password = AdminPassword
 	}
-	return loginAs(username, password)
+	return loginAs(ctx, username, password)
 }
 
 func Name() string {
@@ -361,18 +362,18 @@ func DeploymentNamespace() string {
 }
 
 // Convenience wrapper for updating argocd-cm
-func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) error {
-	return updateGenericConfigMap(common.ArgoCDConfigMapName, updater)
+func updateSettingConfigMap(ctx context.Context, updater func(cm *corev1.ConfigMap) error) error {
+	return updateGenericConfigMap(ctx, common.ArgoCDConfigMapName, updater)
 }
 
 // Convenience wrapper for updating argocd-notifications-cm
-func updateNotificationsConfigMap(updater func(cm *corev1.ConfigMap) error) error {
-	return updateGenericConfigMap(common.ArgoCDNotificationsConfigMapName, updater)
+func updateNotificationsConfigMap(ctx context.Context, updater func(cm *corev1.ConfigMap) error) error {
+	return updateGenericConfigMap(ctx, common.ArgoCDNotificationsConfigMapName, updater)
 }
 
 // Convenience wrapper for updating argocd-cm-rbac
-func updateRBACConfigMap(updater func(cm *corev1.ConfigMap) error) error {
-	return updateGenericConfigMap(common.ArgoCDRBACConfigMapName, updater)
+func updateRBACConfigMap(ctx context.Context, updater func(cm *corev1.ConfigMap) error) error {
+	return updateGenericConfigMap(ctx, common.ArgoCDRBACConfigMapName, updater)
 }
 
 func configMapsEquivalent(a *corev1.ConfigMap, b *corev1.ConfigMap) bool {
@@ -385,8 +386,8 @@ func configMapsEquivalent(a *corev1.ConfigMap, b *corev1.ConfigMap) bool {
 }
 
 // Updates a given config map in argocd-e2e namespace
-func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) error) error {
-	cm, err := KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Get(context.Background(), name, metav1.GetOptions{})
+func updateGenericConfigMap(ctx context.Context, name string, updater func(cm *corev1.ConfigMap) error) error {
+	cm, err := KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -399,7 +400,7 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 		return err
 	}
 	if !configMapsEquivalent(cm, oldCm) {
-		_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Update(context.Background(), cm, metav1.UpdateOptions{})
+		_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Update(ctx, cm, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -407,8 +408,8 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 	return nil
 }
 
-func SetEnableManifestGeneration(val map[v1alpha1.ApplicationSourceType]bool) error {
-	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+func SetEnableManifestGeneration(ctx context.Context, val map[v1alpha1.ApplicationSourceType]bool) error {
+	return updateSettingConfigMap(ctx, func(cm *corev1.ConfigMap) error {
 		for k, v := range val {
 			cm.Data[strings.ToLower(string(k))+".enable"] = strconv.FormatBool(v)
 		}
@@ -416,8 +417,8 @@ func SetEnableManifestGeneration(val map[v1alpha1.ApplicationSourceType]bool) er
 	})
 }
 
-func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) error {
-	err := updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+func SetResourceOverrides(ctx context.Context, overrides map[string]v1alpha1.ResourceOverride) error {
+	err := updateSettingConfigMap(ctx, func(cm *corev1.ConfigMap) error {
 		if len(overrides) > 0 {
 			yamlBytes, err := yaml.Marshal(overrides)
 			if err != nil {
@@ -433,44 +434,44 @@ func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) error 
 		return err
 	}
 
-	return SetResourceOverridesSplitKeys(overrides)
+	return SetResourceOverridesSplitKeys(ctx, overrides)
 }
 
-func SetInstallationID(installationID string) error {
-	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+func SetInstallationID(ctx context.Context, installationID string) error {
+	return updateSettingConfigMap(ctx, func(cm *corev1.ConfigMap) error {
 		cm.Data["installationID"] = installationID
 		return nil
 	})
 }
 
-func SetTrackingMethod(trackingMethod string) error {
-	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+func SetTrackingMethod(ctx context.Context, trackingMethod string) error {
+	return updateSettingConfigMap(ctx, func(cm *corev1.ConfigMap) error {
 		cm.Data["application.resourceTrackingMethod"] = trackingMethod
 		return nil
 	})
 }
 
-func SetTrackingLabel(trackingLabel string) error {
-	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+func SetTrackingLabel(ctx context.Context, trackingLabel string) error {
+	return updateSettingConfigMap(ctx, func(cm *corev1.ConfigMap) error {
 		cm.Data["application.instanceLabelKey"] = trackingLabel
 		return nil
 	})
 }
 
-func SetImpersonationEnabled(impersonationEnabledFlag string) error {
-	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+func SetImpersonationEnabled(ctx context.Context, impersonationEnabledFlag string) error {
+	return updateSettingConfigMap(ctx, func(cm *corev1.ConfigMap) error {
 		cm.Data["application.sync.impersonation.enabled"] = impersonationEnabledFlag
 		return nil
 	})
 }
 
-func CreateRBACResourcesForImpersonation(serviceAccountName string, policyRules []rbacv1.PolicyRule) error {
+func CreateRBACResourcesForImpersonation(ctx context.Context, serviceAccountName string, policyRules []rbacv1.PolicyRule) error {
 	sa := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: serviceAccountName,
 		},
 	}
-	_, err := KubeClientset.CoreV1().ServiceAccounts(DeploymentNamespace()).Create(context.Background(), sa, metav1.CreateOptions{})
+	_, err := KubeClientset.CoreV1().ServiceAccounts(DeploymentNamespace()).Create(ctx, sa, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -480,7 +481,7 @@ func CreateRBACResourcesForImpersonation(serviceAccountName string, policyRules 
 		},
 		Rules: policyRules,
 	}
-	_, err = KubeClientset.RbacV1().Roles(DeploymentNamespace()).Create(context.Background(), role, metav1.CreateOptions{})
+	_, err = KubeClientset.RbacV1().Roles(DeploymentNamespace()).Create(ctx, role, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -501,15 +502,15 @@ func CreateRBACResourcesForImpersonation(serviceAccountName string, policyRules 
 			},
 		},
 	}
-	_, err = KubeClientset.RbacV1().RoleBindings(DeploymentNamespace()).Create(context.Background(), rolebinding, metav1.CreateOptions{})
+	_, err = KubeClientset.RbacV1().RoleBindings(DeploymentNamespace()).Create(ctx, rolebinding, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) error {
-	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+func SetResourceOverridesSplitKeys(ctx context.Context, overrides map[string]v1alpha1.ResourceOverride) error {
+	return updateSettingConfigMap(ctx, func(cm *corev1.ConfigMap) error {
 		for k, v := range overrides {
 			if v.HealthLua != "" {
 				cm.Data[getResourceOverrideSplitKey(k, "health")] = v.HealthLua
@@ -548,8 +549,8 @@ func getResourceOverrideSplitKey(key string, customizeType string) string {
 	return fmt.Sprintf("resource.customizations.%s.%s", customizeType, groupKind)
 }
 
-func SetAccounts(accounts map[string][]string) error {
-	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+func SetAccounts(ctx context.Context, accounts map[string][]string) error {
+	return updateSettingConfigMap(ctx, func(cm *corev1.ConfigMap) error {
 		for k, v := range accounts {
 			cm.Data["accounts."+k] = strings.Join(v, ",")
 		}
@@ -557,8 +558,8 @@ func SetAccounts(accounts map[string][]string) error {
 	})
 }
 
-func SetPermissions(permissions []ACL, username string, roleName string) error {
-	return updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
+func SetPermissions(ctx context.Context, permissions []ACL, username string, roleName string) error {
+	return updateRBACConfigMap(ctx, func(cm *corev1.ConfigMap) error {
 		var aclstr string
 
 		for _, permission := range permissions {
@@ -572,8 +573,8 @@ func SetPermissions(permissions []ACL, username string, roleName string) error {
 	})
 }
 
-func SetResourceFilter(filters settings.ResourcesFilter) error {
-	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+func SetResourceFilter(ctx context.Context, filters settings.ResourcesFilter) error {
+	return updateSettingConfigMap(ctx, func(cm *corev1.ConfigMap) error {
 		exclusions, err := yaml.Marshal(filters.ResourceExclusions)
 		if err != nil {
 			return err
@@ -588,25 +589,25 @@ func SetResourceFilter(filters settings.ResourcesFilter) error {
 	})
 }
 
-func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) error {
-	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, metav1.GetOptions{})
+func SetProjectSpec(ctx context.Context, project string, spec v1alpha1.AppProjectSpec) error {
+	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(ctx, project, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 	proj.Spec = spec
-	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Update(context.Background(), proj, metav1.UpdateOptions{})
+	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Update(ctx, proj, metav1.UpdateOptions{})
 	return err
 }
 
-func SetParamInSettingConfigMap(key, value string) error {
-	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+func SetParamInSettingConfigMap(ctx context.Context, key, value string) error {
+	return updateSettingConfigMap(ctx, func(cm *corev1.ConfigMap) error {
 		cm.Data[key] = value
 		return nil
 	})
 }
 
-func SetParamInNotificationsConfigMap(key, value string) error {
-	return updateNotificationsConfigMap(func(cm *corev1.ConfigMap) error {
+func SetParamInNotificationsConfigMap(ctx context.Context, key, value string) error {
+	return updateNotificationsConfigMap(ctx, func(cm *corev1.ConfigMap) error {
 		cm.Data[key] = value
 		return nil
 	})
@@ -698,7 +699,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				metav1.ListOptions{LabelSelector: TestingLabel + "=true"})
 		},
 	})
-
+	ctx := t.Context()
 	RunFunctionsInParallelAndCheckErrors(t, []func() error{
 		func() error {
 			// delete old namespaces which were created by tests
@@ -813,41 +814,41 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			return nil
 		},
 		func() error {
-			err := updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+			err := updateSettingConfigMap(ctx, func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
 				return nil
 			})
 			if err != nil {
 				return err
 			}
-			err = updateNotificationsConfigMap(func(cm *corev1.ConfigMap) error {
+			err = updateNotificationsConfigMap(ctx, func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
 				return nil
 			})
 			if err != nil {
 				return err
 			}
-			err = updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
+			err = updateRBACConfigMap(ctx, func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
 				return nil
 			})
 			if err != nil {
 				return err
 			}
-			return updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {
+			return updateGenericConfigMap(ctx, common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
 				return nil
 			})
 		},
 		func() error {
 			// We can switch user and as result in previous state we will have non-admin user, this case should be reset
-			return LoginAs(adminUsername)
+			return LoginAs(ctx, adminUsername)
 		},
 	})
 
 	RunFunctionsInParallelAndCheckErrors(t, []func() error{
 		func() error {
-			err := SetProjectSpec("default", v1alpha1.AppProjectSpec{
+			err := SetProjectSpec(t.Context(), "default", v1alpha1.AppProjectSpec{
 				OrphanedResources:        nil,
 				SourceRepos:              []string{"*"},
 				Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},

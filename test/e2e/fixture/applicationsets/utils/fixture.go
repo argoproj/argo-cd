@@ -216,13 +216,14 @@ func EnsureCleanState(t *testing.T) {
 	errors.NewHandler(t).FailOnErr(Run("", "mkdir", "-p", TmpDir))
 
 	// We can switch user and as result in previous state we will have non-admin user, this case should be reset
-	require.NoError(t, fixture.LoginAs("admin"))
+	require.NoError(t, fixture.LoginAs(t.Context(), "admin"))
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
 
 func waitForExpectedClusterState(t *testing.T) error {
 	t.Helper()
+	ctx := t.Context()
 	fixtureClient := GetE2EFixtureK8sClient(t)
 
 	SetProjectSpec(t, fixtureClient, "default", v1alpha1.AppProjectSpec{
@@ -268,7 +269,7 @@ func waitForExpectedClusterState(t *testing.T) error {
 	for _, namespace := range []string{string(ApplicationsResourcesNamespace), string(ArgoCDExternalNamespace), string(ArgoCDExternalNamespace2)} {
 		// Wait up to 120 seconds for namespace to not exist
 		if err := waitForSuccess(func() error {
-			return cleanUpNamespace(fixtureClient, namespace)
+			return cleanUpNamespace(ctx, fixtureClient, namespace)
 		}, time.Now().Add(120*time.Second)); err != nil {
 			return err
 		}
@@ -286,8 +287,8 @@ func SetProjectSpec(t *testing.T, fixtureClient *E2EFixtureK8sClient, project st
 	require.NoError(t, err)
 }
 
-func cleanUpNamespace(fixtureClient *E2EFixtureK8sClient, namespace string) error {
-	_, err := fixtureClient.KubeClientset.CoreV1().Namespaces().Get(context.Background(), namespace, metav1.GetOptions{})
+func cleanUpNamespace(ctx context.Context, fixtureClient *E2EFixtureK8sClient, namespace string) error {
+	_, err := fixtureClient.KubeClientset.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
 
 	msg := ""
 

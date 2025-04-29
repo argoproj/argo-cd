@@ -59,7 +59,7 @@ func TestInitGetVars(t *testing.T) {
 			Data: notificationsSecret.Data,
 		})
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
-	argocdService, err := service.NewArgoCDService(kubeclientset, testNamespace, mockRepoClient)
+	argocdService, err := service.NewArgoCDService(t.Context(), kubeclientset, testNamespace, mockRepoClient)
 	require.NoError(t, err)
 	defer argocdService.Close()
 	config := api.Config{}
@@ -68,7 +68,7 @@ func TestInitGetVars(t *testing.T) {
 	}
 	emptyAppData := map[string]any{}
 
-	varsProvider, _ := initGetVars(argocdService, &config, &notificationsCm, &notificationsSecret)
+	varsProvider, _ := initGetVars(t.Context(), argocdService, &config, &notificationsCm, &notificationsSecret)
 
 	t.Run("Vars provider serves Application data on app key", func(t *testing.T) {
 		appData := map[string]any{

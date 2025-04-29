@@ -22,22 +22,22 @@ var MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 100, 0, ma
 
 // Clientset represents config management plugin server api clients
 type Clientset interface {
-	NewConfigManagementPluginClient() (io.Closer, ConfigManagementPluginServiceClient, error)
+	NewConfigManagementPluginClient(ctx context.Context) (io.Closer, ConfigManagementPluginServiceClient, error)
 }
 
 type clientSet struct {
 	address string
 }
 
-func (c *clientSet) NewConfigManagementPluginClient() (io.Closer, ConfigManagementPluginServiceClient, error) {
-	conn, err := NewConnection(c.address)
+func (c *clientSet) NewConfigManagementPluginClient(ctx context.Context) (io.Closer, ConfigManagementPluginServiceClient, error) {
+	conn, err := NewConnection(ctx, c.address)
 	if err != nil {
 		return nil, nil, err
 	}
 	return conn, NewConfigManagementPluginServiceClient(conn), nil
 }
 
-func NewConnection(address string) (*grpc.ClientConn, error) {
+func NewConnection(ctx context.Context, address string) (*grpc.ClientConn, error) {
 	retryOpts := []grpc_retry.CallOption{
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),
@@ -52,7 +52,7 @@ func NewConnection(address string) (*grpc.ClientConn, error) {
 	}
 
 	dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	conn, err := grpc_util.BlockingDial(context.Background(), "unix", address, nil, dialOpts...)
+	conn, err := grpc_util.BlockingDial(ctx, "unix", address, nil, dialOpts...)
 	if err != nil {
 		log.Errorf("Unable to connect to config management plugin service with address %s", address)
 		return nil, err

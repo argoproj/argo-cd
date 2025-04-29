@@ -12,8 +12,8 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func getSecret(client kubernetes.Interface, ns, name string) (*corev1.Secret, error) {
-	s, err := client.CoreV1().Secrets(ns).Get(context.TODO(), name, metav1.GetOptions{})
+func getSecret(ctx context.Context, client kubernetes.Interface, ns, name string) (*corev1.Secret, error) {
+	s, err := client.CoreV1().Secrets(ns).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func Test_CreateOrUpdateSecretField(t *testing.T) {
 		ku := NewKubeUtil(t.Context(), client)
 		err := ku.CreateOrUpdateSecretField("test", "test-secret", "password", "barfoo")
 		require.NoError(t, err)
-		s, err := getSecret(client, "test", "test-secret")
+		s, err := getSecret(t.Context(), client, "test", "test-secret")
 		require.NoError(t, err)
 
 		// password field should be updated
@@ -67,7 +67,7 @@ func Test_CreateOrUpdateSecretField(t *testing.T) {
 		ku := NewKubeUtil(t.Context(), client)
 		err := ku.CreateOrUpdateSecretField("test", "nonexist-secret", "password", "foobaz")
 		require.NoError(t, err)
-		s, err := getSecret(client, "test", "nonexist-secret")
+		s, err := getSecret(t.Context(), client, "test", "nonexist-secret")
 		require.NoError(t, err)
 
 		// password field should be requested value
@@ -82,7 +82,7 @@ func Test_CreateOrUpdateSecretField(t *testing.T) {
 		ku := NewKubeUtil(t.Context(), client).WithAnnotations(annotations).WithLabels(labels)
 		err := ku.CreateOrUpdateSecretField("test", "test-secret", "password", "barfoo")
 		require.NoError(t, err)
-		s, err := getSecret(client, "test", "test-secret")
+		s, err := getSecret(t.Context(), client, "test", "test-secret")
 		require.NoError(t, err)
 
 		// password field should be updated
@@ -97,7 +97,7 @@ func Test_CreateOrUpdateSecretField(t *testing.T) {
 		ku := NewKubeUtil(t.Context(), client).WithAnnotations(annotations).WithLabels(labels)
 		err := ku.CreateOrUpdateSecretField("test", "nonexisting-secret", "password", "barfoo")
 		require.NoError(t, err)
-		s, err := getSecret(client, "test", "nonexisting-secret")
+		s, err := getSecret(t.Context(), client, "test", "nonexisting-secret")
 		require.NoError(t, err)
 
 		// password field should be updated
@@ -138,7 +138,7 @@ func Test_CreateOrUpdateSecretData(t *testing.T) {
 		ku := NewKubeUtil(t.Context(), client)
 		err := ku.CreateOrUpdateSecretData("test", "test-secret", data1, true)
 		require.NoError(t, err)
-		s, err := getSecret(client, "test", "test-secret")
+		s, err := getSecret(t.Context(), client, "test", "test-secret")
 		require.NoError(t, err)
 		require.Contains(t, s.Data, "something")
 		require.Contains(t, s.Data, "password")
@@ -149,7 +149,7 @@ func Test_CreateOrUpdateSecretData(t *testing.T) {
 		ku := NewKubeUtil(t.Context(), client)
 		err := ku.CreateOrUpdateSecretData("test", "nonexist-secret", data1, true)
 		require.NoError(t, err)
-		s, err := getSecret(client, "test", "nonexist-secret")
+		s, err := getSecret(t.Context(), client, "test", "nonexist-secret")
 		require.NoError(t, err)
 		require.Len(t, s.Data, 1)
 		require.Equal(t, "barfoo", string(s.Data["password"]))
@@ -159,7 +159,7 @@ func Test_CreateOrUpdateSecretData(t *testing.T) {
 		ku := NewKubeUtil(t.Context(), client)
 		err := ku.CreateOrUpdateSecretData("test", "test-secret", data2, false)
 		require.NoError(t, err)
-		s, err := getSecret(client, "test", "test-secret")
+		s, err := getSecret(t.Context(), client, "test", "test-secret")
 		require.NoError(t, err)
 		require.Contains(t, s.Data, "password")
 		require.NotContains(t, s.Data, "something")
@@ -171,7 +171,7 @@ func Test_CreateOrUpdateSecretData(t *testing.T) {
 		ku := NewKubeUtil(t.Context(), client)
 		err := ku.CreateOrUpdateSecretData("test", "nonexist-secret", data2, false)
 		require.NoError(t, err)
-		s, err := getSecret(client, "test", "nonexist-secret")
+		s, err := getSecret(t.Context(), client, "test", "nonexist-secret")
 		require.NoError(t, err)
 		require.Len(t, s.Data, 1)
 		require.Equal(t, "foobarbaz", string(s.Data["password"]))

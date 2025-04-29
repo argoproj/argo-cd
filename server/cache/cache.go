@@ -53,38 +53,38 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*
 	}
 }
 
-func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) error {
-	return c.cache.GetAppResourcesTree(appName, res)
+func (c *Cache) GetAppResourcesTree(ctx context.Context, appName string, res *appv1.ApplicationTree) error {
+	return c.cache.GetAppResourcesTree(ctx, appName, res)
 }
 
 func (c *Cache) OnAppResourcesTreeChanged(ctx context.Context, appName string, callback func() error) error {
 	return c.cache.OnAppResourcesTreeChanged(ctx, appName, callback)
 }
 
-func (c *Cache) GetAppManagedResources(appName string, res *[]*appv1.ResourceDiff) error {
-	return c.cache.GetAppManagedResources(appName, res)
+func (c *Cache) GetAppManagedResources(ctx context.Context, appName string, res *[]*appv1.ResourceDiff) error {
+	return c.cache.GetAppManagedResources(ctx, appName, res)
 }
 
-func (c *Cache) SetRepoConnectionState(repo string, project string, state *appv1.ConnectionState) error {
-	return c.cache.SetItem(repoConnectionStateKey(repo, project), &state, c.connectionStatusCacheExpiration, state == nil)
+func (c *Cache) SetRepoConnectionState(ctx context.Context, repo string, project string, state *appv1.ConnectionState) error {
+	return c.cache.SetItem(ctx, repoConnectionStateKey(repo, project), &state, c.connectionStatusCacheExpiration, state == nil)
 }
 
 func repoConnectionStateKey(repo string, project string) string {
 	return fmt.Sprintf("repo|%s|%s|connection-state", repo, project)
 }
 
-func (c *Cache) GetRepoConnectionState(repo string, project string) (appv1.ConnectionState, error) {
+func (c *Cache) GetRepoConnectionState(ctx context.Context, repo string, project string) (appv1.ConnectionState, error) {
 	res := appv1.ConnectionState{}
-	err := c.cache.GetItem(repoConnectionStateKey(repo, project), &res)
+	err := c.cache.GetItem(ctx, repoConnectionStateKey(repo, project), &res)
 	return res, err
 }
 
-func (c *Cache) GetClusterInfo(server string, res *appv1.ClusterInfo) error {
-	return c.cache.GetClusterInfo(server, res)
+func (c *Cache) GetClusterInfo(ctx context.Context, server string, res *appv1.ClusterInfo) error {
+	return c.cache.GetClusterInfo(ctx, server, res)
 }
 
-func (c *Cache) SetClusterInfo(server string, res *appv1.ClusterInfo) error {
-	return c.cache.SetClusterInfo(server, res)
+func (c *Cache) SetClusterInfo(ctx context.Context, server string, res *appv1.ClusterInfo) error {
+	return c.cache.SetClusterInfo(ctx, server, res)
 }
 
 func (c *Cache) GetCache() *cacheutil.Cache {

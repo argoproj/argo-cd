@@ -97,7 +97,7 @@ func createRBACObject(project string, repo string) string {
 // result may be retrieved out of the cache.
 func (s *Server) getConnectionState(ctx context.Context, url string, project string, forceRefresh bool) v1alpha1.ConnectionState {
 	if !forceRefresh {
-		if connectionState, err := s.cache.GetRepoConnectionState(url, project); err == nil {
+		if connectionState, err := s.cache.GetRepoConnectionState(ctx, url, project); err == nil {
 			return connectionState
 		}
 	}
@@ -120,7 +120,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string, project str
 			connectionState.Message = fmt.Sprintf("Unable to connect to repository: %v", err)
 		}
 	}
-	err = s.cache.SetRepoConnectionState(url, project, &connectionState)
+	err = s.cache.SetRepoConnectionState(ctx, url, project, &connectionState)
 	if err != nil {
 		log.Warnf("getConnectionState cache set error %s: %v", url, err)
 	}
@@ -248,7 +248,7 @@ func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*api
 		return nil, err
 	}
 
-	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +286,7 @@ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (
 	}
 
 	// Test the repo
-	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -349,7 +349,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		return nil, err
 	}
 
-	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -400,7 +400,7 @@ func (s *Server) GetHelmCharts(ctx context.Context, q *repositorypkg.RepoQuery) 
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceRepositories, rbac.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
 		return nil, err
 	}
-	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -592,7 +592,7 @@ func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuer
 	}
 
 	// invalidate cache
-	if err := s.cache.SetRepoConnectionState(repo.Repo, repo.Project, nil); err != nil {
+	if err := s.cache.SetRepoConnectionState(ctx, repo.Repo, repo.Project, nil); err != nil {
 		log.Errorf("error invalidating cache: %v", err)
 	}
 
@@ -742,7 +742,7 @@ func (s *Server) ValidateWriteAccess(ctx context.Context, q *repositorypkg.RepoA
 }
 
 func (s *Server) testRepo(ctx context.Context, repo *v1alpha1.Repository) error {
-	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to connect to repo-server: %w", err)
 	}

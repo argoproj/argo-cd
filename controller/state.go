@@ -69,9 +69,9 @@ type managedResource struct {
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool, rollback bool) (*comparisonResult, error)
-	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
-	GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, rollback, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error)
+	CompareAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool, rollback bool) (*comparisonResult, error)
+	SyncAppState(ctx context.Context, app *v1alpha1.Application, state *v1alpha1.OperationState)
+	GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, rollback, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error)
 }
 
 // comparisonResult holds the state of an application after the reconciliation
@@ -108,7 +108,7 @@ type appStateManager struct {
 	appclientset          appclientset.Interface
 	projInformer          cache.SharedIndexInformer
 	kubectl               kubeutil.Kubectl
-	onKubectlRun          kubeutil.OnKubectlRunFunc
+	onKubectlRun          kubeutil.OnKubectlRunFuncContext
 	repoClientset         apiclient.Clientset
 	liveStateCache        statecache.LiveStateCache
 	cache                 *appstatecache.Cache
@@ -126,9 +126,9 @@ type appStateManager struct {
 // task to the repo-server. It returns the list of generated manifests as unstructured
 // objects. It also returns the full response from all calls to the repo server as the
 // second argument.
-func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, rollback, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error) {
+func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, rollback, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error) {
 	ts := stats.NewTimingStats()
-	helmRepos, err := m.db.ListHelmRepositories(context.Background())
+	helmRepos, err := m.db.ListHelmRepositories(ctx)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to list Helm repositories: %w", err)
 	}
@@ -138,7 +138,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 
 	ts.AddCheckpoint("repo_ms")
-	helmRepositoryCredentials, err := m.db.GetAllHelmRepositoryCredentials(context.Background())
+	helmRepositoryCredentials, err := m.db.GetAllHelmRepositoryCredentials(ctx)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get Helm credentials: %w", err)
 	}
@@ -168,7 +168,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		return nil, nil, false, fmt.Errorf("failed to get installation ID: %w", err)
 	}
 
-	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, m.db)
+	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, m.db)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get destination cluster: %w", err)
 	}
@@ -177,12 +177,12 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	var serverVersion string
 	var apiResources []kubeutil.APIResourceInfo
 	if sendRuntimeState {
-		serverVersion, apiResources, err = m.liveStateCache.GetVersionsInfo(destCluster)
+		serverVersion, apiResources, err = m.liveStateCache.GetVersionsInfo(ctx, destCluster)
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("failed to get cluster version for cluster %q: %w", destCluster.Server, err)
 		}
 	}
-	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
+	conn, repoClient, err := m.repoClientset.NewRepoServerClient(ctx)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to connect to repo server: %w", err)
 	}
@@ -194,7 +194,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	// Store the map of all sources having ref field into a map for applications with sources field
 	// If it's for a rollback process, the refSources[*].targetRevision fields are the desired
 	// revisions for the rollback
-	refSources, err := argo.GetRefSources(context.Background(), sources, app.Spec.Project, m.db.GetRepository, revisions, rollback)
+	refSources, err := argo.GetRefSources(ctx, sources, app.Spec.Project, m.db.GetRepository, revisions, rollback)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get ref sources: %w", err)
 	}
@@ -209,7 +209,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		if len(revisions) < len(sources) || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
 		}
-		repo, err := m.db.GetRepository(context.Background(), source.RepoURL, proj.Name)
+		repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
 		}
@@ -237,7 +237,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 
 		if !source.IsHelm() && syncedRevision != "" && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
 			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
-			updateRevisionResult, err := repoClient.UpdateRevisionForPaths(context.Background(), &apiclient.UpdateRevisionForPathsRequest{
+			updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
 				Repo:               repo,
 				Revision:           revision,
 				SyncedRevision:     syncedRevision,
@@ -271,7 +271,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		}
 
 		log.Debugf("Generating Manifest for source %s revision %s", source, revision)
-		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		manifestInfo, err := repoClient.GenerateManifest(ctx, &apiclient.ManifestRequest{
 			Repo:                            repo,
 			Repos:                           permittedHelmRepos,
 			Revision:                        revision,
@@ -326,14 +326,14 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 }
 
 // ResolveGitRevision will resolve the given revision to a full commit SHA. Only works for git.
-func (m *appStateManager) ResolveGitRevision(repoURL string, revision string) (string, error) {
-	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
+func (m *appStateManager) ResolveGitRevision(ctx context.Context, repoURL string, revision string) (string, error) {
+	conn, repoClient, err := m.repoClientset.NewRepoServerClient(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to connect to repo server: %w", err)
 	}
 	defer io.Close(conn)
 
-	repo, err := m.db.GetRepository(context.Background(), repoURL, "")
+	repo, err := m.db.GetRepository(ctx, repoURL, "")
 	if err != nil {
 		return "", fmt.Errorf("failed to get repo %q: %w", repoURL, err)
 	}
@@ -347,7 +347,7 @@ func (m *appStateManager) ResolveGitRevision(repoURL string, revision string) (s
 			},
 		},
 	}
-	resp, err := repoClient.ResolveRevision(context.Background(), &apiclient.ResolveRevisionRequest{
+	resp, err := repoClient.ResolveRevision(ctx, &apiclient.ResolveRevisionRequest{
 		Repo:              repo,
 		App:               app,
 		AmbiguousRevision: revision,
@@ -501,7 +501,7 @@ func isManagedNamespace(ns *unstructured.Unstructured, app *v1alpha1.Application
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool, rollback bool) (*comparisonResult, error) {
+func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool, rollback bool) (*comparisonResult, error) {
 	ts := stats.NewTimingStats()
 	appLabelKey, resourceOverrides, resFilter, installationID, err := m.getComparisonSettings()
 
@@ -537,7 +537,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
 
-	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, m.db)
+	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, m.db)
 	if err != nil {
 		return nil, err
 	}
@@ -563,7 +563,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 
-		targetObjs, manifestInfos, revisionUpdated, err = m.GetRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project, rollback, true)
+		targetObjs, manifestInfos, revisionUpdated, err = m.GetRepoObjs(ctx, app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project, rollback, true)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			msg := "Failed to load target state: " + err.Error()
@@ -607,7 +607,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	ts.AddCheckpoint("git_ms")
 
 	var infoProvider kubeutil.ResourceInfoProvider
-	infoProvider, err = m.liveStateCache.GetClusterCache(destCluster)
+	infoProvider, err = m.liveStateCache.GetClusterCache(ctx, destCluster)
 	if err != nil {
 		infoProvider = &resourceInfoProviderStub{}
 	}
@@ -650,7 +650,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 	ts.AddCheckpoint("dedup_ms")
 
-	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(destCluster, app, targetObjs)
+	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(ctx, destCluster, app, targetObjs)
 	if err != nil {
 		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
 		msg := "Failed to load live state: " + err.Error()
@@ -661,8 +661,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	logCtx.Debugf("Retrieved live manifests")
 	// filter out all resources which are not permitted in the application project
 	for k, v := range liveObjByKey {
-		permitted, err := project.IsLiveResourcePermitted(v, destCluster, func(project string) ([]*v1alpha1.Cluster, error) {
-			clusters, err := m.db.GetProjectClusters(context.TODO(), project)
+		permitted, err := project.IsLiveResourcePermitted(ctx, v, destCluster, func(ctx context.Context, project string) ([]*v1alpha1.Cluster, error) {
+			clusters, err := m.db.GetProjectClusters(ctx, project)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get clusters for project %q: %w", project, err)
 			}
@@ -770,7 +770,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		diffConfigBuilder.WithIgnoreMutationWebhook(false)
 	}
 
-	gvkParser, err := m.getGVKParser(destCluster)
+	gvkParser, err := m.getGVKParser(ctx, destCluster)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
 	}
@@ -780,7 +780,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	diffConfigBuilder.WithServerSideDiff(serverSideDiff)
 
 	if serverSideDiff {
-		applier, cleanup, err := m.getServerSideDiffDryRunApplier(destCluster)
+		applier, cleanup, err := m.getServerSideDiffDryRunApplier(ctx, destCluster)
 		if err != nil {
 			log.Errorf("CompareAppState error getting server side diff dry run applier: %s", err)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
@@ -798,7 +798,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	// application conditions as argo.StateDiffs will validate this diffConfig again.
 	diffConfig, _ := diffConfigBuilder.Build()
 
-	diffResults, err := argodiff.StateDiffs(reconciliation.Live, reconciliation.Target, diffConfig)
+	diffResults, err := argodiff.StateDiffs(ctx, reconciliation.Live, reconciliation.Target, diffConfig)
 	if err != nil {
 		diffResults = &diff.DiffResultList{}
 		failedToLoadObjs = true
@@ -875,7 +875,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			resState.Status = v1alpha1.SyncStatusCodeSynced
 		}
 		// set unknown status to all resource that are not permitted in the app project
-		isNamespaced, err := m.liveStateCache.IsNamespaced(destCluster, gvk.GroupKind())
+		isNamespaced, err := m.liveStateCache.IsNamespaced(ctx, destCluster, gvk.GroupKind())
 		if !project.IsGroupKindPermitted(gvk.GroupKind(), isNamespaced && err == nil) {
 			resState.Status = v1alpha1.SyncStatusCodeUnknown
 		}
@@ -943,7 +943,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	ts.AddCheckpoint("sync_ms")
 
-	healthStatus, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth)
+	healthStatus, err := setApplicationHealth(ctx, managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: "error setting app health: " + err.Error(), LastTransitionTime: &now})
 	}
@@ -1043,6 +1043,7 @@ func specEqualsCompareTo(spec v1alpha1.ApplicationSpec, comparedTo v1alpha1.Comp
 }
 
 func (m *appStateManager) persistRevisionHistory(
+	ctx context.Context,
 	app *v1alpha1.Application,
 	revision string,
 	source v1alpha1.ApplicationSource,
@@ -1087,7 +1088,7 @@ func (m *appStateManager) persistRevisionHistory(
 	if err != nil {
 		return fmt.Errorf("error marshaling revision history patch: %w", err)
 	}
-	_, err = m.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	_, err = m.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(ctx, app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	return err
 }
 
@@ -1098,7 +1099,7 @@ func NewAppStateManager(
 	repoClientset apiclient.Clientset,
 	namespace string,
 	kubectl kubeutil.Kubectl,
-	onKubectlRun kubeutil.OnKubectlRunFunc,
+	onKubectlRun kubeutil.OnKubectlRunFuncContext,
 	settingsMgr *settings.SettingsManager,
 	liveStateCache statecache.LiveStateCache,
 	projInformer cache.SharedIndexInformer,

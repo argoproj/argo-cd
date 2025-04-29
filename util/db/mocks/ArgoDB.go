@@ -373,17 +373,17 @@ func (_m *ArgoDB) GetAllHelmRepositoryCredentials(ctx context.Context) ([]*v1alp
 	return r0, r1
 }
 
-// GetApplicationControllerReplicas provides a mock function with no fields
-func (_m *ArgoDB) GetApplicationControllerReplicas() int {
-	ret := _m.Called()
+// GetApplicationControllerReplicas provides a mock function with given fields: ctx
+func (_m *ArgoDB) GetApplicationControllerReplicas(ctx context.Context) int {
+	ret := _m.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetApplicationControllerReplicas")
 	}
 
 	var r0 int
-	if rf, ok := ret.Get(0).(func() int); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(context.Context) int); ok {
+		r0 = rf(ctx)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
@@ -1110,7 +1110,7 @@ func (_m *ArgoDB) UpdateWriteRepositoryCredentials(ctx context.Context, r *v1alp
 }
 
 // WatchClusters provides a mock function with given fields: ctx, handleAddEvent, handleModEvent, handleDeleteEvent
-func (_m *ArgoDB) WatchClusters(ctx context.Context, handleAddEvent func(*v1alpha1.Cluster), handleModEvent func(*v1alpha1.Cluster, *v1alpha1.Cluster), handleDeleteEvent func(string)) error {
+func (_m *ArgoDB) WatchClusters(ctx context.Context, handleAddEvent func(context.Context, *v1alpha1.Cluster), handleModEvent func(context.Context, *v1alpha1.Cluster, *v1alpha1.Cluster), handleDeleteEvent func(context.Context, string)) error {
 	ret := _m.Called(ctx, handleAddEvent, handleModEvent, handleDeleteEvent)
 
 	if len(ret) == 0 {
@@ -1118,7 +1118,7 @@ func (_m *ArgoDB) WatchClusters(ctx context.Context, handleAddEvent func(*v1alph
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, func(*v1alpha1.Cluster), func(*v1alpha1.Cluster, *v1alpha1.Cluster), func(string)) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, func(context.Context, *v1alpha1.Cluster), func(context.Context, *v1alpha1.Cluster, *v1alpha1.Cluster), func(context.Context, string)) error); ok {
 		r0 = rf(ctx, handleAddEvent, handleModEvent, handleDeleteEvent)
 	} else {
 		r0 = ret.Error(0)
