@@ -212,7 +212,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func() (goutilio.Closer, error) {
+	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func() (goio.Closer, error) {
 		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled)
 	})
 	if err != nil {
@@ -372,7 +372,7 @@ func (s *Service) runRepoOperation(
 			return &operationContext{chartPath, ""}, nil
 		})
 	}
-	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goutilio.Closer, error) {
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
 		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled)
 	})
 	if err != nil {
@@ -754,7 +754,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 								ch.errCh <- fmt.Errorf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q)", refVar, refSourceMapping.TargetRevision, referencedCommitSHA, q.Revision, commitSHA)
 								return
 							}
-							closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func() (goutilio.Closer, error) {
+							closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func() (goio.Closer, error) {
 								return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled)
 							})
 							if err != nil {
@@ -762,7 +762,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 								ch.errCh <- err
 								return
 							}
-							defer func(closer goutilio.Closer) {
+							defer func(closer goio.Closer) {
 								err := closer.Close()
 								if err != nil {
 									log.Errorf("Failed to release repo lock: %v", err)
@@ -1731,13 +1731,13 @@ func getObjsFromYAMLOrJSON(logCtx *log.Entry, manifestPath string, filename stri
 
 // splitYAMLOrJSON reads a YAML or JSON file and gets each document as an unstructured object. If the unmarshaller
 // encounters an error, objects read up until the error are returned.
-func splitYAMLOrJSON(reader goutilio.Reader) ([]*unstructured.Unstructured, error) {
+func splitYAMLOrJSON(reader goio.Reader) ([]*unstructured.Unstructured, error) {
 	d := kubeyaml.NewYAMLOrJSONDecoder(reader, 4096)
 	var objs []*unstructured.Unstructured
 	for {
 		u := &unstructured.Unstructured{}
 		if err := d.Decode(&u); err != nil {
-			if errors.Is(err, goutilio.EOF) {
+			if errors.Is(err, goio.EOF) {
 				break
 			}
 			return objs, fmt.Errorf("failed to unmarshal manifest: %w", err)
@@ -2292,7 +2292,7 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func() (goutilio.Closer, error) {
+	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func() (goio.Closer, error) {
 		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled)
 	})
 	if err != nil {
@@ -2442,7 +2442,7 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 
 // directoryPermissionInitializer ensures the directory has read/write/execute permissions and returns
 // a function that can be used to remove all permissions.
-func directoryPermissionInitializer(rootPath string) goutilio.Closer {
+func directoryPermissionInitializer(rootPath string) goio.Closer {
 	if _, err := os.Stat(rootPath); err == nil {
 		if err := os.Chmod(rootPath, 0o700); err != nil {
 			log.Warnf("Failed to restore read/write/execute permissions on %s: %v", rootPath, err)
@@ -2463,7 +2463,7 @@ func directoryPermissionInitializer(rootPath string) goutilio.Closer {
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) (goutilio.Closer, error) {
+func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) (goio.Closer, error) {
 	closer := s.gitRepoInitializer(gitClient.Root())
 	err := checkoutRevision(gitClient, revision, submoduleEnabled)
 	if err != nil {
@@ -2674,7 +2674,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	// cache miss, generate the results
-	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goutilio.Closer, error) {
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
 		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled())
 	})
 	if err != nil {
@@ -2756,7 +2756,7 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	// cache miss, generate the results
-	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goutilio.Closer, error) {
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
 		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled())
 	})
 	if err != nil {
@@ -2848,7 +2848,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	s.metricsServer.IncPendingRepoRequest(repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
-	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goutilio.Closer, error) {
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
 		return s.checkoutRevision(gitClient, revision, false)
 	})
 	if err != nil {
