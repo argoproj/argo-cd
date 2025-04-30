@@ -6,7 +6,7 @@ metadata:
     - numaflow.numaproj.io/isbsvc-controller
   generation: 1
   labels:
-    numaplane.numaproj.io/force-promote: 'true'
+    numaplane.numaproj.io/force-promote: "true"
     numaplane.numaproj.io/parent-rollout-name: my-isbsvc
     numaplane.numaproj.io/upgrade-state: promoted
   name: my-isbsvc-0
@@ -18,7 +18,7 @@ metadata:
       kind: ISBServiceRollout
       name: my-isbsvc
       uid: b38035d8-546a-4f24-b1fa-7bb5b0a3a565
-  resourceVersion: '1756439'
+  resourceVersion: '1687384'
   uid: 889839c6-2982-4b70-b2a5-84afb4272ab6
 spec:
   jetstream:
@@ -28,18 +28,18 @@ spec:
     version: 2.10.3
 status:
   conditions:
-    - lastTransitionTime: '2025-04-30T18:09:43Z'
+    - lastTransitionTime: '2025-04-28T22:39:57Z'
       message: |
         partitioned roll out complete: 1 new pods have been updated...
       reason: Healthy
       status: 'True'
       type: ChildrenResourcesHealthy
-    - lastTransitionTime: '2025-04-30T18:09:43Z'
+    - lastTransitionTime: '2025-04-28T22:39:57Z'
       message: Successful
       reason: Successful
       status: 'True'
       type: Configured
-    - lastTransitionTime: '2025-04-30T18:09:43Z'
+    - lastTransitionTime: '2025-04-28T22:39:57Z'
       message: Successful
       reason: Successful
       status: 'True'
