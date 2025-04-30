@@ -203,6 +203,7 @@ func githubMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 }
 
 func TestGithubListRepos(t *testing.T) {
+
 	cases := []struct {
 		name, proto, url      string
 		hasError, allBranches bool
@@ -242,7 +243,7 @@ func TestGithubListRepos(t *testing.T) {
 	defer ts.Close()
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewGithubProvider("argoproj", "", ts.URL, c.allBranches)
+			provider, _ := NewGithubProvider("argoproj", "", ts.URL, c.allBranches, nil)
 			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)
@@ -272,7 +273,7 @@ func TestGithubHasPath(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	host, _ := NewGithubProvider("argoproj", "", ts.URL, false)
+	host, _ := NewGithubProvider("argoproj", "", ts.URL, false, nil)
 	repo := &Repository{
 		Organization: "argoproj",
 		Repository:   "argo-cd",
@@ -292,7 +293,7 @@ func TestGithubGetBranches(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	host, _ := NewGithubProvider("argoproj", "", ts.URL, false)
+	host, _ := NewGithubProvider("argoproj", "", ts.URL, false, nil)
 	repo := &Repository{
 		Organization: "argoproj",
 		Repository:   "argo-cd",

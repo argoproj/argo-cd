@@ -1,12 +1,14 @@
 package scm_provider
 
 import (
+	"net/http"
+
 	"github.com/argoproj/argo-cd/v3/applicationset/services/github_app_auth"
 	"github.com/argoproj/argo-cd/v3/applicationset/services/internal/github_app"
 )
 
-func NewGithubAppProviderFor(g github_app_auth.Authentication, organization string, url string, allBranches bool) (*GithubProvider, error) {
-	client, err := github_app.Client(g, url)
+func NewGithubAppProviderFor(g github_app_auth.Authentication, organization string, url string, allBranches bool, httpClient *http.Client) (*GithubProvider, error) {
+	client, err := github_app.Client(g, url, httpClient)
 	if err != nil {
 		return nil, err
 	}
