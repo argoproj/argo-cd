@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Simple wrapper around gpg to prevent exit code != 0
 OUTPUT=$(gpg "$@" 2>&1)
 IFS=''
