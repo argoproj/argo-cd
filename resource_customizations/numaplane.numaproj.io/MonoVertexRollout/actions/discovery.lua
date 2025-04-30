@@ -1,6 +1,12 @@
 local actions = {}
-actions["pause"] = {["disabled"] = true}
-actions["unpause"] = {["disabled"] = true}
+actions["pause"] = {
+  ["disabled"] = true,
+  ["iconClass"] = "fa-solid fa-fw fa-pause"
+}
+actions["unpause"] = {
+  ["disabled"] = true,
+  ["iconClass"] = "fa-solid fa-fw fa-play"
+}
 actions["enable-force-promote"] = {
   ["disabled"] = true,
   ["displayName"] = "Enable Force Promote"
