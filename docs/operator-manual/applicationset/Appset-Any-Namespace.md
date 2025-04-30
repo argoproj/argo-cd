@@ -117,7 +117,7 @@ It can be achieved by setting the environment variable `ARGOCD_APPLICATIONSET_CO
 
 #### Change workload startup parameters
 
-In order to enable this feature, the Argo CD administrator must reconfigure the and `argocd-applicationset-controller` workloads to add the `--applicationset-namespaces` parameter to the container's startup command.
+In order to enable this feature, the Argo CD administrator must reconfigure the `argocd-applicationset-controller` workloads to add the `--applicationset-namespaces` parameter to the container's startup command.
 
 ### Safely template project
 

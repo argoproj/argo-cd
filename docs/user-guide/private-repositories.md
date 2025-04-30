@@ -119,14 +119,19 @@ Using the CLI:
 argocd repo add https://github.com/argoproj/argocd-example-apps.git --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem
 ```
 
+!!!note
+    To add a private Git repository on GitHub Enterprise using the CLI add `--github-app-enterprise-base-url https://ghe.example.com/api/v3` flag.
+
 Using the UI:
 
 1. Navigate to `Settings/Repositories`
 
     ![connect repo overview](../assets/repo-add-overview.png)
 
-2. Click `Connect Repo using GitHub App` button, enter the URL, App Id, Installation Id, and the app's private key.
+2. Click `Connect Repo using GitHub App` button, choose type: `GitHub` or `GitHub Enterprise`, enter the URL, App Id, Installation Id, and the app's private key.
 
+!!!note
+    Enter the GitHub Enterprise Base URL for type `GitHub Enterprise`.
     ![connect repo](../assets/repo-add-github-app.png)
 
 3. Click `Connect` to test the connection and have the repository added

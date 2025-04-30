@@ -232,3 +232,41 @@ func TestGetRepoCLIOutput(t *testing.T) {
 git         https://github.com/argoproj/argo-cd.git  false     false  false  false  Successful           argo-project`, output)
 		})
 }
+
+func TestCreateRepoWithSameURLInTwoProjects(t *testing.T) {
+	projectFixture.Given(t).
+		When().
+		Name("project-one").
+		Create().
+		Then()
+
+	projectFixture.Given(t).
+		When().
+		Name("project-two").
+		Create().
+		Then()
+
+	path := "https://github.com/argoproj/argo-cd.git"
+
+	// Create repository in first project
+	repoFixture.GivenWithSameState(t).
+		When().
+		Path(path).
+		Project("project-one").
+		Create().
+		Then().
+		And(func(r *Repository, _ error) {
+			assert.Equal(t, r.Repo, path)
+		})
+
+	// Create repository with same URL in second project
+	repoFixture.GivenWithSameState(t).
+		When().
+		Path(path).
+		Project("project-two").
+		Create().
+		Then().
+		And(func(r *Repository, _ error) {
+			assert.Equal(t, r.Repo, path)
+		})
+}

@@ -402,8 +402,10 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Yieldlab](https://www.yieldlab.de/)
 1. [Youverify](https://youverify.co/)
 1. [Yubo](https://www.yubo.live/)
+1. [Yuno](https://y.uno/)
 1. [ZDF](https://www.zdf.de/)
 1. [Zimpler](https://www.zimpler.com/)
 1. [ZipRecuiter](https://www.ziprecruiter.com/)
 1. [ZOZO](https://corp.zozo.com/)
+
 

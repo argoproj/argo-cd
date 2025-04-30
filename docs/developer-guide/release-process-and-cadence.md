@@ -88,4 +88,4 @@ These evaluations vary from dependency to dependencies.
 Dependencies are also scheduled for removal if the project has been deprecated or if the project is no longer maintained.
 
 CVEs in dependencies will be patched for all supported versions if the CVE is applicable and is assessed by Snyk to be
-of high or critical severity. Automation generates a [new Snyk scan weekly](../snyk).
+of high or critical severity. Automation generates a [new Snyk scan weekly](../snyk/index.md).
