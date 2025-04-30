@@ -36,11 +36,11 @@ metadata:
   name: argocd-notifications-cm
 data:
   service.email.gmail: |
-    username: $email-username
+    username: $username
     password: $password
     host: smtp.gmail.com
     port: 465
-    from: $email-username
+    from: $email-address
 ```
 
 Without authentication:
@@ -54,7 +54,7 @@ data:
   service.email.example: |
     host: smtp.example.com
     port: 587
-    from: $email-username
+    from: $email-address
 ```
 
 ## Template
