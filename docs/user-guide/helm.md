@@ -1,4 +1,4 @@
-# Helm
+ # Helm
 
 ## Declarative
 
@@ -170,18 +170,18 @@ Values injections have the following order of precedence
     highest -> parameters
 ```
 
-so values/valuesObject trumps valueFiles, and parameters trump both.
+So valuesObject trumps values - therefore values will be ignored, and both valuesObject and values trump valueFiles.
+Parameters trump all of them.
 
-Precedence of valueFiles themselves is the order they are defined in
+Precedence of multiple valueFiles:
+When multiple valueFiles are specified, the last file listed has the highest precedence:
 
 ```
-if we have
-
 valueFiles:
   - values-file-2.yaml
   - values-file-1.yaml
 
-the last values-file i.e. values-file-1.yaml will trump the first
+In this case, values-file-1.yaml will override values from values-file-2.yaml.
 ```
 
 When multiple of the same key are found the last one wins i.e 
