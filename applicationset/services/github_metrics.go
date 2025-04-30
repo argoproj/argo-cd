@@ -11,17 +11,25 @@ import (
 )
 
 var (
+	githubAPIRequestTotalPerAppSetMetricName       = "argocd_github_api_requests_total_per_appset"
+	githubAPIRequestDurationPerAppSetMetricName    = "argocd_github_api_request_duration_seconds_per_appset"
+	githubAPIRateLimitRemainingPerAppSetMetricName = "argocd_github_api_rate_limit_remaining_per_appset"
+	githubAPIRateLimitLimitPerAppSetMetricName     = "argocd_github_api_rate_limit_limit_per_appset"
+	githubAPIRateLimitResetPerAppSetMetricName     = "argocd_github_api_rate_limit_reset_per_appset"
+	githubAPIRateLimitUsedPerAppSetMetricName      = "argocd_github_api_rate_limit_used_per_appset"
+	githubAPIRateLimitResourcePerAppSetMetricName  = "argocd_github_api_rate_limit_resource_per_appset"
+
 	githubAPIRequestTotalPerAppSet = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "argocd_github_api_requests_total_per_appset",
+			Name: githubAPIRequestTotalPerAppSetMetricName,
 			Help: "Total number of GitHub API requests per ApplicationSet",
 		},
 		[]string{"method", "endpoint", "status", "appset_namespace", "appset_name"},
 	)
 	githubAPIRequestDurationPerAppSet = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "argocd_github_api_request_duration_ms_per_appset",
-			Help:    "GitHub API request duration in milliseconds per ApplicationSet",
+			Name:    githubAPIRequestDurationPerAppSetMetricName,
+			Help:    "GitHub API request duration in seconds, per ApplicationSet",
 			Buckets: prometheus.DefBuckets,
 		},
 		[]string{"method", "endpoint", "appset_namespace", "appset_name"},
@@ -29,36 +37,36 @@ var (
 
 	githubAPIRateLimitRemainingPerAppSet = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "argocd_github_api_rate_limit_remaining_per_appset",
-			Help: "The number of requests remaining in the current rate limit window per ApplicationSet",
+			Name: githubAPIRateLimitRemainingPerAppSetMetricName,
+			Help: "The number of requests remaining in the current rate limit window, per ApplicationSet",
 		},
 		[]string{"endpoint", "appset_namespace", "appset_name"},
 	)
 	githubAPIRateLimitLimitPerAppSet = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "argocd_github_api_rate_limit_limit_per_appset",
-			Help: "The maximum number of requests that you can make per hour per ApplicationSet",
+			Name: githubAPIRateLimitLimitPerAppSetMetricName,
+			Help: "The maximum number of requests that you can make per hour, per ApplicationSet",
 		},
 		[]string{"endpoint", "appset_namespace", "appset_name"},
 	)
 	githubAPIRateLimitResetPerAppSet = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "argocd_github_api_rate_limit_reset_per_appset",
+			Name: githubAPIRateLimitResetPerAppSetMetricName,
 			Help: "The time at which the current rate limit window resets, in UTC epoch seconds, per ApplicationSet",
 		},
 		[]string{"endpoint", "appset_namespace", "appset_name"},
 	)
 	githubAPIRateLimitUsedPerAppSet = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "argocd_github_api_rate_limit_used_per_appset",
-			Help: "The number of requests used in the current rate limit window per ApplicationSet",
+			Name: githubAPIRateLimitUsedPerAppSetMetricName,
+			Help: "The number of requests used in the current rate limit window, per ApplicationSet",
 		},
 		[]string{"endpoint", "appset_namespace", "appset_name"},
 	)
 	githubAPIRateLimitResourcePerAppSet = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "argocd_github_api_rate_limit_resource_per_appset",
-			Help: "The rate limit resource that the request counted against per ApplicationSet",
+			Name: githubAPIRateLimitResourcePerAppSetMetricName,
+			Help: "The rate limit resource that the request counted against, per ApplicationSet",
 		},
 		[]string{"endpoint", "resource", "appset_namespace", "appset_name"},
 	)
@@ -109,7 +117,7 @@ func (t *GitHubMetricsTransport) RoundTrip(req *http.Request) (*http.Response, e
 	}
 
 	// Record metrics
-	githubAPIRequestDurationPerAppSet.WithLabelValues(req.Method, endpoint, appsetNamespace, appsetName).Observe(float64(duration.Milliseconds()))
+	githubAPIRequestDurationPerAppSet.WithLabelValues(req.Method, endpoint, appsetNamespace, appsetName).Observe(float64(duration.Seconds()))
 
 	status := "0"
 	if resp != nil {

@@ -15,15 +15,57 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type Metric struct {
+	name   string
+	labels []string
+	value  string
+}
+
 var (
 	endpointLabel        = "endpoint=\"/api/test\""
 	URL                  = "/api/test"
-	failEndpointLabel    = "endpoint=\"/api/fail\""
-	failURL              = "/api/fail"
 	appsetNamespaceLabel = "appset_namespace=\"test-ns\""
 	appsetNamespace      = "test-ns"
 	appsetName           = "test-appset"
 	appsetNameLabel      = "appset_name=\"test-appset\""
+
+	rateLimitMetrics = []Metric{
+		{
+			name:   githubAPIRateLimitRemainingPerAppSetMetricName,
+			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel},
+			value:  "42",
+		},
+		{
+			name:   githubAPIRateLimitLimitPerAppSetMetricName,
+			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel},
+			value:  "100",
+		},
+		{
+			name:   githubAPIRateLimitUsedPerAppSetMetricName,
+			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel},
+			value:  "58",
+		},
+		{
+			name:   githubAPIRateLimitResourcePerAppSetMetricName,
+			labels: []string{endpointLabel, "resource=\"core\"", appsetNamespaceLabel, appsetNameLabel},
+			value:  "1",
+		},
+		{
+			name:   githubAPIRateLimitResetPerAppSetMetricName,
+			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel},
+			value:  "1",
+		},
+	}
+	successRequestMetrics = Metric{
+		name:   githubAPIRequestTotalPerAppSetMetricName,
+		labels: []string{"method=\"GET\"", endpointLabel, "status=\"201\"", appsetNamespaceLabel, appsetNameLabel},
+		value:  "1",
+	}
+	failureRequestMetrics = Metric{
+		name:   githubAPIRequestTotalPerAppSetMetricName,
+		labels: []string{"method=\"GET\"", endpointLabel, "status=\"0\"", appsetNamespaceLabel, appsetNameLabel},
+		value:  "1",
+	}
 )
 
 // Helper to register all metrics with a custom registry
@@ -78,48 +120,14 @@ func TestGitHubMetrics_CollectorApproach_Success(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	metricsOutput := string(body)
 
-	expectedMetrics := []struct {
-		name   string
-		labels []string
-		value  string
-	}{
-		{
-			name:   "argocd_github_api_requests_total_per_appset",
-			labels: []string{"method=\"GET\"", endpointLabel, "status=\"201\"", appsetNamespaceLabel, appsetNameLabel},
-			value:  "1",
-		},
-		{
-			name:   "argocd_github_api_rate_limit_remaining_per_appset",
-			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel},
-			value:  "42",
-		},
-		{
-			name:   "argocd_github_api_rate_limit_limit_per_appset",
-			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel},
-			value:  "100",
-		},
-		{
-			name:   "argocd_github_api_rate_limit_used_per_appset",
-			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel},
-			value:  "58",
-		},
-		{
-			name:   "argocd_github_api_rate_limit_resource_per_appset",
-			labels: []string{endpointLabel, "resource=\"core\"", appsetNamespaceLabel, appsetNameLabel},
-			value:  "1",
-		},
-		{
-			name:   "argocd_github_api_rate_limit_reset_per_appset",
-			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel},
-			value:  "1",
-		},
-	}
+	sort.Strings(successRequestMetrics.labels)
+	assert.Contains(t, metricsOutput, successRequestMetrics.name+"{"+strings.Join(successRequestMetrics.labels, ",")+"} "+successRequestMetrics.value)
 
-	for _, metric := range expectedMetrics {
+	for _, metric := range rateLimitMetrics {
 		sort.Strings(metric.labels)
 		assert.Contains(t, metricsOutput, metric.name+"{"+strings.Join(metric.labels, ",")+"} "+metric.value)
-
 	}
+
 }
 
 type RoundTripperFunc func(*http.Request) (*http.Response, error)
@@ -139,7 +147,7 @@ func TestGitHubMetrics_CollectorApproach_NoRateLimitMetricsOnNilResponse(t *test
 		},
 	}
 
-	req, _ := http.NewRequest("GET", failURL, nil)
+	req, _ := http.NewRequest("GET", URL, nil)
 	_, _ = client.Do(req)
 
 	handler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{})
@@ -154,30 +162,13 @@ func TestGitHubMetrics_CollectorApproach_NoRateLimitMetricsOnNilResponse(t *test
 	body, _ := io.ReadAll(resp.Body)
 	metricsOutput := string(body)
 
-	expectedMetric := struct {
-		name   string
-		labels []string
-		value  string
-	}{
-		name:   "argocd_github_api_requests_total_per_appset",
-		labels: []string{"method=\"GET\"", failEndpointLabel, "status=\"0\"", appsetNamespaceLabel, appsetNameLabel},
-		value:  "1",
-	}
-
 	// Verify request metric exists with status "0"
-	sort.Strings(expectedMetric.labels)
-	assert.Contains(t, metricsOutput, expectedMetric.name+"{"+strings.Join(expectedMetric.labels, ",")+"} "+expectedMetric.value)
-
-	metricsThatShouldNotExist := []string{
-		"argocd_github_api_rate_limit_remaining_per_appset",
-		// "argocd_github_api_rate_limit_limit_per_appset",
-		// "argocd_github_api_rate_limit_used_per_appset",
-		// "argocd_github_api_rate_limit_resource_per_appset",
-		// "argocd_github_api_rate_limit_reset_per_appset",
-	}
+	sort.Strings(failureRequestMetrics.labels)
+	assert.Contains(t, metricsOutput, failureRequestMetrics.name+"{"+strings.Join(failureRequestMetrics.labels, ",")+"} "+failureRequestMetrics.value)
 
 	// Verify rate limit metrics don't exist
-	for _, metric := range metricsThatShouldNotExist {
-		assert.NotContains(t, metricsOutput, metric)
+	for _, metric := range rateLimitMetrics {
+		sort.Strings(metric.labels)
+		assert.NotContains(t, metricsOutput, metric.name+"{"+strings.Join(metric.labels, ",")+"} "+metric.value)
 	}
 }
