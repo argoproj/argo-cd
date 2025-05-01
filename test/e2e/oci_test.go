@@ -17,6 +17,7 @@ func TestOCIImage(t *testing.T) {
 		PushImageToOCIRegistry("guestbook", "1.0.0").
 		OCIRepoAdded("guestbook", "guestbook").
 		Revision("1.0.0").
+		OCIRegistry(fixture.OCIHostURL).
 		OCIRegistryPath("guestbook").
 		Path(".").
 		When().
