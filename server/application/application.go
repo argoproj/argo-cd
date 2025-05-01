@@ -638,7 +638,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 
 	var manifestInfo *apiclient.ManifestResponse
 	err = s.queryRepoServer(ctx, proj, func(
-		client apiclient.RepoServerServiceClient, helmRepos []*v1alpha1.Repository, helmCreds []*v1alpha1.RepoCreds, ociRepos []*v1alpha1.Repository, ociCreds []*v1alpha1.RepoCreds, helmOptions *v1alpha1.HelmOptions, enableGenerateManifests map[string]bool,
+		client apiclient.RepoServerServiceClient, helmRepos []*v1alpha1.Repository, helmCreds []*v1alpha1.RepoCreds, _ []*v1alpha1.Repository, _ []*v1alpha1.RepoCreds, helmOptions *v1alpha1.HelmOptions, enableGenerateManifests map[string]bool,
 	) error {
 		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
 		if err != nil {
@@ -797,7 +797,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 			client apiclient.RepoServerServiceClient,
 			helmRepos []*v1alpha1.Repository,
 			_ []*v1alpha1.RepoCreds,
-			ociRepos []*v1alpha1.Repository,
+			_ []*v1alpha1.Repository,
 			_ []*v1alpha1.RepoCreds,
 			helmOptions *v1alpha1.HelmOptions,
 			enabledSourceTypes map[string]bool,
