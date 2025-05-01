@@ -576,16 +576,12 @@ func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
 			},
 		},
 		{
-			name:                 "some-path/*.yaml (isNewGlobbingEnabled)",
-			pattern:              "some-path/*.yaml",
-			isNewGlobbingEnabled: true,
-			expected:             []string{"some-path/values.yaml"},
-		},
-		{
-			name:                 "p1/**/config.json (isNewGlobbingEnabled)",
-			pattern:              "p1/**/config.json",
-			isNewGlobbingEnabled: true,
+			name:                 "**/config.json (non-isNewGlobbingEnabled)",
+			pattern:              "**/config.json",
+			isNewGlobbingEnabled: false,
 			expected: []string{
+				"cluster-config/engineering/production/config.json",
+				"cluster-config/engineering/dev/config.json",
 				"p1/config.json",
 				"p1/p2/config.json",
 				"p1/app2/config.json",
@@ -593,44 +589,25 @@ func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
 			},
 		},
 		{
-			name:                 "cluster-config/**/config.json (isNewGlobbingEnabled)",
-			pattern:              "cluster-config/**/config.json",
+			name:                 "some-path/*.yaml (isNewGlobbingEnabled)",
+			pattern:              "some-path/*.yaml",
 			isNewGlobbingEnabled: true,
-			expected: []string{
-				"cluster-config/engineering/production/config.json",
-				"cluster-config/engineering/dev/config.json",
-			},
+			expected:             []string{"some-path/values.yaml"},
 		},
 		{
-			name:                 "cluster-config/*/dev/config.json (isNewGlobbingEnabled)",
-			pattern:              "cluster-config/*/dev/config.json",
-			isNewGlobbingEnabled: true,
-			expected:             []string{"cluster-config/engineering/dev/config.json"},
-		},
-		{
-			name:                 "cluster-charts/*/*/values.yaml (isNewGlobbingEnabled)",
-			pattern:              "cluster-charts/*/*/values.yaml",
-			isNewGlobbingEnabled: true,
-			expected: []string{
-				"cluster-charts/cluster1/mychart/values.yaml",
-				"cluster-charts/cluster1/myotherchart/values.yaml",
-			},
-		},
-		{
-			name:                 "cluster-charts/*/values.yaml (isNewGlobbingEnabled)",
-			pattern:              "cluster-charts/*/values.yaml",
-			isNewGlobbingEnabled: true,
-			expected: []string{
-				"cluster-charts/cluster2/values.yaml",
-			},
-		},
-		{
-			name:                 "**/config.json (non-isNewGlobbingEnabled)",
-			pattern:              "**/config.json",
+			name:                 "some-path/*.yaml (non-isNewGlobbingEnabled)",
+			pattern:              "some-path/*.yaml",
 			isNewGlobbingEnabled: false,
 			expected: []string{
-				"cluster-config/engineering/production/config.json",
-				"cluster-config/engineering/dev/config.json",
+				"some-path/values.yaml",
+				"some-path/staging/values.yaml",
+			},
+		},
+		{
+			name:                 "p1/**/config.json (isNewGlobbingEnabled)",
+			pattern:              "p1/**/config.json",
+			isNewGlobbingEnabled: true,
+			expected: []string{
 				"p1/config.json",
 				"p1/p2/config.json",
 				"p1/app2/config.json",
@@ -648,22 +625,60 @@ func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
 			},
 		},
 		{
-			name:                 "some-path/*.yaml (non-isNewGlobbingEnabled)",
-			pattern:              "some-path/*.yaml",
-			isNewGlobbingEnabled: false,
+			name:                 "cluster-config/**/config.json (isNewGlobbingEnabled)",
+			pattern:              "cluster-config/**/config.json",
+			isNewGlobbingEnabled: true,
 			expected: []string{
-				"some-path/values.yaml",
-				"some-path/staging/values.yaml",
+				"cluster-config/engineering/production/config.json",
+				"cluster-config/engineering/dev/config.json",
 			},
 		},
 		{
-			name:                 "cluster-charts/*/*/values.yaml (non-isNewGlobbingEnabled)",
+			name:                 "cluster-config/**/config.json (isNewGlobbingEnabled=false)",
+			pattern:              "cluster-config/**/config.json",
+			isNewGlobbingEnabled: false,
+			expected: []string{
+				"cluster-config/engineering/dev/config.json",
+				"cluster-config/engineering/production/config.json",
+			},
+		},
+		{
+			name:                 "cluster-config/*/dev/config.json (isNewGlobbingEnabled)",
+			pattern:              "cluster-config/*/dev/config.json",
+			isNewGlobbingEnabled: true,
+			expected:             []string{"cluster-config/engineering/dev/config.json"},
+		},
+		{
+			name:                 "cluster-config/*/dev/config.json (isNewGlobbingEnabled=false)",
+			pattern:              "cluster-config/*/dev/config.json",
+			isNewGlobbingEnabled: false,
+			expected:             []string{"cluster-config/engineering/dev/config.json"},
+		},
+		{
+			name:                 "cluster-charts/*/*/values.yaml (isNewGlobbingEnabled)",
+			pattern:              "cluster-charts/*/*/values.yaml",
+			isNewGlobbingEnabled: true,
+			expected: []string{
+				"cluster-charts/cluster1/mychart/values.yaml",
+				"cluster-charts/cluster1/myotherchart/values.yaml",
+			},
+		},
+		{
+			name:                 "cluster-charts/*/*/values.yaml (isNewGlobbingEnabled=false)",
 			pattern:              "cluster-charts/*/*/values.yaml",
 			isNewGlobbingEnabled: false,
 			expected: []string{
 				"cluster-charts/cluster1/mychart/values.yaml",
 				"cluster-charts/cluster1/myotherchart/values.yaml",
 				"cluster-charts/cluster1/mychart/charts/mysubchart/values.yaml",
+			},
+		},
+		{
+			name:                 "cluster-charts/*/values.yaml (isNewGlobbingEnabled)",
+			pattern:              "cluster-charts/*/values.yaml",
+			isNewGlobbingEnabled: true,
+			expected: []string{
+				"cluster-charts/cluster2/values.yaml",
 			},
 		},
 		{
