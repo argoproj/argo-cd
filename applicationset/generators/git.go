@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bmatcuk/doublestar/v4"
-
 	"github.com/jeremywohl/flatten"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/types"
@@ -294,29 +292,6 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 		res = append(res, params)
 	}
 
-	return res, nil
-}
-
-// filterFiles filters a list of file paths based on inclusion and exclusion patterns defined in GitFileGeneratorItems.
-// It uses doublestar globbing to support complex patterns like "**/*.yaml".
-func (g *GitGenerator) filterFiles(files []argoprojiov1alpha1.GitFileGeneratorItem, allFilePaths []string) ([]string, error) {
-	var res []string
-	for _, filePath := range allFilePaths {
-		appInclude := false
-		for _, file := range files {
-			match, err := doublestar.Match(file.Path, filePath)
-			if err != nil {
-				return nil, fmt.Errorf("error while matching file path %q with pattern %q: %w", filePath, file.Path, err)
-			}
-			if match {
-				appInclude = !file.Exclude
-			}
-		}
-		// append only those file paths in the result that satisfies the path pattern
-		if appInclude {
-			res = append(res, filePath)
-		}
-	}
 	return res, nil
 }
 

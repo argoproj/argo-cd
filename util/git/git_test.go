@@ -1,7 +1,6 @@
 package git
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -527,7 +526,7 @@ func TestAnnotatedTagHandling(t *testing.T) {
 	assert.Contains(t, refs.Tags, "v1.0.0", "Tag v1.0.0 should exist in refs")
 }
 
-func TestLsFiless(t *testing.T) {
+func TestLsFilesForGitFileGeneratorGlobbingPattern(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	client, err := NewClientExt("", tmpDir, NopCreds{}, false, false, "", "")
@@ -576,11 +575,18 @@ func TestLsFiless(t *testing.T) {
 	assert.ElementsMatch(t, expectedResult, lsResult)
 
 	// OLD Globbing
+	expectedResult = []string{
+		"cluster-config/production/config.json",
+		"p1/config.json",
+		"p1/p2/config.json",
+	}
 	lsResult, err = client.LsFiles("**/config.json", false)
 	require.NoError(t, err)
-	fmt.Println(lsResult)
+	assert.ElementsMatch(t, expectedResult, lsResult)
 
+	expectedResult = []string{"p1/p2/config.json"}
 	lsResult, err = client.LsFiles("p1/**/config.json", false)
 	require.NoError(t, err)
-	fmt.Println(lsResult)
+	assert.ElementsMatch(t, expectedResult, lsResult)
+
 }
