@@ -8,7 +8,7 @@ metadata:
   labels:
     numaplane.numaproj.io/force-promote: "true"
     numaplane.numaproj.io/parent-rollout-name: my-isbsvc
-    numaplane.numaproj.io/upgrade-state: promoted
+    numaplane.numaproj.io/upgrade-state: "in-progress"
   name: my-isbsvc-0
   namespace: demo
   ownerReferences:
