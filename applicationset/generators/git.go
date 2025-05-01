@@ -145,14 +145,56 @@ func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoproj
 func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, noRevisionCache, verifyCommit, useGoTemplate bool, project string, goTemplateOptions []string) ([]map[string]any, error) {
 	// fileContentMap maps absolute file paths to their byte content
 	fileContentMap := make(map[string][]byte)
+	var includePatterns []string
+	var excludePatterns []string
 
-	for _, fileRequest := range appSetGenerator.Git.Files {
-		retrievedFiles, err := g.repos.GetFiles(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, project, fileRequest.Path, noRevisionCache, verifyCommit)
+	for _, req := range appSetGenerator.Git.Files {
+		if req.Exclude {
+			excludePatterns = append(excludePatterns, req.Path)
+		} else {
+			includePatterns = append(includePatterns, req.Path)
+		}
+	}
+
+	// Fetch all files from include patterns
+	for _, includePattern := range includePatterns {
+		retrievedFiles, err := g.repos.GetFiles(
+			context.TODO(),
+			appSetGenerator.Git.RepoURL,
+			appSetGenerator.Git.Revision,
+			project,
+			includePattern,
+			noRevisionCache,
+			verifyCommit,
+		)
 		if err != nil {
 			return nil, err
 		}
 		for absPath, content := range retrievedFiles {
 			fileContentMap[absPath] = content
+		}
+	}
+
+	// Now remove files matching any exclude pattern
+	for _, excludePattern := range excludePatterns {
+		matchingFiles, err := g.repos.GetFiles(
+			context.TODO(),
+			appSetGenerator.Git.RepoURL,
+			appSetGenerator.Git.Revision,
+			project,
+			excludePattern,
+			noRevisionCache,
+			verifyCommit,
+		)
+		if err != nil {
+			return nil, err
+		}
+		for absPath := range matchingFiles {
+			// if the file doesn't exist already and you try to delete it from the map
+			// the operation is a no-op. It’s safe and doesn't return an error or panic.
+			// Hence, we can simply try to delete the file from the path without checking
+			// if that file already exists in the map.
+			delete(fileContentMap, absPath)
 		}
 	}
 
@@ -163,14 +205,8 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	}
 	sort.Strings(filePaths)
 
-	// Filter to only include files defined in the generator config
-	targetFilePaths, err := g.filterFiles(appSetGenerator.Git.Files, filePaths)
-	if err != nil {
-		return nil, err
-	}
-
 	var allParams []map[string]any
-	for _, filePath := range targetFilePaths {
+	for _, filePath := range filePaths {
 		// A JSON / YAML file path can contain multiple sets of parameters (ie it is an array)
 		paramsFromFileArray, err := g.generateParamsFromGitFile(filePath, fileContentMap[filePath], appSetGenerator.Git.Values, useGoTemplate, goTemplateOptions, appSetGenerator.Git.PathParamPrefix)
 		if err != nil {
