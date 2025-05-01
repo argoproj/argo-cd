@@ -56,16 +56,16 @@ type Client interface {
 	// If the revision is already a digest, it is returned as-is.
 	ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error)
 
-	// DigestMetadata retrieves an OCI manifest for a given digest and project.
-	DigestMetadata(ctx context.Context, digest, project string) (*imagev1.Manifest, error)
+	// DigestMetadata retrieves an OCI manifest for a given digest.
+	DigestMetadata(ctx context.Context, digest string) (*imagev1.Manifest, error)
 
 	// CleanCache is invoked on a hard-refresh or when the manifest cache has expired. This removes the OCI image from
-	// the cached path, which is looked up by the specified revision and project.
-	CleanCache(revision string, project string) error
+	// the cached path, which is looked up by the specified revision.
+	CleanCache(revision string) error
 
-	// Extract retrieves and unpacks the contents of an OCI image identified by the specified revision and project.
+	// Extract retrieves and unpacks the contents of an OCI image identified by the specified revision.
 	// If successful, the extracted contents are extracted to a randomized tempdir.
-	Extract(ctx context.Context, revision string, project string) (string, argoio.Closer, error)
+	Extract(ctx context.Context, revision string) (string, argoio.Closer, error)
 
 	// TestRepo verifies the connectivity and accessibility of the repository.
 	TestRepo(ctx context.Context) (bool, error)
@@ -198,8 +198,8 @@ func (c *nativeOCIClient) TestRepo(ctx context.Context) (bool, error) {
 	return err == nil, err
 }
 
-func (c *nativeOCIClient) Extract(ctx context.Context, digest string, project string) (string, argoio.Closer, error) {
-	cachedPath, err := c.getCachedPath(digest, project)
+func (c *nativeOCIClient) Extract(ctx context.Context, digest string) (string, argoio.Closer, error) {
+	cachedPath, err := c.getCachedPath(digest)
 	if err != nil {
 		return "", nil, fmt.Errorf("error getting oci path for digest %s: %w", digest, err)
 	}
@@ -247,16 +247,16 @@ func (c *nativeOCIClient) Extract(ctx context.Context, digest string, project st
 	}), nil
 }
 
-func (c *nativeOCIClient) getCachedPath(version, project string) (string, error) {
-	keyData, err := json.Marshal(map[string]string{"url": c.repoURL, "project": project, "version": version})
+func (c *nativeOCIClient) getCachedPath(version string) (string, error) {
+	keyData, err := json.Marshal(map[string]string{"url": c.repoURL, "version": version})
 	if err != nil {
 		return "", err
 	}
 	return c.repoCachePaths.GetPath(string(keyData))
 }
 
-func (c *nativeOCIClient) CleanCache(revision, project string) error {
-	cachePath, err := c.getCachedPath(revision, project)
+func (c *nativeOCIClient) CleanCache(revision string) error {
+	cachePath, err := c.getCachedPath(revision)
 	if err != nil {
 		return fmt.Errorf("error cleaning oci path for revision %s: %w", revision, err)
 	}
@@ -264,8 +264,8 @@ func (c *nativeOCIClient) CleanCache(revision, project string) error {
 }
 
 // DigestMetadata extracts the OCI manifest for a given revision and returns it to the caller.
-func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest, project string) (*imagev1.Manifest, error) {
-	path, err := c.getCachedPath(digest, project)
+func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest string) (*imagev1.Manifest, error) {
+	path, err := c.getCachedPath(digest)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching oci metadata path for digest %s: %w", digest, err)
 	}

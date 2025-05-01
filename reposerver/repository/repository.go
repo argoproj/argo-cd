@@ -375,13 +375,13 @@ func (s *Service) runRepoOperation(
 
 	if source.IsOCI() {
 		if settings.noCache {
-			err = ociClient.CleanCache(revision, repo.Project)
+			err = ociClient.CleanCache(revision)
 			if err != nil {
 				return err
 			}
 		}
 
-		ociPath, closer, err := ociClient.Extract(ctx, revision, repo.Project)
+		ociPath, closer, err := ociClient.Extract(ctx, revision)
 		if err != nil {
 			return err
 		}
@@ -2433,7 +2433,7 @@ func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRev
 		return nil, fmt.Errorf("failed to initialize oci client: %w", err)
 	}
 
-	metadata, err := client.DigestMetadata(ctx, q.Revision, q.Repo.Project)
+	metadata, err := client.DigestMetadata(ctx, q.Revision)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract digest metadata for revision %q: %w", q.Revision, err)
 	}

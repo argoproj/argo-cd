@@ -96,7 +96,6 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 		allowedMediaTypes []string
 	}
 	type args struct {
-		project                         string
 		manifestMaxExtractedSize        int64
 		disableManifestMaxExtractedSize bool
 		digestFunc                      func(*memory.Store) string
@@ -257,30 +256,9 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				postValidationFunc: func(sha string, _ string, _ Client, fields fields, args args) {
 					store := memory.New()
 					c := newClientWithLock(fields.repoURL, fields.creds, globalLock, store, fields.tagsFunc, fields.allowedMediaTypes, WithImagePaths(cacheDir), WithManifestMaxExtractedSize(args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(args.disableManifestMaxExtractedSize))
-					_, gotCloser, err := c.Extract(t.Context(), sha, args.project)
+					_, gotCloser, err := c.Extract(t.Context(), sha)
 					require.NoError(t, err)
 					require.NoError(t, gotCloser.Close())
-				},
-			},
-		},
-		{
-			name: "extraction with standard gzip layer using cache, invalid project",
-			fields: fields{
-				allowedMediaTypes: []string{imagev1.MediaTypeImageLayerGzip},
-			},
-			args: args{
-				digestFunc: func(store *memory.Store) string {
-					layerBlob := createGzippedTarWithContent(t, "foo.yaml", "some content")
-					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(imagev1.MediaTypeImageLayerGzip, layerBlob), layerBlob})
-				},
-				manifestMaxExtractedSize:        1000,
-				disableManifestMaxExtractedSize: false,
-				postValidationFunc: func(sha string, _ string, _ Client, fields fields, args args) {
-					store := memory.New()
-					c := newClientWithLock(fields.repoURL, fields.creds, globalLock, store, fields.tagsFunc, fields.allowedMediaTypes, WithImagePaths(cacheDir), WithManifestMaxExtractedSize(args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(args.disableManifestMaxExtractedSize))
-					_, _, err := c.Extract(t.Context(), sha, "non-existent-project")
-					require.Error(t, err)
-					require.EqualError(t, errors.New("error resolving oci repo from digest sha256:34a4a54b23e018edd08aadd78a126a0cedf1e70452daf0d6b36ea44253350a73: not found"), err.Error())
 				},
 			},
 		},
@@ -290,12 +268,9 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			store := memory.New()
 			sha := tt.args.digestFunc(store)
-			if tt.args.project == "" {
-				tt.args.project = tt.name
-			}
 
 			c := newClientWithLock(tt.fields.repoURL, tt.fields.creds, globalLock, store, tt.fields.tagsFunc, tt.fields.allowedMediaTypes, WithImagePaths(cacheDir), WithManifestMaxExtractedSize(tt.args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(tt.args.disableManifestMaxExtractedSize))
-			path, gotCloser, err := c.Extract(t.Context(), sha, tt.args.project)
+			path, gotCloser, err := c.Extract(t.Context(), sha)
 
 			if tt.expectedError != nil {
 				require.EqualError(t, err, tt.expectedError.Error())
