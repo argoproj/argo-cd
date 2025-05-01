@@ -67,14 +67,14 @@ type ApplicationSetSpec struct {
 	SyncPolicy        *ApplicationSetSyncPolicy   `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
 	Strategy          *ApplicationSetStrategy     `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
 	DeletionStrategy  *ApplicationSetStrategy     `json:"deletionStrategy,omitempty" protobuf:"bytes,6,opt,name=deletionStrategy"`
-	PreservedFields   *ApplicationPreservedFields `json:"preservedFields,omitempty" protobuf:"bytes,6,opt,name=preservedFields"`
-	GoTemplateOptions []string                    `json:"goTemplateOptions,omitempty" protobuf:"bytes,7,opt,name=goTemplateOptions"`
+	PreservedFields   *ApplicationPreservedFields `json:"preservedFields,omitempty" protobuf:"bytes,7,opt,name=preservedFields"`
+	GoTemplateOptions []string                    `json:"goTemplateOptions,omitempty" protobuf:"bytes,8,opt,name=goTemplateOptions"`
 	// ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
 	// Deprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future
 	// version of the ApplicationSet CRD.
-	ApplyNestedSelectors         bool                            `json:"applyNestedSelectors,omitempty" protobuf:"bytes,8,name=applyNestedSelectors"`
-	IgnoreApplicationDifferences ApplicationSetIgnoreDifferences `json:"ignoreApplicationDifferences,omitempty" protobuf:"bytes,9,name=ignoreApplicationDifferences"`
-	TemplatePatch                *string                         `json:"templatePatch,omitempty" protobuf:"bytes,10,name=templatePatch"`
+	ApplyNestedSelectors         bool                            `json:"applyNestedSelectors,omitempty" protobuf:"bytes,9,name=applyNestedSelectors"`
+	IgnoreApplicationDifferences ApplicationSetIgnoreDifferences `json:"ignoreApplicationDifferences,omitempty" protobuf:"bytes,10,name=ignoreApplicationDifferences"`
+	TemplatePatch                *string                         `json:"templatePatch,omitempty" protobuf:"bytes,11,name=templatePatch"`
 }
 
 type ApplicationPreservedFields struct {

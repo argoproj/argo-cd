@@ -330,18 +330,20 @@ message ApplicationSetSpec {
 
   optional ApplicationSetStrategy strategy = 5;
 
-  optional ApplicationPreservedFields preservedFields = 6;
+  optional ApplicationSetStrategy deletionStrategy = 6;
 
-  repeated string goTemplateOptions = 7;
+  optional ApplicationPreservedFields preservedFields = 7;
+
+  repeated string goTemplateOptions = 8;
 
   // ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
   // Deprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future
   // version of the ApplicationSet CRD.
-  optional bool applyNestedSelectors = 8;
+  optional bool applyNestedSelectors = 9;
 
-  repeated ApplicationSetResourceIgnoreDifferences ignoreApplicationDifferences = 9;
+  repeated ApplicationSetResourceIgnoreDifferences ignoreApplicationDifferences = 10;
 
-  optional string templatePatch = 10;
+  optional string templatePatch = 11;
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
