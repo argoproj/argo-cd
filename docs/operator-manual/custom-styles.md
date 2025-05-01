@@ -118,3 +118,20 @@ data:
 ```
 
 ![banner with link](../assets/banner.png)
+
+## Argo CD UI Commit Summary Banner (Disable Option)
+
+Argo CD displays a commit summary banner in the UI when syncing applications, providing commit metadata such as author and message. In some environments, this information may be unnecessary or sensitive. To support more configurable UIs, Argo CD now provides an option to disable the display of this commit summary. This can be disabled by setting `ui.commitsummary.disabled` to true in the `argocd-cm` ConfigMap.
+
+```yaml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  ui.commitsummary.disabled: "true"
+```
+
+![banner with link](../assets/commit-summary-disabled.png)

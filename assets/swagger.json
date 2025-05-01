@@ -5357,6 +5357,9 @@
         "uiBannerURL": {
           "type": "string"
         },
+        "uiCommitSummaryDisabled": {
+          "type": "boolean"
+        },
         "uiCssURL": {
           "type": "string"
         },
