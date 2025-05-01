@@ -1,6 +1,7 @@
 package git
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -524,4 +525,62 @@ func TestAnnotatedTagHandling(t *testing.T) {
 
 	// Verify tag exists in the list and points to a valid commit SHA
 	assert.Contains(t, refs.Tags, "v1.0.0", "Tag v1.0.0 should exist in refs")
+}
+
+func TestLsFiless(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	client, err := NewClientExt("", tmpDir, NopCreds{}, false, false, "", "")
+	require.NoError(t, err)
+
+	err = runCmd(tmpDir, "git", "init")
+	require.NoError(t, err)
+
+	// Prepare files
+	// Creating directory and files for the test case
+	err = os.MkdirAll(filepath.Join(tmpDir, "cluster-config", "production"), 0o755)
+	require.NoError(t, err)
+	_, err = os.Create(filepath.Join(tmpDir, "cluster-config", "production", "config.json"))
+	require.NoError(t, err)
+
+	err = os.MkdirAll(filepath.Join(tmpDir, "p1", "p2"), 0o755)
+	require.NoError(t, err)
+	_, err = os.Create(filepath.Join(tmpDir, "p1", "config.json"))
+	require.NoError(t, err)
+	_, err = os.Create(filepath.Join(tmpDir, "p1", "p2", "config.json"))
+	require.NoError(t, err)
+
+	// Git add and commit
+	err = runCmd(tmpDir, "git", "add", ".")
+	require.NoError(t, err)
+	err = runCmd(tmpDir, "git", "commit", "-m", "Initial commit")
+	require.NoError(t, err)
+
+	// Test Pattern: "**/config.json"
+	expectedResult := []string{
+		"cluster-config/production/config.json",
+		"p1/config.json",
+		"p1/p2/config.json",
+	}
+	lsResult, err := client.LsFiles("**/config.json", true)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, expectedResult, lsResult)
+
+	// Test Pattern: "p1/**/config.json"
+	expectedResult = []string{
+		"p1/config.json",
+		"p1/p2/config.json",
+	}
+	lsResult, err = client.LsFiles("p1/**/config.json", true)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, expectedResult, lsResult)
+
+	// OLD Globbing
+	lsResult, err = client.LsFiles("**/config.json", false)
+	require.NoError(t, err)
+	fmt.Println(lsResult)
+
+	lsResult, err = client.LsFiles("p1/**/config.json", false)
+	require.NoError(t, err)
+	fmt.Println(lsResult)
 }
