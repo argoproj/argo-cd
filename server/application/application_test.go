@@ -1812,6 +1812,94 @@ p, test-user, applications, update/fake.io/PodTest/*, default/test-app, deny
 	})
 }
 
+func TestSyncOverrideRBAC(t *testing.T) {
+	ctx := t.Context()
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+	testApp := newTestApp()
+	testApp.Spec.Source.RepoURL = "https://github.com/org/test"
+	testApp.Spec.Source.Path = "deploy"
+	testApp.Spec.Source.TargetRevision = "appbranch"
+
+	t.Run("sync without sync permission should fail", func(t *testing.T) {
+		app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+		require.NoError(t, err)
+		syncReq := &application.ApplicationSyncRequest{
+			Name:     &app.Name,
+			Revision: ptr.To("appbranch"),
+		}
+		_ = appServer.enf.SetBuiltinPolicy(`
+	p, test-user, applications, get, default/test-app, allow
+	p, test-user, applications, create, default/test-app, allow
+	p, test-user, applications, sync, default/test-app, deny
+	`)
+		app, err = appServer.Sync(ctx, syncReq)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+
+	t.Run("sync to different revision without override permission should fail", func(t *testing.T) {
+		app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+		require.NoError(t, err)
+		syncReq := &application.ApplicationSyncRequest{
+			Name:     &app.Name,
+			Revision: ptr.To("revisionbranch"),
+		}
+		_ = appServer.enf.SetBuiltinPolicy(`
+	p, test-user, applications, get, default/test-app, allow
+	p, test-user, applications, create, default/test-app, allow
+	p, test-user, applications, sync, default/test-app, allow
+	p, test-user, applications, override, default/test-app, deny
+	`)
+		app, err = appServer.Sync(ctx, syncReq)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+
+	t.Run("sync to different revision with override permission be allowed", func(t *testing.T) {
+		app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+		require.NoError(t, err)
+		syncReq := &application.ApplicationSyncRequest{
+			Name:     &app.Name,
+			Revision: ptr.To("revisionbranch"),
+		}
+		_ = appServer.enf.SetBuiltinPolicy(`
+	p, test-user, applications, get, default/test-app, allow
+	p, test-user, applications, create, default/test-app, allow
+	p, test-user, applications, sync, default/test-app, allow
+	p, test-user, applications, override, default/test-app, allow
+	`)
+		app, err = appServer.Sync(ctx, syncReq)
+		require.NoError(t, err)
+		assert.NotNil(t, app)
+	})
+}
+func TestSyncOverrideRBAC2(t *testing.T) {
+	ctx := t.Context()
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+	testApp := newTestApp()
+	testApp.Spec.Source.RepoURL = "https://github.com/org/test"
+	testApp.Spec.Source.Path = "deploy"
+	testApp.Spec.Source.TargetRevision = "appbranch"
+
+	t.Run("sync to same revision without override permission should be allowed", func(t *testing.T) {
+		app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+		require.NoError(t, err)
+		syncReq := &application.ApplicationSyncRequest{
+			Name:     &app.Name,
+			Revision: ptr.To("appbranch"),
+		}
+		_ = appServer.enf.SetBuiltinPolicy(`
+		p, test-user, applications, get, default/test-app, allow
+		p, test-user, applications, create, default/test-app, allow
+		p, test-user, applications, sync, default/test-app, allow
+		p, test-user, applications, override, default/test-app, deny
+		`)
+		app, err = appServer.Sync(ctx, syncReq)
+		require.NoError(t, err)
+		assert.NotNil(t, app)
+	})
+}
+
 func TestSyncAndTerminate(t *testing.T) {
 	ctx := t.Context()
 	appServer := newTestAppServer(t)
