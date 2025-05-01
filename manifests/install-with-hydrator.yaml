@@ -5915,37 +5915,6 @@ spec:
             properties:
               applyNestedSelectors:
                 type: boolean
-              deletionStrategy:
-                properties:
-                  rollingSync:
-                    properties:
-                      steps:
-                        items:
-                          properties:
-                            matchExpressions:
-                              items:
-                                properties:
-                                  key:
-                                    type: string
-                                  operator:
-                                    type: string
-                                  values:
-                                    items:
-                                      type: string
-                                    type: array
-                                type: object
-                              type: array
-                            maxUpdate:
-                              anyOf:
-                              - type: integer
-                              - type: string
-                              x-kubernetes-int-or-string: true
-                          type: object
-                        type: array
-                    type: object
-                  type:
-                    type: string
-                type: object
               generators:
                 items:
                   properties:
@@ -22833,6 +22802,8 @@ spec:
                 type: object
               strategy:
                 properties:
+                  deletionOrder:
+                    type: string
                   rollingSync:
                     properties:
                       steps:

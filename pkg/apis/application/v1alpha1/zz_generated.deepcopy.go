@@ -755,11 +755,6 @@ func (in *ApplicationSetSpec) DeepCopyInto(out *ApplicationSetSpec) {
 		*out = new(ApplicationSetStrategy)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.DeletionStrategy != nil {
-		in, out := &in.DeletionStrategy, &out.DeletionStrategy
-		*out = new(ApplicationSetStrategy)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.PreservedFields != nil {
 		in, out := &in.PreservedFields, &out.PreservedFields
 		*out = new(ApplicationPreservedFields)
