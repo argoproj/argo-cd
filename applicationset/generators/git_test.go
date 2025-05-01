@@ -1377,7 +1377,8 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
 			},
 			includePattern: []string{"**/config.json"},
 			excludePattern: []string{"p1/**/config.json"},
-			includeFiles: map[string][]byte{"cluster-config/production/config.json": []byte(`{
+			includeFiles: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`{
 				   "cluster": {
 				       "owner": "john.doe@example.com",
 				       "name": "production",
