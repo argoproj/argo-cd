@@ -38,6 +38,7 @@ func TestOCIWithOCIHelmRegistryDependencies(t *testing.T) {
 		RepoURLType(fixture.RepoURLTypeOCI).
 		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
 		PushImageToOCIRegistry("helm-oci-with-dependencies", "1.0.0").
+		OCIRegistry(fixture.OCIHostURL).
 		OCIRepoAdded("helm-oci-with-dependencies", "helm-oci-with-dependencies").
 		OCIRegistryPath("helm-oci-with-dependencies").
 		Revision("1.0.0").
