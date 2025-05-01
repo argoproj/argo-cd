@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -408,6 +409,8 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *v1alpha1.AppProject,
 	client apiclient.RepoServerServiceClient,
 	helmRepos []*v1alpha1.Repository,
 	helmCreds []*v1alpha1.RepoCreds,
+	ociRepos []*v1alpha1.Repository,
+	ociCreds []*v1alpha1.RepoCreds,
 	helmOptions *v1alpha1.HelmOptions,
 	enabledSourceTypes map[string]bool,
 ) error,
@@ -443,7 +446,24 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *v1alpha1.AppProject,
 	if err != nil {
 		return fmt.Errorf("error getting settings enabled source types: %w", err)
 	}
-	return action(client, permittedHelmRepos, permittedHelmCredentials, helmOptions, enabledSourceTypes)
+	ociRepos, err := s.db.ListOCIRepositories(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to list OCI repositories: %w", err)
+	}
+	permittedOCIRepos, err := argo.GetPermittedRepos(proj, ociRepos)
+	if err != nil {
+		return fmt.Errorf("failed to get permitted OCI repositories for project %q: %w", proj.Name, err)
+	}
+	ociRepositoryCredentials, err := s.db.GetAllOCIRepositoryCredentials(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to get OCI credentials: %w", err)
+	}
+	permittedOCICredentials, err := argo.GetPermittedReposCredentials(proj, ociRepositoryCredentials)
+	if err != nil {
+		return fmt.Errorf("failed to get permitted OCI credentials for project %q: %w", proj.Name, err)
+	}
+
+	return action(client, permittedHelmRepos, permittedHelmCredentials, permittedOCIRepos, permittedOCICredentials, helmOptions, enabledSourceTypes)
 }
 
 // GetManifests returns application manifests
@@ -462,7 +482,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 
 	manifestInfos := make([]*apiclient.ManifestResponse, 0)
 	err = s.queryRepoServer(ctx, proj, func(
-		client apiclient.RepoServerServiceClient, helmRepos []*v1alpha1.Repository, helmCreds []*v1alpha1.RepoCreds, helmOptions *v1alpha1.HelmOptions, enableGenerateManifests map[string]bool,
+		client apiclient.RepoServerServiceClient, helmRepos []*v1alpha1.Repository, helmCreds []*v1alpha1.RepoCreds, ociRepos []*v1alpha1.Repository, ociCreds []*v1alpha1.RepoCreds, helmOptions *v1alpha1.HelmOptions, enableGenerateManifests map[string]bool,
 	) error {
 		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
 		if err != nil {
@@ -529,6 +549,18 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				return fmt.Errorf("error getting installation ID: %w", err)
 			}
 
+			repos := helmRepos
+			helmRepoCreds := helmCreds
+			// If the source is OCI, there is a potential for an OCI image to be a Helm chart and that said chart in
+			// turn would have OCI dependencies. To ensure that those dependencies can be resolved, add them to the repos
+			// list.
+			if source.IsOCI() {
+				repos = slices.Clone(helmRepos)
+				helmRepoCreds = slices.Clone(helmCreds)
+				repos = append(repos, ociRepos...)
+				helmRepoCreds = append(helmRepoCreds, ociCreds...)
+			}
+
 			manifestInfo, err := client.GenerateManifest(ctx, &apiclient.ManifestRequest{
 				Repo:                            repo,
 				Revision:                        source.TargetRevision,
@@ -536,11 +568,11 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				AppName:                         a.InstanceName(s.ns),
 				Namespace:                       a.Spec.Destination.Namespace,
 				ApplicationSource:               &source,
-				Repos:                           helmRepos,
+				Repos:                           repos,
 				KustomizeOptions:                kustomizeOptions,
 				KubeVersion:                     serverVersion,
 				ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
-				HelmRepoCreds:                   helmCreds,
+				HelmRepoCreds:                   helmRepoCreds,
 				HelmOptions:                     helmOptions,
 				TrackingMethod:                  string(argo.GetTrackingMethod(s.settingsMgr)),
 				EnabledSourceTypes:              enableGenerateManifests,
@@ -606,7 +638,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 
 	var manifestInfo *apiclient.ManifestResponse
 	err = s.queryRepoServer(ctx, proj, func(
-		client apiclient.RepoServerServiceClient, helmRepos []*v1alpha1.Repository, helmCreds []*v1alpha1.RepoCreds, helmOptions *v1alpha1.HelmOptions, enableGenerateManifests map[string]bool,
+		client apiclient.RepoServerServiceClient, helmRepos []*v1alpha1.Repository, helmCreds []*v1alpha1.RepoCreds, ociRepos []*v1alpha1.Repository, ociCreds []*v1alpha1.RepoCreds, helmOptions *v1alpha1.HelmOptions, enableGenerateManifests map[string]bool,
 	) error {
 		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
 		if err != nil {
@@ -764,6 +796,8 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 		if err := s.queryRepoServer(ctx, proj, func(
 			client apiclient.RepoServerServiceClient,
 			helmRepos []*v1alpha1.Repository,
+			_ []*v1alpha1.RepoCreds,
+			ociRepos []*v1alpha1.Repository,
 			_ []*v1alpha1.RepoCreds,
 			helmOptions *v1alpha1.HelmOptions,
 			enabledSourceTypes map[string]bool,

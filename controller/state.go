@@ -140,11 +140,11 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 
 	ociRepos, err := m.db.ListOCIRepositories(context.Background())
 	if err != nil {
-		return nil, nil, false, fmt.Errorf("failed to list Helm repositories: %w", err)
+		return nil, nil, false, fmt.Errorf("failed to list OCI repositories: %w", err)
 	}
 	permittedOCIRepos, err := argo.GetPermittedRepos(proj, ociRepos)
 	if err != nil {
-		return nil, nil, false, fmt.Errorf("failed to get permitted Helm repositories for project %q: %w", proj.Name, err)
+		return nil, nil, false, fmt.Errorf("failed to get permitted OCI repositories for project %q: %w", proj.Name, err)
 	}
 
 	ts.AddCheckpoint("repo_ms")
@@ -159,7 +159,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 
 	ociRepositoryCredentials, err := m.db.GetAllOCIRepositoryCredentials(context.Background())
 	if err != nil {
-		return nil, nil, false, fmt.Errorf("failed to get Helm credentials: %w", err)
+		return nil, nil, false, fmt.Errorf("failed to get OCI credentials: %w", err)
 	}
 	permittedOCICredentials, err := argo.GetPermittedReposCredentials(proj, ociRepositoryCredentials)
 	if err != nil {

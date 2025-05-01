@@ -194,7 +194,7 @@ func (db *db) ListOCIRepositories(ctx context.Context) ([]*v1alpha1.Repository, 
 		return nil, fmt.Errorf("failed to list OCI repositories: %w", err)
 	}
 	result = append(result, v1alpha1.Repositories(repos).Filter(func(r *v1alpha1.Repository) bool {
-		return r.Type == "OCI" && r.Name != ""
+		return r.Type == "oci"
 	})...)
 	return result, nil
 }

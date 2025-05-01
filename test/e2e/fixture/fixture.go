@@ -132,8 +132,10 @@ const (
 	GithubAppInstallationID         = "7893789433789"
 	GpgGoodKeyID                    = "D56C4FCA57A46444"
 	HelmOCIRegistryURL              = "localhost:5000/myrepo"
+	HelmAuthenticatedOCIRegistryURL = "localhost:5001/myrepo"
 	OCIRegistryURL                  = "oci://localhost:5000/my-oci-repo"
 	OCIHostURL                      = "oci://localhost:5000"
+	AuthenticatedOCIHostURL         = "oci://localhost:5001"
 )
 
 // TestNamespace returns the namespace where Argo CD E2E test instance will be

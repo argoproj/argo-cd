@@ -245,7 +245,7 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	} else {
 		var repo string
 		if a.context.ociRegistryPath != "" && a.context.repoURLType == fixture.RepoURLTypeOCI {
-			repo = fmt.Sprintf("%s/%s", fixture.OCIHostURL, a.context.ociRegistryPath)
+			repo = fmt.Sprintf("%s/%s", a.context.ociRegistry, a.context.ociRegistryPath)
 		} else {
 			repo = fixture.RepoURL(a.context.repoURLType)
 		}

@@ -109,6 +109,21 @@ func AddOCIRepo(t *testing.T, name, imagePath string) {
 	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
 
+func AddAuthenticatedOCIRepo(t *testing.T, name, imagePath string) {
+	t.Helper()
+	args := []string{
+		"repo",
+		"add",
+		fmt.Sprintf("%s/%s", fixture.AuthenticatedOCIHostURL, imagePath),
+		"--username", fixture.GitUsername,
+		"--password", fixture.GitPassword,
+		"--type", "oci",
+		"--name", name,
+		"--insecure-oci-force-http",
+	}
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
+}
+
 func AddHelmOCIRepo(t *testing.T, name string) {
 	t.Helper()
 	args := []string{
@@ -213,6 +228,49 @@ func PushChartToOCIRegistry(t *testing.T, chartPathName, chartName, chartVersion
 	))
 }
 
+// PushChartToAuthenticatedOCIRegistry adds a helm chart to helm OCI registry
+func PushChartToAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName, chartVersion string) {
+	t.Helper()
+	// create empty temp directory to extract chart from the registry
+	tempDest, err1 := os.MkdirTemp("", "helm")
+	require.NoError(t, err1)
+	defer func() { _ = os.RemoveAll(tempDest) }()
+
+	chartAbsPath, err2 := filepath.Abs("./testdata/" + chartPathName)
+	require.NoError(t, err2)
+
+	t.Setenv("HELM_EXPERIMENTAL_OCI", "1")
+	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "dependency", "build", chartAbsPath))
+	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "package", chartAbsPath, "--destination", tempDest))
+	_ = os.RemoveAll(fmt.Sprintf("%s/%s", chartAbsPath, "charts"))
+
+	errors.NewHandler(t).FailOnErr(fixture.Run(
+		"",
+		"helm",
+		"registry",
+		"login",
+		"--username", fixture.GitUsername,
+		"--password", fixture.GitPassword,
+		"localhost:5001",
+	))
+
+	errors.NewHandler(t).FailOnErr(fixture.Run(
+		"",
+		"helm",
+		"push",
+		fmt.Sprintf("%s/%s-%s.tgz", tempDest, chartName, chartVersion),
+		"oci://"+fixture.HelmAuthenticatedOCIRegistryURL,
+	))
+
+	errors.NewHandler(t).FailOnErr(fixture.Run(
+		"",
+		"helm",
+		"registry",
+		"logout",
+		"localhost:5001",
+	))
+}
+
 // PushImageToOCIRegistry adds a helm chart to helm OCI registry
 func PushImageToOCIRegistry(t *testing.T, pathName, tag string) {
 	t.Helper()
@@ -223,6 +281,20 @@ func PushImageToOCIRegistry(t *testing.T, pathName, tag string) {
 		"oras",
 		"push",
 		fmt.Sprintf("%s:%s", fmt.Sprintf("%s/%s", strings.TrimPrefix(fixture.OCIHostURL, "oci://"), pathName), tag),
+		".",
+	))
+}
+
+// PushImageToAuthenticatedOCIRegistry adds a helm chart to helm OCI registry
+func PushImageToAuthenticatedOCIRegistry(t *testing.T, pathName, tag string) {
+	t.Helper()
+	imagePath := "./testdata/" + pathName
+
+	errors.NewHandler(t).FailOnErr(fixture.Run(
+		imagePath,
+		"oras",
+		"push",
+		fmt.Sprintf("%s:%s", fmt.Sprintf("%s/%s", strings.TrimPrefix(fixture.AuthenticatedOCIHostURL, "oci://"), pathName), tag),
 		".",
 	))
 }

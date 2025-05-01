@@ -1041,7 +1041,7 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 	reposByName := make(map[string]*v1alpha1.Repository)
 	reposByURL := make(map[string]*v1alpha1.Repository)
 	for _, repo := range repositories {
-		reposByURL[repo.Repo] = repo
+		reposByURL[strings.TrimPrefix(repo.Repo, "oci://")] = repo
 		if repo.Name != "" {
 			reposByName[repo.Name] = repo
 		}
@@ -1071,7 +1071,7 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 				for _, cred := range repositories {
 					// if the repo is OCI, don't match the repository URL exactly, but only as a dependent repository prefix just like in the getRepoCredential function
 					// see https://github.com/argoproj/argo-cd/issues/12436
-					if _, err := url.Parse("oci://" + dep.Repo); err == nil && (cred.EnableOCI && strings.HasPrefix(dep.Repo, cred.Repo) || (cred.Type == "oci" && strings.HasPrefix("oci://"+dep.Repo, cred.Repo))) {
+					if _, err := url.Parse("oci://" + dep.Repo); err == nil && (cred.EnableOCI && (strings.HasPrefix(dep.Repo, cred.Repo) || strings.HasPrefix(cred.Repo, dep.Repo)) || (cred.Type == "oci" && (strings.HasPrefix("oci://"+dep.Repo, cred.Repo) || strings.HasPrefix(cred.Repo, "oci://"+dep.Repo)))) {
 						repo.Username = cred.Username
 						repo.Password = cred.Password
 						repo.UseAzureWorkloadIdentity = cred.UseAzureWorkloadIdentity

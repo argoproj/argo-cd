@@ -21,6 +21,7 @@ type Context struct {
 	t               *testing.T
 	path            string
 	chart           string
+	ociRegistry     string
 	ociRegistryPath string
 	repoURLType     fixture.RepoURLType
 	// seconds
@@ -194,8 +195,18 @@ func (c *Context) PushImageToOCIRegistry(pathName, tag string) *Context {
 	return c
 }
 
+func (c *Context) PushImageToAuthenticatedOCIRegistry(pathName, tag string) *Context {
+	repos.PushImageToAuthenticatedOCIRegistry(c.t, pathName, tag)
+	return c
+}
+
 func (c *Context) PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
 	repos.PushChartToOCIRegistry(c.t, chartPathName, chartName, chartVersion)
+	return c
+}
+
+func (c *Context) PushChartToAuthenticatedOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
+	repos.PushChartToAuthenticatedOCIRegistry(c.t, chartPathName, chartName, chartVersion)
 	return c
 }
 
@@ -226,6 +237,16 @@ func (c *Context) SSHCredentialsAdded() *Context {
 
 func (c *Context) OCIRepoAdded(name, imagePath string) *Context {
 	repos.AddOCIRepo(c.t, name, imagePath)
+	return c
+}
+
+func (c *Context) AuthenticatedOCIRepoAdded(name, imagePath string) *Context {
+	repos.AddAuthenticatedOCIRepo(c.t, name, imagePath)
+	return c
+}
+
+func (c *Context) OCIRegistry(registry string) *Context {
+	c.ociRegistry = registry
 	return c
 }
 

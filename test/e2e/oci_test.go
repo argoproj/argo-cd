@@ -52,3 +52,25 @@ func TestOCIWithOCIHelmRegistryDependencies(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
+
+func TestOCIWithAuthedOCIHelmRegistryDeps(t *testing.T) {
+	Given(t).
+		RepoURLType(fixture.RepoURLTypeOCI).
+		PushChartToAuthenticatedOCIRegistry("helm-values", "helm-values", "1.0.0").
+		PushImageToOCIRegistry("helm-oci-authed-with-dependencies", "1.0.0").
+		OCIRepoAdded("helm-oci-authed-with-dependencies", "helm-oci-authed-with-dependencies").
+		AuthenticatedOCIRepoAdded("helm-values", "myrepo/helm-values").
+		OCIRegistry(fixture.OCIHostURL).
+		OCIRegistryPath("helm-oci-authed-with-dependencies").
+		Revision("1.0.0").
+		Path(".").
+		When().
+		CreateApp().
+		Then().
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
