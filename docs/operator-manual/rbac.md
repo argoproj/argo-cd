@@ -203,8 +203,8 @@ p, example-user, applications, action/*, default/*, allow
 
 #### The `override` action
 
-When granted along with the `sync` action, the override action will allow a user to synchronize local manifests to the Application.
-These manifests will be used instead of the configured source, until the next sync is performed.
+When granted along with the `sync` action, the override action will allow a user to synchronize arbitrary revisions or local manifests to the Application, diverging from the revision defined with the Application spec.
+These manifests or differing revision will be used instead of the configured source, until the next sync is performed.
 
 ### The `applicationsets` resource
 
