@@ -290,6 +290,7 @@ export interface ApplicationSourceDirectory {
 export interface Automated {
     prune: boolean;
     selfHeal: boolean;
+    enabled: boolean;
 }
 
 export interface SyncPolicy {
