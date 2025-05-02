@@ -25,7 +25,7 @@ end
 
 -- force-promote
 local forcePromote = false
-if (obj.metadata.ownerReferences ~= nil and obj.metadata.ownerReferences[1] ~= nil and obj.metadata.ownerReferences[0].kind == "PipelineRollout") and (obj.metadata.labels ~= nil and obj.metadata.labels["numaplane.numaproj.io/upgrade-state"] == "in-progress") then
+if (obj.metadata.labels ~= nil and obj.metadata.labels["numaplane.numaproj.io/upgrade-state"] == "in-progress") then
   forcePromote = true
 end
 if (obj.metadata.labels ~= nil and obj.metadata.labels["numaplane.numaproj.io/force-promote"] == "true") then
