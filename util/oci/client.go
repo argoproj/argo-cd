@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -152,24 +153,37 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 		}),
 	}
 
+	parsed, err := url.Parse(repoURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse oci repo url: %w", err)
+	}
+
+	reg, err := remote.NewRegistry(parsed.Host)
+	if err != nil {
+		return nil, fmt.Errorf("failed to setup registry config: %w", err)
+	}
+	reg.PlainHTTP = repo.PlainHTTP
+	reg.Client = repo.Client
 	return newClientWithLock(ociRepo, creds, repoLock, repo, func(ctx context.Context, last string) ([]string, error) {
 		var t []string
+
 		err := repo.Tags(ctx, last, func(tags []string) error {
 			t = append(t, tags...)
 			return nil
 		})
 
 		return t, err
-	}, layerMediaTypes, opts...), nil
+	}, reg.Ping, layerMediaTypes, opts...), nil
 }
 
-func newClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, repo oras.ReadOnlyTarget, tagsFunc func(context.Context, string) ([]string, error), layerMediaTypes []string, opts ...ClientOpts) Client {
+func newClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, repo oras.ReadOnlyTarget, tagsFunc func(context.Context, string) ([]string, error), pingFunc func(ctx context.Context) error, layerMediaTypes []string, opts ...ClientOpts) Client {
 	c := &nativeOCIClient{
 		creds:             creds,
 		repoURL:           repoURL,
 		repoLock:          repoLock,
 		repo:              repo,
 		tagsFunc:          tagsFunc,
+		pingFunc:          pingFunc,
 		allowedMediaTypes: layerMediaTypes,
 	}
 	for i := range opts {
@@ -190,11 +204,12 @@ type nativeOCIClient struct {
 	allowedMediaTypes               []string
 	manifestMaxExtractedSize        int64
 	disableManifestMaxExtractedSize bool
+	pingFunc                        func(ctx context.Context) error
 }
 
 // TestRepo verifies that the remote OCI repo can be connected to.
 func (c *nativeOCIClient) TestRepo(ctx context.Context) (bool, error) {
-	_, err := c.tagsFunc(ctx, "")
+	err := c.pingFunc(ctx)
 	return err == nil, err
 }
 
