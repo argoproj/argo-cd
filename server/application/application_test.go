@@ -1812,67 +1812,202 @@ p, test-user, applications, update/fake.io/PodTest/*, default/test-app, deny
 	})
 }
 
-func TestSyncOverrideRBAC(t *testing.T) {
+func TestSyncRBACOverrideFlagTrue(t *testing.T) {
 	ctx := t.Context()
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
-	appServer := newTestAppServer(t)
+
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+	appServer := newTestAppServerWithEnforcerConfigure(t, f, map[string]string{"application.sync.externalRevisionConsideredOverride": "true"})
+
 	testApp := newTestApp()
 	testApp.Spec.Source.RepoURL = "https://github.com/org/test"
 	testApp.Spec.Source.Path = "deploy"
 	testApp.Spec.Source.TargetRevision = "appbranch"
 
+	multiSourceApp := newTestApp()
+	multiSourceApp.Name = "multi-source-app"
+	multiSourceApp.Spec = v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				Path:           "helm-guestbook",
+				TargetRevision: "appbranch1",
+			},
+			{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				Path:           "kustomize-guestbook",
+				TargetRevision: "appbranch2",
+			},
+		},
+		Destination: v1alpha1.ApplicationDestination{
+			Namespace: "default",
+			Name:      "fake-cluster",
+		},
+	}
+
+	// cases:
+	// sync allowed: true/false
+	// override allowed: true/false
+	// sync to revision: same/different/none
+
 	t.Run("sync without sync permission should fail", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+			p, test-user, applications, get, default/test-app, allow
+			p, test-user, applications, create, default/test-app, allow
+			p, test-user, applications, sync, default/test-app, deny
+			`)
 		app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
 		require.NoError(t, err)
 		syncReq := &application.ApplicationSyncRequest{
 			Name:     &app.Name,
 			Revision: ptr.To("appbranch"),
 		}
-		_ = appServer.enf.SetBuiltinPolicy(`
-	p, test-user, applications, get, default/test-app, allow
-	p, test-user, applications, create, default/test-app, allow
-	p, test-user, applications, sync, default/test-app, deny
-	`)
-		app, err = appServer.Sync(ctx, syncReq)
+
+		_, err = appServer.Sync(ctx, syncReq)
 		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
 	})
 
 	t.Run("sync to different revision without override permission should fail", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+			p, test-user, applications, get, default/*, allow
+			p, test-user, applications, create, default/*, allow
+			p, test-user, applications, sync, default/*, allow
+			p, test-user, applications, override, default/*, deny
+			`)
 		app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
 		require.NoError(t, err)
 		syncReq := &application.ApplicationSyncRequest{
 			Name:     &app.Name,
 			Revision: ptr.To("revisionbranch"),
 		}
-		_ = appServer.enf.SetBuiltinPolicy(`
-	p, test-user, applications, get, default/test-app, allow
-	p, test-user, applications, create, default/test-app, allow
-	p, test-user, applications, sync, default/test-app, allow
-	p, test-user, applications, override, default/test-app, deny
-	`)
-		app, err = appServer.Sync(ctx, syncReq)
+
+		_, err = appServer.Sync(ctx, syncReq)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+
+		// same for multi-source app
+		multiSourceApp.Name = "multi-source-app"
+		app, err = appServer.Create(ctx, &application.ApplicationCreateRequest{Application: multiSourceApp})
+		require.NoError(t, err)
+		syncReq = &application.ApplicationSyncRequest{
+			Name:            &app.Name,
+			SourcePositions: []int64{1},
+			Revisions:       []string{"revisionbranch1"},
+		}
+		_, err = appServer.Sync(ctx, syncReq)
 		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
 	})
 
-	t.Run("sync to different revision with override permission be allowed", func(t *testing.T) {
+	t.Run("sync to same revision without override permission should be allowed", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+		p, test-user, applications, get, default/*, allow
+		p, test-user, applications, create, default/*, allow
+		p, test-user, applications, sync, default/*, allow
+		p, test-user, applications, override, default/*, deny
+		`)
+		// create a new app with different name
+		testApp.Name = "test-app2"
 		app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
 		require.NoError(t, err)
 		syncReq := &application.ApplicationSyncRequest{
 			Name:     &app.Name,
-			Revision: ptr.To("revisionbranch"),
+			Revision: ptr.To("appbranch"),
 		}
-		_ = appServer.enf.SetBuiltinPolicy(`
-	p, test-user, applications, get, default/test-app, allow
-	p, test-user, applications, create, default/test-app, allow
-	p, test-user, applications, sync, default/test-app, allow
-	p, test-user, applications, override, default/test-app, allow
-	`)
+
+		app, err = appServer.Sync(ctx, syncReq)
+		require.NoError(t, err)
+		assert.NotNil(t, app)
+
+		// same for multi-source app
+		multiSourceApp.Name = "multi-source-app2"
+		app, err = appServer.Create(ctx, &application.ApplicationCreateRequest{Application: multiSourceApp})
+		require.NoError(t, err)
+		syncReq = &application.ApplicationSyncRequest{
+			Name:            &app.Name,
+			SourcePositions: []int64{1, 2},
+			Revisions:       []string{"appbranch1", "appbranch2"},
+		}
 		app, err = appServer.Sync(ctx, syncReq)
 		require.NoError(t, err)
 		assert.NotNil(t, app)
 	})
+
+	t.Run("sync without revision without override permission should be allowed", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+		p, test-user, applications, get, default/*, allow
+		p, test-user, applications, create, default/*, allow
+		p, test-user, applications, sync, default/*, allow
+		p, test-user, applications, override, default/*, deny
+		`)
+		// create a new app with different name
+		testApp.Name = "test-app3"
+		app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+		require.NoError(t, err)
+		syncReq := &application.ApplicationSyncRequest{
+			Name: &app.Name,
+		}
+
+		app, err = appServer.Sync(ctx, syncReq)
+		require.NoError(t, err)
+		assert.NotNil(t, app)
+		assert.Equal(t, app.Spec, testApp.Spec)
+
+		// same for multi-source app
+		multiSourceApp.Name = "multi-source-app3"
+		app, err = appServer.Create(ctx, &application.ApplicationCreateRequest{Application: multiSourceApp})
+		require.NoError(t, err)
+		syncReq = &application.ApplicationSyncRequest{
+			Name: &app.Name,
+		}
+		app, err = appServer.Sync(ctx, syncReq)
+		require.NoError(t, err)
+		assert.NotNil(t, app)
+	})
+
+	t.Run("sync to different revision with override permission should be allowed", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+			p, test-user, applications, get, default/*, allow
+			p, test-user, applications, create, default/*, allow
+			p, test-user, applications, sync, default/*, allow
+			p, test-user, applications, override, default/*, allow
+			`)
+		// create a new app with different name
+		testApp.Name = "test-app4"
+		app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+		require.NoError(t, err)
+		syncReq := &application.ApplicationSyncRequest{
+			Name:     &app.Name,
+			Revision: ptr.To("revisionbranch"),
+		}
+
+		syncedApp, err := appServer.Sync(ctx, syncReq)
+		require.NoError(t, err)
+		assert.NotNil(t, syncedApp)
+		// Sync must not change app spec
+		assert.Equal(t, "appbranch", syncedApp.Spec.Source.TargetRevision)
+
+		// same for multi-source app
+		multiSourceApp.Name = "multi-source-app4"
+		app, err = appServer.Create(ctx, &application.ApplicationCreateRequest{Application: multiSourceApp})
+		require.NoError(t, err)
+		syncReq = &application.ApplicationSyncRequest{
+			Name:            &app.Name,
+			SourcePositions: []int64{1, 2},
+			Revisions:       []string{"appbranch1", "appbranch2"},
+		}
+		syncedApp, err = appServer.Sync(ctx, syncReq)
+		require.NoError(t, err)
+		assert.NotNil(t, syncedApp)
+		// Sync must not change app spec
+		assert.Equal(t, "appbranch1", syncedApp.Spec.Sources[0].TargetRevision)
+		assert.Equal(t, "appbranch2", syncedApp.Spec.Sources[1].TargetRevision)
+	})
+
 }
-func TestSyncOverrideRBAC2(t *testing.T) {
+
+func TestSyncRBACOverrideFlagFalse(t *testing.T) {
 	ctx := t.Context()
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	appServer := newTestAppServer(t)
@@ -1881,22 +2016,193 @@ func TestSyncOverrideRBAC2(t *testing.T) {
 	testApp.Spec.Source.Path = "deploy"
 	testApp.Spec.Source.TargetRevision = "appbranch"
 
+	multiSourceApp := newTestApp()
+	multiSourceApp.Name = "multi-source-app"
+	multiSourceApp.Spec = v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				Path:           "helm-guestbook",
+				TargetRevision: "appbranch1",
+			},
+			{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				Path:           "kustomize-guestbook",
+				TargetRevision: "appbranch2",
+			},
+		},
+		Destination: v1alpha1.ApplicationDestination{
+			Namespace: "default",
+			Name:      "fake-cluster",
+		},
+	}
+
+	// cases:
+	// sync allowed: true/false
+	// override allowed: true/false
+	// sync to revision: same/different/none
+
+	t.Run("sync without sync permission should fail", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+			p, test-user, applications, get, default/*, allow
+			p, test-user, applications, create, default/*, allow
+			p, test-user, applications, sync, default/*, deny
+			`)
+		app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+		require.NoError(t, err)
+		syncReq := &application.ApplicationSyncRequest{
+			Name: &app.Name,
+		}
+
+		_, err = appServer.Sync(ctx, syncReq)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+
+		// same for multi-source app
+		app, err = appServer.Create(ctx, &application.ApplicationCreateRequest{Application: multiSourceApp})
+		require.NoError(t, err)
+		syncReq = &application.ApplicationSyncRequest{
+			Name: &app.Name,
+		}
+		_, err = appServer.Sync(ctx, syncReq)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+
+	})
+
+	t.Run("sync to different revision without override permission should be allowed", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+			p, test-user, applications, get, default/*, allow
+			p, test-user, applications, create, default/*, allow
+			p, test-user, applications, sync, default/*, allow
+			p, test-user, applications, override, default/*, deny
+			`)
+		// create a new app with different name
+		testApp.Name = "test-app2"
+		app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+		require.NoError(t, err)
+		syncReq := &application.ApplicationSyncRequest{
+			Name:     &app.Name,
+			Revision: ptr.To("revisionbranch"),
+		}
+
+		syncedApp, err := appServer.Sync(ctx, syncReq)
+		require.NoError(t, err)
+		assert.NotNil(t, syncedApp)
+		// Sync must not change app spec
+		assert.Equal(t, "appbranch", syncedApp.Spec.Source.TargetRevision)
+
+		// same for multi-source app
+		multiSourceApp.Name = "multi-source-app2"
+		app, err = appServer.Create(ctx, &application.ApplicationCreateRequest{Application: multiSourceApp})
+		require.NoError(t, err)
+		syncReq = &application.ApplicationSyncRequest{
+			Name:            &app.Name,
+			SourcePositions: []int64{1},
+			Revisions:       []string{"revisionbranch1"},
+		}
+		syncedApp, err = appServer.Sync(ctx, syncReq)
+		require.NoError(t, err)
+		assert.NotNil(t, syncedApp)
+		// Sync must not change app spec
+		assert.Equal(t, "appbranch1", syncedApp.Spec.Sources[0].TargetRevision)
+		assert.Equal(t, "appbranch2", syncedApp.Spec.Sources[1].TargetRevision)
+
+	})
+
 	t.Run("sync to same revision without override permission should be allowed", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+		p, test-user, applications, get, default/*, allow
+		p, test-user, applications, create, default/*, allow
+		p, test-user, applications, sync, default/*, allow
+		p, test-user, applications, override, default/*, deny
+		`)
+		// create a new app with different name
+		testApp.Name = "test-app3"
 		app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
 		require.NoError(t, err)
 		syncReq := &application.ApplicationSyncRequest{
 			Name:     &app.Name,
 			Revision: ptr.To("appbranch"),
 		}
+
+		syncedApp, err := appServer.Sync(ctx, syncReq)
+		require.NoError(t, err)
+		assert.NotNil(t, syncedApp)
+
+		// same for multi-source app
+		multiSourceApp.Name = "multi-source-app3"
+		app, err = appServer.Create(ctx, &application.ApplicationCreateRequest{Application: multiSourceApp})
+		require.NoError(t, err)
+		syncReq = &application.ApplicationSyncRequest{
+			Name:            &app.Name,
+			SourcePositions: []int64{1, 2},
+			Revisions:       []string{"appbranch1", "appbranch2"},
+		}
+		syncedApp, err = appServer.Sync(ctx, syncReq)
+		require.NoError(t, err)
+		assert.NotNil(t, syncedApp)
+		// Sync must not change app spec
+		assert.Equal(t, "appbranch1", syncedApp.Spec.Sources[0].TargetRevision)
+		assert.Equal(t, "appbranch2", syncedApp.Spec.Sources[1].TargetRevision)
+	})
+
+	t.Run("sync without revision without override permission should be allowed", func(t *testing.T) {
 		_ = appServer.enf.SetBuiltinPolicy(`
-		p, test-user, applications, get, default/test-app, allow
-		p, test-user, applications, create, default/test-app, allow
-		p, test-user, applications, sync, default/test-app, allow
-		p, test-user, applications, override, default/test-app, deny
+		p, test-user, applications, get, default/*, allow
+		p, test-user, applications, create, default/*, allow
+		p, test-user, applications, sync, default/*, allow
+		p, test-user, applications, override, default/*, deny
 		`)
-		app, err = appServer.Sync(ctx, syncReq)
+		// create a new app with different name
+		testApp.Name = "test-app4"
+		app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+		require.NoError(t, err)
+		syncReq := &application.ApplicationSyncRequest{
+			Name: &app.Name,
+		}
+
+		syncedApp, err := appServer.Sync(ctx, syncReq)
 		require.NoError(t, err)
 		assert.NotNil(t, app)
+		// Sync must not change app spec
+		assert.Equal(t, "appbranch", syncedApp.Spec.Source.TargetRevision)
+
+		// same for multi-source app
+		multiSourceApp.Name = "multi-source-app4"
+		app, err = appServer.Create(ctx, &application.ApplicationCreateRequest{Application: multiSourceApp})
+		require.NoError(t, err)
+		syncReq = &application.ApplicationSyncRequest{
+			Name: &app.Name,
+		}
+		syncedApp, err = appServer.Sync(ctx, syncReq)
+		require.NoError(t, err)
+
+		assert.NotNil(t, syncedApp)
+		// Sync must not change app spec
+		assert.Equal(t, "appbranch1", syncedApp.Spec.Sources[0].TargetRevision)
+		assert.Equal(t, "appbranch2", syncedApp.Spec.Sources[1].TargetRevision)
+	})
+
+	t.Run("sync to different revision with override permission should be allowed", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+			p, test-user, applications, get, default/*, allow
+			p, test-user, applications, create, default/*, allow
+			p, test-user, applications, sync, default/*, allow
+			p, test-user, applications, override, default/*, allow
+			`)
+		// create a new app with different name
+		testApp.Name = "test-app5"
+		app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+		require.NoError(t, err)
+		syncReq := &application.ApplicationSyncRequest{
+			Name:     &app.Name,
+			Revision: ptr.To("revisionbranch"),
+		}
+
+		syncedApp, err := appServer.Sync(ctx, syncReq)
+		require.NoError(t, err)
+		assert.NotNil(t, syncedApp)
+		// Sync must not change app spec
+		assert.Equal(t, "appbranch", syncedApp.Spec.Source.TargetRevision)
 	})
 }
 
