@@ -529,12 +529,12 @@ export async function getResourceActionsMenuItems(resource: ResourceTreeNode, me
             iconClassName: action.iconClass,
             action: async () => {
                 const confirmed = false;
-                const title = action.hasParameters ? `Enter input parameters for action: ${action.name}` : `Perform ${action.name} action?`;
+                const title = action.params ? `Enter input parameters for action: ${action.name}` : `Perform ${action.name} action?`;
                 await apis.popup.prompt(
                     title,
                     api => (
                         <div>
-                            {!action.hasParameters && (
+                            {!action.params && (
                                 <div className='argo-form-row'>
                                     <div> Are you sure you want to perform {action.name} action?</div>
                                 </div>
