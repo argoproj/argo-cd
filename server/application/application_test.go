@@ -1814,6 +1814,7 @@ p, test-user, applications, update/fake.io/PodTest/*, default/test-app, deny
 
 func TestSyncRBACOverrideFlagTrue(t *testing.T) {
 	ctx := t.Context()
+	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 
 	f := func(enf *rbac.Enforcer) {
@@ -2004,11 +2005,10 @@ func TestSyncRBACOverrideFlagTrue(t *testing.T) {
 		assert.Equal(t, "appbranch1", syncedApp.Spec.Sources[0].TargetRevision)
 		assert.Equal(t, "appbranch2", syncedApp.Spec.Sources[1].TargetRevision)
 	})
-
 }
-
 func TestSyncRBACOverrideFlagFalse(t *testing.T) {
 	ctx := t.Context()
+	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	appServer := newTestAppServer(t)
 	testApp := newTestApp()
@@ -2065,9 +2065,7 @@ func TestSyncRBACOverrideFlagFalse(t *testing.T) {
 		}
 		_, err = appServer.Sync(ctx, syncReq)
 		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
-
 	})
-
 	t.Run("sync to different revision without override permission should be allowed", func(t *testing.T) {
 		_ = appServer.enf.SetBuiltinPolicy(`
 			p, test-user, applications, get, default/*, allow
@@ -2105,7 +2103,6 @@ func TestSyncRBACOverrideFlagFalse(t *testing.T) {
 		// Sync must not change app spec
 		assert.Equal(t, "appbranch1", syncedApp.Spec.Sources[0].TargetRevision)
 		assert.Equal(t, "appbranch2", syncedApp.Spec.Sources[1].TargetRevision)
-
 	})
 
 	t.Run("sync to same revision without override permission should be allowed", func(t *testing.T) {
