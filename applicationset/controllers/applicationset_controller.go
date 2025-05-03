@@ -967,6 +967,11 @@ func (r *ApplicationSetReconciler) buildAppSyncMap(applicationSet argov1alpha1.A
 
 		// detect if we need to halt before progressing to the next step
 		for _, appName := range appDependencyList[i] {
+			// if sync is disabled for any Application in the current step, we need to halt before progressing to the next step
+			if !syncEnabled {
+				break
+			}
+
 			idx := findApplicationStatusIndex(applicationSet.Status.ApplicationStatus, appName)
 			if idx == -1 {
 				// no Application status found, likely because the Application is being newly created
