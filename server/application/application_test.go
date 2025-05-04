@@ -2006,8 +2006,9 @@ func TestSyncRBACOverrideFlagTrue(t *testing.T) {
 		assert.Equal(t, "appbranch2", syncedApp.Spec.Sources[1].TargetRevision)
 	})
 }
+
 func TestSyncMultiSourceInconsistent(t *testing.T) {
-	//this test more to generate coverage, i think the multi-source code has some quirks which i cannot completetly cover
+	// this test more to generate coverage, i think the multi-source code has some quirks which i cannot completetly cover
 	// but some sanity checks i can do
 	ctx := t.Context()
 	// nolint:staticcheck
@@ -2050,8 +2051,7 @@ func TestSyncMultiSourceInconsistent(t *testing.T) {
 			Revisions:       []string{"appbranch1", "appbranch2"},
 		}
 		_, err = appServer.Sync(ctx, syncReq)
-		assert.Error(t, err)
-		assert.EqualError(t, err, "source position is out of range")
+		require.EqualError(t, err, "source position is out of range")
 	})
 	t.Run("multisource sync with pos > len should fail", func(t *testing.T) {
 		_ = appServer.enf.SetBuiltinPolicy(`
@@ -2068,8 +2068,7 @@ func TestSyncMultiSourceInconsistent(t *testing.T) {
 			Revisions:       []string{"appbranch1", "appbranch2"},
 		}
 		_, err = appServer.Sync(ctx, syncReq)
-		assert.Error(t, err)
-		assert.EqualError(t, err, "source position is out of range")
+		require.EqualError(t, err, "source position is out of range")
 	})
 }
 func TestSyncRBACOverrideFlagFalse(t *testing.T) {
@@ -2267,6 +2266,7 @@ func TestSyncRBACOverrideFlagFalse(t *testing.T) {
 		// Sync must not change app spec
 		assert.Equal(t, "appbranch", syncedApp.Spec.Source.TargetRevision)
 	})
+
 	t.Run("sync to different revision with autosync should be prevented", func(t *testing.T) {
 		_ = appServer.enf.SetBuiltinPolicy(`
 			p, test-user, applications, get, default/*, allow
@@ -2290,7 +2290,7 @@ func TestSyncRBACOverrideFlagFalse(t *testing.T) {
 		}
 
 		_, err = appServer.Sync(ctx, syncReq)
-		assert.EqualError(t, err, "rpc error: code = FailedPrecondition desc = Cannot sync to revisionbranch: auto-sync currently set to appbranch")
+		require.EqualError(t, err, "rpc error: code = FailedPrecondition desc = Cannot sync to revisionbranch: auto-sync currently set to appbranch")
 
 		// same for multi-source app
 		multiSourceApp.Name = "multi-source-app7"
