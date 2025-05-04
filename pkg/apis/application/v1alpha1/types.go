@@ -3045,7 +3045,7 @@ func (w *SyncWindow) Validate() error {
 	}
 
 	if len(w.Description) > 255 {
-		return fmt.Errorf("description must not exceed 255 characters")
+		return errors.New("description must not exceed 255 characters")
 	}
 
 	return nil
