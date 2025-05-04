@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/yaml"
 
+	secutil "github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -380,9 +381,11 @@ func Test_importResources(t *testing.T) {
 		args                     args
 		applicationNamespaces    []string
 		applicationsetNamespaces []string
+		prune                    bool
+		skipResourcesWithLabel   string
 	}{
 		{
-			name: "It should update the live object according to the backup object",
+			name: "It should update the live object according to the backup object if the backup object doesn't have the skip label",
 			args: args{
 				bak: `apiVersion: v1
 kind: ConfigMap
@@ -414,6 +417,7 @@ data:
 			},
 			applicationNamespaces:    []string{"argocd", "dev"},
 			applicationsetNamespaces: []string{"argocd", "prod"},
+			skipResourcesWithLabel:   "env: dev",
 		},
 		{
 			name: "It should update the data of the live object according to the backup object",
@@ -435,7 +439,7 @@ data:
   foo: old				
 `,
 			},
-			applicationNamespaces: []string{},
+			applicationNamespaces:    []string{},
 			applicationsetNamespaces: []string{},
 		},
 		{
@@ -466,7 +470,7 @@ spec:
     server: https://kubernetes.default.svc
 `,
 			},
-			applicationNamespaces: []string{"argocd", "dev"},
+			applicationNamespaces:    []string{"argocd", "dev"},
 			applicationsetNamespaces: []string{"prod"},
 		},
 		{
@@ -503,7 +507,7 @@ spec:
     spec: {}
 `,
 			},
-			applicationNamespaces: []string{},
+			applicationNamespaces:    []string{},
 			applicationsetNamespaces: []string{"dev"},
 		},
 		{
@@ -530,7 +534,7 @@ data:
   foo: bar
 `,
 			},
-			applicationNamespaces: []string{"argo-*"},
+			applicationNamespaces:    []string{"argo-*"},
 			applicationsetNamespaces: []string{"argo-*"},
 		},
 		{
@@ -555,8 +559,31 @@ metadata:
     env: dev
 `,
 			},
-			applicationNamespaces: []string{"argocd", "dev"},
+			applicationNamespaces:    []string{"argocd", "dev"},
 			applicationsetNamespaces: []string{"argocd", "prod"},
+		},
+		{
+			name: "Live resources should be pruned if --prune flag is set",
+			args: args{
+				bak: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-to-keep
+  namespace: default
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-to-delete
+  namespace: default
+`,
+				live: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-to-keep
+  namespace: default
+`,
+			},
+			prune: true,
 		},
 	}
 
@@ -564,6 +591,7 @@ metadata:
 		t.Run(tt.name, func(t *testing.T) {
 			bakObj := decodeYAMLToUnstructured(t, tt.args.bak)
 			liveObj := decodeYAMLToUnstructured(t, tt.args.live)
+			pruneObjects := make(map[kube.ResourceKey]unstructured.Unstructured)
 
 			configMap := &unstructured.Unstructured{}
 			configMap.SetUnstructuredContent(map[string]interface{}{
@@ -601,14 +629,41 @@ metadata:
 				}
 			}
 
+			// check if the object is a configMap or not
+			if isArgoCDConfigMap(bakObj.GetName()) {
+				pruneObjects[kube.ResourceKey{Group: "", Kind: "ConfigMap", Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}] = *bakObj
+			}
+			// check if the object is a secret or not
+			if isArgoCDSecret(*bakObj) {
+				pruneObjects[kube.ResourceKey{Group: "", Kind: "Secret", Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}] = *bakObj
+			}
+			// check if the object is an application or not
+			if bakObj.GetKind() == "Application" {
+				if secutil.IsNamespaceEnabled(bakObj.GetNamespace(), "argocd", tt.applicationNamespaces) {
+					pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "Application", Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}] = *bakObj
+				}
+			}
+			// check if the object is a project or not
+			if bakObj.GetKind() == "AppProject" {
+				pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "AppProject", Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}] = *bakObj
+			}
+			// check if the object is an applicationSet or not
+			if bakObj.GetKind() == "ApplicationSet" {
+				if secutil.IsNamespaceEnabled(bakObj.GetNamespace(), "argocd", tt.applicationsetNamespaces) {
+					pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "ApplicationSet", Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}] = *bakObj
+				}
+			}
+
 			var updatedLive *unstructured.Unstructured
 			if slices.Contains(tt.applicationNamespaces, bakObj.GetNamespace()) || slices.Contains(tt.applicationsetNamespaces, bakObj.GetNamespace()) {
-				updatedLive = updateLive(bakObj, liveObj, false)
+				if isSkipLabelMatches(bakObj, tt.skipResourcesWithLabel) {
+					updatedLive = updateLive(bakObj, liveObj, false)
 
-				assert.Equal(t, bakObj.GetLabels(), updatedLive.GetLabels())
-				assert.Equal(t, bakObj.GetAnnotations(), updatedLive.GetAnnotations())
-				assert.Equal(t, bakObj.GetFinalizers(), updatedLive.GetFinalizers())
-				assert.Equal(t, bakObj.Object["data"], updatedLive.Object["data"])
+					assert.Equal(t, bakObj.GetLabels(), updatedLive.GetLabels())
+					assert.Equal(t, bakObj.GetAnnotations(), updatedLive.GetAnnotations())
+					assert.Equal(t, bakObj.GetFinalizers(), updatedLive.GetFinalizers())
+					assert.Equal(t, bakObj.Object["data"], updatedLive.Object["data"])
+				}
 			} else {
 				assert.Nil(t, updatedLive)
 			}
