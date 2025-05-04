@@ -417,7 +417,7 @@ data:
 			},
 			applicationNamespaces:    []string{"argocd", "dev"},
 			applicationsetNamespaces: []string{"argocd", "prod"},
-			skipResourcesWithLabel:   "env: dev",
+			skipResourcesWithLabel:   "env=dev",
 		},
 		{
 			name: "It should update the data of the live object according to the backup object",
@@ -653,10 +653,17 @@ metadata:
 					pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "ApplicationSet", Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}] = *bakObj
 				}
 			}
+			gvk := bakObj.GroupVersionKind()
+			if bakObj.GetNamespace() == "" {
+				bakObj.SetNamespace("argocd")
+			}
+			key := kube.ResourceKey{Group: gvk.Group, Kind: gvk.Kind, Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}
+			//liveObject, exists := pruneObjects[key]
+			delete(pruneObjects, key)
 
 			var updatedLive *unstructured.Unstructured
 			if slices.Contains(tt.applicationNamespaces, bakObj.GetNamespace()) || slices.Contains(tt.applicationsetNamespaces, bakObj.GetNamespace()) {
-				if isSkipLabelMatches(bakObj, tt.skipResourcesWithLabel) {
+				if !isSkipLabelMatches(bakObj, tt.skipResourcesWithLabel) {
 					updatedLive = updateLive(bakObj, liveObj, false)
 
 					assert.Equal(t, bakObj.GetLabels(), updatedLive.GetLabels())
