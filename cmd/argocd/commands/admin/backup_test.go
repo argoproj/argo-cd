@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -441,6 +442,7 @@ data:
 			},
 			applicationNamespaces:    []string{},
 			applicationsetNamespaces: []string{},
+			prune:                    true,
 		},
 		{
 			name: "Spec should be updated correctly in live object according to the backup object",
@@ -658,18 +660,34 @@ metadata:
 				bakObj.SetNamespace("argocd")
 			}
 			key := kube.ResourceKey{Group: gvk.Group, Kind: gvk.Kind, Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}
-			//liveObject, exists := pruneObjects[key]
 			delete(pruneObjects, key)
 
 			var updatedLive *unstructured.Unstructured
 			if slices.Contains(tt.applicationNamespaces, bakObj.GetNamespace()) || slices.Contains(tt.applicationsetNamespaces, bakObj.GetNamespace()) {
 				if !isSkipLabelMatches(bakObj, tt.skipResourcesWithLabel) {
-					updatedLive = updateLive(bakObj, liveObj, false)
+					if tt.prune {
+						var dynClient dynamic.ResourceInterface
+						switch key.Kind {
+						case "Secret":
+							dynClient = dynamicClient.Resource(secretResource).Namespace(liveObj.GetNamespace())
+						case "AppProjectKind":
+							dynClient = dynamicClient.Resource(appprojectsResource).Namespace(liveObj.GetNamespace())
+						case "ApplicationSetKind":
+							dynClient = dynamicClient.Resource(appplicationSetResource).Namespace(liveObj.GetNamespace())
+						case "ApplicationKind":
+							dynClient = dynamicClient.Resource(applicationsResource).Namespace(liveObj.GetNamespace())
+						}
 
-					assert.Equal(t, bakObj.GetLabels(), updatedLive.GetLabels())
-					assert.Equal(t, bakObj.GetAnnotations(), updatedLive.GetAnnotations())
-					assert.Equal(t, bakObj.GetFinalizers(), updatedLive.GetFinalizers())
-					assert.Equal(t, bakObj.Object["data"], updatedLive.Object["data"])
+						err := dynClient.Delete(ctx, key.Name, metav1.DeleteOptions{})
+						assert.NoError(t, err)
+					} else {
+						updatedLive = updateLive(bakObj, liveObj, false)
+
+						assert.Equal(t, bakObj.GetLabels(), updatedLive.GetLabels())
+						assert.Equal(t, bakObj.GetAnnotations(), updatedLive.GetAnnotations())
+						assert.Equal(t, bakObj.GetFinalizers(), updatedLive.GetFinalizers())
+						assert.Equal(t, bakObj.Object["data"], updatedLive.Object["data"])
+					}
 				}
 			} else {
 				assert.Nil(t, updatedLive)
