@@ -2006,6 +2006,72 @@ func TestSyncRBACOverrideFlagTrue(t *testing.T) {
 		assert.Equal(t, "appbranch2", syncedApp.Spec.Sources[1].TargetRevision)
 	})
 }
+func TestSyncMultiSourceInconsistent(t *testing.T) {
+	//this test more to generate coverage, i think the multi-source code has some quirks which i cannot completetly cover
+	// but some sanity checks i can do
+	ctx := t.Context()
+	// nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+
+	multiSourceApp := newTestApp()
+	multiSourceApp.Name = "multi-source-app"
+	multiSourceApp.Spec = v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				Path:           "helm-guestbook",
+				TargetRevision: "appbranch1",
+			},
+			{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				Path:           "kustomize-guestbook",
+				TargetRevision: "appbranch2",
+			},
+		},
+		Destination: v1alpha1.ApplicationDestination{
+			Namespace: "default",
+			Name:      "fake-cluster",
+		},
+	}
+	t.Run("multisource sync with pos <= 0 should fail", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+		p, test-user, applications, get, default/*, allow
+		p, test-user, applications, create, default/*, allow
+		p, test-user, applications, sync, default/*, allow
+		`)
+		// create a new app with different name
+		multiSourceApp.Name = "multi-source-app2"
+		app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: multiSourceApp})
+		require.NoError(t, err)
+		syncReq := &application.ApplicationSyncRequest{
+			Name:            &app.Name,
+			SourcePositions: []int64{3, 2},
+			Revisions:       []string{"appbranch1", "appbranch2"},
+		}
+		_, err = appServer.Sync(ctx, syncReq)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "source position is out of range")
+	})
+	t.Run("multisource sync with pos > len should fail", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+		p, test-user, applications, get, default/*, allow
+		p, test-user, applications, create, default/*, allow
+		p, test-user, applications, sync, default/*, allow
+		`)
+		// create a new app with different name
+		app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: multiSourceApp})
+		require.NoError(t, err)
+		syncReq := &application.ApplicationSyncRequest{
+			Name:            &app.Name,
+			SourcePositions: []int64{0, 2},
+			Revisions:       []string{"appbranch1", "appbranch2"},
+		}
+		_, err = appServer.Sync(ctx, syncReq)
+		assert.Error(t, err)
+		assert.EqualError(t, err, "source position is out of range")
+	})
+}
 func TestSyncRBACOverrideFlagFalse(t *testing.T) {
 	ctx := t.Context()
 	// nolint:staticcheck
@@ -2200,6 +2266,49 @@ func TestSyncRBACOverrideFlagFalse(t *testing.T) {
 		assert.NotNil(t, syncedApp)
 		// Sync must not change app spec
 		assert.Equal(t, "appbranch", syncedApp.Spec.Source.TargetRevision)
+	})
+	t.Run("sync to different revision with autosync should be prevented", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`
+			p, test-user, applications, get, default/*, allow
+			p, test-user, applications, create, default/*, allow
+			p, test-user, applications, sync, default/*, allow
+			p, test-user, applications, override, default/*, allow
+			`)
+		// create a new app with different name
+		testApp.Name = "test-app7"
+		testApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+			Automated: &v1alpha1.SyncPolicyAutomated{
+				Prune:    true,
+				SelfHeal: true,
+			},
+		}
+		app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+		require.NoError(t, err)
+		syncReq := &application.ApplicationSyncRequest{
+			Name:     &app.Name,
+			Revision: ptr.To("revisionbranch"),
+		}
+
+		_, err = appServer.Sync(ctx, syncReq)
+		assert.EqualError(t, err, "rpc error: code = FailedPrecondition desc = Cannot sync to revisionbranch: auto-sync currently set to appbranch")
+
+		// same for multi-source app
+		multiSourceApp.Name = "multi-source-app7"
+		multiSourceApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+			Automated: &v1alpha1.SyncPolicyAutomated{
+				Prune:    true,
+				SelfHeal: true,
+			},
+		}
+		app, err = appServer.Create(ctx, &application.ApplicationCreateRequest{Application: multiSourceApp})
+		require.NoError(t, err)
+		syncReq = &application.ApplicationSyncRequest{
+			Name:            &app.Name,
+			SourcePositions: []int64{1},
+			Revisions:       []string{"revisionbranch1"},
+		}
+		_, err = appServer.Sync(ctx, syncReq)
+		assert.EqualError(t, err, "rpc error: code = FailedPrecondition desc = Cannot sync source https://github.com/argoproj/argocd-example-apps.git to revisionbranch1: auto-sync currently set to appbranch1")
 	})
 }
 

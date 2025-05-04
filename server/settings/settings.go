@@ -108,15 +108,14 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 			ChatText:   help.ChatText,
 			BinaryUrls: help.BinaryURLs,
 		},
-		UserLoginsDisabled:                 userLoginsDisabled,
-		KustomizeVersions:                  kustomizeVersions,
-		UiCssURL:                           argoCDSettings.UiCssURL,
-		TrackingMethod:                     trackingMethod,
-		ExecEnabled:                        argoCDSettings.ExecEnabled,
-		AppsInAnyNamespaceEnabled:          s.appsInAnyNamespaceEnabled,
-		ImpersonationEnabled:               argoCDSettings.ImpersonationEnabled,
-		HydratorEnabled:                    s.hydratorEnabled,
-		ExternalRevisionConsideredOverride: argoCDSettings.ExternalRevisionConsideredOverride,
+		UserLoginsDisabled:        userLoginsDisabled,
+		KustomizeVersions:         kustomizeVersions,
+		UiCssURL:                  argoCDSettings.UiCssURL,
+		TrackingMethod:            trackingMethod,
+		ExecEnabled:               argoCDSettings.ExecEnabled,
+		AppsInAnyNamespaceEnabled: s.appsInAnyNamespaceEnabled,
+		ImpersonationEnabled:      argoCDSettings.ImpersonationEnabled,
+		HydratorEnabled:           s.hydratorEnabled,
 	}
 
 	if sessionmgr.LoggedIn(ctx) || s.disableAuth {

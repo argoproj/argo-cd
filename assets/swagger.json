@@ -5294,9 +5294,6 @@
         "execEnabled": {
           "type": "boolean"
         },
-        "externalRevisionConsideredOverride": {
-          "type": "boolean"
-        },
         "googleAnalytics": {
           "$ref": "#/definitions/clusterGoogleAnalyticsConfig"
         },
