@@ -2071,6 +2071,7 @@ func TestSyncMultiSourceInconsistent(t *testing.T) {
 		require.EqualError(t, err, "source position is out of range")
 	})
 }
+
 func TestSyncRBACOverrideFlagFalse(t *testing.T) {
 	ctx := t.Context()
 	// nolint:staticcheck
