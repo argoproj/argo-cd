@@ -295,7 +295,7 @@ func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
 
 	require.Error(t, err, "Find revision history should fail with errors")
 	require.Nil(t, history, "History should be empty")
-	require.EqualError(t, err, "Application '' should have at least two successful deployments", "Find revision history should fail with correct error message")
+	require.EqualError(t, err, "application '' should have at least two successful deployments", "Find revision history should fail with correct error message")
 }
 
 func TestFindRevisionHistoryWithPassedId(t *testing.T) {
@@ -356,7 +356,7 @@ func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 
 	require.Error(t, err, "Find revision history should fail with errors")
 	require.Nil(t, history, "History should be not found")
-	require.EqualError(t, err, "Application '' does not have deployment id '4' in history\n", "Find revision history should fail with correct error message")
+	require.EqualError(t, err, "application '' does not have deployment id '4' in history", "Find revision history should fail with correct error message")
 }
 
 func Test_groupObjsByKey(t *testing.T) {
@@ -1029,11 +1029,10 @@ func TestTargetObjects_invalid(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestCheckForDeleteEvent(_ *testing.T) {
-	ctx := context.Background()
+func TestCheckForDeleteEvent(t *testing.T) {
 	fakeClient := new(fakeAcdClient)
 
-	checkForDeleteEvent(ctx, fakeClient, "testApp")
+	checkForDeleteEvent(t.Context(), fakeClient, "testApp")
 }
 
 func TestPrintApplicationNames(t *testing.T) {
@@ -1113,7 +1112,7 @@ func Test_unset(t *testing.T) {
 
 	assert.Equal(t, "some-prefix", kustomizeSource.Kustomize.NamePrefix)
 	updated, nothingToUnset := unset(kustomizeSource, unsetOpts{namePrefix: true})
-	assert.Equal(t, "", kustomizeSource.Kustomize.NamePrefix)
+	assert.Empty(t, kustomizeSource.Kustomize.NamePrefix)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{namePrefix: true})
@@ -1122,7 +1121,7 @@ func Test_unset(t *testing.T) {
 
 	assert.Equal(t, "some-suffix", kustomizeSource.Kustomize.NameSuffix)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{nameSuffix: true})
-	assert.Equal(t, "", kustomizeSource.Kustomize.NameSuffix)
+	assert.Empty(t, kustomizeSource.Kustomize.NameSuffix)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{nameSuffix: true})
@@ -1131,7 +1130,7 @@ func Test_unset(t *testing.T) {
 
 	assert.Equal(t, "123", kustomizeSource.Kustomize.Version)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeVersion: true})
-	assert.Equal(t, "", kustomizeSource.Kustomize.Version)
+	assert.Empty(t, kustomizeSource.Kustomize.Version)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeVersion: true})
@@ -1185,7 +1184,7 @@ func Test_unset(t *testing.T) {
 
 	assert.Equal(t, "some: yaml", helmSource.Helm.ValuesString())
 	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesLiteral: true})
-	assert.Equal(t, "", helmSource.Helm.ValuesString())
+	assert.Empty(t, helmSource.Helm.ValuesString())
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesLiteral: true})
@@ -1872,7 +1871,7 @@ func testApp(name, project string, labels map[string]string, annotations map[str
 
 func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	acdClient := &customAcdClient{&fakeAcdClient{}}
-	ctx := context.Background()
+	ctx := t.Context()
 	var selectResource []*v1alpha1.SyncOperationResource
 	watch := watchOpts{
 		sync:      false,

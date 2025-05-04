@@ -39,6 +39,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/helm"
@@ -130,7 +132,7 @@ func (a *EnvEntry) IsZero() bool {
 func NewEnvEntry(text string) (*EnvEntry, error) {
 	parts := strings.SplitN(text, "=", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("Expected env entry of the form: param=value. Received: %s", text)
+		return nil, fmt.Errorf("expected env entry of the form: param=value but received: %s", text)
 	}
 	return &EnvEntry{
 		Name:  parts[0],
@@ -463,6 +465,13 @@ const (
 	RefreshTypeHard   RefreshType = "hard"
 )
 
+type HydrateType string
+
+const (
+	// HydrateTypeNormal is a normal hydration
+	HydrateTypeNormal HydrateType = "normal"
+)
+
 type RefTarget struct {
 	Repo           Repository `protobuf:"bytes,1,opt,name=repo"`
 	TargetRevision string     `protobuf:"bytes,2,opt,name=targetRevision"`
@@ -533,7 +542,7 @@ var helmParameterRx = regexp.MustCompile(`([^\\]),`)
 func NewHelmParameter(text string, forceString bool) (*HelmParameter, error) {
 	parts := strings.SplitN(text, "=", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("Expected helm parameter of the form: param=value. Received: %s", text)
+		return nil, fmt.Errorf("expected helm parameter of the form param=value but received: %s", text)
 	}
 	return &HelmParameter{
 		Name:        parts[0],
@@ -546,7 +555,7 @@ func NewHelmParameter(text string, forceString bool) (*HelmParameter, error) {
 func NewHelmFileParameter(text string) (*HelmFileParameter, error) {
 	parts := strings.SplitN(text, "=", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("Expected helm file parameter of the form: param=path. Received: %s", text)
+		return nil, fmt.Errorf("expected helm file parameter of the form param=path but received: %s", text)
 	}
 	return &HelmFileParameter{
 		Name: parts[0],
@@ -606,10 +615,9 @@ func (i KustomizeImage) delim() string {
 // Match returns true if the image name matches (i.e. up to the first delimiter)
 func (i KustomizeImage) Match(j KustomizeImage) bool {
 	delim := j.delim()
-	if !strings.Contains(string(j), delim) {
-		return false
-	}
-	return strings.HasPrefix(string(i), strings.Split(string(j), delim)[0])
+	imageName, _, _ := strings.Cut(string(i), delim)
+	otherImageName, _, _ := strings.Cut(string(j), delim)
+	return imageName == otherImageName
 }
 
 // KustomizeImages is a list of Kustomize images
@@ -663,6 +671,8 @@ type ApplicationSourceKustomize struct {
 	// APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
 	// Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
 	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,16,opt,name=apiVersions"`
+	// LabelIncludeTemplates specifies whether to apply common labels to resource templates or not
+	LabelIncludeTemplates bool `json:"labelIncludeTemplates,omitempty" protobuf:"bytes,18,opt,name=labelIncludeTemplates"`
 }
 
 type KustomizeReplica struct {
@@ -928,7 +938,7 @@ type ApplicationSourcePluginParameter struct {
 	// Name is the name identifying a parameter.
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
 	// String_ is the value of a string type parameter.
-	String_ *string `json:"string,omitempty" protobuf:"bytes,5,opt,name=string"`
+	String_ *string `json:"string,omitempty" protobuf:"bytes,5,opt,name=string"` //nolint:revive //FIXME(var-naming)
 	// Map is the value of a map type parameter.
 	*OptionalMap `json:",omitempty" protobuf:"bytes,3,rep,name=map"`
 	// Array is the value of an array type parameter.
@@ -958,21 +968,21 @@ func (p ApplicationSourcePluginParameter) MarshalJSON() ([]byte, error) {
 		out["string"] = p.String_
 	}
 	if p.OptionalMap != nil {
-		if p.OptionalMap.Map == nil {
+		if p.Map == nil {
 			// Nil is not the same as a nil map. Nil means the field was not set, while a nil map means the field was set to an empty map.
 			// Either way, we want to marshal it as "{}".
 			out["map"] = map[string]string{}
 		} else {
-			out["map"] = p.OptionalMap.Map
+			out["map"] = p.Map
 		}
 	}
 	if p.OptionalArray != nil {
-		if p.OptionalArray.Array == nil {
+		if p.Array == nil {
 			// Nil is not the same as a nil array. Nil means the field was not set, while a nil array means the field was set to an empty array.
 			// Either way, we want to marshal it as "[]".
 			out["array"] = []string{}
 		} else {
-			out["array"] = p.OptionalArray.Array
+			out["array"] = p.Array
 		}
 	}
 	bytes, err := json.Marshal(out)
@@ -1019,12 +1029,12 @@ func (p ApplicationSourcePluginParameters) Environ() ([]string, error) {
 			env = append(env, fmt.Sprintf("%s=%s", envBaseName, *param.String_))
 		}
 		if param.OptionalMap != nil {
-			for key, value := range param.OptionalMap.Map {
+			for key, value := range param.Map {
 				env = append(env, fmt.Sprintf("%s_%s=%s", envBaseName, escaped(key), value))
 			}
 		}
 		if param.OptionalArray != nil {
-			for i, value := range param.OptionalArray.Array {
+			for i, value := range param.Array {
 				env = append(env, fmt.Sprintf("%s_%d=%s", envBaseName, i, value))
 			}
 		}
@@ -1422,6 +1432,14 @@ type SyncPolicy struct {
 	// If you add a field here, be sure to update IsZero.
 }
 
+// IsAutomatedSyncEnabled checks if the automated sync is enabled or disabled
+func (p *SyncPolicy) IsAutomatedSyncEnabled() bool {
+	if p.Automated != nil && (p.Automated.Enabled == nil || *p.Automated.Enabled) {
+		return true
+	}
+	return false
+}
+
 // IsZero returns true if the sync policy is empty
 func (p *SyncPolicy) IsZero() bool {
 	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil && p.ManagedNamespaceMetadata == nil)
@@ -1497,6 +1515,8 @@ type SyncPolicyAutomated struct {
 	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
 	// AllowEmpty allows apps have zero live resources (default: false)
 	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
+	// Enable allows apps to explicitly control automated sync
+	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,4,opt,name=enable"`
 }
 
 // SyncStrategy controls the manner in which a sync is performed
@@ -1628,7 +1648,8 @@ func (r ResourceResults) Find(group string, kind string, namespace string, name 
 // PruningRequired returns a positive integer containing the number of resources that require pruning after an operation has been completed
 func (r ResourceResults) PruningRequired() (num int) {
 	for _, res := range r {
-		if res.Status == synccommon.ResultCodePruneSkipped {
+		// find all resources that require pruning but ignore resources marked for no pruning using sync-option Prune=false
+		if res.Status == synccommon.ResultCodePruneSkipped && !strings.Contains(res.Message, "no prune") {
 			num++
 		}
 	}
@@ -1774,44 +1795,56 @@ type InfoItem struct {
 	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
 }
 
-// ResourceNetworkingInfo holds networking resource related information
-// TODO: describe members of this type
+// ResourceNetworkingInfo holds networking-related information for a resource.
 type ResourceNetworkingInfo struct {
-	TargetLabels map[string]string            `json:"targetLabels,omitempty" protobuf:"bytes,1,opt,name=targetLabels"`
-	TargetRefs   []ResourceRef                `json:"targetRefs,omitempty" protobuf:"bytes,2,opt,name=targetRefs"`
-	Labels       map[string]string            `json:"labels,omitempty" protobuf:"bytes,3,opt,name=labels"`
-	Ingress      []corev1.LoadBalancerIngress `json:"ingress,omitempty" protobuf:"bytes,4,opt,name=ingress"`
-	// ExternalURLs holds list of URLs which should be available externally. List is populated for ingress resources using rules hostnames.
+	// TargetLabels represents labels associated with the target resources that this resource communicates with.
+	TargetLabels map[string]string `json:"targetLabels,omitempty" protobuf:"bytes,1,opt,name=targetLabels"`
+	// TargetRefs contains references to other resources that this resource interacts with, such as Services or Pods.
+	TargetRefs []ResourceRef `json:"targetRefs,omitempty" protobuf:"bytes,2,opt,name=targetRefs"`
+	// Labels holds the labels associated with this networking resource.
+	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,3,opt,name=labels"`
+	// Ingress provides information about external access points (e.g., load balancer ingress) for this resource.
+	Ingress []corev1.LoadBalancerIngress `json:"ingress,omitempty" protobuf:"bytes,4,opt,name=ingress"`
+	// ExternalURLs holds a list of URLs that should be accessible externally.
+	// This field is typically populated for Ingress resources based on their hostname rules.
 	ExternalURLs []string `json:"externalURLs,omitempty" protobuf:"bytes,5,opt,name=externalURLs"`
 }
 
-// TODO: describe this type
+// HostResourceInfo represents resource usage details for a specific resource type on a host.
 type HostResourceInfo struct {
-	ResourceName         corev1.ResourceName `json:"resourceName,omitempty" protobuf:"bytes,1,name=resourceName"`
-	RequestedByApp       int64               `json:"requestedByApp,omitempty" protobuf:"bytes,2,name=requestedByApp"`
-	RequestedByNeighbors int64               `json:"requestedByNeighbors,omitempty" protobuf:"bytes,3,name=requestedByNeighbors"`
-	Capacity             int64               `json:"capacity,omitempty" protobuf:"bytes,4,name=capacity"`
+	// ResourceName specifies the type of resource (e.g., CPU, memory, storage).
+	ResourceName corev1.ResourceName `json:"resourceName,omitempty" protobuf:"bytes,1,name=resourceName"`
+	// RequestedByApp indicates the total amount of this resource requested by the application running on the host.
+	RequestedByApp int64 `json:"requestedByApp,omitempty" protobuf:"bytes,2,name=requestedByApp"`
+	// RequestedByNeighbors indicates the total amount of this resource requested by other workloads on the same host.
+	RequestedByNeighbors int64 `json:"requestedByNeighbors,omitempty" protobuf:"bytes,3,name=requestedByNeighbors"`
+	// Capacity represents the total available capacity of this resource on the host.
+	Capacity int64 `json:"capacity,omitempty" protobuf:"bytes,4,name=capacity"`
 }
 
-// HostInfo holds host name and resources metrics
-// TODO: describe purpose of this type
-// TODO: describe members of this type
+// HostInfo holds metadata and resource usage metrics for a specific host in the cluster.
 type HostInfo struct {
-	Name          string                `json:"name,omitempty" protobuf:"bytes,1,name=name"`
-	ResourcesInfo []HostResourceInfo    `json:"resourcesInfo,omitempty" protobuf:"bytes,2,name=resourcesInfo"`
-	SystemInfo    corev1.NodeSystemInfo `json:"systemInfo,omitempty" protobuf:"bytes,3,opt,name=systemInfo"`
+	// Name is the hostname or node name in the Kubernetes cluster.
+	Name string `json:"name,omitempty" protobuf:"bytes,1,name=name"`
+	// ResourcesInfo provides a list of resource usage details for different resource types on this host.
+	ResourcesInfo []HostResourceInfo `json:"resourcesInfo,omitempty" protobuf:"bytes,2,name=resourcesInfo"`
+	// SystemInfo contains detailed system-level information about the host, such as OS, kernel version, and architecture.
+	SystemInfo corev1.NodeSystemInfo `json:"systemInfo,omitempty" protobuf:"bytes,3,opt,name=systemInfo"`
 }
 
-// ApplicationTree holds nodes which belongs to the application
-// TODO: describe purpose of this type
+// ApplicationTree represents the hierarchical structure of resources associated with an Argo CD application.
 type ApplicationTree struct {
-	// Nodes contains list of nodes which either directly managed by the application and children of directly managed nodes.
+	// Nodes contains a list of resources that are either directly managed by the application
+	// or are children of directly managed resources.
 	Nodes []ResourceNode `json:"nodes,omitempty" protobuf:"bytes,1,rep,name=nodes"`
-	// OrphanedNodes contains if or orphaned nodes: nodes which are not managed by the app but in the same namespace. List is populated only if orphaned resources enabled in app project.
+	// OrphanedNodes contains resources that exist in the same namespace as the application
+	// but are not managed by it. This list is populated only if orphaned resource tracking
+	// is enabled in the application's project settings.
 	OrphanedNodes []ResourceNode `json:"orphanedNodes,omitempty" protobuf:"bytes,2,rep,name=orphanedNodes"`
-	// Hosts holds list of Kubernetes nodes that run application related pods
+	// Hosts provides a list of Kubernetes nodes that are running pods related to the application.
 	Hosts []HostInfo `json:"hosts,omitempty" protobuf:"bytes,3,rep,name=hosts"`
-	// ShardsCount contains total number of shards the application tree is split into
+	// ShardsCount represents the total number of shards the application tree is split into.
+	// This is used to distribute resource processing across multiple shards.
 	ShardsCount int64 `json:"shardsCount,omitempty" protobuf:"bytes,4,opt,name=shardsCount"`
 }
 
@@ -1889,7 +1922,10 @@ type ApplicationSummary struct {
 	Images []string `json:"images,omitempty" protobuf:"bytes,2,opt,name=images"`
 }
 
-// TODO: Document purpose of this method
+// FindNode searches for a resource node in the application tree.
+// It looks for a node that matches the given group, kind, namespace, and name.
+// The search includes both directly managed nodes (`Nodes`) and orphaned nodes (`OrphanedNodes`).
+// Returns a pointer to the found node, or nil if no matching node is found.
 func (t *ApplicationTree) FindNode(group string, kind string, namespace string, name string) *ResourceNode {
 	for _, n := range append(t.Nodes, t.OrphanedNodes...) {
 		if n.Group == group && n.Kind == kind && n.Namespace == namespace && n.Name == name {
@@ -1899,10 +1935,20 @@ func (t *ApplicationTree) FindNode(group string, kind string, namespace string, 
 	return nil
 }
 
-// TODO: Document purpose of this method
+// GetSummary generates a summary of the application by extracting external URLs and container images
+// used within the application's resources.
+//
+// - It collects external URLs from the networking information of all resource nodes.
+// - It extracts container images referenced in the application's resources.
+// - Additionally, it includes links from application annotations that start with `common.AnnotationKeyLinkPrefix`.
+// - The collected URLs and images are sorted alphabetically before being returned.
+//
+// Returns an `ApplicationSummary` containing a list of unique external URLs and container images.
 func (t *ApplicationTree) GetSummary(app *Application) ApplicationSummary {
 	urlsSet := make(map[string]bool)
 	imagesSet := make(map[string]bool)
+
+	// Collect external URLs and container images from application nodes
 	for _, node := range t.Nodes {
 		if node.NetworkingInfo != nil {
 			for _, url := range node.NetworkingInfo.ExternalURLs {
@@ -1913,26 +1959,26 @@ func (t *ApplicationTree) GetSummary(app *Application) ApplicationSummary {
 			imagesSet[image] = true
 		}
 	}
-	// also add Application's own links
+
+	// Include application-specific links from annotations
 	for k, v := range app.GetAnnotations() {
 		if strings.HasPrefix(k, common.AnnotationKeyLinkPrefix) {
 			urlsSet[v] = true
 		}
 	}
-	urls := make([]string, 0)
+
+	urls := make([]string, 0, len(urlsSet))
 	for url := range urlsSet {
 		urls = append(urls, url)
 	}
-	sort.Slice(urls, func(i, j int) bool {
-		return urls[i] < urls[j]
-	})
-	images := make([]string, 0)
+	sort.Strings(urls)
+
+	images := make([]string, 0, len(imagesSet))
 	for image := range imagesSet {
 		images = append(images, image)
 	}
-	sort.Slice(images, func(i, j int) bool {
-		return images[i] < images[j]
-	})
+	sort.Strings(images)
+
 	return ApplicationSummary{ExternalURLs: urls, Images: images}
 }
 
@@ -1946,17 +1992,27 @@ type ResourceRef struct {
 	UID       string `json:"uid,omitempty" protobuf:"bytes,6,opt,name=uid"`
 }
 
-// ResourceNode contains information about live resource and its children
-// TODO: describe members of this type
+// ResourceNode contains information about a live Kubernetes resource and its relationships with other resources.
 type ResourceNode struct {
-	ResourceRef     `json:",inline" protobuf:"bytes,1,opt,name=resourceRef"`
-	ParentRefs      []ResourceRef           `json:"parentRefs,omitempty" protobuf:"bytes,2,opt,name=parentRefs"`
-	Info            []InfoItem              `json:"info,omitempty" protobuf:"bytes,3,opt,name=info"`
-	NetworkingInfo  *ResourceNetworkingInfo `json:"networkingInfo,omitempty" protobuf:"bytes,4,opt,name=networkingInfo"`
-	ResourceVersion string                  `json:"resourceVersion,omitempty" protobuf:"bytes,5,opt,name=resourceVersion"`
-	Images          []string                `json:"images,omitempty" protobuf:"bytes,6,opt,name=images"`
-	Health          *HealthStatus           `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
-	CreatedAt       *metav1.Time            `json:"createdAt,omitempty" protobuf:"bytes,8,opt,name=createdAt"`
+	// ResourceRef uniquely identifies the resource using its group, kind, namespace, and name.
+	ResourceRef `json:",inline" protobuf:"bytes,1,opt,name=resourceRef"`
+	// ParentRefs lists the parent resources that reference this resource.
+	// This helps in understanding ownership and hierarchical relationships.
+	ParentRefs []ResourceRef `json:"parentRefs,omitempty" protobuf:"bytes,2,opt,name=parentRefs"`
+	// Info provides additional metadata or annotations about the resource.
+	Info []InfoItem `json:"info,omitempty" protobuf:"bytes,3,opt,name=info"`
+	// NetworkingInfo contains details about the resource's networking attributes,
+	// such as ingress information and external URLs.
+	NetworkingInfo *ResourceNetworkingInfo `json:"networkingInfo,omitempty" protobuf:"bytes,4,opt,name=networkingInfo"`
+	// ResourceVersion indicates the version of the resource, used to track changes.
+	ResourceVersion string `json:"resourceVersion,omitempty" protobuf:"bytes,5,opt,name=resourceVersion"`
+	// Images lists container images associated with the resource.
+	// This is primarily useful for pods and other workload resources.
+	Images []string `json:"images,omitempty" protobuf:"bytes,6,opt,name=images"`
+	// Health represents the health status of the resource (e.g., Healthy, Degraded, Progressing).
+	Health *HealthStatus `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
+	// CreatedAt records the timestamp when the resource was created.
+	CreatedAt *metav1.Time `json:"createdAt,omitempty" protobuf:"bytes,8,opt,name=createdAt"`
 }
 
 // FullName returns a resource node's full name in the format "group/kind/namespace/name"
@@ -1974,20 +2030,31 @@ func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
 	}
 }
 
-// ResourceStatus holds the current sync and health status of a resource
-// TODO: describe members of this type
+// ResourceStatus holds the current synchronization and health status of a Kubernetes resource.
 type ResourceStatus struct {
-	Group                        string         `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Version                      string         `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
-	Kind                         string         `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
-	Namespace                    string         `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
-	Name                         string         `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
-	Status                       SyncStatusCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
-	Health                       *HealthStatus  `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
-	Hook                         bool           `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
-	RequiresPruning              bool           `json:"requiresPruning,omitempty" protobuf:"bytes,9,opt,name=requiresPruning"`
-	SyncWave                     int64          `json:"syncWave,omitempty" protobuf:"bytes,10,opt,name=syncWave"`
-	RequiresDeletionConfirmation bool           `json:"requiresDeletionConfirmation,omitempty" protobuf:"bytes,11,opt,name=requiresDeletionConfirmation"`
+	// Group represents the API group of the resource (e.g., "apps" for Deployments).
+	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	// Version indicates the API version of the resource (e.g., "v1", "v1beta1").
+	Version string `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
+	// Kind specifies the type of the resource (e.g., "Deployment", "Service").
+	Kind string `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
+	// Namespace defines the Kubernetes namespace where the resource is located.
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+	// Name is the unique name of the resource within the namespace.
+	Name string `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
+	// Status represents the synchronization state of the resource (e.g., Synced, OutOfSync).
+	Status SyncStatusCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
+	// Health indicates the health status of the resource (e.g., Healthy, Degraded, Progressing).
+	Health *HealthStatus `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
+	// Hook is true if the resource is used as a lifecycle hook in an Argo CD application.
+	Hook bool `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
+	// RequiresPruning is true if the resource needs to be pruned (deleted) as part of synchronization.
+	RequiresPruning bool `json:"requiresPruning,omitempty" protobuf:"bytes,9,opt,name=requiresPruning"`
+	// SyncWave determines the order in which resources are applied during a sync operation.
+	// Lower values are applied first.
+	SyncWave int64 `json:"syncWave,omitempty" protobuf:"bytes,10,opt,name=syncWave"`
+	// RequiresDeletionConfirmation is true if the resource requires explicit user confirmation before deletion.
+	RequiresDeletionConfirmation bool `json:"requiresDeletionConfirmation,omitempty" protobuf:"bytes,11,opt,name=requiresDeletionConfirmation"`
 }
 
 // GroupVersionKind returns the GVK schema type for given resource status
@@ -1995,27 +2062,36 @@ func (r *ResourceStatus) GroupVersionKind() schema.GroupVersionKind {
 	return schema.GroupVersionKind{Group: r.Group, Version: r.Version, Kind: r.Kind}
 }
 
-// ResourceDiff holds the diff of a live and target resource object
-// TODO: describe members of this type
+// ResourceDiff holds the diff between a live and target resource object in Argo CD.
+// It is used to compare the desired state (from Git/Helm) with the actual state in the cluster.
 type ResourceDiff struct {
-	Group     string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Kind      string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
+	// Group represents the API group of the resource (e.g., "apps" for Deployments).
+	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	// Kind represents the Kubernetes resource kind (e.g., "Deployment", "Service").
+	Kind string `json:"kind,omitempty" protobuf:"bytes,2,opt,name=kind"`
+	// Namespace specifies the namespace where the resource exists.
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
-	Name      string `json:"name,omitempty" protobuf:"bytes,4,opt,name=name"`
-	// TargetState contains the JSON serialized resource manifest defined in the Git/Helm
+	// Name is the name of the resource.
+	Name string `json:"name,omitempty" protobuf:"bytes,4,opt,name=name"`
+	// TargetState contains the JSON-serialized resource manifest as defined in the Git/Helm repository.
 	TargetState string `json:"targetState,omitempty" protobuf:"bytes,5,opt,name=targetState"`
-	// TargetState contains the JSON live resource manifest
+	// LiveState contains the JSON-serialized resource manifest of the resource currently running in the cluster.
 	LiveState string `json:"liveState,omitempty" protobuf:"bytes,6,opt,name=liveState"`
-	// Diff contains the JSON patch between target and live resource
-	// Deprecated: use NormalizedLiveState and PredictedLiveState to render the difference
+	// Diff contains the JSON patch representing the difference between the live and target resource.
+	// Deprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.
 	Diff string `json:"diff,omitempty" protobuf:"bytes,7,opt,name=diff"`
-	Hook bool   `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
-	// NormalizedLiveState contains JSON serialized live resource state with applied normalizations
+	// Hook indicates whether this resource is a hook resource (e.g., pre-sync or post-sync hooks).
+	Hook bool `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
+	// NormalizedLiveState contains the JSON-serialized live resource state after applying normalizations.
+	// Normalizations may include ignoring irrelevant fields like timestamps or defaults applied by Kubernetes.
 	NormalizedLiveState string `json:"normalizedLiveState,omitempty" protobuf:"bytes,9,opt,name=normalizedLiveState"`
-	// PredictedLiveState contains JSON serialized resource state that is calculated based on normalized and target resource state
+	// PredictedLiveState contains the JSON-serialized resource state that Argo CD predicts based on the
+	// combination of the normalized live state and the desired target state.
 	PredictedLiveState string `json:"predictedLiveState,omitempty" protobuf:"bytes,10,opt,name=predictedLiveState"`
-	ResourceVersion    string `json:"resourceVersion,omitempty" protobuf:"bytes,11,opt,name=resourceVersion"`
-	Modified           bool   `json:"modified,omitempty" protobuf:"bytes,12,opt,name=modified"`
+	// ResourceVersion is the Kubernetes resource version, which helps in tracking changes.
+	ResourceVersion string `json:"resourceVersion,omitempty" protobuf:"bytes,11,opt,name=resourceVersion"`
+	// Modified indicates whether the live resource has changes compared to the target resource.
+	Modified bool `json:"modified,omitempty" protobuf:"bytes,12,opt,name=modified"`
 }
 
 // FullName returns full name of a node that was used for diffing in the format "group/kind/namespace/name"
@@ -2136,7 +2212,7 @@ func (c *ClusterInfo) GetKubeVersion() string {
 	return c.ServerVersion
 }
 
-func (c *ClusterInfo) GetApiVersions() []string {
+func (c *ClusterInfo) GetApiVersions() []string { //nolint:revive //FIXME(var-naming)
 	return c.APIVersions
 }
 
@@ -2212,7 +2288,7 @@ type ClusterConfig struct {
 	DisableCompression bool `json:"disableCompression,omitempty" protobuf:"bytes,7,opt,name=disableCompression"`
 
 	// ProxyURL is the URL to the proxy to be used for all requests send to the server
-	ProxyUrl string `json:"proxyUrl,omitempty" protobuf:"bytes,8,opt,name=proxyUrl"`
+	ProxyUrl string `json:"proxyUrl,omitempty" protobuf:"bytes,8,opt,name=proxyUrl"` //nolint:revive //FIXME(var-naming)
 }
 
 // TLSClientConfig contains settings to enable transport layer security
@@ -2234,12 +2310,16 @@ type TLSClientConfig struct {
 	CAData []byte `json:"caData,omitempty" protobuf:"bytes,5,opt,name=caData"`
 }
 
-// KnownTypeField contains mapping between CRD field and known Kubernetes type.
-// This is mainly used for unit conversion in unknown resources (e.g. 0.1 == 100mi)
-// TODO: Describe the members of this type
+// KnownTypeField contains a mapping between a Custom Resource Definition (CRD) field
+// and a well-known Kubernetes type. This mapping is primarily used for unit conversions
+// in resources where the type is not explicitly defined (e.g., converting "0.1" to "100m" for CPU requests).
 type KnownTypeField struct {
+	// Field represents the JSON path to the specific field in the CRD that requires type conversion.
+	// Example: "spec.resources.requests.cpu"
 	Field string `json:"field,omitempty" protobuf:"bytes,1,opt,name=field"`
-	Type  string `json:"type,omitempty" protobuf:"bytes,2,opt,name=type"`
+	// Type specifies the expected Kubernetes type for the field, such as "cpu" or "memory".
+	// This helps in converting values between different formats (e.g., "0.1" to "100m" for CPU).
+	Type string `json:"type,omitempty" protobuf:"bytes,2,opt,name=type"`
 }
 
 // OverrideIgnoreDiff contains configurations about how fields should be ignored during diffs between
@@ -2264,17 +2344,24 @@ type rawResourceOverride struct {
 }
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment
-// TODO: describe the members of this type
 type ResourceOverride struct {
-	HealthLua             string             `protobuf:"bytes,1,opt,name=healthLua"`
-	UseOpenLibs           bool               `protobuf:"bytes,5,opt,name=useOpenLibs"`
-	Actions               string             `protobuf:"bytes,3,opt,name=actions"`
-	IgnoreDifferences     OverrideIgnoreDiff `protobuf:"bytes,2,opt,name=ignoreDifferences"`
+	// HealthLua contains a Lua script that defines custom health checks for the resource.
+	HealthLua string `protobuf:"bytes,1,opt,name=healthLua"`
+	// UseOpenLibs indicates whether to use open-source libraries for the resource.
+	UseOpenLibs bool `protobuf:"bytes,5,opt,name=useOpenLibs"`
+	// Actions defines the set of actions that can be performed on the resource, as a Lua script.
+	Actions string `protobuf:"bytes,3,opt,name=actions"`
+	// IgnoreDifferences contains configuration for which differences should be ignored during the resource diffing.
+	IgnoreDifferences OverrideIgnoreDiff `protobuf:"bytes,2,opt,name=ignoreDifferences"`
+	// IgnoreResourceUpdates holds configuration for ignoring updates to specific resource fields.
 	IgnoreResourceUpdates OverrideIgnoreDiff `protobuf:"bytes,6,opt,name=ignoreResourceUpdates"`
-	KnownTypeFields       []KnownTypeField   `protobuf:"bytes,4,opt,name=knownTypeFields"`
+	// KnownTypeFields lists fields for which unit conversions should be applied.
+	KnownTypeFields []KnownTypeField `protobuf:"bytes,4,opt,name=knownTypeFields"`
 }
 
-// TODO: describe this method
+// UnmarshalJSON unmarshals a JSON byte slice into a ResourceOverride object.
+// It parses the raw input data and handles special processing for `IgnoreDifferences`
+// and `IgnoreResourceUpdates` fields using YAML format.
 func (ro *ResourceOverride) UnmarshalJSON(data []byte) error {
 	raw := &rawResourceOverride{}
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -2295,7 +2382,8 @@ func (ro *ResourceOverride) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// TODO: describe this method
+// MarshalJSON marshals a ResourceOverride object into a JSON byte slice.
+// It converts `IgnoreDifferences` and `IgnoreResourceUpdates` fields to YAML format before marshaling.
 func (ro ResourceOverride) MarshalJSON() ([]byte, error) {
 	ignoreDifferencesData, err := yaml.Marshal(ro.IgnoreDifferences)
 	if err != nil {
@@ -2309,7 +2397,8 @@ func (ro ResourceOverride) MarshalJSON() ([]byte, error) {
 	return json.Marshal(raw)
 }
 
-// TODO: describe this method
+// GetActions parses and returns the actions defined for the resource.
+// It unmarshals the `Actions` field (a Lua script) into a ResourceActions object.
 func (ro *ResourceOverride) GetActions() (ResourceActions, error) {
 	var actions ResourceActions
 	err := yaml.Unmarshal([]byte(ro.Actions), &actions)
@@ -2319,41 +2408,56 @@ func (ro *ResourceOverride) GetActions() (ResourceActions, error) {
 	return actions, nil
 }
 
-// TODO: describe this type
-// TODO: describe members of this type
+// ResourceActions holds the set of actions that can be applied to a resource.
+// It defines custom Lua scripts for discovery and action execution, as well as options
+// for merging built-in actions with custom ones.
 type ResourceActions struct {
-	ActionDiscoveryLua  string                     `json:"discovery.lua,omitempty" yaml:"discovery.lua,omitempty" protobuf:"bytes,1,opt,name=actionDiscoveryLua"`
-	Definitions         []ResourceActionDefinition `json:"definitions,omitempty" protobuf:"bytes,2,rep,name=definitions"`
-	MergeBuiltinActions bool                       `json:"mergeBuiltinActions,omitempty" yaml:"mergeBuiltinActions,omitempty" protobuf:"bytes,3,opt,name=mergeBuiltinActions"`
+	// ActionDiscoveryLua contains a Lua script for discovering actions.
+	ActionDiscoveryLua string `json:"discovery.lua,omitempty" yaml:"discovery.lua,omitempty" protobuf:"bytes,1,opt,name=actionDiscoveryLua"`
+	// Definitions holds the list of action definitions available for the resource.
+	Definitions []ResourceActionDefinition `json:"definitions,omitempty" protobuf:"bytes,2,rep,name=definitions"`
+	// MergeBuiltinActions indicates whether built-in actions should be merged with custom actions.
+	MergeBuiltinActions bool `json:"mergeBuiltinActions,omitempty" yaml:"mergeBuiltinActions,omitempty" protobuf:"bytes,3,opt,name=mergeBuiltinActions"`
 }
 
-// TODO: describe this type
-// TODO: describe members of this type
+// ResourceActionDefinition defines an individual action that can be executed on a resource.
+// It includes a name for the action and a Lua script that defines the action's behavior.
 type ResourceActionDefinition struct {
-	Name      string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// Name is the identifier for the action.
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// ActionLua contains the Lua script that defines the behavior of the action.
 	ActionLua string `json:"action.lua" yaml:"action.lua" protobuf:"bytes,2,opt,name=actionLua"`
 }
 
-// TODO: describe this type
-// TODO: describe members of this type
+// ResourceAction represents an individual action that can be performed on a resource.
+// It includes parameters, an optional disabled flag, an icon for display, and a name for the action.
 type ResourceAction struct {
-	Name        string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	Params      []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
-	Disabled    bool                  `json:"disabled,omitempty" protobuf:"varint,3,opt,name=disabled"`
-	IconClass   string                `json:"iconClass,omitempty" protobuf:"bytes,4,opt,name=iconClass"`
-	DisplayName string                `json:"displayName,omitempty" protobuf:"bytes,5,opt,name=displayName"`
+	// Name is the name or identifier for the action.
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	// Params contains the parameters required to execute the action.
+	Params []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
+	// Disabled indicates whether the action is disabled.
+	Disabled bool `json:"disabled,omitempty" protobuf:"varint,3,opt,name=disabled"`
+	// IconClass specifies the CSS class for the action's icon.
+	IconClass string `json:"iconClass,omitempty" protobuf:"bytes,4,opt,name=iconClass"`
+	// DisplayName provides a user-friendly name for the action.
+	DisplayName string `json:"displayName,omitempty" protobuf:"bytes,5,opt,name=displayName"`
 }
 
-// TODO: describe this type
-// TODO: describe members of this type
+// ResourceActionParam represents a parameter for a resource action.
+// It includes a name, value, type, and an optional default value for the parameter.
 type ResourceActionParam struct {
-	Name    string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	Value   string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
-	Type    string `json:"type,omitempty" protobuf:"bytes,3,opt,name=type"`
+	// Name is the name of the parameter.
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	// Value is the value of the parameter.
+	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
+	// Type is the type of the parameter (e.g., string, integer).
+	Type string `json:"type,omitempty" protobuf:"bytes,3,opt,name=type"`
+	// Default is the default value of the parameter, if any.
 	Default string `json:"default,omitempty" protobuf:"bytes,4,opt,name=default"`
 }
 
-// TODO: refactor to use rbacpolicy.ActionGet, rbacpolicy.ActionCreate, without import cycle
+// TODO: refactor to use rbac.ActionGet, rbac.ActionCreate, without import cycle
 var validActions = map[string]bool{
 	"get":      true,
 	"create":   true,
@@ -2382,19 +2486,6 @@ func isValidAction(action string) bool {
 	return false
 }
 
-// TODO: same as validActions, refacotor to use rbacpolicy.ResourceApplications etc.
-var validResources = map[string]bool{
-	"applications": true,
-	"repositories": true,
-	"clusters":     true,
-	"exec":         true,
-	"logs":         true,
-}
-
-func isValidResource(resource string) bool {
-	return validResources[resource]
-}
-
 func isValidObject(proj string, object string) bool {
 	// match against <PROJECT>[/<NAMESPACE>]/<APPLICATION>
 	objectRegexp, err := regexp.Compile(fmt.Sprintf(`^%s(/[*\w-.]+)?/[*\w-.]+$`, regexp.QuoteMeta(proj)))
@@ -2414,8 +2505,8 @@ func validatePolicy(proj string, role string, policy string) error {
 	}
 	// resource
 	resource := strings.Trim(policyComponents[2], " ")
-	if !isValidResource(resource) {
-		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': project resource must be: 'applications', 'repositories' or 'clusters', not '%s'", policy, resource)
+	if !rbac.ProjectScoped[resource] {
+		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': project resource must be: 'applications', 'applicationsets', 'repositories', 'exec', 'logs' or 'clusters', not '%s'", policy, resource)
 	}
 	// action
 	action := strings.Trim(policyComponents[3], " ")
@@ -3030,7 +3121,7 @@ type ApplicationDestinationServiceAccount struct {
 
 // CascadedDeletion indicates if the deletion finalizer is set and controller should delete the application and it's cascaded resources
 func (app *Application) CascadedDeletion() bool {
-	for _, finalizer := range app.ObjectMeta.Finalizers {
+	for _, finalizer := range app.Finalizers {
 		if isPropagationPolicyFinalizer(finalizer) {
 			return true
 		}
@@ -3066,7 +3157,7 @@ func (app *Application) IsHydrateRequested() bool {
 	if !ok {
 		return false
 	}
-	if typeStr == "normal" {
+	if typeStr == string(HydrateTypeNormal) {
 		return true
 	}
 	return false
@@ -3118,7 +3209,7 @@ func isPropagationPolicyFinalizer(finalizer string) bool {
 
 // GetPropagationPolicy returns the value of propagation policy finalizer
 func (app *Application) GetPropagationPolicy() string {
-	for _, finalizer := range app.ObjectMeta.Finalizers {
+	for _, finalizer := range app.Finalizers {
 		if isPropagationPolicyFinalizer(finalizer) {
 			return finalizer
 		}
@@ -3355,7 +3446,7 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 }
 
 // ParseProxyUrl returns a parsed url and verifies that schema is correct
-func ParseProxyUrl(proxyUrl string) (*url.URL, error) {
+func ParseProxyUrl(proxyUrl string) (*url.URL, error) { //nolint:revive //FIXME(var-naming)
 	u, err := url.Parse(proxyUrl)
 	if err != nil {
 		return nil, err
@@ -3363,7 +3454,7 @@ func ParseProxyUrl(proxyUrl string) (*url.URL, error) {
 	switch u.Scheme {
 	case "http", "https", "socks5":
 	default:
-		return nil, fmt.Errorf("Failed to parse proxy url, unsupported scheme %q, must be http, https, or socks5", u.Scheme)
+		return nil, fmt.Errorf("failed to parse proxy url, unsupported scheme %q, must be http, https, or socks5", u.Scheme)
 	}
 	return u, nil
 }
@@ -3398,11 +3489,11 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 		}
 	default:
 		tlsClientConfig := rest.TLSClientConfig{
-			Insecure:   c.Config.TLSClientConfig.Insecure,
-			ServerName: c.Config.TLSClientConfig.ServerName,
-			CertData:   c.Config.TLSClientConfig.CertData,
-			KeyData:    c.Config.TLSClientConfig.KeyData,
-			CAData:     c.Config.TLSClientConfig.CAData,
+			Insecure:   c.Config.Insecure,
+			ServerName: c.Config.ServerName,
+			CertData:   c.Config.CertData,
+			KeyData:    c.Config.KeyData,
+			CAData:     c.Config.CAData,
 		}
 		switch {
 		case c.Config.AWSAuthConfig != nil:
@@ -3456,12 +3547,12 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 		}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("Unable to create K8s REST config: %w", err)
+		return nil, fmt.Errorf("unable to create K8s REST config: %w", err)
 	}
 	if c.Config.ProxyUrl != "" {
 		u, err := ParseProxyUrl(c.Config.ProxyUrl)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to create K8s REST config, can`t parse proxy url: %w", err)
+			return nil, fmt.Errorf("unable to create K8s REST config, can`t parse proxy url: %w", err)
 		}
 		config.Proxy = http.ProxyURL(u)
 	}
@@ -3476,11 +3567,11 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 func (c *Cluster) RESTConfig() (*rest.Config, error) {
 	config, err := c.RawRestConfig()
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get K8s RAW REST config: %w", err)
+		return nil, fmt.Errorf("unable to get K8s RAW REST config: %w", err)
 	}
 	err = SetK8SConfigDefaults(config)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to apply K8s REST config defaults: %w", err)
+		return nil, fmt.Errorf("unable to apply K8s REST config defaults: %w", err)
 	}
 	return config, nil
 }
@@ -3498,12 +3589,16 @@ func UnmarshalToUnstructured(resource string) (*unstructured.Unstructured, error
 	return &obj, nil
 }
 
-// TODO: document this method
+// LiveObject returns the live object representation of the resource by unmarshalling the
+// `LiveState` field into an unstructured.Unstructured object. This object represents the current
+// live state of the resource in the cluster.
 func (r ResourceDiff) LiveObject() (*unstructured.Unstructured, error) {
 	return UnmarshalToUnstructured(r.LiveState)
 }
 
-// TODO: document this method
+// TargetObject returns the target object representation of the resource by unmarshalling the
+// `TargetState` field into an unstructured.Unstructured object. This object represents the desired
+// state of the resource, as defined in the target configuration.
 func (r ResourceDiff) TargetObject() (*unstructured.Unstructured, error) {
 	return UnmarshalToUnstructured(r.TargetState)
 }
@@ -3557,6 +3652,10 @@ func (app *Application) GetAnnotation(annotation string) string {
 	return v
 }
 
+// IsDeletionConfirmed checks whether the application has been approved for deletion.
+// It compares the timestamp stored in the `AnnotationDeletionApproved` annotation
+// with the provided 'since' time. If the annotation is missing or has an invalid
+// timestamp format, it returns false.
 func (app *Application) IsDeletionConfirmed(since time.Time) bool {
 	val := app.GetAnnotation(synccommon.AnnotationDeletionApproved)
 	if val == "" {

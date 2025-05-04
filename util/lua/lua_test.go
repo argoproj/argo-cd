@@ -38,7 +38,7 @@ metadata:
   resourceVersion: "123"
 `
 
-const ec2AWSCrossplaneObjJson = `
+const ec2AWSCrossplaneObjJSON = `
 apiVersion: ec2.aws.crossplane.io/v1alpha1
 kind: Instance
 metadata:
@@ -90,7 +90,7 @@ func TestExecuteNewHealthStatusFunction(t *testing.T) {
 }
 
 func TestExecuteWildcardHealthStatusFunction(t *testing.T) {
-	testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
+	testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, newWildcardHealthStatusFunction)
 	require.NoError(t, err)
@@ -107,7 +107,7 @@ func TestFailExternalLibCall(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	_, err := vm.ExecuteHealthLua(testObj, osLuaScript)
-	require.Error(t, err, "")
+	require.Error(t, err)
 	assert.IsType(t, &lua.ApiError{}, err)
 }
 
@@ -236,7 +236,7 @@ func TestGetHealthScriptWithGroupWildcardOverride(t *testing.T) {
 }
 
 func TestGetHealthScriptWithGroupAndKindWildcardOverride(t *testing.T) {
-	testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
+	testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
 			"*.aws.crossplane.io/*": {
@@ -267,7 +267,7 @@ func TestGetHealthScriptNoPredefined(t *testing.T) {
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
 	require.NoError(t, err)
 	assert.False(t, useOpenLibs)
-	assert.Equal(t, "", script)
+	assert.Empty(t, script)
 }
 
 func TestGetResourceActionPredefined(t *testing.T) {
@@ -325,7 +325,7 @@ func TestGetResourceActionDiscoveryNoPredefined(t *testing.T) {
 	vm := VM{}
 	discoveryLua, err := vm.GetResourceActionDiscovery(testObj)
 	require.NoError(t, err)
-	assert.Equal(t, "", discoveryLua[0])
+	assert.Empty(t, discoveryLua)
 }
 
 func TestGetResourceActionDiscoveryWithOverride(t *testing.T) {
@@ -847,7 +847,7 @@ return hs`
 	})
 
 	t.Run("Get resource health for wildcard override", func(t *testing.T) {
-		testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
+		testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
 		overrides := getWildcardHealthOverride
 		status, err := overrides.GetResourceHealth(testObj)
 		require.NoError(t, err)
@@ -858,7 +858,7 @@ return hs`
 	})
 
 	t.Run("Get resource health for wildcard override with non-empty health.lua", func(t *testing.T) {
-		testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
+		testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
 		overrides := getMultipleWildcardHealthOverrides
 		status, err := overrides.GetResourceHealth(testObj)
 		require.NoError(t, err)
@@ -867,7 +867,7 @@ return hs`
 	})
 
 	t.Run("Get resource health for */* override with empty health.lua", func(t *testing.T) {
-		testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
+		testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
 		overrides := getBaseWildcardHealthOverrides
 		status, err := overrides.GetResourceHealth(testObj)
 		require.NoError(t, err)

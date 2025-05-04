@@ -70,9 +70,9 @@ func TestClusterSecretUpdater(t *testing.T) {
 	kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecret)
 	appclientset := appsfake.NewSimpleClientset()
 	appInformer := appinformers.NewApplicationInformer(appclientset, "", time.Minute, cache.Indexers{})
-	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+	settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 	argoDB := db.NewDB(fakeNamespace, settingsManager, kubeclientset)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	appCache := appstate.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute)
@@ -90,7 +90,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 		lister := applisters.NewApplicationLister(appInformer.GetIndexer()).Applications(fakeNamespace)
 		updater := NewClusterInfoUpdater(nil, argoDB, lister, appCache, nil, nil, fakeNamespace)
 
-		err = updater.updateClusterInfo(context.Background(), *cluster, info)
+		err = updater.updateClusterInfo(t.Context(), *cluster, info)
 		require.NoError(t, err, "Invoking updateClusterInfo failed.")
 
 		var clusterInfo v1alpha1.ClusterInfo
@@ -185,7 +185,7 @@ func TestUpdateClusterLabels(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.wantErr(t, updateClusterLabels(context.Background(), tt.clusterInfo, tt.cluster, tt.updateCluster), fmt.Sprintf("updateClusterLabels(%v, %v, %v)", context.Background(), tt.clusterInfo, tt.cluster))
+			tt.wantErr(t, updateClusterLabels(t.Context(), tt.clusterInfo, tt.cluster, tt.updateCluster), fmt.Sprintf("updateClusterLabels(%v, %v, %v)", t.Context(), tt.clusterInfo, tt.cluster))
 		})
 	}
 }

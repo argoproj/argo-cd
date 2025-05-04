@@ -8,7 +8,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/argoproj/pkg/stats"
+	"github.com/argoproj/pkg/v2/stats"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -47,6 +47,10 @@ import (
 
 var gitSubmoduleEnabled = env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
 
+const (
+	cliName = common.ApplicationSetController
+)
+
 func NewCommand() *cobra.Command {
 	var (
 		clientConfig                 clientcmd.ClientConfig
@@ -79,8 +83,9 @@ func NewCommand() *cobra.Command {
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = appv1alpha1.AddToScheme(scheme)
 	command := cobra.Command{
-		Use:   "controller",
-		Short: "Starts Argo CD ApplicationSet controller",
+		Use:               cliName,
+		Short:             "Starts Argo CD ApplicationSet controller",
+		DisableAutoGenTag: true,
 		RunE: func(c *cobra.Command, _ []string) error {
 			ctx := c.Context()
 

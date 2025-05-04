@@ -594,6 +594,9 @@ message ApplicationSourceKustomize {
   // APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
   // Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
   repeated string apiVersions = 16;
+
+  // LabelIncludeTemplates specifies whether to apply common labels to resource templates or not
+  optional bool labelIncludeTemplates = 18;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
@@ -709,19 +712,22 @@ message ApplicationSummary {
   repeated string images = 2;
 }
 
-// ApplicationTree holds nodes which belongs to the application
-// TODO: describe purpose of this type
+// ApplicationTree represents the hierarchical structure of resources associated with an Argo CD application.
 message ApplicationTree {
-  // Nodes contains list of nodes which either directly managed by the application and children of directly managed nodes.
+  // Nodes contains a list of resources that are either directly managed by the application
+  // or are children of directly managed resources.
   repeated ResourceNode nodes = 1;
 
-  // OrphanedNodes contains if or orphaned nodes: nodes which are not managed by the app but in the same namespace. List is populated only if orphaned resources enabled in app project.
+  // OrphanedNodes contains resources that exist in the same namespace as the application
+  // but are not managed by it. This list is populated only if orphaned resource tracking
+  // is enabled in the application's project settings.
   repeated ResourceNode orphanedNodes = 2;
 
-  // Hosts holds list of Kubernetes nodes that run application related pods
+  // Hosts provides a list of Kubernetes nodes that are running pods related to the application.
   repeated HostInfo hosts = 3;
 
-  // ShardsCount contains total number of shards the application tree is split into
+  // ShardsCount represents the total number of shards the application tree is split into.
+  // This is used to distribute resource processing across multiple shards.
   optional int64 shardsCount = 4;
 }
 
@@ -1126,25 +1132,30 @@ message HelmParameter {
   optional bool forceString = 3;
 }
 
-// HostInfo holds host name and resources metrics
-// TODO: describe purpose of this type
-// TODO: describe members of this type
+// HostInfo holds metadata and resource usage metrics for a specific host in the cluster.
 message HostInfo {
+  // Name is the hostname or node name in the Kubernetes cluster.
   optional string name = 1;
 
+  // ResourcesInfo provides a list of resource usage details for different resource types on this host.
   repeated HostResourceInfo resourcesInfo = 2;
 
+  // SystemInfo contains detailed system-level information about the host, such as OS, kernel version, and architecture.
   optional .k8s.io.api.core.v1.NodeSystemInfo systemInfo = 3;
 }
 
-// TODO: describe this type
+// HostResourceInfo represents resource usage details for a specific resource type on a host.
 message HostResourceInfo {
+  // ResourceName specifies the type of resource (e.g., CPU, memory, storage).
   optional string resourceName = 1;
 
+  // RequestedByApp indicates the total amount of this resource requested by the application running on the host.
   optional int64 requestedByApp = 2;
 
+  // RequestedByNeighbors indicates the total amount of this resource requested by other workloads on the same host.
   optional int64 requestedByNeighbors = 3;
 
+  // Capacity represents the total available capacity of this resource on the host.
   optional int64 capacity = 4;
 }
 
@@ -1217,12 +1228,16 @@ message JsonnetVar {
   optional bool code = 3;
 }
 
-// KnownTypeField contains mapping between CRD field and known Kubernetes type.
-// This is mainly used for unit conversion in unknown resources (e.g. 0.1 == 100mi)
-// TODO: Describe the members of this type
+// KnownTypeField contains a mapping between a Custom Resource Definition (CRD) field
+// and a well-known Kubernetes type. This mapping is primarily used for unit conversions
+// in resources where the type is not explicitly defined (e.g., converting "0.1" to "100m" for CPU requests).
 message KnownTypeField {
+  // Field represents the JSON path to the specific field in the CRD that requires type conversion.
+  // Example: "spec.resources.requests.cpu"
   optional string field = 1;
 
+  // Type specifies the expected Kubernetes type for the field, such as "cpu" or "memory".
+  // This helps in converting values between different formats (e.g., "0.1" to "100m" for CPU).
   optional string type = 2;
 }
 
@@ -1503,6 +1518,9 @@ message PullRequestGenerator {
 
   // Additional provider to use and config for it.
   optional PullRequestGeneratorAzureDevOps azuredevops = 9;
+
+  // Values contains key/value pairs which are passed directly as parameters to the template
+  map<string, string> values = 10;
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
@@ -1700,6 +1718,9 @@ message RepoCreds {
 
   // UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
   optional bool useAzureWorkloadIdentity = 24;
+
+  // BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
+  optional string bearerToken = 25;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1783,6 +1804,9 @@ message Repository {
 
   // UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
   optional bool useAzureWorkloadIdentity = 24;
+
+  // BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
+  optional string bearerToken = 25;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
@@ -1818,81 +1842,105 @@ message RepositoryList {
   repeated Repository items = 2;
 }
 
-// TODO: describe this type
-// TODO: describe members of this type
+// ResourceAction represents an individual action that can be performed on a resource.
+// It includes parameters, an optional disabled flag, an icon for display, and a name for the action.
 message ResourceAction {
+  // Name is the name or identifier for the action.
   optional string name = 1;
 
+  // Params contains the parameters required to execute the action.
   repeated ResourceActionParam params = 2;
 
+  // Disabled indicates whether the action is disabled.
   optional bool disabled = 3;
 
+  // IconClass specifies the CSS class for the action's icon.
   optional string iconClass = 4;
 
+  // DisplayName provides a user-friendly name for the action.
   optional string displayName = 5;
 }
 
-// TODO: describe this type
-// TODO: describe members of this type
+// ResourceActionDefinition defines an individual action that can be executed on a resource.
+// It includes a name for the action and a Lua script that defines the action's behavior.
 message ResourceActionDefinition {
+  // Name is the identifier for the action.
   optional string name = 1;
 
+  // ActionLua contains the Lua script that defines the behavior of the action.
   optional string actionLua = 2;
 }
 
-// TODO: describe this type
-// TODO: describe members of this type
+// ResourceActionParam represents a parameter for a resource action.
+// It includes a name, value, type, and an optional default value for the parameter.
 message ResourceActionParam {
+  // Name is the name of the parameter.
   optional string name = 1;
 
+  // Value is the value of the parameter.
   optional string value = 2;
 
+  // Type is the type of the parameter (e.g., string, integer).
   optional string type = 3;
 
+  // Default is the default value of the parameter, if any.
   optional string default = 4;
 }
 
-// TODO: describe this type
-// TODO: describe members of this type
+// ResourceActions holds the set of actions that can be applied to a resource.
+// It defines custom Lua scripts for discovery and action execution, as well as options
+// for merging built-in actions with custom ones.
 message ResourceActions {
+  // ActionDiscoveryLua contains a Lua script for discovering actions.
   optional string actionDiscoveryLua = 1;
 
+  // Definitions holds the list of action definitions available for the resource.
   repeated ResourceActionDefinition definitions = 2;
 
+  // MergeBuiltinActions indicates whether built-in actions should be merged with custom actions.
   optional bool mergeBuiltinActions = 3;
 }
 
-// ResourceDiff holds the diff of a live and target resource object
-// TODO: describe members of this type
+// ResourceDiff holds the diff between a live and target resource object in Argo CD.
+// It is used to compare the desired state (from Git/Helm) with the actual state in the cluster.
 message ResourceDiff {
+  // Group represents the API group of the resource (e.g., "apps" for Deployments).
   optional string group = 1;
 
+  // Kind represents the Kubernetes resource kind (e.g., "Deployment", "Service").
   optional string kind = 2;
 
+  // Namespace specifies the namespace where the resource exists.
   optional string namespace = 3;
 
+  // Name is the name of the resource.
   optional string name = 4;
 
-  // TargetState contains the JSON serialized resource manifest defined in the Git/Helm
+  // TargetState contains the JSON-serialized resource manifest as defined in the Git/Helm repository.
   optional string targetState = 5;
 
-  // TargetState contains the JSON live resource manifest
+  // LiveState contains the JSON-serialized resource manifest of the resource currently running in the cluster.
   optional string liveState = 6;
 
-  // Diff contains the JSON patch between target and live resource
-  // Deprecated: use NormalizedLiveState and PredictedLiveState to render the difference
+  // Diff contains the JSON patch representing the difference between the live and target resource.
+  // Deprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.
   optional string diff = 7;
 
+  // Hook indicates whether this resource is a hook resource (e.g., pre-sync or post-sync hooks).
   optional bool hook = 8;
 
-  // NormalizedLiveState contains JSON serialized live resource state with applied normalizations
+  // NormalizedLiveState contains the JSON-serialized live resource state after applying normalizations.
+  // Normalizations may include ignoring irrelevant fields like timestamps or defaults applied by Kubernetes.
   optional string normalizedLiveState = 9;
 
-  // PredictedLiveState contains JSON serialized resource state that is calculated based on normalized and target resource state
+  // PredictedLiveState contains the JSON-serialized resource state that Argo CD predicts based on the
+  // combination of the normalized live state and the desired target state.
   optional string predictedLiveState = 10;
 
+  // ResourceVersion is the Kubernetes resource version, which helps in tracking changes.
   optional string resourceVersion = 11;
 
+  // Modified indicates whether the live resource has changes compared to the target resource.
   optional bool modified = 12;
 }
 
@@ -1915,54 +1963,73 @@ message ResourceIgnoreDifferences {
   repeated string managedFieldsManagers = 7;
 }
 
-// ResourceNetworkingInfo holds networking resource related information
-// TODO: describe members of this type
+// ResourceNetworkingInfo holds networking-related information for a resource.
 message ResourceNetworkingInfo {
+  // TargetLabels represents labels associated with the target resources that this resource communicates with.
   map<string, string> targetLabels = 1;
 
+  // TargetRefs contains references to other resources that this resource interacts with, such as Services or Pods.
   repeated ResourceRef targetRefs = 2;
 
+  // Labels holds the labels associated with this networking resource.
   map<string, string> labels = 3;
 
+  // Ingress provides information about external access points (e.g., load balancer ingress) for this resource.
   repeated .k8s.io.api.core.v1.LoadBalancerIngress ingress = 4;
 
-  // ExternalURLs holds list of URLs which should be available externally. List is populated for ingress resources using rules hostnames.
+  // ExternalURLs holds a list of URLs that should be accessible externally.
+  // This field is typically populated for Ingress resources based on their hostname rules.
   repeated string externalURLs = 5;
 }
 
-// ResourceNode contains information about live resource and its children
-// TODO: describe members of this type
+// ResourceNode contains information about a live Kubernetes resource and its relationships with other resources.
 message ResourceNode {
+  // ResourceRef uniquely identifies the resource using its group, kind, namespace, and name.
   optional ResourceRef resourceRef = 1;
 
+  // ParentRefs lists the parent resources that reference this resource.
+  // This helps in understanding ownership and hierarchical relationships.
   repeated ResourceRef parentRefs = 2;
 
+  // Info provides additional metadata or annotations about the resource.
   repeated InfoItem info = 3;
 
+  // NetworkingInfo contains details about the resource's networking attributes,
+  // such as ingress information and external URLs.
   optional ResourceNetworkingInfo networkingInfo = 4;
 
+  // ResourceVersion indicates the version of the resource, used to track changes.
   optional string resourceVersion = 5;
 
+  // Images lists container images associated with the resource.
+  // This is primarily useful for pods and other workload resources.
   repeated string images = 6;
 
+  // Health represents the health status of the resource (e.g., Healthy, Degraded, Progressing).
   optional HealthStatus health = 7;
 
+  // CreatedAt records the timestamp when the resource was created.
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time createdAt = 8;
 }
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment
-// TODO: describe the members of this type
 message ResourceOverride {
+  // HealthLua contains a Lua script that defines custom health checks for the resource.
   optional string healthLua = 1;
 
+  // UseOpenLibs indicates whether to use open-source libraries for the resource.
   optional bool useOpenLibs = 5;
 
+  // Actions defines the set of actions that can be performed on the resource, as a Lua script.
   optional string actions = 3;
 
+  // IgnoreDifferences contains configuration for which differences should be ignored during the resource diffing.
   optional OverrideIgnoreDiff ignoreDifferences = 2;
 
+  // IgnoreResourceUpdates holds configuration for ignoring updates to specific resource fields.
   optional OverrideIgnoreDiff ignoreResourceUpdates = 6;
 
+  // KnownTypeFields lists fields for which unit conversions should be applied.
   repeated KnownTypeField knownTypeFields = 4;
 }
 
@@ -2015,29 +2082,40 @@ message ResourceResult {
   optional string syncPhase = 10;
 }
 
-// ResourceStatus holds the current sync and health status of a resource
-// TODO: describe members of this type
+// ResourceStatus holds the current synchronization and health status of a Kubernetes resource.
 message ResourceStatus {
+  // Group represents the API group of the resource (e.g., "apps" for Deployments).
   optional string group = 1;
 
+  // Version indicates the API version of the resource (e.g., "v1", "v1beta1").
   optional string version = 2;
 
+  // Kind specifies the type of the resource (e.g., "Deployment", "Service").
   optional string kind = 3;
 
+  // Namespace defines the Kubernetes namespace where the resource is located.
   optional string namespace = 4;
 
+  // Name is the unique name of the resource within the namespace.
   optional string name = 5;
 
+  // Status represents the synchronization state of the resource (e.g., Synced, OutOfSync).
   optional string status = 6;
 
+  // Health indicates the health status of the resource (e.g., Healthy, Degraded, Progressing).
   optional HealthStatus health = 7;
 
+  // Hook is true if the resource is used as a lifecycle hook in an Argo CD application.
   optional bool hook = 8;
 
+  // RequiresPruning is true if the resource needs to be pruned (deleted) as part of synchronization.
   optional bool requiresPruning = 9;
 
+  // SyncWave determines the order in which resources are applied during a sync operation.
+  // Lower values are applied first.
   optional int64 syncWave = 10;
 
+  // RequiresDeletionConfirmation is true if the resource requires explicit user confirmation before deletion.
   optional bool requiresDeletionConfirmation = 11;
 }
 
@@ -2436,6 +2514,9 @@ message SyncPolicyAutomated {
 
   // AllowEmpty allows apps have zero live resources (default: false)
   optional bool allowEmpty = 3;
+
+  // Enable allows apps to explicitly control automated sync
+  optional bool enable = 4;
 }
 
 // SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the

@@ -1,7 +1,6 @@
 package extension_test
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -17,10 +16,11 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/server/extension"
 	"github.com/argoproj/argo-cd/v3/server/extension/mocks"
-	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -136,7 +136,7 @@ func TestRegisterExtensions(t *testing.T) {
 		settMock := &mocks.SettingsGetter{}
 
 		logger, _ := test.NewNullLogger()
-		logEntry := logger.WithContext(context.Background())
+		logEntry := logger.WithContext(t.Context())
 		m := extension.NewManager(logEntry, "", settMock, nil, nil, nil, nil, nil)
 
 		return &fixture{
@@ -257,7 +257,7 @@ func TestCallExtension(t *testing.T) {
 		dbMock.On("GetCluster", mock.Anything, mock.Anything).Return(&v1alpha1.Cluster{Server: "some-url", Name: "cluster1"}, nil)
 
 		logger, _ := test.NewNullLogger()
-		logEntry := logger.WithContext(context.Background())
+		logEntry := logger.WithContext(t.Context())
 		m := extension.NewManager(logEntry, defaultServerNamespace, settMock, appMock, projMock, dbMock, rbacMock, userMock)
 		m.AddMetricsRegistry(metricsMock)
 
@@ -344,8 +344,8 @@ func TestCallExtension(t *testing.T) {
 		if !allowExt {
 			extAccessError = errors.New("no extension permission")
 		}
-		f.rbacMock.On("EnforceErr", mock.Anything, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, mock.Anything).Return(appAccessError)
-		f.rbacMock.On("EnforceErr", mock.Anything, rbacpolicy.ResourceExtensions, rbacpolicy.ActionInvoke, mock.Anything).Return(extAccessError)
+		f.rbacMock.On("EnforceErr", mock.Anything, rbac.ResourceApplications, rbac.ActionGet, mock.Anything).Return(appAccessError)
+		f.rbacMock.On("EnforceErr", mock.Anything, rbac.ResourceExtensions, rbac.ActionInvoke, mock.Anything).Return(extAccessError)
 	}
 
 	withUser := func(f *fixture, username string, groups []string) {
@@ -512,9 +512,9 @@ func TestCallExtension(t *testing.T) {
 		req := newExtensionRequest(t, http.MethodGet, url)
 		req.Header.Del(extension.HeaderArgoCDApplicationName)
 
-		req1 := req.Clone(context.Background())
+		req1 := req.Clone(t.Context())
 		req1.Header.Add(extension.HeaderArgoCDApplicationName, "ns1:app1")
-		req2 := req.Clone(context.Background())
+		req2 := req.Clone(t.Context())
 		req2.Header.Add(extension.HeaderArgoCDApplicationName, "ns2:app2")
 
 		// when
@@ -691,7 +691,7 @@ func TestCallExtension(t *testing.T) {
 		url := fmt.Sprintf("%s/extensions/%s/", ts.URL, extName)
 		req := newExtensionRequest(t, http.MethodGet, url)
 		req.Header.Del(extension.HeaderArgoCDApplicationName)
-		req1 := req.Clone(context.Background())
+		req1 := req.Clone(t.Context())
 		req1.Header.Add(extension.HeaderArgoCDApplicationName, "ns1:app1")
 
 		// when

@@ -19,7 +19,7 @@ import (
 
 type Repo struct {
 	Id  int    `json:"id"`
-	Url string `json:"html_url"`
+	Url string `json:"html_url"` //nolint:revive //FIXME(var-naming)
 }
 
 type RepoGenerator struct {

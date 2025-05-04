@@ -8,6 +8,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -174,7 +177,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 					endpoint = clst.Server
 				}
 				clst.Server = endpoint
-				clst.Config.TLSClientConfig.CAData = caData
+				clst.Config.CAData = caData
 			}
 
 			if clusterOpts.Shard >= 0 {
@@ -212,7 +215,7 @@ func getRestConfig(pathOpts *clientcmd.PathOptions, ctxName string) (*rest.Confi
 
 	clstContext := config.Contexts[ctxName]
 	if clstContext == nil {
-		return nil, fmt.Errorf("Context %s does not exist in kubeconfig", ctxName)
+		return nil, fmt.Errorf("context %s does not exist in kubeconfig", ctxName)
 	}
 
 	overrides := clientcmd.ConfigOverrides{
@@ -280,7 +283,12 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					},
 				}
 				_, err := clusterIf.Update(ctx, &clusterUpdateRequest)
-				errors.CheckError(err)
+				if err != nil {
+					if status.Code(err) == codes.PermissionDenied {
+						log.Error("Ensure that the cluster is present and you have the necessary permissions to update the cluster")
+					}
+					errors.CheckError(err)
+				}
 				fmt.Printf("Cluster '%s' updated.\n", clusterName)
 			} else {
 				fmt.Print("Specify the cluster field to be updated.\n")
@@ -376,8 +384,8 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 		fmt.Printf("  Server Version:        %s\n", cluster.ServerVersion)
 		fmt.Printf("  Namespaces:        	 %s\n", formatNamespaces(cluster))
 		fmt.Printf("\nTLS configuration\n\n")
-		fmt.Printf("  Client cert:           %v\n", string(cluster.Config.TLSClientConfig.CertData) != "")
-		fmt.Printf("  Cert validation:       %v\n", !cluster.Config.TLSClientConfig.Insecure)
+		fmt.Printf("  Client cert:           %v\n", string(cluster.Config.CertData) != "")
+		fmt.Printf("  Cert validation:       %v\n", !cluster.Config.Insecure)
 		fmt.Printf("\nAuthentication\n\n")
 		fmt.Printf("  Basic authentication:  %v\n", cluster.Config.Username != "")
 		fmt.Printf("  oAuth authentication:  %v\n", cluster.Config.BearerToken != "")

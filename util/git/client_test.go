@@ -1,6 +1,9 @@
 package git
 
 import (
+	"context"
+	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -9,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -127,6 +132,19 @@ func Test_IsAnnotatedTag(t *testing.T) {
 	// We moved on, so tag doesn't point to HEAD anymore
 	atag = client.IsAnnotatedTag("HEAD")
 	assert.False(t, atag)
+}
+
+func Test_resolveTagReference(t *testing.T) {
+	// Setup
+	commitHash := plumbing.NewHash("0123456789abcdef0123456789abcdef01234567")
+	tagRef := plumbing.NewReferenceFromStrings("refs/tags/v1.0.0", "sometaghash")
+
+	// Test single function
+	resolvedRef := plumbing.NewHashReference(tagRef.Name(), commitHash)
+
+	// Verify
+	assert.Equal(t, commitHash, resolvedRef.Hash())
+	assert.Equal(t, tagRef.Name(), resolvedRef.Name())
 }
 
 func Test_ChangedFiles(t *testing.T) {
@@ -579,7 +597,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		// make origin git repository
 		tempDir, err := _createEmptyGitRepo()
 		require.NoError(t, err)
-		originGitRepoUrl := "file://" + tempDir
+		originGitRepoURL := "file://" + tempDir
 		err = runCmd(tempDir, "git", "commit", "-m", "Second commit", "--allow-empty")
 		require.NoError(t, err)
 
@@ -592,7 +610,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		tempDir, err = os.MkdirTemp("", "")
 		require.NoError(t, err)
 
-		client, err := NewClientExt(originGitRepoUrl, tempDir, NopCreds{}, true, false, "", "")
+		client, err := NewClientExt(originGitRepoURL, tempDir, NopCreds{}, true, false, "", "")
 		require.NoError(t, err)
 
 		err = client.Init()
@@ -850,4 +868,143 @@ func Test_newAuth_AzureWorkloadIdentity(t *testing.T) {
 	require.NoError(t, err)
 	_, ok := auth.(*githttp.TokenAuth)
 	require.Truef(t, ok, "expected TokenAuth but got %T", auth)
+}
+
+func TestNewAuth(t *testing.T) {
+	tests := []struct {
+		name     string
+		repoURL  string
+		creds    Creds
+		expected transport.AuthMethod
+		wantErr  bool
+	}{
+		{
+			name:    "HTTPSCreds with bearer token",
+			repoURL: "https://github.com/org/repo.git",
+			creds: HTTPSCreds{
+				bearerToken: "test-token",
+			},
+			expected: &githttp.TokenAuth{Token: "test-token"},
+			wantErr:  false,
+		},
+		{
+			name:    "HTTPSCreds with basic auth",
+			repoURL: "https://github.com/org/repo.git",
+			creds: HTTPSCreds{
+				username: "test-user",
+				password: "test-password",
+			},
+			expected: &githttp.BasicAuth{Username: "test-user", Password: "test-password"},
+			wantErr:  false,
+		},
+		{
+			name:    "HTTPSCreds with basic auth no username",
+			repoURL: "https://github.com/org/repo.git",
+			creds: HTTPSCreds{
+				password: "test-password",
+			},
+			expected: &githttp.BasicAuth{Username: "x-access-token", Password: "test-password"},
+			wantErr:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			auth, err := newAuth(tt.repoURL, tt.creds)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("newAuth() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			assert.Equal(t, tt.expected, auth)
+		})
+	}
+}
+
+func Test_nativeGitClient_runCredentialedCmd(t *testing.T) {
+	tests := []struct {
+		name         string
+		creds        Creds
+		environ      []string
+		expectedArgs []string
+		expectedEnv  []string
+		expectedErr  bool
+	}{
+		{
+			name: "basic auth header set",
+			creds: &mockCreds{
+				environ: []string{forceBasicAuthHeaderEnv + "=Basic dGVzdDp0ZXN0"},
+			},
+			expectedArgs: []string{"--config-env", "http.extraHeader=" + forceBasicAuthHeaderEnv, "status"},
+			expectedEnv:  []string{forceBasicAuthHeaderEnv + "=Basic dGVzdDp0ZXN0"},
+			expectedErr:  false,
+		},
+		{
+			name: "bearer auth header set",
+			creds: &mockCreds{
+				environ: []string{bearerAuthHeaderEnv + "=Bearer test-token"},
+			},
+			expectedArgs: []string{"--config-env", "http.extraHeader=" + bearerAuthHeaderEnv, "status"},
+			expectedEnv:  []string{bearerAuthHeaderEnv + "=Bearer test-token"},
+			expectedErr:  false,
+		},
+		{
+			name: "no auth header set",
+			creds: &mockCreds{
+				environ: []string{},
+			},
+			expectedArgs: []string{"status"},
+			expectedEnv:  []string{},
+			expectedErr:  false,
+		},
+		{
+			name: "error getting environment",
+			creds: &mockCreds{
+				environErr: true,
+			},
+			expectedArgs: []string{},
+			expectedEnv:  []string{},
+			expectedErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := &nativeGitClient{
+				creds: tt.creds,
+			}
+
+			err := client.runCredentialedCmd("status")
+			if (err != nil) != tt.expectedErr {
+				t.Errorf("runCredentialedCmd() error = %v, expectedErr %v", err, tt.expectedErr)
+				return
+			}
+
+			if tt.expectedErr {
+				return
+			}
+
+			cmd := exec.Command("git", tt.expectedArgs...)
+			cmd.Env = append(os.Environ(), tt.expectedEnv...)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Errorf("runCredentialedCmd() command error = %v, output = %s", err, output)
+			}
+		})
+	}
+}
+
+type mockCreds struct {
+	environ    []string
+	environErr bool
+}
+
+func (m *mockCreds) Environ() (io.Closer, []string, error) {
+	if m.environErr {
+		return nil, nil, errors.New("error getting environment")
+	}
+	return io.NopCloser(nil), m.environ, nil
+}
+
+func (m *mockCreds) GetUserInfo(_ context.Context) (string, string, error) {
+	return "", "", nil
 }

@@ -139,11 +139,11 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			} else if currentType == "Raw.k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1" || currentType == "Raw.k8s.io/apimachinery/pkg/runtime" {
 				var unmarshaled any
 				originalBytes := original.Field(i).Bytes()
-				convertedToJson, err := ConvertYAMLToJSON(string(originalBytes))
+				convertedToJSON, err := ConvertYAMLToJSON(string(originalBytes))
 				if err != nil {
-					return fmt.Errorf("error while converting template to json %q: %w", convertedToJson, err)
+					return fmt.Errorf("error while converting template to json %q: %w", convertedToJSON, err)
 				}
-				err = json.Unmarshal([]byte(convertedToJson), &unmarshaled)
+				err = json.Unmarshal([]byte(convertedToJSON), &unmarshaled)
 				if err != nil {
 					return fmt.Errorf("failed to unmarshal JSON field: %w", err)
 				}
@@ -274,8 +274,8 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 	// b) there IS a syncPolicy, but preserveResourcesOnDeletion is set to false
 	// See TestRenderTemplateParamsFinalizers in util_test.go for test-based definition of behaviour
 	if (syncPolicy == nil || !syncPolicy.PreserveResourcesOnDeletion) &&
-		len(replacedTmpl.ObjectMeta.Finalizers) == 0 {
-		replacedTmpl.ObjectMeta.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
+		len(replacedTmpl.Finalizers) == 0 {
+		replacedTmpl.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
 	}
 
 	return replacedTmpl, nil
@@ -336,7 +336,7 @@ func (r *Render) Replace(tmpl string, replaceMap map[string]any, useGoTemplate b
 		trimmedTag := strings.TrimSpace(tag)
 		replacement, ok := replaceMap[trimmedTag].(string)
 		if len(trimmedTag) == 0 || !ok {
-			return w.Write([]byte(fmt.Sprintf("{{%s}}", tag)))
+			return fmt.Fprintf(w, "{{%s}}", tag)
 		}
 		return w.Write([]byte(replacement))
 	})
@@ -353,12 +353,12 @@ func CheckInvalidGenerators(applicationSetInfo *argoappsv1.ApplicationSet) error
 			gnames = append(gnames, n)
 		}
 		sort.Strings(gnames)
-		aname := applicationSetInfo.ObjectMeta.Name
+		aname := applicationSetInfo.Name
 		msg := "ApplicationSet %s contains unrecognized generators: %s"
 		errorMessage = fmt.Errorf(msg, aname, strings.Join(gnames, ", "))
 		log.Warnf(msg, aname, strings.Join(gnames, ", "))
 	} else if hasInvalidGenerators {
-		name := applicationSetInfo.ObjectMeta.Name
+		name := applicationSetInfo.Name
 		msg := "ApplicationSet %s contains unrecognized generators"
 		errorMessage = fmt.Errorf(msg, name)
 		log.Warnf(msg, name)
@@ -394,7 +394,7 @@ func invalidGenerators(applicationSetInfo *argoappsv1.ApplicationSet) (bool, map
 
 func addInvalidGeneratorNames(names map[string]bool, applicationSetInfo *argoappsv1.ApplicationSet, index int) {
 	// The generator names are stored in the "kubectl.kubernetes.io/last-applied-configuration" annotation
-	config := applicationSetInfo.ObjectMeta.Annotations["kubectl.kubernetes.io/last-applied-configuration"]
+	config := applicationSetInfo.Annotations["kubectl.kubernetes.io/last-applied-configuration"]
 	var values map[string]any
 	err := json.Unmarshal([]byte(config), &values)
 	if err != nil {
@@ -489,7 +489,7 @@ func SlugifyName(args ...any) string {
 	return urlSlug
 }
 
-func getTlsConfigWithCACert(scmRootCAPath string, caCerts []byte) *tls.Config {
+func getTLSConfigWithCACert(scmRootCAPath string, caCerts []byte) *tls.Config {
 	tlsConfig := &tls.Config{}
 
 	if scmRootCAPath != "" {
@@ -518,8 +518,8 @@ func getTlsConfigWithCACert(scmRootCAPath string, caCerts []byte) *tls.Config {
 	return tlsConfig
 }
 
-func GetTlsConfig(scmRootCAPath string, insecure bool, caCerts []byte) *tls.Config {
-	tlsConfig := getTlsConfigWithCACert(scmRootCAPath, caCerts)
+func GetTlsConfig(scmRootCAPath string, insecure bool, caCerts []byte) *tls.Config { //nolint:revive //FIXME(var-naming)
+	tlsConfig := getTLSConfigWithCACert(scmRootCAPath, caCerts)
 
 	if insecure {
 		tlsConfig.InsecureSkipVerify = true

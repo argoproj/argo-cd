@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/microsoft/azure-devops-go-api/azuredevops"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/core"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
 )
 
 const AZURE_DEVOPS_DEFAULT_URL = "https://dev.azure.com"
@@ -42,13 +42,13 @@ var (
 )
 
 func NewAzureDevOpsService(token, url, organization, project, repo string, labels []string) (PullRequestService, error) {
-	organizationUrl := buildURL(url, organization)
+	organizationURL := buildURL(url, organization)
 
 	var connection *azuredevops.Connection
 	if token == "" {
-		connection = azuredevops.NewAnonymousConnection(organizationUrl)
+		connection = azuredevops.NewAnonymousConnection(organizationURL)
 	} else {
-		connection = azuredevops.NewPatConnection(organizationUrl, token)
+		connection = azuredevops.NewPatConnection(organizationURL, token)
 	}
 
 	return &AzureDevOpsService{

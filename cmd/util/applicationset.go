@@ -13,12 +13,12 @@ import (
 
 func ConstructApplicationSet(fileURL string) ([]*argoprojiov1alpha1.ApplicationSet, error) {
 	if fileURL != "" {
-		return constructAppsetFromFileUrl(fileURL)
+		return constructAppsetFromFileURL(fileURL)
 	}
 	return nil, nil
 }
 
-func constructAppsetFromFileUrl(fileURL string) ([]*argoprojiov1alpha1.ApplicationSet, error) {
+func constructAppsetFromFileURL(fileURL string) ([]*argoprojiov1alpha1.ApplicationSet, error) {
 	appset := make([]*argoprojiov1alpha1.ApplicationSet, 0)
 	// read uri
 	err := readAppsetFromURI(fileURL, &appset)
@@ -32,7 +32,7 @@ func constructAppsetFromFileUrl(fileURL string) ([]*argoprojiov1alpha1.Applicati
 func readAppsetFromURI(fileURL string, appset *[]*argoprojiov1alpha1.ApplicationSet) error {
 	readFilePayload := func() ([]byte, error) {
 		parsedURL, err := url.ParseRequestURI(fileURL)
-		if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+		if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
 			return os.ReadFile(fileURL)
 		}
 		return config.ReadRemoteFile(fileURL)

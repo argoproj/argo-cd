@@ -20,7 +20,7 @@ Before starting, ensure you have the following tools installed with the specifie
 
 ### Fork and Clone the Repository
 
-1. Fork the Argo CD repository to your personal Github Account
+1. Fork the Argo CD repository to your personal GitHub Account
 
 2. Clone the forked repository:
 ```shell
@@ -40,7 +40,7 @@ git remote add upstream https://github.com/argoproj/argo-cd.git
 1. Install development tools:
 ```shell
 make install-go-tools-local
-make install-code-gen-tools-local
+make install-codegen-tools-local
 ```
 
 ### Install Go

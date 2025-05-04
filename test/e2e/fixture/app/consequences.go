@@ -6,11 +6,14 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
-	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v3/util/errors"
+	util "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 // this implements the "then" part of given/when/then
@@ -81,7 +84,7 @@ func (c *Consequences) ExpectConsistently(e Expectation, waitDuration time.Durat
 	return c
 }
 
-func (c *Consequences) And(block func(app *Application)) *Consequences {
+func (c *Consequences) And(block func(app *v1alpha1.Application)) *Consequences {
 	c.context.t.Helper()
 	block(c.app())
 	return c
@@ -98,27 +101,39 @@ func (c *Consequences) Given() *Context {
 }
 
 func (c *Consequences) When() *Actions {
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return c.actions
 }
 
-func (c *Consequences) app() *Application {
+func (c *Consequences) app() *v1alpha1.Application {
+	c.context.t.Helper()
 	app, err := c.get()
-	errors.CheckError(err)
+	require.NoError(c.context.t, err)
 	return app
 }
 
-func (c *Consequences) get() (*Application, error) {
+func (c *Consequences) get() (*v1alpha1.Application, error) {
 	return fixture.AppClientset.ArgoprojV1alpha1().Applications(c.context.AppNamespace()).Get(context.Background(), c.context.AppName(), metav1.GetOptions{})
 }
 
-func (c *Consequences) resource(kind, name, namespace string) ResourceStatus {
-	for _, r := range c.app().Status.Resources {
+func (c *Consequences) resource(kind, name, namespace string) v1alpha1.ResourceStatus {
+	c.context.t.Helper()
+	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+	require.NoError(c.context.t, err)
+	defer util.Close(closer)
+	app, err := client.Get(context.Background(), &applicationpkg.ApplicationQuery{
+		Name:         ptr.To(c.context.AppName()),
+		Projects:     []string{c.context.project},
+		AppNamespace: ptr.To(c.context.appNamespace),
+	})
+	require.NoError(c.context.t, err)
+	for _, r := range app.Status.Resources {
 		if r.Kind == kind && r.Name == name && (namespace == "" || namespace == r.Namespace) {
 			return r
 		}
 	}
-	return ResourceStatus{
-		Health: &HealthStatus{
+	return v1alpha1.ResourceStatus{
+		Health: &v1alpha1.HealthStatus{
 			Status:  health.HealthStatusMissing,
 			Message: "not found",
 		},

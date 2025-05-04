@@ -52,7 +52,7 @@ func (m *MergeGenerator) getParamSetsForAllGenerators(generators []argoprojiov1a
 // GenerateParams gets the params produced by the MergeGenerator.
 func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]any, error) {
 	if appSetGenerator.Merge == nil {
-		return nil, EmptyAppSetGeneratorError
+		return nil, ErrEmptyAppSetGenerator
 	}
 
 	if len(appSetGenerator.Merge.Generators) < 2 {
@@ -122,11 +122,11 @@ func getParamSetsByMergeKey(mergeKeys []string, paramSets []map[string]any) (map
 		for mergeKey := range deDuplicatedMergeKeys {
 			paramSetKey[mergeKey] = paramSet[mergeKey]
 		}
-		paramSetKeyJson, err := json.Marshal(paramSetKey)
+		paramSetKeyJSON, err := json.Marshal(paramSetKey)
 		if err != nil {
 			return nil, fmt.Errorf("error marshalling param set key json: %w", err)
 		}
-		paramSetKeyString := string(paramSetKeyJson)
+		paramSetKeyString := string(paramSetKeyJSON)
 		if _, exists := paramSetsByMergeKey[paramSetKeyString]; exists {
 			return nil, fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamSets, paramSetKeyString)
 		}

@@ -17,8 +17,6 @@ if obj.status ~= nil then
   end
 end
 
--- Conditions were introduced in ApplicationSet v0.3. To give v0.2 users a good experience, we default to "Healthy".
--- Once v0.3 is more generally adopted, we'll default to "Progressing" instead.
-hs.status = "Healthy"
-hs.message = ""
+hs.status = "Progressing"
+hs.message = "Waiting for the status to be reported"
 return hs

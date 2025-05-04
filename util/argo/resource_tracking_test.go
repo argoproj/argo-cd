@@ -128,7 +128,7 @@ func TestSetAppInstanceAnnotationNotFound(t *testing.T) {
 	resourceTracking := NewResourceTracking()
 
 	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotation, "")
-	assert.Equal(t, "", app)
+	assert.Empty(t, app)
 }
 
 func TestParseAppInstanceValue(t *testing.T) {
@@ -156,13 +156,13 @@ func TestParseAppInstanceValueColon(t *testing.T) {
 func TestParseAppInstanceValueWrongFormat1(t *testing.T) {
 	resourceTracking := NewResourceTracking()
 	_, err := resourceTracking.ParseAppInstanceValue("app")
-	require.ErrorIs(t, err, WrongResourceTrackingFormat)
+	require.ErrorIs(t, err, ErrWrongResourceTrackingFormat)
 }
 
 func TestParseAppInstanceValueWrongFormat2(t *testing.T) {
 	resourceTracking := NewResourceTracking()
 	_, err := resourceTracking.ParseAppInstanceValue("app;group/kind/ns")
-	require.ErrorIs(t, err, WrongResourceTrackingFormat)
+	require.ErrorIs(t, err, ErrWrongResourceTrackingFormat)
 }
 
 func TestParseAppInstanceValueCorrectFormat(t *testing.T) {
@@ -202,6 +202,50 @@ func TestResourceIdNormalizer_Normalize(t *testing.T) {
 	assert.Equal(t, liveObj.GetAnnotations()[common.AnnotationKeyAppInstance], annotation)
 	_, hasOldLabel := liveObj.GetLabels()[common.LabelKeyAppInstance]
 	assert.False(t, hasOldLabel)
+}
+
+func TestResourceIdNormalizer_NormalizeCRD(t *testing.T) {
+	rt := NewResourceTracking()
+
+	// live object is a CRD resource
+	liveObj := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "apiextensions.k8s.io/v1",
+			"kind":       "CustomResourceDefinition",
+			"metadata": map[string]any{
+				"name": "crontabs.stable.example.com",
+				"labels": map[string]any{
+					common.LabelKeyAppInstance: "my-app",
+				},
+			},
+			"spec": map[string]any{
+				"group": "stable.example.com",
+				"scope": "Namespaced",
+			},
+		},
+	}
+
+	// config object is a CRD resource
+	configObj := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "apiextensions.k8s.io/v1",
+			"kind":       "CustomResourceDefinition",
+			"metadata": map[string]any{
+				"name": "crontabs.stable.example.com",
+				"labels": map[string]any{
+					common.LabelKeyAppInstance: "my-app",
+				},
+			},
+			"spec": map[string]any{
+				"group": "stable.example.com",
+				"scope": "Namespaced",
+			},
+		},
+	}
+
+	require.NoError(t, rt.Normalize(configObj, liveObj, common.LabelKeyAppInstance, string(TrackingMethodAnnotation)))
+	// the normalization should not apply any changes to the live object
+	require.NotContains(t, liveObj.GetAnnotations(), common.AnnotationKeyAppInstance)
 }
 
 func TestResourceIdNormalizer_Normalize_ConfigHasOldLabel(t *testing.T) {

@@ -79,19 +79,22 @@ vEsXCS+0yx5DaMkHJ8HSXPfqIbloEpw8nL+e/IBcm2PN7EeqJSdnoDfzAIJ9VNep
 -----END CERTIFICATE-----`
 
 var privateKey = `-----BEGIN RSA PRIVATE KEY-----
-MIIBsAIBAAKBgQCgF35rHhOWi9+r4n9xM/ejvMEsQ8h6lams962k4U0WSdfySUev
-hyI1bd3FRIb5fFqSBt6qPTiiiIw0KXte5dANB6lPe6HdUPTA/U4xHWi2FB/BfAyP
-sOlUBfFp6dtkEEcEKt+Z8KTJYJEerRie24y+nsfZMnLBst6tsEBfx/U75wIBAwKB
-gGq6VEdpYmRdHGzsbmP7vDiYe2zYHLwQ0AKnPKNErq6KQyQC5eEngbgT4WpWl+J2
-Xn+R9m0vwNbaiDam0uD3p5192BaN2tdaW5P5JjfGa95ytRBCQ/cr+z03FjG9C6zQ
-QZG5eyOoMloHAfnYiJMV5SZarfTiF9BGFvtcfrjhbterAgkDBMoUFjHxL0ECeDUI
-f9nbOl1O2AgI/51gfHGo/NKv+kcQenM8RO7dy9+hUAulwqMlyszSq+0GdZdgQL/i
-Lz8NclSgyuUtptmaSWtjB5Tdc8boaBApGKac7vB4M1AfTkng1+SplKbkdFlCVg4n
-6EvCOrUFFsLp308JSbkv2240Q93JJwIJAgMxYrl2oMorAgcDNY7r7ttvAggOb9tA
-6WMDHQ==
+MIICXQIBAAKBgQCJ35XKYxJtCy9on9TYqOZB2tvpcW5VCU7Y+cn8Ls7xtuYcA4ye
+1FAWqCd71k15QTcGinCelTI/Oyy8jxpwJmAbrEU5xQfcpY8N2G1jdhZ4zA0vUrIa
+ofCVQrk0DK1RxaijCrQeO+y+jhhsZkSX8SnzTJB/opdzIrZcFiXogMhVyQIDAQAB
+AoGAWCUck86xGgvbnG0K3BVnWFT+4YlGe5E+2pMf4l1eqsQ+60wNnAGqzkFlNNP2
+pf3emwzpIUnLXQeM+2QWB/tQ149oZg8ZeOU7024WWhwP0lEjmcP36KtnKa6z/Y6L
+YkItQifsQ8mOD06yQea/IeuIlcrvvDjYGTYOWAfHoMekeYECQQDKxWy1/ML8CMrO
+iRH6ijBEEhlSbbF22DuGOA52iccvrITwBwSjd2MXEKWxk9q0VMjPTmiyTasx9aZr
+2UgjF3YZAkEArhDqRf4qYXpUy2zeMRlRCVQbtEk++KPs3tNyLWP6VtXl35cveF64
+iG2R8lCgPF8Qq/DgHFUuiydIWgkF0dnzMQJAOajiPO3fVGP7p7d6kU/yYajz4mim
+6jCa3JPcKQEMzxWzx713KDSuzMRDGbf9nQHvCGQ3iVxkrhQ4erqStMfbIQJBAJ7O
+r+7LxL7KbTJrUQxanKR2KBCEAv+2DxX8s97VqEAxRliIBrc7NADEdrMs/AQYd41n
+ZhBzZtNuM4RxVu3uewECQQDEJoPoXFXGyEAySPY8NJYPUHrY4tmue2L3CB+sdcgI
+NPQCy08ABN5ro6GjeZimdvtHnXeiLYVKGtKsmTq4iTQG
 -----END RSA PRIVATE KEY-----`
 
-func decodePem(certInput string) tls.Certificate {
+func decodePem(certInput string) (*tls.Certificate, error) {
 	var cert tls.Certificate
 	certPEMBlock := []byte(certInput)
 	var certDERBlock *pem.Block
@@ -108,13 +111,18 @@ func decodePem(certInput string) tls.Certificate {
 	var keyDERBlock *pem.Block
 	keyPEMBlock := []byte(privateKey)
 	keyDERBlock, _ = pem.Decode(keyPEMBlock)
-	cert.PrivateKey, _ = x509.ParsePKCS1PrivateKey(keyDERBlock.Bytes)
-	return cert
+	privateKey, err := x509.ParsePKCS1PrivateKey(keyDERBlock.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	cert.PrivateKey = privateKey
+	return &cert, nil
 }
 
 func TestEncodeX509KeyPairString(t *testing.T) {
-	certChain := decodePem(chain)
-	cert, _ := EncodeX509KeyPairString(certChain)
+	certChain, err := decodePem(chain)
+	require.NoError(t, err)
+	cert, _ := EncodeX509KeyPairString(*certChain)
 
 	assert.Equal(t, strings.TrimSpace(chain), strings.TrimSpace(cert))
 }
@@ -197,7 +205,7 @@ func TestGenerate(t *testing.T) {
 	t.Run("Invalid: Unsupported curve specified", func(t *testing.T) {
 		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ECDSACurve: "Curve?", ValidFrom: time.Now(), ValidFor: 10 * time.Hour}
 		_, _, err := generate(opts)
-		assert.ErrorContains(t, err, "Unrecognized elliptic curve")
+		assert.ErrorContains(t, err, "unrecognized elliptic curve")
 	})
 
 	for _, curve := range []string{"P224", "P256", "P384", "P521"} {

@@ -14,7 +14,7 @@ import (
 	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	clusterFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/cluster"
-	. "github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 func TestClusterList(t *testing.T) {
@@ -23,7 +23,7 @@ func TestClusterList(t *testing.T) {
 
 	last := ""
 	expected := fmt.Sprintf(`SERVER                          NAME        VERSION  STATUS      MESSAGE  PROJECT
-https://kubernetes.default.svc  in-cluster  %v     Successful           `, fixture.GetVersions().ServerVersion)
+https://kubernetes.default.svc  in-cluster  %v     Successful           `, fixture.GetVersions(t).ServerVersion)
 
 	clusterFixture.
 		Given(t).
@@ -67,7 +67,7 @@ func TestClusterAdd(t *testing.T) {
 		Then().
 		AndCLIOutput(func(output string, _ error) {
 			assert.Equal(t, fmt.Sprintf(`SERVER                          NAME              VERSION  STATUS      MESSAGE  PROJECT
-https://kubernetes.default.svc  test-cluster-add  %v     Successful           %s`, fixture.GetVersions().ServerVersion, fixture.ProjectName), output)
+https://kubernetes.default.svc  test-cluster-add  %v     Successful           %s`, fixture.GetVersions(t).ServerVersion, fixture.ProjectName), output)
 		})
 }
 
@@ -123,7 +123,7 @@ func TestClusterAddAllowed(t *testing.T) {
 		Then().
 		AndCLIOutput(func(output string, _ error) {
 			assert.Equal(t, fmt.Sprintf(`SERVER                          NAME                      VERSION  STATUS      MESSAGE  PROJECT
-https://kubernetes.default.svc  test-cluster-add-allowed  %v     Successful           argo-project`, fixture.GetVersions().ServerVersion), output)
+https://kubernetes.default.svc  test-cluster-add-allowed  %v     Successful           argo-project`, fixture.GetVersions(t).ServerVersion), output)
 		})
 }
 
@@ -178,11 +178,11 @@ func TestClusterGet(t *testing.T) {
 	fixture.SkipIfAlreadyRun(t)
 	fixture.EnsureCleanState(t)
 	defer fixture.RecordTestRun(t)
-	output := FailOnErr(fixture.RunCli("cluster", "get", "https://kubernetes.default.svc")).(string)
+	output := errors.NewHandler(t).FailOnErr(fixture.RunCli("cluster", "get", "https://kubernetes.default.svc")).(string)
 
 	assert.Contains(t, output, "name: in-cluster")
 	assert.Contains(t, output, "server: https://kubernetes.default.svc")
-	assert.Contains(t, output, fmt.Sprintf(`serverVersion: "%v"`, fixture.GetVersions().ServerVersion))
+	assert.Contains(t, output, fmt.Sprintf(`serverVersion: "%v"`, fixture.GetVersions(t).ServerVersion))
 	assert.Contains(t, output, `config:
   tlsClientConfig:
     insecure: false`)

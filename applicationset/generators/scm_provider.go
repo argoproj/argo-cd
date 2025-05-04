@@ -21,7 +21,7 @@ import (
 var _ Generator = (*SCMProviderGenerator)(nil)
 
 const (
-	DefaultSCMProviderRequeueAfterSeconds = 30 * time.Minute
+	DefaultSCMProviderRequeueAfter = 30 * time.Minute
 )
 
 type SCMProviderGenerator struct {
@@ -69,7 +69,7 @@ func (g *SCMProviderGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alph
 		return time.Duration(*appSetGenerator.SCMProvider.RequeueAfterSeconds) * time.Second
 	}
 
-	return DefaultSCMProviderRequeueAfterSeconds
+	return DefaultSCMProviderRequeueAfter
 }
 
 func (g *SCMProviderGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
@@ -118,11 +118,11 @@ func ScmProviderAllowed(applicationSetInfo *argoprojiov1alpha1.ApplicationSet, g
 
 func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
-		return nil, EmptyAppSetGeneratorError
+		return nil, ErrEmptyAppSetGenerator
 	}
 
 	if appSetGenerator.SCMProvider == nil {
-		return nil, EmptyAppSetGeneratorError
+		return nil, ErrEmptyAppSetGenerator
 	}
 
 	if !g.enableSCMProviders {
@@ -253,6 +253,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		params := map[string]any{
 			"organization":     repo.Organization,
 			"repository":       repo.Repository,
+			"repository_id":    repo.RepositoryId,
 			"url":              repo.URL,
 			"branch":           repo.Branch,
 			"sha":              repo.SHA,

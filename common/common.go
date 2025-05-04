@@ -19,7 +19,8 @@ import (
 
 // Component names
 const (
-	ApplicationController = "argocd-application-controller"
+	ApplicationController    = "argocd-application-controller"
+	ApplicationSetController = "argocd-applicationset-controller"
 )
 
 // Default service addresses and URLS of Argo CD internal services
@@ -291,6 +292,8 @@ const (
 	EnvCMPWorkDir = "ARGOCD_CMP_WORKDIR"
 	// EnvGPGDataPath overrides the location where GPG keyring for signature verification is stored
 	EnvGPGDataPath = "ARGOCD_GPG_DATA_PATH"
+	// EnvServer is the server address of the Argo CD API server.
+	EnvServer = "ARGOCD_SERVER"
 	// EnvServerName is the name of the Argo CD server component, as specified by the value under the LabelKeyAppName label key.
 	EnvServerName = "ARGOCD_SERVER_NAME"
 	// EnvRepoServerName is the name of the Argo CD repo server component, as specified by the value under the LabelKeyAppName label key.
@@ -441,7 +444,7 @@ const (
 // TokenVerificationError is a generic error message for a failure to verify a JWT
 const TokenVerificationError = "failed to verify the token"
 
-var TokenVerificationErr = errors.New(TokenVerificationError)
+var ErrTokenVerification = errors.New(TokenVerificationError)
 
 var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission denied")
 

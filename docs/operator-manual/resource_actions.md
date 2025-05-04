@@ -203,3 +203,21 @@ resource.customizations.actions.ConfigMap: |
       result[2] = impactedResource2
       return result		  
 ```
+
+### Action Icons and Display Names
+
+By default, an action will appear in the UI by the name specified in the `actions` key, and it will have no icon. You 
+can customize the display name and icon of an action by adding the `iconClass` and `displayName` keys to the action 
+definition.
+
+The icon class name is the name of a FontAwesome icon from [the set of free icons](https://fontawesome.com/search?ic=free).
+The `fa-fw` class ensures that the icon is displayed with a fixed width, to avoid alignment issues with other icons.
+
+```lua
+local actions = {}
+actions["create-workflow"] = {
+  ["iconClass"] = "fa fa-fw fa-play",
+  ["displayName"] = "Create Workflow"
+}
+return actions
+```
