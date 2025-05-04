@@ -58,6 +58,7 @@ func NewGitHubAPIRequestTotalPerAppSet() *prometheus.CounterVec {
 		[]string{"method", "endpoint", "status", "appset_namespace", "appset_name"},
 	)
 }
+
 func NewGitHubAPIRequestDurationPerAppSet() *prometheus.HistogramVec {
 	return prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -68,6 +69,7 @@ func NewGitHubAPIRequestDurationPerAppSet() *prometheus.HistogramVec {
 		[]string{"method", "endpoint", "appset_namespace", "appset_name"},
 	)
 }
+
 func NewGitHubAPIRateLimitRemainingPerAppSet() *prometheus.GaugeVec {
 	return prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -77,6 +79,7 @@ func NewGitHubAPIRateLimitRemainingPerAppSet() *prometheus.GaugeVec {
 		[]string{"endpoint", "appset_namespace", "appset_name"},
 	)
 }
+
 func NewGitHubAPIRateLimitLimitPerAppSet() *prometheus.GaugeVec {
 	return prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -86,6 +89,7 @@ func NewGitHubAPIRateLimitLimitPerAppSet() *prometheus.GaugeVec {
 		[]string{"endpoint", "appset_namespace", "appset_name"},
 	)
 }
+
 func NewGitHubAPIRateLimitResetPerAppSet() *prometheus.GaugeVec {
 	return prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -95,6 +99,7 @@ func NewGitHubAPIRateLimitResetPerAppSet() *prometheus.GaugeVec {
 		[]string{"endpoint", "appset_namespace", "appset_name"},
 	)
 }
+
 func NewGitHubAPIRateLimitUsedPerAppSet() *prometheus.GaugeVec {
 	return prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -104,6 +109,7 @@ func NewGitHubAPIRateLimitUsedPerAppSet() *prometheus.GaugeVec {
 		[]string{"endpoint", "appset_namespace", "appset_name"},
 	)
 }
+
 func NewGitHubAPIRateLimitResourcePerAppSet() *prometheus.GaugeVec {
 	return prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{

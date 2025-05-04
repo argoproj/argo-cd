@@ -82,14 +82,14 @@ func TestGitHubMetrics_CollectorApproach_Success(t *testing.T) {
 	)
 
 	// Setup a fake HTTP server
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(time.Now().Add(1*time.Hour).Unix(), 10))
 		w.Header().Set("X-RateLimit-Remaining", "42")
 		w.Header().Set("X-RateLimit-Limit", "100")
 		w.Header().Set("X-RateLimit-Used", "58")
 		w.Header().Set("X-RateLimit-Resource", "core")
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	}))
 	defer ts.Close()
 
