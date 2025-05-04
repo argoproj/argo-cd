@@ -68,18 +68,19 @@ var (
 	}
 )
 
-// Helper to register all metrics with a custom registry
-func registerGitHubMetrics(reg *prometheus.Registry) {
-	reg.MustRegister(githubAPIRequestTotalPerAppSet)
-	reg.MustRegister(githubAPIRequestDurationPerAppSet)
-	reg.MustRegister(githubAPIRateLimitRemainingPerAppSet)
-	reg.MustRegister(githubAPIRateLimitLimitPerAppSet)
-	reg.MustRegister(githubAPIRateLimitResetPerAppSet)
-	reg.MustRegister(githubAPIRateLimitUsedPerAppSet)
-	reg.MustRegister(githubAPIRateLimitResourcePerAppSet)
-}
-
 func TestGitHubMetrics_CollectorApproach_Success(t *testing.T) {
+
+	metrics := NewGitHubMetrics()
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(
+		metrics.RequestTotal,
+		metrics.RequestDuration,
+		metrics.RateLimitRemaining,
+		metrics.RateLimitLimit,
+		metrics.RateLimitReset,
+		metrics.RateLimitUsed,
+		metrics.RateLimitResource,
+	)
 
 	// Setup a fake HTTP server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -94,7 +95,13 @@ func TestGitHubMetrics_CollectorApproach_Success(t *testing.T) {
 	defer ts.Close()
 
 	metricsCtx := &MetricsContext{AppSetNamespace: appsetNamespace, AppSetName: appsetName}
-	client := NewGitHubMetricsClient(metricsCtx)
+	client := &http.Client{
+		Transport: NewGitHubMetricsTransport(
+			http.DefaultTransport,
+			metricsCtx,
+			metrics,
+		),
+	}
 
 	req, _ := http.NewRequest("GET", ts.URL+URL, nil)
 	resp, err := client.Do(req)
@@ -102,10 +109,6 @@ func TestGitHubMetrics_CollectorApproach_Success(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	resp.Body.Close()
-
-	// Setup a custom registry and register metrics
-	reg := prometheus.NewRegistry()
-	registerGitHubMetrics(reg)
 
 	// Expose and scrape metrics
 	handler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{})
@@ -135,8 +138,17 @@ type RoundTripperFunc func(*http.Request) (*http.Response, error)
 func (f RoundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 func TestGitHubMetrics_CollectorApproach_NoRateLimitMetricsOnNilResponse(t *testing.T) {
+	metrics := NewGitHubMetrics()
 	reg := prometheus.NewRegistry()
-	registerGitHubMetrics(reg)
+	reg.MustRegister(
+		metrics.RequestTotal,
+		metrics.RequestDuration,
+		metrics.RateLimitRemaining,
+		metrics.RateLimitLimit,
+		metrics.RateLimitReset,
+		metrics.RateLimitUsed,
+		metrics.RateLimitResource,
+	)
 
 	client := &http.Client{
 		Transport: &GitHubMetricsTransport{
@@ -144,6 +156,7 @@ func TestGitHubMetrics_CollectorApproach_NoRateLimitMetricsOnNilResponse(t *test
 				return nil, http.ErrServerClosed
 			}),
 			metricsContext: &MetricsContext{AppSetNamespace: appsetNamespace, AppSetName: appsetName},
+			metrics:        metrics,
 		},
 	}
 
@@ -170,5 +183,47 @@ func TestGitHubMetrics_CollectorApproach_NoRateLimitMetricsOnNilResponse(t *test
 	for _, metric := range rateLimitMetrics {
 		sort.Strings(metric.labels)
 		assert.NotContains(t, metricsOutput, metric.name+"{"+strings.Join(metric.labels, ",")+"} "+metric.value)
+	}
+}
+
+func TestNewGitHubMetricsClient(t *testing.T) {
+	// Test cases
+	testCases := []struct {
+		name       string
+		metricsCtx *MetricsContext
+	}{
+		{
+			name: "with metrics context",
+			metricsCtx: &MetricsContext{
+				AppSetNamespace: appsetNamespace,
+				AppSetName:      appsetName,
+			},
+		},
+		{
+			name:       "with nil metrics context",
+			metricsCtx: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create client
+			client := NewGitHubMetricsClient(tc.metricsCtx)
+
+			// Assert client is not nil
+			assert.NotNil(t, client)
+
+			// Assert transport is properly configured
+			transport, ok := client.Transport.(*GitHubMetricsTransport)
+			assert.True(t, ok, "Transport should be GitHubMetricsTransport")
+
+			// Verify transport configuration
+			assert.Equal(t, tc.metricsCtx, transport.metricsContext)
+			assert.NotNil(t, transport.metrics, "Metrics should not be nil")
+			assert.Equal(t, http.DefaultTransport, transport.transport, "Base transport should be http.DefaultTransport")
+
+			// Verify metrics are global metrics
+			assert.Equal(t, globalGitHubMetrics, transport.metrics, "Should use global metrics")
+		})
 	}
 }

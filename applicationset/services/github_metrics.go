@@ -10,7 +10,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
-var (
+// Doc for the GitHub API rate limit headers:
+// https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28#checking-the-status-of-your-rate-limit
+
+// Metric names as constants
+const (
 	githubAPIRequestTotalPerAppSetMetricName       = "argocd_github_api_requests_total_per_appset"
 	githubAPIRequestDurationPerAppSetMetricName    = "argocd_github_api_request_duration_seconds_per_appset"
 	githubAPIRateLimitRemainingPerAppSetMetricName = "argocd_github_api_rate_limit_remaining_per_appset"
@@ -18,15 +22,44 @@ var (
 	githubAPIRateLimitResetPerAppSetMetricName     = "argocd_github_api_rate_limit_reset_per_appset"
 	githubAPIRateLimitUsedPerAppSetMetricName      = "argocd_github_api_rate_limit_used_per_appset"
 	githubAPIRateLimitResourcePerAppSetMetricName  = "argocd_github_api_rate_limit_resource_per_appset"
+)
 
-	githubAPIRequestTotalPerAppSet = prometheus.NewCounterVec(
+// GitHubMetrics groups all metric vectors for easier injection and registration
+type GitHubMetrics struct {
+	RequestTotal       *prometheus.CounterVec
+	RequestDuration    *prometheus.HistogramVec
+	RateLimitRemaining *prometheus.GaugeVec
+	RateLimitLimit     *prometheus.GaugeVec
+	RateLimitReset     *prometheus.GaugeVec
+	RateLimitUsed      *prometheus.GaugeVec
+	RateLimitResource  *prometheus.GaugeVec
+}
+
+// Factory for a new set of GitHub metrics (for tests or custom registries)
+func NewGitHubMetrics() *GitHubMetrics {
+	return &GitHubMetrics{
+		RequestTotal:       NewGitHubAPIRequestTotalPerAppSet(),
+		RequestDuration:    NewGitHubAPIRequestDurationPerAppSet(),
+		RateLimitRemaining: NewGitHubAPIRateLimitRemainingPerAppSet(),
+		RateLimitLimit:     NewGitHubAPIRateLimitLimitPerAppSet(),
+		RateLimitReset:     NewGitHubAPIRateLimitResetPerAppSet(),
+		RateLimitUsed:      NewGitHubAPIRateLimitUsedPerAppSet(),
+		RateLimitResource:  NewGitHubAPIRateLimitResourcePerAppSet(),
+	}
+}
+
+// Factory functions for each metric vector
+func NewGitHubAPIRequestTotalPerAppSet() *prometheus.CounterVec {
+	return prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: githubAPIRequestTotalPerAppSetMetricName,
 			Help: "Total number of GitHub API requests per ApplicationSet",
 		},
 		[]string{"method", "endpoint", "status", "appset_namespace", "appset_name"},
 	)
-	githubAPIRequestDurationPerAppSet = prometheus.NewHistogramVec(
+}
+func NewGitHubAPIRequestDurationPerAppSet() *prometheus.HistogramVec {
+	return prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    githubAPIRequestDurationPerAppSetMetricName,
 			Help:    "GitHub API request duration in seconds, per ApplicationSet",
@@ -34,54 +67,65 @@ var (
 		},
 		[]string{"method", "endpoint", "appset_namespace", "appset_name"},
 	)
-
-	githubAPIRateLimitRemainingPerAppSet = prometheus.NewGaugeVec(
+}
+func NewGitHubAPIRateLimitRemainingPerAppSet() *prometheus.GaugeVec {
+	return prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: githubAPIRateLimitRemainingPerAppSetMetricName,
 			Help: "The number of requests remaining in the current rate limit window, per ApplicationSet",
 		},
 		[]string{"endpoint", "appset_namespace", "appset_name"},
 	)
-	githubAPIRateLimitLimitPerAppSet = prometheus.NewGaugeVec(
+}
+func NewGitHubAPIRateLimitLimitPerAppSet() *prometheus.GaugeVec {
+	return prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: githubAPIRateLimitLimitPerAppSetMetricName,
 			Help: "The maximum number of requests that you can make per hour, per ApplicationSet",
 		},
 		[]string{"endpoint", "appset_namespace", "appset_name"},
 	)
-	githubAPIRateLimitResetPerAppSet = prometheus.NewGaugeVec(
+}
+func NewGitHubAPIRateLimitResetPerAppSet() *prometheus.GaugeVec {
+	return prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: githubAPIRateLimitResetPerAppSetMetricName,
 			Help: "The time at which the current rate limit window resets, in UTC epoch seconds, per ApplicationSet",
 		},
 		[]string{"endpoint", "appset_namespace", "appset_name"},
 	)
-	githubAPIRateLimitUsedPerAppSet = prometheus.NewGaugeVec(
+}
+func NewGitHubAPIRateLimitUsedPerAppSet() *prometheus.GaugeVec {
+	return prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: githubAPIRateLimitUsedPerAppSetMetricName,
 			Help: "The number of requests used in the current rate limit window, per ApplicationSet",
 		},
 		[]string{"endpoint", "appset_namespace", "appset_name"},
 	)
-	githubAPIRateLimitResourcePerAppSet = prometheus.NewGaugeVec(
+}
+func NewGitHubAPIRateLimitResourcePerAppSet() *prometheus.GaugeVec {
+	return prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: githubAPIRateLimitResourcePerAppSetMetricName,
 			Help: "The rate limit resource that the request counted against, per ApplicationSet",
 		},
 		[]string{"endpoint", "resource", "appset_namespace", "appset_name"},
 	)
-)
+}
+
+// Global metrics (registered with the default registry)
+var globalGitHubMetrics = NewGitHubMetrics()
 
 func init() {
-	log.Info("Registering GitHub API AppSet metrics")
-
-	metrics.Registry.MustRegister(githubAPIRequestTotalPerAppSet)
-	metrics.Registry.MustRegister(githubAPIRequestDurationPerAppSet)
-	metrics.Registry.MustRegister(githubAPIRateLimitRemainingPerAppSet)
-	metrics.Registry.MustRegister(githubAPIRateLimitLimitPerAppSet)
-	metrics.Registry.MustRegister(githubAPIRateLimitResetPerAppSet)
-	metrics.Registry.MustRegister(githubAPIRateLimitUsedPerAppSet)
-	metrics.Registry.MustRegister(githubAPIRateLimitResourcePerAppSet)
+	log.Debug("Registering GitHub API AppSet metrics")
+	metrics.Registry.MustRegister(globalGitHubMetrics.RequestTotal)
+	metrics.Registry.MustRegister(globalGitHubMetrics.RequestDuration)
+	metrics.Registry.MustRegister(globalGitHubMetrics.RateLimitRemaining)
+	metrics.Registry.MustRegister(globalGitHubMetrics.RateLimitLimit)
+	metrics.Registry.MustRegister(globalGitHubMetrics.RateLimitReset)
+	metrics.Registry.MustRegister(globalGitHubMetrics.RateLimitUsed)
+	metrics.Registry.MustRegister(globalGitHubMetrics.RateLimitResource)
 }
 
 type MetricsContext struct {
@@ -93,22 +137,17 @@ type MetricsContext struct {
 type GitHubMetricsTransport struct {
 	transport      http.RoundTripper
 	metricsContext *MetricsContext
+	metrics        *GitHubMetrics
 }
 
 // RoundTrip implements http.RoundTripper interface and collects metrics
 func (t *GitHubMetricsTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-
-	// Extract endpoint from URL path
 	endpoint := req.URL.Path
-
+	method := req.Method
 	startTime := time.Now()
-	// Execute the actual request
 	resp, err := t.transport.RoundTrip(req)
-
-	// Calculate duration
 	duration := time.Since(startTime)
 
-	// We want the GitHub API metrics to be collected anyway, even if they can't be associated with an ApplicationSet
 	appsetNamespace := "unknown"
 	appsetName := "unknown"
 	if t.metricsContext != nil {
@@ -117,55 +156,78 @@ func (t *GitHubMetricsTransport) RoundTrip(req *http.Request) (*http.Response, e
 	}
 
 	// Record metrics
-	githubAPIRequestDurationPerAppSet.WithLabelValues(req.Method, endpoint, appsetNamespace, appsetName).Observe(float64(duration.Seconds()))
+	t.metrics.RequestDuration.WithLabelValues(method, endpoint, appsetNamespace, appsetName).Observe(duration.Seconds())
 
 	status := "0"
 	if resp != nil {
 		status = strconv.Itoa(resp.StatusCode)
 	}
-	githubAPIRequestTotalPerAppSet.WithLabelValues(req.Method, endpoint, status, appsetNamespace, appsetName).Inc()
+	t.metrics.RequestTotal.WithLabelValues(method, endpoint, status, appsetNamespace, appsetName).Inc()
+	log.Debugf("Invoking GitHub API for %s %s %s/%s: ", method, endpoint, appsetNamespace, appsetName)
 
 	if resp != nil {
 		// Record rate limit metrics if available
 		if resetTime := resp.Header.Get("X-RateLimit-Reset"); resetTime != "" {
 			if resetUnix, err := strconv.ParseInt(resetTime, 10, 64); err == nil {
-				githubAPIRateLimitResetPerAppSet.WithLabelValues(endpoint, appsetNamespace, appsetName).Set(float64(resetUnix))
+				t.metrics.RateLimitReset.WithLabelValues(endpoint, appsetNamespace, appsetName).Set(float64(resetUnix))
+				humanReadableTime := time.Unix(resetUnix, 0).Local().Format("2006-01-02 15:04:05 MST")
+				log.Debugf("Rate limit reset time for %s in %s/%s: %s", endpoint, appsetNamespace, appsetName, humanReadableTime)
 			}
 		}
 		if remaining := resp.Header.Get("X-RateLimit-Remaining"); remaining != "" {
+
 			if remainingInt, err := strconv.Atoi(remaining); err == nil {
-				githubAPIRateLimitRemainingPerAppSet.WithLabelValues(endpoint, appsetNamespace, appsetName).Set(float64(remainingInt))
+				t.metrics.RateLimitRemaining.WithLabelValues(endpoint, appsetNamespace, appsetName).Set(float64(remainingInt))
+				log.Debugf("Rate limit remaining for %s in %s/%s: %d", endpoint, appsetNamespace, appsetName, remainingInt)
 			}
 		}
-
 		if limit := resp.Header.Get("X-RateLimit-Limit"); limit != "" {
 			if limitInt, err := strconv.Atoi(limit); err == nil {
-				githubAPIRateLimitLimitPerAppSet.WithLabelValues(endpoint, appsetNamespace, appsetName).Set(float64(limitInt))
+				t.metrics.RateLimitLimit.WithLabelValues(endpoint, appsetNamespace, appsetName).Set(float64(limitInt))
+				log.Debugf("Rate limit limit for %s in %s/%s: %d", endpoint, appsetNamespace, appsetName, limitInt)
 			}
 		}
-
 		if used := resp.Header.Get("X-RateLimit-Used"); used != "" {
 			if usedInt, err := strconv.Atoi(used); err == nil {
-				githubAPIRateLimitUsedPerAppSet.WithLabelValues(endpoint, appsetNamespace, appsetName).Set(float64(usedInt))
-
+				t.metrics.RateLimitUsed.WithLabelValues(endpoint, appsetNamespace, appsetName).Set(float64(usedInt))
+				log.Debugf("Rate limit used for %s in %s/%s: %d", endpoint, appsetNamespace, appsetName, usedInt)
 			}
 		}
 		if resource := resp.Header.Get("X-RateLimit-Resource"); resource != "" {
-			githubAPIRateLimitResourcePerAppSet.WithLabelValues(endpoint, resource, appsetNamespace, appsetName).Set(1)
-
+			t.metrics.RateLimitResource.WithLabelValues(endpoint, resource, appsetNamespace, appsetName).Set(1)
+			log.Debugf("Rate limit resource for %s in %s/%s: %s", endpoint, appsetNamespace, appsetName, resource)
 		}
 	}
 
 	return resp, err
 }
 
+// Full constructor (for tests and advanced use)
+func NewGitHubMetricsTransport(
+	transport http.RoundTripper,
+	metricsContext *MetricsContext,
+	metrics *GitHubMetrics,
+) *GitHubMetricsTransport {
+	return &GitHubMetricsTransport{
+		transport:      transport,
+		metricsContext: metricsContext,
+		metrics:        metrics,
+	}
+}
+
+// Default constructor
+func NewDefaultGitHubMetricsTransport(transport http.RoundTripper, metricsContext *MetricsContext) *GitHubMetricsTransport {
+	return NewGitHubMetricsTransport(
+		transport,
+		metricsContext,
+		globalGitHubMetrics,
+	)
+}
+
 // NewGitHubMetricsClient wraps an http.Client with metrics middleware
 func NewGitHubMetricsClient(metricsContext *MetricsContext) *http.Client {
-	log.Info("Creating new GitHub metrics client")
+	log.Debug("Creating new GitHub metrics client")
 	return &http.Client{
-		Transport: &GitHubMetricsTransport{
-			transport:      http.DefaultTransport,
-			metricsContext: metricsContext,
-		},
+		Transport: NewDefaultGitHubMetricsTransport(http.DefaultTransport, metricsContext),
 	}
 }
