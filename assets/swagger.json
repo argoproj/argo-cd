@@ -5336,6 +5336,9 @@
             "$ref": "#/definitions/v1alpha1ResourceOverride"
           }
         },
+        "serverCommitSummaryEnabled": {
+          "type": "boolean"
+        },
         "statusBadgeEnabled": {
           "type": "boolean"
         },
@@ -5356,9 +5359,6 @@
         },
         "uiBannerURL": {
           "type": "string"
-        },
-        "uiCommitSummaryDisabled": {
-          "type": "boolean"
         },
         "uiCssURL": {
           "type": "string"

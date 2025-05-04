@@ -123,7 +123,7 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		set.UiBannerURL = argoCDSettings.UiBannerURL
 		set.UiBannerPermanent = argoCDSettings.UiBannerPermanent
 		set.UiBannerPosition = argoCDSettings.UiBannerPosition
-		set.UiCommitSummaryDisabled = argoCDSettings.UICommitSummaryDisabled
+		set.ServerCommitSummaryEnabled = argoCDSettings.ServerCommitSummaryEnabled
 		set.ControllerNamespace = s.mgr.GetNamespace()
 	}
 	if sessionmgr.LoggedIn(ctx) {
