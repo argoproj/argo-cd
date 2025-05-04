@@ -2,6 +2,8 @@ package admin
 
 import (
 	"bytes"
+	"context"
+	"slices"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -14,6 +16,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 
 	"github.com/argoproj/argo-cd/v3/common"
 )
@@ -371,8 +376,10 @@ func Test_importResources(t *testing.T) {
 	}
 
 	tests := []struct {
-		name string
-		args args
+		name                     string
+		args                     args
+		applicationNamespaces    []string
+		applicationsetNamespaces []string
 	}{
 		{
 			name: "It should update the live object according to the backup object",
@@ -405,6 +412,8 @@ data:
   foo: old
 `,
 			},
+			applicationNamespaces:    []string{"argocd", "dev"},
+			applicationsetNamespaces: []string{"argocd", "prod"},
 		},
 		{
 			name: "It should update the data of the live object according to the backup object",
@@ -426,6 +435,8 @@ data:
   foo: old				
 `,
 			},
+			applicationNamespaces: []string{},
+			applicationsetNamespaces: []string{},
 		},
 		{
 			name: "Spec should be updated correctly in live object according to the backup object",
@@ -455,6 +466,8 @@ spec:
     server: https://kubernetes.default.svc
 `,
 			},
+			applicationNamespaces: []string{"argocd", "dev"},
+			applicationsetNamespaces: []string{"prod"},
 		},
 		{
 			name: "It should update live object's spec according to the backup object",
@@ -490,6 +503,8 @@ spec:
     spec: {}
 `,
 			},
+			applicationNamespaces: []string{},
+			applicationsetNamespaces: []string{"dev"},
 		},
 		{
 			name: "It shouldn't update the live object if it's same as the backup object",
@@ -498,7 +513,7 @@ spec:
 kind: ConfigMap
 metadata:
   name: my-cm
-  namespace: argocd
+  namespace: argo-cd
   labels:
     env: dev
 data:
@@ -508,13 +523,15 @@ data:
 kind: ConfigMap
 metadata:
   name: my-cm
-  namespace: argocd
+  namespace: argo-cd
   labels:
     env: dev
 data:
   foo: bar
 `,
 			},
+			applicationNamespaces: []string{"argo-*"},
+			applicationsetNamespaces: []string{"argo-*"},
 		},
 		{
 			name: "Resources should be created when they're missing from live",
@@ -538,6 +555,8 @@ metadata:
     env: dev
 `,
 			},
+			applicationNamespaces: []string{"argocd", "dev"},
+			applicationsetNamespaces: []string{"argocd", "prod"},
 		},
 	}
 
@@ -546,12 +565,53 @@ metadata:
 			bakObj := decodeYAMLToUnstructured(t, tt.args.bak)
 			liveObj := decodeYAMLToUnstructured(t, tt.args.live)
 
-			updatedLive := updateLive(bakObj, liveObj, false)
+			configMap := &unstructured.Unstructured{}
+			configMap.SetUnstructuredContent(map[string]interface{}{
+				"apiVersion": "v1",
+				"kind":       "ConfigMap",
+				"metadata": map[string]interface{}{
+					"name":      "argocd-cmd-params-cm",
+					"namespace": "default",
+				},
+				"data": map[string]interface{}{
+					"application.namespaces":    "argocd,dev",
+					"applicationset.namespaces": "argocd,stage",
+				},
+			})
 
-			assert.Equal(t, bakObj.GetLabels(), updatedLive.GetLabels())
-			assert.Equal(t, bakObj.GetAnnotations(), updatedLive.GetAnnotations())
-			assert.Equal(t, bakObj.GetFinalizers(), updatedLive.GetFinalizers())
-			assert.Equal(t, bakObj.Object["data"], updatedLive.Object["data"])
+			ctx := context.Background()
+			gvr := schema.GroupVersionResource{
+				Group:    "",
+				Version:  "v1",
+				Resource: "configmaps",
+			}
+
+			dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), configMap)
+			configMapResource := dynamicClient.Resource(gvr).Namespace("default")
+
+			if len(tt.applicationNamespaces) == 0 || len(tt.applicationsetNamespaces) == 0 {
+				defaultNs := getAdditionalNamespaces(ctx, configMapResource)
+
+				if len(tt.applicationNamespaces) == 0 {
+					tt.applicationNamespaces = defaultNs.applicationNamespaces
+				}
+
+				if len(tt.applicationsetNamespaces) == 0 {
+					tt.applicationsetNamespaces = defaultNs.applicationsetNamespaces
+				}
+			}
+
+			var updatedLive *unstructured.Unstructured
+			if slices.Contains(tt.applicationNamespaces, bakObj.GetNamespace()) || slices.Contains(tt.applicationsetNamespaces, bakObj.GetNamespace()) {
+				updatedLive = updateLive(bakObj, liveObj, false)
+
+				assert.Equal(t, bakObj.GetLabels(), updatedLive.GetLabels())
+				assert.Equal(t, bakObj.GetAnnotations(), updatedLive.GetAnnotations())
+				assert.Equal(t, bakObj.GetFinalizers(), updatedLive.GetFinalizers())
+				assert.Equal(t, bakObj.Object["data"], updatedLive.Object["data"])
+			} else {
+				assert.Nil(t, updatedLive)
+			}
 		})
 	}
 }
