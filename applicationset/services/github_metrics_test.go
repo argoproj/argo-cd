@@ -69,7 +69,6 @@ var (
 )
 
 func TestGitHubMetrics_CollectorApproach_Success(t *testing.T) {
-
 	metrics := NewGitHubMetrics()
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(
@@ -89,7 +88,7 @@ func TestGitHubMetrics_CollectorApproach_Success(t *testing.T) {
 		w.Header().Set("X-RateLimit-Limit", "100")
 		w.Header().Set("X-RateLimit-Used", "58")
 		w.Header().Set("X-RateLimit-Resource", "core")
-		w.WriteHeader(201)
+		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte("ok"))
 	}))
 	defer ts.Close()
@@ -103,7 +102,7 @@ func TestGitHubMetrics_CollectorApproach_Success(t *testing.T) {
 		),
 	}
 
-	req, _ := http.NewRequest("GET", ts.URL+URL, nil)
+	req, _ := http.NewRequest(http.MethodGet, ts.URL+URL, nil)
 	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -130,7 +129,6 @@ func TestGitHubMetrics_CollectorApproach_Success(t *testing.T) {
 		sort.Strings(metric.labels)
 		assert.Contains(t, metricsOutput, metric.name+"{"+strings.Join(metric.labels, ",")+"} "+metric.value)
 	}
-
 }
 
 type RoundTripperFunc func(*http.Request) (*http.Response, error)
@@ -160,7 +158,7 @@ func TestGitHubMetrics_CollectorApproach_NoRateLimitMetricsOnNilResponse(t *test
 		},
 	}
 
-	req, _ := http.NewRequest("GET", URL, nil)
+	req, _ := http.NewRequest(http.MethodGet, URL, nil)
 	_, _ = client.Do(req)
 
 	handler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{})

@@ -203,7 +203,6 @@ func githubMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 }
 
 func TestGithubListRepos(t *testing.T) {
-
 	cases := []struct {
 		name, proto, url      string
 		hasError, allBranches bool

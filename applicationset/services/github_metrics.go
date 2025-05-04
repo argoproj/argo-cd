@@ -175,7 +175,6 @@ func (t *GitHubMetricsTransport) RoundTrip(req *http.Request) (*http.Response, e
 			}
 		}
 		if remaining := resp.Header.Get("X-RateLimit-Remaining"); remaining != "" {
-
 			if remainingInt, err := strconv.Atoi(remaining); err == nil {
 				t.metrics.RateLimitRemaining.WithLabelValues(endpoint, appsetNamespace, appsetName).Set(float64(remainingInt))
 				log.Debugf("Rate limit remaining for %s in %s/%s: %d", endpoint, appsetNamespace, appsetName, remainingInt)
