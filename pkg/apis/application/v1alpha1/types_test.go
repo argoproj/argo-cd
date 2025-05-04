@@ -3012,7 +3012,7 @@ func TestSyncWindow_Update(t *testing.T) {
 	})
 	t.Run("MissingConfig", func(t *testing.T) {
 		err := e.Update("", "", []string{}, []string{}, []string{}, "", "")
-		require.EqualError(t, err, "cannot update: require one or more of schedule, duration, application, namespace, or cluster")
+		require.EqualError(t, err, "cannot update: require one or more of schedule, duration, application, namespace, cluster or description")
 	})
 	t.Run("ChangeDuration", func(t *testing.T) {
 		err := e.Update("", "10h", []string{}, []string{}, []string{}, "", "")
