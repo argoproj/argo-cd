@@ -8,7 +8,7 @@ import (
 )
 
 func NewGithubAppService(g github_app_auth.Authentication, url, owner, repo string, labels []string, httpClient *http.Client) (PullRequestService, error) {
-	client, err := github_app.Client(g, url, httpClient)
+	client, err := github_app.Client(g, url, *httpClient)
 	if err != nil {
 		return nil, err
 	}

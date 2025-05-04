@@ -11,7 +11,7 @@ import (
 )
 
 // Client builds a github client for the given app authentication.
-func Client(g github_app_auth.Authentication, url string, httpClient *http.Client) (*github.Client, error) {
+func Client(g github_app_auth.Authentication, url string, httpClient http.Client) (*github.Client, error) {
 	rt, err := ghinstallation.New(httpClient.Transport, g.Id, g.InstallationId, []byte(g.PrivateKey))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create github app install: %w", err)
@@ -21,12 +21,10 @@ func Client(g github_app_auth.Authentication, url string, httpClient *http.Clien
 	}
 	var client *github.Client
 	if url == "" {
-		// httpClient := http.Client{Transport: rt}
-		client = github.NewClient(httpClient)
+		client = github.NewClient(&httpClient)
 	} else {
 		rt.BaseURL = url
-		// httpClient := http.Client{Transport: rt}
-		client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)
+		client, err = github.NewClient(&httpClient).WithEnterpriseURLs(url, url)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create github enterprise client: %w", err)
 		}
