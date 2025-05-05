@@ -20,7 +20,7 @@ import (
 	"github.com/TomOnTime/utfutil"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
-	"github.com/argoproj/pkg/sync"
+	"github.com/argoproj/pkg/v2/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -338,7 +338,7 @@ func (s *Service) runRepoOperation(
 
 	if source.IsHelm() {
 		if settings.noCache {
-			err = helmClient.CleanChartCache(source.Chart, revision, repo.Project)
+			err = helmClient.CleanChartCache(source.Chart, revision)
 			if err != nil {
 				return err
 			}
@@ -347,7 +347,7 @@ func (s *Service) runRepoOperation(
 		if source.Helm != nil {
 			helmPassCredentials = source.Helm.PassCredentials
 		}
-		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision, repo.Project, helmPassCredentials, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
+		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision, helmPassCredentials, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
 		if err != nil {
 			return err
 		}
@@ -1156,7 +1156,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			referencedSource := getReferencedSource(p.Path, q.RefSources)
 			if referencedSource != nil {
 				// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving the source
-				resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, gitRepoPaths, referencedSource.Repo.Project)
+				resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, gitRepoPaths)
 				if err != nil {
 					return nil, "", fmt.Errorf("error resolving set-file path: %w", err)
 				}
@@ -1277,7 +1277,7 @@ func getResolvedValueFiles(
 		referencedSource := getReferencedSource(rawValueFile, refSources)
 		if referencedSource != nil {
 			// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving that source.
-			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths, referencedSource.Repo.Project)
+			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
 			if err != nil {
 				return nil, fmt.Errorf("error resolving value file path: %w", err)
 			}
@@ -1310,15 +1310,9 @@ func getResolvedRefValueFile(
 	allowedValueFilesSchemas []string,
 	refSourceRepo string,
 	gitRepoPaths io.TempPaths,
-	project string,
 ) (pathutil.ResolvedFilePath, error) {
 	pathStrings := strings.Split(rawValueFile, "/")
-
-	keyData, err := json.Marshal(map[string]string{"url": git.NormalizeGitURL(refSourceRepo), "project": project})
-	if err != nil {
-		return "", err
-	}
-	repoPath := gitRepoPaths.GetPathIfExists(string(keyData))
+	repoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(refSourceRepo))
 	if repoPath == "" {
 		return "", fmt.Errorf("failed to find repo %q", refSourceRepo)
 	}
@@ -2354,7 +2348,7 @@ func (s *Service) GetRevisionChartDetails(_ context.Context, q *apiclient.RepoSe
 	if err != nil {
 		return nil, fmt.Errorf("helm client error: %w", err)
 	}
-	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision, q.Repo.Project, false, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
+	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision, false, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
 	if err != nil {
 		return nil, fmt.Errorf("error extracting chart: %w", err)
 	}
@@ -2384,11 +2378,7 @@ func fileParameters(q *apiclient.RepoServerAppDetailsQuery) []v1alpha1.HelmFileP
 }
 
 func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (git.Client, error) {
-	keyData, err := json.Marshal(map[string]string{"url": git.NormalizeGitURL(repo.Repo), "project": repo.Project})
-	if err != nil {
-		return nil, err
-	}
-	repoPath, err := s.gitRepoPaths.GetPath(string(keyData))
+	repoPath, err := s.gitRepoPaths.GetPath(git.NormalizeGitURL(repo.Repo))
 	if err != nil {
 		return nil, err
 	}
