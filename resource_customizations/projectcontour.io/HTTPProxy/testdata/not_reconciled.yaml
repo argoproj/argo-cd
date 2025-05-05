@@ -11,3 +11,6 @@ spec:
       services:
         - name: s1
           port: 80
+status:
+  currentStatus: NotReconciled
+  description: Waiting for controller

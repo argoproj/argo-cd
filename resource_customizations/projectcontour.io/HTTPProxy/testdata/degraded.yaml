@@ -13,14 +13,19 @@ spec:
           port: 80
 status:
   conditions:
-  - type: Valid
-    status: "False"
-    observedGeneration: 1
+  - errors:
+      - message: 'Spec.Routes unresolved service reference: service "default/s1" not found'
+        reason: ServiceUnresolvedReference
+        status: "True"
+        type: ServiceError
     lastTransitionTime: "2025-04-07T10:00:00Z"
-    reason: Invalid
-    message: 'unresolved service reference: service "default/s1" not found'
+    message: 'At least one error present, see Errors for details'
+    observedGeneration: 1
+    reason: ErrorPresent
+    status: "False"
+    type: Valid
   currentStatus: invalid
-  description: 'unresolved service reference: service "default/s1" not found'
+  description: 'At least one error present, see Errors for details'
   loadBalancer:
     ingress:
     - hostname: abc-123.elb.us-east-1.amazonaws.com

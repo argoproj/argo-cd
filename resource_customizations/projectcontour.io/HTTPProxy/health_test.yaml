@@ -8,6 +8,10 @@ tests:
     message: 'Waiting for status'
   inputPath: testdata/progressing.yaml
 - healthStatus:
+    status: Progressing
+    message: 'Waiting for controller'
+  inputPath: testdata/not_reconciled.yaml
+- healthStatus:
     status: Degraded
-    message: 'unresolved service reference: service "default/s1" not found'
+    message: 'At least one error present, see Errors for details'
   inputPath: testdata/degraded.yaml
