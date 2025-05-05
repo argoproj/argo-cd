@@ -13,7 +13,7 @@ const (
 )
 
 type TokenProvider interface {
-	GetToken(scope string) (string, error)
+	GetToken(ctx context.Context, scope string) (string, error)
 }
 
 type WorkloadIdentityTokenProvider struct {
@@ -29,12 +29,12 @@ func NewWorkloadIdentityTokenProvider() TokenProvider {
 	return WorkloadIdentityTokenProvider{tokenCredential: cred}
 }
 
-func (c WorkloadIdentityTokenProvider) GetToken(scope string) (string, error) {
+func (c WorkloadIdentityTokenProvider) GetToken(ctx context.Context, scope string) (string, error) {
 	if initError != nil {
 		return "", initError
 	}
 
-	token, err := c.tokenCredential.GetToken(context.Background(), policy.TokenRequestOptions{
+	token, err := c.tokenCredential.GetToken(ctx, policy.TokenRequestOptions{
 		Scopes: []string{scope},
 	})
 	if err != nil {

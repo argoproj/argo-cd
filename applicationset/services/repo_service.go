@@ -32,7 +32,7 @@ func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclie
 		submoduleEnabled:       submoduleEnabled,
 		newFileGlobbingEnabled: newFileGlobbingEnabled,
 		getGitFilesFromRepoServer: func(ctx context.Context, fileRequest *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
-			closer, client, err := repoClientset.NewRepoServerClient()
+			closer, client, err := repoClientset.NewRepoServerClient(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("error initializing new repo server client: %w", err)
 			}
@@ -40,7 +40,7 @@ func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclie
 			return client.GetGitFiles(ctx, fileRequest)
 		},
 		getGitDirectoriesFromRepoServer: func(ctx context.Context, dirRequest *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
-			closer, client, err := repoClientset.NewRepoServerClient()
+			closer, client, err := repoClientset.NewRepoServerClient(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("error initialising new repo server client: %w", err)
 			}

@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -36,7 +37,7 @@ type Helm interface {
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
 	GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
-	DependencyBuild() error
+	DependencyBuild(ctx context.Context) error
 	// Dispose deletes temp resources
 	Dispose()
 }
@@ -74,7 +75,7 @@ func (h *helm) Template(templateOpts *TemplateOpts) (string, string, error) {
 	return out, command, nil
 }
 
-func (h *helm) DependencyBuild() error {
+func (h *helm) DependencyBuild(ctx context.Context) error {
 	isHelmOci := h.cmd.IsHelmOci
 	defer func() {
 		h.cmd.IsHelmOci = isHelmOci
@@ -84,12 +85,12 @@ func (h *helm) DependencyBuild() error {
 		repo := h.repos[i]
 		if repo.EnableOci {
 			h.cmd.IsHelmOci = true
-			helmPassword, err := repo.GetPassword()
+			helmPassword, err := repo.GetPassword(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to get password for helm registry: %w", err)
 			}
 			if repo.GetUsername() != "" && helmPassword != "" {
-				_, err := h.cmd.RegistryLogin(repo.Repo, repo.Creds)
+				_, err := h.cmd.RegistryLogin(ctx, repo.Repo, repo.Creds)
 
 				defer func() {
 					_, _ = h.cmd.RegistryLogout(repo.Repo, repo.Creds)
@@ -100,7 +101,7 @@ func (h *helm) DependencyBuild() error {
 				}
 			}
 		} else {
-			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds, h.passCredentials)
+			_, err := h.cmd.RepoAdd(ctx, repo.Name, repo.Repo, repo.Creds, h.passCredentials)
 			if err != nil {
 				return fmt.Errorf("failed to add helm repository %s: %w", repo.Repo, err)
 			}

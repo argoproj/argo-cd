@@ -487,7 +487,7 @@ func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool) func(http.Handler) 
 // TokenVerifier defines the contract to invoke token
 // verification logic
 type TokenVerifier interface {
-	VerifyToken(token string) (jwt.Claims, string, error)
+	VerifyToken(ctx context.Context, token string) (jwt.Claims, string, error)
 }
 
 // WithAuthMiddleware is an HTTP middleware used to ensure incoming
@@ -502,12 +502,12 @@ func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) h
 				http.Error(w, "Auth cookie not found", http.StatusBadRequest)
 				return
 			}
-			claims, _, err := authn.VerifyToken(tokenString)
+			ctx := r.Context()
+			claims, _, err := authn.VerifyToken(ctx, tokenString)
 			if err != nil {
 				http.Error(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}
-			ctx := r.Context()
 			// Add claims to the context to inspect for RBAC
 			//nolint:staticcheck
 			ctx = context.WithValue(ctx, "claims", claims)
@@ -519,7 +519,7 @@ func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) h
 
 // VerifyToken verifies if a token is correct. Tokens can be issued either from us or by an IDP.
 // We choose how to verify based on the issuer.
-func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, error) {
+func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) (jwt.Claims, string, error) {
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 	claims := jwt.MapClaims{}
 	_, _, err := parser.ParseUnverified(tokenString, &claims)
@@ -547,7 +547,7 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 			return nil, "", errors.New("settings are not available while verifying the token")
 		}
 
-		idToken, err := prov.Verify(tokenString, argoSettings)
+		idToken, err := prov.Verify(ctx, tokenString, argoSettings)
 		// The token verification has failed. If the token has expired, we will
 		// return a dummy claims only containing a value for the issuer, so the
 		// UI can handle expired tokens appropriately.

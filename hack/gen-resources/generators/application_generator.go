@@ -62,13 +62,13 @@ func (generator *ApplicationGenerator) buildDestination(opts *util.GenerateOpts,
 	return generator.buildRandomDestination(opts, clusters)
 }
 
-func (generator *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
-	settingsMgr := settings.NewSettingsManager(context.TODO(), generator.clientSet, opts.Namespace)
-	repositories, err := db.NewDB(opts.Namespace, settingsMgr, generator.clientSet).ListRepositories(context.TODO())
+func (generator *ApplicationGenerator) Generate(ctx context.Context, opts *util.GenerateOpts) error {
+	settingsMgr := settings.NewSettingsManager(ctx, generator.clientSet, opts.Namespace)
+	repositories, err := db.NewDB(opts.Namespace, settingsMgr, generator.clientSet).ListRepositories(ctx)
 	if err != nil {
 		return err
 	}
-	clusters, err := db.NewDB(opts.Namespace, settingsMgr, generator.clientSet).ListClusters(context.TODO())
+	clusters, err := db.NewDB(opts.Namespace, settingsMgr, generator.clientSet).ListClusters(ctx)
 	if err != nil {
 		return err
 	}
@@ -86,7 +86,7 @@ func (generator *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
 		}
 		log.Printf("Pick destination %q", destination)
 		log.Printf("Create application")
-		_, err = applications.Create(context.TODO(), &v1alpha1.Application{
+		_, err = applications.Create(ctx, &v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "application-",
 				Namespace:    opts.Namespace,
@@ -105,10 +105,10 @@ func (generator *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
 	return nil
 }
 
-func (generator *ApplicationGenerator) Clean(opts *util.GenerateOpts) error {
+func (generator *ApplicationGenerator) Clean(ctx context.Context, opts *util.GenerateOpts) error {
 	log.Printf("Clean applications")
 	applications := generator.argoClientSet.ArgoprojV1alpha1().Applications(opts.Namespace)
-	return applications.DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
+	return applications.DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/generated-by=argocd-generator",
 	})
 }

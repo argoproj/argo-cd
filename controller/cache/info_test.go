@@ -1369,7 +1369,7 @@ func TestManifestHash(t *testing.T) {
 
 	expected := hash(data)
 
-	hash, err := generateManifestHash(manifest, ignores, nil, normalizers.IgnoreNormalizerOpts{})
+	hash, err := generateManifestHash(t.Context(), manifest, ignores, nil, normalizers.IgnoreNormalizerOpts{})
 	assert.Equal(t, expected, hash)
 	assert.NoError(t, err)
 }

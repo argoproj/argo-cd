@@ -20,7 +20,7 @@ type Actions struct {
 
 func (a *Actions) SetParamInNotificationConfigMap(key, value string) *Actions {
 	a.context.t.Helper()
-	require.NoError(a.context.t, fixture.SetParamInNotificationsConfigMap(key, value))
+	require.NoError(a.context.t, fixture.SetParamInNotificationsConfigMap(a.context.t.Context(), key, value))
 	return a
 }
 

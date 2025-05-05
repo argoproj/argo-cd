@@ -153,7 +153,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// Log a warning if there are unrecognized generators
 	_ = utils.CheckInvalidGenerators(&applicationSetInfo)
 	// desiredApplications is the main list of all expected Applications from all generators in this appset.
-	desiredApplications, applicationSetReason, err := template.GenerateApplications(logCtx, applicationSetInfo, r.Generators, r.Renderer, r.Client)
+	desiredApplications, applicationSetReason, err := template.GenerateApplications(ctx, logCtx, applicationSetInfo, r.Generators, r.Renderer, r.Client)
 	if err != nil {
 		logCtx.Errorf("unable to generate applications: %v", err)
 		_ = r.setApplicationSetStatusCondition(ctx,
@@ -547,8 +547,8 @@ func appControllerIndexer(rawObj client.Object) []string {
 	return []string{owner.Name}
 }
 
-func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProgressiveSyncs bool, maxConcurrentReconciliations int) error {
-	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &argov1alpha1.Application{}, ".metadata.controller", appControllerIndexer); err != nil {
+func (r *ApplicationSetReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, enableProgressiveSyncs bool, maxConcurrentReconciliations int) error {
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &argov1alpha1.Application{}, ".metadata.controller", appControllerIndexer); err != nil {
 		return fmt.Errorf("error setting up with manager: %w", err)
 	}
 

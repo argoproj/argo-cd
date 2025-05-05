@@ -161,7 +161,7 @@ func (s *Server) GetPlugins(ctx context.Context, _ *settingspkg.SettingsQuery) (
 }
 
 func (s *Server) plugins(ctx context.Context) ([]*settingspkg.Plugin, error) {
-	closer, client, err := s.repoClient.NewRepoServerClient()
+	closer, client, err := s.repoClient.NewRepoServerClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error creating repo server client: %w", err)
 	}

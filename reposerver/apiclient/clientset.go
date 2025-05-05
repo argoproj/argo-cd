@@ -1,6 +1,7 @@
 package apiclient
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -36,7 +37,7 @@ type TLSConfiguration struct {
 
 // Clientset represents repository server api clients
 type Clientset interface {
-	NewRepoServerClient() (io.Closer, RepoServerServiceClient, error)
+	NewRepoServerClient(ctx context.Context) (io.Closer, RepoServerServiceClient, error)
 }
 
 type clientSet struct {
@@ -45,7 +46,7 @@ type clientSet struct {
 	tlsConfig      TLSConfiguration
 }
 
-func (c *clientSet) NewRepoServerClient() (io.Closer, RepoServerServiceClient, error) {
+func (c *clientSet) NewRepoServerClient(_ context.Context) (io.Closer, RepoServerServiceClient, error) {
 	conn, err := NewConnection(c.address, c.timeoutSeconds, &c.tlsConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to open a new connection to repo server: %w", err)

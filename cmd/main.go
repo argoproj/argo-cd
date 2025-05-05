@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"os"
+	"os/signal"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -39,10 +41,13 @@ func main() {
 		binaryName = val
 	}
 
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill) //nolint:forbidigo // for entrypoint
+	defer cancel()
+
 	isCLI := false
 	switch binaryName {
 	case "argocd", "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe":
-		command = cli.NewCommand()
+		command = cli.NewCommand(ctx)
 		isCLI = true
 	case "argocd-server":
 		command = apiserver.NewCommand()
@@ -68,7 +73,7 @@ func main() {
 		command = k8sauth.NewCommand()
 		isCLI = true
 	default:
-		command = cli.NewCommand()
+		command = cli.NewCommand(ctx)
 		isCLI = true
 	}
 	util.SetAutoMaxProcs(isCLI)

@@ -116,7 +116,7 @@ func ScmProviderAllowed(applicationSetInfo *argoprojiov1alpha1.ApplicationSet, g
 	return NewErrDisallowedSCMProvider(url, allowedScmProviders)
 }
 
-func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
+func (g *SCMProviderGenerator) GenerateParams(ctx context.Context, appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
 		return nil, ErrEmptyAppSetGenerator
 	}
@@ -136,7 +136,6 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		return nil, fmt.Errorf("scm provider not allowed: %w", err)
 	}
 
-	ctx := context.Background()
 	var provider scm_provider.SCMProviderService
 	switch {
 	case g.overrideProvider != nil:

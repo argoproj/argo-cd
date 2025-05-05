@@ -1,6 +1,8 @@
 package expression
 
 import (
+	"context"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
@@ -22,7 +24,7 @@ func register(namespace string, entry map[string]any) {
 	helpers[namespace] = entry
 }
 
-func Spawn(app *unstructured.Unstructured, argocdService service.Service, vars map[string]any) map[string]any {
+func Spawn(ctx context.Context, app *unstructured.Unstructured, argocdService service.Service, vars map[string]any) map[string]any {
 	clone := make(map[string]any)
 	for k := range vars {
 		clone[k] = vars[k]
@@ -30,7 +32,7 @@ func Spawn(app *unstructured.Unstructured, argocdService service.Service, vars m
 	for namespace, helper := range helpers {
 		clone[namespace] = helper
 	}
-	clone["repo"] = repo.NewExprs(argocdService, app)
+	clone["repo"] = repo.NewExprs(ctx, argocdService, app)
 
 	return clone
 }

@@ -55,6 +55,7 @@ type NotificationController interface {
 }
 
 func NewController(
+	ctx context.Context,
 	k8sClient kubernetes.Interface,
 	client dynamic.Interface,
 	argocdService service.Service,
@@ -74,8 +75,8 @@ func NewController(
 	if len(applicationNamespaces) == 0 {
 		appClient = namespaceableAppClient.Namespace(namespace)
 	}
-	appInformer := newInformer(appClient, namespace, applicationNamespaces, appLabelSelector)
-	appProjInformer := newInformer(newAppProjClient(client, namespace), namespace, []string{namespace}, "")
+	appInformer := newInformer(ctx, appClient, namespace, applicationNamespaces, appLabelSelector)
+	appProjInformer := newInformer(ctx, newAppProjClient(client, namespace), namespace, []string{namespace}, "")
 	var notificationConfigNamespace string
 	if selfServiceNotificationEnabled {
 		notificationConfigNamespace = metav1.NamespaceAll
@@ -84,7 +85,7 @@ func NewController(
 	}
 	secretInformer := k8s.NewSecretInformer(k8sClient, notificationConfigNamespace, secretName)
 	configMapInformer := k8s.NewConfigMapInformer(k8sClient, notificationConfigNamespace, configMapName)
-	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, secretName, configMapName, selfServiceNotificationEnabled), namespace, secretInformer, configMapInformer)
+	apiFactory := api.NewFactory(settings.GetFactorySettings(ctx, argocdService, secretName, configMapName, selfServiceNotificationEnabled), namespace, secretInformer, configMapInformer)
 
 	res := &notificationController{
 		secretInformer:    secretInformer,
@@ -138,14 +139,14 @@ func (c *notificationController) alterDestinations(obj metav1.Object, destinatio
 	return destinations
 }
 
-func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string, applicationNamespaces []string, selector string) cache.SharedIndexInformer {
+func newInformer(ctx context.Context, resClient dynamic.ResourceInterface, controllerNamespace string, applicationNamespaces []string, selector string) cache.SharedIndexInformer {
 	informer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				// We are only interested in apps that exist in namespaces the
 				// user wants to be enabled.
 				options.LabelSelector = selector
-				appList, err := resClient.List(context.TODO(), options)
+				appList, err := resClient.List(ctx, options)
 				if err != nil {
 					return nil, fmt.Errorf("failed to list applications: %w", err)
 				}
@@ -160,7 +161,7 @@ func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				options.LabelSelector = selector
-				return resClient.Watch(context.TODO(), options)
+				return resClient.Watch(ctx, options)
 			},
 		},
 		&unstructured.Unstructured{},

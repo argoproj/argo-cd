@@ -3,6 +3,8 @@
 package mocks
 
 import (
+	context "context"
+
 	helm "github.com/argoproj/argo-cd/v3/util/helm"
 	io "github.com/argoproj/argo-cd/v3/util/io"
 
@@ -32,9 +34,9 @@ func (_m *Client) CleanChartCache(chart string, version string) error {
 	return r0
 }
 
-// ExtractChart provides a mock function with given fields: chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize
-func (_m *Client) ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, io.Closer, error) {
-	ret := _m.Called(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
+// ExtractChart provides a mock function with given fields: ctx, chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize
+func (_m *Client) ExtractChart(ctx context.Context, chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, io.Closer, error) {
+	ret := _m.Called(ctx, chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ExtractChart")
@@ -43,25 +45,25 @@ func (_m *Client) ExtractChart(chart string, version string, passCredentials boo
 	var r0 string
 	var r1 io.Closer
 	var r2 error
-	if rf, ok := ret.Get(0).(func(string, string, bool, int64, bool) (string, io.Closer, error)); ok {
-		return rf(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, bool, int64, bool) (string, io.Closer, error)); ok {
+		return rf(ctx, chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
 	}
-	if rf, ok := ret.Get(0).(func(string, string, bool, int64, bool) string); ok {
-		r0 = rf(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, bool, int64, bool) string); ok {
+		r0 = rf(ctx, chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(string, string, bool, int64, bool) io.Closer); ok {
-		r1 = rf(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, bool, int64, bool) io.Closer); ok {
+		r1 = rf(ctx, chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
 	} else {
 		if ret.Get(1) != nil {
 			r1 = ret.Get(1).(io.Closer)
 		}
 	}
 
-	if rf, ok := ret.Get(2).(func(string, string, bool, int64, bool) error); ok {
-		r2 = rf(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
+	if rf, ok := ret.Get(2).(func(context.Context, string, string, bool, int64, bool) error); ok {
+		r2 = rf(ctx, chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -69,9 +71,9 @@ func (_m *Client) ExtractChart(chart string, version string, passCredentials boo
 	return r0, r1, r2
 }
 
-// GetIndex provides a mock function with given fields: noCache, maxIndexSize
-func (_m *Client) GetIndex(noCache bool, maxIndexSize int64) (*helm.Index, error) {
-	ret := _m.Called(noCache, maxIndexSize)
+// GetIndex provides a mock function with given fields: ctx, noCache, maxIndexSize
+func (_m *Client) GetIndex(ctx context.Context, noCache bool, maxIndexSize int64) (*helm.Index, error) {
+	ret := _m.Called(ctx, noCache, maxIndexSize)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetIndex")
@@ -79,19 +81,19 @@ func (_m *Client) GetIndex(noCache bool, maxIndexSize int64) (*helm.Index, error
 
 	var r0 *helm.Index
 	var r1 error
-	if rf, ok := ret.Get(0).(func(bool, int64) (*helm.Index, error)); ok {
-		return rf(noCache, maxIndexSize)
+	if rf, ok := ret.Get(0).(func(context.Context, bool, int64) (*helm.Index, error)); ok {
+		return rf(ctx, noCache, maxIndexSize)
 	}
-	if rf, ok := ret.Get(0).(func(bool, int64) *helm.Index); ok {
-		r0 = rf(noCache, maxIndexSize)
+	if rf, ok := ret.Get(0).(func(context.Context, bool, int64) *helm.Index); ok {
+		r0 = rf(ctx, noCache, maxIndexSize)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*helm.Index)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(bool, int64) error); ok {
-		r1 = rf(noCache, maxIndexSize)
+	if rf, ok := ret.Get(1).(func(context.Context, bool, int64) error); ok {
+		r1 = rf(ctx, noCache, maxIndexSize)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -99,9 +101,9 @@ func (_m *Client) GetIndex(noCache bool, maxIndexSize int64) (*helm.Index, error
 	return r0, r1
 }
 
-// GetTags provides a mock function with given fields: chart, noCache
-func (_m *Client) GetTags(chart string, noCache bool) (*helm.TagsList, error) {
-	ret := _m.Called(chart, noCache)
+// GetTags provides a mock function with given fields: ctx, chart, noCache
+func (_m *Client) GetTags(ctx context.Context, chart string, noCache bool) (*helm.TagsList, error) {
+	ret := _m.Called(ctx, chart, noCache)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetTags")
@@ -109,19 +111,19 @@ func (_m *Client) GetTags(chart string, noCache bool) (*helm.TagsList, error) {
 
 	var r0 *helm.TagsList
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string, bool) (*helm.TagsList, error)); ok {
-		return rf(chart, noCache)
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) (*helm.TagsList, error)); ok {
+		return rf(ctx, chart, noCache)
 	}
-	if rf, ok := ret.Get(0).(func(string, bool) *helm.TagsList); ok {
-		r0 = rf(chart, noCache)
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) *helm.TagsList); ok {
+		r0 = rf(ctx, chart, noCache)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*helm.TagsList)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(string, bool) error); ok {
-		r1 = rf(chart, noCache)
+	if rf, ok := ret.Get(1).(func(context.Context, string, bool) error); ok {
+		r1 = rf(ctx, chart, noCache)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -129,9 +131,9 @@ func (_m *Client) GetTags(chart string, noCache bool) (*helm.TagsList, error) {
 	return r0, r1
 }
 
-// TestHelmOCI provides a mock function with no fields
-func (_m *Client) TestHelmOCI() (bool, error) {
-	ret := _m.Called()
+// TestHelmOCI provides a mock function with given fields: ctx
+func (_m *Client) TestHelmOCI(ctx context.Context) (bool, error) {
+	ret := _m.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for TestHelmOCI")
@@ -139,17 +141,17 @@ func (_m *Client) TestHelmOCI() (bool, error) {
 
 	var r0 bool
 	var r1 error
-	if rf, ok := ret.Get(0).(func() (bool, error)); ok {
-		return rf()
+	if rf, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return rf(ctx)
 	}
-	if rf, ok := ret.Get(0).(func() bool); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = rf(ctx)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}

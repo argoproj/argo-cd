@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -32,7 +33,7 @@ func storeAzureToken(key, token string, expiration time.Duration) {
 
 type Creds interface {
 	GetUsername() string
-	GetPassword() (string, error)
+	GetPassword(ctx context.Context) (string, error)
 	GetCAPath() string
 	GetCertData() []byte
 	GetKeyData() []byte
@@ -54,7 +55,7 @@ func (creds HelmCreds) GetUsername() string {
 	return creds.Username
 }
 
-func (creds HelmCreds) GetPassword() (string, error) {
+func (creds HelmCreds) GetPassword(_ context.Context) (string, error) {
 	return creds.Password, nil
 }
 
@@ -89,8 +90,8 @@ func (creds AzureWorkloadIdentityCreds) GetUsername() string {
 	return workloadidentity.EmptyGuid
 }
 
-func (creds AzureWorkloadIdentityCreds) GetPassword() (string, error) {
-	return creds.GetAccessToken()
+func (creds AzureWorkloadIdentityCreds) GetPassword(ctx context.Context) (string, error) {
+	return creds.GetAccessToken(ctx)
 }
 
 func (creds AzureWorkloadIdentityCreds) GetCAPath() string {
@@ -120,7 +121,7 @@ func NewAzureWorkloadIdentityCreds(repoURL string, caPath string, certData []byt
 	}
 }
 
-func (creds AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
+func (creds AzureWorkloadIdentityCreds) GetAccessToken(ctx context.Context) (string, error) {
 	registryHost := strings.Split(creds.repoURL, "/")[0]
 
 	// Compute hash as key for refresh token in the cache
@@ -141,7 +142,7 @@ func (creds AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
 		return "", fmt.Errorf("failed to challenge Azure Container Registry: %w", err)
 	}
 
-	token, err := creds.getAccessTokenAfterChallenge(tokenParams)
+	token, err := creds.getAccessTokenAfterChallenge(ctx, tokenParams)
 	if err != nil {
 		return "", fmt.Errorf("failed to get Azure access token after challenge: %w", err)
 	}
@@ -151,12 +152,12 @@ func (creds AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
 	return token, nil
 }
 
-func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams map[string]string) (string, error) {
+func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(ctx context.Context, tokenParams map[string]string) (string, error) {
 	realm := tokenParams["realm"]
 	service := tokenParams["service"]
 
 	armTokenScope := env.StringFromEnv("AZURE_ARM_TOKEN_RESOURCE", "https://management.core.windows.net")
-	armAccessToken, err := creds.tokenProvider.GetToken(armTokenScope + "/.default")
+	armAccessToken, err := creds.tokenProvider.GetToken(ctx, armTokenScope+"/.default")
 	if err != nil {
 		return "", fmt.Errorf("failed to get Azure access token: %w", err)
 	}

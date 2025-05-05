@@ -66,8 +66,8 @@ func NewCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   "controller",
 		Short: "Starts Argo CD Notifications controller",
-		RunE: func(_ *cobra.Command, _ []string) error {
-			ctx, cancel := context.WithCancel(context.Background())
+		RunE: func(c *cobra.Command, _ []string) error {
+			ctx, cancel := context.WithCancel(c.Context())
 			defer cancel()
 
 			vers := common.GetVersion()
@@ -138,7 +138,7 @@ func NewCommand() *cobra.Command {
 				tlsConfig.Certificates = pool
 			}
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, 5, tlsConfig)
-			argocdService, err := service.NewArgoCDService(k8sClient, namespace, repoClientset)
+			argocdService, err := service.NewArgoCDService(ctx, k8sClient, namespace, repoClientset)
 			if err != nil {
 				return fmt.Errorf("failed to initialize Argo CD service: %w", err)
 			}
@@ -153,7 +153,7 @@ func NewCommand() *cobra.Command {
 			log.Infof("serving metrics on port %d", metricsPort)
 			log.Infof("loading configuration %d", metricsPort)
 
-			ctrl := notificationscontroller.NewController(k8sClient, dynamicClient, argocdService, namespace, applicationNamespaces, appLabelSelector, registry, secretName, configMapName, selfServiceNotificationEnabled)
+			ctrl := notificationscontroller.NewController(ctx, k8sClient, dynamicClient, argocdService, namespace, applicationNamespaces, appLabelSelector, registry, secretName, configMapName, selfServiceNotificationEnabled)
 			err = ctrl.Init(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to initialize controller: %w", err)

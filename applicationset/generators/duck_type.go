@@ -26,7 +26,6 @@ var _ Generator = (*DuckTypeGenerator)(nil)
 
 // DuckTypeGenerator generates Applications for some or all clusters registered with ArgoCD.
 type DuckTypeGenerator struct {
-	ctx             context.Context
 	dynClient       dynamic.Interface
 	clientset       kubernetes.Interface
 	namespace       string // namespace is the Argo CD namespace
@@ -37,7 +36,6 @@ func NewDuckTypeGenerator(ctx context.Context, dynClient dynamic.Interface, clie
 	settingsManager := settings.NewSettingsManager(ctx, clientset, namespace)
 
 	g := &DuckTypeGenerator{
-		ctx:             ctx,
 		dynClient:       dynClient,
 		clientset:       clientset,
 		namespace:       namespace,
@@ -60,7 +58,7 @@ func (g *DuckTypeGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Appl
 	return &appSetGenerator.ClusterDecisionResource.Template
 }
 
-func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
+func (g *DuckTypeGenerator) GenerateParams(ctx context.Context, appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
 		return nil, ErrEmptyAppSetGenerator
 	}
@@ -71,7 +69,7 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 	}
 
 	// ListCluster from Argo CD's util/db package will include the local cluster in the list of clusters
-	clustersFromArgoCD, err := utils.ListClusters(g.ctx, g.clientset, g.namespace)
+	clustersFromArgoCD, err := utils.ListClusters(ctx, g.clientset, g.namespace)
 	if err != nil {
 		return nil, fmt.Errorf("error listing clusters: %w", err)
 	}
@@ -81,7 +79,7 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 	}
 
 	// Read the configMapRef
-	cm, err := g.clientset.CoreV1().ConfigMaps(g.namespace).Get(g.ctx, appSetGenerator.ClusterDecisionResource.ConfigMapRef, metav1.GetOptions{})
+	cm, err := g.clientset.CoreV1().ConfigMaps(g.namespace).Get(ctx, appSetGenerator.ClusterDecisionResource.ConfigMapRef, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("error reading configMapRef: %w", err)
 	}
@@ -123,7 +121,7 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 		log.WithField("listOptions.FieldSelector", listOptions.FieldSelector).Info("selection type")
 	}
 
-	duckResources, err := g.dynClient.Resource(duckGVR).Namespace(g.namespace).List(g.ctx, listOptions)
+	duckResources, err := g.dynClient.Resource(duckGVR).Namespace(g.namespace).List(ctx, listOptions)
 	if err != nil {
 		log.WithField("GVK", duckGVR).Warning("resources were not found")
 		return nil, fmt.Errorf("failed to get dynamic resources: %w", err)

@@ -50,7 +50,7 @@ func newFakeProj() *argoappv1.AppProject {
 
 func TestEnforceAllPolicies(t *testing.T) {
 	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
-	projLister := test.NewFakeProjLister(newFakeProj())
+	projLister := test.NewFakeProjLister(t.Context(), newFakeProj())
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	enf.EnableLog(true)
 	_ = enf.SetBuiltinPolicy(`p, alice, applications, create, my-proj/*, allow` + "\n" + `p, alice, logs, get, my-proj/*, allow` + "\n" + `p, alice, exec, create, my-proj/*, allow`)
@@ -96,7 +96,7 @@ func TestEnforceAllPolicies(t *testing.T) {
 
 func TestEnforceActionActions(t *testing.T) {
 	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
-	projLister := test.NewFakeProjLister(newFakeProj())
+	projLister := test.NewFakeProjLister(t.Context(), newFakeProj())
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	enf.EnableLog(true)
 	_ = enf.SetBuiltinPolicy(fmt.Sprintf(`p, alice, applications, %s/*, my-proj/*, allow
@@ -129,7 +129,7 @@ p, cam, applications, %s/argoproj.io/Rollout/resume, my-proj/*, allow
 
 func TestInvalidatedCache(t *testing.T) {
 	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
-	projLister := test.NewFakeProjLister(newFakeProj())
+	projLister := test.NewFakeProjLister(t.Context(), newFakeProj())
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	enf.EnableLog(true)
 	_ = enf.SetBuiltinPolicy(`p, alice, applications, create, my-proj/*, allow` + "\n" + `p, alice, logs, get, my-proj/*, allow` + "\n" + `p, alice, exec, create, my-proj/*, allow`)
@@ -188,7 +188,7 @@ func TestGetScopes_CustomScopes(t *testing.T) {
 
 func Test_getProjectFromRequest(t *testing.T) {
 	fp := newFakeProj()
-	projLister := test.NewFakeProjLister(fp)
+	projLister := test.NewFakeProjLister(t.Context(), fp)
 
 	rbacEnforcer := NewRBACPolicyEnforcer(nil, projLister)
 	project := rbacEnforcer.getProjectFromRequest("", "repositories", "create", fp.Name+"/https://github.com/argoproj/argocd-example-apps")

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -89,7 +90,7 @@ func newCatalogCommand() *cobra.Command {
 func newDocsCommand() *cobra.Command {
 	return &cobra.Command{
 		Use: "docs",
-		Run: func(_ *cobra.Command, _ []string) {
+		Run: func(cmd *cobra.Command, _ []string) {
 			var builtItDocsData bytes.Buffer
 			wd, err := os.Getwd()
 			dieOnError(err, "Failed to get current working directory")
@@ -104,7 +105,7 @@ func newDocsCommand() *cobra.Command {
 				log.Fatal(err)
 			}
 			var commandDocs bytes.Buffer
-			if err := generateCommandsDocs(&commandDocs); err != nil {
+			if err := generateCommandsDocs(cmd.Context(), &commandDocs); err != nil {
 				log.Fatal(err)
 			}
 			if err := os.WriteFile("./docs/operator-manual/notifications/troubleshooting-commands.md", commandDocs.Bytes(), 0o644); err != nil {
@@ -154,11 +155,11 @@ func generateBuiltInTriggersDocs(out io.Writer, triggers map[string][]triggers.C
 	})
 }
 
-func generateCommandsDocs(out io.Writer) error {
+func generateCommandsDocs(ctx context.Context, out io.Writer) error {
 	// create parents so that CommandPath() is correctly resolved
 	mainCmd := &cobra.Command{Use: "argocd"}
 	adminCmd := &cobra.Command{Use: "admin"}
-	toolCmd := admin.NewNotificationsCommand()
+	toolCmd := admin.NewNotificationsCommand(ctx)
 	adminCmd.AddCommand(toolCmd)
 	mainCmd.AddCommand(adminCmd)
 	for _, mainSubCommand := range mainCmd.Commands() {

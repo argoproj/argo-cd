@@ -67,33 +67,34 @@ func TestRedisSetCache(t *testing.T) {
 
 	t.Run("Successful set", func(t *testing.T) {
 		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 60*time.Second, RedisCompressionNone)
-		err = client.Set(&Item{Key: "foo", Object: "bar"})
+		err = client.Set(t.Context(), &Item{Key: "foo", Object: "bar"})
 		require.NoError(t, err)
 	})
 
 	t.Run("Successful get", func(t *testing.T) {
 		var res string
 		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
-		err = client.Get("foo", &res)
+		err = client.Get(t.Context(), "foo", &res)
 		require.NoError(t, err)
 		assert.Equal(t, "bar", res)
 	})
 
 	t.Run("Successful delete", func(t *testing.T) {
 		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
-		err = client.Delete("foo")
+		err = client.Delete(t.Context(), "foo")
 		require.NoError(t, err)
 	})
 
 	t.Run("Cache miss", func(t *testing.T) {
 		var res string
 		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
-		err = client.Get("foo", &res)
+		err = client.Get(t.Context(), "foo", &res)
 		assert.ErrorContains(t, err, "cache: key is missing")
 	})
 }
 
 func TestRedisSetCacheCompressed(t *testing.T) {
+	ctx := t.Context()
 	mr, err := miniredis.Run()
 	if err != nil {
 		panic(err)
@@ -105,9 +106,9 @@ func TestRedisSetCacheCompressed(t *testing.T) {
 
 	client := NewRedisCache(redisClient, 10*time.Second, RedisCompressionGZip)
 	testValue := "my-value"
-	require.NoError(t, client.Set(&Item{Key: "my-key", Object: testValue}))
+	require.NoError(t, client.Set(t.Context(), &Item{Key: "my-key", Object: testValue}))
 
-	compressedData, err := redisClient.Get(t.Context(), "my-key.gz").Bytes()
+	compressedData, err := redisClient.Get(ctx, "my-key.gz").Bytes()
 	require.NoError(t, err)
 
 	assert.Greater(t, len(compressedData), len([]byte(testValue)), "compressed data is bigger than uncompressed")
@@ -119,12 +120,13 @@ func TestRedisSetCacheCompressed(t *testing.T) {
 	require.NoError(t, err)
 
 	var result string
-	require.NoError(t, client.Get("my-key", &result))
+	require.NoError(t, client.Get(ctx, "my-key", &result))
 
 	assert.Equal(t, testValue, result)
 }
 
 func TestRedisMetrics(t *testing.T) {
+	ctx := t.Context()
 	mr, err := miniredis.Run()
 	if err != nil {
 		panic(err)
@@ -143,9 +145,9 @@ func TestRedisMetrics(t *testing.T) {
 	var res string
 
 	// client successful request
-	err = client.Set(&Item{Key: "foo", Object: "bar"})
+	err = client.Set(t.Context(), &Item{Key: "foo", Object: "bar"})
 	require.NoError(t, err)
-	err = client.Get("foo", &res)
+	err = client.Get(ctx, "foo", &res)
 	require.NoError(t, err)
 
 	c, err := ms.redisRequestCounter.GetMetricWithLabelValues("mock", "false")
@@ -155,7 +157,7 @@ func TestRedisMetrics(t *testing.T) {
 	assert.InEpsilon(t, float64(2), metric.Counter.GetValue(), 0.0001)
 
 	// faulty client failed request
-	err = faultyClient.Get("foo", &res)
+	err = faultyClient.Get(ctx, "foo", &res)
 	require.Error(t, err)
 	c, err = ms.redisRequestCounter.GetMetricWithLabelValues("mock", "true")
 	require.NoError(t, err)

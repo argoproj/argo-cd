@@ -1,7 +1,6 @@
 package project
 
 import (
-	"context"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
@@ -31,8 +30,8 @@ func (c *Consequences) detailedProject() (*project.DetailedProjectsResponse, err
 }
 
 func (c *Consequences) get() (*project.DetailedProjectsResponse, error) {
-	_, projectClient, _ := fixture.ArgoCDClientset.NewProjectClient()
-	prj, err := projectClient.GetDetailedProject(context.Background(), &project.ProjectQuery{
+	_, projectClient, _ := fixture.ArgoCDClientset.NewProjectClient(c.context.t.Context())
+	prj, err := projectClient.GetDetailedProject(c.context.t.Context(), &project.ProjectQuery{
 		Name: c.context.name,
 	})
 

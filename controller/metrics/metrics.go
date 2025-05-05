@@ -149,7 +149,7 @@ var (
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
-func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj any) bool, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string) (*MetricsServer, error) {
+func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(ctx context.Context, obj any) bool, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string) (*MetricsServer, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
@@ -336,13 +336,13 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 
 type appCollector struct {
 	store         applister.ApplicationLister
-	appFilter     func(obj any) bool
+	appFilter     func(ctx context.Context, obj any) bool
 	appLabels     []string
 	appConditions []string
 }
 
 // NewAppCollector returns a prometheus collector for application metrics
-func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string) prometheus.Collector {
+func NewAppCollector(appLister applister.ApplicationLister, appFilter func(ctx context.Context, obj any) bool, appLabels []string, appConditions []string) prometheus.Collector {
 	return &appCollector{
 		store:         appLister,
 		appFilter:     appFilter,
@@ -352,7 +352,7 @@ func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj a
 }
 
 // NewAppRegistry creates a new prometheus registry that collects applications
-func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string) *prometheus.Registry {
+func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(ctx context.Context, obj any) bool, appLabels []string, appConditions []string) *prometheus.Registry {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions))
 	return registry
@@ -376,8 +376,11 @@ func (c *appCollector) Collect(ch chan<- prometheus.Metric) {
 		log.Warnf("Failed to collect applications: %v", err)
 		return
 	}
+	//
 	for _, app := range apps {
-		if c.appFilter(app) {
+		// TODO: Ask Prometheus team how to pass the context
+		// ref: https://github.com/prometheus/client_golang/issues/1538
+		if c.appFilter(context.Background(), app) { //nolint:forbidigo
 			c.collectApps(ch, app)
 		}
 	}

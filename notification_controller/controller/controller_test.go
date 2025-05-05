@@ -113,6 +113,7 @@ func TestInit(t *testing.T) {
 	selfServiceNotificationEnabledFlags := []bool{false, true}
 	for _, selfServiceNotificationEnabled := range selfServiceNotificationEnabledFlags {
 		nc := NewController(
+			t.Context(),
 			k8sClient,
 			dynamicClient,
 			nil,
@@ -145,6 +146,7 @@ func TestInitTimeout(t *testing.T) {
 	appLabelSelector := "app=test"
 
 	nc := NewController(
+		t.Context(),
 		k8sClient,
 		dynamicClient,
 		nil,

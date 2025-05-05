@@ -57,11 +57,11 @@ func (a *Actions) AddSource(repo string) *Actions {
 	return a
 }
 
-func (a *Actions) UpdateProject(updater func(project *v1alpha1.AppProject)) *Actions {
-	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.TODO(), a.context.name, metav1.GetOptions{})
+func (a *Actions) UpdateProject(ctx context.Context, updater func(project *v1alpha1.AppProject)) *Actions {
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(ctx, a.context.name, metav1.GetOptions{})
 	require.NoError(a.context.t, err)
 	updater(proj)
-	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(context.TODO(), proj, metav1.UpdateOptions{})
+	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(ctx, proj, metav1.UpdateOptions{})
 	require.NoError(a.context.t, err)
 	return a
 }

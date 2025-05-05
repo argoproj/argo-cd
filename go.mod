@@ -293,6 +293,8 @@ require (
 )
 
 replace (
+	github.com/argoproj/gitops-engine => github.com/sivchari/gitops-engine v0.0.0-20250421124833-45bcf5629986
+	github.com/argoproj/notifications-engine => github.com/sivchari/notifications-engine v0.0.0-20250420144357-6843172f87f1
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
 

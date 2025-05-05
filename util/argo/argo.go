@@ -229,7 +229,7 @@ func FilterByNameP(apps []*argoappv1.Application, name string) []*argoappv1.Appl
 }
 
 // RefreshApp updates the refresh annotation of an application to coerce the controller to process it
-func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType, hydrate bool) (*argoappv1.Application, error) {
+func RefreshApp(ctx context.Context, appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType, hydrate bool) (*argoappv1.Application, error) {
 	metadata := map[string]any{
 		"metadata": map[string]any{
 			"annotations": map[string]string{
@@ -247,7 +247,7 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 		return nil, fmt.Errorf("error marshaling metadata: %w", err)
 	}
 	for attempt := 0; attempt < 5; attempt++ {
-		app, err := appIf.Patch(context.Background(), name, types.MergePatchType, patch, metav1.PatchOptions{})
+		app, err := appIf.Patch(ctx, name, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err == nil {
 			log.Infof("Requested app '%s' refresh", name)
 			return app.DeepCopy(), nil
@@ -299,7 +299,7 @@ func ValidateRepo(
 	conditions := make([]argoappv1.ApplicationCondition, 0)
 
 	// Test the repo
-	conn, repoClient, err := repoClientset.NewRepoServerClient()
+	conn, repoClient, err := repoClientset.NewRepoServerClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error instantiating new repo server client: %w", err)
 	}
@@ -606,7 +606,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 	}
 
 	if destCluster.Server != "" {
-		permitted, err := proj.IsDestinationPermitted(destCluster, spec.Destination.Namespace, func(project string) ([]*argoappv1.Cluster, error) {
+		permitted, err := proj.IsDestinationPermitted(ctx, destCluster, spec.Destination.Namespace, func(ctx context.Context, project string) ([]*argoappv1.Cluster, error) {
 			return db.GetProjectClusters(ctx, project)
 		})
 		if err != nil {
@@ -827,9 +827,9 @@ func verifyGenerateManifests(
 }
 
 // SetAppOperation updates an application with the specified operation, retrying conflict errors
-func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *argoappv1.Operation) (*argoappv1.Application, error) {
+func SetAppOperation(ctx context.Context, appIf v1alpha1.ApplicationInterface, appName string, op *argoappv1.Operation) (*argoappv1.Application, error) {
 	for {
-		a, err := appIf.Get(context.Background(), appName, metav1.GetOptions{})
+		a, err := appIf.Get(ctx, appName, metav1.GetOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("error getting application %q: %w", appName, err)
 		}
@@ -839,7 +839,7 @@ func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *ar
 		}
 		a.Operation = op
 		a.Status.OperationState = nil
-		a, err = appIf.Update(context.Background(), a, metav1.UpdateOptions{})
+		a, err = appIf.Update(ctx, a, metav1.UpdateOptions{})
 		if op.Sync == nil {
 			return nil, status.Errorf(codes.InvalidArgument, "Operation unspecified")
 		}

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -18,7 +19,7 @@ import (
 )
 
 // setApplicationHealth updates the health statuses of all resources performed in the comparison
-func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (*appv1.HealthStatus, error) {
+func setApplicationHealth(ctx context.Context, resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (*appv1.HealthStatus, error) {
 	var savedErr error
 	var errCount uint
 
@@ -46,7 +47,7 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			if isSelfReferencedApp(app, kubeutil.GetObjectRef(res.Live)) {
 				continue
 			}
-			healthStatus, err = health.GetResourceHealth(res.Live, healthOverrides)
+			healthStatus, err = health.GetResourceHealthContext(ctx, res.Live, healthOverrides)
 			if err != nil && savedErr == nil {
 				errCount++
 				savedErr = fmt.Errorf("failed to get resource health for %q with name %q in namespace %q: %w", res.Live.GetKind(), res.Live.GetName(), res.Live.GetNamespace(), err)

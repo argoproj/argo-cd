@@ -27,7 +27,7 @@ type InMemoryCache struct {
 	memCache *gocache.Cache
 }
 
-func (i *InMemoryCache) Set(item *Item) error {
+func (i *InMemoryCache) Set(_ context.Context, item *Item) error {
 	var buf bytes.Buffer
 	err := gob.NewEncoder(&buf).Encode(item.Object)
 	if err != nil {
@@ -42,7 +42,7 @@ func (i *InMemoryCache) Set(item *Item) error {
 	return nil
 }
 
-func (i *InMemoryCache) Rename(oldKey string, newKey string, expiration time.Duration) error {
+func (i *InMemoryCache) Rename(_ context.Context, oldKey string, newKey string, expiration time.Duration) error {
 	bufIf, found := i.memCache.Get(oldKey)
 	if !found {
 		return ErrCacheMiss
@@ -71,7 +71,7 @@ func (i *InMemoryCache) HasSame(key string, obj any) (bool, error) {
 	return bytes.Equal(buf.Bytes(), existingBuf.Bytes()), nil
 }
 
-func (i *InMemoryCache) Get(key string, obj any) error {
+func (i *InMemoryCache) Get(_ context.Context, key string, obj any) error {
 	bufIf, found := i.memCache.Get(key)
 	if !found {
 		return ErrCacheMiss
@@ -80,7 +80,7 @@ func (i *InMemoryCache) Get(key string, obj any) error {
 	return gob.NewDecoder(&buf).Decode(obj)
 }
 
-func (i *InMemoryCache) Delete(key string) error {
+func (i *InMemoryCache) Delete(_ context.Context, key string) error {
 	i.memCache.Delete(key)
 	return nil
 }
@@ -93,7 +93,7 @@ func (i *InMemoryCache) OnUpdated(_ context.Context, _ string, _ func() error) e
 	return nil
 }
 
-func (i *InMemoryCache) NotifyUpdated(_ string) error {
+func (i *InMemoryCache) NotifyUpdated(_ context.Context, _ string) error {
 	return nil
 }
 

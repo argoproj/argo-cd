@@ -118,7 +118,7 @@ func TestVerifyAndReconnectDisableAuthTrue(t *testing.T) {
 		// the underlying token nil pointer dereference is swallowed in a location I didn't find,
 		// or even swallowed by the test framework.
 		ts.terminalOpts = &TerminalOptions{DisableAuth: true}
-		code, err := ts.performValidationsAndReconnect([]byte{})
+		code, err := ts.performValidationsAndReconnect(r.Context(), []byte{})
 		assert.Equal(t, 0, code)
 		require.NoError(t, err)
 	}

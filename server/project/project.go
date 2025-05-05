@@ -397,7 +397,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		return nil, err
 	}
 
-	getProjectClusters := func(project string) ([]*v1alpha1.Cluster, error) {
+	getProjectClusters := func(ctx context.Context, project string) ([]*v1alpha1.Cluster, error) {
 		return s.db.GetProjectClusters(ctx, project)
 	}
 
@@ -416,13 +416,13 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 			}
 			invalidDstCount++
 		}
-		dstPermitted, err := oldProj.IsDestinationPermitted(destCluster, a.Spec.Destination.Namespace, getProjectClusters)
+		dstPermitted, err := oldProj.IsDestinationPermitted(ctx, destCluster, a.Spec.Destination.Namespace, getProjectClusters)
 		if err != nil {
 			return nil, err
 		}
 
 		if dstPermitted {
-			dstPermitted, err = q.Project.IsDestinationPermitted(destCluster, a.Spec.Destination.Namespace, getProjectClusters)
+			dstPermitted, err = q.Project.IsDestinationPermitted(ctx, destCluster, a.Spec.Destination.Namespace, getProjectClusters)
 			if err != nil {
 				return nil, err
 			}
@@ -505,7 +505,7 @@ func (s *Server) logEvent(ctx context.Context, a *v1alpha1.AppProject, reason st
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	s.auditLogger.LogAppProjEvent(a, eventInfo, message, user)
+	s.auditLogger.LogAppProjEvent(ctx, a, eventInfo, message, user)
 }
 
 func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindowsQuery) (*project.SyncWindowsResponse, error) {
@@ -532,8 +532,8 @@ func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindows
 	return res, nil
 }
 
-func (s *Server) NormalizeProjs() error {
-	projList, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).List(context.Background(), metav1.ListOptions{})
+func (s *Server) NormalizeProjs(ctx context.Context) error {
+	projList, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return status.Errorf(codes.Internal, "Error retrieving project list: %s", err.Error())
 	}
@@ -542,7 +542,7 @@ func (s *Server) NormalizeProjs() error {
 			if !proj.NormalizeJWTTokens() {
 				break
 			}
-			_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(context.Background(), &proj, metav1.UpdateOptions{})
+			_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(ctx, &proj, metav1.UpdateOptions{})
 			if err == nil {
 				log.Infof("Successfully normalized project %s.", proj.Name)
 				break
@@ -551,7 +551,7 @@ func (s *Server) NormalizeProjs() error {
 				log.Warnf("Failed normalize project %s", proj.Name)
 				break
 			}
-			projGet, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(context.Background(), proj.Name, metav1.GetOptions{})
+			projGet, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, proj.Name, metav1.GetOptions{})
 			if err != nil {
 				return status.Errorf(codes.Internal, "Error retrieving project: %s", err.Error())
 			}

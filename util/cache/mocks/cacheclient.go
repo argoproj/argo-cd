@@ -16,15 +16,15 @@ type MockCacheClient struct {
 	WriteDelay time.Duration
 }
 
-func (c *MockCacheClient) Rename(oldKey string, newKey string, expiration time.Duration) error {
+func (c *MockCacheClient) Rename(ctx context.Context, oldKey string, newKey string, expiration time.Duration) error {
 	args := c.Called(oldKey, newKey, expiration)
 	if len(args) > 0 && args.Get(0) != nil {
 		return args.Get(0).(error)
 	}
-	return c.BaseCache.Rename(oldKey, newKey, expiration)
+	return c.BaseCache.Rename(ctx, oldKey, newKey, expiration)
 }
 
-func (c *MockCacheClient) Set(item *cache.Item) error {
+func (c *MockCacheClient) Set(ctx context.Context, item *cache.Item) error {
 	args := c.Called(item)
 	if len(args) > 0 && args.Get(0) != nil {
 		return args.Get(0).(error)
@@ -32,10 +32,10 @@ func (c *MockCacheClient) Set(item *cache.Item) error {
 	if c.WriteDelay > 0 {
 		time.Sleep(c.WriteDelay)
 	}
-	return c.BaseCache.Set(item)
+	return c.BaseCache.Set(ctx, item)
 }
 
-func (c *MockCacheClient) Get(key string, obj any) error {
+func (c *MockCacheClient) Get(ctx context.Context, key string, obj any) error {
 	args := c.Called(key, obj)
 	if len(args) > 0 && args.Get(0) != nil {
 		return args.Get(0).(error)
@@ -43,10 +43,10 @@ func (c *MockCacheClient) Get(key string, obj any) error {
 	if c.ReadDelay > 0 {
 		time.Sleep(c.ReadDelay)
 	}
-	return c.BaseCache.Get(key, obj)
+	return c.BaseCache.Get(ctx, key, obj)
 }
 
-func (c *MockCacheClient) Delete(key string) error {
+func (c *MockCacheClient) Delete(ctx context.Context, key string) error {
 	args := c.Called(key)
 	if len(args) > 0 && args.Get(0) != nil {
 		return args.Get(0).(error)
@@ -54,7 +54,7 @@ func (c *MockCacheClient) Delete(key string) error {
 	if c.WriteDelay > 0 {
 		time.Sleep(c.WriteDelay)
 	}
-	return c.BaseCache.Delete(key)
+	return c.BaseCache.Delete(ctx, key)
 }
 
 func (c *MockCacheClient) OnUpdated(ctx context.Context, key string, callback func() error) error {
@@ -65,10 +65,10 @@ func (c *MockCacheClient) OnUpdated(ctx context.Context, key string, callback fu
 	return c.BaseCache.OnUpdated(ctx, key, callback)
 }
 
-func (c *MockCacheClient) NotifyUpdated(key string) error {
+func (c *MockCacheClient) NotifyUpdated(ctx context.Context, key string) error {
 	args := c.Called(key)
 	if len(args) > 0 && args.Get(0) != nil {
 		return args.Get(0).(error)
 	}
-	return c.BaseCache.NotifyUpdated(key)
+	return c.BaseCache.NotifyUpdated(ctx, key)
 }

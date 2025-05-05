@@ -22,7 +22,7 @@ func (c *Consequences) Expect() *Consequences {
 
 func (c *Consequences) And(block func(repository *v1alpha1.Repository, err error)) *Consequences {
 	c.context.t.Helper()
-	block(c.repo())
+	block(c.repo(c.context.t.Context()))
 	return c
 }
 
@@ -32,15 +32,15 @@ func (c *Consequences) AndCLIOutput(block func(output string, err error)) *Conse
 	return c
 }
 
-func (c *Consequences) repo() (*v1alpha1.Repository, error) {
-	app, err := c.get()
+func (c *Consequences) repo(ctx context.Context) (*v1alpha1.Repository, error) {
+	app, err := c.get(ctx)
 	return app, err
 }
 
-func (c *Consequences) get() (*v1alpha1.Repository, error) {
-	_, repoClient, _ := fixture.ArgoCDClientset.NewRepoClient()
+func (c *Consequences) get(ctx context.Context) (*v1alpha1.Repository, error) {
+	_, repoClient, _ := fixture.ArgoCDClientset.NewRepoClient(ctx)
 
-	repo, _ := repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
+	repo, _ := repoClient.ListRepositories(ctx, &repositorypkg.RepoQuery{})
 	for i := range repo.Items {
 		if repo.Items[i].Repo == c.context.path {
 			return repo.Items[i], nil

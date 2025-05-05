@@ -2,6 +2,7 @@ package helm
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -14,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 
@@ -25,12 +27,12 @@ type fakeIndexCache struct {
 	data []byte
 }
 
-func (f *fakeIndexCache) SetHelmIndex(_ string, indexData []byte) error {
+func (f *fakeIndexCache) SetHelmIndex(_ context.Context, _ string, indexData []byte) error {
 	f.data = indexData
 	return nil
 }
 
-func (f *fakeIndexCache) GetHelmIndex(_ string, indexData *[]byte) error {
+func (f *fakeIndexCache) GetHelmIndex(_ context.Context, _ string, indexData *[]byte) error {
 	*indexData = f.data
 	return nil
 }
@@ -38,12 +40,12 @@ func (f *fakeIndexCache) GetHelmIndex(_ string, indexData *[]byte) error {
 func TestIndex(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
 		client := NewClient("", HelmCreds{}, false, "", "")
-		_, err := client.GetIndex(false, 10000)
+		_, err := client.GetIndex(t.Context(), false, 10000)
 		require.Error(t, err)
 	})
 	t.Run("Stable", func(t *testing.T) {
 		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-		index, err := client.GetIndex(false, 10000)
+		index, err := client.GetIndex(t.Context(), false, 10000)
 		require.NoError(t, err)
 		assert.NotNil(t, index)
 	})
@@ -52,7 +54,7 @@ func TestIndex(t *testing.T) {
 			Username: "my-password",
 			Password: "my-username",
 		}, false, "", "")
-		index, err := client.GetIndex(false, 10000)
+		index, err := client.GetIndex(t.Context(), false, 10000)
 		require.NoError(t, err)
 		assert.NotNil(t, index)
 	})
@@ -64,7 +66,7 @@ func TestIndex(t *testing.T) {
 		require.NoError(t, err)
 
 		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
-		index, err := client.GetIndex(false, 10000)
+		index, err := client.GetIndex(t.Context(), false, 10000)
 
 		require.NoError(t, err)
 		assert.Equal(t, fakeIndex, *index)
@@ -72,7 +74,7 @@ func TestIndex(t *testing.T) {
 
 	t.Run("Limited", func(t *testing.T) {
 		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-		_, err := client.GetIndex(false, 100)
+		_, err := client.GetIndex(t.Context(), false, 100)
 
 		assert.ErrorContains(t, err, "unexpected end of stream")
 	})
@@ -80,7 +82,7 @@ func TestIndex(t *testing.T) {
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
+	path, closer, err := client.ExtractChart(t.Context(), "argo-cd", "0.7.1", false, math.MaxInt64, true)
 	require.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)
@@ -90,13 +92,13 @@ func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 
 func Test_nativeHelmChart_ExtractChartWithLimiter(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-	_, _, err := client.ExtractChart("argo-cd", "0.7.1", false, 100, false)
+	_, _, err := client.ExtractChart(t.Context(), "argo-cd", "0.7.1", false, 100, false)
 	require.Error(t, err, "error while iterating on tar reader: unexpected EOF")
 }
 
 func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{InsecureSkipVerify: true}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
+	path, closer, err := client.ExtractChart(t.Context(), "argo-cd", "0.7.1", false, math.MaxInt64, true)
 	require.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)
@@ -191,7 +193,7 @@ func TestGetTagsFromUrl(t *testing.T) {
 
 		client := NewClient(server.URL, HelmCreds{InsecureSkipVerify: true}, true, "", "")
 
-		tags, err := client.GetTags("mychart", true)
+		tags, err := client.GetTags(t.Context(), "mychart", true)
 		require.NoError(t, err)
 		assert.ElementsMatch(t, tags.Tags, []string{
 			"first",
@@ -207,7 +209,7 @@ func TestGetTagsFromUrl(t *testing.T) {
 	t.Run("should return an error not when oci is not enabled", func(t *testing.T) {
 		client := NewClient("example.com", HelmCreds{}, false, "", "")
 
-		_, err := client.GetTags("my-chart", true)
+		_, err := client.GetTags(t.Context(), "my-chart", true)
 		assert.ErrorIs(t, ErrOCINotEnabled, err)
 	})
 }
@@ -278,7 +280,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 				Password:           password,
 			}, true, "", "")
 
-			tags, err := client.GetTags("mychart", true)
+			tags, err := client.GetTags(t.Context(), "mychart", true)
 
 			require.NoError(t, err)
 			assert.ElementsMatch(t, tags.Tags, []string{
@@ -300,7 +302,7 @@ func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *tes
 	}
 
 	workloadIdentityMock := new(mocks.TokenProvider)
-	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return("accessToken", nil)
+	workloadIdentityMock.On("GetToken", mock.Anything, "https://management.core.windows.net/.default").Return("accessToken", nil)
 
 	mockServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("called %s", r.URL.Path)
@@ -376,7 +378,7 @@ func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *tes
 				tokenProvider:      workloadIdentityMock,
 			}, true, "", "")
 
-			tags, err := client.GetTags("mychart", true)
+			tags, err := client.GetTags(t.Context(), "mychart", true)
 
 			require.NoError(t, err)
 			assert.ElementsMatch(t, tags.Tags, []string{
@@ -459,7 +461,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 				InsecureSkipVerify: true,
 			}, true, "", "")
 
-			tags, err := client.GetTags("mychart", true)
+			tags, err := client.GetTags(t.Context(), "mychart", true)
 
 			require.NoError(t, err)
 			assert.ElementsMatch(t, tags.Tags, []string{

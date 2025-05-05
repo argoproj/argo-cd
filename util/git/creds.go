@@ -89,7 +89,7 @@ type CredsStore interface {
 }
 
 type Creds interface {
-	Environ() (io.Closer, []string, error)
+	Environ(ctx context.Context) (io.Closer, []string, error)
 	// GetUserInfo gets the username and email address for the credentials, if they're available.
 	GetUserInfo(ctx context.Context) (string, string, error)
 }
@@ -105,7 +105,7 @@ var _ Creds = NopCreds{}
 
 type NopCreds struct{}
 
-func (c NopCreds) Environ() (io.Closer, []string, error) {
+func (c NopCreds) Environ(_ context.Context) (io.Closer, []string, error) {
 	return NopCloser{}, nil, nil
 }
 
@@ -187,7 +187,7 @@ func (creds HTTPSCreds) BearerAuthHeader() string {
 
 // Get additional required environment variables for executing git client to
 // access specific repository via HTTPS.
-func (creds HTTPSCreds) Environ() (io.Closer, []string, error) {
+func (creds HTTPSCreds) Environ(_ context.Context) (io.Closer, []string, error) {
 	var env []string
 
 	httpCloser := authFilePaths(make([]string, 0))
@@ -315,7 +315,7 @@ func (f authFilePaths) Close() error {
 	return retErr
 }
 
-func (c SSHCreds) Environ() (io.Closer, []string, error) {
+func (c SSHCreds) Environ(_ context.Context) (io.Closer, []string, error) {
 	// use the SHM temp dir from util, more secure
 	file, err := os.CreateTemp(argoio.TempDir, "")
 	if err != nil {
@@ -396,8 +396,8 @@ func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseU
 	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, repoURL: repoURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, noProxy: noProxy, store: store}
 }
 
-func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
-	token, err := g.getAccessToken()
+func (g GitHubAppCreds) Environ(ctx context.Context) (io.Closer, []string, error) {
+	token, err := g.getAccessToken(ctx)
 	if err != nil {
 		return NopCloser{}, nil, err
 	}
@@ -494,9 +494,9 @@ func (g GitHubAppCreds) GetUserInfo(ctx context.Context) (string, string, error)
 
 // getAccessToken fetches GitHub token using the app id, install id, and private key.
 // the token is then cached for re-use.
-func (g GitHubAppCreds) getAccessToken() (string, error) {
+func (g GitHubAppCreds) getAccessToken(ctx context.Context) (string, error) {
 	// Timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
 	itr, err := g.getInstallationTransport()
@@ -593,8 +593,8 @@ type GoogleCloudCreds struct {
 	store CredsStore
 }
 
-func NewGoogleCloudCreds(jsonData string, store CredsStore) GoogleCloudCreds {
-	creds, err := google.CredentialsFromJSON(context.Background(), []byte(jsonData), "https://www.googleapis.com/auth/cloud-platform")
+func NewGoogleCloudCreds(ctx context.Context, jsonData string, store CredsStore) GoogleCloudCreds {
+	creds, err := google.CredentialsFromJSON(ctx, []byte(jsonData), "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
 		// Invalid JSON
 		log.Errorf("Failed reading credentials from JSON: %+v", err)
@@ -612,7 +612,7 @@ func (c GoogleCloudCreds) GetUserInfo(_ context.Context) (string, string, error)
 	return username, "", nil
 }
 
-func (c GoogleCloudCreds) Environ() (io.Closer, []string, error) {
+func (c GoogleCloudCreds) Environ(_ context.Context) (io.Closer, []string, error) {
 	username, err := c.getUsername()
 	if err != nil {
 		return NopCloser{}, nil, fmt.Errorf("failed to get username from creds: %w", err)
@@ -712,8 +712,8 @@ func (creds AzureWorkloadIdentityCreds) GetUserInfo(_ context.Context) (string, 
 	return workloadidentity.EmptyGuid, "", nil
 }
 
-func (creds AzureWorkloadIdentityCreds) Environ() (io.Closer, []string, error) {
-	token, err := creds.GetAzureDevOpsAccessToken()
+func (creds AzureWorkloadIdentityCreds) Environ(ctx context.Context) (io.Closer, []string, error) {
+	token, err := creds.GetAzureDevOpsAccessToken(ctx)
 	if err != nil {
 		return NopCloser{}, nil, err
 	}
@@ -726,7 +726,7 @@ func (creds AzureWorkloadIdentityCreds) Environ() (io.Closer, []string, error) {
 	}), env, nil
 }
 
-func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, error) {
+func (creds AzureWorkloadIdentityCreds) getAccessToken(ctx context.Context, scope string) (string, error) {
 	// Compute hash of creds for lookup in cache
 	key, err := argoutils.GenerateCacheKey("%s", scope)
 	if err != nil {
@@ -738,7 +738,7 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 		return t.(string), nil
 	}
 
-	token, err := creds.tokenProvider.GetToken(scope)
+	token, err := creds.tokenProvider.GetToken(ctx, scope)
 	if err != nil {
 		return "", fmt.Errorf("failed to get Azure access token: %w", err)
 	}
@@ -747,7 +747,7 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 	return token, nil
 }
 
-func (creds AzureWorkloadIdentityCreds) GetAzureDevOpsAccessToken() (string, error) {
-	accessToken, err := creds.getAccessToken(azureDevopsEntraResourceId) // wellknown resourceid of Azure DevOps
+func (creds AzureWorkloadIdentityCreds) GetAzureDevOpsAccessToken(ctx context.Context) (string, error) {
+	accessToken, err := creds.getAccessToken(ctx, azureDevopsEntraResourceId) // wellknown resourceid of Azure DevOps
 	return accessToken, err
 }

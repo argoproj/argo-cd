@@ -2,6 +2,7 @@ package lua
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,6 +23,14 @@ import (
 type testNormalizer struct{}
 
 func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
+	return t.NormalizeContext(context.Background(), un) //nolint:forbidigo // for backward compatibility
+}
+
+func (t testNormalizer) NormalizeContext(ctx context.Context, un *unstructured.Unstructured) error {
+	return t.normalize(ctx, un)
+}
+
+func (t testNormalizer) normalize(_ context.Context, un *unstructured.Unstructured) error {
 	if un == nil {
 		return nil
 	}
@@ -123,7 +132,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				obj := getObj(t, filepath.Join(dir, test.InputPath))
 				discoveryLua, err := vm.GetResourceActionDiscovery(obj)
 				require.NoError(t, err)
-				result, err := vm.ExecuteResourceActionDiscovery(obj, discoveryLua)
+				result, err := vm.ExecuteResourceActionDiscovery(t.Context(), obj, discoveryLua)
 				require.NoError(t, err)
 				for i := range result {
 					assert.Contains(t, test.Result, result[i])
@@ -147,7 +156,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				require.NoError(t, err)
 
 				require.NoError(t, err)
-				impactedResources, err := vm.ExecuteResourceAction(sourceObj, action.ActionLua)
+				impactedResources, err := vm.ExecuteResourceAction(t.Context(), sourceObj, action.ActionLua)
 				require.NoError(t, err)
 
 				// Treat the Lua expected output as a list

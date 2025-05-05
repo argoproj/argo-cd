@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -475,14 +476,14 @@ func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	}
 }
 
-func generateManifestHash(un *unstructured.Unstructured, ignores []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride, opts normalizers.IgnoreNormalizerOpts) (string, error) {
+func generateManifestHash(ctx context.Context, un *unstructured.Unstructured, ignores []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride, opts normalizers.IgnoreNormalizerOpts) (string, error) {
 	normalizer, err := normalizers.NewIgnoreNormalizer(ignores, overrides, opts)
 	if err != nil {
 		return "", fmt.Errorf("error creating normalizer: %w", err)
 	}
 
 	resource := un.DeepCopy()
-	err = normalizer.Normalize(resource)
+	err = normalizer.NormalizeContext(ctx, resource)
 	if err != nil {
 		return "", fmt.Errorf("error normalizing resource: %w", err)
 	}

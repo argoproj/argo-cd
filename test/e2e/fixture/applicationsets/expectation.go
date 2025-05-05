@@ -60,7 +60,7 @@ func Error(message, err string) Expectation {
 func ApplicationsExist(expectedApps []v1alpha1.Application) Expectation {
 	return func(c *Consequences) (state, string) {
 		for _, expectedApp := range expectedApps {
-			foundApp := c.app(expectedApp.Name)
+			foundApp := c.app(c.context.t.Context(), expectedApp.Name)
 			if foundApp == nil {
 				return pending, fmt.Sprintf("missing app '%s'", expectedApp.QualifiedName())
 			}
@@ -84,7 +84,7 @@ func ApplicationsExist(expectedApps []v1alpha1.Application) Expectation {
 func ApplicationSetHasConditions(applicationSetName string, expectedConditions []v1alpha1.ApplicationSetCondition) Expectation {
 	return func(c *Consequences) (state, string) {
 		// retrieve the application set
-		foundApplicationSet := c.applicationSet(applicationSetName)
+		foundApplicationSet := c.applicationSet(c.context.t.Context(), applicationSetName)
 		if foundApplicationSet == nil {
 			return pending, fmt.Sprintf("application set '%s' not found", applicationSetName)
 		}
@@ -104,7 +104,7 @@ func ApplicationSetHasConditions(applicationSetName string, expectedConditions [
 func ApplicationsDoNotExist(expectedApps []v1alpha1.Application) Expectation {
 	return func(c *Consequences) (state, string) {
 		for _, expectedApp := range expectedApps {
-			foundApp := c.app(expectedApp.Name)
+			foundApp := c.app(c.context.t.Context(), expectedApp.Name)
 			if foundApp != nil {
 				return pending, fmt.Sprintf("app '%s' should no longer exist", expectedApp.QualifiedName())
 			}

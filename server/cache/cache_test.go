@@ -32,23 +32,23 @@ func newFixtures() *fixtures {
 func TestCache_GetRepoConnectionState(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
-	_, err := cache.GetRepoConnectionState("my-repo", "")
+	_, err := cache.GetRepoConnectionState(t.Context(), "my-repo", "")
 	assert.Equal(t, ErrCacheMiss, err)
 	// populate cache
-	err = cache.SetRepoConnectionState("my-repo", "", &ConnectionState{Status: "my-state"})
+	err = cache.SetRepoConnectionState(t.Context(), "my-repo", "", &ConnectionState{Status: "my-state"})
 	require.NoError(t, err)
 	// cache miss
-	_, err = cache.GetRepoConnectionState("my-repo", "some-project")
+	_, err = cache.GetRepoConnectionState(t.Context(), "my-repo", "some-project")
 	assert.Equal(t, ErrCacheMiss, err)
 	// populate cache
-	err = cache.SetRepoConnectionState("my-repo", "some-project", &ConnectionState{Status: "my-project-state"})
+	err = cache.SetRepoConnectionState(t.Context(), "my-repo", "some-project", &ConnectionState{Status: "my-project-state"})
 	require.NoError(t, err)
 	// cache hit
-	value, err := cache.GetRepoConnectionState("my-repo", "")
+	value, err := cache.GetRepoConnectionState(t.Context(), "my-repo", "")
 	require.NoError(t, err)
 	assert.Equal(t, ConnectionState{Status: "my-state"}, value)
 	// cache hit
-	value, err = cache.GetRepoConnectionState("my-repo", "some-project")
+	value, err = cache.GetRepoConnectionState(t.Context(), "my-repo", "some-project")
 	require.NoError(t, err)
 	assert.Equal(t, ConnectionState{Status: "my-project-state"}, value)
 }

@@ -165,8 +165,8 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 	return &a, nil
 }
 
-func (a *ClientApp) oauth2Config(request *http.Request, scopes []string) (*oauth2.Config, error) {
-	endpoint, err := a.provider.Endpoint()
+func (a *ClientApp) oauth2Config(ctx context.Context, request *http.Request, scopes []string) (*oauth2.Config, error) {
+	endpoint, err := a.provider.Endpoint(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -306,7 +306,8 @@ func isValidRedirectURL(redirectURL string, allowedURLs []string) bool {
 // HandleLogin formulates the proper OAuth2 URL (auth code or implicit) and redirects the user to
 // the IDp login & consent page
 func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
-	oidcConf, err := a.provider.ParseConfig()
+	ctx := r.Context()
+	oidcConf, err := a.provider.ParseConfig(ctx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -320,7 +321,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		scopes = append(GetScopesOrDefault(nil), common.DexFederatedScope)
 	}
 
-	oauth2Config, err := a.oauth2Config(r, scopes)
+	oauth2Config, err := a.oauth2Config(ctx, r, scopes)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -397,7 +398,7 @@ func (a *azureApp) getFederatedServiceAccountToken(context.Context) (string, err
 
 // HandleCallback is the callback handler for an OAuth2 login flow
 func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
-	oauth2Config, err := a.oauth2Config(r, nil)
+	oauth2Config, err := a.oauth2Config(r.Context(), r, nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -449,7 +450,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idToken, err := a.provider.Verify(idTokenRAW, a.settings)
+	idToken, err := a.provider.Verify(ctx, idTokenRAW, a.settings)
 	if err != nil {
 		log.Warnf("Failed to verify token: %s", err)
 		http.Error(w, common.TokenVerificationError, http.StatusInternalServerError)
@@ -479,7 +480,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sub := jwtutil.StringField(claims, "sub")
-	err = a.clientCache.Set(&cache.Item{
+	err = a.clientCache.Set(ctx, &cache.Item{
 		Key:    formatAccessTokenCacheKey(sub),
 		Object: encToken,
 		CacheActionOpts: cache.CacheActionOpts{
@@ -627,14 +628,14 @@ func createClaimsAuthenticationRequestParameter(requestedClaims map[string]*oidc
 }
 
 // GetUserInfo queries the IDP userinfo endpoint for claims
-func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoPath string) (jwt.MapClaims, bool, error) {
+func (a *ClientApp) GetUserInfo(ctx context.Context, actualClaims jwt.MapClaims, issuerURL, userInfoPath string) (jwt.MapClaims, bool, error) {
 	sub := jwtutil.StringField(actualClaims, "sub")
 	var claims jwt.MapClaims
 	var encClaims []byte
 
 	// in case we got it in the cache, we just return the item
 	clientCacheKey := formatUserInfoResponseCacheKey(sub)
-	if err := a.clientCache.Get(clientCacheKey, &encClaims); err == nil {
+	if err := a.clientCache.Get(ctx, clientCacheKey, &encClaims); err == nil {
 		claimsRaw, err := crypto.Decrypt(encClaims, a.encryptionKey)
 		if err != nil {
 			log.Errorf("decrypting the cached claims failed (sub=%s): %s", sub, err)
@@ -650,7 +651,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 
 	// check if the accessToken for the user is still present
 	var encAccessToken []byte
-	err := a.clientCache.Get(formatAccessTokenCacheKey(sub), &encAccessToken)
+	err := a.clientCache.Get(ctx, formatAccessTokenCacheKey(sub), &encAccessToken)
 	// without an accessToken we can't query the user info endpoint
 	// thus the user needs to reauthenticate for argocd to get a new accessToken
 	if errors.Is(err, cache.ErrCacheMiss) {
@@ -693,7 +694,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	switch header {
 	case "application/jwt":
 		// if body is JWT, first validate it before extracting claims
-		idToken, err := a.provider.Verify(string(rawBody), a.settings)
+		idToken, err := a.provider.Verify(ctx, string(rawBody), a.settings)
 		if err != nil {
 			return claims, false, fmt.Errorf("user info response in jwt format not valid: %w", err)
 		}
@@ -736,7 +737,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 		return claims, false, fmt.Errorf("couldn't encrypt user info response: %w", err)
 	}
 
-	err = a.clientCache.Set(&cache.Item{
+	err = a.clientCache.Set(ctx, &cache.Item{
 		Key:    clientCacheKey,
 		Object: encClaims,
 		CacheActionOpts: cache.CacheActionOpts{

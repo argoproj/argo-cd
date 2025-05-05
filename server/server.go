@@ -274,7 +274,7 @@ func (g GracefulRestartSignal) String() string {
 func (g GracefulRestartSignal) Signal() {}
 
 // initializeDefaultProject creates the default project if it does not already exist
-func initializeDefaultProject(opts ArgoCDServerOpts) error {
+func initializeDefaultProject(ctx context.Context, opts ArgoCDServerOpts) error {
 	defaultProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: v1alpha1.DefaultAppProjectName, Namespace: opts.Namespace},
 		Spec: v1alpha1.AppProjectSpec{
@@ -284,9 +284,9 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 		},
 	}
 
-	_, err := opts.AppClientset.ArgoprojV1alpha1().AppProjects(opts.Namespace).Get(context.Background(), defaultProj.Name, metav1.GetOptions{})
+	_, err := opts.AppClientset.ArgoprojV1alpha1().AppProjects(opts.Namespace).Get(ctx, defaultProj.Name, metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
-		_, err = opts.AppClientset.ArgoprojV1alpha1().AppProjects(opts.Namespace).Create(context.Background(), defaultProj, metav1.CreateOptions{})
+		_, err = opts.AppClientset.ArgoprojV1alpha1().AppProjects(opts.Namespace).Create(ctx, defaultProj, metav1.CreateOptions{})
 		if apierrors.IsAlreadyExists(err) {
 			return nil
 		}
@@ -297,9 +297,9 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 // NewServer returns a new instance of the Argo CD API server
 func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts ApplicationSetOpts) *ArgoCDServer {
 	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
-	settings, err := settingsMgr.InitializeSettings(opts.Insecure)
+	settings, err := settingsMgr.InitializeSettings(ctx, opts.Insecure)
 	errorsutil.CheckError(err)
-	err = initializeDefaultProject(opts)
+	err = initializeDefaultProject(ctx, opts)
 	errorsutil.CheckError(err)
 
 	appInformerNs := opts.Namespace
@@ -334,13 +334,13 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		staticFS = io.NewComposableFS(staticFS, os.DirFS(opts.StaticAssetsDir))
 	}
 
-	argocdService, err := service.NewArgoCDService(opts.KubeClientset, opts.Namespace, opts.RepoClientset)
+	argocdService, err := service.NewArgoCDService(ctx, opts.KubeClientset, opts.Namespace, opts.RepoClientset)
 	errorsutil.CheckError(err)
 
 	secretInformer := k8s.NewSecretInformer(opts.KubeClientset, opts.Namespace, "argocd-notifications-secret")
 	configMapInformer := k8s.NewConfigMapInformer(opts.KubeClientset, opts.Namespace, "argocd-notifications-cm")
 
-	apiFactory := api.NewFactory(settings_notif.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm", false), opts.Namespace, secretInformer, configMapInformer)
+	apiFactory := api.NewFactory(settings_notif.GetFactorySettings(ctx, argocdService, "argocd-notifications-secret", "argocd-notifications-cm", false), opts.Namespace, secretInformer, configMapInformer)
 
 	dbInstance := db.NewDB(opts.Namespace, settingsMgr, opts.KubeClientset)
 	logger := log.NewEntry(log.StandardLogger())
@@ -564,7 +564,7 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 
 	svcSet := newArgoCDServiceSet(server)
 	server.serviceSet = svcSet
-	grpcS, appResourceTreeFn := server.newGRPCServer()
+	grpcS, appResourceTreeFn := server.newGRPCServer(ctx)
 	grpcWebS := grpcweb.WrapServer(grpcS)
 	var httpS *http.Server
 	var httpsS *http.Server
@@ -887,7 +887,7 @@ func (server *ArgoCDServer) useTLS() bool {
 	return true
 }
 
-func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTreeFn) {
+func (server *ArgoCDServer) newGRPCServer(ctx context.Context) (*grpc.Server, application.AppResourceTreeFn) {
 	var serverMetricsOptions []grpc_prometheus.ServerMetricsOption
 	if enableGRPCTimeHistogram {
 		serverMetricsOptions = append(serverMetricsOptions, grpc_prometheus.WithServerHandlingTimeHistogram())
@@ -978,7 +978,7 @@ func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResour
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcS)
 	serverMetrics.InitializeMetrics(grpcS)
-	errorsutil.CheckError(server.serviceSet.ProjectService.NormalizeProjs())
+	errorsutil.CheckError(server.serviceSet.ProjectService.NormalizeProjs(ctx))
 	return grpcS, server.serviceSet.AppResourceTreeFn
 }
 
@@ -1226,7 +1226,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
+	acdWebhookHandler := webhook.NewHandler(ctx, server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
 
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
@@ -1524,7 +1524,7 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 	if tokenString == "" {
 		return nil, "", ErrNoSession
 	}
-	claims, newToken, err := server.sessionMgr.VerifyToken(tokenString)
+	claims, newToken, err := server.sessionMgr.VerifyToken(ctx, tokenString)
 	if err != nil {
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
@@ -1541,7 +1541,7 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 	// Some SSO implementations (Okta) require a call to the OIDC user info path to get attributes like groups
 	iss := jwtutil.StringField(mapClaims, "iss")
 	if iss != util_session.SessionManagerClaimsIssuer && server.settings.UserInfoGroupsEnabled() && server.settings.UserInfoPath() != "" {
-		userInfo, unauthorized, err := server.ssoClientApp.GetUserInfo(mapClaims, server.settings.IssuerURL(), server.settings.UserInfoPath())
+		userInfo, unauthorized, err := server.ssoClientApp.GetUserInfo(ctx, mapClaims, server.settings.IssuerURL(), server.settings.UserInfoPath())
 		if unauthorized {
 			log.Errorf("error while quering userinfo endpoint: %v", err)
 			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session")

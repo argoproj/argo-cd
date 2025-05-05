@@ -27,16 +27,16 @@ func TestCache_GetAppManagedResources(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
 	value := &[]*ResourceDiff{}
-	err := cache.GetAppManagedResources("my-appname", value)
+	err := cache.GetAppManagedResources(t.Context(), "my-appname", value)
 	assert.Equal(t, ErrCacheMiss, err)
 	// populate cache
-	err = cache.SetAppManagedResources("my-appname", []*ResourceDiff{{Name: "my-name"}})
+	err = cache.SetAppManagedResources(t.Context(), "my-appname", []*ResourceDiff{{Name: "my-name"}})
 	require.NoError(t, err)
 	// cache miss
-	err = cache.GetAppManagedResources("other-appname", value)
+	err = cache.GetAppManagedResources(t.Context(), "other-appname", value)
 	assert.Equal(t, ErrCacheMiss, err)
 	// cache hit
-	err = cache.GetAppManagedResources("my-appname", value)
+	err = cache.GetAppManagedResources(t.Context(), "my-appname", value)
 	require.NoError(t, err)
 	assert.Equal(t, &[]*ResourceDiff{{Name: "my-name"}}, value)
 }
@@ -45,16 +45,16 @@ func TestCache_GetAppResourcesTree(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
 	value := &ApplicationTree{}
-	err := cache.GetAppResourcesTree("my-appname", value)
+	err := cache.GetAppResourcesTree(t.Context(), "my-appname", value)
 	assert.Equal(t, ErrCacheMiss, err)
 	// populate cache
-	err = cache.SetAppResourcesTree("my-appname", &ApplicationTree{Nodes: []ResourceNode{{}}})
+	err = cache.SetAppResourcesTree(t.Context(), "my-appname", &ApplicationTree{Nodes: []ResourceNode{{}}})
 	require.NoError(t, err)
 	// cache miss
-	err = cache.GetAppResourcesTree("other-appname", value)
+	err = cache.GetAppResourcesTree(t.Context(), "other-appname", value)
 	assert.Equal(t, ErrCacheMiss, err)
 	// cache hit
-	err = cache.GetAppResourcesTree("my-appname", value)
+	err = cache.GetAppResourcesTree(t.Context(), "my-appname", value)
 	require.NoError(t, err)
 	assert.Equal(t, &ApplicationTree{Nodes: []ResourceNode{{}}}, value)
 }
@@ -63,16 +63,16 @@ func TestCache_GetClusterInfo(t *testing.T) {
 	cache := newFixtures().Cache
 	// cache miss
 	res := &ClusterInfo{}
-	err := cache.GetClusterInfo("http://minikube", res)
+	err := cache.GetClusterInfo(t.Context(), "http://minikube", res)
 	assert.Equal(t, ErrCacheMiss, err)
 	// populate cache
-	err = cache.SetClusterInfo("http://kind-cluster", &ClusterInfo{ServerVersion: "0.24.0"})
+	err = cache.SetClusterInfo(t.Context(), "http://kind-cluster", &ClusterInfo{ServerVersion: "0.24.0"})
 	require.NoError(t, err)
 	// cache miss
-	err = cache.GetClusterInfo("http://kind-clusterss", res)
+	err = cache.GetClusterInfo(t.Context(), "http://kind-clusterss", res)
 	assert.Equal(t, ErrCacheMiss, err)
 	// cache hit
-	err = cache.GetClusterInfo("http://kind-cluster", res)
+	err = cache.GetClusterInfo(t.Context(), "http://kind-cluster", res)
 	require.NoError(t, err)
 	assert.Equal(t, &ClusterInfo{ServerVersion: "0.24.0"}, res)
 }

@@ -52,16 +52,16 @@ const (
 	serviceAccountDisallowedCharSet = "!*[]{}\\/"
 )
 
-func (m *appStateManager) getOpenAPISchema(server *v1alpha1.Cluster) (openapi.Resources, error) {
-	cluster, err := m.liveStateCache.GetClusterCache(server)
+func (m *appStateManager) getOpenAPISchema(ctx context.Context, server *v1alpha1.Cluster) (openapi.Resources, error) {
+	cluster, err := m.liveStateCache.GetClusterCache(ctx, server)
 	if err != nil {
 		return nil, err
 	}
 	return cluster.GetOpenAPISchema(), nil
 }
 
-func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields.GvkParser, error) {
-	cluster, err := m.liveStateCache.GetClusterCache(server)
+func (m *appStateManager) getGVKParser(ctx context.Context, server *v1alpha1.Cluster) (*managedfields.GvkParser, error) {
+	cluster, err := m.liveStateCache.GetClusterCache(ctx, server)
 	if err != nil {
 		return nil, err
 	}
@@ -72,8 +72,8 @@ func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields
 // interface that provides functionality to dry run apply kubernetes resources. Returns a
 // cleanup function that must be called to remove the generated kube config for this
 // server.
-func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Cluster) (gitopsDiff.KubeApplier, func(), error) {
-	clusterCache, err := m.liveStateCache.GetClusterCache(cluster)
+func (m *appStateManager) getServerSideDiffDryRunApplier(ctx context.Context, cluster *v1alpha1.Cluster) (gitopsDiff.KubeApplier, func(), error) {
+	clusterCache, err := m.liveStateCache.GetClusterCache(ctx, cluster)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting cluster cache: %w", err)
 	}
@@ -89,7 +89,7 @@ func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Clust
 	return ops, cleanup, nil
 }
 
-func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
+func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Application, state *v1alpha1.OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
 	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult field.
@@ -171,7 +171,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		}
 	}
 
-	proj, err := argo.GetAppProject(context.TODO(), app, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr, m.db)
+	proj, err := argo.GetAppProject(ctx, app, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr, m.db)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
@@ -196,7 +196,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 
 	// ignore error if CompareStateRepoError, this shouldn't happen as noRevisionCache is true
-	compareResult, err := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, isMultiSourceRevision, rollback)
+	compareResult, err := m.CompareAppState(ctx, app, proj, revisions, sources, false, true, syncOp.Manifests, isMultiSourceRevision, rollback)
 	if err != nil && !stderrors.Is(err, ErrCompareStateRepo) {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
@@ -218,7 +218,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, m.db)
+	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, m.db)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to get destination cluster: %v", err)
@@ -282,7 +282,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		prunePropagationPolicy = metav1.DeletePropagationOrphan
 	}
 
-	openAPISchema, err := m.getOpenAPISchema(destCluster)
+	openAPISchema, err := m.getOpenAPISchema(ctx, destCluster)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("failed to load openAPISchema: %v", err)
@@ -295,7 +295,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	// resources which in this case applies the live values in the configured
 	// ignore differences fields.
 	if syncOp.SyncOptions.HasOption("RespectIgnoreDifferences=true") {
-		patchedTargets, err := normalizeTargetResources(compareResult)
+		patchedTargets, err := normalizeTargetResources(ctx, compareResult)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("Failed to normalize target resources: %s", err)
@@ -335,14 +335,14 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 	opts := []sync.SyncOpt{
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
-		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
+		sync.WithHealthOverrideContext(lua.ResourceHealthOverrides(resourceOverrides)),
 		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *metav1.APIResource) error {
 			if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), res.Namespaced) {
 				return fmt.Errorf("resource %s:%s is not permitted in project %s", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, proj.Name)
 			}
 			if res.Namespaced {
-				permitted, err := proj.IsDestinationPermitted(destCluster, un.GetNamespace(), func(project string) ([]*v1alpha1.Cluster, error) {
-					return m.db.GetProjectClusters(context.TODO(), project)
+				permitted, err := proj.IsDestinationPermitted(ctx, destCluster, un.GetNamespace(), func(ctx context.Context, project string) ([]*v1alpha1.Cluster, error) {
+					return m.db.GetProjectClusters(ctx, project)
 				})
 				if err != nil {
 					return err
@@ -399,9 +399,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	start := time.Now()
 
 	if state.Phase == common.OperationTerminating {
-		syncCtx.Terminate()
+		syncCtx.TerminateContext(ctx)
 	} else {
-		syncCtx.Sync()
+		syncCtx.SyncContext(ctx)
 	}
 	var resState []common.ResourceSyncResult
 	state.Phase, state.Message, resState = syncCtx.GetState()
@@ -415,7 +415,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	for _, res := range resState {
 		augmentedMsg, err := argo.AugmentSyncMsg(res, func() ([]kube.APIResourceInfo, error) {
 			if apiVersion == nil {
-				_, apiVersion, err = m.liveStateCache.GetVersionsInfo(destCluster)
+				_, apiVersion, err = m.liveStateCache.GetVersionsInfo(ctx, destCluster)
 				if err != nil {
 					return nil, fmt.Errorf("failed to get version info from the target cluster %q", destCluster.Server)
 				}
@@ -446,7 +446,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	logEntry.WithField("duration", time.Since(start)).Info("sync/terminate complete")
 
 	if !syncOp.DryRun && len(syncOp.Resources) == 0 && state.Phase.Successful() {
-		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, isMultiSourceRevision, state.StartedAt, state.Operation.InitiatedBy)
+		err := m.persistRevisionHistory(ctx, app, compareResult.syncStatus.Revision, source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, isMultiSourceRevision, state.StartedAt, state.Operation.InitiatedBy)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)
@@ -458,9 +458,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 //   - applies normalization to the target resources based on the live resources
 //   - copies ignored fields from the matching live resources: apply normalizer to the live resource,
 //     calculates the patch performed by normalizer and applies the patch to the target resource
-func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructured, error) {
+func normalizeTargetResources(ctx context.Context, cr *comparisonResult) ([]*unstructured.Unstructured, error) {
 	// normalize live and target resources
-	normalized, err := diff.Normalize(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
+	normalized, err := diff.Normalize(ctx, cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
 	if err != nil {
 		return nil, err
 	}

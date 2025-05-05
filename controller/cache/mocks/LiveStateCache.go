@@ -25,9 +25,9 @@ type LiveStateCache struct {
 	mock.Mock
 }
 
-// GetClusterCache provides a mock function with given fields: server
-func (_m *LiveStateCache) GetClusterCache(server *v1alpha1.Cluster) (cache.ClusterCache, error) {
-	ret := _m.Called(server)
+// GetClusterCache provides a mock function with given fields: ctx, server
+func (_m *LiveStateCache) GetClusterCache(ctx context.Context, server *v1alpha1.Cluster) (cache.ClusterCache, error) {
+	ret := _m.Called(ctx, server)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetClusterCache")
@@ -35,19 +35,19 @@ func (_m *LiveStateCache) GetClusterCache(server *v1alpha1.Cluster) (cache.Clust
 
 	var r0 cache.ClusterCache
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*v1alpha1.Cluster) (cache.ClusterCache, error)); ok {
-		return rf(server)
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.Cluster) (cache.ClusterCache, error)); ok {
+		return rf(ctx, server)
 	}
-	if rf, ok := ret.Get(0).(func(*v1alpha1.Cluster) cache.ClusterCache); ok {
-		r0 = rf(server)
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.Cluster) cache.ClusterCache); ok {
+		r0 = rf(ctx, server)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(cache.ClusterCache)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(*v1alpha1.Cluster) error); ok {
-		r1 = rf(server)
+	if rf, ok := ret.Get(1).(func(context.Context, *v1alpha1.Cluster) error); ok {
+		r1 = rf(ctx, server)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -75,9 +75,9 @@ func (_m *LiveStateCache) GetClustersInfo() []cache.ClusterInfo {
 	return r0
 }
 
-// GetManagedLiveObjs provides a mock function with given fields: destCluster, a, targetObjs
-func (_m *LiveStateCache) GetManagedLiveObjs(destCluster *v1alpha1.Cluster, a *v1alpha1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
-	ret := _m.Called(destCluster, a, targetObjs)
+// GetManagedLiveObjs provides a mock function with given fields: ctx, destCluster, a, targetObjs
+func (_m *LiveStateCache) GetManagedLiveObjs(ctx context.Context, destCluster *v1alpha1.Cluster, a *v1alpha1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
+	ret := _m.Called(ctx, destCluster, a, targetObjs)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetManagedLiveObjs")
@@ -85,19 +85,19 @@ func (_m *LiveStateCache) GetManagedLiveObjs(destCluster *v1alpha1.Cluster, a *v
 
 	var r0 map[kube.ResourceKey]*unstructured.Unstructured
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*v1alpha1.Cluster, *v1alpha1.Application, []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)); ok {
-		return rf(destCluster, a, targetObjs)
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.Cluster, *v1alpha1.Application, []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)); ok {
+		return rf(ctx, destCluster, a, targetObjs)
 	}
-	if rf, ok := ret.Get(0).(func(*v1alpha1.Cluster, *v1alpha1.Application, []*unstructured.Unstructured) map[kube.ResourceKey]*unstructured.Unstructured); ok {
-		r0 = rf(destCluster, a, targetObjs)
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.Cluster, *v1alpha1.Application, []*unstructured.Unstructured) map[kube.ResourceKey]*unstructured.Unstructured); ok {
+		r0 = rf(ctx, destCluster, a, targetObjs)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[kube.ResourceKey]*unstructured.Unstructured)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(*v1alpha1.Cluster, *v1alpha1.Application, []*unstructured.Unstructured) error); ok {
-		r1 = rf(destCluster, a, targetObjs)
+	if rf, ok := ret.Get(1).(func(context.Context, *v1alpha1.Cluster, *v1alpha1.Application, []*unstructured.Unstructured) error); ok {
+		r1 = rf(ctx, destCluster, a, targetObjs)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -105,9 +105,9 @@ func (_m *LiveStateCache) GetManagedLiveObjs(destCluster *v1alpha1.Cluster, a *v
 	return r0, r1
 }
 
-// GetNamespaceTopLevelResources provides a mock function with given fields: server, namespace
-func (_m *LiveStateCache) GetNamespaceTopLevelResources(server *v1alpha1.Cluster, namespace string) (map[kube.ResourceKey]v1alpha1.ResourceNode, error) {
-	ret := _m.Called(server, namespace)
+// GetNamespaceTopLevelResources provides a mock function with given fields: ctx, server, namespace
+func (_m *LiveStateCache) GetNamespaceTopLevelResources(ctx context.Context, server *v1alpha1.Cluster, namespace string) (map[kube.ResourceKey]v1alpha1.ResourceNode, error) {
+	ret := _m.Called(ctx, server, namespace)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetNamespaceTopLevelResources")
@@ -115,19 +115,19 @@ func (_m *LiveStateCache) GetNamespaceTopLevelResources(server *v1alpha1.Cluster
 
 	var r0 map[kube.ResourceKey]v1alpha1.ResourceNode
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*v1alpha1.Cluster, string) (map[kube.ResourceKey]v1alpha1.ResourceNode, error)); ok {
-		return rf(server, namespace)
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.Cluster, string) (map[kube.ResourceKey]v1alpha1.ResourceNode, error)); ok {
+		return rf(ctx, server, namespace)
 	}
-	if rf, ok := ret.Get(0).(func(*v1alpha1.Cluster, string) map[kube.ResourceKey]v1alpha1.ResourceNode); ok {
-		r0 = rf(server, namespace)
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.Cluster, string) map[kube.ResourceKey]v1alpha1.ResourceNode); ok {
+		r0 = rf(ctx, server, namespace)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[kube.ResourceKey]v1alpha1.ResourceNode)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(*v1alpha1.Cluster, string) error); ok {
-		r1 = rf(server, namespace)
+	if rf, ok := ret.Get(1).(func(context.Context, *v1alpha1.Cluster, string) error); ok {
+		r1 = rf(ctx, server, namespace)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -135,9 +135,9 @@ func (_m *LiveStateCache) GetNamespaceTopLevelResources(server *v1alpha1.Cluster
 	return r0, r1
 }
 
-// GetVersionsInfo provides a mock function with given fields: server
-func (_m *LiveStateCache) GetVersionsInfo(server *v1alpha1.Cluster) (string, []kube.APIResourceInfo, error) {
-	ret := _m.Called(server)
+// GetVersionsInfo provides a mock function with given fields: ctx, server
+func (_m *LiveStateCache) GetVersionsInfo(ctx context.Context, server *v1alpha1.Cluster) (string, []kube.APIResourceInfo, error) {
+	ret := _m.Called(ctx, server)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetVersionsInfo")
@@ -146,25 +146,25 @@ func (_m *LiveStateCache) GetVersionsInfo(server *v1alpha1.Cluster) (string, []k
 	var r0 string
 	var r1 []kube.APIResourceInfo
 	var r2 error
-	if rf, ok := ret.Get(0).(func(*v1alpha1.Cluster) (string, []kube.APIResourceInfo, error)); ok {
-		return rf(server)
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.Cluster) (string, []kube.APIResourceInfo, error)); ok {
+		return rf(ctx, server)
 	}
-	if rf, ok := ret.Get(0).(func(*v1alpha1.Cluster) string); ok {
-		r0 = rf(server)
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.Cluster) string); ok {
+		r0 = rf(ctx, server)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(*v1alpha1.Cluster) []kube.APIResourceInfo); ok {
-		r1 = rf(server)
+	if rf, ok := ret.Get(1).(func(context.Context, *v1alpha1.Cluster) []kube.APIResourceInfo); ok {
+		r1 = rf(ctx, server)
 	} else {
 		if ret.Get(1) != nil {
 			r1 = ret.Get(1).([]kube.APIResourceInfo)
 		}
 	}
 
-	if rf, ok := ret.Get(2).(func(*v1alpha1.Cluster) error); ok {
-		r2 = rf(server)
+	if rf, ok := ret.Get(2).(func(context.Context, *v1alpha1.Cluster) error); ok {
+		r2 = rf(ctx, server)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -190,9 +190,9 @@ func (_m *LiveStateCache) Init() error {
 	return r0
 }
 
-// IsNamespaced provides a mock function with given fields: server, gk
-func (_m *LiveStateCache) IsNamespaced(server *v1alpha1.Cluster, gk schema.GroupKind) (bool, error) {
-	ret := _m.Called(server, gk)
+// IsNamespaced provides a mock function with given fields: ctx, server, gk
+func (_m *LiveStateCache) IsNamespaced(ctx context.Context, server *v1alpha1.Cluster, gk schema.GroupKind) (bool, error) {
+	ret := _m.Called(ctx, server, gk)
 
 	if len(ret) == 0 {
 		panic("no return value specified for IsNamespaced")
@@ -200,17 +200,17 @@ func (_m *LiveStateCache) IsNamespaced(server *v1alpha1.Cluster, gk schema.Group
 
 	var r0 bool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*v1alpha1.Cluster, schema.GroupKind) (bool, error)); ok {
-		return rf(server, gk)
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.Cluster, schema.GroupKind) (bool, error)); ok {
+		return rf(ctx, server, gk)
 	}
-	if rf, ok := ret.Get(0).(func(*v1alpha1.Cluster, schema.GroupKind) bool); ok {
-		r0 = rf(server, gk)
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.Cluster, schema.GroupKind) bool); ok {
+		r0 = rf(ctx, server, gk)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
-	if rf, ok := ret.Get(1).(func(*v1alpha1.Cluster, schema.GroupKind) error); ok {
-		r1 = rf(server, gk)
+	if rf, ok := ret.Get(1).(func(context.Context, *v1alpha1.Cluster, schema.GroupKind) error); ok {
+		r1 = rf(ctx, server, gk)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -218,17 +218,17 @@ func (_m *LiveStateCache) IsNamespaced(server *v1alpha1.Cluster, gk schema.Group
 	return r0, r1
 }
 
-// IterateHierarchy provides a mock function with given fields: server, key, action
-func (_m *LiveStateCache) IterateHierarchy(server *v1alpha1.Cluster, key kube.ResourceKey, action func(v1alpha1.ResourceNode, string) bool) error {
-	ret := _m.Called(server, key, action)
+// IterateHierarchy provides a mock function with given fields: ctx, server, key, action
+func (_m *LiveStateCache) IterateHierarchy(ctx context.Context, server *v1alpha1.Cluster, key kube.ResourceKey, action func(v1alpha1.ResourceNode, string) bool) error {
+	ret := _m.Called(ctx, server, key, action)
 
 	if len(ret) == 0 {
 		panic("no return value specified for IterateHierarchy")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*v1alpha1.Cluster, kube.ResourceKey, func(v1alpha1.ResourceNode, string) bool) error); ok {
-		r0 = rf(server, key, action)
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.Cluster, kube.ResourceKey, func(v1alpha1.ResourceNode, string) bool) error); ok {
+		r0 = rf(ctx, server, key, action)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -236,17 +236,17 @@ func (_m *LiveStateCache) IterateHierarchy(server *v1alpha1.Cluster, key kube.Re
 	return r0
 }
 
-// IterateHierarchyV2 provides a mock function with given fields: server, keys, action
-func (_m *LiveStateCache) IterateHierarchyV2(server *v1alpha1.Cluster, keys []kube.ResourceKey, action func(v1alpha1.ResourceNode, string) bool) error {
-	ret := _m.Called(server, keys, action)
+// IterateHierarchyV2 provides a mock function with given fields: ctx, server, keys, action
+func (_m *LiveStateCache) IterateHierarchyV2(ctx context.Context, server *v1alpha1.Cluster, keys []kube.ResourceKey, action func(v1alpha1.ResourceNode, string) bool) error {
+	ret := _m.Called(ctx, server, keys, action)
 
 	if len(ret) == 0 {
 		panic("no return value specified for IterateHierarchyV2")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*v1alpha1.Cluster, []kube.ResourceKey, func(v1alpha1.ResourceNode, string) bool) error); ok {
-		r0 = rf(server, keys, action)
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.Cluster, []kube.ResourceKey, func(v1alpha1.ResourceNode, string) bool) error); ok {
+		r0 = rf(ctx, server, keys, action)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -254,17 +254,17 @@ func (_m *LiveStateCache) IterateHierarchyV2(server *v1alpha1.Cluster, keys []ku
 	return r0
 }
 
-// IterateResources provides a mock function with given fields: server, callback
-func (_m *LiveStateCache) IterateResources(server *v1alpha1.Cluster, callback func(*cache.Resource, *controllercache.ResourceInfo)) error {
-	ret := _m.Called(server, callback)
+// IterateResources provides a mock function with given fields: ctx, server, callback
+func (_m *LiveStateCache) IterateResources(ctx context.Context, server *v1alpha1.Cluster, callback func(*cache.Resource, *controllercache.ResourceInfo)) error {
+	ret := _m.Called(ctx, server, callback)
 
 	if len(ret) == 0 {
 		panic("no return value specified for IterateResources")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*v1alpha1.Cluster, func(*cache.Resource, *controllercache.ResourceInfo)) error); ok {
-		r0 = rf(server, callback)
+	if rf, ok := ret.Get(0).(func(context.Context, *v1alpha1.Cluster, func(*cache.Resource, *controllercache.ResourceInfo)) error); ok {
+		r0 = rf(ctx, server, callback)
 	} else {
 		r0 = ret.Error(0)
 	}

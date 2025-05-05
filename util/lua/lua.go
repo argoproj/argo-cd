@@ -42,7 +42,7 @@ func (e ScriptDoesNotExistError) Error() string {
 
 type ResourceHealthOverrides map[string]appv1.ResourceOverride
 
-func (overrides ResourceHealthOverrides) GetResourceHealth(obj *unstructured.Unstructured) (*health.HealthStatus, error) {
+func (overrides ResourceHealthOverrides) GetResourceHealth(ctx context.Context, obj *unstructured.Unstructured) (*health.HealthStatus, error) {
 	luaVM := VM{
 		ResourceOverrides: overrides,
 	}
@@ -55,7 +55,7 @@ func (overrides ResourceHealthOverrides) GetResourceHealth(obj *unstructured.Uns
 	}
 	// enable/disable the usage of lua standard library
 	luaVM.UseOpenLibs = useOpenLibs
-	result, err := luaVM.ExecuteHealthLua(obj, script)
+	result, err := luaVM.ExecuteHealthLua(ctx, obj, script)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ type VM struct {
 	UseOpenLibs bool
 }
 
-func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState, error) {
+func (vm VM) runLua(ctx context.Context, obj *unstructured.Unstructured, script string) (*lua.LState, error) {
 	l := lua.NewState(lua.Options{
 		SkipOpenLibs: !vm.UseOpenLibs,
 	})
@@ -96,7 +96,7 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState,
 	// preload our 'safe' version of the OS library. Allows the 'local os = require("os")' to work
 	l.PreloadModule(lua.OsLibName, SafeOsLoader)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	l.SetContext(ctx)
 	objectValue := decodeValue(l, obj.Object)
@@ -106,8 +106,8 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState,
 }
 
 // ExecuteHealthLua runs the lua script to generate the health status of a resource
-func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*health.HealthStatus, error) {
-	l, err := vm.runLua(obj, script)
+func (vm VM) ExecuteHealthLua(ctx context.Context, obj *unstructured.Unstructured, script string) (*health.HealthStatus, error) {
+	l, err := vm.runLua(ctx, obj, script)
 	if err != nil {
 		return nil, err
 	}
@@ -173,8 +173,8 @@ func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (script string, use
 	return builtInScript, true, err
 }
 
-func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string) ([]ImpactedResource, error) {
-	l, err := vm.runLua(obj, script)
+func (vm VM) ExecuteResourceAction(ctx context.Context, obj *unstructured.Unstructured, script string) ([]ImpactedResource, error) {
+	l, err := vm.runLua(ctx, obj, script)
 	if err != nil {
 		return nil, err
 	}
@@ -292,14 +292,14 @@ func cleanReturnedArray(newObj, obj []any) []any {
 	return arrayToReturn
 }
 
-func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scripts []string) ([]appv1.ResourceAction, error) {
+func (vm VM) ExecuteResourceActionDiscovery(ctx context.Context, obj *unstructured.Unstructured, scripts []string) ([]appv1.ResourceAction, error) {
 	if len(scripts) == 0 {
 		return nil, errors.New("no action discovery script provided")
 	}
 	availableActionsMap := make(map[string]appv1.ResourceAction)
 
 	for _, script := range scripts {
-		l, err := vm.runLua(obj, script)
+		l, err := vm.runLua(ctx, obj, script)
 		if err != nil {
 			return nil, err
 		}

@@ -54,7 +54,7 @@ func TestLuaHealthScript(t *testing.T) {
 				obj := getObj(t, filepath.Join(dir, test.InputPath))
 				script, _, err := vm.GetHealthScript(obj)
 				require.NoError(t, err)
-				result, err := vm.ExecuteHealthLua(obj, script)
+				result, err := vm.ExecuteHealthLua(t.Context(), obj, script)
 				require.NoError(t, err)
 				assert.Equal(t, &test.HealthStatus, result)
 			})

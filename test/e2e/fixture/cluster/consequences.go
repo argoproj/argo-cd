@@ -20,9 +20,9 @@ func (c *Consequences) Expect() *Consequences {
 	return c
 }
 
-func (c *Consequences) And(block func(cluster *v1alpha1.Cluster, err error)) *Consequences {
+func (c *Consequences) And(ctx context.Context, block func(cluster *v1alpha1.Cluster, err error)) *Consequences {
 	c.context.t.Helper()
-	block(c.cluster())
+	block(c.cluster(ctx))
 	return c
 }
 
@@ -32,15 +32,15 @@ func (c *Consequences) AndCLIOutput(block func(output string, err error)) *Conse
 	return c
 }
 
-func (c *Consequences) cluster() (*v1alpha1.Cluster, error) {
-	app, err := c.get()
+func (c *Consequences) cluster(ctx context.Context) (*v1alpha1.Cluster, error) {
+	app, err := c.get(ctx)
 	return app, err
 }
 
-func (c *Consequences) get() (*v1alpha1.Cluster, error) {
-	_, clusterClient, _ := fixture.ArgoCDClientset.NewClusterClient()
+func (c *Consequences) get(ctx context.Context) (*v1alpha1.Cluster, error) {
+	_, clusterClient, _ := fixture.ArgoCDClientset.NewClusterClient(ctx)
 
-	cluster, _ := clusterClient.List(context.Background(), &clusterpkg.ClusterQuery{})
+	cluster, _ := clusterClient.List(ctx, &clusterpkg.ClusterQuery{})
 	for i := range cluster.Items {
 		if cluster.Items[i].Server == c.context.server {
 			return &cluster.Items[i], nil

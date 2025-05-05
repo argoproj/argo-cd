@@ -34,7 +34,7 @@ func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *Se
 // CommitHydratedManifests handles a commit request. It clones the repository, checks out the sync branch, checks out
 // the target branch, clears the repository contents, writes the manifests to the repository, commits the changes, and
 // pushes the changes. It returns the hydrated revision SHA and an error if one occurred.
-func (s *Service) CommitHydratedManifests(_ context.Context, r *apiclient.CommitHydratedManifestsRequest) (*apiclient.CommitHydratedManifestsResponse, error) {
+func (s *Service) CommitHydratedManifests(ctx context.Context, r *apiclient.CommitHydratedManifestsRequest) (*apiclient.CommitHydratedManifestsResponse, error) {
 	// This method is intentionally short. It's a wrapper around handleCommitRequest that adds metrics and logging.
 	// Keep logic here minimal and put most of the logic in handleCommitRequest.
 	startTime := time.Now()
@@ -60,7 +60,7 @@ func (s *Service) CommitHydratedManifests(_ context.Context, r *apiclient.Commit
 
 	logCtx := log.WithFields(log.Fields{"branch": r.TargetBranch, "drySHA": r.DrySha})
 
-	out, sha, err := s.handleCommitRequest(logCtx, r)
+	out, sha, err := s.handleCommitRequest(ctx, logCtx, r)
 	if err != nil {
 		logCtx.WithError(err).WithField("output", out).Error("failed to handle commit request")
 
@@ -77,7 +77,7 @@ func (s *Service) CommitHydratedManifests(_ context.Context, r *apiclient.Commit
 // handleCommitRequest handles the commit request. It clones the repository, checks out the sync branch, checks out the
 // target branch, clears the repository contents, writes the manifests to the repository, commits the changes, and pushes
 // the changes. It returns the output of the git commands and an error if one occurred.
-func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydratedManifestsRequest) (string, string, error) {
+func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r *apiclient.CommitHydratedManifestsRequest) (string, string, error) {
 	if r.Repo == nil {
 		return "", "", errors.New("repo is required")
 	}
@@ -93,7 +93,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 
 	logCtx = logCtx.WithField("repo", r.Repo.Repo)
 	logCtx.Debug("Initiating git client")
-	gitClient, dirPath, cleanup, err := s.initGitClient(logCtx, r)
+	gitClient, dirPath, cleanup, err := s.initGitClient(ctx, logCtx, r)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to init git client: %w", err)
 	}
@@ -101,13 +101,13 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 
 	logCtx.Debugf("Checking out sync branch %s", r.SyncBranch)
 	var out string
-	out, err = gitClient.CheckoutOrOrphan(r.SyncBranch, false)
+	out, err = gitClient.CheckoutOrOrphan(ctx, r.SyncBranch, false)
 	if err != nil {
 		return out, "", fmt.Errorf("failed to checkout sync branch: %w", err)
 	}
 
 	logCtx.Debugf("Checking out target branch %s", r.TargetBranch)
-	out, err = gitClient.CheckoutOrNew(r.TargetBranch, r.SyncBranch, false)
+	out, err = gitClient.CheckoutOrNew(ctx, r.TargetBranch, r.SyncBranch, false)
 	if err != nil {
 		return out, "", fmt.Errorf("failed to checkout target branch: %w", err)
 	}
@@ -125,7 +125,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 
 	logCtx.Debug("Committing and pushing changes")
-	out, err = gitClient.CommitAndPush(r.TargetBranch, r.CommitMessage)
+	out, err = gitClient.CommitAndPush(ctx, r.TargetBranch, r.CommitMessage)
 	if err != nil {
 		return out, "", fmt.Errorf("failed to commit and push: %w", err)
 	}
@@ -142,7 +142,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 // initGitClient initializes a git client for the given repository and returns the client, the path to the directory where
 // the repository is cloned, a cleanup function that should be called when the directory is no longer needed, and an error
 // if one occurred.
-func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedManifestsRequest) (git.Client, string, func(), error) {
+func (s *Service) initGitClient(ctx context.Context, logCtx *log.Entry, r *apiclient.CommitHydratedManifestsRequest) (git.Client, string, func(), error) {
 	dirPath, err := files.CreateTempDir("/tmp/_commit-service")
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("failed to create temp dir: %w", err)
@@ -155,7 +155,7 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 		}
 	}
 
-	gitClient, err := s.repoClientFactory.NewClient(r.Repo, dirPath)
+	gitClient, err := s.repoClientFactory.NewClient(ctx, r.Repo, dirPath)
 	if err != nil {
 		cleanupOrLog()
 		return nil, "", nil, fmt.Errorf("failed to create git client: %w", err)
@@ -169,7 +169,7 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 	}
 
 	logCtx.Debugf("Fetching repo %s", r.Repo.Repo)
-	err = gitClient.Fetch("")
+	err = gitClient.Fetch(ctx, "")
 	if err != nil {
 		cleanupOrLog()
 		return nil, "", nil, fmt.Errorf("failed to clone repo: %w", err)

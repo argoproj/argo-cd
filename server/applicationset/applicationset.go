@@ -269,7 +269,7 @@ func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.E
 	argoCDService := services.NewArgoCDService(s.db, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
 	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, namespace, argoCDService, s.dynamicClient, scmConfig)
 
-	apps, _, err := appsettemplate.GenerateApplications(logEntry, appset, appSetGenerators, &appsetutils.Render{}, s.client)
+	apps, _, err := appsettemplate.GenerateApplications(ctx, logEntry, appset, appSetGenerators, &appsetutils.Render{}, s.client)
 	if err != nil {
 		return nil, fmt.Errorf("error generating applications: %w", err)
 	}
@@ -493,7 +493,7 @@ func (s *Server) logAppSetEvent(ctx context.Context, a *v1alpha1.ApplicationSet,
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	s.auditLogger.LogAppSetEvent(a, eventInfo, message, user)
+	s.auditLogger.LogAppSetEvent(ctx, a, eventInfo, message, user)
 }
 
 func (s *Server) appsetNamespaceOrDefault(appNs string) string {

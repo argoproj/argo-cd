@@ -245,12 +245,12 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if isValidShell(s.allowedShells, shell) {
 		cmd := []string{shell}
-		err = startProcess(kubeClientset, config, namespace, podName, container, cmd, session)
+		err = startProcess(ctx, kubeClientset, config, namespace, podName, container, cmd, session)
 	} else {
 		// No shell given or the given shell was not allowed: try the configured shells until one succeeds or all fail.
 		for _, testShell := range s.allowedShells {
 			cmd := []string{testShell}
-			if err = startProcess(kubeClientset, config, namespace, podName, container, cmd, session); err == nil {
+			if err = startProcess(ctx, kubeClientset, config, namespace, podName, container, cmd, session); err == nil {
 				break
 			}
 		}
@@ -298,7 +298,7 @@ type TerminalCommand struct {
 }
 
 // startProcess executes specified commands in the container and connects it up with the ptyHandler (a session)
-func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, namespace, podName, containerName string, cmd []string, ptyHandler PtyHandler) error {
+func startProcess(ctx context.Context, k8sClient kubernetes.Interface, cfg *rest.Config, namespace, podName, containerName string, cmd []string, ptyHandler PtyHandler) error {
 	req := k8sClient.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
@@ -332,7 +332,7 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, namespace, p
 			return err
 		}
 	}
-	return exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
+	return exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:             ptyHandler,
 		Stdout:            ptyHandler,
 		Stderr:            ptyHandler,

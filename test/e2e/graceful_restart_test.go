@@ -35,7 +35,7 @@ func TestAPIServerGracefulRestart(t *testing.T) {
 	// Should be healthy.
 	checkHealth(t, true)
 	// Should trigger API server restart.
-	require.NoError(t, fixture.SetParamInSettingConfigMap("url", "http://test-api-server-graceful-restart"))
+	require.NoError(t, fixture.SetParamInSettingConfigMap(t.Context(), "url", "http://test-api-server-graceful-restart"))
 
 	// Wait for ~5 seconds
 	for i := 0; i < 50; i++ {
@@ -44,7 +44,7 @@ func TestAPIServerGracefulRestart(t *testing.T) {
 	}
 	// One final time, should be healthy, or restart is considered too slow for tests
 	checkHealth(t, true)
-	closer, settingsClient, err := fixture.ArgoCDClientset.NewSettingsClient()
+	closer, settingsClient, err := fixture.ArgoCDClientset.NewSettingsClient(t.Context())
 	if closer != nil {
 		defer closer.Close()
 	}

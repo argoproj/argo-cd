@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strings"
@@ -214,7 +215,7 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 }
 
 // GetGitCreds returns the credentials from a repository configuration used to authenticate at a Git repository
-func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
+func (repo *Repository) GetGitCreds(ctx context.Context, store git.CredsStore) git.Creds {
 	if repo == nil {
 		return git.NopCreds{}
 	}
@@ -228,7 +229,7 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 		return git.NewGitHubAppCreds(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.Repo, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store)
 	}
 	if repo.GCPServiceAccountKey != "" {
-		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey, store)
+		return git.NewGoogleCloudCreds(ctx, repo.GCPServiceAccountKey, store)
 	}
 	if repo.UseAzureWorkloadIdentity {
 		return git.NewAzureWorkloadIdentityCreds(store, workloadidentity.NewWorkloadIdentityTokenProvider())

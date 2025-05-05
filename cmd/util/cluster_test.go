@@ -179,7 +179,7 @@ func TestGetKubePublicEndpoint(t *testing.T) {
 				objects = append(objects, tc.clusterInfo)
 			}
 			clientset := fake.NewClientset(objects...)
-			endpoint, caData, err := GetKubePublicEndpoint(clientset)
+			endpoint, caData, err := GetKubePublicEndpoint(t.Context(), clientset)
 			if tc.expectError {
 				require.Error(t, err)
 			} else {

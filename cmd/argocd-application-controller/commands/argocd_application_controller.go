@@ -177,7 +177,7 @@ func NewCommand() *cobra.Command {
 				appController.InvalidateProjectsCache()
 			}))
 			kubectl := kubeutil.NewKubectl()
-			clusterSharding, err := sharding.GetClusterSharding(kubeClient, settingsMgr, shardingAlgorithm, enableDynamicClusterDistribution)
+			clusterSharding, err := sharding.GetClusterSharding(ctx, kubeClient, settingsMgr, shardingAlgorithm, enableDynamicClusterDistribution)
 			errors.CheckError(err)
 			var selfHealBackoff *wait.Backoff
 			if selfHealBackoffTimeoutSeconds != 0 {
@@ -188,6 +188,7 @@ func NewCommand() *cobra.Command {
 				}
 			}
 			appController, err = controller.NewApplicationController(
+				ctx,
 				namespace,
 				settingsMgr,
 				kubeClient,

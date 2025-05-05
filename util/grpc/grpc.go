@@ -104,7 +104,7 @@ type TLSTestResult struct {
 	InsecureErr error
 }
 
-func TestTLS(address string, dialTime time.Duration) (*TLSTestResult, error) {
+func TestTLS(ctx context.Context, address string, dialTime time.Duration) (*TLSTestResult, error) {
 	if parts := strings.Split(address, ":"); len(parts) == 1 {
 		// If port is unspecified, assume the most likely port
 		address += ":443"
@@ -116,7 +116,7 @@ func TestTLS(address string, dialTime time.Duration) (*TLSTestResult, error) {
 
 	// Set timeout when dialing to the server
 	// fix: https://github.com/argoproj/argo-cd/issues/9679
-	ctx, cancel := context.WithTimeout(context.Background(), dialTime)
+	ctx, cancel := context.WithTimeout(ctx, dialTime)
 	defer cancel()
 
 	conn, err := BlockingDial(ctx, "tcp", address, creds)
@@ -124,7 +124,7 @@ func TestTLS(address string, dialTime time.Duration) (*TLSTestResult, error) {
 		_ = conn.Close()
 		testResult.TLS = true
 		creds := credentials.NewTLS(&tls.Config{})
-		ctx, cancel := context.WithTimeout(context.Background(), dialTime)
+		ctx, cancel := context.WithTimeout(ctx, dialTime)
 		defer cancel()
 
 		conn, err := BlockingDial(ctx, "tcp", address, creds)
@@ -140,7 +140,7 @@ func TestTLS(address string, dialTime time.Duration) (*TLSTestResult, error) {
 	// If we get here, we were unable to connect via TLS (even with InsecureSkipVerify: true)
 	// It may be because server is running without TLS, or because of real issues (e.g. connection
 	// refused). Test if server accepts plain-text connections
-	ctx, cancel = context.WithTimeout(context.Background(), dialTime)
+	ctx, cancel = context.WithTimeout(ctx, dialTime)
 	defer cancel()
 	conn, err = BlockingDial(ctx, "tcp", address, nil)
 	if err == nil {

@@ -52,7 +52,7 @@ type argoCDClientsets struct {
 }
 
 // NewAdminCommand returns a new instance of an argocd command
-func NewAdminCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewAdminCommand(ctx context.Context, clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	pathOpts := clientcmd.NewDefaultPathOptions()
 
 	command := &cobra.Command{
@@ -78,7 +78,7 @@ $ argocd admin initial-password reset
 	command.AddCommand(NewImportCommand())
 	command.AddCommand(NewExportCommand())
 	command.AddCommand(NewDashboardCommand(clientOpts))
-	command.AddCommand(NewNotificationsCommand())
+	command.AddCommand(NewNotificationsCommand(ctx))
 	command.AddCommand(NewInitialPasswordCommand())
 	command.AddCommand(NewRedisInitialPasswordCommand())
 

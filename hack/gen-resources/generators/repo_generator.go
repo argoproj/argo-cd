@@ -79,7 +79,7 @@ func FetchRepos(token string, samples int) ([]Repo, error) {
 	return repos, nil
 }
 
-func (rg *RepoGenerator) Generate(opts *util.GenerateOpts) error {
+func (rg *RepoGenerator) Generate(ctx context.Context, opts *util.GenerateOpts) error {
 	repos, err := FetchRepos(opts.GithubToken, opts.RepositoryOpts.Samples)
 	if err != nil {
 		return err
@@ -88,7 +88,7 @@ func (rg *RepoGenerator) Generate(opts *util.GenerateOpts) error {
 	secrets := rg.clientSet.CoreV1().Secrets(opts.Namespace)
 	rg.bar.NewOption(0, int64(len(repos)))
 	for _, repo := range repos {
-		_, err = secrets.Create(context.TODO(), &corev1.Secret{
+		_, err = secrets.Create(ctx, &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "repo-",
 				Namespace:    opts.Namespace,
@@ -116,10 +116,10 @@ func (rg *RepoGenerator) Generate(opts *util.GenerateOpts) error {
 	return nil
 }
 
-func (rg *RepoGenerator) Clean(opts *util.GenerateOpts) error {
+func (rg *RepoGenerator) Clean(ctx context.Context, opts *util.GenerateOpts) error {
 	log.Printf("Clean repos")
 	secrets := rg.clientSet.CoreV1().Secrets(opts.Namespace)
-	return secrets.DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
+	return secrets.DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/generated-by=argocd-generator",
 	})
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path"
@@ -34,7 +33,7 @@ func newCommand() *cobra.Command {
 		configMaps   []string
 	)
 	command := cobra.Command{
-		Run: func(_ *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			ns, _, err := clientConfig.Namespace()
@@ -106,7 +105,7 @@ func newCommand() *cobra.Command {
 			if err != nil {
 				log.Error(err)
 			}
-			informer.Run(context.Background().Done())
+			informer.Run(c.Context().Done())
 		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)

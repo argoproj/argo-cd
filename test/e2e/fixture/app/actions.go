@@ -492,7 +492,7 @@ func (a *Actions) Wait(args ...string) *Actions {
 
 func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
 	a.context.t.Helper()
-	require.NoError(a.context.t, fixture.SetParamInSettingConfigMap(key, value))
+	require.NoError(a.context.t, fixture.SetParamInSettingConfigMap(a.context.t.Context(), key, value))
 	return a
 }
 
@@ -522,34 +522,38 @@ func (a *Actions) verifyAction() {
 
 func (a *Actions) SetTrackingMethod(trackingMethod string) *Actions {
 	a.context.t.Helper()
-	require.NoError(a.context.t, fixture.SetTrackingMethod(trackingMethod))
+	ctx := a.context.t.Context()
+	require.NoError(a.context.t, fixture.SetTrackingMethod(ctx, trackingMethod))
 	return a
 }
 
 func (a *Actions) SetInstallationID(installationID string) *Actions {
 	a.context.t.Helper()
-	require.NoError(a.context.t, fixture.SetInstallationID(installationID))
+	ctx := a.context.t.Context()
+	require.NoError(a.context.t, fixture.SetInstallationID(ctx, installationID))
 	return a
 }
 
 func (a *Actions) SetTrackingLabel(trackingLabel string) *Actions {
 	a.context.t.Helper()
-	require.NoError(a.context.t, fixture.SetTrackingLabel(trackingLabel))
+	ctx := a.context.t.Context()
+	require.NoError(a.context.t, fixture.SetTrackingLabel(ctx, trackingLabel))
 	return a
 }
 
 func (a *Actions) WithImpersonationEnabled(serviceAccountName string, policyRules []rbacv1.PolicyRule) *Actions {
 	a.context.t.Helper()
-	require.NoError(a.context.t, fixture.SetImpersonationEnabled("true"))
+	ctx := a.context.t.Context()
+	require.NoError(a.context.t, fixture.SetImpersonationEnabled(ctx, "true"))
 	if serviceAccountName == "" || policyRules == nil {
 		return a
 	}
-	require.NoError(a.context.t, fixture.CreateRBACResourcesForImpersonation(serviceAccountName, policyRules))
+	require.NoError(a.context.t, fixture.CreateRBACResourcesForImpersonation(ctx, serviceAccountName, policyRules))
 	return a
 }
 
 func (a *Actions) WithImpersonationDisabled() *Actions {
 	a.context.t.Helper()
-	require.NoError(a.context.t, fixture.SetImpersonationEnabled("false"))
+	require.NoError(a.context.t, fixture.SetImpersonationEnabled(a.context.t.Context(), "false"))
 	return a
 }

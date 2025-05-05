@@ -28,10 +28,10 @@ type CacheActionOpts struct {
 }
 
 type CacheClient interface {
-	Set(item *Item) error
-	Rename(oldKey string, newKey string, expiration time.Duration) error
-	Get(key string, obj any) error
-	Delete(key string) error
+	Set(ctx context.Context, item *Item) error
+	Rename(ctx context.Context, oldKey string, newKey string, expiration time.Duration) error
+	Get(ctx context.Context, key string, obj any) error
+	Delete(ctx context.Context, key string) error
 	OnUpdated(ctx context.Context, key string, callback func() error) error
-	NotifyUpdated(key string) error
+	NotifyUpdated(ctx context.Context, key string) error
 }

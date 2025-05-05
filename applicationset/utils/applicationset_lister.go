@@ -19,8 +19,13 @@ func NewAppsetLister(client ctrlclient.Client) listers.ApplicationSetLister {
 	return &AppsetLister{Client: client}
 }
 
+//nolint:forbidigo // We extend the lister interface to add a context parameter
 func (l *AppsetLister) List(_ labels.Selector) (ret []*v1alpha1.ApplicationSet, err error) {
-	return clientListAppsets(l.Client, ctrlclient.ListOptions{})
+	return clientListAppsets(context.Background(), l.Client, ctrlclient.ListOptions{})
+}
+
+func (l *AppsetLister) ListWithContext(ctx context.Context, _ labels.Selector) (ret []*v1alpha1.ApplicationSet, err error) {
+	return clientListAppsets(ctx, l.Client, ctrlclient.ListOptions{})
 }
 
 // ApplicationSets returns an object that can list and get ApplicationSets.
@@ -37,21 +42,33 @@ type appsetNamespaceLister struct {
 	Namespace string
 }
 
+//nolint:forbidigo // We extend the lister interface to add a context parameter
 func (n *appsetNamespaceLister) List(_ labels.Selector) (ret []*v1alpha1.ApplicationSet, err error) {
-	return clientListAppsets(n.Client, ctrlclient.ListOptions{Namespace: n.Namespace})
+	return clientListAppsets(context.Background(), n.Client, ctrlclient.ListOptions{Namespace: n.Namespace})
 }
 
+func (n *appsetNamespaceLister) ListWithContext(ctx context.Context, _ labels.Selector) (ret []*v1alpha1.ApplicationSet, err error) {
+	return clientListAppsets(ctx, n.Client, ctrlclient.ListOptions{Namespace: n.Namespace})
+}
+
+//nolint:forbidigo // We extend the lister interface to add a context parameter
 func (n *appsetNamespaceLister) Get(_ string) (*v1alpha1.ApplicationSet, error) {
 	appset := v1alpha1.ApplicationSet{}
-	err := n.Client.Get(context.TODO(), ctrlclient.ObjectKeyFromObject(&appset), &appset)
+	err := n.Client.Get(context.Background(), ctrlclient.ObjectKeyFromObject(&appset), &appset)
 	return &appset, err
 }
 
-func clientListAppsets(client ctrlclient.Client, listOptions ctrlclient.ListOptions) (ret []*v1alpha1.ApplicationSet, err error) {
+func (n *appsetNamespaceLister) GetWithContext(ctx context.Context, name string) (*v1alpha1.ApplicationSet, error) {
+	appset := v1alpha1.ApplicationSet{}
+	err := n.Client.Get(ctx, ctrlclient.ObjectKey{Namespace: n.Namespace, Name: name}, &appset)
+	return &appset, err
+}
+
+func clientListAppsets(ctx context.Context, client ctrlclient.Client, listOptions ctrlclient.ListOptions) (ret []*v1alpha1.ApplicationSet, err error) {
 	var appsetlist v1alpha1.ApplicationSetList
 	var results []*v1alpha1.ApplicationSet
 
-	err = client.List(context.TODO(), &appsetlist, &listOptions)
+	err = client.List(ctx, &appsetlist, &listOptions)
 
 	if err == nil {
 		for _, appset := range appsetlist.Items {

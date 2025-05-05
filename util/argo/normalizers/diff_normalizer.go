@@ -28,8 +28,7 @@ type normalizerPatch interface {
 	GetGroupKind() schema.GroupKind
 	GetNamespace() string
 	GetName() string
-	// Apply(un *unstructured.Unstructured) (error)
-	Apply(data []byte) ([]byte, error)
+	Apply(ctx context.Context, data []byte) ([]byte, error)
 }
 
 type baseNormalizerPatch struct {
@@ -55,7 +54,7 @@ type jsonPatchNormalizerPatch struct {
 	patch *jsonpatch.Patch
 }
 
-func (np *jsonPatchNormalizerPatch) Apply(data []byte) ([]byte, error) {
+func (np *jsonPatchNormalizerPatch) Apply(_ context.Context, data []byte) ([]byte, error) {
 	patchedData, err := np.patch.Apply(data)
 	if err != nil {
 		return nil, err
@@ -69,14 +68,14 @@ type jqNormalizerPatch struct {
 	jqExecutionTimeout time.Duration
 }
 
-func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {
+func (np *jqNormalizerPatch) Apply(ctx context.Context, data []byte) ([]byte, error) {
 	dataJSON := make(map[string]any)
 	err := json.Unmarshal(data, &dataJSON)
 	if err != nil {
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), np.jqExecutionTimeout)
+	ctx, cancel := context.WithTimeout(ctx, np.jqExecutionTimeout)
 	defer cancel()
 
 	iter := np.code.RunWithContext(ctx, dataJSON)
@@ -183,6 +182,16 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 
 // Normalize removes fields from supplied resource using json paths from matching items of specified resources ignored differences list
 func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
+	return n.NormalizeContext(context.Background(), un) //nolint:forbidigo // for backward compatibility
+}
+
+// NormalizeContext removes fields from supplied resource using json paths from matching items of specified resources ignored differences list
+func (n *ignoreNormalizer) NormalizeContext(ctx context.Context, un *unstructured.Unstructured) error {
+	return n.normalize(ctx, un)
+}
+
+// Normalize removes fields from supplied resource using json paths from matching items of specified resources ignored differences list
+func (n *ignoreNormalizer) normalize(ctx context.Context, un *unstructured.Unstructured) error {
 	if un == nil {
 		return errors.New("invalid argument: unstructured is nil")
 	}
@@ -207,7 +216,7 @@ func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 	}
 
 	for _, patch := range matched {
-		patchedDocData, err := patch.Apply(docData)
+		patchedDocData, err := patch.Apply(ctx, docData)
 		if err != nil {
 			if shouldLogError(err) {
 				log.Debugf("Failed to apply normalization: %v", err)

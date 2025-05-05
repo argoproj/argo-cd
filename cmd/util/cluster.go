@@ -125,8 +125,8 @@ func NewCluster(name string, namespaces []string, clusterResources bool, conf *r
 
 // GetKubePublicEndpoint returns the kubernetes apiserver endpoint and certificate authority data as published
 // in the kube-public.
-func GetKubePublicEndpoint(client kubernetes.Interface) (string, []byte, error) {
-	clusterInfo, err := client.CoreV1().ConfigMaps("kube-public").Get(context.TODO(), "cluster-info", metav1.GetOptions{})
+func GetKubePublicEndpoint(ctx context.Context, client kubernetes.Interface) (string, []byte, error) {
+	clusterInfo, err := client.CoreV1().ConfigMaps("kube-public").Get(ctx, "cluster-info", metav1.GetOptions{})
 	if err != nil {
 		return "", nil, err
 	}

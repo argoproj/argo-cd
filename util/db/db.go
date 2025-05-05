@@ -31,9 +31,9 @@ type ArgoDB interface {
 	CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error)
 	// WatchClusters allow watching for cluster informer
 	WatchClusters(ctx context.Context,
-		handleAddEvent func(cluster *appv1.Cluster),
-		handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
-		handleDeleteEvent func(clusterServer string)) error
+		handleAddEvent func(ctx context.Context, cluster *appv1.Cluster),
+		handleModEvent func(ctx context.Context, oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
+		handleDeleteEvent func(ctx context.Context, clusterServer string)) error
 	// GetCluster returns a cluster by given server url
 	GetCluster(ctx context.Context, server string) (*appv1.Cluster, error)
 	// GetClusterServersByName returns a cluster server urls by given cluster name
@@ -118,7 +118,7 @@ type ArgoDB interface {
 	DeleteGPGPublicKey(ctx context.Context, keyID string) error
 
 	// GetApplicationControllerReplicas gets the replicas of application controller
-	GetApplicationControllerReplicas() int
+	GetApplicationControllerReplicas(ctx context.Context) int
 }
 
 type db struct {
@@ -153,10 +153,10 @@ func StripCRLFCharacter(input string) string {
 }
 
 // GetApplicationControllerReplicas gets the replicas of application controller
-func (db *db) GetApplicationControllerReplicas() int {
+func (db *db) GetApplicationControllerReplicas(ctx context.Context) int {
 	// get the replicas from application controller deployment, if the application controller deployment does not exist, check for environment variable
 	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
-	appControllerDeployment, err := db.kubeclientset.AppsV1().Deployments(db.settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+	appControllerDeployment, err := db.kubeclientset.AppsV1().Deployments(db.settingsMgr.GetNamespace()).Get(ctx, applicationControllerName, metav1.GetOptions{})
 	if err != nil {
 		appControllerDeployment = nil
 		if !apierrors.IsNotFound(err) {

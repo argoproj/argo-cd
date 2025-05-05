@@ -418,7 +418,7 @@ argocd admin settings resource-overrides ignore-differences ./deploy.yaml --argo
 
 				normalizedRes := res.DeepCopy()
 				logs := collectLogs(func() {
-					errors.CheckError(normalizer.Normalize(normalizedRes))
+					errors.CheckError(normalizer.NormalizeContext(ctx, normalizedRes))
 				})
 				if logs != "" {
 					_, _ = fmt.Println(logs)
@@ -465,7 +465,7 @@ argocd admin settings resource-overrides ignore-resource-updates ./deploy.yaml -
 
 				normalizedRes := res.DeepCopy()
 				logs := collectLogs(func() {
-					errors.CheckError(normalizer.Normalize(normalizedRes))
+					errors.CheckError(normalizer.NormalizeContext(ctx, normalizedRes))
 				})
 				if logs != "" {
 					_, _ = fmt.Println(logs)
@@ -502,7 +502,7 @@ argocd admin settings resource-overrides health ./deploy.yaml --argocd-cm-path .
 
 			executeResourceOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, _ v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
-				resHealth, err := healthutil.GetResourceHealth(&res, lua.ResourceHealthOverrides(overrides))
+				resHealth, err := healthutil.GetResourceHealthContext(ctx, &res, lua.ResourceHealthOverrides(overrides))
 				switch {
 				case err != nil:
 					errors.CheckError(err)
@@ -544,7 +544,7 @@ argocd admin settings resource-overrides action list /tmp/deploy.yaml --argocd-c
 				discoveryScript, err := luaVM.GetResourceActionDiscovery(&res)
 				errors.CheckError(err)
 
-				availableActions, err := luaVM.ExecuteResourceActionDiscovery(&res, discoveryScript)
+				availableActions, err := luaVM.ExecuteResourceActionDiscovery(ctx, &res, discoveryScript)
 				errors.CheckError(err)
 				sort.Slice(availableActions, func(i, j int) bool {
 					return availableActions[i].Name < availableActions[j].Name
@@ -590,7 +590,7 @@ argocd admin settings resource-overrides action /tmp/deploy.yaml restart --argoc
 				action, err := luaVM.GetResourceAction(&res, action)
 				errors.CheckError(err)
 
-				modifiedRes, err := luaVM.ExecuteResourceAction(&res, action.ActionLua)
+				modifiedRes, err := luaVM.ExecuteResourceAction(ctx, &res, action.ActionLua)
 				errors.CheckError(err)
 
 				for _, impactedResource := range modifiedRes {

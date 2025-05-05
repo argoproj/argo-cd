@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 
@@ -31,7 +33,10 @@ func main() {
 		return fmt.Sprintf("# `%s` Command Reference\n\n", strings.ReplaceAll(filename, "_", " "))
 	}
 
-	err := doc.GenMarkdownTreeCustom(argocdcli.NewCommand(), "./docs/user-guide/commands", headerPrepender, identity)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill) //nolint:forbidigo // for entrypoint
+	defer cancel()
+
+	err := doc.GenMarkdownTreeCustom(argocdcli.NewCommand(ctx), "./docs/user-guide/commands", headerPrepender, identity)
 	if err != nil {
 		log.Fatal(err)
 	}

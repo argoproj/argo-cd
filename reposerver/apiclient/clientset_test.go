@@ -15,7 +15,7 @@ func TestNewRepoServerClient_CorrectClientReturned(t *testing.T) {
 		RepoServerServiceClient: &mocks.RepoServerServiceClient{},
 	}
 
-	closer, client, err := mockClientset.NewRepoServerClient()
+	closer, client, err := mockClientset.NewRepoServerClient(t.Context())
 
 	require.NoError(t, err)
 	assert.NotNil(t, closer)

@@ -20,9 +20,9 @@ type Consequences struct {
 	actions *Actions
 }
 
-func (c *Consequences) And(block func(account *account.Account, err error)) *Consequences {
+func (c *Consequences) And(ctx context.Context, block func(account *account.Account, err error)) *Consequences {
 	c.context.t.Helper()
-	block(c.get())
+	block(c.get(ctx))
 	return c
 }
 
@@ -32,15 +32,15 @@ func (c *Consequences) AndCLIOutput(block func(output string, err error)) *Conse
 	return c
 }
 
-func (c *Consequences) CurrentUser(block func(user *session.GetUserInfoResponse, err error)) *Consequences {
+func (c *Consequences) CurrentUser(ctx context.Context, block func(user *session.GetUserInfoResponse, err error)) *Consequences {
 	c.context.t.Helper()
-	block(c.getCurrentUser())
+	block(c.getCurrentUser(ctx))
 	return c
 }
 
-func (c *Consequences) get() (*account.Account, error) {
-	_, accountClient, _ := fixture.ArgoCDClientset.NewAccountClient()
-	accList, err := accountClient.ListAccounts(context.Background(), &account.ListAccountRequest{})
+func (c *Consequences) get(ctx context.Context) (*account.Account, error) {
+	_, accountClient, _ := fixture.ArgoCDClientset.NewAccountClient(ctx)
+	accList, err := accountClient.ListAccounts(ctx, &account.ListAccountRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -52,12 +52,12 @@ func (c *Consequences) get() (*account.Account, error) {
 	return nil, errors.New("account not found")
 }
 
-func (c *Consequences) getCurrentUser() (*session.GetUserInfoResponse, error) {
+func (c *Consequences) getCurrentUser(ctx context.Context) (*session.GetUserInfoResponse, error) {
 	c.context.t.Helper()
-	closer, client, err := fixture.ArgoCDClientset.NewSessionClient()
+	closer, client, err := fixture.ArgoCDClientset.NewSessionClient(ctx)
 	require.NoError(c.context.t, err)
 	defer io.Close(closer)
-	return client.GetUserInfo(context.Background(), &session.GetUserInfoRequest{})
+	return client.GetUserInfo(ctx, &session.GetUserInfoRequest{})
 }
 
 func (c *Consequences) Given() *Context {

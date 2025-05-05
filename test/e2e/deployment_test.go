@@ -54,7 +54,7 @@ func TestDeployment(t *testing.T) {
 func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 	ctx := Given(t)
 
-	require.NoError(t, SetTrackingMethod(string(argo.TrackingMethodAnnotation)))
+	require.NoError(t, SetTrackingMethod(t.Context(), string(argo.TrackingMethodAnnotation)))
 	ctx.
 		Path("deployment").
 		When().
@@ -77,7 +77,7 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 
 func TestDeploymentWithLabelTrackingMode(t *testing.T) {
 	ctx := Given(t)
-	require.NoError(t, SetTrackingMethod(string(argo.TrackingMethodLabel)))
+	require.NoError(t, SetTrackingMethod(t.Context(), string(argo.TrackingMethodLabel)))
 	ctx.
 		Path("deployment").
 		When().
@@ -272,7 +272,7 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 
 	// Create a ServiceAccount in that Namespace, which will be used for the Argo CD Cluster SEcret
 	serviceAccountName := username + "-serviceaccount"
-	err = clusterauth.CreateServiceAccount(KubeClientset, serviceAccountName, ns.Name)
+	err = clusterauth.CreateServiceAccount(t.Context(), KubeClientset, serviceAccountName, ns.Name)
 	require.NoError(t, err)
 
 	// Create a Role that allows the ServiceAccount to read/write all within the Namespace
@@ -316,7 +316,7 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 	// We thus keep trying for up to 20 seconds.
 	waitErr := wait.PollUntilContextTimeout(t.Context(), 1*time.Second, 20*time.Second, true, func(context.Context) (done bool, err error) {
 		// Retrieve the bearer token from the ServiceAccount
-		token, err = clusterauth.GetServiceAccountBearerToken(KubeClientset, ns.Name, serviceAccountName, time.Second*60)
+		token, err = clusterauth.GetServiceAccountBearerToken(t.Context(), KubeClientset, ns.Name, serviceAccountName, time.Second*60)
 
 		// Success is no error and a real token, otherwise keep trying
 		return (err == nil && token != ""), nil

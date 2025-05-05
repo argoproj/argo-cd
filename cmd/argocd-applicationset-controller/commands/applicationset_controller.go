@@ -198,7 +198,7 @@ func NewCommand() *cobra.Command {
 			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig)
 
 			// start a webhook server that listens to incoming webhook payloads
-			webhookHandler, err := webhook.NewWebhookHandler(namespace, webhookParallelism, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
+			webhookHandler, err := webhook.NewWebhookHandler(ctx, namespace, webhookParallelism, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
 			if err != nil {
 				log.Error(err, "failed to create webhook handler")
 			}
@@ -230,7 +230,7 @@ func NewCommand() *cobra.Command {
 				GlobalPreservedAnnotations: globalPreservedAnnotations,
 				GlobalPreservedLabels:      globalPreservedLabels,
 				Metrics:                    &metrics,
-			}).SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
+			}).SetupWithManager(ctx, mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)
 			}

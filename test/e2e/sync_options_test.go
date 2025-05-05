@@ -49,11 +49,12 @@ func TestSyncOptionsValidateTrue(t *testing.T) {
 }
 
 func TestSyncWithStatusIgnored(t *testing.T) {
+	ctx := t.Context()
 	Given(t).
 		Path(guestbookPath).
 		When().
 		And(func() {
-			require.NoError(t, fixture.SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, fixture.SetResourceOverrides(t.Context(), map[string]ResourceOverride{
 				"/": {
 					IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/status"}},
 				},
@@ -73,7 +74,7 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 		// app should remain synced if k8s change detected
 		When().
 		And(func() {
-			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(t.Context(),
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(ctx,
 				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/status/observedGeneration", "value": 2 }]`), metav1.PatchOptions{}))
 		}).
 		Then().

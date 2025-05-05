@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/argoproj/argo-cd/v3/util/cache"
@@ -30,7 +31,7 @@ func initConfig() {
 }
 
 // NewCommand returns a new instance of an argocd command
-func NewCommand() *cobra.Command {
+func NewCommand(ctx context.Context) *cobra.Command {
 	var (
 		clientOpts argocdclient.ClientOptions
 		pathOpts   = clientcmd.NewDefaultPathOptions()
@@ -61,7 +62,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(NewLogoutCommand(&clientOpts))
 	command.AddCommand(initialize.InitCommand(NewCertCommand(&clientOpts)))
 	command.AddCommand(initialize.InitCommand(NewGPGCommand(&clientOpts)))
-	command.AddCommand(admin.NewAdminCommand(&clientOpts))
+	command.AddCommand(admin.NewAdminCommand(ctx, &clientOpts))
 	command.AddCommand(initialize.InitCommand(NewConfigureCommand(&clientOpts)))
 
 	defaultLocalConfigPath, err := localconfig.DefaultLocalConfigPath()

@@ -157,14 +157,14 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 	return 0, nil
 }
 
-func (t *terminalSession) performValidationsAndReconnect(p []byte) (int, error) {
+func (t *terminalSession) performValidationsAndReconnect(ctx context.Context, p []byte) (int, error) {
 	// In disable auth mode, no point verifying the token or validating permissions
 	if t.terminalOpts.DisableAuth {
 		return 0, nil
 	}
 
 	// check if token still valid
-	_, newToken, err := t.sessionManager.VerifyToken(*t.token)
+	_, newToken, err := t.sessionManager.VerifyToken(ctx, *t.token)
 	// err in case if token is revoked, newToken in case if refresh happened
 	if err != nil || newToken != "" {
 		// need to send reconnect code in case if token was refreshed
@@ -180,7 +180,7 @@ func (t *terminalSession) performValidationsAndReconnect(p []byte) (int, error) 
 
 // Read called in a loop from remote command as long as the process is running
 func (t *terminalSession) Read(p []byte) (int, error) {
-	code, err := t.performValidationsAndReconnect(p)
+	code, err := t.performValidationsAndReconnect(t.ctx, p)
 	if err != nil {
 		return code, err
 	}

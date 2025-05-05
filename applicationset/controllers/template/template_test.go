@@ -91,7 +91,7 @@ func TestGenerateApplications(t *testing.T) {
 				List: &v1alpha1.ListGenerator{},
 			}
 
-			generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
+			generatorMock.On("GenerateParams", mock.Anything, &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
 				Return(cc.params, cc.generateParamsError)
 
 			generatorMock.On("GetTemplate", &generator).
@@ -119,7 +119,7 @@ func TestGenerateApplications(t *testing.T) {
 			}
 			renderer := &rendererMock
 
-			got, reason, err := GenerateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
+			got, reason, err := GenerateApplications(t.Context(), log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -205,7 +205,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 				List: &v1alpha1.ListGenerator{},
 			}
 
-			generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
+			generatorMock.On("GenerateParams", mock.Anything, &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
 				Return(cc.params, nil)
 
 			generatorMock.On("GetTemplate", &generator).
@@ -221,7 +221,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 			}
 			renderer := &rendererMock
 
-			got, _, _ := GenerateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
+			got, _, _ := GenerateApplications(t.Context(), log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -317,7 +317,7 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 				PullRequest: &v1alpha1.PullRequestGenerator{},
 			}
 
-			generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
+			generatorMock.On("GenerateParams", mock.Anything, &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
 				Return(cases.params, nil)
 
 			generatorMock.On("GetTemplate", &generator).
@@ -328,7 +328,7 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 			}
 			renderer := &utils.Render{}
 
-			gotApp, _, _ := GenerateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
+			gotApp, _, _ := GenerateApplications(t.Context(), log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 					Generators: []v1alpha1.ApplicationSetGenerator{{

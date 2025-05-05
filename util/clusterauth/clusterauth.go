@@ -50,6 +50,7 @@ var ArgoCDManagerNamespacePolicyRules = []rbacv1.PolicyRule{
 
 // CreateServiceAccount creates a service account in a given namespace
 func CreateServiceAccount(
+	ctx context.Context,
 	clientset kubernetes.Interface,
 	serviceAccountName string,
 	namespace string,
@@ -64,7 +65,7 @@ func CreateServiceAccount(
 			Namespace: namespace,
 		},
 	}
-	_, err := clientset.CoreV1().ServiceAccounts(namespace).Create(context.Background(), &serviceAccount, metav1.CreateOptions{})
+	_, err := clientset.CoreV1().ServiceAccounts(namespace).Create(ctx, &serviceAccount, metav1.CreateOptions{})
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create service account %q in namespace %q: %w", serviceAccountName, namespace, err)
@@ -93,7 +94,7 @@ func upsert(kind string, name string, create func() (any, error), update func() 
 	return nil
 }
 
-func upsertClusterRole(clientset kubernetes.Interface, name string, rules []rbacv1.PolicyRule) error {
+func upsertClusterRole(ctx context.Context, clientset kubernetes.Interface, name string, rules []rbacv1.PolicyRule) error {
 	clusterRole := rbacv1.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -105,13 +106,13 @@ func upsertClusterRole(clientset kubernetes.Interface, name string, rules []rbac
 		Rules: rules,
 	}
 	return upsert("ClusterRole", name, func() (any, error) {
-		return clientset.RbacV1().ClusterRoles().Create(context.Background(), &clusterRole, metav1.CreateOptions{})
+		return clientset.RbacV1().ClusterRoles().Create(ctx, &clusterRole, metav1.CreateOptions{})
 	}, func() (any, error) {
-		return clientset.RbacV1().ClusterRoles().Update(context.Background(), &clusterRole, metav1.UpdateOptions{})
+		return clientset.RbacV1().ClusterRoles().Update(ctx, &clusterRole, metav1.UpdateOptions{})
 	})
 }
 
-func upsertRole(clientset kubernetes.Interface, name string, namespace string, rules []rbacv1.PolicyRule) error {
+func upsertRole(ctx context.Context, clientset kubernetes.Interface, name string, namespace string, rules []rbacv1.PolicyRule) error {
 	role := rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -123,13 +124,13 @@ func upsertRole(clientset kubernetes.Interface, name string, namespace string, r
 		Rules: rules,
 	}
 	return upsert("Role", fmt.Sprintf("%s/%s", namespace, name), func() (any, error) {
-		return clientset.RbacV1().Roles(namespace).Create(context.Background(), &role, metav1.CreateOptions{})
+		return clientset.RbacV1().Roles(namespace).Create(ctx, &role, metav1.CreateOptions{})
 	}, func() (any, error) {
-		return clientset.RbacV1().Roles(namespace).Update(context.Background(), &role, metav1.UpdateOptions{})
+		return clientset.RbacV1().Roles(namespace).Update(ctx, &role, metav1.UpdateOptions{})
 	})
 }
 
-func upsertClusterRoleBinding(clientset kubernetes.Interface, name string, clusterRoleName string, subject rbacv1.Subject) error {
+func upsertClusterRoleBinding(ctx context.Context, clientset kubernetes.Interface, name string, clusterRoleName string, subject rbacv1.Subject) error {
 	roleBinding := rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -146,13 +147,13 @@ func upsertClusterRoleBinding(clientset kubernetes.Interface, name string, clust
 		Subjects: []rbacv1.Subject{subject},
 	}
 	return upsert("ClusterRoleBinding", name, func() (any, error) {
-		return clientset.RbacV1().ClusterRoleBindings().Create(context.Background(), &roleBinding, metav1.CreateOptions{})
+		return clientset.RbacV1().ClusterRoleBindings().Create(ctx, &roleBinding, metav1.CreateOptions{})
 	}, func() (any, error) {
-		return clientset.RbacV1().ClusterRoleBindings().Update(context.Background(), &roleBinding, metav1.UpdateOptions{})
+		return clientset.RbacV1().ClusterRoleBindings().Update(ctx, &roleBinding, metav1.UpdateOptions{})
 	})
 }
 
-func upsertRoleBinding(clientset kubernetes.Interface, name string, roleName string, namespace string, subject rbacv1.Subject) error {
+func upsertRoleBinding(ctx context.Context, clientset kubernetes.Interface, name string, roleName string, namespace string, subject rbacv1.Subject) error {
 	roleBinding := rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -169,26 +170,26 @@ func upsertRoleBinding(clientset kubernetes.Interface, name string, roleName str
 		Subjects: []rbacv1.Subject{subject},
 	}
 	return upsert("RoleBinding", fmt.Sprintf("%s/%s", namespace, name), func() (any, error) {
-		return clientset.RbacV1().RoleBindings(namespace).Create(context.Background(), &roleBinding, metav1.CreateOptions{})
+		return clientset.RbacV1().RoleBindings(namespace).Create(ctx, &roleBinding, metav1.CreateOptions{})
 	}, func() (any, error) {
-		return clientset.RbacV1().RoleBindings(namespace).Update(context.Background(), &roleBinding, metav1.UpdateOptions{})
+		return clientset.RbacV1().RoleBindings(namespace).Update(ctx, &roleBinding, metav1.UpdateOptions{})
 	})
 }
 
 // InstallClusterManagerRBAC installs RBAC resources for a cluster manager to operate a cluster. Returns a token
-func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namespaces []string, bearerTokenTimeout time.Duration) (string, error) {
-	err := CreateServiceAccount(clientset, ArgoCDManagerServiceAccount, ns)
+func InstallClusterManagerRBAC(ctx context.Context, clientset kubernetes.Interface, ns string, namespaces []string, bearerTokenTimeout time.Duration) (string, error) {
+	err := CreateServiceAccount(ctx, clientset, ArgoCDManagerServiceAccount, ns)
 	if err != nil {
 		return "", err
 	}
 
 	if len(namespaces) == 0 {
-		err = upsertClusterRole(clientset, ArgoCDManagerClusterRole, ArgoCDManagerClusterPolicyRules)
+		err = upsertClusterRole(ctx, clientset, ArgoCDManagerClusterRole, ArgoCDManagerClusterPolicyRules)
 		if err != nil {
 			return "", err
 		}
 
-		err = upsertClusterRoleBinding(clientset, ArgoCDManagerClusterRoleBinding, ArgoCDManagerClusterRole, rbacv1.Subject{
+		err = upsertClusterRoleBinding(ctx, clientset, ArgoCDManagerClusterRoleBinding, ArgoCDManagerClusterRole, rbacv1.Subject{
 			Kind:      rbacv1.ServiceAccountKind,
 			Name:      ArgoCDManagerServiceAccount,
 			Namespace: ns,
@@ -198,12 +199,12 @@ func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namesp
 		}
 	} else {
 		for _, namespace := range namespaces {
-			err = upsertRole(clientset, ArgoCDManagerClusterRole, namespace, ArgoCDManagerNamespacePolicyRules)
+			err = upsertRole(ctx, clientset, ArgoCDManagerClusterRole, namespace, ArgoCDManagerNamespacePolicyRules)
 			if err != nil {
 				return "", err
 			}
 
-			err = upsertRoleBinding(clientset, ArgoCDManagerClusterRoleBinding, ArgoCDManagerClusterRole, namespace, rbacv1.Subject{
+			err = upsertRoleBinding(ctx, clientset, ArgoCDManagerClusterRoleBinding, ArgoCDManagerClusterRole, namespace, rbacv1.Subject{
 				Kind:      rbacv1.ServiceAccountKind,
 				Name:      ArgoCDManagerServiceAccount,
 				Namespace: ns,
@@ -214,21 +215,21 @@ func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namesp
 		}
 	}
 
-	return GetServiceAccountBearerToken(clientset, ns, ArgoCDManagerServiceAccount, bearerTokenTimeout)
+	return GetServiceAccountBearerToken(ctx, clientset, ns, ArgoCDManagerServiceAccount, bearerTokenTimeout)
 }
 
 // GetServiceAccountBearerToken determines if a ServiceAccount has a
 // bearer token secret to use or if a secret should be created. It then
 // waits for the secret to have a bearer token if a secret needs to
 // be created and returns the token in encoded base64.
-func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns string, sa string, timeout time.Duration) (string, error) {
-	secretName, err := getOrCreateServiceAccountTokenSecret(clientset, sa, ns)
+func GetServiceAccountBearerToken(ctx context.Context, clientset kubernetes.Interface, ns string, sa string, timeout time.Duration) (string, error) {
+	secretName, err := getOrCreateServiceAccountTokenSecret(ctx, clientset, sa, ns)
 	if err != nil {
 		return "", err
 	}
 
 	var secret *corev1.Secret
-	err = wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, timeout, true, func(ctx context.Context) (bool, error) {
+	err = wait.PollUntilContextTimeout(ctx, 500*time.Millisecond, timeout, true, func(ctx context.Context) (bool, error) {
 		ctx, cancel := context.WithTimeout(ctx, common.ClusterAuthRequestTimeout)
 		defer cancel()
 		secret, err = clientset.CoreV1().Secrets(ns).Get(ctx, secretName, metav1.GetOptions{})
@@ -255,7 +256,7 @@ func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns string, sa 
 // ServiceAccount named '<service account name>-long-lived-token', or
 // use the existing one with that name.
 // This was added to help add k8s v1.24+ clusters.
-func getOrCreateServiceAccountTokenSecret(clientset kubernetes.Interface, serviceaccount, namespace string) (string, error) {
+func getOrCreateServiceAccountTokenSecret(ctx context.Context, clientset kubernetes.Interface, serviceaccount, namespace string) (string, error) {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      serviceaccount + SATokenSecretSuffix,
@@ -267,7 +268,7 @@ func getOrCreateServiceAccountTokenSecret(clientset kubernetes.Interface, servic
 		Type: corev1.SecretTypeServiceAccountToken,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), common.ClusterAuthRequestTimeout)
+	ctx, cancel := context.WithTimeout(ctx, common.ClusterAuthRequestTimeout)
 	defer cancel()
 	_, err := clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 
@@ -284,13 +285,13 @@ func getOrCreateServiceAccountTokenSecret(clientset kubernetes.Interface, servic
 }
 
 // UninstallClusterManagerRBAC removes RBAC resources for a cluster manager to operate a cluster
-func UninstallClusterManagerRBAC(clientset kubernetes.Interface) error {
-	return UninstallRBAC(clientset, "kube-system", ArgoCDManagerClusterRoleBinding, ArgoCDManagerClusterRole, ArgoCDManagerServiceAccount)
+func UninstallClusterManagerRBAC(ctx context.Context, clientset kubernetes.Interface) error {
+	return UninstallRBAC(ctx, clientset, "kube-system", ArgoCDManagerClusterRoleBinding, ArgoCDManagerClusterRole, ArgoCDManagerServiceAccount)
 }
 
 // UninstallRBAC uninstalls RBAC related resources  for a binding, role, and service account
-func UninstallRBAC(clientset kubernetes.Interface, namespace, bindingName, roleName, serviceAccount string) error {
-	if err := clientset.RbacV1().ClusterRoleBindings().Delete(context.Background(), bindingName, metav1.DeleteOptions{}); err != nil {
+func UninstallRBAC(ctx context.Context, clientset kubernetes.Interface, namespace, bindingName, roleName, serviceAccount string) error {
+	if err := clientset.RbacV1().ClusterRoleBindings().Delete(ctx, bindingName, metav1.DeleteOptions{}); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return fmt.Errorf("failed to delete ClusterRoleBinding: %w", err)
 		}
@@ -299,7 +300,7 @@ func UninstallRBAC(clientset kubernetes.Interface, namespace, bindingName, roleN
 		log.Infof("ClusterRoleBinding %q deleted", bindingName)
 	}
 
-	if err := clientset.RbacV1().ClusterRoles().Delete(context.Background(), roleName, metav1.DeleteOptions{}); err != nil {
+	if err := clientset.RbacV1().ClusterRoles().Delete(ctx, roleName, metav1.DeleteOptions{}); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return fmt.Errorf("failed to delete ClusterRole: %w", err)
 		}
@@ -308,7 +309,7 @@ func UninstallRBAC(clientset kubernetes.Interface, namespace, bindingName, roleN
 		log.Infof("ClusterRole %q deleted", roleName)
 	}
 
-	if err := clientset.CoreV1().ServiceAccounts(namespace).Delete(context.Background(), serviceAccount, metav1.DeleteOptions{}); err != nil {
+	if err := clientset.CoreV1().ServiceAccounts(namespace).Delete(ctx, serviceAccount, metav1.DeleteOptions{}); err != nil {
 		if !apierrors.IsNotFound(err) {
 			return fmt.Errorf("failed to delete ServiceAccount: %w", err)
 		}
@@ -340,9 +341,9 @@ func ParseServiceAccountToken(token string) (*ServiceAccountClaims, error) {
 
 // GenerateNewClusterManagerSecret creates a new secret derived with same metadata as existing one
 // and waits until the secret is populated with a bearer token
-func GenerateNewClusterManagerSecret(clientset kubernetes.Interface, claims *ServiceAccountClaims) (*corev1.Secret, error) {
+func GenerateNewClusterManagerSecret(ctx context.Context, clientset kubernetes.Interface, claims *ServiceAccountClaims) (*corev1.Secret, error) {
 	secretsClient := clientset.CoreV1().Secrets(claims.Namespace)
-	existingSecret, err := secretsClient.Get(context.Background(), claims.SecretName, metav1.GetOptions{})
+	existingSecret, err := secretsClient.Get(ctx, claims.SecretName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -357,12 +358,12 @@ func GenerateNewClusterManagerSecret(clientset kubernetes.Interface, claims *Ser
 	// We will create an empty secret and let kubernetes populate the data
 	newSecret.Data = nil
 
-	created, err := secretsClient.Create(context.Background(), &newSecret, metav1.CreateOptions{})
+	created, err := secretsClient.Create(ctx, &newSecret, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	err = wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, 30*time.Second, false, func(ctx context.Context) (bool, error) {
+	err = wait.PollUntilContextTimeout(ctx, 500*time.Millisecond, 30*time.Second, false, func(ctx context.Context) (bool, error) {
 		created, err = secretsClient.Get(ctx, created.Name, metav1.GetOptions{})
 		if err != nil {
 			return false, err
@@ -379,10 +380,10 @@ func GenerateNewClusterManagerSecret(clientset kubernetes.Interface, claims *Ser
 }
 
 // RotateServiceAccountSecrets rotates the entries in the service accounts secrets list
-func RotateServiceAccountSecrets(clientset kubernetes.Interface, claims *ServiceAccountClaims, newSecret *corev1.Secret) error {
+func RotateServiceAccountSecrets(ctx context.Context, clientset kubernetes.Interface, claims *ServiceAccountClaims, newSecret *corev1.Secret) error {
 	// 1. update service account secrets list with new secret name while also removing the old name
 	saClient := clientset.CoreV1().ServiceAccounts(claims.Namespace)
-	sa, err := saClient.Get(context.Background(), claims.ServiceAccountName, metav1.GetOptions{})
+	sa, err := saClient.Get(ctx, claims.ServiceAccountName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -400,14 +401,14 @@ func RotateServiceAccountSecrets(clientset kubernetes.Interface, claims *Service
 	if !alreadyPresent {
 		sa.Secrets = append(newSecretsList, corev1.ObjectReference{Name: newSecret.Name})
 	}
-	_, err = saClient.Update(context.Background(), sa, metav1.UpdateOptions{})
+	_, err = saClient.Update(ctx, sa, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
 
 	// 2. delete existing secret object
 	secretsClient := clientset.CoreV1().Secrets(claims.Namespace)
-	err = secretsClient.Delete(context.Background(), claims.SecretName, metav1.DeleteOptions{})
+	err = secretsClient.Delete(ctx, claims.SecretName, metav1.DeleteOptions{})
 	if !apierrors.IsNotFound(err) {
 		return err
 	}

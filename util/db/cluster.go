@@ -138,9 +138,9 @@ type ClusterEvent struct {
 }
 
 func (db *db) WatchClusters(ctx context.Context,
-	handleAddEvent func(cluster *appv1.Cluster),
-	handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
-	handleDeleteEvent func(clusterServer string),
+	handleAddEvent func(ctx context.Context, cluster *appv1.Cluster),
+	handleModEvent func(ctx context.Context, oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
+	handleDeleteEvent func(ctx context.Context, clusterServer string),
 ) error {
 	argoSettings, err := db.settingsMgr.GetSettings()
 	if err != nil {
@@ -153,7 +153,7 @@ func (db *db) WatchClusters(ctx context.Context,
 		if err != nil {
 			return fmt.Errorf("could not get local cluster: %w", err)
 		}
-		handleAddEvent(localCls)
+		handleAddEvent(ctx, localCls)
 	}
 
 	db.watchSecrets(
@@ -169,12 +169,12 @@ func (db *db) WatchClusters(ctx context.Context,
 			if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
 				if argoSettings.InClusterEnabled {
 					// change local cluster event to modified, since it cannot be added at runtime
-					handleModEvent(localCls, cluster)
+					handleModEvent(ctx, localCls, cluster)
 					localCls = cluster
 				}
 				return
 			}
-			handleAddEvent(cluster)
+			handleAddEvent(ctx, cluster)
 		},
 
 		func(oldSecret *corev1.Secret, newSecret *corev1.Secret) {
@@ -191,17 +191,17 @@ func (db *db) WatchClusters(ctx context.Context,
 			if newCluster.Server == appv1.KubernetesInternalAPIServerAddr {
 				localCls = newCluster
 			}
-			handleModEvent(oldCluster, newCluster)
+			handleModEvent(ctx, oldCluster, newCluster)
 		},
 
 		func(secret *corev1.Secret) {
 			if string(secret.Data["server"]) == appv1.KubernetesInternalAPIServerAddr && argoSettings.InClusterEnabled {
 				// change local cluster event to modified, since it cannot be deleted at runtime, unless disabled.
 				newLocalCls := db.getLocalCluster()
-				handleModEvent(localCls, newLocalCls)
+				handleModEvent(ctx, localCls, newLocalCls)
 				localCls = newLocalCls
 			} else {
-				handleDeleteEvent(string(secret.Data["server"]))
+				handleDeleteEvent(ctx, string(secret.Data["server"]))
 			}
 		},
 	)
