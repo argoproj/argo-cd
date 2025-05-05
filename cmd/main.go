@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -39,11 +41,12 @@ func main() {
 		binaryName = val
 	}
 
-	isCLI := false
+	isArgocdCLI := false
+
 	switch binaryName {
 	case "argocd", "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe":
 		command = cli.NewCommand()
-		isCLI = true
+		isArgocdCLI = true
 	case "argocd-server":
 		command = apiserver.NewCommand()
 	case "argocd-application-controller":
@@ -52,7 +55,7 @@ func main() {
 		command = reposerver.NewCommand()
 	case "argocd-cmp-server":
 		command = cmpserver.NewCommand()
-		isCLI = true
+		isArgocdCLI = true
 	case "argocd-commit-server":
 		command = commitserver.NewCommand()
 	case "argocd-dex":
@@ -61,19 +64,41 @@ func main() {
 		command = notification.NewCommand()
 	case "argocd-git-ask-pass":
 		command = gitaskpass.NewCommand()
-		isCLI = true
+		isArgocdCLI = true
 	case "argocd-applicationset-controller":
 		command = applicationset.NewCommand()
 	case "argocd-k8s-auth":
 		command = k8sauth.NewCommand()
-		isCLI = true
+		isArgocdCLI = true
 	default:
 		command = cli.NewCommand()
-		isCLI = true
+		isArgocdCLI = true
 	}
-	util.SetAutoMaxProcs(isCLI)
+	util.SetAutoMaxProcs(isArgocdCLI)
 
-	if err := command.Execute(); err != nil {
-		os.Exit(1)
+	if isArgocdCLI {
+		// silence errors and usages since we'll be printing them manually.
+		// This is because if we execute a plugin, the initial
+		// errors and usage are always going to get printed that we don't want.
+		command.SilenceErrors = true
+		command.SilenceUsage = true
+	}
+
+	err := command.Execute()
+	// if the err is non-nil, try to look for various scenarios
+	// such as if the error is from the execution of a normal argocd command,
+	// unknown command error or any other.
+	if err != nil {
+		pluginHandler := cli.NewDefaultPluginHandler([]string{"argocd"})
+		pluginErr := pluginHandler.HandleCommandExecutionError(err, isArgocdCLI, os.Args)
+		if pluginErr != nil {
+			var exitErr *exec.ExitError
+			if errors.As(pluginErr, &exitErr) {
+				// Return the actual plugin exit code
+				os.Exit(exitErr.ExitCode())
+			}
+			// Fallback to exit code 1 if the error isn't an exec.ExitError
+			os.Exit(1)
+		}
 	}
 }
