@@ -118,7 +118,7 @@ specify a wildcard in the resource kind, and anywhere in the resource group, lik
 
 !!!important
     Please, note that wildcards are only supported when using the `resource.customizations` key, the `resource.customizations.health.<group>_<kind>`
-style keys do not work since wildcards (`*`) are not supported in Kubernetes configmap keys.
+    style keys do not work since wildcards (`*`) are not supported in Kubernetes configmap keys.
 
 The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
 The custom health check might return one of the following health statuses:
