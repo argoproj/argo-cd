@@ -9228,10 +9228,6 @@
           "description": "DisplayName provides a user-friendly name for the action.",
           "type": "string"
         },
-        "hasParameters": {
-          "description": "HasParameters indicates whether the action requires parameters to be provided.",
-          "type": "boolean"
-        },
         "iconClass": {
           "description": "IconClass specifies the CSS class for the action's icon.",
           "type": "string"
