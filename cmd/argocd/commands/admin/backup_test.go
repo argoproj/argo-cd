@@ -386,7 +386,7 @@ func Test_importResources(t *testing.T) {
 		skipResourcesWithLabel   string
 	}{
 		{
-			name: "It should update the live object according to the backup object if the backup object doesn't have the skip label",
+			name: "It should update live object if skip label is not present in backup object",
 			args: args{
 				bak: `apiVersion: v1
 kind: ConfigMap
@@ -421,7 +421,7 @@ data:
 			skipResourcesWithLabel:   "env=dev",
 		},
 		{
-			name: "It should update the data of the live object according to the backup object",
+			name: "It should update live object when data differs from backup",
 			args: args{
 				bak: `apiVersion: v1
 kind: ConfigMap
@@ -445,7 +445,7 @@ data:
 			prune:                    true,
 		},
 		{
-			name: "Spec should be updated correctly in live object according to the backup object",
+			name: "It should update live spec if spec differs from backup for Application",
 			args: args{
 				bak: `apiVersion: v1
 kind: Application
@@ -476,7 +476,7 @@ spec:
 			applicationsetNamespaces: []string{"prod"},
 		},
 		{
-			name: "It should update live object's spec according to the backup object",
+			name: "It should update live spec if spec differs from backup for ApplicationSet",
 			args: args{
 				bak: `apiVersion: v1
 kind: ApplicationSet
@@ -513,7 +513,7 @@ spec:
 			applicationsetNamespaces: []string{"dev"},
 		},
 		{
-			name: "It shouldn't update the live object if it's same as the backup object",
+			name: "It should not update live object if it matches the backup exactly",
 			args: args{
 				bak: `apiVersion: v1
 kind: ConfigMap
@@ -540,7 +540,7 @@ data:
 			applicationsetNamespaces: []string{"argo-*"},
 		},
 		{
-			name: "Resources should be created when they're missing from live",
+			name: "It should create live resource if it is missing",
 			args: args{
 				bak: `apiVersion: v1
 kind: ConfigMap
@@ -565,7 +565,7 @@ metadata:
 			applicationsetNamespaces: []string{"argocd", "prod"},
 		},
 		{
-			name: "Live resources should be pruned if --prune flag is set",
+			name: "It should prune live resources not present in backup when prune is enabled",
 			args: args{
 				bak: `apiVersion: v1
 kind: ConfigMap
