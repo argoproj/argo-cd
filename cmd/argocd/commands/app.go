@@ -302,8 +302,8 @@ func parentChildDetails(ctx context.Context, appIf application.ApplicationServic
 }
 
 func printHeader(ctx context.Context, acdClient argocdclient.Client, app *argoappv1.Application, windows *argoappv1.SyncWindows, showOperation bool, showParams bool, sourcePosition int) {
-	aURL := appURL(ctx, acdClient, app.Name)
-	printAppSummaryTable(app, aURL, windows)
+	appURL := getAppURL(ctx, acdClient, app.Name)
+	printAppSummaryTable(app, appURL, windows)
 
 	if len(app.Status.Conditions) > 0 {
 		fmt.Println()
@@ -776,8 +776,8 @@ func appURLDefault(acdClient argocdclient.Client, appName string) string {
 	return fmt.Sprintf("%s://%s/applications/%s", scheme, server, appName)
 }
 
-// appURL returns the URL of an application
-func appURL(ctx context.Context, acdClient argocdclient.Client, appName string) string {
+// getAppURL returns the URL of an application
+func getAppURL(ctx context.Context, acdClient argocdclient.Client, appName string) string {
 	conn, settingsIf := acdClient.NewSettingsClientOrDie()
 	defer argoio.Close(conn)
 	argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
@@ -2601,8 +2601,8 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	// time when the sync status lags behind when an operation completes
 	refresh := false
 
-	// AppURL is declared here so that it can be used in the printFinalStatus function when the context is cancelled
-	AppURL := appURL(ctx, acdClient, appName)
+	// appURL is declared here so that it can be used in the printFinalStatus function when the context is cancelled
+	appURL := getAppURL(ctx, acdClient, appName)
 
 	// printSummary controls whether we print the app summary table, OperationState, and ResourceState
 	// We don't want to print these when output type is json or yaml, as the output would become unparsable.
@@ -2626,7 +2626,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 
 		if printSummary {
 			fmt.Println()
-			printAppSummaryTable(app, AppURL, nil)
+			printAppSummaryTable(app, appURL, nil)
 			fmt.Println()
 			if watch.operation {
 				printOperationResult(app.Status.OperationState)
