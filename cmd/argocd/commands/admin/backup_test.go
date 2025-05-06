@@ -572,17 +572,16 @@ kind: ConfigMap
 metadata:
   name: configmap-to-keep
   namespace: default
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: configmap-to-delete
-  namespace: default
 `,
 				live: `apiVersion: v1
 kind: ConfigMap
 metadata:
   name: configmap-to-keep
   namespace: default
+  labels:
+    env: dev
+data:
+  foo: bar
 `,
 			},
 			prune: true,
