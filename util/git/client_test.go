@@ -1011,7 +1011,7 @@ func Test_LsFiles_RaceCondition(t *testing.T) {
 
 	// Add different files to each repository
 	file1 := filepath.Join(client1.Root(), "file1.txt")
-	err = os.WriteFile(file1, []byte("content1"), 0644)
+	err = os.WriteFile(file1, []byte("content1"), 0o644)
 	require.NoError(t, err)
 	err = runCmd(client1.Root(), "git", "add", "file1.txt")
 	require.NoError(t, err)
@@ -1019,7 +1019,7 @@ func Test_LsFiles_RaceCondition(t *testing.T) {
 	require.NoError(t, err)
 
 	file2 := filepath.Join(client2.Root(), "file2.txt")
-	err = os.WriteFile(file2, []byte("content2"), 0644)
+	err = os.WriteFile(file2, []byte("content2"), 0o644)
 	require.NoError(t, err)
 	err = runCmd(client2.Root(), "git", "add", "file2.txt")
 	require.NoError(t, err)
