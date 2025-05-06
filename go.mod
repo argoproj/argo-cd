@@ -54,7 +54,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/gosimple/slug v1.15.0
 	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.0.1
-	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.1
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/improbable-eng/grpc-web v0.15.1-0.20230209220825-1d9bbb09a099
@@ -62,7 +62,7 @@ require (
 	github.com/jarcoal/httpmock v1.4.0
 	github.com/jeremywohl/flatten v1.0.2-0.20211013061545-07e4a09fb8e4
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
-	github.com/ktrysmt/go-bitbucket v0.9.83
+	github.com/ktrysmt/go-bitbucket v0.9.85
 	github.com/mattn/go-isatty v0.0.20
 	github.com/mattn/go-zglob v0.0.6
 	github.com/microsoft/azure-devops-go-api/azuredevops/v7 v7.1.1-0.20241014080628-3045bdf43455
