@@ -211,9 +211,9 @@ When granted along with the `sync` action, the override action will allow a user
 These manifests will be used instead of the configured source, until the next sync is performed.
 
 Additionally, when `application.sync.externalRevisionConsideredOverride: 'true'` is set in the `argcd-cm` configmap, 
-passing a revision when syncing an application is also considered as an `override`, to prevent synchronizing to arbitrary revisions other than the revsion(s) given in the Application source.
+passing a revision when syncing an application is also considered as an `override`, to prevent synchronizing to arbitrary revisions other than the revision(s) given in the Application source.
 
-The default setting is 'false', to prevent breaking changes in existing installations. It is recommended to set this setting to 'true', and grant the `override` right per AppProject to the users that actually need this behaviour.
+The default setting is 'false', to prevent breaking changes in existing installations. It is recommended to set this setting to 'true' and grant the `override` right per AppProject to the users that actually need this behavior.
 
 
 ### The `applicationsets` resource
