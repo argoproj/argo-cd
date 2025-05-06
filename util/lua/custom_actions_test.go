@@ -97,11 +97,12 @@ type IndividualDiscoveryTest struct {
 }
 
 type IndividualActionTest struct {
-	Action             string            `yaml:"action"`
-	InputPath          string            `yaml:"inputPath"`
-	ExpectedOutputPath string            `yaml:"expectedOutputPath"`
-	InputStr           string            `yaml:"input"`
-	Parameters         map[string]string `yaml:"parameters"`
+	Action               string            `yaml:"action"`
+	InputPath            string            `yaml:"inputPath"`
+	ExpectedOutputPath   string            `yaml:"expectedOutputPath"`
+	ExpectedErrorMessage string            `yaml:"expectedErrorMessage"`
+	InputStr             string            `yaml:"input"`
+	Parameters           map[string]string `yaml:"parameters"`
 }
 
 func TestLuaResourceActionsScript(t *testing.T) {
@@ -163,12 +164,21 @@ func TestLuaResourceActionsScript(t *testing.T) {
 					}
 				}
 
-				// Log the parameters
-				t.Logf("Parameters: %+v", params)
+				if len(params) > 0 {
+					// Log the parameters
+					t.Logf("Parameters: %+v", params)
+				}
 
 				require.NoError(t, err)
 				impactedResources, err := vm.ExecuteResourceAction(sourceObj, action.ActionLua, params)
-				require.NoError(t, err)
+
+				// Handle expected errors
+				if test.ExpectedErrorMessage != "" {
+					assert.EqualError(t, err, test.ExpectedErrorMessage)
+					return
+				} else {
+					require.NoError(t, err)
+				}
 
 				// Treat the Lua expected output as a list
 				expectedObjects := getExpectedObjectList(t, filepath.Join(dir, test.ExpectedOutputPath))

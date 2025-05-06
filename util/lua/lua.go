@@ -116,6 +116,17 @@ func (vm VM) runLuaWithResourceActionParameters(obj *unstructured.Unstructured, 
 	objectValue := decodeValue(l, obj.Object)
 	l.SetGlobal("obj", objectValue)
 	err := l.DoString(script)
+
+	// Remove the default lua stack trace from execution errors since these
+	// errors will make it back to the user
+	var apiErr *lua.ApiError
+	if errors.As(err, &apiErr) {
+		if apiErr.Type == lua.ApiErrorRun {
+			apiErr.StackTrace = ""
+			err = apiErr
+		}
+	}
+
 	return l, err
 }
 

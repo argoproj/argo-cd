@@ -548,14 +548,6 @@ export async function getResourceActionsMenuItems(resource: ResourceTreeNode, me
                         </div>
                     ),
                     {
-                        validate: vals => {
-                            return (action.params || []).reduce((acc: {[key: string]: string}, param) => {
-                                acc[param.name] =
-                                    vals[param.name] && vals[param.name].match(param.type) ? undefined : `Invalid value for ${param.name}. Expected format: ${param.type}.`;
-                                return acc;
-                            }, {});
-                        },
-
                         submit: async (vals, _, close) => {
                             try {
                                 const resourceActionParameters = action.params

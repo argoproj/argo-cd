@@ -517,7 +517,7 @@ const expectedCreatedMultipleJobsObjList = `
     kind: Job
     metadata:
       name: hello-2
-      namespace: test-ns	  
+      namespace: test-ns
 `
 
 const expectedActionMixedOperationObjList = `
@@ -534,9 +534,9 @@ const expectedActionMixedOperationObjList = `
     kind: CronJob
     metadata:
       name: hello
-      namespace: test-ns	  
+      namespace: test-ns
       labels:
-        test: test  
+        test: test
 `
 
 const createJobActionLua = `
@@ -842,7 +842,7 @@ return hs`
 		overrides := getHealthOverride(false)
 		status, err := overrides.GetResourceHealth(testObj)
 		assert.IsType(t, &lua.ApiError{}, err)
-		expectedErr := "<string>:4: attempt to index a non-table object(nil) with key 'find'\nstack traceback:\n\t<string>:4: in main chunk\n\t[G]: ?"
+		expectedErr := "<string>:4: attempt to index a non-table object(nil) with key 'find'"
 		require.EqualError(t, err, expectedErr)
 		assert.Nil(t, status)
 	})
