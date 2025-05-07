@@ -4,7 +4,7 @@ actions["restart"] = {}
 actions["scale"] = {
   ["params"] = {
         {
-            ["name"] = "scale",
+            ["name"] = "replicas",
             ["default"] = tostring(obj.spec.replicas)
         }
   },

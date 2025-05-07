@@ -1,8 +1,8 @@
 local os = require("os")
 
-local replicas = tonumber(actionParams["scale"])
+local replicas = tonumber(actionParams["replicas"])
 if not replicas then
-    error("invalid number: " .. actionParams["scale"], 0)
+    error("invalid number: " .. actionParams["replicas"], 0)
 end
 
 obj.spec.replicas = replicas

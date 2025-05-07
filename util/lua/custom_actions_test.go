@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -213,20 +212,6 @@ func TestLuaResourceActionsScript(t *testing.T) {
 						case "Workflow":
 							// The name of the created resource is derived from the source object name, so the returned name is not actually equal to the testdata output name
 							result.SetName(expectedObj.GetName())
-						}
-					}
-
-					// Add specific checks for parameter-based actions
-					if test.Action == "scale" {
-						expectedScale, err := strconv.ParseInt(test.Parameters["scale"], 10, 64)
-						require.NoError(t, err)
-						// Check spec.replicas
-						actualReplicas, found, err := unstructured.NestedInt64(result.Object, "spec", "replicas")
-						if !found {
-							t.Errorf("spec.replicas not found in actual result. Result object: %+v", result.Object)
-						} else {
-							require.NoError(t, err)
-							assert.Equal(t, expectedScale, actualReplicas, "spec.replica count mismatch")
 						}
 					}
 
