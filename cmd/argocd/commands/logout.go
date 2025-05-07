@@ -82,7 +82,7 @@ $ argocd logout
 			}
 
 			logoutURL := fmt.Sprintf("%s://%s%s", scheme, context, common.LogoutEndpoint)
-			req, err := http.NewRequest("POST", logoutURL, nil)
+			req, err := http.NewRequest(http.MethodPost, logoutURL, nil)
 			errors.CheckError(err)
 			cookie := &http.Cookie{
 				Name:  common.AuthCookieName,

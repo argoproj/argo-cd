@@ -18,13 +18,13 @@ import (
 
 func TestGetToken_Exist(t *testing.T) {
 	err := os.WriteFile(test.TestConfigFilePath, []byte(test.TestConfig), os.ModePerm)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer os.Remove(test.TestConfigFilePath)
 
-	err = os.Chmod(test.TestConfigFilePath, 0600)
+	err = os.Chmod(test.TestConfigFilePath, 0o600)
 	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
 	localConfig, err := ReadLocalConfig(test.TestConfigFilePath)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	token := localConfig.GetToken(localConfig.CurrentContext)
 
@@ -33,13 +33,13 @@ func TestGetToken_Exist(t *testing.T) {
 
 func TestGetToken_Not_Exist(t *testing.T) {
 	err := os.WriteFile(test.TestConfigFilePath, []byte(test.TestConfig), os.ModePerm)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer os.Remove(test.TestConfigFilePath)
 
-	err = os.Chmod(test.TestConfigFilePath, 0600)
+	err = os.Chmod(test.TestConfigFilePath, 0o600)
 	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
 	localConfig, err := ReadLocalConfig(test.TestConfigFilePath)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// serverName does exist in TestConfig
 	token := localConfig.GetToken("localhost")
@@ -49,13 +49,13 @@ func TestGetToken_Not_Exist(t *testing.T) {
 
 func TestRemoveToken_Exist(t *testing.T) {
 	err := os.WriteFile(test.TestConfigFilePath, []byte(test.TestConfig), os.ModePerm)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer os.Remove(test.TestConfigFilePath)
 
-	err = os.Chmod(test.TestConfigFilePath, 0600)
+	err = os.Chmod(test.TestConfigFilePath, 0o600)
 	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
 	localConfig, err := ReadLocalConfig(test.TestConfigFilePath)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	removed := localConfig.RemoveToken(localConfig.CurrentContext)
 
@@ -64,13 +64,13 @@ func TestRemoveToken_Exist(t *testing.T) {
 
 func TestRemoveToken_Not_Exist(t *testing.T) {
 	err := os.WriteFile(test.TestConfigFilePath, []byte(test.TestConfig), os.ModePerm)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer os.Remove(test.TestConfigFilePath)
 
-	err = os.Chmod(test.TestConfigFilePath, 0600)
+	err = os.Chmod(test.TestConfigFilePath, 0o600)
 	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
 	localConfig, err := ReadLocalConfig(test.TestConfigFilePath)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// serverName does exist in TestConfig
 	removed := localConfig.RemoveToken("localhost")
@@ -80,13 +80,13 @@ func TestRemoveToken_Not_Exist(t *testing.T) {
 
 func TestValidateLocalConfig(t *testing.T) {
 	err := os.WriteFile(test.TestConfigFilePath, []byte(test.TestConfig), os.ModePerm)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer os.Remove(test.TestConfigFilePath)
 
-	err = os.Chmod(test.TestConfigFilePath, 0600)
+	err = os.Chmod(test.TestConfigFilePath, 0o600)
 	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
 	localConfig, err := ReadLocalConfig(test.TestConfigFilePath)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = ValidateLocalConfig(*localConfig)
 
@@ -95,13 +95,13 @@ func TestValidateLocalConfig(t *testing.T) {
 
 func TestWriteLocalConfig(t *testing.T) {
 	err := os.WriteFile(test.TestConfigFilePath, []byte(test.TestConfig), os.ModePerm)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer os.Remove(test.TestConfigFilePath)
 
-	err = os.Chmod(test.TestConfigFilePath, 0600)
+	err = os.Chmod(test.TestConfigFilePath, 0o600)
 	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
 	localConfig, err := ReadLocalConfig(test.TestConfigFilePath)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = WriteLocalConfig(*localConfig, test.WriteConfigFilePath)
 	defer os.Remove(test.WriteConfigFilePath)

@@ -276,7 +276,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 
 	exp, err := jwtutil.ExpirationTime(claims)
 	if err != nil {
-		return nil, "", fmt.Errorf("token has no expiration time: %s", err)
+		return nil, "", fmt.Errorf("token has no expiration time: %w", err)
 	}
 
 	newToken := ""
@@ -284,13 +284,13 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	if remainingDuration > 0 && remainingDuration < autoRegenerateTokenDuration && capability == settings.AccountCapabilityLogin {
 		uniqueId, err := uuid.NewRandom()
 		if err != nil {
-			return nil, "", fmt.Errorf("could not create UUID for new JWT token: %s", err)
+			return nil, "", fmt.Errorf("could not create UUID for new JWT token: %w", err)
 		}
 
 		tokenExpDuration := exp.Sub(issuedAt)
 		newToken, err = mgr.Create(fmt.Sprintf("%s:%s", subject, settings.AccountCapabilityLogin), int64(tokenExpDuration.Seconds()), uniqueId.String())
 		if err != nil {
-			return nil, "", fmt.Errorf("could not create new JWT token: %s", err)
+			return nil, "", fmt.Errorf("could not create new JWT token: %w", err)
 		}
 	}
 

@@ -338,7 +338,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	invalidHeader["Cookie"] = []string{"argocd.token=" + invalidToken}
 
 	dexRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	dexRequest.Header = dexTokenHeader
 	oidcRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
 	require.NoError(t, err)
@@ -347,9 +347,9 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	require.NoError(t, err)
 	nonoidcRequest.Header = nonOidcTokenHeader
 	nonoidcRequestOnSecondHost, err := http.NewRequest(http.MethodGet, "http://argocd.my-corp.tld/api/logout", nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	nonoidcRequestOnSecondHost.Header = nonOidcTokenHeader
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	requestWithInvalidToken, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
 	require.NoError(t, err)
 	requestWithInvalidToken.Header = invalidHeader
