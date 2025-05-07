@@ -40,4 +40,9 @@
 .columns:has(> .argo-icon-git), .columns:has(> .argo-icon-helm) {
     display: flex;
     align-items: center;
+
+@media screen and (min-width: calc(map-get($breakpoints, xxlarge) - 1px)) {
+    .custom-tooltip {
+        display: none !important;
+    }
 }

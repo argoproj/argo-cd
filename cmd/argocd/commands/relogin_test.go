@@ -24,7 +24,7 @@ func TestNewReloginCommand(t *testing.T) {
 	// Assert command flags
 	passwordFlag := cmd.Flags().Lookup("password")
 	assert.NotNil(t, passwordFlag, "Expected flag --password to be defined")
-	assert.Equal(t, "", passwordFlag.Value.String(), "Unexpected default value for --password flag")
+	assert.Empty(t, passwordFlag.Value.String(), "Unexpected default value for --password flag")
 
 	ssoPortFlag := cmd.Flags().Lookup("sso-port")
 	port, err := strconv.Atoi(ssoPortFlag.Value.String())
@@ -55,7 +55,7 @@ func TestNewReloginCommandWithGlobalClientOptions(t *testing.T) {
 	// Assert command flags
 	passwordFlag := cmd.Flags().Lookup("password")
 	assert.NotNil(t, passwordFlag, "Expected flag --password to be defined")
-	assert.Equal(t, "", passwordFlag.Value.String(), "Unexpected default value for --password flag")
+	assert.Empty(t, passwordFlag.Value.String(), "Unexpected default value for --password flag")
 
 	ssoPortFlag := cmd.Flags().Lookup("sso-port")
 	port, err := strconv.Atoi(ssoPortFlag.Value.String())
