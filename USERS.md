@@ -30,6 +30,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Ant Group](https://www.antgroup.com/)
 1. [AppDirect](https://www.appdirect.com)
 1. [Arctiq Inc.](https://www.arctiq.ca)
+1. [Artemis Health by Nomi Health] (https://www.artemishealth.com/)
 1. [Arturia](https://www.arturia.com)
 1. [ARZ Allgemeines Rechenzentrum GmbH](https://www.arz.at/)
 1. [Augury](https://www.augury.com/)
@@ -319,7 +320,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [SI Analytics](https://si-analytics.ai)
 1. [Sidewalk Entertainment](https://sidewalkplay.com/)
 1. [Skit](https://skit.ai/)
-1. [Skribble](https://skribble.com) 
+1. [Skribble](https://skribble.com)
 1. [Skyscanner](https://www.skyscanner.net/)
 1. [Smart Pension](https://www.smartpension.co.uk/)
 1. [Smilee.io](https://smilee.io)
@@ -402,8 +403,10 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Yieldlab](https://www.yieldlab.de/)
 1. [Youverify](https://youverify.co/)
 1. [Yubo](https://www.yubo.live/)
+1. [Yuno](https://y.uno/)
 1. [ZDF](https://www.zdf.de/)
 1. [Zimpler](https://www.zimpler.com/)
-1. [ZipRecuiter](https://www.ziprecruiter.com/)
+1. [ZipRecruiter](https://www.ziprecruiter.com/)
 1. [ZOZO](https://corp.zozo.com/)
+
 
