@@ -8,6 +8,9 @@ import (
 )
 
 func NewGithubAppProviderFor(g github_app_auth.Authentication, organization string, url string, allBranches bool, httpClient *http.Client) (*GithubProvider, error) {
+	if httpClient == nil {
+		httpClient = &http.Client{}
+	}
 	client, err := github_app.Client(g, url, *httpClient)
 	if err != nil {
 		return nil, err

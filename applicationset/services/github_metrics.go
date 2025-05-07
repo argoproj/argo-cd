@@ -146,13 +146,10 @@ type GitHubMetricsTransport struct {
 	metrics        *GitHubMetrics
 }
 
-// RoundTrip implements http.RoundTripper interface and collects metrics
+// RoundTrip implements http.RoundTripper interface and collects metrics along with debug logging
 func (t *GitHubMetricsTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	endpoint := req.URL.Path
 	method := req.Method
-	startTime := time.Now()
-	resp, err := t.transport.RoundTrip(req)
-	duration := time.Since(startTime)
 
 	appsetNamespace := "unknown"
 	appsetName := "unknown"
@@ -160,6 +157,17 @@ func (t *GitHubMetricsTransport) RoundTrip(req *http.Request) (*http.Response, e
 		appsetNamespace = t.metricsContext.AppSetNamespace
 		appsetName = t.metricsContext.AppSetName
 	}
+
+	log.WithFields(log.Fields{
+		"method":         method,
+		"endpoint":       endpoint,
+		"applicationset": appsetName,
+		"ns":             appsetNamespace,
+	}).Debugf("Invoking GitHub API")
+
+	startTime := time.Now()
+	resp, err := t.transport.RoundTrip(req)
+	duration := time.Since(startTime)
 
 	// Record metrics
 	t.metrics.RequestDuration.WithLabelValues(method, endpoint, appsetNamespace, appsetName).Observe(duration.Seconds())
@@ -169,39 +177,51 @@ func (t *GitHubMetricsTransport) RoundTrip(req *http.Request) (*http.Response, e
 		status = strconv.Itoa(resp.StatusCode)
 	}
 	t.metrics.RequestTotal.WithLabelValues(method, endpoint, status, appsetNamespace, appsetName).Inc()
-	log.Debugf("Invoking GitHub API for %s %s %s/%s: ", method, endpoint, appsetNamespace, appsetName)
 
 	if resp != nil {
+		resetHumanReadableTime := ""
+		remainingInt := 0
+		limitInt := 0
+		usedInt := 0
+		resource := ""
+
 		// Record rate limit metrics if available
 		if resetTime := resp.Header.Get("X-RateLimit-Reset"); resetTime != "" {
 			if resetUnix, err := strconv.ParseInt(resetTime, 10, 64); err == nil {
 				t.metrics.RateLimitReset.WithLabelValues(endpoint, appsetNamespace, appsetName).Set(float64(resetUnix))
-				humanReadableTime := time.Unix(resetUnix, 0).Local().Format("2006-01-02 15:04:05 MST")
-				log.Debugf("Rate limit reset time for %s in %s/%s: %s", endpoint, appsetNamespace, appsetName, humanReadableTime)
+				resetHumanReadableTime = time.Unix(resetUnix, 0).Local().Format("2006-01-02 15:04:05 MST")
+
 			}
 		}
 		if remaining := resp.Header.Get("X-RateLimit-Remaining"); remaining != "" {
-			if remainingInt, err := strconv.Atoi(remaining); err == nil {
+			if remainingInt, err = strconv.Atoi(remaining); err == nil {
 				t.metrics.RateLimitRemaining.WithLabelValues(endpoint, appsetNamespace, appsetName).Set(float64(remainingInt))
-				log.Debugf("Rate limit remaining for %s in %s/%s: %d", endpoint, appsetNamespace, appsetName, remainingInt)
 			}
 		}
 		if limit := resp.Header.Get("X-RateLimit-Limit"); limit != "" {
-			if limitInt, err := strconv.Atoi(limit); err == nil {
+			if limitInt, err = strconv.Atoi(limit); err == nil {
 				t.metrics.RateLimitLimit.WithLabelValues(endpoint, appsetNamespace, appsetName).Set(float64(limitInt))
-				log.Debugf("Rate limit limit for %s in %s/%s: %d", endpoint, appsetNamespace, appsetName, limitInt)
 			}
 		}
 		if used := resp.Header.Get("X-RateLimit-Used"); used != "" {
-			if usedInt, err := strconv.Atoi(used); err == nil {
+			if usedInt, err = strconv.Atoi(used); err == nil {
 				t.metrics.RateLimitUsed.WithLabelValues(endpoint, appsetNamespace, appsetName).Set(float64(usedInt))
-				log.Debugf("Rate limit used for %s in %s/%s: %d", endpoint, appsetNamespace, appsetName, usedInt)
 			}
 		}
-		if resource := resp.Header.Get("X-RateLimit-Resource"); resource != "" {
+		if resource = resp.Header.Get("X-RateLimit-Resource"); resource != "" {
 			t.metrics.RateLimitResource.WithLabelValues(endpoint, resource, appsetNamespace, appsetName).Set(1)
-			log.Debugf("Rate limit resource for %s in %s/%s: %s", endpoint, appsetNamespace, appsetName, resource)
 		}
+
+		log.WithFields(log.Fields{
+			"endpoint":       endpoint,
+			"reset":          resetHumanReadableTime,
+			"remaining":      remainingInt,
+			"limit":          limitInt,
+			"used":           usedInt,
+			"resource":       resource,
+			"applicationset": appsetName,
+			"ns":             appsetNamespace,
+		}).Debugf("GitHub API rate limit info")
 	}
 
 	return resp, err

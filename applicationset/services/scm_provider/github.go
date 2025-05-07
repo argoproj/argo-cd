@@ -24,6 +24,9 @@ func NewGithubProvider(organization string, token string, url string, allBranche
 	}
 
 	var client *github.Client
+	if httpClient == nil {
+		httpClient = &http.Client{}
+	}
 	if url == "" {
 		if token == "" {
 			client = github.NewClient(httpClient)

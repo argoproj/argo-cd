@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
@@ -242,7 +243,12 @@ func TestGithubListRepos(t *testing.T) {
 	defer ts.Close()
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewGithubProvider("argoproj", "", ts.URL, c.allBranches, nil)
+			metricsCtx := &services.MetricsContext{
+				AppSetNamespace: "test-ns",
+				AppSetName:      "test-appset",
+			}
+			httpClient := services.NewGitHubMetricsClient(metricsCtx)
+			provider, _ := NewGithubProvider("argoproj", "", ts.URL, c.allBranches, httpClient)
 			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)
@@ -272,7 +278,12 @@ func TestGithubHasPath(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	host, _ := NewGithubProvider("argoproj", "", ts.URL, false, nil)
+	metricsCtx := &services.MetricsContext{
+		AppSetNamespace: "test-ns",
+		AppSetName:      "test-appset",
+	}
+	httpClient := services.NewGitHubMetricsClient(metricsCtx)
+	host, _ := NewGithubProvider("argoproj", "", ts.URL, false, httpClient)
 	repo := &Repository{
 		Organization: "argoproj",
 		Repository:   "argo-cd",
@@ -292,7 +303,14 @@ func TestGithubGetBranches(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	host, _ := NewGithubProvider("argoproj", "", ts.URL, false, nil)
+
+	metricsCtx := &services.MetricsContext{
+		AppSetNamespace: "test-ns",
+		AppSetName:      "test-appset",
+	}
+	httpClient := services.NewGitHubMetricsClient(metricsCtx)
+
+	host, _ := NewGithubProvider("argoproj", "", ts.URL, false, httpClient)
 	repo := &Repository{
 		Organization: "argoproj",
 		Repository:   "argo-cd",
