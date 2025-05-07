@@ -570,7 +570,7 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 			return nil, "", common.ErrTokenVerification
 		}
 
-		id, _ := claims["id"].(string)
+		id, _ := claims["jti"].(string)
 		// Workaround for Dex token, because does not have jti.
 		if id == "" {
 			id = idToken.AccessTokenHash
