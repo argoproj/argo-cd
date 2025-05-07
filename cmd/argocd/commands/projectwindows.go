@@ -30,7 +30,7 @@ argocd proj windows add my-project \
 --duration 3600 \
 --prune
 
-#Delete a sync window from a project 
+#Delete a sync window from a project
 argocd proj windows delete <project-name> <window-id>
 
 #List project sync windows
@@ -56,8 +56,8 @@ func NewProjectWindowsDisableManualSyncCommand(clientOpts *argocdclient.ClientOp
 		Short: "Disable manual sync for a sync window",
 		Long:  "Disable manual sync for a sync window. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
 		Example: `
-#Disable manual sync for a sync window for the Project 
-argocd proj windows disable-manual-sync PROJECT ID 
+#Disable manual sync for a sync window for the Project
+argocd proj windows disable-manual-sync PROJECT ID
 
 #Disabling manual sync for a windows set on the default project with Id 0
 argocd proj windows disable-manual-sync default 0`,
@@ -100,7 +100,7 @@ func NewProjectWindowsEnableManualSyncCommand(clientOpts *argocdclient.ClientOpt
 		Long:  "Enable manual sync for a sync window. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
 		Example: `
 #Enabling manual sync for a general case
-argocd proj windows enable-manual-sync PROJECT ID 
+argocd proj windows enable-manual-sync PROJECT ID
 
 #Enabling manual sync for a windows set on the default project with Id 2
 argocd proj windows enable-manual-sync default 2
@@ -162,7 +162,7 @@ argocd proj windows add PROJECT \
     --schedule "0 22 * * *" \
     --duration 1h \
     --applications "*" \
-	--description "Ticket 123"
+    --description "Ticket 123"
 
 #Add a deny sync window with the ability to manually sync.
 argocd proj windows add PROJECT \
@@ -173,7 +173,7 @@ argocd proj windows add PROJECT \
     --namespaces "default,\\*-prod" \
     --clusters "prod,staging" \
     --manual-sync \
-	--description "Ticket 123"
+    --description "Ticket 123"
 	`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -205,7 +205,7 @@ argocd proj windows add PROJECT \
 	command.Flags().BoolVar(&manualSync, "manual-sync", false, "Allow manual syncs for both deny and allow windows")
 	command.Flags().StringVar(&timeZone, "time-zone", "UTC", "Time zone of the sync window")
 	command.Flags().BoolVar(&andOperator, "use-and-operator", false, "Use AND operator for matching applications, namespaces and clusters instead of the default OR operator")
-	command.Flags().StringVar(&description, "description", "", `Sync window description. (e.g. --description ticket "123456")`)
+	command.Flags().StringVar(&description, "description", "", `Sync window description`)
 
 	return command
 }
@@ -216,7 +216,7 @@ func NewProjectWindowsDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 		Use:   "delete PROJECT ID",
 		Short: "Delete a sync window from a project. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
 		Example: `
-#Delete a sync window from a project (default) with ID 0 
+#Delete a sync window from a project (default) with ID 0
 argocd proj windows delete default 0
 
 #Delete a sync window from a project (new-project) with ID 1
@@ -311,7 +311,7 @@ argocd proj windows update PROJECT ID \
 	command.Flags().StringSliceVar(&namespaces, "namespaces", []string{}, "Namespaces that the schedule will be applied to. Comma separated, wildcards supported (e.g. --namespaces default,\\*-prod)")
 	command.Flags().StringSliceVar(&clusters, "clusters", []string{}, "Clusters that the schedule will be applied to. Comma separated, wildcards supported (e.g. --clusters prod,staging)")
 	command.Flags().StringVar(&timeZone, "time-zone", "UTC", "Time zone of the sync window. (e.g. --time-zone \"America/New_York\")")
-	command.Flags().StringVar(&description, "description", "", "Sync window description. (e.g. --description \"Ticket 123\")")
+	command.Flags().StringVar(&description, "description", "", "Sync window description")
 	return command
 }
 

@@ -18,7 +18,7 @@ argocd proj windows add PROJECT \
     --schedule "0 22 * * *" \
     --duration 1h \
     --applications "*" \
-	--description "Ticket 123"
+    --description "Ticket 123"
 
 #Add a deny sync window with the ability to manually sync.
 argocd proj windows add PROJECT \
@@ -29,7 +29,7 @@ argocd proj windows add PROJECT \
     --namespaces "default,\\*-prod" \
     --clusters "prod,staging" \
     --manual-sync \
-	--description "Ticket 123"
+    --description "Ticket 123"
 	
 ```
 
@@ -38,7 +38,7 @@ argocd proj windows add PROJECT \
 ```
       --applications strings   Applications that the schedule will be applied to. Comma separated, wildcards supported (e.g. --applications prod-\*,website)
       --clusters strings       Clusters that the schedule will be applied to. Comma separated, wildcards supported (e.g. --clusters prod,staging)
-      --description string     Sync window description. (e.g. --description ticket "123456")
+      --description string     Sync window description
       --duration string        Sync window duration. (e.g. --duration 1h)
   -h, --help                   help for add
   -k, --kind string            Sync window kind, either allow or deny
