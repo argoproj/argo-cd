@@ -701,6 +701,9 @@ message ApplicationStatus {
 
   // SourceHydrator stores information about the current state of source hydration
   optional SourceHydratorStatus sourceHydrator = 14;
+
+  // OperationState contains information about the last non dryrun completed operation
+  optional OperationState lastCompletedNonDryRunOperation = 15;
 }
 
 // ApplicationSummary contains information about URLs and container images used by an application
