@@ -175,9 +175,9 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				if test.ExpectedErrorMessage != "" {
 					assert.EqualError(t, err, test.ExpectedErrorMessage)
 					return
-				} else {
-					require.NoError(t, err)
 				}
+
+				require.NoError(t, err)
 
 				// Treat the Lua expected output as a list
 				expectedObjects := getExpectedObjectList(t, filepath.Join(dir, test.ExpectedOutputPath))
