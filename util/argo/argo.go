@@ -31,7 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/glob"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -303,7 +303,7 @@ func ValidateRepo(
 	if err != nil {
 		return nil, fmt.Errorf("error instantiating new repo server client: %w", err)
 	}
-	defer io.Close(conn)
+	defer utilio.Close(conn)
 
 	helmOptions, err := settingsMgr.GetHelmSettings()
 	if err != nil {

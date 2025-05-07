@@ -4,7 +4,7 @@ package mocks
 
 import (
 	apiclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
-	io "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -15,24 +15,24 @@ type Clientset struct {
 }
 
 // NewCommitServerClient provides a mock function with no fields
-func (_m *Clientset) NewCommitServerClient() (io.Closer, apiclient.CommitServiceClient, error) {
+func (_m *Clientset) NewCommitServerClient() (utilio.Closer, apiclient.CommitServiceClient, error) {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for NewCommitServerClient")
 	}
 
-	var r0 io.Closer
+	var r0 utilio.Closer
 	var r1 apiclient.CommitServiceClient
 	var r2 error
-	if rf, ok := ret.Get(0).(func() (io.Closer, apiclient.CommitServiceClient, error)); ok {
+	if rf, ok := ret.Get(0).(func() (utilio.Closer, apiclient.CommitServiceClient, error)); ok {
 		return rf()
 	}
-	if rf, ok := ret.Get(0).(func() io.Closer); ok {
+	if rf, ok := ret.Get(0).(func() utilio.Closer); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(io.Closer)
+			r0 = ret.Get(0).(utilio.Closer)
 		}
 	}
 
