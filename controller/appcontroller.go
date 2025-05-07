@@ -1414,6 +1414,22 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				logCtx.Infof("Skipping retrying in-progress operation. Attempting again at: %s", retryAt.Format(time.RFC3339))
 				ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
 				return
+			} else {
+				// abort ongoing operation and retry if auto-refresh is enabled and a new revision is available
+				if state.Phase == synccommon.OperationRunning && state.Operation.Retry.Refresh && app.Status.Sync.Revision != state.Operation.Sync.Revision {
+					logCtx.Infof("A new revision is available, refreshing and terminating app, was phase: %s, message: %s", state.Phase, state.Message)
+					ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), nil)
+					state.Phase = synccommon.OperationTerminating
+					state.Message = "Operation forced to terminate (new revision available)"
+					ctrl.setOperationState(app, state)
+					return
+				}
+				// retrying operation. remove previous failure time in app since it is used as a trigger
+				// that previous failed and operation should be retried
+				state.FinishedAt = nil
+				ctrl.setOperationState(app, state)
+				// Get rid of sync results and null out previous operation completion time
+				state.SyncResult = nil
 			}
 			// Get rid of sync results and null out previous operation completion time
 			// This will start the retry attempt
