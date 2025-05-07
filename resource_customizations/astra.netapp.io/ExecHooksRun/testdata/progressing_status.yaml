@@ -1,0 +1,69 @@
+apiVersion: astra.netapp.io/v1
+kind: ExecHooksRun
+metadata:
+  annotations:
+    astra.netapp.io/correlationid: 1c47a636-f819-43f3-baee-054793424bb5
+  creationTimestamp: "2024-04-25T16:35:34Z"
+  generation: 1
+  name: pre-snapshot-073d13d7-4a0c-4c5e-914f-331ef6d00de2
+  namespace: astra-connector
+  ownerReferences:
+    - apiVersion: astra.netapp.io/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Snapshot
+      name: argo-presync-20240425163524
+      uid: 073d13d7-4a0c-4c5e-914f-331ef6d00de2
+  resourceVersion: "11320407"
+  uid: 064199e2-d540-4628-b4ec-5b417bb85128
+spec:
+  action: snapshot
+  appArchivePath: ghost_0af10ee8-772b-4367-8334-44f9e4ad2849/snapshots/20240425163526_argo-presync-20240425163524_073d13d7-4a0c-4c5e-914f-331ef6d00de2
+  appVaultRef: astra-gcp-backup-743cfd150129
+  applicationRef: ghost
+  completionTimeout: 0s
+  resourceFilter: {}
+  stage: pre
+status:
+  conditions:
+    - lastTransitionTime: "2024-04-25T16:35:34Z"
+      message: Found 1 matching container/exechook pairs
+      reason: Done
+      status: "True"
+      type: RetrievedMatchingContainers
+    - lastTransitionTime: "2024-04-25T16:35:34Z"
+      message: Wait only needed on a restore
+      reason: Done
+      status: "True"
+      type: WaitForReadiness
+    - lastTransitionTime: "2024-04-25T16:35:34Z"
+      message: Waiting
+      reason: Waiting
+      status: "False"
+      type: ProcessMatchingContainers
+    - lastTransitionTime: "2024-04-25T16:35:34Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: ArchiveExecHooksUsed
+    - lastTransitionTime: "2024-04-25T16:35:34Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: Completed
+    - lastTransitionTime: "2024-04-25T16:35:34Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: OnFailureArchiveExecHooksUsed
+  matchingContainers:
+    - containerImage: docker.io/bitnami/mysql:8.0.32-debian-11-r8
+      containerName: mysql
+      execHookRef: pre-snapshot
+      execHookUID: 105679e3-4acc-4618-a3c2-53e0e5949f65
+      jobName: ehr-ea0e89c8221790b54e94b4ac937aeac2
+      namespace: ghost
+      podName: ghost-mysql-5bfb6bc8f5-stw4w
+      podUID: 15ddfce0-1565-4574-89a6-80662450aedd
+      startTimestamp: "2024-04-25T16:35:34Z"
+  state: Running

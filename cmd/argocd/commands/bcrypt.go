@@ -10,15 +10,13 @@ import (
 
 // NewBcryptCmd represents the bcrypt command
 func NewBcryptCmd() *cobra.Command {
-	var (
-		password string
-	)
-	var bcryptCmd = &cobra.Command{
+	var password string
+	bcryptCmd := &cobra.Command{
 		Use:   "bcrypt",
 		Short: "Generate bcrypt hash for any password",
 		Example: `# Generate bcrypt hash for any password 
 argocd account bcrypt --password YOUR_PASSWORD`,
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(cmd *cobra.Command, _ []string) {
 			bytePassword := []byte(password)
 			// Hashing the password
 			hash, err := bcrypt.GenerateFromPassword(bytePassword, bcrypt.DefaultCost)

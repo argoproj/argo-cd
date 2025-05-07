@@ -3,6 +3,7 @@ package apiclient
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -17,10 +18,10 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	argocderrors "github.com/argoproj/argo-cd/v2/util/errors"
-	argoio "github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/rand"
+	"github.com/argoproj/argo-cd/v3/common"
+	argocderrors "github.com/argoproj/argo-cd/v3/util/errors"
+	argoio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/rand"
 )
 
 const (
@@ -30,11 +31,11 @@ const (
 
 type noopCodec struct{}
 
-func (noopCodec) Marshal(v interface{}) ([]byte, error) {
+func (noopCodec) Marshal(v any) ([]byte, error) {
 	return v.([]byte), nil
 }
 
-func (noopCodec) Unmarshal(data []byte, v interface{}) error {
+func (noopCodec) Unmarshal(data []byte, v any) error {
 	pointer := v.(*[]byte)
 	*pointer = data
 	return nil
@@ -65,7 +66,6 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 		requestURL = fmt.Sprintf("%s://%s%s", schema, c.ServerAddr, fullMethodName)
 	}
 	req, err := http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(toFrame(msg)))
-
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +108,6 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 	}
 	serverAddr := fmt.Sprintf("%s/argocd-%s.sock", os.TempDir(), randSuffix)
 	ln, err := net.Listen("unix", serverAddr)
-
 	if err != nil {
 		return nil, nil, err
 	}
@@ -119,10 +118,10 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
 			},
 		),
-		grpc.UnknownServiceHandler(func(srv interface{}, stream grpc.ServerStream) error {
+		grpc.UnknownServiceHandler(func(_ any, stream grpc.ServerStream) error {
 			fullMethodName, ok := grpc.MethodFromServerStream(stream)
 			if !ok {
-				return fmt.Errorf("Unable to get method name from stream context.")
+				return errors.New("unable to get method name from stream context")
 			}
 			msg := make([]byte, 0)
 			err := stream.RecvMsg(&msg)
@@ -131,13 +130,12 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 			}
 
 			md, _ := metadata.FromIncomingContext(stream.Context())
-
-			for _, kv := range c.Headers {
-				if len(strings.Split(kv, ":"))%2 == 1 {
-					return fmt.Errorf("additional headers key/values must be separated by a colon(:): %s", kv)
-				}
-				md.Append(strings.Split(kv, ":")[0], strings.Split(kv, ":")[1])
+			headersMD, err := parseGRPCHeaders(c.Headers)
+			if err != nil {
+				return err
 			}
+
+			md = metadata.Join(md, headersMD)
 
 			resp, err := c.executeRequest(fullMethodName, msg, md)
 			if err != nil {
@@ -154,7 +152,7 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 			for {
 				header := make([]byte, frameHeaderLength)
 				if _, err := io.ReadAtLeast(resp.Body, header, frameHeaderLength); err != nil {
-					if err == io.EOF {
+					if errors.Is(err, io.EOF) {
 						err = io.ErrUnexpectedEOF
 					}
 					return err
@@ -167,19 +165,17 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 				data := make([]byte, length)
 
 				if read, err := io.ReadAtLeast(resp.Body, data, length); err != nil {
-					if err != io.EOF {
+					if !errors.Is(err, io.EOF) {
 						return err
 					} else if read < length {
 						return io.ErrUnexpectedEOF
-					} else {
-						return nil
 					}
+					return nil
 				}
 
 				if err := stream.SendMsg(data); err != nil {
 					return err
 				}
-
 			}
 		}))
 	go func() {
@@ -215,4 +211,17 @@ func (c *client) useGRPCProxy() (net.Addr, io.Closer, error) {
 		}
 		return nil
 	}), nil
+}
+
+func parseGRPCHeaders(headerStrings []string) (metadata.MD, error) {
+	md := metadata.New(map[string]string{})
+	for _, kv := range headerStrings {
+		i := strings.IndexByte(kv, ':')
+		// zero means meaningless empty header name
+		if i <= 0 {
+			return nil, fmt.Errorf("additional headers must be colon(:)-separated: %s", kv)
+		}
+		md.Append(kv[0:i], kv[i+1:])
+	}
+	return md, nil
 }

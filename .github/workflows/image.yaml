@@ -7,7 +7,7 @@ on:
   pull_request:
     branches:
       - master
-    types: [ labeled, unlabeled, opened, synchronize, reopened ]
+    types: [labeled, unlabeled, opened, synchronize, reopened]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,7 +25,7 @@ jobs:
       image-tag: ${{ steps.image.outputs.tag}}
       platforms: ${{ steps.platforms.outputs.platforms }}
     steps:
-      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      - uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
 
       - name: Set image tag for ghcr
         run: echo "tag=$(cat ./VERSION)-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
@@ -46,13 +46,14 @@ jobs:
     needs: [set-vars]
     permissions:
       contents: read
-      packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
+      packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
       id-token: write # for creating OIDC tokens for signing.
     if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name != 'push' }}
     uses: ./.github/workflows/image-reuse.yaml
     with:
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
-      go-version: 1.21
+      # renovate: datasource=golang-version packageName=golang
+      go-version: 1.24.1
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: false
 
@@ -60,7 +61,7 @@ jobs:
     needs: [set-vars]
     permissions:
       contents: read
-      packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
+      packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
       id-token: write # for creating OIDC tokens for signing.
     if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
     uses: ./.github/workflows/image-reuse.yaml
@@ -68,7 +69,8 @@ jobs:
       quay_image_name: quay.io/argoproj/argocd:latest
       ghcr_image_name: ghcr.io/argoproj/argo-cd/argocd:${{ needs.set-vars.outputs.image-tag }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
-      go-version: 1.21
+      # renovate: datasource=golang-version packageName=golang
+      go-version: 1.24.1
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: true
     secrets:
@@ -86,7 +88,7 @@ jobs:
       packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
     if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.7.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.0.0
     with:
       image: ghcr.io/argoproj/argo-cd/argocd
       digest: ${{ needs.build-and-publish.outputs.image-digest }}
@@ -99,12 +101,12 @@ jobs:
       - build-and-publish
       - set-vars
     permissions:
-      contents: write  # for git to push upgrade commit if not already deployed
-      packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
+      contents: write # for git to push upgrade commit if not already deployed
+      packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
     if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      - uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
       - run: git clone "https://$TOKEN@github.com/argoproj/argoproj-deployments"
         env:
           TOKEN: ${{ secrets.TOKEN }}
@@ -114,4 +116,3 @@ jobs:
           git config --global user.name 'CI'
           git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${{ needs.set-vars.outputs.image-tag }}' && git push)
         working-directory: argoproj-deployments/argocd
-

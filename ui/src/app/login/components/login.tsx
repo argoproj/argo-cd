@@ -65,14 +65,13 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                             <a
                                 {...(authSettings?.oidcConfig?.enablePKCEAuthentication
                                     ? {
-                                          onClick: async () => {
+                                          onClick: () =>
                                               pkceLogin(authSettings.oidcConfig, getPKCERedirectURI().toString()).catch(err => {
                                                   this.appContext.apis.notifications.show({
                                                       type: NotificationType.Error,
                                                       content: err?.message || JSON.stringify(err)
                                                   });
-                                              });
-                                          }
+                                              })
                                       }
                                     : {href: `auth/login?return_url=${encodeURIComponent(this.state.returnUrl)}`})}>
                                 <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
@@ -136,7 +135,12 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
             this.setState({loginInProgress: false});
             if (returnURL) {
                 const url = new URL(returnURL);
-                this.appContext.apis.navigation.goto(url.pathname + url.search);
+                let redirectURL = url.pathname + url.search;
+                // return url already contains baseHref, so we need to remove it
+                if (this.appContext.apis.baseHref != '/' && redirectURL.startsWith(this.appContext.apis.baseHref)) {
+                    redirectURL = redirectURL.substring(this.appContext.apis.baseHref.length);
+                }
+                this.appContext.apis.navigation.goto(redirectURL);
             } else {
                 this.appContext.apis.navigation.goto('/applications');
             }

@@ -1,0 +1,7 @@
+actionTests:
+- action: enable-force-promote
+  inputPath: testdata/ISBServiceRollout/rollout-enable-force-promote.yaml
+  expectedOutputPath: testdata/ISBServiceRollout/rollout-disable-force-promote.yaml
+- action: disable-force-promote
+  inputPath: testdata/ISBServiceRollout/rollout-disable-force-promote.yaml
+  expectedOutputPath: testdata/ISBServiceRollout/rollout-enable-force-promote.yaml

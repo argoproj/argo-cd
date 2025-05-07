@@ -6,15 +6,18 @@
 
 These are the upcoming releases dates:
 
-| Release | Release Candidate 1   | General Availability | Release Champion                                      | Release Approver                                      |Checklist                                                      |
+| Release | Release Candidate 1   | General Availability | Release Champion                                      | Release Approver                                      | Checklist                                                     |
 |---------|-----------------------|----------------------|-------------------------------------------------------|-------------------------------------------------------|---------------------------------------------------------------|
 | v2.6    | Monday, Dec. 19, 2022 | Monday, Feb. 6, 2023 | [William Tam](https://github.com/wtam2018)            | [William Tam](https://github.com/wtam2018)            | [checklist](https://github.com/argoproj/argo-cd/issues/11563) |
 | v2.7    | Monday, Mar. 20, 2023 | Monday, May 1, 2023  | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/12762) |
 | v2.8    | Monday, Jun. 26, 2023 | Monday, Aug. 7, 2023 | [Keith Chong](https://github.com/keithchong)          | [Keith Chong](https://github.com/keithchong)          | [checklist](https://github.com/argoproj/argo-cd/issues/13742) |
 | v2.9    | Monday, Sep. 18, 2023 | Monday, Nov. 6, 2023 | [Leonardo Almeida](https://github.com/leoluz)         | [Leonardo Almeida](https://github.com/leoluz)         | [checklist](https://github.com/argoproj/argo-cd/issues/14078) |
 | v2.10   | Monday, Dec. 18, 2023 | Monday, Feb. 5, 2024 | [Katie Lamkin](https://github.com/kmlamkin9)          |                                                       | [checklist](https://github.com/argoproj/argo-cd/issues/16339) |
-| v2.11   | Monday, Mar. 18, 2024 | Monday, May 6, 2024  | 
-| v2.12   | Monday, Jun. 17, 2024 | Monday, Aug. 5, 2024 | 
+| v2.11   | Friday, Apr. 5,  2024 | Monday, May 6, 2024  | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/17726) |
+| v2.12   | Monday, Jun. 17, 2024 | Monday, Aug. 5, 2024 | [Ishita Sequeira](https://github.com/ishitasequeira)  | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/19063) |
+| v2.13   | Monday, Sep. 16, 2024 | Monday, Nov. 4, 2024 | [Regina Voloshin](https://github.com/reggie-k)        | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/19513) |
+| v2.14   | Monday, Dec. 16, 2024 | Monday, Feb. 3, 2025 | [Ryan Umstead](https://github.com/rumstead)           | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/20869) |
+| v3.0    | Monday, Mar. 17, 2025 | Tuesday, May 6, 2025  | [Regina Voloshin](https://github.com/reggie-k)   |                                                       | [checklist](https://github.com/argoproj/argo-cd/issues/21735)                                                              | 
 
 Actual release dates might differ from the plan by a few days.
 
@@ -71,7 +74,7 @@ that minor release. It will have to wait for the next minor release.
 
 ### Security Patch Policy
 
-CVEs in Argo CD code will be patched for all [supported versions](../operator-manual/installation.md#supported-versions). 
+CVEs in Argo CD code will be patched for all supported versions. Read more about supported versions in the [security policy for Argo CD](https://github.com/argoproj/argo-cd/security/policy#supported-versions).
 
 ### Dependencies Lifecycle Policy
 
@@ -85,4 +88,4 @@ These evaluations vary from dependency to dependencies.
 Dependencies are also scheduled for removal if the project has been deprecated or if the project is no longer maintained.
 
 CVEs in dependencies will be patched for all supported versions if the CVE is applicable and is assessed by Snyk to be
-of high or critical severity. Automation generates a [new Snyk scan weekly](../snyk).
+of high or critical severity. Automation generates a [new Snyk scan weekly](../snyk/index.md).

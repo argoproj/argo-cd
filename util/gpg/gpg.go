@@ -3,6 +3,7 @@ package gpg
 import (
 	"bufio"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,9 +14,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	"github.com/argoproj/argo-cd/v3/common"
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
 )
 
 // Regular expression to match public key beginning
@@ -65,11 +66,7 @@ type PGPKeyID string
 
 func isHexString(s string) bool {
 	_, err := hex.DecodeString(s)
-	if err != nil {
-		return false
-	} else {
-		return true
-	}
+	return err == nil
 }
 
 // KeyID get the actual correct (short) key ID from either a fingerprint or the key ID. Returns the empty string if k seems not to be a PGP key ID.
@@ -87,18 +84,16 @@ func KeyID(k string) string {
 func IsLongKeyID(k string) bool {
 	if len(k) == 40 && isHexString(k) {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
 // IsShortKeyID returns true if the string represents a short key ID
 func IsShortKeyID(k string) bool {
 	if len(k) == 16 && isHexString(k) {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
 // Result of a git commit verification
@@ -150,7 +145,7 @@ const MaxVerificationLinesToParse = 40
 
 // Helper function to append GNUPGHOME for a command execution environment
 func getGPGEnviron() []string {
-	return append(os.Environ(), fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()), "LANG=C")
+	return append(os.Environ(), "GNUPGHOME="+common.GetGnuPGHomePath(), "LANG=C")
 }
 
 // Helper function to write some data to a temp file and return its path
@@ -160,7 +155,7 @@ func writeKeyToFile(keyData string) (string, error) {
 		return "", err
 	}
 
-	err = os.WriteFile(f.Name(), []byte(keyData), 0600)
+	err = os.WriteFile(f.Name(), []byte(keyData), 0o600)
 	if err != nil {
 		os.Remove(f.Name())
 		return "", err
@@ -185,9 +180,8 @@ func removeKeyRing(path string) error {
 	if err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("refusing to remove directory %s: it's not initialized by Argo CD", path)
-		} else {
-			return err
 		}
+		return err
 	}
 	rd, err := os.Open(path)
 	if err != nil {
@@ -221,7 +215,6 @@ func IsGPGEnabled() bool {
 // InitializeGnuPG will initialize a GnuPG working directory and also create a
 // transient private key so that the trust DB will work correctly.
 func InitializeGnuPG() error {
-
 	gnuPgHome := common.GetGnuPGHomePath()
 
 	// We only operate if ARGOCD_GNUPGHOME is set
@@ -249,13 +242,13 @@ func InitializeGnuPG() error {
 		// re-initialize key ring.
 		err = removeKeyRing(gnuPgHome)
 		if err != nil {
-			return fmt.Errorf("re-initializing keyring at %s failed: %v", gnuPgHome, err)
+			return fmt.Errorf("re-initializing keyring at %s failed: %w", gnuPgHome, err)
 		}
 	}
 
-	err = os.WriteFile(filepath.Join(gnuPgHome, canaryMarkerFilename), []byte("canary"), 0644)
+	err = os.WriteFile(filepath.Join(gnuPgHome, canaryMarkerFilename), []byte("canary"), 0o644)
 	if err != nil {
-		return fmt.Errorf("could not create canary: %v", err)
+		return fmt.Errorf("could not create canary: %w", err)
 	}
 
 	f, err := os.CreateTemp("", "gpg-key-recipe")
@@ -407,7 +400,7 @@ func SetPGPTrustLevelById(kids []string, trustLevel string) error {
 func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error {
 	trust, ok := pgpTrustLevels[trustLevel]
 	if !ok {
-		return fmt.Errorf("Unknown trust level: %s", trustLevel)
+		return fmt.Errorf("unknown trust level: %s", trustLevel)
 	}
 
 	// We need to store ownertrust specification in a temp file. Format is <fingerprint>:<level>
@@ -419,7 +412,7 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error
 	defer os.Remove(f.Name())
 
 	for _, k := range pgpKeys {
-		_, err := f.WriteString(fmt.Sprintf("%s:%d\n", k.KeyID, trust))
+		_, err := fmt.Fprintf(f, "%s:%d\n", k.KeyID, trust)
 		if err != nil {
 			return err
 		}
@@ -502,7 +495,7 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 	}
 
 	scanner := bufio.NewScanner(strings.NewReader(out))
-	var curKey *appsv1.GnuPGPublicKey = nil
+	var curKey *appsv1.GnuPGPublicKey
 	for scanner.Scan() {
 		if strings.HasPrefix(scanner.Text(), "pub ") {
 			// This is the beginning of a new key, time to store the previously parsed one in our list and start fresh.
@@ -516,18 +509,18 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 			// Second field in pub output denotes key sub type (cipher and length)
 			token := subTypeMatch.FindStringSubmatch(scanner.Text())
 			if len(token) != 2 {
-				return nil, fmt.Errorf("Invalid line: %s (len=%d)", scanner.Text(), len(token))
+				return nil, fmt.Errorf("invalid line: %s (len=%d)", scanner.Text(), len(token))
 			}
 			key.SubType = token[1]
 
 			// Next line should be the key ID, no prefix
 			if !scanner.Scan() {
-				return nil, fmt.Errorf("Invalid output from gpg, end of text after primary key")
+				return nil, errors.New("invalid output from gpg, end of text after primary key")
 			}
 
 			token = keyIdMatch.FindStringSubmatch(scanner.Text())
 			if len(token) != 2 {
-				return nil, fmt.Errorf("Invalid output from gpg, no key ID for primary key")
+				return nil, errors.New("invalid output from gpg, no key ID for primary key")
 			}
 
 			key.Fingerprint = token[1]
@@ -540,17 +533,17 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 
 			// Next line should be UID
 			if !scanner.Scan() {
-				return nil, fmt.Errorf("Invalid output from gpg, end of text after key ID")
+				return nil, errors.New("invalid output from gpg, end of text after key ID")
 			}
 
 			if !strings.HasPrefix(scanner.Text(), "uid ") {
-				return nil, fmt.Errorf("Invalid output from gpg, no identity for primary key")
+				return nil, errors.New("invalid output from gpg, no identity for primary key")
 			}
 
 			token = uidMatch.FindStringSubmatch(scanner.Text())
 
 			if len(token) < 3 {
-				return nil, fmt.Errorf("Malformed identity line: %s (len=%d)", scanner.Text(), len(token))
+				return nil, fmt.Errorf("malformed identity line: %s (len=%d)", scanner.Text(), len(token))
 			}
 
 			// Store trust level
@@ -597,7 +590,7 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 
 	scanner := bufio.NewScanner(strings.NewReader(signature))
 	for scanner.Scan() && linesParsed < MaxVerificationLinesToParse {
-		linesParsed += 1
+		linesParsed++
 
 		// Indicating the beginning of a signature
 		start := verificationStartMatch.FindStringSubmatch(scanner.Text())
@@ -607,7 +600,7 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 				return unknownResult("Unexpected end-of-file while parsing commit verification output.")
 			}
 
-			linesParsed += 1
+			linesParsed++
 
 			// What key has made the signature?
 			keyID := verificationKeyIDMatch.FindStringSubmatch(scanner.Text())
@@ -618,7 +611,7 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 			result.Cipher = keyID[1]
 			result.KeyID = KeyID(keyID[2])
 			if result.KeyID == "" {
-				return unknownResult(fmt.Sprintf("Invalid PGP key ID found in verification result: %s", result.KeyID))
+				return unknownResult("Invalid PGP key ID found in verification result: " + result.KeyID)
 			}
 
 			// What was the result of signature verification?
@@ -626,7 +619,7 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 				return unknownResult("Unexpected end-of-file while parsing commit verification output.")
 			}
 
-			linesParsed += 1
+			linesParsed++
 
 			// Skip additional fields
 			for verificationAdditionalFields.MatchString(scanner.Text()) {
@@ -634,7 +627,7 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 					return unknownResult("Unexpected end-of-file while parsing commit verification output.")
 				}
 
-				linesParsed += 1
+				linesParsed++
 			}
 
 			if strings.HasPrefix(scanner.Text(), "gpg: Can't check signature: ") {
@@ -674,15 +667,14 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 	}
 
 	if parseOk && linesParsed < MaxVerificationLinesToParse {
-		// Operation successfull - return result
+		// Operation successful - return result
 		return result
 	} else if linesParsed >= MaxVerificationLinesToParse {
 		// Too many output lines, return error
 		return unknownResult("Too many lines of gpg verify-commit output, abort.")
-	} else {
-		// No data found, return error
-		return unknownResult("Could not parse output of verify-commit, no verification data found.")
 	}
+	// No data found, return error
+	return unknownResult("Could not parse output of verify-commit, no verification data found.")
 }
 
 // SyncKeyRingFromDirectory will sync the GPG keyring with files in a directory. This is a one-way sync,
@@ -691,12 +683,11 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 // in the keyring will be installed to the keyring, files that exist in the keyring but do not exist in
 // the directory will be deleted.
 func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
-	configured := make(map[string]interface{})
+	configured := make(map[string]any)
 	newKeys := make([]string, 0)
 	fingerprints := make([]string, 0)
 	removedKeys := make([]string, 0)
 	st, err := os.Stat(basePath)
-
 	if err != nil {
 		return nil, nil, err
 	}
@@ -705,7 +696,7 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 	}
 
 	// Collect configuration, i.e. files in basePath
-	err = filepath.Walk(basePath, func(path string, fi os.FileInfo, err error) error {
+	err = filepath.Walk(basePath, func(_ string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -718,14 +709,14 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("error walk path: %w", err)
 	}
 
 	// Collect GPG keys installed in the key ring
 	installed := make(map[string]*appsv1.GnuPGPublicKey)
 	keys, err := GetInstalledPGPKeys(nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("error get installed PGP keys: %w", err)
 	}
 	for _, v := range keys {
 		installed[v.KeyID] = v
@@ -736,16 +727,16 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 		if _, ok := installed[key]; !ok {
 			addedKey, err := ImportPGPKeys(path.Join(basePath, key))
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, fmt.Errorf("error import PGP keys: %w", err)
 			}
 			if len(addedKey) != 1 {
-				return nil, nil, fmt.Errorf("Invalid key found in %s", path.Join(basePath, key))
+				return nil, nil, fmt.Errorf("invalid key found in %s", path.Join(basePath, key))
 			}
 			importedKey, err := GetInstalledPGPKeys([]string{addedKey[0].KeyID})
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, fmt.Errorf("error get installed PGP keys: %w", err)
 			} else if len(importedKey) != 1 {
-				return nil, nil, fmt.Errorf("Could not get details of imported key ID %s", importedKey)
+				return nil, nil, fmt.Errorf("could not get details of imported key ID %s", importedKey)
 			}
 			newKeys = append(newKeys, key)
 			fingerprints = append(fingerprints, importedKey[0].Fingerprint)
@@ -756,12 +747,12 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 	for key := range installed {
 		secret, err := IsSecretKey(key)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("error check secret key: %w", err)
 		}
 		if _, ok := configured[key]; !ok && !secret {
 			err := DeletePGPKey(key)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, fmt.Errorf("error delete PGP keys: %w", err)
 			}
 			removedKeys = append(removedKeys, key)
 		}
@@ -772,5 +763,5 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 		_ = SetPGPTrustLevelById(fingerprints, TrustUltimate)
 	}
 
-	return newKeys, removedKeys, err
+	return newKeys, removedKeys, nil
 }

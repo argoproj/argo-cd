@@ -19,7 +19,7 @@ type GiteaProvider struct {
 
 var _ SCMProviderService = &GiteaProvider{}
 
-func NewGiteaProvider(ctx context.Context, owner, token, url string, allBranches, insecure bool) (*GiteaProvider, error) {
+func NewGiteaProvider(owner, token, url string, allBranches, insecure bool) (*GiteaProvider, error) {
 	if token == "" {
 		token = os.Getenv("GITEA_TOKEN")
 	}
@@ -46,7 +46,7 @@ func NewGiteaProvider(ctx context.Context, owner, token, url string, allBranches
 	}, nil
 }
 
-func (g *GiteaProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
+func (g *GiteaProvider) GetBranches(_ context.Context, repo *Repository) ([]*Repository, error) {
 	if !g.allBranches {
 		branch, status, err := g.client.GetRepoBranch(g.owner, repo.Repository, repo.Branch)
 		if status.StatusCode == http.StatusNotFound {
@@ -87,7 +87,7 @@ func (g *GiteaProvider) GetBranches(ctx context.Context, repo *Repository) ([]*R
 	return repos, nil
 }
 
-func (g *GiteaProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
+func (g *GiteaProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*Repository, error) {
 	repos := []*Repository{}
 	repoOpts := gitea.ListOrgReposOptions{}
 	giteaRepos, _, err := g.client.ListOrgRepos(g.owner, repoOpts)
@@ -126,15 +126,15 @@ func (g *GiteaProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]
 	return repos, nil
 }
 
-func (g *GiteaProvider) RepoHasPath(ctx context.Context, repo *Repository, path string) (bool, error) {
+func (g *GiteaProvider) RepoHasPath(_ context.Context, repo *Repository, path string) (bool, error) {
 	_, resp, err := g.client.GetContents(repo.Organization, repo.Repository, repo.Branch, path)
-	if resp != nil && resp.StatusCode == 404 {
+	if resp != nil && resp.StatusCode == http.StatusNotFound {
 		return false, nil
 	}
-	if fmt.Sprint(err) == "expect file, got directory" {
-		return true, nil
-	}
 	if err != nil {
+		if err.Error() == "expect file, got directory" {
+			return true, nil
+		}
 		return false, err
 	}
 	return true, nil

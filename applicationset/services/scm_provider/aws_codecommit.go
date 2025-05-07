@@ -2,13 +2,14 @@ package scm_provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws/request"
 	pathpkg "path"
 	"path/filepath"
 	"strings"
 
-	application "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/aws/aws-sdk-go/aws/request"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -19,12 +20,14 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/exp/maps"
 	"k8s.io/utils/strings/slices"
+
+	application "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 const (
 	resourceTypeCodeCommitRepository = "codecommit:repository"
-	prefixGitUrlHttps                = "https://git-codecommit."
-	prefixGitUrlHttpsFIPS            = "https://git-codecommit-fips."
+	prefixGitURLHTTPS                = "https://git-codecommit."
+	prefixGitURLHTTPSFIPS            = "https://git-codecommit-fips."
 )
 
 // AWSCodeCommitClient is a lean facade to the codecommitiface.CodeCommitAPI
@@ -312,20 +315,21 @@ func getCodeCommitRepoName(repoArn string) (string, error) {
 // getCodeCommitFIPSEndpoint transforms provided https:// codecommit URL to a FIPS-compliant endpoint.
 // note that the specified region must support FIPS, otherwise the returned URL won't be reachable
 // see: https://docs.aws.amazon.com/codecommit/latest/userguide/regions.html#regions-git
-func getCodeCommitFIPSEndpoint(repoUrl string) (string, error) {
-	if strings.HasPrefix(repoUrl, prefixGitUrlHttpsFIPS) {
-		log.Debugf("provided repoUrl %s is already a fips endpoint", repoUrl)
-		return repoUrl, nil
+func getCodeCommitFIPSEndpoint(repoURL string) (string, error) {
+	if strings.HasPrefix(repoURL, prefixGitURLHTTPSFIPS) {
+		log.Debugf("provided repoUrl %s is already a fips endpoint", repoURL)
+		return repoURL, nil
 	}
-	if !strings.HasPrefix(repoUrl, prefixGitUrlHttps) {
-		return "", fmt.Errorf("the provided https endpoint isn't recognized, cannot be transformed to FIPS endpoint: %s", repoUrl)
+	if !strings.HasPrefix(repoURL, prefixGitURLHTTPS) {
+		return "", fmt.Errorf("the provided https endpoint isn't recognized, cannot be transformed to FIPS endpoint: %s", repoURL)
 	}
 	// we already have the prefix, so we guarantee to replace exactly the prefix only.
-	return strings.Replace(repoUrl, prefixGitUrlHttps, prefixGitUrlHttpsFIPS, 1), nil
+	return strings.Replace(repoURL, prefixGitURLHTTPS, prefixGitURLHTTPSFIPS, 1), nil
 }
 
 func hasAwsError(err error, codes ...string) bool {
-	if awsErr, ok := err.(awserr.Error); ok {
+	var awsErr awserr.Error
+	if errors.As(err, &awsErr) {
 		return slices.Contains(codes, awsErr.Code())
 	}
 	return false
@@ -354,7 +358,7 @@ func createAWSDiscoveryClients(_ context.Context, role string, region string) (*
 			Credentials: assumeRoleCreds,
 		})
 		if err != nil {
-			return nil, nil, fmt.Errorf("error creating new AWS discovery session: %s", err)
+			return nil, nil, fmt.Errorf("error creating new AWS discovery session: %w", err)
 		}
 	} else {
 		log.Debugf("role is not provided for AWS CodeCommit discovery, using pod role")

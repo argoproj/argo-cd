@@ -1,6 +1,6 @@
 # Sync Options
 
-Argo CD allows users to customize some aspects of how it syncs the desired state in the target cluster. Some Sync Options can defined as annotations in a specific resource. Most of the Sync Options are configured in the Application resource `spec.syncPolicy.syncOptions` attribute. Multiple Sync Options which are configured with the `argocd.argoproj.io/sync-options` annotation can be concatenated with a `,` in the annotation value; white spaces will be trimmed.
+Argo CD allows users to customize some aspects of how it syncs the desired state in the target cluster. Some Sync Options can be defined as annotations in a specific resource. Most of the Sync Options are configured in the Application resource `spec.syncPolicy.syncOptions` attribute. Multiple Sync Options which are configured with the `argocd.argoproj.io/sync-options` annotation can be concatenated with a `,` in the annotation value; white-space will be trimmed.
 
 Below you can find details about each available Sync Option:
 
@@ -16,20 +16,29 @@ metadata:
     argocd.argoproj.io/sync-options: Prune=false
 ```
 
-In the UI, the pod will simply appear as out-of-sync:
-
-![sync option no prune](../assets/sync-option-no-prune.png)
-
-
 The sync-status panel shows that pruning was skipped, and why:
 
 ![sync option no prune](../assets/sync-option-no-prune-sync-status.png)
 
 The app will be out of sync if Argo CD expects a resource to be pruned. You may wish to use this along with [compare options](compare-options.md).
 
+## Resource Pruning With Confirmation
+
+Resources such as Namespaces are critical and should not be pruned without confirmation. You can set the `Prune=confirm`
+sync option to require manual confirmation before pruning.
+
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=confirm
+```
+
+To confirm the pruning you can use Argo CD UI, CLI or manually apply the `argocd.argoproj.io/deletion-approved: <ISO formatted timestamp>`
+annotation to the application.
+
 ## Disable Kubectl Validation
 
-For a certain class of objects, it is necessary to `kubectl apply` them using the `--validate=false` flag. Examples of this are Kubernetes types which uses `RawExtension`, such as [ServiceCatalog](https://github.com/kubernetes-incubator/service-catalog/blob/master/pkg/apis/servicecatalog/v1beta1/types.go#L497). You can do using this annotations:
+For a certain class of objects, it is necessary to `kubectl apply` them using the `--validate=false` flag. Examples of this are Kubernetes types which uses `RawExtension`, such as [ServiceCatalog](https://github.com/kubernetes-incubator/service-catalog/blob/master/pkg/apis/servicecatalog/v1beta1/types.go#L497). You can do using this annotation:
 
 
 ```yaml
@@ -44,8 +53,8 @@ If you want to exclude a whole class of objects globally, consider setting `reso
 
 When syncing a custom resource which is not yet known to the cluster, there are generally two options:
 
-1) The CRD manifest is part of the same sync. Then Argo CD will automatically skip the dry run, the CRD will be applied and the resource can be created.
-2) In some cases the CRD is not part of the sync, but it could be created in another way, e.g. by a controller in the cluster. An example is [gatekeeper](https://github.com/open-policy-agent/gatekeeper),
+1. The CRD manifest is part of the same sync. Then Argo CD will automatically skip the dry run, the CRD will be applied and the resource can be created.
+2. In some cases the CRD is not part of the sync, but it could be created in another way, e.g. by a controller in the cluster. An example is [gatekeeper](https://github.com/open-policy-agent/gatekeeper),
 which creates CRDs in response to user defined `ConstraintTemplates`. Argo CD cannot find the CRD in the sync and will fail with the error `the server could not find the requested resource`.
 
 To skip the dry run for missing resource types, use the following annotation:
@@ -57,6 +66,18 @@ metadata:
 ```
 
 The dry run will still be executed if the CRD is already present in the cluster.
+
+It is also possible to skip dry run on missing resource for all application resources. You can set the `SkipDryRunOnMissingResource=true`
+sync option to skip dry run on missing resource
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - SkipDryRunOnMissingResource=true
+```
 
 ## No Resource Deletion
 
@@ -70,9 +91,23 @@ metadata:
     argocd.argoproj.io/sync-options: Delete=false
 ```
 
+## Resource Deletion With Confirmation
+
+Resources such as Namespaces are critical and should not be deleted without confirmation. You can set the `Delete=confirm`
+sync option to require manual confirmation before deletion.
+
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: Delete=confirm
+```
+
+To confirm the deletion you can use Argo CD UI, CLI or manually apply the `argocd.argoproj.io/deletion-approved: <ISO formatted timestamp>`
+annotation to the application.
+
 ## Selective Sync
 
-Currently when syncing using auto sync Argo CD applies every object in the application.
+Currently, when syncing using auto sync Argo CD applies every object in the application.
 For applications containing thousands of objects this takes quite a long time and puts undue pressure on the api server.
 Turning on selective sync option which will sync only out-of-sync resources.
 
@@ -165,6 +200,21 @@ metadata:
     argocd.argoproj.io/sync-options: Replace=true
 ```
 
+## Force Sync
+
+For certain resources you might want to delete and recreate. e.g. job resources that should run every time when syncing.
+
+!!! warning
+      During the sync process, the resources will be synchronized using the 'kubectl delete/create' command.
+      This sync option has a destructive action, which could cause an outage for your application.
+
+In such cases you might use `Force=true` sync option in target resources annotation:
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: Force=true,Replace=true
+```
+
 ## Server-Side Apply
 
 This option enables Kubernetes
@@ -204,6 +254,16 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-options: ServerSideApply=true
 ```
+
+If you want to disable ServerSideApply for a specific resource, while it is enabled at the application level, 
+add the following sync-option annotation in it:
+
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=false
+```
+
 
 ServerSideApply can also be used to patch existing resources by providing a partial
 yaml. For example, if there is a requirement to update just the number of replicas
@@ -270,7 +330,7 @@ spec:
     - RespectIgnoreDifferences=true
 ```
 
-The example above shows how an Argo CD Application can be configured so it will ignore the `spec.replicas` field from the desired state (git) during the sync stage. This is achieve by calculating and pre-patching the desired state before applying it in the cluster. Note that the `RespectIgnoreDifferences` sync option is only effective when the resource is already created in the cluster. If the Application is being created and no live state exists, the desired state is applied as-is.
+The example above shows how an Argo CD Application can be configured so it will ignore the `spec.replicas` field from the desired state (git) during the sync stage. This is achieved by calculating and pre-patching the desired state before applying it in the cluster. Note that the `RespectIgnoreDifferences` sync option is only effective when the resource is already created in the cluster. If the Application is being created and no live state exists, the desired state is applied as-is.
 
 ## Create Namespace
 

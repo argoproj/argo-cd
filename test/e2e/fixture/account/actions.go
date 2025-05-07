@@ -1,7 +1,11 @@
 package project
 
 import (
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
 
 // this implements the "when" part of given/when/then
@@ -46,25 +50,29 @@ func (a *Actions) prepareSetPasswordArgs(account string) []string {
 }
 
 func (a *Actions) Create() *Actions {
-	fixture.SetAccounts(map[string][]string{
+	a.context.t.Helper()
+	require.NoError(a.context.t, fixture.SetAccounts(map[string][]string{
 		a.context.name: {"login"},
-	})
+	}))
 	_, _ = fixture.RunCli(a.prepareSetPasswordArgs(a.context.name)...)
 	return a
 }
 
 func (a *Actions) SetPermissions(permissions []fixture.ACL, roleName string) *Actions {
-	fixture.SetPermissions(permissions, a.context.name, roleName)
+	a.context.t.Helper()
+	require.NoError(a.context.t, fixture.SetPermissions(permissions, a.context.name, roleName))
 	return a
 }
 
 func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
-	fixture.SetParamInSettingConfigMap(key, value)
+	a.context.t.Helper()
+	require.NoError(a.context.t, fixture.SetParamInSettingConfigMap(key, value))
 	return a
 }
 
 func (a *Actions) Login() *Actions {
-	fixture.LoginAs(a.context.name)
+	a.context.t.Helper()
+	require.NoError(a.context.t, fixture.LoginAs(a.context.name))
 	return a
 }
 
@@ -75,5 +83,6 @@ func (a *Actions) runCli(args ...string) {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a}
 }

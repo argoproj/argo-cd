@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/microsoft/azure-devops-go-api/azuredevops"
-	core "github.com/microsoft/azure-devops-go-api/azuredevops/core"
-	git "github.com/microsoft/azure-devops-go-api/azuredevops/git"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
 )
 
 const AZURE_DEVOPS_DEFAULT_URL = "https://dev.azure.com"
@@ -36,17 +36,19 @@ type AzureDevOpsService struct {
 	labels        []string
 }
 
-var _ PullRequestService = (*AzureDevOpsService)(nil)
-var _ AzureDevOpsClientFactory = &devopsFactoryImpl{}
+var (
+	_ PullRequestService       = (*AzureDevOpsService)(nil)
+	_ AzureDevOpsClientFactory = &devopsFactoryImpl{}
+)
 
-func NewAzureDevOpsService(ctx context.Context, token, url, organization, project, repo string, labels []string) (PullRequestService, error) {
-	organizationUrl := buildURL(url, organization)
+func NewAzureDevOpsService(token, url, organization, project, repo string, labels []string) (PullRequestService, error) {
+	organizationURL := buildURL(url, organization)
 
 	var connection *azuredevops.Connection
 	if token == "" {
-		connection = azuredevops.NewAnonymousConnection(organizationUrl)
+		connection = azuredevops.NewAnonymousConnection(organizationURL)
 	} else {
-		connection = azuredevops.NewPatConnection(organizationUrl, token)
+		connection = azuredevops.NewPatConnection(organizationURL, token)
 	}
 
 	return &AzureDevOpsService{
@@ -80,6 +82,7 @@ func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
 			pr.Repository.Name == nil ||
 			pr.PullRequestId == nil ||
 			pr.SourceRefName == nil ||
+			pr.TargetRefName == nil ||
 			pr.LastMergeSourceCommit == nil ||
 			pr.LastMergeSourceCommit.CommitId == nil {
 			continue
@@ -92,10 +95,13 @@ func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
 
 		if *pr.Repository.Name == a.repo {
 			pullRequests = append(pullRequests, &PullRequest{
-				Number:  *pr.PullRequestId,
-				Branch:  strings.Replace(*pr.SourceRefName, "refs/heads/", "", 1),
-				HeadSHA: *pr.LastMergeSourceCommit.CommitId,
-				Labels:  azureDevOpsLabels,
+				Number:       *pr.PullRequestId,
+				Title:        *pr.Title,
+				Branch:       strings.Replace(*pr.SourceRefName, "refs/heads/", "", 1),
+				TargetBranch: strings.Replace(*pr.TargetRefName, "refs/heads/", "", 1),
+				HeadSHA:      *pr.LastMergeSourceCommit.CommitId,
+				Labels:       azureDevOpsLabels,
+				Author:       strings.Split(*pr.CreatedBy.UniqueName, "@")[0], // Get the part before the @ in the email-address
 			})
 		}
 	}

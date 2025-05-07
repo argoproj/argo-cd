@@ -1,12 +1,13 @@
 package commands
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/Azure/kubelogin/pkg/token"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 var (
@@ -19,24 +20,26 @@ const (
 )
 
 func newAzureCommand() *cobra.Command {
-	o := token.NewOptions()
-	//we'll use default of WorkloadIdentityLogin for the login flow
-	o.LoginMethod = token.WorkloadIdentityLogin
-	o.ServerID = DEFAULT_AAD_SERVER_APPLICATION_ID
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use: "azure",
-		Run: func(c *cobra.Command, args []string) {
-			o.UpdateFromEnv()
+		Run: func(c *cobra.Command, _ []string) {
+			o := token.OptionsWithEnv()
+			if o.LoginMethod == "" { // no environment variable overrides
+				// we'll use default of WorkloadIdentityLogin for the login flow
+				o.LoginMethod = token.WorkloadIdentityLogin
+			}
+			o.ServerID = DEFAULT_AAD_SERVER_APPLICATION_ID
 			if v, ok := os.LookupEnv(envServerApplicationID); ok {
 				o.ServerID = v
 			}
 			if v, ok := os.LookupEnv(envEnvironmentName); ok {
 				o.Environment = v
 			}
-			plugin, err := token.New(&o)
+			tp, err := token.GetTokenProvider(o)
 			errors.CheckError(err)
-			err = plugin.Do()
+			tok, err := tp.GetAccessToken(c.Context())
 			errors.CheckError(err)
+			_, _ = fmt.Fprint(os.Stdout, formatJSON(tok.Token, tok.ExpiresOn))
 		},
 	}
 	return command

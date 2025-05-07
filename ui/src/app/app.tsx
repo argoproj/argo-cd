@@ -1,14 +1,15 @@
-import {DataLoader, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
+import {DataLoader, NavigationManager, NotificationType, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
 import {createBrowserHistory} from 'history';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Helmet} from 'react-helmet';
 import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router';
+import {Subscription} from 'rxjs';
 import applications from './applications';
 import help from './help';
 import login from './login';
 import settings from './settings';
-import {Layout} from './shared/components/layout/layout';
+import {Layout, ThemeWrapper} from './shared/components/layout/layout';
 import {Page} from './shared/components/page/page';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
 import {AuthSettingsCtx, Provider} from './shared/context';
@@ -19,6 +20,8 @@ import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 import {AuthSettings} from './shared/models';
 import {PKCEVerification} from './login/components/pkce-verify';
+import {getPKCERedirectURI, pkceLogin} from './login/components/utils';
+import {SystemLevelExtension} from './shared/services/extensions-service';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -26,7 +29,7 @@ const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
 export const history = createBrowserHistory({basename: base});
 requests.setBaseHRef(base);
 
-type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean; extension?: boolean}};
+type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}};
 
 const routes: Routes = {
     '/login': {component: login.component as any, noLayout: true},
@@ -85,35 +88,7 @@ async function isExpiredSSO() {
     return false;
 }
 
-requests.onError.subscribe(async err => {
-    if (err.status === 401) {
-        if (history.location.pathname.startsWith('/login')) {
-            return;
-        }
-
-        const isSSO = await isExpiredSSO();
-        // location might change after async method call, so we need to check again.
-        if (history.location.pathname.startsWith('/login')) {
-            return;
-        }
-        // Query for basehref and remove trailing /.
-        // If basehref is the default `/` it will become an empty string.
-        const basehref = document
-            .querySelector('head > base')
-            .getAttribute('href')
-            .replace(/\/$/, '');
-        if (isSSO) {
-            window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
-        } else {
-            history.push(`/login?return_url=${encodeURIComponent(location.href)}`);
-        }
-    }
-});
-
-export class App extends React.Component<
-    {},
-    {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; extensionsLoaded: boolean; authSettings: AuthSettings}
-> {
+export class App extends React.Component<{}, {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; authSettings: AuthSettings}> {
     public static childContextTypes = {
         history: PropTypes.object,
         apis: PropTypes.object
@@ -128,19 +103,27 @@ export class App extends React.Component<
     private navigationManager: NavigationManager;
     private navItems: NavItem[];
     private routes: Routes;
+    private popupPropsSubscription: Subscription;
+    private unauthorizedSubscription: Subscription;
 
     constructor(props: {}) {
         super(props);
-        this.state = {popupProps: null, error: null, showVersionPanel: false, navItems: [], routes: null, extensionsLoaded: false, authSettings: null};
+        this.state = {popupProps: null, error: null, showVersionPanel: false, navItems: [], routes: null, authSettings: null};
         this.popupManager = new PopupManager();
         this.notificationsManager = new NotificationsManager();
         this.navigationManager = new NavigationManager(history);
         this.navItems = navItems;
         this.routes = routes;
+        this.popupPropsSubscription = null;
+        this.unauthorizedSubscription = null;
+        services.extensions.addEventListener('systemLevel', this.onAddSystemLevelExtension.bind(this));
     }
 
     public async componentDidMount() {
-        this.popupManager.popupProps.subscribe(popupProps => this.setState({popupProps}));
+        this.popupPropsSubscription = this.popupManager.popupProps.subscribe(popupProps => this.setState({popupProps}));
+        this.subscribeUnauthorized().then(subscription => {
+            this.unauthorizedSubscription = subscription;
+        });
         const authSettings = await services.authService.settings();
         const {trackingID, anonymizeUsers} = authSettings.googleAnalytics || {trackingID: '', anonymizeUsers: true};
         const {loggedIn, username} = await services.users.get();
@@ -165,32 +148,16 @@ export class App extends React.Component<
             document.head.appendChild(link);
         }
 
-        const systemExtensions = services.extensions.getSystemExtensions();
-        const extendedNavItems = this.navItems;
-        const extendedRoutes = this.routes;
-        for (const extension of systemExtensions) {
-            extendedNavItems.push({
-                title: extension.title,
-                path: extension.path,
-                iconClassName: `fa ${extension.icon}`
-            });
-            const component = () => (
-                <>
-                    <Helmet>
-                        <title>{extension.title} - Argo CD</title>
-                    </Helmet>
-                    <Page title={extension.title}>
-                        <extension.component />
-                    </Page>
-                </>
-            );
-            extendedRoutes[extension.path] = {
-                component: component as React.ComponentType<React.ComponentProps<any>>,
-                extension: true
-            };
-        }
+        this.setState({...this.state, navItems: this.navItems, routes: this.routes, authSettings});
+    }
 
-        this.setState({...this.state, navItems: extendedNavItems, routes: extendedRoutes, extensionsLoaded: true, authSettings});
+    public componentWillUnmount() {
+        if (this.popupPropsSubscription) {
+            this.popupPropsSubscription.unsubscribe();
+        }
+        if (this.unauthorizedSubscription) {
+            this.unauthorizedSubscription.unsubscribe();
+        }
     }
 
     public render() {
@@ -220,7 +187,7 @@ export class App extends React.Component<
                 <PageContext.Provider value={{title: 'Argo CD'}}>
                     <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}}>
                         <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                            {pref => <div className={pref.theme ? 'theme-' + pref.theme : 'theme-light'}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</div>}
+                            {pref => <ThemeWrapper theme={pref.theme}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</ThemeWrapper>}
                         </DataLoader>
                         <AuthSettingsCtx.Provider value={this.state.authSettings}>
                             <Router history={history}>
@@ -240,11 +207,7 @@ export class App extends React.Component<
                                                     ) : (
                                                         <DataLoader load={() => services.viewPreferences.getPreferences()}>
                                                             {pref => (
-                                                                <Layout
-                                                                    onVersionClick={() => this.setState({showVersionPanel: true})}
-                                                                    navItems={this.navItems}
-                                                                    pref={pref}
-                                                                    isExtension={route.extension}>
+                                                                <Layout onVersionClick={() => this.setState({showVersionPanel: true})} navItems={this.navItems} pref={pref}>
                                                                     <Banner>
                                                                         <route.component {...routeProps} />
                                                                     </Banner>
@@ -256,7 +219,6 @@ export class App extends React.Component<
                                             />
                                         );
                                     })}
-                                    {this.state.extensionsLoaded && <Redirect path='*' to='/' />}
                                 </Switch>
                             </Router>
                         </AuthSettingsCtx.Provider>
@@ -269,6 +231,65 @@ export class App extends React.Component<
     }
 
     public getChildContext() {
-        return {history, apis: {popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager}};
+        return {history, apis: {popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}};
+    }
+
+    private async subscribeUnauthorized() {
+        return requests.onError.subscribe(async err => {
+            if (err.status === 401) {
+                if (history.location.pathname.startsWith('/login')) {
+                    return;
+                }
+
+                const isSSO = await isExpiredSSO();
+                // location might change after async method call, so we need to check again.
+                if (history.location.pathname.startsWith('/login')) {
+                    return;
+                }
+                // Query for basehref and remove trailing /.
+                // If basehref is the default `/` it will become an empty string.
+                const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
+                if (isSSO) {
+                    const authSettings = await services.authService.settings();
+
+                    if (authSettings?.oidcConfig?.enablePKCEAuthentication) {
+                        pkceLogin(authSettings.oidcConfig, getPKCERedirectURI().toString()).catch(err => {
+                            this.getChildContext().apis.notifications.show({
+                                type: NotificationType.Error,
+                                content: err?.message || JSON.stringify(err)
+                            });
+                        });
+                    } else {
+                        window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
+                    }
+                } else {
+                    history.push(`/login?return_url=${encodeURIComponent(location.href)}`);
+                }
+            }
+        });
+    }
+
+    private onAddSystemLevelExtension(extension: SystemLevelExtension) {
+        const extendedNavItems = this.navItems;
+        const extendedRoutes = this.routes;
+        extendedNavItems.push({
+            title: extension.title,
+            path: extension.path,
+            iconClassName: `fa ${extension.icon}`
+        });
+        const component = () => (
+            <>
+                <Helmet>
+                    <title>{extension.title} - Argo CD</title>
+                </Helmet>
+                <Page title={extension.title}>
+                    <extension.component />
+                </Page>
+            </>
+        );
+        extendedRoutes[extension.path] = {
+            component: component as React.ComponentType<React.ComponentProps<any>>
+        };
+        this.setState({...this.state, navItems: extendedNavItems, routes: extendedRoutes});
     }
 }

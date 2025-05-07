@@ -1,19 +1,58 @@
 import {DropDownMenu, ErrorNotification, NotificationType} from 'argo-ui';
-import {Tooltip} from 'argo-ui';
+import {Tooltip, Toolbar} from 'argo-ui';
 import * as React from 'react';
-import {RouteComponentProps} from 'react-router-dom';
 import {clusterName, ConnectionStateIcon, DataLoader, EmptyState, Page} from '../../../shared/components';
-import {Consumer} from '../../../shared/context';
+import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {AddAuthToToolbar} from '../../../shared/components';
+import {Observable} from 'rxjs';
 
-export const ClustersList = (props: RouteComponentProps<{}>) => {
+import './cluster-list.scss';
+
+// CustomTopBar component similar to FlexTopBar in application-list panel
+const CustomTopBar = (props: {toolbar?: Toolbar | Observable<Toolbar>}) => {
+    const ctx = React.useContext(Context);
+    const loadToolbar = AddAuthToToolbar(props.toolbar, ctx);
+    return (
+        <React.Fragment>
+            <div className='top-bar row top-bar' key='tool-bar'>
+                <DataLoader load={() => loadToolbar}>
+                    {toolbar => (
+                        <React.Fragment>
+                            <div className='column small-11 flex-top-bar_center'>
+                                <div className='top-bar'>
+                                    <div className='text-center'>
+                                        <span className='help-text'>
+                                            Refer to CLI{' '}
+                                            <a
+                                                href='https://argo-cd.readthedocs.io/en/stable/operator-manual/cluster-management/#adding-a-cluster'
+                                                target='_blank'
+                                                rel='noopener noreferrer'>
+                                                <i className='fa fa-external-link-alt' /> Documentation{' '}
+                                            </a>{' '}
+                                            for adding clusters.
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className='columns small-1 top-bar__right-side'>{toolbar.tools}</div>
+                        </React.Fragment>
+                    )}
+                </DataLoader>
+            </div>
+        </React.Fragment>
+    );
+};
+
+export const ClustersList = () => {
     const clustersLoaderRef = React.useRef<DataLoader>();
     return (
         <Consumer>
             {ctx => (
                 <React.Fragment>
-                    <Page title='Clusters' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Clusters'}]}}>
+                    <Page title='Clusters' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Clusters'}]}} hideAuth={true}>
+                        <CustomTopBar />
                         <div className='repos-list'>
                             <div className='argo-container'>
                                 <DataLoader

@@ -22,12 +22,8 @@ This will create a new namespace, `argocd`, where Argo CD services and applicati
     The installation manifests include `ClusterRoleBinding` resources that reference `argocd` namespace. If you are installing Argo CD into a different
     namespace then make sure to update the namespace reference.
 
-If you are not interested in UI, SSO, multi-cluster features then you can install [core](operator-manual/installation.md#core) Argo CD components only:
-
-```bash
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/core-install.yaml
-```
+!!! tip
+    If you are not interested in UI, SSO, and multi-cluster features, then you can install only the [core](operator-manual/core.md#installing) Argo CD components.
 
 This default installation will have a self-signed certificate and cannot be accessed without a bit of extra work.
 Do one of:
@@ -36,7 +32,16 @@ Do one of:
 * Configure the client OS to trust the self signed certificate.
 * Use the --insecure flag on all Argo CD CLI operations in this guide.
 
+!!! note 
+    Default namespace for `kubectl` config must be set to `argocd`.
+    This is only needed for the following commands since the previous commands have -n argocd already:
+    `kubectl config set-context --current --namespace=argocd`
+    
+
 Use `argocd login --core` to [configure](./user-guide/commands/argocd_login.md) CLI access and skip steps 3-5.
+
+!!! note
+    This default installation for Redis is using password authentication. The Redis password is stored in Kubernetes secret `argocd-redis` with key `auth` in the namespace where Argo CD is installed.
 
 ## 2. Download Argo CD CLI
 
@@ -58,6 +63,11 @@ Change the argocd-server service type to `LoadBalancer`:
 
 ```bash
 kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+```
+After a short wait, your cloud provider will assign an external IP address to the service. You can retrieve this IP with:
+
+```bash
+kubectl get svc argocd-server -n argocd -o=jsonpath='{.status.loadBalancer.ingress[0].ip}'
 ```
 
 ### Ingress
@@ -136,6 +146,9 @@ service account token to perform its management tasks (i.e. deploy/monitoring).
 An example repository containing a guestbook application is available at
 [https://github.com/argoproj/argocd-example-apps.git](https://github.com/argoproj/argocd-example-apps.git) to demonstrate how Argo CD works.
 
+!!! note
+    Note: The following example application may only be compatible with AMD64 architecture. If you are running on a different architecture (such as ARM64 or ARMv7), you may encounter issues with dependencies or container images that are not built for your platform. Consider verifying the compatibility of the application or building architecture-specific images if necessary.
+
 ### Creating Apps Via CLI
 
 First we need to set the current namespace to argocd running the following command:
@@ -152,7 +165,7 @@ argocd app create guestbook --repo https://github.com/argoproj/argocd-example-ap
 
 ### Creating Apps Via UI
 
-Open a browser to the Argo CD external UI, and login by visiting the IP/hostname in a browser and use the credentials set in step 4.
+Open a browser to the Argo CD external UI, and login by visiting the IP/hostname in a browser and use the credentials set in step 4 or locally as explained in [Try Argo CD Locally](try_argo_cd_locally.md).
 
 After logging in, click the **+ New App** button as shown below:
 
@@ -212,6 +225,12 @@ events, and assessed health status.
 
 ### Syncing via UI
 
-![guestbook app](assets/guestbook-app.png)
-![view app](assets/guestbook-tree.png)
+On the Applications page, click on *Sync* button of the guestbook application:
 
+![guestbook app](assets/guestbook-app.png)
+
+A panel will be opened and then, click on *Synchronize* button.
+
+You can see more details by clicking at the guestbook application:
+
+![view app](assets/guestbook-tree.png)

@@ -7,6 +7,9 @@ The Git generator contains two subtypes: the Git directory generator, and Git fi
     If the `project` field in your ApplicationSet is templated, developers may be able to create Applications under Projects with excessive permissions.
     For ApplicationSets with a templated `project` field, [the source of truth _must_ be controlled by admins](./Security.md#templated-project-field)
     - in the case of git generators, PRs must require admin approval.
+    - Git generator does not support Signature Verification For ApplicationSets with a templated `project` field.
+    - You must only use "non-scoped" repositories for ApplicationSets with a templated `project` field (see ["Repository Credentials for Applicationsets" below](#repository-credentials-for-applicationsets)).
+    
 
 ## Git Generator: Directories
 
@@ -202,7 +205,7 @@ spec:
 
 You may pass additional, arbitrary string key-value pairs via the `values` field of the git directory generator. Values added via the `values` field are added as `values.(field)`.
 
-In this example, a `cluster` parameter value is passed. It is interpolated from the `branch` and `path` variable, to then be used to determine the destination namespace.
+In this example, a `cluster` parameter value is passed. It is interpolated from the `path` variable, to then be used to determine the destination namespace.
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
@@ -219,7 +222,7 @@ spec:
       directories:
       - path: '*'
       values:
-        cluster: '{{.branch}}-{{.path.basename}}'
+        cluster: '{{.path.basename}}'
   template:
     metadata:
       name: '{{.path.basename}}'
@@ -326,7 +329,7 @@ As with other generators, clusters *must* already be defined within Argo CD, in 
 In addition to the flattened key/value pairs from the configuration file, the following generator parameters are provided:
 
 - `{{.path.path}}`: The path to the directory containing matching configuration file within the Git repository. Example: `/clusters/clusterA`, if the config file was `/clusters/clusterA/config.json`
-- `{{index .path n}}`: The path to the matching configuration file within the Git repository, split into array elements (`n` - array index). Example: `index .path 0: clusters`, `index .path 1: clusterA`
+- `{{index .path.segments n}}`: The path to the matching configuration file within the Git repository, split into array elements (`n` - array index). Example: `index .path.segments 0: clusters`, `index .path.segments 1: clusterA`
 - `{{.path.basename}}`: Basename of the path to the directory containing the configuration file (e.g. `clusterA`, with the above example.)
 - `{{.path.basenameNormalized}}`: This field is the same as `.path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `.path.basename` of `directory_2` would produce `directory-2` here).
 - `{{.path.filename}}`: The matched filename. e.g., `config.json` in the above example.
@@ -360,7 +363,7 @@ spec:
       files:
       - path: "applicationset/examples/git-generator-files-discovery/cluster-config/**/config.json"
       values:
-        base_dir: "{{index .path 0}}/{{index .path 1}}/{{index .path 2}}"
+        base_dir: "{{index .path.segments 0}}/{{index .path.segments 1}}/{{index .path.segments 2}}"
   template:
     metadata:
       name: '{{.cluster.name}}-guestbook'
@@ -441,3 +444,10 @@ stringData:
 ```
 
 After saving, please restart the ApplicationSet pod for the changes to take effect.
+
+## Repository credentials for ApplicationSets
+If your [ApplicationSets](index.md) uses a repository where you need credentials to be able to access it _and_ if the
+ApplicationSet project field is templated (i.e. the `project` field of the ApplicationSet contains `{{ ... }}`), you need to add the repository as a "non project scoped" repository.  
+- When doing that through the UI, set this to a **blank** value in the dropdown menu.
+- When doing that through the CLI, make sure you **DO NOT** supply the parameter `--project` ([argocd repo add docs](../../user-guide/commands/argocd_repo_add.md))
+- When doing that declaratively, make sure you **DO NOT** have `project:` defined under `stringData:` ([complete yaml example](../argocd-repositories-yaml.md))

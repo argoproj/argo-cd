@@ -22,7 +22,6 @@ func (rf *ResourcesFilter) getExcludedResources() []FilteredResource {
 }
 
 func (rf *ResourcesFilter) checkResourcePresence(apiGroup, kind, cluster string, filteredResources []FilteredResource) bool {
-
 	for _, includedResource := range filteredResources {
 		if includedResource.Match(apiGroup, kind, cluster) {
 			return true

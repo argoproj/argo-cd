@@ -12,6 +12,7 @@ installation:
 
 - Argo CD RBAC model
 - Argo CD API
+- Argo CD Notification Controller
 - OIDC based authentication
 
 The following features will be partially available (see the
@@ -25,7 +26,7 @@ A few use-cases that justify running Argo CD Core are:
 
 - As a cluster admin, I want to rely on Kubernetes RBAC only.
 - As a devops engineer, I don't want to learn a new API or depend on
-  another CLI to automate my deployments. I want instead rely in
+  another CLI to automate my deployments. I want to rely on the
   Kubernetes API only.
 - As a cluster admin, I don't want to provide Argo CD UI or Argo CD
   CLI to developers.
@@ -77,8 +78,9 @@ the process) invoking the CLI needs to have access to the Argo CD
 namespace with the proper permission in the `Application` and
 `ApplicationSet` resources for executing a given command.
 
-To use Argo CD CLI in core mode, it is required to pass the `--core`
-flag with the `login` subcommand.
+To use [Argo CD CLI](https://argo-cd.readthedocs.io/en/stable/cli_installation) in core mode, it is required to pass the `--core`
+flag with the `login` subcommand. The `--core` flag is responsible for spawning a local Argo CD API server
+process that handles CLI and Web UI requests.
 
 Example:
 
@@ -96,4 +98,3 @@ argocd admin dashboard -n argocd
 ```
 
 Argo CD Web UI will be available at `http://localhost:8080`
-

@@ -53,18 +53,26 @@ export class ApplicationsService {
             .then(res => res.body as models.ApplicationSyncWindowState);
     }
 
-    public revisionMetadata(name: string, appNamespace: string, revision: string): Promise<models.RevisionMetadata> {
-        return requests
-            .get(`/applications/${name}/revisions/${revision || 'HEAD'}/metadata`)
-            .query({appNamespace})
-            .then(res => res.body as models.RevisionMetadata);
+    public revisionMetadata(name: string, appNamespace: string, revision: string, sourceIndex: number | null, versionId: number | null): Promise<models.RevisionMetadata> {
+        let r = requests.get(`/applications/${name}/revisions/${revision || 'HEAD'}/metadata`).query({appNamespace});
+        if (sourceIndex !== null) {
+            r = r.query({sourceIndex});
+        }
+        if (versionId !== null) {
+            r = r.query({versionId});
+        }
+        return r.then(res => res.body as models.RevisionMetadata);
     }
 
-    public revisionChartDetails(name: string, appNamespace: string, revision: string): Promise<models.ChartDetails> {
-        return requests
-            .get(`/applications/${name}/revisions/${revision || 'HEAD'}/chartdetails`)
-            .query({appNamespace})
-            .then(res => res.body as models.ChartDetails);
+    public revisionChartDetails(name: string, appNamespace: string, revision: string, sourceIndex: number, versionId: number | null): Promise<models.ChartDetails> {
+        let r = requests.get(`/applications/${name}/revisions/${revision || 'HEAD'}/chartdetails`).query({appNamespace});
+        if (sourceIndex !== null) {
+            r = r.query({sourceIndex});
+        }
+        if (versionId !== null) {
+            r = r.query({versionId});
+        }
+        return r.then(res => res.body as models.ChartDetails);
     }
 
     public resourceTree(name: string, appNamespace: string): Promise<models.ApplicationTree> {
@@ -252,6 +260,7 @@ export class ApplicationsService {
         sinceSeconds?: number;
         untilTime?: string;
         filter?: string;
+        matchCase?: boolean;
         previous?: boolean;
     }): Observable<models.LogEntry> {
         const {applicationName} = query;
@@ -450,9 +459,10 @@ export class ApplicationsService {
         sinceSeconds?: number;
         untilTime?: string;
         filter?: string;
+        matchCase?: boolean;
         previous?: boolean;
     }): URLSearchParams {
-        const {appNamespace, containerName, namespace, podName, resource, tail, sinceSeconds, untilTime, filter, previous} = query;
+        const {appNamespace, containerName, namespace, podName, resource, tail, sinceSeconds, untilTime, filter, previous, matchCase} = query;
         let {follow} = query;
         if (follow === undefined || follow === null) {
             follow = true;
@@ -472,9 +482,6 @@ export class ApplicationsService {
         if (tail) {
             search.set('tailLines', tail.toString());
         }
-        if (sinceSeconds) {
-            search.set('sinceSeconds', sinceSeconds.toString());
-        }
         if (untilTime) {
             search.set('untilTime', untilTime);
         }
@@ -484,8 +491,15 @@ export class ApplicationsService {
         if (previous) {
             search.set('previous', previous.toString());
         }
+        if (matchCase) {
+            search.set('matchCase', matchCase.toString());
+        }
         // The API requires that this field be set to a non-empty string.
-        search.set('sinceSeconds', '0');
+        if (sinceSeconds) {
+            search.set('sinceSeconds', sinceSeconds.toString());
+        } else {
+            search.set('sinceSeconds', '0');
+        }
         return search;
     }
 

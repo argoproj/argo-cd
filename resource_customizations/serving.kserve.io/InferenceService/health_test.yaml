@@ -1,13 +1,41 @@
 tests:
 - healthStatus:
     status: Progressing
-    message: "PredictorConfigurationReady is Unknown\nPredictorReady is Unknown, since RevisionMissing. Configuration \"hello-world-predictor-default\" is waiting for a Revision to become ready.\nPredictorRouteReady is Unknown, since RevisionMissing. Configuration \"hello-world-predictor-default\" is waiting for a Revision to become ready.\nReady is Unknown, since RevisionMissing. Configuration \"hello-world-predictor-default\" is waiting for a Revision to become ready.\n"
+    message: ' | 1: PredictorConfigurationReady | Unknown | 2: PredictorReady | Unknown | RevisionMissing | Configuration "hello-world-predictor-default" is waiting for a Revision to become ready. | 3: PredictorRouteReady | Unknown | RevisionMissing | Configuration "hello-world-predictor-default" is waiting for a Revision to become ready. | 4: Ready | Unknown | RevisionMissing | Configuration "hello-world-predictor-default" is waiting for a Revision to become ready.'
   inputPath: testdata/progressing.yaml
 - healthStatus:
+    status: Progressing
+    message: '0: transitionStatus | InProgress | 1: LatestDeploymentReady | Unknown | PredictorConfigurationReady not ready | 2: PredictorConfigurationReady | Unknown | 3: PredictorReady | Unknown | RevisionMissing | Configuration "helloworld-predictor" is waiting for a Revision to become ready. | 4: PredictorRouteReady | Unknown | RevisionMissing | Configuration "helloworld-predictor" is waiting for a Revision to become ready. | 5: Ready | Unknown | RevisionMissing | Configuration "helloworld-predictor" is waiting for a Revision to become ready. | 6: RoutesReady | Unknown | PredictorRouteReady not ready'
+  inputPath: testdata/progressing_ocp.yaml
+- healthStatus:
+    status: Progressing
+    message: "0: transitionStatus | InProgress | 1: PredictorReady | False | 2: Ready | False"
+  inputPath: testdata/progressing_modelmesh.yaml
+- healthStatus:
     status: Degraded
-    message: "IngressReady is False, since Predictor ingress not created.\nPredictorConfigurationReady is False, since RevisionFailed. Revision \"helloworld-00002\" failed with message: Container failed with: container exited with no error.\nPredictorReady is False, since RevisionFailed. Revision \"helloworld-00002\" failed with message: Container failed with: container exited with no error.\nReady is False, since Predictor ingress not created.\n"
+    message: '0: transitionStatus | BlockedByFailedLoad | 1: IngressReady | False | Predictor ingress not created | 2: PredictorConfigurationReady | False | RevisionFailed | Revision "helloworld-00002" failed with message: Container failed with: container exited with no error. | 3: PredictorReady | False | RevisionFailed | Revision "helloworld-00002" failed with message: Container failed with: container exited with no error. | 5: Ready | False | Predictor ingress not created'
   inputPath: testdata/degraded.yaml
 - healthStatus:
+    status: Degraded
+    message: '0: transitionStatus | BlockedByFailedLoad | 1: LatestDeploymentReady | False | PredictorConfigurationReady not ready | 2: PredictorConfigurationReady | False | RevisionFailed | Revision "helloworld-predictor-00002" failed with message: . | 3: PredictorReady | False | RevisionMissing | Configuration "helloworld-predictor" does not have any ready Revision. | 4: PredictorRouteReady | False | RevisionMissing | Configuration "helloworld-predictor" does not have any ready Revision. | 5: Ready | False | RevisionMissing | Configuration "helloworld-predictor" does not have any ready Revision. | 6: RoutesReady | False | PredictorRouteReady not ready'
+  inputPath: testdata/degraded_ocp.yaml
+- healthStatus:
+    status: Degraded
+    message: "0: transitionStatus | BlockedByFailedLoad"
+  inputPath: testdata/degraded_modelmesh.yaml
+- healthStatus:
     status: Healthy
-    message: Inference Service is healthy.
+    message: InferenceService is healthy.
   inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Healthy
+    message: InferenceService is healthy.
+  inputPath: testdata/healthy_ocp.yaml
+- healthStatus:
+    status: Healthy
+    message: InferenceService is healthy.
+  inputPath: testdata/healthy_modelmesh.yaml
+- healthStatus:
+    status: Healthy
+    message: InferenceService is healthy.
+  inputPath: testdata/healthy_raw.yaml

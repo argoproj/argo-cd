@@ -7,6 +7,7 @@ import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
 import {ComparisonStatusIcon, getAppDefaultSource, HealthStatusIcon} from '../utils';
+import {formatClusterQueryParam} from '../../../shared/utils';
 
 export interface FilterResult {
     repos: boolean;
@@ -185,10 +186,7 @@ const ClusterFilter = (props: AppFilterProps) => {
         if (!cluster) {
             return dest.server || dest.name;
         }
-        if (cluster.name === cluster.server) {
-            return cluster.name;
-        }
-        return `${cluster.name} (${cluster.server})`;
+        return formatClusterQueryParam(cluster);
     };
 
     const [clusters, loading, error] = useData(() => services.clusters.list());
@@ -278,7 +276,7 @@ const AutoSyncFilter = (props: AppFilterProps) => (
 
 export const ApplicationsFilter = (props: AppFilterProps) => {
     return (
-        <FiltersGroup content={props.children} collapsed={props.collapsed}>
+        <FiltersGroup title='Application filters' content={props.children} collapsed={props.collapsed}>
             <FavoriteFilter {...props} />
             <SyncFilter {...props} />
             <HealthFilter {...props} />
