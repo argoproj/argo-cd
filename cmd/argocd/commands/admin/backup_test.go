@@ -384,6 +384,7 @@ func Test_importResources(t *testing.T) {
 		applicationsetNamespaces []string
 		prune                    bool
 		skipResourcesWithLabel   string
+		stopOperation            bool
 	}{
 		{
 			name: "It should update live object if skip label is not present in backup object",
@@ -419,6 +420,7 @@ data:
 			applicationNamespaces:    []string{"argocd", "dev"},
 			applicationsetNamespaces: []string{"argocd", "prod"},
 			skipResourcesWithLabel:   "env=dev",
+			stopOperation:            false,
 		},
 		{
 			name: "It should update live object when data differs from backup",
@@ -586,6 +588,44 @@ data:
 			},
 			prune: true,
 		},
+		{
+			name: "It should clear the operation field when stopOperation is true",
+			args: args{
+				bak: `apiVersion: v1
+kind: Application
+metadata:
+  name: app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/example/repo.git
+    path: .
+    targetRevision: HEAD
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+`,
+				live: `apiVersion: v1
+kind: Application
+metadata:
+  name: app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/example/repo.git
+    namespace: default
+status:
+  operationState:
+    phase: Running
+    operation:
+      sync:
+        revision: HEAD
+`,
+			},
+			stopOperation: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -680,7 +720,7 @@ data:
 						err := dynClient.Delete(ctx, key.Name, metav1.DeleteOptions{})
 						assert.NoError(t, err)
 					} else {
-						updatedLive = updateLive(bakObj, liveObj, false)
+						updatedLive = updateLive(bakObj, liveObj, tt.stopOperation)
 
 						assert.Equal(t, bakObj.GetLabels(), updatedLive.GetLabels())
 						assert.Equal(t, bakObj.GetAnnotations(), updatedLive.GetAnnotations())
