@@ -663,7 +663,7 @@ data:
 
 			var updatedLive *unstructured.Unstructured
 			if slices.Contains(tt.applicationNamespaces, bakObj.GetNamespace()) || slices.Contains(tt.applicationsetNamespaces, bakObj.GetNamespace()) {
-				if !isSkipLabelMatches(bakObj, tt.skipResourcesWithLabel) {
+				if !isSkipLabelMatches(bakObj, tt.skipResourcesWithLabel) || !isSkipLabelMatches(liveObj, tt.skipResourcesWithLabel) {
 					if tt.prune {
 						var dynClient dynamic.ResourceInterface
 						switch key.Kind {
