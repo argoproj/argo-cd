@@ -20,6 +20,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 )
 
+const DialTime = 30 * time.Second
+
 // NewLogoutCommand returns a new instance of `argocd logout` command
 func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
@@ -50,8 +52,7 @@ $ argocd logout
 
 			client := &http.Client{}
 
-			dialTime := 30 * time.Second
-			tlsTestResult, err := grpc_util.TestTLS(context, dialTime)
+			tlsTestResult, err := grpc_util.TestTLS(context, DialTime)
 			errors.CheckError(err)
 			if !tlsTestResult.TLS {
 				if !globalClientOpts.PlainText {
