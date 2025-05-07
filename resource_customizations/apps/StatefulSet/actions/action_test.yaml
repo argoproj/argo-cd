@@ -6,9 +6,9 @@ actionTests:
     inputPath: testdata/statefulset.yaml
     expectedOutputPath: testdata/statefulset-scaled.yaml
     parameters:
-      scale: '6'
+      replicas: '6'
   - action: scale
     inputPath: testdata/statefulset.yaml
     expectedErrorMessage: 'invalid number: not_a_number'
     parameters:
-      scale: 'not_a_number'
+      replicas: 'not_a_number'

@@ -12,9 +12,9 @@ actionTests:
     inputPath: testdata/deployment.yaml
     expectedOutputPath: testdata/deployment-scaled.yaml
     parameters:
-      scale: '6'
+      replicas: '6'
   - action: scale
     inputPath: testdata/deployment.yaml
     expectedErrorMessage: 'invalid number: not_a_number'
     parameters:
-      scale: 'not_a_number'
+      replicas: 'not_a_number'
