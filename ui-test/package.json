@@ -15,11 +15,11 @@
     "@types/selenium-webdriver": "^4.1.28",
     "assert": "^2.1.0",
     "chromedriver": "^136.0.0",
-    "selenium-webdriver": "^4.31.0"
+    "selenium-webdriver": "^4.32.0"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
-    "@types/node": "^22.15.3",
+    "@types/node": "^22.15.14",
     "dotenv": "^16.5.0",
     "mocha": "^11.2.2",
     "prettier": "^2.8.8",
