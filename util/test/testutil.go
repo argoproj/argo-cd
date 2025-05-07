@@ -17,8 +17,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var TestConfigFilePath = "../test/local.config"
-var WriteConfigFilePath = "../test/write.config"
+const (
+	TestConfigFilePath  = "../test/local.config"
+	WriteConfigFilePath = "../test/write.config"
+)
 
 var TestConfig = `contexts:
 - name: argocd1.example.com:443

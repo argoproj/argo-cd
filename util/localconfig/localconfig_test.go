@@ -44,7 +44,7 @@ func TestGetToken_Not_Exist(t *testing.T) {
 	// serverName does exist in TestConfig
 	token := localConfig.GetToken("localhost")
 
-	assert.Equal(t, "", token)
+	assert.Empty(t, token)
 }
 
 func TestRemoveToken_Exist(t *testing.T) {
@@ -59,7 +59,7 @@ func TestRemoveToken_Exist(t *testing.T) {
 
 	removed := localConfig.RemoveToken(localConfig.CurrentContext)
 
-	assert.Equal(t, true, removed)
+	assert.True(t, removed)
 }
 
 func TestRemoveToken_Not_Exist(t *testing.T) {
@@ -75,7 +75,7 @@ func TestRemoveToken_Not_Exist(t *testing.T) {
 	// serverName does exist in TestConfig
 	removed := localConfig.RemoveToken("localhost")
 
-	assert.Equal(t, false, removed)
+	assert.False(t, removed)
 }
 
 func TestValidateLocalConfig(t *testing.T) {
@@ -90,7 +90,7 @@ func TestValidateLocalConfig(t *testing.T) {
 
 	err = ValidateLocalConfig(*localConfig)
 
-	assert.Equal(t, nil, err)
+	assert.NoError(t, err)
 }
 
 func TestWriteLocalConfig(t *testing.T) {
@@ -106,7 +106,7 @@ func TestWriteLocalConfig(t *testing.T) {
 	err = WriteLocalConfig(*localConfig, test.WriteConfigFilePath)
 	defer os.Remove(test.WriteConfigFilePath)
 
-	assert.Equal(t, nil, err)
+	assert.NoError(t, err)
 }
 
 func TestGetUsername(t *testing.T) {
