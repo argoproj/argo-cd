@@ -70,8 +70,8 @@ const hasRollingSyncEnabled = async (application: models.Application): Promise<b
     if (!appSetRef) {
         return false;
     }
-        const appSet = await services.applications.getApplicationSet(appSetRef.name, application.metadata.namespace);
-        return appSet?.spec?.strategy?.type === 'RollingSync';
+    const appSet = await services.applications.getApplicationSet(appSetRef.name, application.metadata.namespace);
+    return appSet?.spec?.strategy?.type === 'RollingSync';
 };
 
 const ProgressiveSyncStatus = ({application}: {application: models.Application}) => {
