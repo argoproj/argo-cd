@@ -9,6 +9,7 @@ actions["disable-force-promote"] = {
 }
 
 -- force-promote
+-- will be removed and replaced in the future by force-promote action on child resource
 if (obj.status ~= nil and obj.status.upgradeInProgress == "Progressive" and obj.status.phase == "Pending") then
   actions["enable-force-promote"]["disabled"] = false
 end
