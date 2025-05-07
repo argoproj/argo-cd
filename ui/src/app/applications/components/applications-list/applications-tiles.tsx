@@ -17,6 +17,7 @@ export interface ApplicationTilesProps {
     syncApplication: (appName: string, appNamespace: string) => any;
     refreshApplication: (appName: string, appNamespace: string) => any;
     deleteApplication: (appName: string, appNamespace: string) => any;
+    diffApplication: (appName: string, appNamespace: string) => any;
 }
 
 const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
@@ -46,7 +47,7 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
     return itemsPer || 1;
 };
 
-export const ApplicationTiles = ({applications, syncApplication, refreshApplication, deleteApplication}: ApplicationTilesProps) => {
+export const ApplicationTiles = ({applications, syncApplication, refreshApplication, deleteApplication, diffApplication}: ApplicationTilesProps) => {
     const [selectedApp, navApp, reset] = useNav(applications.length);
 
     const ctxh = React.useContext(Context);
@@ -109,6 +110,9 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                 {applications.map((app, i) => {
                                     const source = getAppDefaultSource(app);
                                     const targetRevision = source ? source.targetRevision || 'HEAD' : 'Unknown';
+                                    const isDisabledDiff =
+                                        app.status.sync.status === models.SyncStatuses.Synced || (!app.spec.source && (!app.spec.sources || app.spec.sources.length === 0));
+
                                     return (
                                         <div
                                             key={AppUtils.appInstanceName(app)}
@@ -285,7 +289,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                                     refreshApplication(app.metadata.name, app.metadata.namespace);
                                                                 }}>
                                                                 <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppRefreshing(app)})} />{' '}
-                                                                <span className='show-for-xxlarge'>Refresh</span>
+                                                                <span className='show-for-large'>Refresh</span>
                                                             </a>
                                                             &nbsp;
                                                             <a
@@ -295,8 +299,19 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                                     e.stopPropagation();
                                                                     deleteApplication(app.metadata.name, app.metadata.namespace);
                                                                 }}>
-                                                                <i className='fa fa-times-circle' /> <span className='show-for-xxlarge'>Delete</span>
+                                                                <i className='fa fa-times-circle' /> <span className='show-for-large'>Delete</span>
                                                             </a>
+                                                            &nbsp;
+                                                            <button
+                                                                className='argo-button argo-button--base'
+                                                                qe-id='applications-tiles-button-delete'
+                                                                disabled={isDisabledDiff}
+                                                                onClick={e => {
+                                                                    e.stopPropagation();
+                                                                    diffApplication(app.metadata.name, app.metadata.namespace);
+                                                                }}>
+                                                                <i className='fa fa-file-medical' /> <span className='show-for-large'>Diff</span>
+                                                            </button>
                                                         </div>
                                                     </div>
                                                 </div>
