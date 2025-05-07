@@ -2,7 +2,7 @@ package http
 
 import (
 	"bytes"
-	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,7 +14,7 @@ import (
 )
 
 func TestClient(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("Hello, World!"))
 		if err != nil {
@@ -29,15 +29,13 @@ func TestClient(t *testing.T) {
 }
 
 func TestClientDo(t *testing.T) {
-	ctx := context.Background()
-
 	for _, c := range []struct {
 		name            string
 		params          map[string]string
 		content         []byte
 		fakeServer      *httptest.Server
 		clientOptionFns []ClientOptionFunc
-		expected        []map[string]interface{}
+		expected        []map[string]any
 		expectedCode    int
 		expectedError   error
 	}{
@@ -47,7 +45,7 @@ func TestClientDo(t *testing.T) {
 				"pkey1": "val1",
 				"pkey2": "val2",
 			},
-			fakeServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fakeServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusOK)
 				_, err := w.Write([]byte(`[{
 					"key1": "val1",
@@ -64,12 +62,12 @@ func TestClientDo(t *testing.T) {
 				}
 			})),
 			clientOptionFns: nil,
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"key1": "val1",
-					"key2": map[string]interface{}{
+					"key2": map[string]any{
 						"key2_1": "val2_1",
-						"key2_2": map[string]interface{}{
+						"key2_2": map[string]any{
 							"key2_2_1": "val2_2_1",
 						},
 					},
@@ -107,9 +105,9 @@ func TestClientDo(t *testing.T) {
 				}
 			})),
 			clientOptionFns: nil,
-			expected:        []map[string]interface{}(nil),
+			expected:        []map[string]any(nil),
 			expectedCode:    http.StatusUnauthorized,
-			expectedError:   fmt.Errorf("API error with status code 401: "),
+			expectedError:   errors.New("API error with status code 401: "),
 		},
 	} {
 		cc := c
@@ -119,12 +117,12 @@ func TestClientDo(t *testing.T) {
 			client, err := NewClient(cc.fakeServer.URL, cc.clientOptionFns...)
 			require.NoError(t, err, "NewClient returned unexpected error")
 
-			req, err := client.NewRequest("POST", "", cc.params, nil)
+			req, err := client.NewRequestWithContext(t.Context(), http.MethodPost, "", cc.params)
 			require.NoError(t, err, "NewRequest returned unexpected error")
 
-			var data []map[string]interface{}
+			var data []map[string]any
 
-			resp, err := client.Do(ctx, req, &data)
+			resp, err := client.Do(req, &data)
 
 			if cc.expectedError != nil {
 				assert.EqualError(t, err, cc.expectedError.Error())

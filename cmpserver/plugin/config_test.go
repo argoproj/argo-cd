@@ -8,9 +8,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v3/common"
 )
 
 func Test_IsDefined(t *testing.T) {
@@ -88,7 +88,7 @@ func Test_ReadPluginConfig(t *testing.T) {
 metadata:
 `,
 			expected:    nil,
-			expectedErr: "invalid plugin configuration file. metadata.name should be non-empty.",
+			expectedErr: "invalid plugin configuration file. metadata.name should be non-empty",
 		},
 		{
 			name: "empty metadata name",
@@ -97,7 +97,7 @@ metadata:
   name: ""
 `,
 			expected:    nil,
-			expectedErr: "invalid plugin configuration file. metadata.name should be non-empty.",
+			expectedErr: "invalid plugin configuration file. metadata.name should be non-empty",
 		},
 		{
 			name: "invalid kind",
@@ -130,10 +130,10 @@ spec:
     command: [command]
 `,
 			expected: &PluginConfig{
-				TypeMeta: v1.TypeMeta{
+				TypeMeta: metav1.TypeMeta{
 					Kind: ConfigManagementPluginKind,
 				},
-				Metadata: v1.ObjectMeta{
+				Metadata: metav1.ObjectMeta{
 					Name: "name",
 				},
 				Spec: PluginConfigSpec{
@@ -177,10 +177,10 @@ func Test_PluginConfig_Address(t *testing.T) {
 		{
 			name: "no version specified",
 			config: &PluginConfig{
-				TypeMeta: v1.TypeMeta{
+				TypeMeta: metav1.TypeMeta{
 					Kind: ConfigManagementPluginKind,
 				},
-				Metadata: v1.ObjectMeta{
+				Metadata: metav1.ObjectMeta{
 					Name: "name",
 				},
 			},
@@ -189,10 +189,10 @@ func Test_PluginConfig_Address(t *testing.T) {
 		{
 			name: "version specified",
 			config: &PluginConfig{
-				TypeMeta: v1.TypeMeta{
+				TypeMeta: metav1.TypeMeta{
 					Kind: ConfigManagementPluginKind,
 				},
-				Metadata: v1.ObjectMeta{
+				Metadata: metav1.ObjectMeta{
 					Name: "name",
 				},
 				Spec: PluginConfigSpec{

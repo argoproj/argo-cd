@@ -20,14 +20,14 @@ Before starting, ensure you have the following tools installed with the specifie
 
 ### Fork and Clone the Repository
 
-1. Fork the Argo CD repository to your personal Github Account
+1. Fork the Argo CD repository to your personal GitHub Account
 
 2. Clone the forked repository:
 ```shell
-mkdir -p $GOPATH/src/github.com/argoproj/
-cd $GOPATH/src/github.com/argoproj/
 git clone https://github.com/YOUR-USERNAME/argo-cd.git
 ```
+
+Please note that the local build process uses GOPATH and that path should not be used, unless the Argo CD repository was directly cloned in it.
 
 3. Add the upstream remote for rebasing:
 ```shell
@@ -40,7 +40,7 @@ git remote add upstream https://github.com/argoproj/argo-cd.git
 1. Install development tools:
 ```shell
 make install-go-tools-local
-make install-code-gen-tools-local
+make install-codegen-tools-local
 ```
 
 ### Install Go
@@ -134,15 +134,31 @@ DOCKER=podman make start-local ARGOCD_GPG_ENABLED=false
 
 ## Common Make Targets
 
-Here are some frequently used make targets:
+Here are some frequently used make targets (all will run on your machine):
 
-* `make start-local` - Start Argo CD locally
-* `make test` - Run unit tests
-* `make test-e2e` - Run end-to-end tests
-* `make lint` - Run linting
-* `make serve-docs` - Serve documentation locally
-* `make pre-commit-local` - Run pre-commit checks locally
+### Local Toolchain Make Targets
+
+* `make build-local` - Build Argo CD binaries
+* `make test-local` - Run unit tests
+* `make codegen-local` - Re-generate auto generated Swagger and Protobuf (after changing API code)
+* `make lint-local` - Run linting
+* `make pre-commit-local` - Run pre-commit checks
+* `make start-e2e-local` - Start server for end-to-end tests
+* `make test-e2e-local` - Run end-to-end tests
+* `make serve-docs-local` - Serve documentation
+* `make start-local` - Start Argo CD
+
+### Virtualized Toolchain Make Targets
+
 * `make build` - Build Argo CD binaries
+* `make test` - Run unit tests
+* `make codegen` - Re-generate auto generated Swagger and Protobuf (after changing API code)
+* `make lint` - Run linting
+* `make pre-commit` - Run pre-commit checks
+* `make start-e2e` - Start server for end-to-end tests
+* `make test-e2e` - Run end-to-end tests
+* `make serve-docs` - Serve documentation
+* `make start` - Start Argo CD
 
 ## Making Changes
 

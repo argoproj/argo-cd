@@ -1,6 +1,6 @@
 # Sync Options
 
-Argo CD allows users to customize some aspects of how it syncs the desired state in the target cluster. Some Sync Options can be defined as annotations in a specific resource. Most of the Sync Options are configured in the Application resource `spec.syncPolicy.syncOptions` attribute. Multiple Sync Options which are configured with the `argocd.argoproj.io/sync-options` annotation can be concatenated with a `,` in the annotation value; white spaces will be trimmed.
+Argo CD allows users to customize some aspects of how it syncs the desired state in the target cluster. Some Sync Options can be defined as annotations in a specific resource. Most of the Sync Options are configured in the Application resource `spec.syncPolicy.syncOptions` attribute. Multiple Sync Options which are configured with the `argocd.argoproj.io/sync-options` annotation can be concatenated with a `,` in the annotation value; white-space will be trimmed.
 
 Below you can find details about each available Sync Option:
 
@@ -15,11 +15,6 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-options: Prune=false
 ```
-
-In the UI, the pod will simply appear as out-of-sync:
-
-![sync option no prune](../assets/sync-option-no-prune.png)
-
 
 The sync-status panel shows that pruning was skipped, and why:
 
@@ -43,7 +38,7 @@ annotation to the application.
 
 ## Disable Kubectl Validation
 
-For a certain class of objects, it is necessary to `kubectl apply` them using the `--validate=false` flag. Examples of this are Kubernetes types which uses `RawExtension`, such as [ServiceCatalog](https://github.com/kubernetes-incubator/service-catalog/blob/master/pkg/apis/servicecatalog/v1beta1/types.go#L497). You can do using this annotations:
+For a certain class of objects, it is necessary to `kubectl apply` them using the `--validate=false` flag. Examples of this are Kubernetes types which uses `RawExtension`, such as [ServiceCatalog](https://github.com/kubernetes-incubator/service-catalog/blob/master/pkg/apis/servicecatalog/v1beta1/types.go#L497). You can do using this annotation:
 
 
 ```yaml
@@ -58,8 +53,8 @@ If you want to exclude a whole class of objects globally, consider setting `reso
 
 When syncing a custom resource which is not yet known to the cluster, there are generally two options:
 
-1) The CRD manifest is part of the same sync. Then Argo CD will automatically skip the dry run, the CRD will be applied and the resource can be created.
-2) In some cases the CRD is not part of the sync, but it could be created in another way, e.g. by a controller in the cluster. An example is [gatekeeper](https://github.com/open-policy-agent/gatekeeper),
+1. The CRD manifest is part of the same sync. Then Argo CD will automatically skip the dry run, the CRD will be applied and the resource can be created.
+2. In some cases the CRD is not part of the sync, but it could be created in another way, e.g. by a controller in the cluster. An example is [gatekeeper](https://github.com/open-policy-agent/gatekeeper),
 which creates CRDs in response to user defined `ConstraintTemplates`. Argo CD cannot find the CRD in the sync and will fail with the error `the server could not find the requested resource`.
 
 To skip the dry run for missing resource types, use the following annotation:
@@ -71,6 +66,18 @@ metadata:
 ```
 
 The dry run will still be executed if the CRD is already present in the cluster.
+
+It is also possible to skip dry run on missing resource for all application resources. You can set the `SkipDryRunOnMissingResource=true`
+sync option to skip dry run on missing resource
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - SkipDryRunOnMissingResource=true
+```
 
 ## No Resource Deletion
 
@@ -100,7 +107,7 @@ annotation to the application.
 
 ## Selective Sync
 
-Currently when syncing using auto sync Argo CD applies every object in the application.
+Currently, when syncing using auto sync Argo CD applies every object in the application.
 For applications containing thousands of objects this takes quite a long time and puts undue pressure on the api server.
 Turning on selective sync option which will sync only out-of-sync resources.
 

@@ -2,26 +2,26 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
+	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	repo_mocks "github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
-	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	repo_mocks "github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestGetDirectories(t *testing.T) {
 	type fields struct {
-		storecreds            git.CredsStore
-		submoduleEnabled      bool
-		getRepository         func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
-		repoServerClientFuncs []func(*repo_mocks.RepoServerServiceClient)
+		submoduleEnabled  bool
+		getRepository     func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
+		getGitDirectories func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error)
 	}
 	type args struct {
 		ctx             context.Context
@@ -38,58 +38,49 @@ func TestGetDirectories(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "ErrorGettingRepos", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
-				return nil, fmt.Errorf("unable to get repos")
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
+				return nil, errors.New("unable to get repos")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "ErrorGettingDirs", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
 			},
-			repoServerClientFuncs: []func(*repo_mocks.RepoServerServiceClient){
-				func(client *repo_mocks.RepoServerServiceClient) {
-					client.On("GetGitDirectories", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("unable to get dirs"))
-				},
+			getGitDirectories: func(_ context.Context, _ *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+				return nil, errors.New("unable to get dirs")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "HappyCase", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
-				return &v1alpha1.Repository{}, nil
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
+				return &v1alpha1.Repository{
+					Repo: "foo",
+				}, nil
 			},
-			repoServerClientFuncs: []func(*repo_mocks.RepoServerServiceClient){
-				func(client *repo_mocks.RepoServerServiceClient) {
-					client.On("GetGitDirectories", mock.Anything, mock.Anything).Return(&apiclient.GitDirectoriesResponse{
-						Paths: []string{"foo", "foo/bar", "bar/foo"},
-					}, nil)
-				},
+			getGitDirectories: func(_ context.Context, _ *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+				return &apiclient.GitDirectoriesResponse{
+					Paths: []string{"foo", "foo/bar", "bar/foo"},
+				}, nil
 			},
-		}, args: args{}, want: []string{"foo", "foo/bar", "bar/foo"}, wantErr: assert.NoError},
+		}, args: args{
+			repoURL: "foo",
+		}, want: []string{"foo", "foo/bar", "bar/foo"}, wantErr: assert.NoError},
 		{name: "ErrorVerifyingCommit", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
 			},
-			repoServerClientFuncs: []func(*repo_mocks.RepoServerServiceClient){
-				func(client *repo_mocks.RepoServerServiceClient) {
-					client.On("GetGitDirectories", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("revision HEAD is not signed"))
-				},
+			getGitDirectories: func(_ context.Context, _ *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+				return nil, errors.New("revision HEAD is not signed")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepoClient := &repo_mocks.RepoServerServiceClient{}
-			// decorate the mocks
-			for i := range tt.fields.repoServerClientFuncs {
-				tt.fields.repoServerClientFuncs[i](mockRepoClient)
-			}
-
 			a := &argoCDService{
-				getRepository:       tt.fields.getRepository,
-				storecreds:          tt.fields.storecreds,
-				submoduleEnabled:    tt.fields.submoduleEnabled,
-				repoServerClientSet: &repo_mocks.Clientset{RepoServerServiceClient: mockRepoClient},
+				getRepository:                   tt.fields.getRepository,
+				submoduleEnabled:                tt.fields.submoduleEnabled,
+				getGitDirectoriesFromRepoServer: tt.fields.getGitDirectories,
 			}
-			got, err := a.GetDirectories(tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.noRevisionCache, tt.args.verifyCommit)
+			got, err := a.GetDirectories(tt.args.ctx, tt.args.repoURL, tt.args.revision, "", tt.args.noRevisionCache, tt.args.verifyCommit)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetDirectories(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.noRevisionCache)) {
 				return
 			}
@@ -100,10 +91,9 @@ func TestGetDirectories(t *testing.T) {
 
 func TestGetFiles(t *testing.T) {
 	type fields struct {
-		storecreds            git.CredsStore
-		submoduleEnabled      bool
-		repoServerClientFuncs []func(*repo_mocks.RepoServerServiceClient)
-		getRepository         func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
+		submoduleEnabled bool
+		getRepository    func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
+		getGitFiles      func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error)
 	}
 	type args struct {
 		ctx             context.Context
@@ -121,64 +111,55 @@ func TestGetFiles(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "ErrorGettingRepos", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
-				return nil, fmt.Errorf("unable to get repos")
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
+				return nil, errors.New("unable to get repos")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "ErrorGettingFiles", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
 			},
-			repoServerClientFuncs: []func(*repo_mocks.RepoServerServiceClient){
-				func(client *repo_mocks.RepoServerServiceClient) {
-					client.On("GetGitFiles", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("unable to get files"))
-				},
+			getGitFiles: func(_ context.Context, _ *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+				return nil, errors.New("unable to get files")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "HappyCase", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
-				return &v1alpha1.Repository{}, nil
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
+				return &v1alpha1.Repository{
+					Repo: "foo",
+				}, nil
 			},
-			repoServerClientFuncs: []func(*repo_mocks.RepoServerServiceClient){
-				func(client *repo_mocks.RepoServerServiceClient) {
-					client.On("GetGitFiles", mock.Anything, mock.Anything).Return(&apiclient.GitFilesResponse{
-						Map: map[string][]byte{
-							"foo.json": []byte("hello: world!"),
-							"bar.yaml": []byte("yay: appsets"),
-						},
-					}, nil)
-				},
+			getGitFiles: func(_ context.Context, _ *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+				return &apiclient.GitFilesResponse{
+					Map: map[string][]byte{
+						"foo.json": []byte("hello: world!"),
+						"bar.yaml": []byte("yay: appsets"),
+					},
+				}, nil
 			},
-		}, args: args{}, want: map[string][]byte{
+		}, args: args{
+			repoURL: "foo",
+		}, want: map[string][]byte{
 			"foo.json": []byte("hello: world!"),
 			"bar.yaml": []byte("yay: appsets"),
 		}, wantErr: assert.NoError},
 		{name: "ErrorVerifyingCommit", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
 			},
-			repoServerClientFuncs: []func(*repo_mocks.RepoServerServiceClient){
-				func(client *repo_mocks.RepoServerServiceClient) {
-					client.On("GetGitFiles", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("revision HEAD is not signed"))
-				},
+			getGitFiles: func(_ context.Context, _ *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+				return nil, errors.New("revision HEAD is not signed")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepoClient := &repo_mocks.RepoServerServiceClient{}
-			// decorate the mocks
-			for i := range tt.fields.repoServerClientFuncs {
-				tt.fields.repoServerClientFuncs[i](mockRepoClient)
-			}
-
 			a := &argoCDService{
-				getRepository:       tt.fields.getRepository,
-				storecreds:          tt.fields.storecreds,
-				submoduleEnabled:    tt.fields.submoduleEnabled,
-				repoServerClientSet: &repo_mocks.Clientset{RepoServerServiceClient: mockRepoClient},
+				getRepository:             tt.fields.getRepository,
+				submoduleEnabled:          tt.fields.submoduleEnabled,
+				getGitFilesFromRepoServer: tt.fields.getGitFiles,
 			}
-			got, err := a.GetFiles(tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, tt.args.noRevisionCache, tt.args.verifyCommit)
+			got, err := a.GetFiles(tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, "", tt.args.noRevisionCache, tt.args.verifyCommit)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetFiles(%v, %v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, tt.args.noRevisionCache)) {
 				return
 			}
@@ -188,9 +169,9 @@ func TestGetFiles(t *testing.T) {
 }
 
 func TestNewArgoCDService(t *testing.T) {
-	service, err := NewArgoCDService(func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
-		return &v1alpha1.Repository{}, nil
-	}, false, &repo_mocks.Clientset{}, false)
-	require.NoError(t, err)
+	testNamespace := "test"
+	clientset := fake.NewClientset()
+	testDB := db.NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+	service := NewArgoCDService(testDB, false, &repo_mocks.Clientset{}, false)
 	assert.NotNil(t, service)
 }

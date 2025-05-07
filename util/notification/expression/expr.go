@@ -3,27 +3,27 @@ package expression
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
+	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
 
-	"github.com/argoproj/argo-cd/v2/util/notification/expression/repo"
-	"github.com/argoproj/argo-cd/v2/util/notification/expression/strings"
-	"github.com/argoproj/argo-cd/v2/util/notification/expression/time"
+	"github.com/argoproj/argo-cd/v3/util/notification/expression/repo"
+	"github.com/argoproj/argo-cd/v3/util/notification/expression/strings"
+	"github.com/argoproj/argo-cd/v3/util/notification/expression/time"
 )
 
-var helpers = map[string]interface{}{}
+var helpers = map[string]any{}
 
 func init() {
-	helpers = make(map[string]interface{})
+	helpers = make(map[string]any)
 	register("time", time.NewExprs())
 	register("strings", strings.NewExprs())
 }
 
-func register(namespace string, entry map[string]interface{}) {
+func register(namespace string, entry map[string]any) {
 	helpers[namespace] = entry
 }
 
-func Spawn(app *unstructured.Unstructured, argocdService service.Service, vars map[string]interface{}) map[string]interface{} {
-	clone := make(map[string]interface{})
+func Spawn(app *unstructured.Unstructured, argocdService service.Service, vars map[string]any) map[string]any {
+	clone := make(map[string]any)
 	for k := range vars {
 		clone[k] = vars[k]
 	}

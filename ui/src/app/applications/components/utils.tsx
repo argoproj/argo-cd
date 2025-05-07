@@ -13,6 +13,7 @@ import {ResourceTreeNode} from './application-resource-tree/application-resource
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
+import {ApplicationSource} from '../../shared/models';
 
 require('./utils.scss');
 
@@ -195,7 +196,7 @@ const PropagationPolicyOption = ReactForm.FormField((props: {fieldApi: ReactForm
     );
 });
 
-export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
+export const OperationPhaseIcon = ({app, isButton}: {app: appModels.Application; isButton?: boolean}) => {
     const operationState = getAppOperationState(app);
     if (operationState === undefined) {
         return <React.Fragment />;
@@ -204,15 +205,15 @@ export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
     let color = '';
     switch (operationState.phase) {
         case appModels.OperationPhases.Succeeded:
-            className = 'fa fa-check-circle';
+            className = `fa fa-check-circle${isButton ? ' status-button' : ''}`;
             color = COLORS.operation.success;
             break;
         case appModels.OperationPhases.Error:
-            className = 'fa fa-times-circle';
+            className = `fa fa-times-circle${isButton ? ' status-button' : ''}`;
             color = COLORS.operation.error;
             break;
         case appModels.OperationPhases.Failed:
-            className = 'fa fa-times-circle';
+            className = `fa fa-times-circle${isButton ? ' status-button' : ''}`;
             color = COLORS.operation.failed;
             break;
         default:
@@ -223,31 +224,55 @@ export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
     return <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{color}} />;
 };
 
+export const HydrateOperationPhaseIcon = ({operationState, isButton}: {operationState?: appModels.HydrateOperation; isButton?: boolean}) => {
+    if (operationState === undefined) {
+        return <React.Fragment />;
+    }
+    let className = '';
+    let color = '';
+    switch (operationState.phase) {
+        case appModels.HydrateOperationPhases.Hydrated:
+            className = `fa fa-check-circle${isButton ? ' status-button' : ''}`;
+            color = COLORS.operation.success;
+            break;
+        case appModels.HydrateOperationPhases.Failed:
+            className = `fa fa-times-circle${isButton ? ' status-button' : ''}`;
+            color = COLORS.operation.failed;
+            break;
+        default:
+            className = 'fa fa-circle-notch fa-spin';
+            color = COLORS.operation.running;
+            break;
+    }
+    return <i title={operationState.phase} qe-id='utils-operations-status-title' className={className} style={{color}} />;
+};
+
 export const ComparisonStatusIcon = ({
     status,
     resource,
     label,
-    noSpin
+    noSpin,
+    isButton
 }: {
     status: appModels.SyncStatusCode;
     resource?: {requiresPruning?: boolean};
     label?: boolean;
     noSpin?: boolean;
+    isButton?: boolean;
 }) => {
     let className = 'fas fa-question-circle';
     let color = COLORS.sync.unknown;
     let title: string = 'Unknown';
-
     switch (status) {
         case appModels.SyncStatuses.Synced:
-            className = 'fa fa-check-circle';
+            className = `fa fa-check-circle${isButton ? ' status-button' : ''}`;
             color = COLORS.sync.synced;
             title = 'Synced';
             break;
         case appModels.SyncStatuses.OutOfSync:
             // eslint-disable-next-line no-case-declarations
             const requiresPruning = resource && resource.requiresPruning;
-            className = requiresPruning ? 'fa fa-trash' : 'fa fa-arrow-alt-circle-up';
+            className = requiresPruning ? `fa fa-trash${isButton ? ' status-button' : ''}` : `fa fa-arrow-alt-circle-up${isButton ? ' status-button' : ''}`;
             title = 'OutOfSync';
             if (requiresPruning) {
                 title = `${title} (This resource is not present in the application's source. It will be deleted from Kubernetes if the prune option is enabled during sync.)`;
@@ -255,7 +280,7 @@ export const ComparisonStatusIcon = ({
             color = COLORS.sync.out_of_sync;
             break;
         case appModels.SyncStatuses.Unknown:
-            className = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}`;
+            className = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}${isButton ? ' status-button' : ''}`;
             break;
     }
     return (
@@ -777,6 +802,66 @@ export function syncStatusMessage(app: appModels.Application) {
     }
 }
 
+export function hydrationStatusMessage(app: appModels.Application) {
+    const drySource = app.status.sourceHydrator.currentOperation.sourceHydrator.drySource;
+    const dryCommit = app.status.sourceHydrator.currentOperation.drySHA;
+    const syncSource: ApplicationSource = {
+        repoURL: drySource.repoURL,
+        targetRevision:
+            app.status.sourceHydrator.currentOperation.sourceHydrator.hydrateTo?.targetBranch || app.status.sourceHydrator.currentOperation.sourceHydrator.syncSource.targetBranch,
+        path: app.status.sourceHydrator.currentOperation.sourceHydrator.syncSource.path
+    };
+    const hydratedCommit = app.status.sourceHydrator.currentOperation.hydratedSHA || '';
+
+    switch (app.status.sourceHydrator.currentOperation.phase) {
+        case appModels.HydrateOperationPhases.Hydrated:
+            return (
+                <span>
+                    from{' '}
+                    <Revision repoUrl={drySource.repoURL} revision={dryCommit}>
+                        {drySource.targetRevision + ' (' + dryCommit.substr(0, 7) + ')'}
+                    </Revision>
+                    <br />
+                    to{' '}
+                    <Revision repoUrl={syncSource.repoURL} revision={hydratedCommit}>
+                        {syncSource.targetRevision + ' (' + hydratedCommit.substr(0, 7) + ')'}
+                    </Revision>
+                </span>
+            );
+        case appModels.HydrateOperationPhases.Hydrating:
+            return (
+                <span>
+                    from{' '}
+                    <Revision repoUrl={drySource.repoURL} revision={drySource.targetRevision}>
+                        {drySource.targetRevision}
+                    </Revision>
+                    <br />
+                    to{' '}
+                    <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
+                        {syncSource.targetRevision}
+                    </Revision>
+                </span>
+            );
+        case appModels.HydrateOperationPhases.Failed:
+            return (
+                <span>
+                    from{' '}
+                    <Revision repoUrl={drySource.repoURL} revision={dryCommit || drySource.targetRevision}>
+                        {drySource.targetRevision}
+                        {dryCommit && ' (' + dryCommit.substr(0, 7) + ')'}
+                    </Revision>
+                    <br />
+                    to{' '}
+                    <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
+                        {syncSource.targetRevision}
+                    </Revision>
+                </span>
+            );
+        default:
+            return <span>{}</span>;
+    }
+}
+
 export const HealthStatusIcon = ({state, noSpin}: {state: appModels.HealthStatus; noSpin?: boolean}) => {
     let color = COLORS.health.unknown;
     let icon = 'fa-question-circle';
@@ -868,7 +953,7 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
                 break;
             case appModels.ResultCodes.Pruned:
                 color = COLORS.sync_result.pruned;
-                icon = 'fa-heart';
+                icon = 'fa-trash';
                 break;
             case appModels.ResultCodes.SyncFailed:
                 color = COLORS.sync_result.failed;
@@ -971,7 +1056,7 @@ const getOperationStateTitle = (app: appModels.Application) => {
     return 'Unknown';
 };
 
-export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?: boolean}) => {
+export const OperationState = ({app, quiet, isButton}: {app: appModels.Application; quiet?: boolean; isButton?: boolean}) => {
     const appOperationState = getAppOperationState(app);
     if (appOperationState === undefined) {
         return <React.Fragment />;
@@ -982,7 +1067,7 @@ export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?
 
     return (
         <React.Fragment>
-            <OperationPhaseIcon app={app} /> {getOperationStateTitle(app)}
+            <OperationPhaseIcon app={app} isButton={isButton} /> {getOperationStateTitle(app)}
         </React.Fragment>
     );
 };
@@ -1182,7 +1267,7 @@ export function getAppDefaultSource(app?: appModels.Application) {
     if (!app) {
         return null;
     }
-    return app.spec.sources && app.spec.sources.length > 0 ? app.spec.sources[0] : app.spec.source;
+    return getAppSpecDefaultSource(app.spec);
 }
 
 // getAppDefaultSyncRevision gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
@@ -1241,6 +1326,13 @@ export function getAppDefaultOperationSyncRevisionExtra(app?: appModels.Applicat
 }
 
 export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {
+    if (spec.sourceHydrator) {
+        return {
+            repoURL: spec.sourceHydrator.drySource.repoURL,
+            targetRevision: spec.sourceHydrator.syncSource.targetBranch,
+            path: spec.sourceHydrator.syncSource.path
+        };
+    }
     return spec.sources && spec.sources.length > 0 ? spec.sources[0] : spec.source;
 }
 
@@ -1456,6 +1548,44 @@ export function formatCreationTimestamp(creationTimestamp: string) {
     );
 }
 
+/*
+ * formatStatefulSetChange reformats a single line describing changes to immutable fields in a StatefulSet.
+ * It extracts the field name and its "from" and "to" values for better readability.
+ */
+function formatStatefulSetChange(line: string): string {
+    if (line.startsWith('-')) {
+        // Remove leading "- " from the line and split into field and changes
+        const [field, changes] = line.substring(2).split(':');
+        if (changes) {
+            // Split "from: X to: Y" into separate lines with aligned values
+            const [from, to] = changes.split('to:').map(s => s.trim());
+            return `   - ${field}:\n      from: ${from.replace('from:', '').trim()}\n      to:   ${to}`;
+        }
+    }
+    return line;
+}
+
+export function formatOperationMessage(message: string): string {
+    if (!message) {
+        return message;
+    }
+
+    // Format immutable fields error message
+    if (message.includes('attempting to change immutable fields:')) {
+        const [header, ...details] = message.split('\n');
+        const formattedDetails = details
+            // Remove empty lines
+            .filter(line => line.trim())
+            // Use helper function
+            .map(formatStatefulSetChange)
+            .join('\n');
+
+        return `${header}\n${formattedDetails}`;
+    }
+
+    return message;
+}
+
 export const selectPostfix = (arr: string[], singular: string, plural: string) => (arr.length > 1 ? plural : singular);
 
 export function getUsrMsgKeyToDisplay(appName: string, msgKey: string, usrMessages: appModels.UserMessages[]) {
@@ -1474,7 +1604,7 @@ export const userMsgsList: {[key: string]: string} = {
 
 export function getAppUrl(app: appModels.Application): string {
     if (typeof app.metadata.namespace === 'undefined') {
-        return `/applications/${app.metadata.name}`;
+        return `applications/${app.metadata.name}`;
     }
-    return `/applications/${app.metadata.namespace}/${app.metadata.name}`;
+    return `applications/${app.metadata.namespace}/${app.metadata.name}`;
 }

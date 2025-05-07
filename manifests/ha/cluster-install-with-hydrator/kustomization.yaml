@@ -1,0 +1,3 @@
+resources:
+  - ../cluster-install
+  - ../../base/commit-server
