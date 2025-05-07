@@ -1054,12 +1054,6 @@ export interface UserMessages {
 
 export const AppDeletionConfirmedAnnotation = 'argocd.argoproj.io/deletion-approved';
 
-export interface ResourceMetadata {
-    name: string;
-    namespace: string;
-    [key: string]: any;
-}
-
 export interface ApplicationSetSpec {
     strategy?: {
         type: 'AllAtOnce' | 'RollingSync';
@@ -1081,6 +1075,7 @@ export interface ApplicationSetCondition {
     status: string;
     message: string;
     lastTransitionTime: string;
+    reason: string;
 }
 
 export interface ApplicationSetResource {
@@ -1100,7 +1095,7 @@ export interface ApplicationSetResource {
 export interface ApplicationSet {
     apiVersion?: string;
     kind?: string;
-    metadata: ResourceMetadata;
+    metadata: models.ObjectMeta;
     spec: ApplicationSetSpec;
     status?: {
         conditions?: ApplicationSetCondition[];
