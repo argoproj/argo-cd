@@ -385,9 +385,27 @@ In `values` we can also interpolate all fields set by the git files generator as
 
 ## Webhook Configuration
 
-When using a Git generator, ApplicationSet polls Git repositories every three minutes to detect changes. To eliminate
+When using a Git generator, ApplicationSet polls Git repositories every every `requeueAfterSeconds` interval (defaulting to every three minutes) to detect changes. To eliminate
 this delay from polling, the ApplicationSet webhook server can be configured to receive webhook events. ApplicationSet supports
 Git webhook notifications from GitHub and GitLab. The following explains how to configure a Git webhook for GitHub, but the same process should be applicable to other providers.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - git:
+      # When using a Git generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 3 minutes) to detect changes.
+      requeueAfterSeconds: 180
+      repoURL: https://github.com/argoproj/argo-cd.git
+      revision: HEAD
+      # ...
+```
 
 !!! note
     The ApplicationSet controller webhook does not use the same webhook as the API server as defined [here](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
