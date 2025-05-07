@@ -162,7 +162,6 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		sync.NewKeyLock(),
 		[]string{testNamespace, "external-namespace"},
 		true,
-		true,
 		"",
 		[]string{},
 		true,

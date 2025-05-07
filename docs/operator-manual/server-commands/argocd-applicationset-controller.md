@@ -27,7 +27,6 @@ argocd-applicationset-controller [flags]
       --disable-compression                     If true, opt-out of response compression for all requests to the server
       --dry-run                                 Enable dry run mode
       --enable-leader-election                  Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.
-      --enable-new-git-file-globbing            Enable new globbing in Git files generator.
       --enable-policy-override                  For security reason if 'policy' is set, it is not possible to override it at applicationSet level. 'allow-policy-override' allows user to define their own policy (default true)
       --enable-progressive-syncs                Enable use of the experimental progressive syncs feature.
       --enable-scm-providers                    Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true) (default true)
