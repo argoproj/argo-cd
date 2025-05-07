@@ -542,7 +542,7 @@ export async function getResourceActionsMenuItems(resource: ResourceTreeNode, me
                             {action.params &&
                                 action.params.map((param, index) => (
                                     <div className='argo-form-row' key={index}>
-                                        <FormField label={param.name} field={param.name} formApi={api} component={Text} componentProps={{showErrors: true}} />
+                                        <FormField label={param.name} field={param.name} formApi={api} component={Text} />
                                     </div>
                                 ))}
                         </div>
@@ -570,7 +570,12 @@ export async function getResourceActionsMenuItems(resource: ResourceTreeNode, me
                     },
                     null,
                     null,
-                    {inputParameter: action.params[0]?.default}
+                    action.params
+                        ? action.params.reduce((acc, res) => {
+                              acc[res.name] = res.default;
+                              return acc;
+                          }, {} as any)
+                        : {}
                 );
                 return confirmed;
             }
