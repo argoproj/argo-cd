@@ -452,7 +452,7 @@ func (m *nativeGitClient) LsFiles(path string, enableNewGitFileGlobbing bool) ([
 				}
 				files = append(files, relativeFile)
 			} else {
-				log.Warnf("Absolute path for %s is outside of repository, removing it", file)
+				log.Warnf("Absolute path for %s is outside of repository, ignoring it", file)
 			}
 		}
 		return files, nil
