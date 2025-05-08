@@ -190,7 +190,6 @@ func (t *GitHubMetricsTransport) RoundTrip(req *http.Request) (*http.Response, e
 			if resetUnix, err := strconv.ParseInt(resetTime, 10, 64); err == nil {
 				t.metrics.RateLimitReset.WithLabelValues(endpoint, appsetNamespace, appsetName).Set(float64(resetUnix))
 				resetHumanReadableTime = time.Unix(resetUnix, 0).Local().Format("2006-01-02 15:04:05 MST")
-
 			}
 		}
 		if remaining := resp.Header.Get("X-RateLimit-Remaining"); remaining != "" {
