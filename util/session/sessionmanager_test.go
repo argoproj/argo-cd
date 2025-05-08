@@ -187,7 +187,7 @@ func TestSessionManager_AdminToken_Expired(t *testing.T) {
 
 	_, _, err = mgr.Parse(token)
 	require.Error(t, err)
-	assert.Equal(t, "Token is expired", err.Error())
+	assert.ErrorContains(t, err, "token is expired")
 }
 
 func TestSessionManager_AdminToken_Deactivated(t *testing.T) {
@@ -731,7 +731,7 @@ rootCA: |
 		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
-		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
+		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"argo-cd"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
 		claims.Issuer = dexTestServer.URL + "/api/dex"
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
