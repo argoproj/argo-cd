@@ -422,11 +422,14 @@ func (m *nativeGitClient) Fetch(revision string) error {
 func (m *nativeGitClient) LsFiles(path string, enableNewGitFileGlobbing bool) ([]string, error) {
 	if enableNewGitFileGlobbing {
 		// This is the new way with safer globbing
-		err := os.Chdir(m.root)
+
+		// evaluating the root path for symlinks
+		realRoot, err := filepath.EvalSymlinks(m.root)
 		if err != nil {
 			return nil, err
 		}
-		allFiles, err := doublestar.FilepathGlob(path)
+		// searching for the pattern inside the root path
+		allFiles, err := doublestar.FilepathGlob(filepath.Join(realRoot, path))
 		if err != nil {
 			return nil, err
 		}
@@ -440,10 +443,16 @@ func (m *nativeGitClient) LsFiles(path string, enableNewGitFileGlobbing bool) ([
 			if err != nil {
 				return nil, err
 			}
-			if strings.HasPrefix(absPath, m.root) {
-				files = append(files, file)
+
+			if strings.HasPrefix(absPath, realRoot) {
+				// removing the repository root prefix from the file path
+				relativeFile, err := filepath.Rel(realRoot, file)
+				if err != nil {
+					return nil, err
+				}
+				files = append(files, relativeFile)
 			} else {
-				log.Warnf("Absolute path for %s is outside of repository, removing it", file)
+				log.Warnf("Absolute path for %s is outside of repository, ignoring it", file)
 			}
 		}
 		return files, nil
