@@ -15,3 +15,7 @@ tests:
     status: Degraded
     message: "Has Errors: Waiting for foo/keycloak-1 due to CrashLoopBackOff: back-off 10s"
   inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: ""
+  inputPath: testdata/nil_last_transition_time.yaml
