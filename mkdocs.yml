@@ -74,6 +74,7 @@ nav:
     - operator-manual/notifications/troubleshooting.md
     - operator-manual/notifications/troubleshooting-commands.md
     - operator-manual/notifications/troubleshooting-errors.md
+    - operator-manual/notifications/examples.md
     - Notification Services:
       - operator-manual/notifications/services/alertmanager.md
       - operator-manual/notifications/services/awssqs.md
@@ -130,6 +131,7 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/2.14-3.0.md
     - operator-manual/upgrading/2.13-2.14.md
     - operator-manual/upgrading/2.12-2.13.md
     - operator-manual/upgrading/2.11-2.12.md
@@ -165,6 +167,7 @@ nav:
   - user-guide/tool_detection.md
   - user-guide/projects.md
   - user-guide/private-repositories.md
+  - user-guide/plugins.md
   - user-guide/multiple_sources.md
   - GnuPG verification: user-guide/gpg-verification.md
   - user-guide/auto_sync.md

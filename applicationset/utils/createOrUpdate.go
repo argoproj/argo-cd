@@ -79,10 +79,10 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, ign
 			return a.Cmp(b) == 0
 		},
 		func(a, b metav1.MicroTime) bool {
-			return a.UTC() == b.UTC()
+			return a.UTC().Equal(b.UTC())
 		},
 		func(a, b metav1.Time) bool {
-			return a.UTC() == b.UTC()
+			return a.UTC().Equal(b.UTC())
 		},
 		func(a, b labels.Selector) bool {
 			return a.String() == b.String()
@@ -163,12 +163,12 @@ func applyIgnoreDifferences(applicationSetIgnoreDifferences argov1alpha1.Applica
 	if len(result.Lives) != 1 {
 		return fmt.Errorf("expected 1 normalized application, got %d", len(result.Lives))
 	}
-	foundJsonNormalized, err := json.Marshal(result.Lives[0].Object)
+	foundJSONNormalized, err := json.Marshal(result.Lives[0].Object)
 	if err != nil {
 		return fmt.Errorf("failed to marshal normalized app to json: %w", err)
 	}
 	foundNormalized := &argov1alpha1.Application{}
-	err = json.Unmarshal(foundJsonNormalized, &foundNormalized)
+	err = json.Unmarshal(foundJSONNormalized, &foundNormalized)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal normalized app to json: %w", err)
 	}
@@ -176,12 +176,12 @@ func applyIgnoreDifferences(applicationSetIgnoreDifferences argov1alpha1.Applica
 		return fmt.Errorf("expected 1 normalized application, got %d", len(result.Targets))
 	}
 	foundNormalized.DeepCopyInto(found)
-	generatedJsonNormalized, err := json.Marshal(result.Targets[0].Object)
+	generatedJSONNormalized, err := json.Marshal(result.Targets[0].Object)
 	if err != nil {
 		return fmt.Errorf("failed to marshal normalized app to json: %w", err)
 	}
 	generatedAppNormalized := &argov1alpha1.Application{}
-	err = json.Unmarshal(generatedJsonNormalized, &generatedAppNormalized)
+	err = json.Unmarshal(generatedJSONNormalized, &generatedAppNormalized)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal normalized app json to structured app: %w", err)
 	}

@@ -1,7 +1,6 @@
 package pull_request
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -301,7 +300,7 @@ func TestGiteaList(t *testing.T) {
 	}))
 	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", []string{"label1"}, false)
 	require.NoError(t, err)
-	prs, err := host.List(context.Background())
+	prs, err := host.List(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, prs, 1)
 	assert.Equal(t, 1, prs[0].Number)

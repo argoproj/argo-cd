@@ -74,14 +74,13 @@ In the above example, the `prometheus` chart will use the value file from `git.e
 For Argo to reference the external Git repository containing the value files, you must set the `ref` parameter on
 the repository. In the above example, the parameter `ref: values` maps to the variable `$values`, which resolves
 to the root of the `value-files` repository. 
-Note that the `$values` variable can only be used at the beginning of the value file path.
+Note that the `$values` variable can only be used at the beginning of the value file path and that its path is always relative to the root of the referenced source.
 
 If the `path` field is set in the `$values` source, Argo CD will attempt to generate resources from the git repository
 at that URL. If the `path` field is not set, Argo CD will use the repository solely as a source of value files.
 
 !!! note
-    Sources with the `ref` field set must not also specify the `chart` field. Argo CD does not currently support using  
-    another Helm chart as a source for value files.
+    Sources with the `ref` field set cannot include the `chart` field. Currently, Argo CD does not support using another Helm chart as a source for value files.
 
 !!! note
     Even when the `ref` field is configured with the `path` field, `$value` still represents the root of sources with the `ref` field. Consequently, `valueFiles` must be specified as relative paths from the root of sources.

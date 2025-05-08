@@ -3,15 +3,26 @@
 The test [directory](https://github.com/argoproj/argo-cd/tree/master/test) contains E2E tests and test applications. The tests assume that Argo CD services are installed into `argocd-e2e` namespace or cluster in current context. A throw-away
 namespace `argocd-e2e***` is created prior to the execution of the tests. The throw-away namespace is used as a target namespace for test applications.
 
-The [/test/e2e/testdata](https://github.com/argoproj/argo-cd/tree/master/test/e2e/testdata) directory contains various Argo CD applications. Before test execution, the directory is copied into `/tmp/argocd-e2e***` temp directory and used in tests as a
-Git repository via file url: `file:///tmp/argocd-e2e***`.
+The [/test/e2e/testdata](https://github.com/argoproj/argo-cd/tree/master/test/e2e/testdata) directory contains various Argo CD applications. Before test execution, the directory is copied into `/tmp/argo-e2e***` temp directory and used in tests as a
+Git repository via file url: `file:///tmp/argo-e2e***`.
+
+!!! note "Rancher Desktop Volume Sharing"
+    The e2e git server runs in a container. If you are using Rancher Desktop, you will need to enable volume sharing for
+    the e2e container to access the testdata directory. To do this, add the following to 
+    `~/Library/Application\ Support/rancher-desktop/lima/_config/override.yaml` and restart Rancher Desktop:
+
+    ```yaml
+    mounts:
+    - location: /private/tmp
+      writable: true
+    ```
 
 ## Running Tests Locally
 
 1. Start the e2e version `make start-e2e`
 2. Run the tests: `make test-e2e`
 
-You can observe the tests by using the UI [http://localhost:8080/applications](http://localhost:8080/applications) with username `"admin"` and password `"password"`.
+You can observe the tests by using the UI [http://localhost:4000/applications](http://localhost:4000/applications) with username `"admin"` and password `"password"`.
 
 ## Configuration of E2E Tests execution
 
@@ -31,7 +42,7 @@ If you have changed the port for `argocd-server`, be sure to also set `ARGOCD_SE
 Some effort has been made to balance test isolation with speed. Tests are isolated as follows as each test gets:
 
 * A random 5 character ID.
-* A unique Git repository containing the `testdata` in `/tmp/argocd-e2e/${id}`.
+* A unique Git repository containing the `testdata` in `/tmp/argo-e2e/${id}`.
 * A namespace `argocd-e2e-ns-${id}`.
 * A primary name for the app `argocd-e2e-${id}`.
 

@@ -15,9 +15,9 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/cli"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 type testNormalizer struct{}
@@ -96,10 +96,12 @@ type IndividualDiscoveryTest struct {
 }
 
 type IndividualActionTest struct {
-	Action             string `yaml:"action"`
-	InputPath          string `yaml:"inputPath"`
-	ExpectedOutputPath string `yaml:"expectedOutputPath"`
-	InputStr           string `yaml:"input"`
+	Action               string            `yaml:"action"`
+	InputPath            string            `yaml:"inputPath"`
+	ExpectedOutputPath   string            `yaml:"expectedOutputPath"`
+	ExpectedErrorMessage string            `yaml:"expectedErrorMessage"`
+	InputStr             string            `yaml:"input"`
+	Parameters           map[string]string `yaml:"parameters"`
 }
 
 func TestLuaResourceActionsScript(t *testing.T) {
@@ -121,7 +123,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				vm := VM{
 					UseOpenLibs: true,
 				}
-				obj := getObj(filepath.Join(dir, test.InputPath))
+				obj := getObj(t, filepath.Join(dir, test.InputPath))
 				discoveryLua, err := vm.GetResourceActionDiscovery(obj)
 				require.NoError(t, err)
 				result, err := vm.ExecuteResourceActionDiscovery(obj, discoveryLua)
@@ -142,13 +144,39 @@ func TestLuaResourceActionsScript(t *testing.T) {
 					// privileges that API server has.
 					// UseOpenLibs: true,
 				}
-				sourceObj := getObj(filepath.Join(dir, test.InputPath))
+				sourceObj := getObj(t, filepath.Join(dir, test.InputPath))
 				action, err := vm.GetResourceAction(sourceObj, test.Action)
 
 				require.NoError(t, err)
 
+				// Log the action Lua script
+				t.Logf("Action Lua script: %s", action.ActionLua)
+
+				// Parse action parameters
+				var params []*applicationpkg.ResourceActionParameters
+				if test.Parameters != nil {
+					for k, v := range test.Parameters {
+						params = append(params, &applicationpkg.ResourceActionParameters{
+							Name:  &k,
+							Value: &v,
+						})
+					}
+				}
+
+				if len(params) > 0 {
+					// Log the parameters
+					t.Logf("Parameters: %+v", params)
+				}
+
 				require.NoError(t, err)
-				impactedResources, err := vm.ExecuteResourceAction(sourceObj, action.ActionLua)
+				impactedResources, err := vm.ExecuteResourceAction(sourceObj, action.ActionLua, params)
+
+				// Handle expected errors
+				if test.ExpectedErrorMessage != "" {
+					assert.EqualError(t, err, test.ExpectedErrorMessage)
+					return
+				}
+
 				require.NoError(t, err)
 
 				// Treat the Lua expected output as a list
@@ -175,9 +203,9 @@ func TestLuaResourceActionsScript(t *testing.T) {
 					// No default case since a not supported operation would have failed upon unmarshaling earlier
 					case PatchOperation:
 						// Patching is only allowed for the source resource, so the GVK + name + ns must be the same as the impacted resource
-						assert.EqualValues(t, sourceObj.GroupVersionKind(), result.GroupVersionKind())
-						assert.EqualValues(t, sourceObj.GetName(), result.GetName())
-						assert.EqualValues(t, sourceObj.GetNamespace(), result.GetNamespace())
+						assert.Equal(t, sourceObj.GroupVersionKind(), result.GroupVersionKind())
+						assert.Equal(t, sourceObj.GetName(), result.GetName())
+						assert.Equal(t, sourceObj.GetNamespace(), result.GetNamespace())
 					case CreateOperation:
 						switch result.GetKind() {
 						case "Job":
@@ -186,6 +214,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 							result.SetName(expectedObj.GetName())
 						}
 					}
+
 					// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
 					diffResult, err := diff.Diff(expectedObj, result, diff.WithNormalizer(testNormalizer{}))
 					require.NoError(t, err)
@@ -208,14 +237,14 @@ func TestLuaResourceActionsScript(t *testing.T) {
 func getExpectedObjectList(t *testing.T, path string) *unstructured.UnstructuredList {
 	t.Helper()
 	yamlBytes, err := os.ReadFile(path)
-	errors.CheckError(err)
+	require.NoError(t, err)
 	unstructuredList := &unstructured.UnstructuredList{}
 	yamlString := bytes.NewBuffer(yamlBytes).String()
 	if yamlString[0] == '-' {
 		// The string represents a new-style action array output, where each member is a wrapper around a k8s unstructured resource
 		objList := make([]map[string]any, 5)
 		err = yaml.Unmarshal(yamlBytes, &objList)
-		errors.CheckError(err)
+		require.NoError(t, err)
 		unstructuredList.Items = make([]unstructured.Unstructured, len(objList))
 		// Append each map in objList to the Items field of the new object
 		for i, obj := range objList {
@@ -227,7 +256,7 @@ func getExpectedObjectList(t *testing.T, path string) *unstructured.Unstructured
 		// The string represents an old-style action object output, which is a k8s unstructured resource
 		obj := make(map[string]any)
 		err = yaml.Unmarshal(yamlBytes, &obj)
-		errors.CheckError(err)
+		require.NoError(t, err)
 		unstructuredList.Items = make([]unstructured.Unstructured, 1)
 		unstructuredList.Items[0] = unstructured.Unstructured{Object: obj}
 	}

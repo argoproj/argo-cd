@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"bytes"
 	"context"
 	"io"
 	"os"
@@ -68,8 +67,6 @@ func newSettingsManager(data map[string]string) *settings.SettingsManager {
 
 type fakeCmdContext struct {
 	mgr *settings.SettingsManager
-	//nolint:unused,structcheck
-	out bytes.Buffer
 }
 
 func newCmdContext(data map[string]string) *fakeCmdContext {
@@ -88,7 +85,7 @@ type validatorTestCase struct {
 }
 
 func TestCreateSettingsManager(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, closer, err := tempFile(`apiVersion: v1
 kind: ConfigMap

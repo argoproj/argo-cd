@@ -35,7 +35,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
-var InvalidRedirectURLError = errors.New("invalid return URL")
+var ErrInvalidRedirectURL = errors.New("invalid return URL")
 
 const (
 	GrantTypeAuthorizationCode  = "authorization_code"
@@ -107,7 +107,7 @@ func GetScopesOrDefault(scopes []string) []string {
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
-func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTlsConfig *dex.DexTLSConfig, baseHRef string, cacheClient cache.CacheClient) (*ClientApp, error) {
+func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTLSConfig *dex.DexTLSConfig, baseHRef string, cacheClient cache.CacheClient) (*ClientApp, error) {
 	redirectURL, err := settings.RedirectURL()
 	if err != nil {
 		return nil, err
@@ -148,8 +148,8 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 	}
 
 	if settings.DexConfig != "" && settings.OIDCConfigRAW == "" {
-		transport.TLSClientConfig = dex.TLSConfig(dexTlsConfig)
-		addrWithProto := dex.DexServerAddressWithProtocol(dexServerAddr, dexTlsConfig)
+		transport.TLSClientConfig = dex.TLSConfig(dexTLSConfig)
+		addrWithProto := dex.DexServerAddressWithProtocol(dexServerAddr, dexTLSConfig)
 		a.client.Transport = dex.NewDexRewriteURLRoundTripper(addrWithProto, a.client.Transport)
 	} else {
 		transport.TLSClientConfig = settings.OIDCTLSConfig()
@@ -233,12 +233,12 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 	if len(parts) == 2 && parts[1] != "" {
 		if !isValidRedirectURL(parts[1],
 			append([]string{a.settings.URL, a.baseHRef}, a.settings.AdditionalURLs...)) {
-			sanitizedUrl := parts[1]
-			if len(sanitizedUrl) > 100 {
-				sanitizedUrl = sanitizedUrl[:100]
+			sanitizedURL := parts[1]
+			if len(sanitizedURL) > 100 {
+				sanitizedURL = sanitizedURL[:100]
 			}
-			log.Warnf("Failed to verify app state - got invalid redirectURL %q", sanitizedUrl)
-			return "", fmt.Errorf("failed to verify app state: %w", InvalidRedirectURLError)
+			log.Warnf("Failed to verify app state - got invalid redirectURL %q", sanitizedURL)
+			return "", fmt.Errorf("failed to verify app state: %w", ErrInvalidRedirectURL)
 		}
 		redirectURL = parts[1]
 	}

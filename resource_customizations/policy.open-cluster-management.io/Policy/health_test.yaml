@@ -20,6 +20,10 @@ tests:
       message: Waiting for the status to be reported
     inputPath: testdata/progressing_no_status.yaml
   - healthStatus:
+      status: Progressing
+      message: Waiting for the status to be reported
+    inputPath: testdata/progressing_nil_status.yaml
+  - healthStatus:
       status: Healthy
       message: No clusters match this policy
     inputPath: testdata/healthy_with_placement_empty_compliant.yaml

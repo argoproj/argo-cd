@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	DefaultPluginRequeueAfterSeconds = 30 * time.Minute
+	DefaultPluginRequeueAfter = 30 * time.Minute
 )
 
 var _ Generator = (*PluginGenerator)(nil)
@@ -49,7 +49,7 @@ func (g *PluginGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Ap
 		return time.Duration(*appSetGenerator.Plugin.RequeueAfterSeconds) * time.Second
 	}
 
-	return DefaultPluginRequeueAfterSeconds
+	return DefaultPluginRequeueAfter
 }
 
 func (g *PluginGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
@@ -58,11 +58,11 @@ func (g *PluginGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Applic
 
 func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
-		return nil, EmptyAppSetGeneratorError
+		return nil, ErrEmptyAppSetGenerator
 	}
 
 	if appSetGenerator.Plugin == nil {
-		return nil, EmptyAppSetGeneratorError
+		return nil, ErrEmptyAppSetGenerator
 	}
 
 	ctx := context.Background()
@@ -193,8 +193,8 @@ func (g *PluginGenerator) getConfigMap(ctx context.Context, configMapRef string)
 		return nil, err
 	}
 
-	baseUrl, ok := cm.Data["baseUrl"]
-	if !ok || baseUrl == "" {
+	baseURL, ok := cm.Data["baseUrl"]
+	if !ok || baseURL == "" {
 		return nil, errors.New("baseUrl not found in ConfigMap")
 	}
 
