@@ -3388,6 +3388,8 @@ func TestRevisionHistories_Trunc(t *testing.T) {
 	assert.Len(t, RevisionHistories{{}, {}}.Trunc(1), 1)
 	// keep the last element, even with longer list
 	assert.Equal(t, RevisionHistories{{Revision: "my-revision"}}, RevisionHistories{{}, {}, {Revision: "my-revision"}}.Trunc(1))
+	// negative limit to 0
+	assert.Empty(t, RevisionHistories{}.Trunc(-1))
 }
 
 func TestApplicationSpec_GetRevisionHistoryLimit(t *testing.T) {
