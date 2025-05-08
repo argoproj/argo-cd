@@ -327,7 +327,7 @@ func Test_SemverTags(t *testing.T) {
 		// However, if one specifies the minor/patch versions, semver constraints can be used to match non-semver tags.
 		// 2024-banana is considered as "2024.0.0-banana" in semver-ish, and banana > apple, so it's a match.
 		// Note: this is more for documentation and future reference than real testing, as it seems like quite odd behaviour.
-		name:     "semver constraints on non-semver tags",
+		name:     "semver constraints on semver tags",
 		ref:      "> 2024.0.0-apple",
 		expected: mapTagRefs["2024-banana"],
 	}} {
