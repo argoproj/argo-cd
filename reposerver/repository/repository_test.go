@@ -1828,11 +1828,11 @@ func TestService_newHelmClientResolveRevision(t *testing.T) {
 
 	t.Run("EmptyRevision", func(t *testing.T) {
 		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "", "my-chart", true)
-		assert.EqualError(t, err, "invalid revision '': improper constraint: ")
+		assert.EqualError(t, err, "invalid revision: failed to determine semver constraint: improper constraint: ")
 	})
 	t.Run("InvalidRevision", func(t *testing.T) {
 		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "???", "my-chart", true)
-		assert.EqualError(t, err, "invalid revision '???': improper constraint: ???")
+		assert.EqualError(t, err, "invalid revision: failed to determine semver constraint: improper constraint: ???")
 	})
 }
 
