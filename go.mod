@@ -4,7 +4,7 @@ go 1.24.1
 
 require (
 	code.gitea.io/sdk/gitea v0.21.0
-	dario.cat/mergo v1.0.1
+	dario.cat/mergo v1.0.2
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.18.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.9.0
 	github.com/Azure/kubelogin v0.2.7
