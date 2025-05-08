@@ -8911,6 +8911,13 @@
           "description": "Allow insecure tls, for self-signed certificates; default: false.",
           "type": "boolean"
         },
+        "labels": {
+          "type": "array",
+          "title": "Labels is used to filter the PRs that you want to target",
+          "items": {
+            "type": "string"
+          }
+        },
         "owner": {
           "description": "Gitea org or user to scan. Required.",
           "type": "string"

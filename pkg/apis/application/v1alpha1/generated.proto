@@ -1634,11 +1634,11 @@ message PullRequestGeneratorGitea {
   // Authentication token reference.
   optional SecretRef tokenRef = 4;
 
-  // Labels is used to filter the PRs that you want to target
-  repeated string labels = 6;
-
   // Allow insecure tls, for self-signed certificates; default: false.
   optional bool insecure = 5;
+
+  // Labels is used to filter the PRs that you want to target
+  repeated string labels = 6;
 }
 
 // PullRequestGenerator defines connection info specific to GitHub.
