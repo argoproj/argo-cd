@@ -52,7 +52,7 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 				},
 				"title": "add an empty file",
 				"body": "",
-				"labels": [],
+				"labels": [{"id": 1, "name": "label1", "color": "00aabb", "description": "foo", "url": ""}],
 				"milestone": null,
 				"assignee": null,
 				"assignees": null,
@@ -246,11 +246,59 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
+func TestGiteaContainLabels(t *testing.T) {
+	cases := []struct {
+		Name       string
+		Labels     []string
+		PullLabels []*gitea.Label
+		Expect     bool
+	}{
+		{
+			Name:   "Match labels",
+			Labels: []string{"label1", "label2"},
+			PullLabels: []*gitea.Label{
+				{Name: "label1"},
+				{Name: "label2"},
+				{Name: "label3"},
+			},
+			Expect: true,
+		},
+		{
+			Name:   "Not match labels",
+			Labels: []string{"label1", "label4"},
+			PullLabels: []*gitea.Label{
+				{Name: "label1"},
+				{Name: "label2"},
+				{Name: "label3"},
+			},
+			Expect: false,
+		},
+		{
+			Name:   "No specify",
+			Labels: []string{},
+			PullLabels: []*gitea.Label{
+				{Name: "label1"},
+				{Name: "label2"},
+				{Name: "label3"},
+			},
+			Expect: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			if got := giteaContainLabels(c.Labels, c.PullLabels); got != c.Expect {
+				t.Errorf("expect: %v, got: %v", c.Expect, got)
+			}
+		})
+	}
+}
+
 func TestGiteaList(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		giteaMockHandler(t)(w, r)
 	}))
-	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", false)
+	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", []string{"label1"}, false)
 	require.NoError(t, err)
 	prs, err := host.List(t.Context())
 	require.NoError(t, err)
