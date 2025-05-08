@@ -6529,7 +6529,7 @@
         },
         "description": {
           "type": "string",
-          "title": "Description contains optional project description"
+          "title": "Description contains optional project description\n+kubebuilder:validation:MaxLength=255"
         },
         "destinationServiceAccounts": {
           "description": "DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.",
@@ -10210,6 +10210,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "description": {
+          "type": "string",
+          "title": "Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example"
         },
         "duration": {
           "type": "string",

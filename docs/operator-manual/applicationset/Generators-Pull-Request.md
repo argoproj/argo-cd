@@ -262,6 +262,14 @@ spec:
         # Filter PRs using the source branch name. (optional)
         filters:
           - branchMatch: ".*-argocd"
+          
+          # If you need to filter destination branch too, you can use this
+          - targetBranchMatch: "master"
+            
+          # Also you can combine source and target branch filters like
+          # This case will match any pull-request where source branch ends with "-argocd" and destination branch is master
+          - branchMatch: ".*-argocd"
+            targetBranchMatch: "master"
   template:
   # ...
 ```
@@ -269,7 +277,12 @@ spec:
 - `owner`: Required name of the Bitbucket workspace
 - `repo`: Required name of the Bitbucket repository.
 - `api`: Optional URL to access the Bitbucket REST API. For the example above, an API request would be made to `https://api.bitbucket.org/2.0/repositories/{workspace}/{repo_slug}/pullrequests`. If not set, defaults to `https://api.bitbucket.org/2.0`
-- `branchMatch`: Optional regexp filter which should match the source branch name. This is an alternative to labels which are not supported by Bitbucket server.
+
+You can use branch `filters` like
+- `branchMatch`: Optional regexp filter which should match the source branch name.
+- `targetBranchMatch`: Optional regexp filter which should match destination branch name.
+
+> Note: Labels are not supported by Bitbucket.
 
 If you want to access a private repository, Argo CD will need credentials to access repository in Bitbucket Cloud. You can use Bitbucket App Password (generated per user, with access to whole workspace), or Bitbucket App Token (generated per repository, with access limited to repository scope only). If both App Password and App Token are defined, App Token will be used.
 
