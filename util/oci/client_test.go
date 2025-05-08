@@ -360,7 +360,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			fields: fields{repo: store, tagsFunc: func(context.Context, string) (tags []string, err error) {
 				return []string{"1.0.0", "1.1.0", "1.2.0", "2.0.0"}, nil
 			}},
-			expectedError: errors.New("no version for constraints: constraint not found in 4 tags"),
+			expectedError: errors.New("no version for constraints: version matching constraint not found in 4 tags"),
 		},
 		{
 			name:     "error fetching tags",
@@ -376,7 +376,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			fields: fields{repo: store, tagsFunc: func(context.Context, string) (tags []string, err error) {
 				return []string{"1.0.0", "1.1.0", "1.2.0", "2.0.0"}, nil
 			}},
-			expectedError: errors.New("cannot get digest for revision sha256:abc123: not found"),
+			expectedError: errors.New("no version for constraints: failed to determine semver constraint: improper constraint: sha256:abc123"),
 		},
 		{
 			name:     "resolve latest tag",
@@ -400,7 +400,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			fields: fields{repo: store, tagsFunc: func(context.Context, string) (tags []string, err error) {
 				return []string{"latest", "stable", "prod", "dev"}, nil
 			}},
-			expectedError: errors.New("no version for constraints: constraint not found in 4 tags"),
+			expectedError: errors.New("no version for constraints: version matching constraint not found in 4 tags"),
 		},
 		{
 			name:     "resolve explicit tag",
@@ -417,7 +417,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			fields: fields{repo: store, tagsFunc: func(context.Context, string) (tags []string, err error) {
 				return []string{}, nil
 			}},
-			expectedError: errors.New("no version for constraints: constraint not found in 0 tags"),
+			expectedError: errors.New("no version for constraints: version matching constraint not found in 0 tags"),
 		},
 	}
 	for _, tt := range tests {

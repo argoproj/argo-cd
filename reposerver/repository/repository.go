@@ -197,13 +197,13 @@ func (s *Service) ListOCITags(ctx context.Context, q *apiclient.ListRefsRequest)
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	refs, err := ociClient.GetTags(ctx, false)
+	tags, err := ociClient.GetTags(ctx, false)
 	if err != nil {
 		return nil, err
 	}
 
 	res := apiclient.Refs{
-		Tags: refs.Tags,
+		Tags: tags,
 	}
 
 	return &res, nil

@@ -23,7 +23,8 @@ import (
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"oras.land/oras-go/v2/content/oci"
 
-	"github.com/Masterminds/semver/v3"
+	"github.com/argoproj/argo-cd/v3/util/versions"
+
 	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
 
@@ -72,7 +73,7 @@ type Client interface {
 	TestRepo(ctx context.Context) (bool, error)
 
 	// GetTags retrieves the list of tags for the repository.
-	GetTags(ctx context.Context, noCache bool) (*TagsList, error)
+	GetTags(ctx context.Context, noCache bool) ([]string, error)
 }
 
 type Creds struct {
@@ -296,25 +297,24 @@ func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest string) (*i
 func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
 	digest, err := c.resolveDigest(ctx, revision) // Lookup explicit revision
 	if err != nil {
-		// Look to see if revision is a semver constraint
-		if constraints, err := semver.NewConstraint(revision); err == nil {
-			tags, err := c.GetTags(ctx, noCache)
-			if err != nil {
-				return "", fmt.Errorf("error fetching tags: %w", err)
-			}
-			version, err := tags.MaxVersion(constraints)
-			if err != nil {
-				return "", fmt.Errorf("no version for constraints: %w", err)
-			}
-			return c.resolveDigest(ctx, version.String())
+		tags, err := c.GetTags(ctx, noCache)
+		if err != nil {
+			return "", fmt.Errorf("error fetching tags: %w", err)
 		}
-		return "", err
+
+		// Look to see if revision is a semver constraint
+		version, err := versions.MaxVersion(revision, tags)
+		if err != nil {
+			return "", fmt.Errorf("no version for constraints: %w", err)
+		}
+		// Look up the digest for the resolved version
+		return c.resolveDigest(ctx, version)
 	}
 
 	return digest, nil
 }
 
-func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) (*TagsList, error) {
+func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) ([]string, error) {
 	indexLock.Lock(c.repoURL)
 	defer indexLock.Unlock(c.repoURL)
 
@@ -325,7 +325,7 @@ func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) (*TagsList,
 		}
 	}
 
-	tags := &TagsList{}
+	var tags []string
 	if len(data) == 0 {
 		start := time.Now()
 		result, err := c.tagsFunc(ctx, "")
@@ -336,7 +336,7 @@ func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) (*TagsList,
 		for _, tag := range result {
 			// By convention: Change underscore (_) back to plus (+) to get valid SemVer
 			convertedTag := strings.ReplaceAll(tag, "_", "+")
-			tags.Tags = append(tags.Tags, convertedTag)
+			tags = append(tags, convertedTag)
 		}
 
 		log.WithFields(
@@ -348,7 +348,7 @@ func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) (*TagsList,
 				log.Warnf("Failed to store tags list cache for repo: %s: %s", c.repoURL, err)
 			}
 		}
-	} else if err := json.Unmarshal(data, tags); err != nil {
+	} else if err := json.Unmarshal(data, &tags); err != nil {
 		return nil, fmt.Errorf("failed to decode tags: %w", err)
 	}
 
