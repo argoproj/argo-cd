@@ -446,7 +446,7 @@ Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certifi
       -----END CERTIFICATE-----
 ```
 
-## External JWT Authentication
+## External JWT Authentication Current Status: Alpha (Since v3.0.0)
 
 Argo CD can be configured to verify JSON Web Tokens (JWTs) issued by an external authentication provider. This allows you to integrate Argo CD with existing authentication systems that issue JWTs.
 
