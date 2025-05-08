@@ -288,7 +288,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			cookieHeader:         false,
 			verifiedClaims:       &jwt.RegisteredClaims{},
 			verifyTokenErr:       nil,
-			expectedStatusCode:   http.StatusBadRequest,
+			expectedStatusCode:   http.StatusUnauthorized, // Correct expectation: 401 Unauthorized
 			expectedResponseBody: nil,
 		},
 		{
