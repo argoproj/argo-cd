@@ -9,7 +9,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.33.2
+    chart: redis-ha-4.26.6
     app: argocd-redis-ha
 secrets:
 - name: argocd-redis
@@ -23,7 +23,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.33.2
+    chart: redis-ha-4.26.6
     app: argocd-redis-ha
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-configmap.yaml
@@ -35,7 +35,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.33.2
+    chart: redis-ha-4.26.6
     app: argocd-redis-ha
 data:
   redis.conf: |
@@ -304,7 +304,7 @@ data:
     identify_announce_ip
 
     if [ -z "${ANNOUNCE_IP}" ]; then
-        "Error: Could not resolve the announce ip for this pod"
+        "Error: Could not resolve the announce ip for this pod."
         exit 1
     elif [ "${MASTER}" ]; then
         find_master
@@ -775,7 +775,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.33.2
+    chart: redis-ha-4.26.6
     app: argocd-redis-ha
 data:
   redis_liveness.sh: |
@@ -786,12 +786,11 @@ data:
         -p 6379 \
         ping
     )
+    if [ "$response" != "PONG" ] && [ "${response:0:7}" != "LOADING" ] ; then
+      echo "$response"
+      exit 1
+    fi
     echo "response=$response"
-    case $response in
-      PONG|LOADING*) ;;
-      *) exit 1 ;;
-    esac
-    exit 0
   redis_readiness.sh: |
     response=$(
       redis-cli \
@@ -801,33 +800,10 @@ data:
         ping
     )
     if [ "$response" != "PONG" ] ; then
-      echo "ping=$response"
+      echo "$response"
       exit 1
     fi
-
-    response=$(
-      redis-cli \
-        -a "${AUTH}" --no-auth-warning \
-        -h localhost \
-        -p 6379 \
-        role
-    )
-    role=$( echo "$response" | sed "1!d" )
-    if [ "$role" = "master" ]; then
-      echo "role=$role"
-      exit 0
-    elif [ "$role" = "slave" ]; then
-      repl=$( echo "$response" | sed "4!d" )
-      echo "role=$role; repl=$repl"
-      if [ "$repl" = "connected" ]; then
-        exit 0
-      else
-        exit 1
-      fi
-    else
-      echo "role=$role"
-      exit 1
-    fi
+    echo "response=$response"
   sentinel_liveness.sh: |
     response=$(
       redis-cli \
@@ -851,7 +827,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.33.2
+    chart: redis-ha-4.26.6
 rules:
 - apiGroups:
     - ""
@@ -870,7 +846,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.33.2
+    chart: redis-ha-4.26.6
     component: argocd-redis-ha-haproxy
 rules:
 - apiGroups:
@@ -890,7 +866,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.33.2
+    chart: redis-ha-4.26.6
 subjects:
 - kind: ServiceAccount
   name: argocd-redis-ha
@@ -909,7 +885,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.33.2
+    chart: redis-ha-4.26.6
     component: argocd-redis-ha-haproxy
 subjects:
 - kind: ServiceAccount
@@ -929,7 +905,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.33.2
+    chart: redis-ha-4.26.6
   annotations:
 spec:
   publishNotReadyAddresses: true
@@ -958,7 +934,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.33.2
+    chart: redis-ha-4.26.6
   annotations:
 spec:
   publishNotReadyAddresses: true
@@ -987,7 +963,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.33.2
+    chart: redis-ha-4.26.6
   annotations:
 spec:
   publishNotReadyAddresses: true
@@ -1016,7 +992,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.33.2
+    chart: redis-ha-4.26.6
   annotations:
 spec:
   type: ClusterIP
@@ -1044,7 +1020,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.33.2
+    chart: redis-ha-4.26.6
     component: argocd-redis-ha-haproxy
   annotations:
 spec:
@@ -1072,7 +1048,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.33.2
+    chart: redis-ha-4.26.6
 spec:
   strategy:
     type: RollingUpdate
@@ -1097,11 +1073,10 @@ spec:
       # Needed when using unmodified rbac-setup.yml
       
       serviceAccountName: argocd-redis-ha-haproxy
-      securityContext:
+      securityContext: 
         fsGroup: 99
         runAsNonRoot: true
         runAsUser: 99
-      automountServiceAccountToken: true
       nodeSelector:
         {}
       tolerations:
@@ -1116,7 +1091,7 @@ spec:
               topologyKey: kubernetes.io/hostname
       initContainers:
       - name: config-init
-        image: public.ecr.aws/docker/library/haproxy:3.0.8-alpine
+        image: public.ecr.aws/docker/library/haproxy:2.6.17-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -1124,7 +1099,7 @@ spec:
         - sh
         args:
         - /readonly/haproxy_init.sh
-        securityContext:
+        securityContext: 
           allowPrivilegeEscalation: false
           capabilities:
             drop:
@@ -1140,9 +1115,9 @@ spec:
           mountPath: /data
       containers:
       - name: haproxy
-        image: public.ecr.aws/docker/library/haproxy:3.0.8-alpine
+        image: public.ecr.aws/docker/library/haproxy:2.6.17-alpine
         imagePullPolicy: IfNotPresent
-        securityContext:
+        securityContext: 
           allowPrivilegeEscalation: false
           capabilities:
             drop:
@@ -1159,18 +1134,16 @@ spec:
         livenessProbe:
           httpGet:
             path: /healthz
-            port: probe
+            port: 8888
           initialDelaySeconds: 5
           periodSeconds: 3
         readinessProbe:
           httpGet:
             path: /healthz
-            port: probe
+            port: 8888
           initialDelaySeconds: 5
           periodSeconds: 3
         ports:
-        - name: probe
-          containerPort: 8888
         - name: redis
           containerPort: 6379
         - name: metrics-port
@@ -1206,7 +1179,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.33.2
+    chart: redis-ha-4.26.6
   annotations:
     {}
 spec:
@@ -1222,7 +1195,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: bd30e83dfdad9912b6c1cc32a8c26d7d01429a0730f5ee7af380fb593e874d54
+        checksum/init-config: 9d3c019a5ea1fd98ab5cde397d8eecd351da884f15e6ba346c607cb2446c2198
       labels:
         release: argocd
         app: redis-ha
@@ -1238,7 +1211,7 @@ spec:
                   release: argocd
                   argocd-redis-ha: replica
               topologyKey: kubernetes.io/hostname
-      securityContext:
+      securityContext: 
         fsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
@@ -1246,7 +1219,7 @@ spec:
       automountServiceAccountToken: false
       initContainers:
       - name: config-init
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -1254,7 +1227,7 @@ spec:
         - sh
         args:
         - /readonly-config/init.sh
-        securityContext:
+        securityContext: 
           allowPrivilegeEscalation: false
           capabilities:
             drop:
@@ -1262,7 +1235,7 @@ spec:
           runAsNonRoot: true
           runAsUser: 1000
           seccompProfile:
-            type: RuntimeDefault
+            type: RuntimeDefault        
         env:
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
@@ -1283,16 +1256,15 @@ spec:
           mountPath: /data
 
 
-
       containers:
       - name: redis
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         command:
           - redis-server
         args:
           - /data/conf/redis.conf
-        securityContext:
+        securityContext: 
           allowPrivilegeEscalation: false
           capabilities:
             drop:
@@ -1329,17 +1301,6 @@ spec:
               - sh
               - -c
               - /health/redis_readiness.sh
-        startupProbe:
-          initialDelaySeconds: 5
-          periodSeconds: 10
-          timeoutSeconds: 15
-          successThreshold: 1
-          failureThreshold: 3
-          exec:
-            command:
-              - sh
-              - -c
-              - /health/redis_readiness.sh
         resources:
           {}
         ports:
@@ -1360,13 +1321,13 @@ spec:
               - /bin/sh
               - /readonly-config/trigger-failover-if-master.sh
       - name: sentinel
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         command:
           - redis-sentinel
         args:
           - /data/conf/sentinel.conf
-        securityContext:
+        securityContext: 
           allowPrivilegeEscalation: false
           capabilities:
             drop:
@@ -1403,17 +1364,6 @@ spec:
               - sh
               - -c
               - /health/sentinel_liveness.sh
-        startupProbe:
-          initialDelaySeconds: 5
-          periodSeconds: 10
-          timeoutSeconds: 15
-          successThreshold: 1
-          failureThreshold: 3
-          exec:
-            command:
-              - sh
-              - -c
-              - /health/sentinel_liveness.sh
         resources:
           {}
         ports:
@@ -1433,13 +1383,13 @@ spec:
               - sleep 30; redis-cli -p 26379 sentinel reset argocd
 
       - name: split-brain-fix
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         command:
           - sh
         args:
           - /readonly-config/fix-split-brain.sh
-        securityContext:
+        securityContext: 
           allowPrivilegeEscalation: false
           capabilities:
             drop:
@@ -1447,7 +1397,7 @@ spec:
           runAsNonRoot: true
           runAsUser: 1000
           seccompProfile:
-            type: RuntimeDefault
+            type: RuntimeDefault        
         env:
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6

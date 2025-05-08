@@ -269,9 +269,8 @@ export const ApplicationParameters = (props: {
             );
         } else {
             // For single source field, details page where we have to do the load to retrieve repo details
-            // Input changes frequently due to updates higher in the tree, do not show loading state when reloading
             return (
-                <DataLoader noLoaderOnInputChange={true} input={app} load={application => getSingleSource(application)}>
+                <DataLoader input={app} load={application => getSingleSource(application)}>
                     {(details: models.RepoAppDetails) => {
                         attributes = [];
                         const attr = gatherDetails(
@@ -1092,7 +1091,7 @@ async function getSourceFromAppSources(aSource: models.ApplicationSource, name: 
 
 // Delete when source field is removed
 async function getSingleSource(app: models.Application) {
-    if (app.spec.source || app.spec.sourceHydrator) {
+    if (app.spec.source) {
         const repoDetail = await services.repos.appDetails(getAppDefaultSource(app), app.metadata.name, app.spec.project, 0, 0).catch(() => ({
             type: 'Directory' as models.AppSourceType,
             path: getAppDefaultSource(app).path

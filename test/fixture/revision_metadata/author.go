@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	argoexec "github.com/argoproj/argo-cd/v3/util/exec"
+	argoexec "github.com/argoproj/pkg/exec"
+
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 var Author string

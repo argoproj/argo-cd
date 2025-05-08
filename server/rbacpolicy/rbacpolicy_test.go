@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test"
-	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v2/common"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
 )
 
 func newFakeProj() *argoappv1.AppProject {
@@ -64,11 +64,6 @@ func TestEnforceAllPolicies(t *testing.T) {
 	assert.True(t, enf.Enforce(claims, "exec", "create", "my-proj/my-app"))
 
 	claims = jwt.MapClaims{"sub": "bob"}
-	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
-	assert.True(t, enf.Enforce(claims, "logs", "get", "my-proj/my-app"))
-	assert.True(t, enf.Enforce(claims, "exec", "create", "my-proj/my-app"))
-
-	claims = jwt.MapClaims{"sub": "qwertyuiop", "federated_claims": map[string]any{"user_id": "bob"}}
 	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
 	assert.True(t, enf.Enforce(claims, "logs", "get", "my-proj/my-app"))
 	assert.True(t, enf.Enforce(claims, "exec", "create", "my-proj/my-app"))

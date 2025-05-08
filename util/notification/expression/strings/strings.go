@@ -4,8 +4,8 @@ import (
 	"strings"
 )
 
-func NewExprs() map[string]any {
-	return map[string]any{
+func NewExprs() map[string]interface{} {
+	return map[string]interface{}{
 		"ReplaceAll": replaceAll,
 		"ToUpper":    toUpper,
 		"ToLower":    toLower,

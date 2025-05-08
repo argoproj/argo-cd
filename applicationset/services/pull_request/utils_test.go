@@ -1,12 +1,13 @@
 package pull_request
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func strp(s string) *string {
@@ -15,7 +16,7 @@ func strp(s string) *string {
 
 func TestFilterBranchMatchBadRegexp(t *testing.T) {
 	provider, _ := NewFakeService(
-		t.Context(),
+		context.Background(),
 		[]*PullRequest{
 			{
 				Number:       1,
@@ -33,13 +34,13 @@ func TestFilterBranchMatchBadRegexp(t *testing.T) {
 			BranchMatch: strp("("),
 		},
 	}
-	_, err := ListPullRequests(t.Context(), provider, filters)
+	_, err := ListPullRequests(context.Background(), provider, filters)
 	require.Error(t, err)
 }
 
 func TestFilterBranchMatch(t *testing.T) {
 	provider, _ := NewFakeService(
-		t.Context(),
+		context.Background(),
 		[]*PullRequest{
 			{
 				Number:       1,
@@ -81,7 +82,7 @@ func TestFilterBranchMatch(t *testing.T) {
 			BranchMatch: strp("w"),
 		},
 	}
-	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
+	pullRequests, err := ListPullRequests(context.Background(), provider, filters)
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, "two", pullRequests[0].Branch)
@@ -89,7 +90,7 @@ func TestFilterBranchMatch(t *testing.T) {
 
 func TestFilterTargetBranchMatch(t *testing.T) {
 	provider, _ := NewFakeService(
-		t.Context(),
+		context.Background(),
 		[]*PullRequest{
 			{
 				Number:       1,
@@ -131,7 +132,7 @@ func TestFilterTargetBranchMatch(t *testing.T) {
 			TargetBranchMatch: strp("1"),
 		},
 	}
-	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
+	pullRequests, err := ListPullRequests(context.Background(), provider, filters)
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, "two", pullRequests[0].Branch)
@@ -139,7 +140,7 @@ func TestFilterTargetBranchMatch(t *testing.T) {
 
 func TestMultiFilterOr(t *testing.T) {
 	provider, _ := NewFakeService(
-		t.Context(),
+		context.Background(),
 		[]*PullRequest{
 			{
 				Number:       1,
@@ -184,7 +185,7 @@ func TestMultiFilterOr(t *testing.T) {
 			BranchMatch: strp("r"),
 		},
 	}
-	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
+	pullRequests, err := ListPullRequests(context.Background(), provider, filters)
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 3)
 	assert.Equal(t, "two", pullRequests[0].Branch)
@@ -194,7 +195,7 @@ func TestMultiFilterOr(t *testing.T) {
 
 func TestMultiFilterOrWithTargetBranchFilter(t *testing.T) {
 	provider, _ := NewFakeService(
-		t.Context(),
+		context.Background(),
 		[]*PullRequest{
 			{
 				Number:       1,
@@ -241,7 +242,7 @@ func TestMultiFilterOrWithTargetBranchFilter(t *testing.T) {
 			TargetBranchMatch: strp("3"),
 		},
 	}
-	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
+	pullRequests, err := ListPullRequests(context.Background(), provider, filters)
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 2)
 	assert.Equal(t, "two", pullRequests[0].Branch)
@@ -250,7 +251,7 @@ func TestMultiFilterOrWithTargetBranchFilter(t *testing.T) {
 
 func TestNoFilters(t *testing.T) {
 	provider, _ := NewFakeService(
-		t.Context(),
+		context.Background(),
 		[]*PullRequest{
 			{
 				Number:       1,
@@ -272,7 +273,7 @@ func TestNoFilters(t *testing.T) {
 		nil,
 	)
 	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{}
-	repos, err := ListPullRequests(t.Context(), provider, filters)
+	repos, err := ListPullRequests(context.Background(), provider, filters)
 	require.NoError(t, err)
 	assert.Len(t, repos, 2)
 	assert.Equal(t, "one", repos[0].Branch)

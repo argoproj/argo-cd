@@ -1,13 +1,14 @@
 package scm_provider
 
 import (
+	"context"
 	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func strp(s string) *string {
@@ -36,7 +37,7 @@ func TestFilterRepoMatch(t *testing.T) {
 			RepositoryMatch: strp("n|hr"),
 		},
 	}
-	repos, err := ListRepos(t.Context(), provider, filters, "")
+	repos, err := ListRepos(context.Background(), provider, filters, "")
 	require.NoError(t, err)
 	assert.Len(t, repos, 2)
 	assert.Equal(t, "one", repos[0].Repository)
@@ -65,7 +66,7 @@ func TestFilterLabelMatch(t *testing.T) {
 			LabelMatch: strp("^prod-.*$"),
 		},
 	}
-	repos, err := ListRepos(t.Context(), provider, filters, "")
+	repos, err := ListRepos(context.Background(), provider, filters, "")
 	require.NoError(t, err)
 	assert.Len(t, repos, 2)
 	assert.Equal(t, "one", repos[0].Repository)
@@ -91,7 +92,7 @@ func TestFilterPathExists(t *testing.T) {
 			PathsExist: []string{"two"},
 		},
 	}
-	repos, err := ListRepos(t.Context(), provider, filters, "")
+	repos, err := ListRepos(context.Background(), provider, filters, "")
 	require.NoError(t, err)
 	assert.Len(t, repos, 1)
 	assert.Equal(t, "two", repos[0].Repository)
@@ -116,7 +117,7 @@ func TestFilterPathDoesntExists(t *testing.T) {
 			PathsDoNotExist: []string{"two"},
 		},
 	}
-	repos, err := ListRepos(t.Context(), provider, filters, "")
+	repos, err := ListRepos(context.Background(), provider, filters, "")
 	require.NoError(t, err)
 	assert.Len(t, repos, 2)
 }
@@ -134,7 +135,7 @@ func TestFilterRepoMatchBadRegexp(t *testing.T) {
 			RepositoryMatch: strp("("),
 		},
 	}
-	_, err := ListRepos(t.Context(), provider, filters, "")
+	_, err := ListRepos(context.Background(), provider, filters, "")
 	require.Error(t, err)
 }
 
@@ -151,7 +152,7 @@ func TestFilterLabelMatchBadRegexp(t *testing.T) {
 			LabelMatch: strp("("),
 		},
 	}
-	_, err := ListRepos(t.Context(), provider, filters, "")
+	_, err := ListRepos(context.Background(), provider, filters, "")
 	require.Error(t, err)
 }
 
@@ -185,7 +186,7 @@ func TestFilterBranchMatch(t *testing.T) {
 			BranchMatch: strp("w"),
 		},
 	}
-	repos, err := ListRepos(t.Context(), provider, filters, "")
+	repos, err := ListRepos(context.Background(), provider, filters, "")
 	require.NoError(t, err)
 	assert.Len(t, repos, 2)
 	assert.Equal(t, "one", repos[0].Repository)
@@ -217,7 +218,7 @@ func TestMultiFilterAnd(t *testing.T) {
 			LabelMatch:      strp("^prod-.*$"),
 		},
 	}
-	repos, err := ListRepos(t.Context(), provider, filters, "")
+	repos, err := ListRepos(context.Background(), provider, filters, "")
 	require.NoError(t, err)
 	assert.Len(t, repos, 1)
 	assert.Equal(t, "two", repos[0].Repository)
@@ -248,7 +249,7 @@ func TestMultiFilterOr(t *testing.T) {
 			LabelMatch: strp("^prod-.*$"),
 		},
 	}
-	repos, err := ListRepos(t.Context(), provider, filters, "")
+	repos, err := ListRepos(context.Background(), provider, filters, "")
 	require.NoError(t, err)
 	assert.Len(t, repos, 3)
 	assert.Equal(t, "one", repos[0].Repository)
@@ -274,7 +275,7 @@ func TestNoFilters(t *testing.T) {
 		},
 	}
 	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{}
-	repos, err := ListRepos(t.Context(), provider, filters, "")
+	repos, err := ListRepos(context.Background(), provider, filters, "")
 	require.NoError(t, err)
 	assert.Len(t, repos, 3)
 	assert.Equal(t, "one", repos[0].Repository)

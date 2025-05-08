@@ -28,8 +28,6 @@ data:
   otlp.insecure: "true"
   # Open-Telemetry collector headers: (e.g. "key1=value1,key2=value2")
   otlp.headers: ""
-  # Open-Telemetry collector attrs: (e.g. "key1:value1,key2:value2")
-  otlp.attrs: ""
 
   # List of additional namespaces where applications may be created in and
   # reconciled from. The namespace where Argo CD is installed to will always
@@ -37,11 +35,6 @@ data:
   #
   # Feature state: Beta
   application.namespaces: ns1, ns2, ns3
-
-  # Set the logging timestamp format. The default is "" which means "2006-01-02T15:04:05Z07:00" (RFC3339).
-  # See https://pkg.go.dev/time#pkg-constants for more options.
-  # This option is used for all components.
-  log.format.timestamp: ""
 
   ## Controller Properties
   # Repo server RPC call timeout seconds.
@@ -54,8 +47,8 @@ data:
   controller.status.processors: "20"
   # Number of application operation processors (default 10)
   controller.operation.processors: "10"
-  # Set the logging format. One of: json|text (default "json")
-  controller.log.format: "json"
+  # Set the logging format. One of: text|json (default "text")
+  controller.log.format: "text"
   # Set the logging level. One of: debug|info|warn|error (default "info")
   controller.log.level: "info"
   # Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)
@@ -69,10 +62,11 @@ data:
 
   # Cache expiration for app state (default 1h0m0s)
   controller.app.state.cache.expiration: "1h0m0s"
-  # Specifies if resource health should be persisted in the application CR (default false).
-  # Setting this to true will store the health status of each resource in the application CR,
-  # increasing the number of updates to the CR and putting more load on the application controller
-  controller.resource.health.persist: "false"
+  # Specifies if resource health should be persisted in app CRD (default true)
+  # Changing this to `false` significantly reduce number of Application CRD updates and improves controller performance.
+  # However, disabling resource health by default might affect applications that communicate with Applications CRD directly
+  # so we have to defer switching this to `false` by default till v3.0 release.
+  controller.resource.health.persist: "true"
   # Cache expiration default (default 24h0m0s)
   controller.default.cache.expiration: "24h0m0s"
   # Sharding algorithm used to balance clusters across application controller shards (default "legacy")
@@ -93,7 +87,7 @@ data:
   controller.profile.enabled: "false"
   # Enables batch-processing mode in the controller's cluster cache. This can help improve performance for clusters that
   # have high "churn," i.e. lots of resource modifications.
-  controller.cluster.cache.batch.events.processing: "true"
+  controller.cluster.cache.batch.events.processing: "false"
   # This sets the interval at which the controller's cluster cache processes a batch of cluster events. A lower value
   # will increase the speed at which Argo CD becomes aware of external cluster state. A higher value will reduce cluster
   # cache lock contention and better handle high-churn clusters.
@@ -121,11 +115,9 @@ data:
   server.api.content.types: "application/json"
   # Number of webhook requests processed concurrently (default 50)
   server.webhook.parallelism.limit: "50"
-  # Whether to allow sync with replace checked to go through. Resource-level annotation to replace override this setting, i.e. it's only enforced on the API server level.
-  server.sync.replace.allowed: "true"
 
-  # Set the logging format. One of: json|text (default "json")
-  server.log.format: "json"
+  # Set the logging format. One of: text|json (default "text")
+  server.log.format: "text"
   # Set the logging level. One of: debug|info|warn|error (default "info")
   server.log.level: "info"
   # Repo server RPC call timeout seconds. (default 60)
@@ -172,8 +164,8 @@ data:
   reposerver.listen.address: "0.0.0.0"
   # Listen on given address for metrics (default "0.0.0.0")
   reposerver.metrics.listen.address: "0.0.0.0"
-  # Set the logging format. One of: json|text (default "json")
-  reposerver.log.format: "json"
+  # Set the logging format. One of: text|json (default "text")
+  reposerver.log.format: "text"
   # Set the logging level. One of: debug|info|warn|error (default "info")
   reposerver.log.level: "info"
   # Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.
@@ -219,15 +211,15 @@ data:
   ## Commit-server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
   commitserver.listen.address: "0.0.0.0"
-  # Set the logging format. One of: json|text (default "json")
-  commitserver.log.format: "json"
+  # Set the logging format. One of: text|json (default "text")
+  commitserver.log.format: "text"
   # Set the logging level. One of: debug|info|warn|error (default "info")
   commitserver.log.level: "info"
   # Listen on given address for metrics (default "0.0.0.0")
   commitserver.metrics.listen.address: "0.0.0.0"
 
-  # Set the logging format. One of: json|text (default "json")
-  dexserver.log.format: "json"
+  # Set the logging format. One of: text|json (default "text")
+  dexserver.log.format: "text"
   # Set the logging level. One of: debug|info|warn|error (default "info")
   dexserver.log.level: "info"
   # Disable TLS on the HTTP endpoint
@@ -253,8 +245,8 @@ data:
   applicationsetcontroller.enable.new.git.file.globbing: "false"
   # Print debug logs. Takes precedence over loglevel
   applicationsetcontroller.debug: "false"
-  # Set the logging format. One of: json|text (default "json")
-  applicationsetcontroller.log.format: "json"
+  # Set the logging format. One of: text|json (default "text")
+  applicationsetcontroller.log.format: "text"
   # Set the logging level. One of: debug|info|warn|error (default "info")
   applicationsetcontroller.log.level: "info"
   # Enable dry run mode
@@ -280,16 +272,12 @@ data:
   applicationsetcontroller.requeue.after: "3m"
   # Enable strict mode for tokenRef in ApplicationSet resources. When enabled, the referenced secret must have a label `argocd.argoproj.io/secret-type` with value `scm-creds`.
   applicationsetcontroller.enable.tokenref.strict.mode: "false"
-  # Comma delimited list of annotations to preserve in generated applications
-  applicationsetcontroller.global.preserved.annotations: "acme.com/annotation1,acme.com/annotation2"
-  # Comma delimited list of labels to preserve in generated applications
-  applicationsetcontroller.global.preserved.labels: "acme.com/label1,acme.com/label2"
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")
   notificationscontroller.log.level: "info"
-  # Set the logging format. One of: json|text (default "json")
-  notificationscontroller.log.format: "json"
+  # Set the logging format. One of: text|json (default "text")
+  notificationscontroller.log.format: "text"
   # Enable self-service notifications config. Used in conjunction with apps-in-any-namespace. (default "false")
   notificationscontroller.selfservice.enabled: "false"
   # Disable TLS on connections to repo server

@@ -15,7 +15,7 @@ export const Revision = ({repoUrl, revision, path, isForPath, children}: {repoUr
     const content = children || (isSHA(revision) ? revision.substr(0, 7) : revision);
     return url !== null ? (
         <a href={url} target='_blank' rel='noopener noreferrer'>
-            {content} <i className='fa fa-external-link-alt' />
+            {content}
         </a>
     ) : (
         <span>{content}</span>

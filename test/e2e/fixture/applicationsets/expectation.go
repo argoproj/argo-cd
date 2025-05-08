@@ -1,17 +1,17 @@
 package applicationsets
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
-	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets/utils"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 )
 
 type state = string
@@ -115,10 +115,9 @@ func ApplicationsDoNotExist(expectedApps []v1alpha1.Application) Expectation {
 }
 
 // Pod checks whether a specified condition is true for any of the pods in the namespace
-func Pod(t *testing.T, predicate func(p corev1.Pod) bool) Expectation {
-	t.Helper()
-	return func(_ *Consequences) (state, string) {
-		pods, err := pods(t, utils.ApplicationsResourcesNamespace)
+func Pod(predicate func(p corev1.Pod) bool) Expectation {
+	return func(c *Consequences) (state, string) {
+		pods, err := pods(utils.ApplicationsResourcesNamespace)
 		if err != nil {
 			return failed, err.Error()
 		}
@@ -131,11 +130,10 @@ func Pod(t *testing.T, predicate func(p corev1.Pod) bool) Expectation {
 	}
 }
 
-func pods(t *testing.T, namespace string) (*corev1.PodList, error) {
-	t.Helper()
-	fixtureClient := utils.GetE2EFixtureK8sClient(t)
+func pods(namespace string) (*corev1.PodList, error) {
+	fixtureClient := utils.GetE2EFixtureK8sClient()
 
-	pods, err := fixtureClient.KubeClientset.CoreV1().Pods(namespace).List(t.Context(), metav1.ListOptions{})
+	pods, err := fixtureClient.KubeClientset.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{})
 	return pods, err
 }
 
