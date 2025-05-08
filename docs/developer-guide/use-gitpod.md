@@ -1,7 +1,7 @@
 # Use Gitpod
 
 [Gitpod](https://www.gitpod.io/) is an open-source platform for automated and ready-to-code development environments.
-Gitpod is probably the easiest way to get ready to use development environment with the most tools that are required
+GitPod is probably the easiest way to get ready to use development environment with the most tools that are required
 for Argo CD development.
 
 ## How To Use It
@@ -29,7 +29,7 @@ access Argo CD API/UI from your laptop.
 Gitpod is a perfect tool in following cases:
 
 * you are a first-time contributor and eager to start coding;
-* you are traveling and don't want to set up development tools on your laptop;
+* you are traveling and don't want to setup development tools on your laptop;
 * you want to review pull request and need to quickly run code from the PR without changing your local setup;
 
 ## Limitations

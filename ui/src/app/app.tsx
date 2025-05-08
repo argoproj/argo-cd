@@ -9,7 +9,7 @@ import applications from './applications';
 import help from './help';
 import login from './login';
 import settings from './settings';
-import {Layout, ThemeWrapper} from './shared/components/layout/layout';
+import {Layout} from './shared/components/layout/layout';
 import {Page} from './shared/components/page/page';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
 import {AuthSettingsCtx, Provider} from './shared/context';
@@ -88,7 +88,10 @@ async function isExpiredSSO() {
     return false;
 }
 
-export class App extends React.Component<{}, {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; authSettings: AuthSettings}> {
+export class App extends React.Component<
+    {},
+    {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; extensionsLoaded: boolean; authSettings: AuthSettings}
+> {
     public static childContextTypes = {
         history: PropTypes.object,
         apis: PropTypes.object
@@ -108,7 +111,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
 
     constructor(props: {}) {
         super(props);
-        this.state = {popupProps: null, error: null, showVersionPanel: false, navItems: [], routes: null, authSettings: null};
+        this.state = {popupProps: null, error: null, showVersionPanel: false, navItems: [], routes: null, extensionsLoaded: false, authSettings: null};
         this.popupManager = new PopupManager();
         this.notificationsManager = new NotificationsManager();
         this.navigationManager = new NavigationManager(history);
@@ -148,7 +151,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
             document.head.appendChild(link);
         }
 
-        this.setState({...this.state, navItems: this.navItems, routes: this.routes, authSettings});
+        this.setState({...this.state, navItems: this.navItems, routes: this.routes, extensionsLoaded: false, authSettings});
     }
 
     public componentWillUnmount() {
@@ -187,7 +190,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                 <PageContext.Provider value={{title: 'Argo CD'}}>
                     <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}}>
                         <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                            {pref => <ThemeWrapper theme={pref.theme}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</ThemeWrapper>}
+                            {pref => <div className={pref.theme ? 'theme-' + pref.theme : 'theme-light'}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</div>}
                         </DataLoader>
                         <AuthSettingsCtx.Provider value={this.state.authSettings}>
                             <Router history={history}>
@@ -219,6 +222,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                             />
                                         );
                                     })}
+                                    {this.state.extensionsLoaded && <Redirect path='*' to='/' />}
                                 </Switch>
                             </Router>
                         </AuthSettingsCtx.Provider>
@@ -290,6 +294,6 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
         extendedRoutes[extension.path] = {
             component: component as React.ComponentType<React.ComponentProps<any>>
         };
-        this.setState({...this.state, navItems: extendedNavItems, routes: extendedRoutes});
+        this.setState({...this.state, navItems: extendedNavItems, routes: extendedRoutes, extensionsLoaded: true});
     }
 }

@@ -85,9 +85,6 @@ spec:
 
       # Skip custom resource definition installation if chart contains custom resource definitions. Defaults to false
       skipCrds: false
-      
-      # Skip schema validation if chart contains JSON schema validation. Defaults to false
-      skipSchemaValidation: false
 
       # Optional Helm version to template with. If omitted it will fall back to look at the 'apiVersion' in Chart.yaml
       # and decide which Helm binary to use automatically. This field can be either 'v2' or 'v3'.
@@ -119,11 +116,6 @@ spec:
         beep: boop-${ARGOCD_APP_REVISION}
       # Toggle which enables/disables env variables substitution in commonAnnotations
       commonAnnotationsEnvsubst: true
-      # Defines if the common label(s) should be applied to resource selectors. It also excludes common labels from
-      # templates unless `labelIncludeTemplates` is set to true.
-      labelWithoutSelector: false
-      # Defines if the common label(s) should be applied to resource templates.
-      labelIncludeTemplates: false
       forceCommonLabels: false
       forceCommonAnnotations: false
       images:
@@ -135,8 +127,6 @@ spec:
         count: 4
       components:
         - ../component  # relative to the kustomization.yaml (`source.path`).
-      # Ignore locally missing component directories when using Kustomize Components. Defaults to false
-      ignoreMissingComponents: true
       patches:
         - target:
             kind: Deployment
@@ -236,7 +226,6 @@ spec:
     - PruneLast=true # Allow the ability for resource pruning to happen as a final, implicit wave of a sync operation
     - RespectIgnoreDifferences=true # When syncing changes, respect fields ignored by the ignoreDifferences configuration
     - ApplyOutOfSyncOnly=true # Only sync out-of-sync resources, rather than applying every object in the application
-    - SkipDryRunOnMissingResource=true # Allow skip dry run on missing resource
     managedNamespaceMetadata: # Sets the metadata for the application namespace. Only valid if CreateNamespace=true (see above), otherwise it's a no-op.
       labels: # The labels to set on the application namespace
         any: label

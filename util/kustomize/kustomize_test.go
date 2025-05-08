@@ -7,14 +7,14 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/exec"
-	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/git"
 )
 
 const (
@@ -28,7 +28,6 @@ const (
 )
 
 func testDataDir(tb testing.TB, testData string) (string, error) {
-	tb.Helper()
 	res := tb.TempDir()
 	_, err := exec.RunCommand("cp", exec.CmdOpts{}, "-r", "./testdata/"+testData, filepath.Join(res, "testdata"))
 	if err != nil {
@@ -118,7 +117,8 @@ func TestKustomizeBuild(t *testing.T) {
 	}
 
 	for _, image := range images {
-		if image == "nginx" {
+		switch image {
+		case "nginx":
 			assert.Equal(t, "1.15.5", image)
 		}
 	}
@@ -148,7 +148,7 @@ func TestIsKustomization(t *testing.T) {
 }
 
 func TestParseKustomizeBuildOptions(t *testing.T) {
-	built := parseKustomizeBuildOptions(&kustomize{path: "guestbook"}, "-v 6 --logtostderr", &BuildOpts{
+	built := parseKustomizeBuildOptions("guestbook", "-v 6 --logtostderr", &BuildOpts{
 		KubeVersion: "1.27", APIVersions: []string{"foo", "bar"},
 	})
 	// Helm is not enabled so helm options are not in the params
@@ -156,7 +156,7 @@ func TestParseKustomizeBuildOptions(t *testing.T) {
 }
 
 func TestParseKustomizeBuildHelmOptions(t *testing.T) {
-	built := parseKustomizeBuildOptions(&kustomize{path: "guestbook"}, "-v 6 --logtostderr --enable-helm", &BuildOpts{
+	built := parseKustomizeBuildOptions("guestbook", "-v 6 --logtostderr --enable-helm", &BuildOpts{
 		KubeVersion: "1.27",
 		APIVersions: []string{"foo", "bar"},
 	})
@@ -169,19 +169,13 @@ func TestParseKustomizeBuildHelmOptions(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	ver, err := Version()
-	require.NoError(t, err)
-	assert.NotEmpty(t, ver)
-}
-
-func TestVersionWithBinaryPath(t *testing.T) {
-	ver, err := versionWithBinaryPath(&kustomize{binaryPath: "kustomize"})
+	ver, err := Version(false)
 	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
 
 func TestGetSemver(t *testing.T) {
-	ver, err := getSemver(&kustomize{})
+	ver, err := getSemver()
 	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
@@ -390,45 +384,6 @@ func TestKustomizeLabelWithoutSelector(t *testing.T) {
 				},
 			},
 		},
-		{
-			TestData: kustomization7,
-			KustomizeSource: v1alpha1.ApplicationSourceKustomize{
-				CommonLabels: map[string]string{
-					"foo": "bar",
-				},
-				LabelWithoutSelector:  true,
-				LabelIncludeTemplates: true,
-			},
-			ExpectedMetadataLabels: map[string]string{"app": "nginx", "managed-by": "helm", "foo": "bar"},
-			ExpectedSelectorLabels: map[string]string{"app": "nginx"},
-			ExpectedTemplateLabels: map[string]string{"app": "nginx", "foo": "bar"},
-			Env: &v1alpha1.Env{
-				&v1alpha1.EnvEntry{
-					Name:  "ARGOCD_APP_NAME",
-					Value: "argo-cd-tests",
-				},
-			},
-		},
-		{
-			TestData: kustomization7,
-			KustomizeSource: v1alpha1.ApplicationSourceKustomize{
-				CommonLabels: map[string]string{
-					"managed-by": "argocd",
-				},
-				LabelWithoutSelector:  true,
-				LabelIncludeTemplates: true,
-				ForceCommonLabels:     true,
-			},
-			ExpectedMetadataLabels: map[string]string{"app": "nginx", "managed-by": "argocd"},
-			ExpectedSelectorLabels: map[string]string{"app": "nginx"},
-			ExpectedTemplateLabels: map[string]string{"app": "nginx", "managed-by": "argocd"},
-			Env: &v1alpha1.Env{
-				&v1alpha1.EnvEntry{
-					Name:  "ARGOCD_APP_NAME",
-					Value: "argo-cd-tests",
-				},
-			},
-		},
 	}
 
 	for _, tc := range testCases {
@@ -489,15 +444,7 @@ func TestKustomizeBuildComponents(t *testing.T) {
 	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
 
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
-		Components:              []string{"./components", "./missing-components"},
-		IgnoreMissingComponents: false,
-	}
-	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil)
-	require.Error(t, err)
-
-	kustomizeSource = v1alpha1.ApplicationSourceKustomize{
-		Components:              []string{"./components", "./missing-components"},
-		IgnoreMissingComponents: true,
+		Components: []string{"./components"},
 	}
 	objs, _, _, err := kustomize.Build(&kustomizeSource, nil, nil, nil)
 	require.NoError(t, err)
@@ -540,14 +487,14 @@ func TestKustomizeBuildPatches(t *testing.T) {
 	assert.True(t, found)
 
 	ports, found, err := unstructured.NestedSlice(
-		containers[0].(map[string]any),
+		containers[0].(map[string]interface{}),
 		"ports",
 	)
 	assert.True(t, found)
 	require.NoError(t, err)
 
 	port, found, err := unstructured.NestedInt64(
-		ports[0].(map[string]any),
+		ports[0].(map[string]interface{}),
 		"containerPort",
 	)
 
@@ -556,7 +503,7 @@ func TestKustomizeBuildPatches(t *testing.T) {
 	assert.Equal(t, int64(443), port)
 
 	name, found, err := unstructured.NestedString(
-		containers[0].(map[string]any),
+		containers[0].(map[string]interface{}),
 		"name",
 	)
 	assert.True(t, found)

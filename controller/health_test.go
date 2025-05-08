@@ -1,10 +1,8 @@
 package controller
 
 import (
-	"fmt"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -16,21 +14,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/lua"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/lua"
 )
 
-var (
-	app = &appv1.Application{
-		Status: appv1.ApplicationStatus{
-			Health: appv1.HealthStatus{
-				LastTransitionTime: &metav1.Time{Time: time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC)},
-			},
-		},
-	}
-	testTimestamp = metav1.Time{Time: time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC)}
-)
+var app = &appv1.Application{}
 
 func initStatuses(resources []managedResource) []appv1.ResourceStatus {
 	statuses := make([]appv1.ResourceStatus, len(resources))
@@ -67,35 +56,15 @@ func TestSetApplicationHealth(t *testing.T) {
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
+
 	assert.Equal(t, health.HealthStatusHealthy, resourceStatuses[0].Health.Status)
 	assert.Equal(t, health.HealthStatusDegraded, resourceStatuses[1].Health.Status)
-	// Health.LastTransitionTime is set only for app health and not at individual resource level
-	assert.NotNil(t, healthStatus.LastTransitionTime)
-	assert.Nil(t, resourceStatuses[0].Health.LastTransitionTime)
-	assert.Nil(t, resourceStatuses[1].Health.LastTransitionTime)
-	previousLastTransitionTime := healthStatus.LastTransitionTime
-	app.Status.Health = *healthStatus
 
 	// now mark the job as a hook and retry. it should ignore the hook and consider the app healthy
 	failedJob.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
 	healthStatus, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
-	// change in health, timestamp should change
-	assert.NotEqual(t, *previousLastTransitionTime, *healthStatus.LastTransitionTime)
-	previousLastTransitionTime = healthStatus.LastTransitionTime
-	app.Status.Health = *healthStatus
-
-	// now we set the `argocd.argoproj.io/ignore-healthcheck: "true"` annotation on the job's target.
-	// The app is considered healthy
-	failedJob.SetAnnotations(nil)
-	failedJobIgnoreHealthcheck := resourceFromFile("./testdata/job-failed-ignore-healthcheck.yaml")
-	resources[1].Target = &failedJobIgnoreHealthcheck
-	healthStatus, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
-	require.NoError(t, err)
-	assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
-	// no change in health, timestamp shouldn't change
-	assert.Equal(t, *previousLastTransitionTime, *healthStatus.LastTransitionTime)
 }
 
 func TestSetApplicationHealth_ResourceHealthNotPersisted(t *testing.T) {
@@ -109,7 +78,6 @@ func TestSetApplicationHealth_ResourceHealthNotPersisted(t *testing.T) {
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, false)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
-	assert.NotNil(t, healthStatus.LastTransitionTime)
 
 	assert.Nil(t, resourceStatuses[0].Health)
 }
@@ -125,41 +93,6 @@ func TestSetApplicationHealth_MissingResource(t *testing.T) {
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusMissing, healthStatus.Status)
-	assert.False(t, healthStatus.LastTransitionTime.IsZero())
-}
-
-func TestSetApplicationHealth_HealthImproves(t *testing.T) {
-	testCases := []struct {
-		oldStatus health.HealthStatusCode
-		newStatus health.HealthStatusCode
-	}{
-		{health.HealthStatusUnknown, health.HealthStatusDegraded},
-		{health.HealthStatusDegraded, health.HealthStatusProgressing},
-		{health.HealthStatusMissing, health.HealthStatusProgressing},
-		{health.HealthStatusProgressing, health.HealthStatusSuspended},
-		{health.HealthStatusSuspended, health.HealthStatusHealthy},
-	}
-
-	for _, tc := range testCases {
-		overrides := lua.ResourceHealthOverrides{
-			lua.GetConfigMapKey(schema.FromAPIVersionAndKind("v1", "Pod")): appv1.ResourceOverride{
-				HealthLua: fmt.Sprintf("hs = {}\nhs.status = %q\nhs.message = \"\"return hs", tc.newStatus),
-			},
-		}
-
-		runningPod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
-		resources := []managedResource{{
-			Group: "", Version: "v1", Kind: "Pod", Live: &runningPod,
-		}}
-		resourceStatuses := initStatuses(resources)
-
-		t.Run(string(fmt.Sprintf("%s to %s", tc.oldStatus, tc.newStatus)), func(t *testing.T) {
-			healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
-			require.NoError(t, err)
-			assert.Equal(t, tc.newStatus, healthStatus.Status)
-			assert.NotEqual(t, testTimestamp, *healthStatus.LastTransitionTime)
-		})
-	}
 }
 
 func TestSetApplicationHealth_MissingResourceNoBuiltHealthCheck(t *testing.T) {
@@ -185,7 +118,6 @@ func TestSetApplicationHealth_MissingResourceNoBuiltHealthCheck(t *testing.T) {
 		}, app, true)
 		require.NoError(t, err)
 		assert.Equal(t, health.HealthStatusMissing, healthStatus.Status)
-		assert.False(t, healthStatus.LastTransitionTime.IsZero())
 	})
 }
 

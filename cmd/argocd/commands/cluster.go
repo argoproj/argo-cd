@@ -2,14 +2,10 @@ package commands
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"regexp"
 	"strings"
 	"text/tabwriter"
-
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
@@ -18,17 +14,17 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
-	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
-	"github.com/argoproj/argo-cd/v3/common"
-	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
-	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
-	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/cli"
-	"github.com/argoproj/argo-cd/v3/util/clusterauth"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/text/label"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/common"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/clusterauth"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/text/label"
 )
 
 const (
@@ -91,7 +87,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	)
 	command := &cobra.Command{
 		Use:   "add CONTEXT",
-		Short: cliName + " cluster add CONTEXT",
+		Short: fmt.Sprintf("%s cluster add CONTEXT", cliName),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -110,24 +106,18 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			contextName := args[0]
 			conf, err := getRestConfig(pathOpts, contextName)
 			errors.CheckError(err)
-			if clusterOpts.ProxyUrl != "" {
-				u, err := argoappv1.ParseProxyUrl(clusterOpts.ProxyUrl)
-				errors.CheckError(err)
-				conf.Proxy = http.ProxyURL(u)
-			}
 			clientset, err := kubernetes.NewForConfig(conf)
 			errors.CheckError(err)
 			managerBearerToken := ""
 			var awsAuthConf *argoappv1.AWSAuthConfig
 			var execProviderConf *argoappv1.ExecProviderConfig
-			switch {
-			case clusterOpts.AwsClusterName != "":
+			if clusterOpts.AwsClusterName != "" {
 				awsAuthConf = &argoappv1.AWSAuthConfig{
 					ClusterName: clusterOpts.AwsClusterName,
 					RoleARN:     clusterOpts.AwsRoleArn,
 					Profile:     clusterOpts.AwsProfile,
 				}
-			case clusterOpts.ExecProviderCommand != "":
+			} else if clusterOpts.ExecProviderCommand != "" {
 				execProviderConf = &argoappv1.ExecProviderConfig{
 					Command:     clusterOpts.ExecProviderCommand,
 					Args:        clusterOpts.ExecProviderArgs,
@@ -135,7 +125,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 					APIVersion:  clusterOpts.ExecProviderAPIVersion,
 					InstallHint: clusterOpts.ExecProviderInstallHint,
 				}
-			default:
+			} else {
 				// Install RBAC resources for managing the cluster
 				if clusterOpts.ServiceAccount != "" {
 					managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount, common.BearerTokenTimeout)
@@ -170,14 +160,13 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			if clusterOpts.InClusterEndpoint() {
 				clst.Server = argoappv1.KubernetesInternalAPIServerAddr
 			} else if clusterOpts.ClusterEndpoint == string(cmdutil.KubePublicEndpoint) {
-				endpoint, caData, err := cmdutil.GetKubePublicEndpoint(clientset)
+				endpoint, err := cmdutil.GetKubePublicEndpoint(clientset)
 				if err != nil || len(endpoint) == 0 {
 					log.Warnf("Failed to find the cluster endpoint from kube-public data: %v", err)
 					log.Infof("Falling back to the endpoint '%s' as listed in the kubeconfig context", clst.Server)
 					endpoint = clst.Server
 				}
 				clst.Server = endpoint
-				clst.Config.CAData = caData
 			}
 
 			if clusterOpts.Shard >= 0 {
@@ -197,12 +186,11 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	}
 	command.PersistentFlags().StringVar(&pathOpts.LoadingRules.ExplicitPath, pathOpts.ExplicitFileFlag, pathOpts.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
 	command.Flags().BoolVar(&clusterOpts.Upsert, "upsert", false, "Override an existing cluster with the same name even if the spec differs")
-	command.Flags().StringVar(&clusterOpts.ServiceAccount, "service-account", "", fmt.Sprintf("System namespace service account to use for kubernetes resource management. If not set then default %q SA will be created", clusterauth.ArgoCDManagerServiceAccount))
+	command.Flags().StringVar(&clusterOpts.ServiceAccount, "service-account", "", fmt.Sprintf("System namespace service account to use for kubernetes resource management. If not set then default \"%s\" SA will be created", clusterauth.ArgoCDManagerServiceAccount))
 	command.Flags().StringVar(&clusterOpts.SystemNamespace, "system-namespace", common.DefaultSystemNamespace, "Use different system namespace")
 	command.Flags().BoolVarP(&skipConfirmation, "yes", "y", false, "Skip explicit confirmation")
 	command.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value)")
 	command.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value)")
-	command.Flags().StringVar(&clusterOpts.ProxyUrl, "proxy-url", "", "use proxy to connect cluster")
 	cmdutil.AddClusterFlags(command, &clusterOpts)
 	return command
 }
@@ -215,7 +203,7 @@ func getRestConfig(pathOpts *clientcmd.PathOptions, ctxName string) (*rest.Confi
 
 	clstContext := config.Contexts[ctxName]
 	if clstContext == nil {
-		return nil, fmt.Errorf("context %s does not exist in kubeconfig", ctxName)
+		return nil, fmt.Errorf("Context %s does not exist in kubeconfig", ctxName)
 	}
 
 	overrides := clientcmd.ConfigOverrides{
@@ -283,12 +271,7 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					},
 				}
 				_, err := clusterIf.Update(ctx, &clusterUpdateRequest)
-				if err != nil {
-					if status.Code(err) == codes.PermissionDenied {
-						log.Error("Ensure that the cluster is present and you have the necessary permissions to update the cluster")
-					}
-					errors.CheckError(err)
-				}
+				errors.CheckError(err)
 				fmt.Printf("Cluster '%s' updated.\n", clusterName)
 			} else {
 				fmt.Print("Specify the cluster field to be updated.\n")
@@ -380,18 +363,16 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 		fmt.Printf("Cluster information\n\n")
 		fmt.Printf("  Server URL:            %s\n", cluster.Server)
 		fmt.Printf("  Server Name:           %s\n", strWithDefault(cluster.Name, "-"))
-		//nolint:staticcheck
+		// nolint:staticcheck
 		fmt.Printf("  Server Version:        %s\n", cluster.ServerVersion)
 		fmt.Printf("  Namespaces:        	 %s\n", formatNamespaces(cluster))
 		fmt.Printf("\nTLS configuration\n\n")
-		fmt.Printf("  Client cert:           %v\n", string(cluster.Config.CertData) != "")
-		fmt.Printf("  Cert validation:       %v\n", !cluster.Config.Insecure)
+		fmt.Printf("  Client cert:           %v\n", string(cluster.Config.TLSClientConfig.CertData) != "")
+		fmt.Printf("  Cert validation:       %v\n", !cluster.Config.TLSClientConfig.Insecure)
 		fmt.Printf("\nAuthentication\n\n")
 		fmt.Printf("  Basic authentication:  %v\n", cluster.Config.Username != "")
 		fmt.Printf("  oAuth authentication:  %v\n", cluster.Config.BearerToken != "")
 		fmt.Printf("  AWS authentication:    %v\n", cluster.Config.AWSAuthConfig != nil)
-		fmt.Printf("\nDisable compression: %v\n", cluster.Config.DisableCompression)
-		fmt.Printf("\nUse proxy: %v\n", cluster.Config.ProxyUrl != "")
 		fmt.Println()
 	}
 }
@@ -414,7 +395,7 @@ argocd cluster rm cluster-name`,
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer io.Close(conn)
 			numOfClusters := len(args)
-			var isConfirmAll bool
+			var isConfirmAll bool = false
 
 			for _, clusterSelector := range args {
 				clusterQuery := getQueryBySelector(clusterSelector)
@@ -475,7 +456,7 @@ func printClusterTable(clusters []argoappv1.Cluster) {
 		if len(c.Namespaces) > 0 {
 			server = fmt.Sprintf("%s (%d namespaces)", c.Server, len(c.Namespaces))
 		}
-		//nolint:staticcheck
+		// nolint:staticcheck
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", server, c.Name, c.ServerVersion, c.ConnectionState.Status, c.ConnectionState.Message, c.Project)
 	}
 	_ = w.Flush()
@@ -506,7 +487,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command := &cobra.Command{
 		Use:   "list",
 		Short: "List configured clusters",
-		Run: func(c *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
@@ -551,7 +532,7 @@ argocd cluster list -o server <ARGOCD_SERVER_ADDRESS>
 func NewClusterRotateAuthCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "rotate-auth SERVER/NAME",
-		Short: cliName + " cluster rotate-auth SERVER/NAME",
+		Short: fmt.Sprintf("%s cluster rotate-auth SERVER/NAME", cliName),
 		Example: `argocd cluster rotate-auth https://12.34.567.89
 argocd cluster rotate-auth cluster-name`,
 		Run: func(c *cobra.Command, args []string) {

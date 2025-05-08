@@ -31,7 +31,6 @@ import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './application-details.scss';
 import {TopBarActionMenuExt, AppViewExtension, StatusPanelExtension} from '../../../shared/services/extensions-service';
-import {ApplicationHydrateOperationState} from '../application-hydrate-operation-state/application-hydrate-operation-state';
 
 interface ApplicationDetailsState {
     page: number;
@@ -40,7 +39,6 @@ interface ApplicationDetailsState {
     slidingPanelPage?: number;
     filteredGraph?: any[];
     truncateNameOnRight?: boolean;
-    showFullNodeName?: boolean;
     collapsedNodes?: string[];
     extensions?: AppViewExtension[];
     extensionsMap?: {[key: string]: AppViewExtension};
@@ -93,7 +91,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             slidingPanelPage: 0,
             filteredGraph: [],
             truncateNameOnRight: false,
-            showFullNodeName: false,
             collapsedNodes: [],
             ...this.getExtensionsState()
         };
@@ -142,10 +139,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         });
         return {extensions, extensionsMap, statusExtensions, statusExtensionsMap, topBarActionMenuExts, topBarActionMenuExtsMap};
     };
-
-    private get showHydrateOperationState() {
-        return new URLSearchParams(this.props.history.location.search).get('hydrateOperation') === 'true';
-    }
 
     private get showOperationState() {
         return new URLSearchParams(this.props.history.location.search).get('operation') === 'true';
@@ -321,7 +314,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         const getContentForNonChart = (
             aRevision: string,
             aSourceIndex: number,
-            aVersionId: number | null,
+            aVersionId: number,
             indx: number,
             aSource: models.ApplicationSource,
             sourceHeader?: JSX.Element
@@ -486,7 +479,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             const isAppSelected = selectedItem === application;
                             const selectedNode = !isAppSelected && (selectedItem as appModels.ResourceNode);
                             const operationState = application.status.operationState;
-                            const hydrateOperationState = application.status.sourceHydrator.currentOperation;
                             const conditions = application.status.conditions || [];
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
@@ -553,9 +545,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                 } else {
                                     (pref.userHelpTipMsgs || []).push(usrHelpTip);
                                 }
-                            };
-                            const toggleNodeName = () => {
-                                this.setState({showFullNodeName: !this.state.showFullNodeName});
                             };
                             const toggleNameDirection = () => {
                                 this.setState({truncateNameOnRight: !this.state.truncateNameOnRight});
@@ -684,7 +673,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     application={application}
                                                     showDiff={() => this.selectNode(appFullName, 0, 'diff')}
                                                     showOperation={() => this.setOperationStatusVisible(true)}
-                                                    showHydrateOperation={() => this.setHydrateOperationStatusVisible(true)}
                                                     showConditions={() => this.setConditionsStatusVisible(true)}
                                                     showExtension={id => this.setExtensionPanelVisible(id)}
                                                     showMetadataInfo={revision => this.setState({...this.state, revision})}
@@ -720,19 +708,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                     })}
                                                                 />
                                                             </a>
-                                                            <a
-                                                                className={`group-nodes-button`}
-                                                                onClick={() => {
-                                                                    toggleNodeName();
-                                                                }}
-                                                                title={this.state.showFullNodeName ? 'Show wrapped resource name' : 'Show full resource name'}>
-                                                                <i
-                                                                    className={classNames({
-                                                                        'fa fa-expand': this.state.showFullNodeName,
-                                                                        'fa fa-compress': !this.state.showFullNodeName
-                                                                    })}
-                                                                />
-                                                            </a>
                                                             {(pref.view === 'tree' || pref.view === 'network') && (
                                                                 <Tooltip
                                                                     content={AppUtils.userMsgsList[showToolTip?.msgKey] || 'Group Nodes'}
@@ -747,6 +722,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                     </a>
                                                                 </Tooltip>
                                                             )}
+
                                                             <span className={`separator`} />
                                                             <a className={`group-nodes-button`} onClick={() => expandAll()} title='Expand all child nodes of all parent nodes'>
                                                                 <i className='fa fa-plus fa-fw' />
@@ -786,7 +762,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                             podGroupCount={pref.podGroupCount}
                                                             appContext={this.appContext}
                                                             nameDirection={this.state.truncateNameOnRight}
-                                                            nameWrap={this.state.showFullNodeName}
                                                             filters={pref.resourceFilter}
                                                             setTreeFilterGraph={setFilterGraph}
                                                             updateUsrHelpTipMsgs={updateHelpTipState}
@@ -906,11 +881,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         <SlidingPanel isShown={this.showOperationState && !!operationState} onClose={() => this.setOperationStatusVisible(false)}>
                                             {operationState && <ApplicationOperationState application={application} operationState={operationState} />}
                                         </SlidingPanel>
-                                        <SlidingPanel
-                                            isShown={this.showHydrateOperationState && !!hydrateOperationState}
-                                            onClose={() => this.setHydrateOperationStatusVisible(false)}>
-                                            {hydrateOperationState && <ApplicationHydrateOperationState hydrateOperationState={hydrateOperationState} />}
-                                        </SlidingPanel>
                                         <SlidingPanel isShown={this.showConditions && !!conditions} onClose={() => this.setConditionsStatusVisible(false)}>
                                             {conditions && <ApplicationConditions conditions={conditions} />}
                                         </SlidingPanel>
@@ -968,31 +938,20 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 iconClassName: 'fa fa-info-circle',
                 title: <ActionMenuItem actionLabel='Details' />,
                 action: () => this.selectNode(fullName),
-                disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0) && !app.spec.sourceHydrator
+                disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0)
             },
             {
                 iconClassName: 'fa fa-file-medical',
                 title: <ActionMenuItem actionLabel='Diff' />,
                 action: () => this.selectNode(fullName, 0, 'diff'),
-                disabled:
-                    app.status.sync.status === appModels.SyncStatuses.Synced ||
-                    (!app.spec.source && (!app.spec.sources || app.spec.sources.length === 0) && !app.spec.sourceHydrator)
+                disabled: app.status.sync.status === appModels.SyncStatuses.Synced || (!app.spec.source && (!app.spec.sources || app.spec.sources.length === 0))
             },
             {
                 iconClassName: 'fa fa-sync',
                 title: <ActionMenuItem actionLabel='Sync' />,
                 action: () => AppUtils.showDeploy('all', null, this.appContext.apis),
-                disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0) && !app.spec.sourceHydrator
+                disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0)
             },
-            ...(app.status?.operationState?.phase === 'Running' && app.status.resources.find(r => r.requiresDeletionConfirmation)
-                ? [
-                      {
-                          iconClassName: 'fa fa-check',
-                          title: <ActionMenuItem actionLabel='Confirm Pruning' />,
-                          action: () => this.confirmDeletion(app, 'Confirm Prunning', 'Are you sure you want to confirm resources pruning?')
-                      }
-                  ]
-                : []),
             {
                 iconClassName: 'fa fa-info-circle',
                 title: <ActionMenuItem actionLabel='Sync Status' />,
@@ -1007,20 +966,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 },
                 disabled: !app.status.operationState
             },
-            app.metadata.deletionTimestamp &&
-            app.status.resources.find(r => r.requiresDeletionConfirmation) &&
-            !((app.metadata.annotations || {})[appModels.AppDeletionConfirmedAnnotation] == 'true')
-                ? {
-                      iconClassName: 'fa fa-check',
-                      title: <ActionMenuItem actionLabel='Confirm Deletion' />,
-                      action: () => this.confirmDeletion(app, 'Confirm Deletion', 'Are you sure you want to delete this application?')
-                  }
-                : {
-                      iconClassName: 'fa fa-times-circle',
-                      title: <ActionMenuItem actionLabel='Delete' />,
-                      action: () => this.deleteApplication(),
-                      disabled: !!app.metadata.deletionTimestamp
-                  },
+            {
+                iconClassName: 'fa fa-times-circle',
+                title: <ActionMenuItem actionLabel='Delete' />,
+                action: () => this.deleteApplication()
+            },
             {
                 iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
                 title: (
@@ -1189,10 +1139,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         this.appContext.apis.navigation.goto('.', {operation: isVisible}, {replace: true});
     }
 
-    private setHydrateOperationStatusVisible(isVisible: boolean) {
-        this.appContext.apis.navigation.goto('.', {hydrateOperation: isVisible}, {replace: true});
-    }
-
     private setConditionsStatusVisible(isVisible: boolean) {
         this.appContext.apis.navigation.goto('.', {conditions: isVisible}, {replace: true});
     }
@@ -1222,7 +1168,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
             if (confirmed) {
                 if (needDisableRollback) {
                     const update = JSON.parse(JSON.stringify(application)) as appModels.Application;
-                    update.spec.syncPolicy.automated = null;
+                    update.spec.syncPolicy = {automated: null};
                     await services.applications.update(update);
                 }
                 await services.applications.rollback(this.props.match.params.name, this.getAppNamespace(), revisionHistory.id);
@@ -1243,17 +1189,6 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
 
     private async deleteApplication() {
         await AppUtils.deleteApplication(this.props.match.params.name, this.getAppNamespace(), this.appContext.apis);
-    }
-
-    private async confirmDeletion(app: appModels.Application, title: string, message: string) {
-        const confirmed = await this.appContext.apis.popup.confirm(title, message);
-        if (confirmed) {
-            if (!app.metadata.annotations) {
-                app.metadata.annotations = {};
-            }
-            app.metadata.annotations[appModels.AppDeletionConfirmedAnnotation] = new Date().toISOString();
-            await services.applications.update(app);
-        }
     }
 }
 

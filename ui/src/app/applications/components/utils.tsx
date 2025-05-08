@@ -13,7 +13,6 @@ import {ResourceTreeNode} from './application-resource-tree/application-resource
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
-import {ApplicationSource} from '../../shared/models';
 
 require('./utils.scss');
 
@@ -196,7 +195,7 @@ const PropagationPolicyOption = ReactForm.FormField((props: {fieldApi: ReactForm
     );
 });
 
-export const OperationPhaseIcon = ({app, isButton}: {app: appModels.Application; isButton?: boolean}) => {
+export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
     const operationState = getAppOperationState(app);
     if (operationState === undefined) {
         return <React.Fragment />;
@@ -205,15 +204,15 @@ export const OperationPhaseIcon = ({app, isButton}: {app: appModels.Application;
     let color = '';
     switch (operationState.phase) {
         case appModels.OperationPhases.Succeeded:
-            className = `fa fa-check-circle${isButton ? ' status-button' : ''}`;
+            className = 'fa fa-check-circle';
             color = COLORS.operation.success;
             break;
         case appModels.OperationPhases.Error:
-            className = `fa fa-times-circle${isButton ? ' status-button' : ''}`;
+            className = 'fa fa-times-circle';
             color = COLORS.operation.error;
             break;
         case appModels.OperationPhases.Failed:
-            className = `fa fa-times-circle${isButton ? ' status-button' : ''}`;
+            className = 'fa fa-times-circle';
             color = COLORS.operation.failed;
             break;
         default:
@@ -224,55 +223,31 @@ export const OperationPhaseIcon = ({app, isButton}: {app: appModels.Application;
     return <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{color}} />;
 };
 
-export const HydrateOperationPhaseIcon = ({operationState, isButton}: {operationState?: appModels.HydrateOperation; isButton?: boolean}) => {
-    if (operationState === undefined) {
-        return <React.Fragment />;
-    }
-    let className = '';
-    let color = '';
-    switch (operationState.phase) {
-        case appModels.HydrateOperationPhases.Hydrated:
-            className = `fa fa-check-circle${isButton ? ' status-button' : ''}`;
-            color = COLORS.operation.success;
-            break;
-        case appModels.HydrateOperationPhases.Failed:
-            className = `fa fa-times-circle${isButton ? ' status-button' : ''}`;
-            color = COLORS.operation.failed;
-            break;
-        default:
-            className = 'fa fa-circle-notch fa-spin';
-            color = COLORS.operation.running;
-            break;
-    }
-    return <i title={operationState.phase} qe-id='utils-operations-status-title' className={className} style={{color}} />;
-};
-
 export const ComparisonStatusIcon = ({
     status,
     resource,
     label,
-    noSpin,
-    isButton
+    noSpin
 }: {
     status: appModels.SyncStatusCode;
     resource?: {requiresPruning?: boolean};
     label?: boolean;
     noSpin?: boolean;
-    isButton?: boolean;
 }) => {
     let className = 'fas fa-question-circle';
     let color = COLORS.sync.unknown;
     let title: string = 'Unknown';
+
     switch (status) {
         case appModels.SyncStatuses.Synced:
-            className = `fa fa-check-circle${isButton ? ' status-button' : ''}`;
+            className = 'fa fa-check-circle';
             color = COLORS.sync.synced;
             title = 'Synced';
             break;
         case appModels.SyncStatuses.OutOfSync:
             // eslint-disable-next-line no-case-declarations
             const requiresPruning = resource && resource.requiresPruning;
-            className = requiresPruning ? `fa fa-trash${isButton ? ' status-button' : ''}` : `fa fa-arrow-alt-circle-up${isButton ? ' status-button' : ''}`;
+            className = requiresPruning ? 'fa fa-trash' : 'fa fa-arrow-alt-circle-up';
             title = 'OutOfSync';
             if (requiresPruning) {
                 title = `${title} (This resource is not present in the application's source. It will be deleted from Kubernetes if the prune option is enabled during sync.)`;
@@ -280,7 +255,7 @@ export const ComparisonStatusIcon = ({
             color = COLORS.sync.out_of_sync;
             break;
         case appModels.SyncStatuses.Unknown:
-            className = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}${isButton ? ' status-button' : ''}`;
+            className = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}`;
             break;
     }
     return (
@@ -521,45 +496,22 @@ export const deletePopup = async (
     );
 };
 
-export async function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
-    return services.applications.getResourceActions(metadata.name, metadata.namespace, resource).then(actions => {
-        return actions.map(action => ({
-            title: action.displayName ?? action.name,
-            disabled: !!action.disabled,
-            iconClassName: action.iconClass,
-            action: async () => {
-                const confirmed = false;
-                const title = action.params ? `Enter input parameters for action: ${action.name}` : `Perform ${action.name} action?`;
-                await apis.popup.prompt(
-                    title,
-                    api => (
-                        <div>
-                            {!action.params && (
-                                <div className='argo-form-row'>
-                                    <div> Are you sure you want to perform {action.name} action?</div>
-                                </div>
-                            )}
-                            {action.params &&
-                                action.params.map((param, index) => (
-                                    <div className='argo-form-row' key={index}>
-                                        <FormField label={param.name} field={param.name} formApi={api} component={Text} />
-                                    </div>
-                                ))}
-                        </div>
-                    ),
-                    {
-                        submit: async (vals, _, close) => {
+function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
+    return services.applications
+        .getResourceActions(metadata.name, metadata.namespace, resource)
+        .then(actions => {
+            return actions.map(
+                action =>
+                    ({
+                        title: action.displayName ?? action.name,
+                        disabled: !!action.disabled,
+                        iconClassName: action.iconClass,
+                        action: async () => {
                             try {
-                                const resourceActionParameters = action.params
-                                    ? action.params.map(param => ({
-                                          name: param.name,
-                                          value: vals[param.name] || param.default,
-                                          type: param.type,
-                                          default: param.default
-                                      }))
-                                    : [];
-                                await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name, resourceActionParameters);
-                                close();
+                                const confirmed = await apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
+                                if (confirmed) {
+                                    await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name);
+                                }
                             } catch (e) {
                                 apis.notifications.show({
                                     content: <ErrorNotification title='Unable to execute resource action' e={e} />,
@@ -567,20 +519,10 @@ export async function getResourceActionsMenuItems(resource: ResourceTreeNode, me
                                 });
                             }
                         }
-                    },
-                    null,
-                    null,
-                    action.params
-                        ? action.params.reduce((acc, res) => {
-                              acc[res.name] = res.default;
-                              return acc;
-                          }, {} as any)
-                        : {}
-                );
-                return confirmed;
-            }
-        }));
-    });
+                    }) as MenuItem
+            );
+        })
+        .catch(() => [] as MenuItem[]);
 }
 
 function getActionItems(
@@ -741,24 +683,30 @@ export function renderResourceMenu(
     );
 }
 
-export function renderResourceActionMenu(menuItems: ActionMenuItem[]): React.ReactNode {
+export function renderResourceActionMenu(resource: ResourceTreeNode, application: appModels.Application, apis: ContextApis): React.ReactNode {
+    const menuItems = getResourceActionsMenuItems(resource, application.metadata, apis);
+
     return (
-        <ul>
-            {menuItems.map((item, i) => (
-                <li
-                    className={classNames('application-details__action-menu', {disabled: item.disabled})}
-                    key={i}
-                    onClick={e => {
-                        e.stopPropagation();
-                        if (!item.disabled) {
-                            item.action();
-                            document.body.click();
-                        }
-                    }}>
-                    {item.iconClassName && <i className={item.iconClassName} />} {item.title}
-                </li>
-            ))}
-        </ul>
+        <DataLoader load={() => menuItems}>
+            {items => (
+                <ul>
+                    {items.map((item, i) => (
+                        <li
+                            className={classNames('application-details__action-menu', {disabled: item.disabled})}
+                            key={i}
+                            onClick={e => {
+                                e.stopPropagation();
+                                if (!item.disabled) {
+                                    item.action();
+                                    document.body.click();
+                                }
+                            }}>
+                            {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </DataLoader>
     );
 }
 
@@ -832,66 +780,6 @@ export function syncStatusMessage(app: appModels.Application) {
             );
         default:
             return <span>{message}</span>;
-    }
-}
-
-export function hydrationStatusMessage(app: appModels.Application) {
-    const drySource = app.status.sourceHydrator.currentOperation.sourceHydrator.drySource;
-    const dryCommit = app.status.sourceHydrator.currentOperation.drySHA;
-    const syncSource: ApplicationSource = {
-        repoURL: drySource.repoURL,
-        targetRevision:
-            app.status.sourceHydrator.currentOperation.sourceHydrator.hydrateTo?.targetBranch || app.status.sourceHydrator.currentOperation.sourceHydrator.syncSource.targetBranch,
-        path: app.status.sourceHydrator.currentOperation.sourceHydrator.syncSource.path
-    };
-    const hydratedCommit = app.status.sourceHydrator.currentOperation.hydratedSHA || '';
-
-    switch (app.status.sourceHydrator.currentOperation.phase) {
-        case appModels.HydrateOperationPhases.Hydrated:
-            return (
-                <span>
-                    from{' '}
-                    <Revision repoUrl={drySource.repoURL} revision={dryCommit}>
-                        {drySource.targetRevision + ' (' + dryCommit.substr(0, 7) + ')'}
-                    </Revision>
-                    <br />
-                    to{' '}
-                    <Revision repoUrl={syncSource.repoURL} revision={hydratedCommit}>
-                        {syncSource.targetRevision + ' (' + hydratedCommit.substr(0, 7) + ')'}
-                    </Revision>
-                </span>
-            );
-        case appModels.HydrateOperationPhases.Hydrating:
-            return (
-                <span>
-                    from{' '}
-                    <Revision repoUrl={drySource.repoURL} revision={drySource.targetRevision}>
-                        {drySource.targetRevision}
-                    </Revision>
-                    <br />
-                    to{' '}
-                    <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
-                        {syncSource.targetRevision}
-                    </Revision>
-                </span>
-            );
-        case appModels.HydrateOperationPhases.Failed:
-            return (
-                <span>
-                    from{' '}
-                    <Revision repoUrl={drySource.repoURL} revision={dryCommit || drySource.targetRevision}>
-                        {drySource.targetRevision}
-                        {dryCommit && ' (' + dryCommit.substr(0, 7) + ')'}
-                    </Revision>
-                    <br />
-                    to{' '}
-                    <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
-                        {syncSource.targetRevision}
-                    </Revision>
-                </span>
-            );
-        default:
-            return <span>{}</span>;
     }
 }
 
@@ -986,7 +874,7 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
                 break;
             case appModels.ResultCodes.Pruned:
                 color = COLORS.sync_result.pruned;
-                icon = 'fa-trash';
+                icon = 'fa-heart';
                 break;
             case appModels.ResultCodes.SyncFailed:
                 color = COLORS.sync_result.failed;
@@ -1089,7 +977,7 @@ const getOperationStateTitle = (app: appModels.Application) => {
     return 'Unknown';
 };
 
-export const OperationState = ({app, quiet, isButton}: {app: appModels.Application; quiet?: boolean; isButton?: boolean}) => {
+export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?: boolean}) => {
     const appOperationState = getAppOperationState(app);
     if (appOperationState === undefined) {
         return <React.Fragment />;
@@ -1100,7 +988,7 @@ export const OperationState = ({app, quiet, isButton}: {app: appModels.Applicati
 
     return (
         <React.Fragment>
-            <OperationPhaseIcon app={app} isButton={isButton} /> {getOperationStateTitle(app)}
+            <OperationPhaseIcon app={app} /> {getOperationStateTitle(app)}
         </React.Fragment>
     );
 };
@@ -1126,10 +1014,6 @@ function isPodPhaseTerminal(phase: appModels.PodPhase): boolean {
 }
 
 export function getPodStateReason(pod: appModels.State): {message: string; reason: string; netContainerStatuses: any[]} {
-    if (!pod.status) {
-        return {reason: 'Unknown', message: '', netContainerStatuses: []};
-    }
-
     const podPhase = pod.status.phase;
     let reason = podPhase;
     let message = '';
@@ -1153,9 +1037,7 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
     }
 
     let initializing = false;
-    const initContainerStatuses = pod.status.initContainerStatuses || [];
-    for (let i = 0; i < initContainerStatuses.length; i++) {
-        const container = initContainerStatuses[i];
+    for (const container of (pod.status.initContainerStatuses || []).slice().reverse()) {
         if (container.state.terminated && container.state.terminated.exitCode === 0) {
             continue;
         }
@@ -1175,7 +1057,7 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
             reason = `Init:${container.state.waiting.reason}`;
             message = `Init:${container.state.waiting.message}`;
         } else {
-            reason = `Init:${i}/${(pod.spec.initContainers || []).length}`;
+            reason = `Init: ${(pod.spec.initContainers || []).length})`;
         }
         initializing = true;
         break;
@@ -1300,7 +1182,7 @@ export function getAppDefaultSource(app?: appModels.Application) {
     if (!app) {
         return null;
     }
-    return getAppSpecDefaultSource(app.spec);
+    return app.spec.sources && app.spec.sources.length > 0 ? app.spec.sources[0] : app.spec.source;
 }
 
 // getAppDefaultSyncRevision gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
@@ -1359,13 +1241,6 @@ export function getAppDefaultOperationSyncRevisionExtra(app?: appModels.Applicat
 }
 
 export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {
-    if (spec.sourceHydrator) {
-        return {
-            repoURL: spec.sourceHydrator.drySource.repoURL,
-            targetRevision: spec.sourceHydrator.syncSource.targetBranch,
-            path: spec.sourceHydrator.syncSource.path
-        };
-    }
     return spec.sources && spec.sources.length > 0 ? spec.sources[0] : spec.source;
 }
 
@@ -1579,44 +1454,6 @@ export function formatCreationTimestamp(creationTimestamp: string) {
             <i style={{padding: '2px'}} /> ({fromNow})
         </span>
     );
-}
-
-/*
- * formatStatefulSetChange reformats a single line describing changes to immutable fields in a StatefulSet.
- * It extracts the field name and its "from" and "to" values for better readability.
- */
-function formatStatefulSetChange(line: string): string {
-    if (line.startsWith('-')) {
-        // Remove leading "- " from the line and split into field and changes
-        const [field, changes] = line.substring(2).split(':');
-        if (changes) {
-            // Split "from: X to: Y" into separate lines with aligned values
-            const [from, to] = changes.split('to:').map(s => s.trim());
-            return `   - ${field}:\n      from: ${from.replace('from:', '').trim()}\n      to:   ${to}`;
-        }
-    }
-    return line;
-}
-
-export function formatOperationMessage(message: string): string {
-    if (!message) {
-        return message;
-    }
-
-    // Format immutable fields error message
-    if (message.includes('attempting to change immutable fields:')) {
-        const [header, ...details] = message.split('\n');
-        const formattedDetails = details
-            // Remove empty lines
-            .filter(line => line.trim())
-            // Use helper function
-            .map(formatStatefulSetChange)
-            .join('\n');
-
-        return `${header}\n${formattedDetails}`;
-    }
-
-    return message;
 }
 
 export const selectPostfix = (arr: string[], singular: string, plural: string) => (arr.length > 1 ? plural : singular);
