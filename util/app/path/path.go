@@ -1,14 +1,15 @@
 package path
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
-	"github.com/argoproj/argo-cd/v2/util/security"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
+	"github.com/argoproj/argo-cd/v3/util/security"
 )
 
 func Path(root, path string) (string, error) {
@@ -47,23 +48,28 @@ func (e *OutOfBoundsSymlinkError) Error() string {
 func CheckOutOfBoundsSymlinks(basePath string) error {
 	absBasePath, err := filepath.Abs(basePath)
 	if err != nil {
-		return fmt.Errorf("failed to get absolute path: %v", err)
+		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 	return filepath.Walk(absBasePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return fmt.Errorf("failed to walk for symlinks in %s: %v", absBasePath, err)
+			// Ignore "no such file or directory" errors than can happen with
+			// temporary files such as .git/*.lock
+			if errors.Is(err, os.ErrNotExist) {
+				return nil
+			}
+			return fmt.Errorf("failed to walk for symlinks in %s: %w", absBasePath, err)
 		}
 		if files.IsSymlink(info) {
 			// We don't use filepath.EvalSymlinks because it fails without returning a path
 			// if the target doesn't exist.
 			linkTarget, err := os.Readlink(path)
 			if err != nil {
-				return fmt.Errorf("failed to read link %s: %v", path, err)
+				return fmt.Errorf("failed to read link %s: %w", path, err)
 			}
 			// get the path of the symlink relative to basePath, used for error description
 			linkRelPath, err := filepath.Rel(absBasePath, path)
 			if err != nil {
-				return fmt.Errorf("failed to get relative path for symlink: %v", err)
+				return fmt.Errorf("failed to get relative path for symlink: %w", err)
 			}
 			// deny all absolute symlinks
 			if filepath.IsAbs(linkTarget) {
@@ -78,7 +84,7 @@ func CheckOutOfBoundsSymlinks(basePath string) error {
 				newDir := filepath.Join(currentDir, part)
 				rel, err := filepath.Rel(absBasePath, newDir)
 				if err != nil {
-					return fmt.Errorf("failed to get relative path for symlink target: %v", err)
+					return fmt.Errorf("failed to get relative path for symlink target: %w", err)
 				}
 				if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 					// return an error so we don't keep traversing the tree
@@ -112,12 +118,12 @@ func GetAppRefreshPaths(app *v1alpha1.Application) []string {
 }
 
 // AppFilesHaveChanged returns true if any of the changed files are under the given refresh paths
-// If refreshPaths is empty, it will always return true
+// If refreshPaths or changedFiles are empty, it will always return true
 func AppFilesHaveChanged(refreshPaths []string, changedFiles []string) bool {
-	// empty slice means there was no changes to any files
-	// so we should not refresh
+	// an empty slice of changed files means that the payload didn't include a list
+	// of changed files and we have to assume that a refresh is required
 	if len(changedFiles) == 0 {
-		return false
+		return true
 	}
 
 	if len(refreshPaths) == 0 {

@@ -1,16 +1,19 @@
 package scm_provider
 
 import (
-	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func defaultHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		var err error
@@ -79,8 +82,9 @@ func defaultHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 }
 
 func verifyDefaultRepo(t *testing.T, err error, repos []*Repository) {
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(repos))
+	t.Helper()
+	require.NoError(t, err)
+	assert.Len(t, repos, 1)
 	assert.Equal(t, Repository{
 		Organization: "PROJECT",
 		Repository:   "REPO",
@@ -98,9 +102,9 @@ func TestListReposNoAuth(t *testing.T) {
 		defaultHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	provider, err := NewBitbucketServerProviderNoAuth(context.Background(), ts.URL, "PROJECT", true)
-	assert.NoError(t, err)
-	repos, err := provider.ListRepos(context.Background(), "ssh")
+	provider, err := NewBitbucketServerProviderNoAuth(t.Context(), ts.URL, "PROJECT", true, "", false, nil)
+	require.NoError(t, err)
+	repos, err := provider.ListRepos(t.Context(), "ssh")
 	verifyDefaultRepo(t, err, repos)
 }
 
@@ -190,11 +194,11 @@ func TestListReposPagination(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	provider, err := NewBitbucketServerProviderNoAuth(context.Background(), ts.URL, "PROJECT", true)
-	assert.NoError(t, err)
-	repos, err := provider.ListRepos(context.Background(), "ssh")
-	assert.NoError(t, err)
-	assert.Equal(t, 2, len(repos))
+	provider, err := NewBitbucketServerProviderNoAuth(t.Context(), ts.URL, "PROJECT", true, "", false, nil)
+	require.NoError(t, err)
+	repos, err := provider.ListRepos(t.Context(), "ssh")
+	require.NoError(t, err)
+	assert.Len(t, repos, 2)
 	assert.Equal(t, Repository{
 		Organization: "PROJECT",
 		Repository:   "REPO",
@@ -267,17 +271,17 @@ func TestGetBranchesBranchPagination(t *testing.T) {
 		defaultHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	provider, err := NewBitbucketServerProviderNoAuth(context.Background(), ts.URL, "PROJECT", true)
-	assert.NoError(t, err)
-	repos, err := provider.GetBranches(context.Background(), &Repository{
+	provider, err := NewBitbucketServerProviderNoAuth(t.Context(), ts.URL, "PROJECT", true, "", false, nil)
+	require.NoError(t, err)
+	repos, err := provider.GetBranches(t.Context(), &Repository{
 		Organization: "PROJECT",
 		Repository:   "REPO",
 		URL:          "ssh://git@mycompany.bitbucket.org/PROJECT/REPO.git",
 		Labels:       []string{},
 		RepositoryId: 1,
 	})
-	assert.NoError(t, err)
-	assert.Equal(t, 2, len(repos))
+	require.NoError(t, err)
+	assert.Len(t, repos, 2)
 	assert.Equal(t, Repository{
 		Organization: "PROJECT",
 		Repository:   "REPO",
@@ -302,8 +306,7 @@ func TestGetBranchesBranchPagination(t *testing.T) {
 func TestGetBranchesDefaultOnly(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
-		switch r.RequestURI {
-		case "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default":
+		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
 			_, err := io.WriteString(w, `{
 				"id": "refs/heads/default",
 				"displayId": "default",
@@ -320,17 +323,17 @@ func TestGetBranchesDefaultOnly(t *testing.T) {
 		defaultHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	provider, err := NewBitbucketServerProviderNoAuth(context.Background(), ts.URL, "PROJECT", false)
-	assert.NoError(t, err)
-	repos, err := provider.GetBranches(context.Background(), &Repository{
+	provider, err := NewBitbucketServerProviderNoAuth(t.Context(), ts.URL, "PROJECT", false, "", false, nil)
+	require.NoError(t, err)
+	repos, err := provider.GetBranches(t.Context(), &Repository{
 		Organization: "PROJECT",
 		Repository:   "REPO",
 		URL:          "ssh://git@mycompany.bitbucket.org/PROJECT/REPO.git",
 		Labels:       []string{},
 		RepositoryId: 1,
 	})
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(repos))
+	require.NoError(t, err)
+	assert.Len(t, repos, 1)
 	assert.Equal(t, Repository{
 		Organization: "PROJECT",
 		Repository:   "REPO",
@@ -345,38 +348,36 @@ func TestGetBranchesDefaultOnly(t *testing.T) {
 func TestGetBranchesMissingDefault(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
-		switch r.RequestURI {
-		case "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default":
+		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
 			http.Error(w, "Not found", http.StatusNotFound)
 		}
 		defaultHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	provider, err := NewBitbucketServerProviderNoAuth(context.Background(), ts.URL, "PROJECT", false)
-	assert.NoError(t, err)
-	repos, err := provider.GetBranches(context.Background(), &Repository{
+	provider, err := NewBitbucketServerProviderNoAuth(t.Context(), ts.URL, "PROJECT", false, "", false, nil)
+	require.NoError(t, err)
+	repos, err := provider.GetBranches(t.Context(), &Repository{
 		Organization: "PROJECT",
 		Repository:   "REPO",
 		URL:          "ssh://git@mycompany.bitbucket.org/PROJECT/REPO.git",
 		Labels:       []string{},
 		RepositoryId: 1,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, repos)
 }
 
 func TestGetBranchesEmptyRepo(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
-		switch r.RequestURI {
-		case "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default":
+		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
 			return
 		}
 	}))
 	defer ts.Close()
-	provider, err := NewBitbucketServerProviderNoAuth(context.Background(), ts.URL, "PROJECT", false)
-	assert.NoError(t, err)
-	repos, err := provider.GetBranches(context.Background(), &Repository{
+	provider, err := NewBitbucketServerProviderNoAuth(t.Context(), ts.URL, "PROJECT", false, "", false, nil)
+	require.NoError(t, err)
+	repos, err := provider.GetBranches(t.Context(), &Repository{
 		Organization: "PROJECT",
 		Repository:   "REPO",
 		URL:          "ssh://git@mycompany.bitbucket.org/PROJECT/REPO.git",
@@ -384,29 +385,95 @@ func TestGetBranchesEmptyRepo(t *testing.T) {
 		RepositoryId: 1,
 	})
 	assert.Empty(t, repos)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestGetBranchesErrorDefaultBranch(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
-		switch r.RequestURI {
-		case "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default":
+		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 		}
 		defaultHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	provider, err := NewBitbucketServerProviderNoAuth(context.Background(), ts.URL, "PROJECT", false)
-	assert.NoError(t, err)
-	_, err = provider.GetBranches(context.Background(), &Repository{
+	provider, err := NewBitbucketServerProviderNoAuth(t.Context(), ts.URL, "PROJECT", false, "", false, nil)
+	require.NoError(t, err)
+	_, err = provider.GetBranches(t.Context(), &Repository{
 		Organization: "PROJECT",
 		Repository:   "REPO",
 		URL:          "ssh://git@mycompany.bitbucket.org/PROJECT/REPO.git",
 		Labels:       []string{},
 		RepositoryId: 1,
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
+}
+
+func TestListReposTLS(t *testing.T) {
+	tests := []struct {
+		name        string
+		tlsInsecure bool
+		passCerts   bool
+		requireErr  bool
+	}{
+		{
+			name:        "TLS Insecure: true, No Certs",
+			tlsInsecure: true,
+			passCerts:   false,
+			requireErr:  false,
+		},
+		{
+			name:        "TLS Insecure: true, With Certs",
+			tlsInsecure: true,
+			passCerts:   true,
+			requireErr:  false,
+		},
+		{
+			name:        "TLS Insecure: false, With Certs",
+			tlsInsecure: false,
+			passCerts:   true,
+			requireErr:  false,
+		},
+		{
+			name:        "TLS Insecure: false, No Certs",
+			tlsInsecure: false,
+			passCerts:   false,
+			requireErr:  true,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				defaultHandler(t)(w, r)
+			}))
+			defer ts.Close()
+
+			var certs []byte
+			if test.passCerts {
+				for _, cert := range ts.TLS.Certificates {
+					for _, c := range cert.Certificate {
+						parsedCert, err := x509.ParseCertificate(c)
+						require.NoError(t, err, "Failed to parse certificate")
+						certs = append(certs, pem.EncodeToMemory(&pem.Block{
+							Type:  "CERTIFICATE",
+							Bytes: parsedCert.Raw,
+						})...)
+					}
+				}
+			}
+
+			provider, err := NewBitbucketServerProviderBasicAuth(t.Context(), "user", "password", ts.URL, "PROJECT", true, "", test.tlsInsecure, certs)
+			require.NoError(t, err)
+			_, err = provider.ListRepos(t.Context(), "ssh")
+			if test.requireErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestListReposBasicAuth(t *testing.T) {
@@ -416,17 +483,29 @@ func TestListReposBasicAuth(t *testing.T) {
 		defaultHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	provider, err := NewBitbucketServerProviderBasicAuth(context.Background(), "user", "password", ts.URL, "PROJECT", true)
-	assert.NoError(t, err)
-	repos, err := provider.ListRepos(context.Background(), "ssh")
+	provider, err := NewBitbucketServerProviderBasicAuth(t.Context(), "user", "password", ts.URL, "PROJECT", true, "", false, nil)
+	require.NoError(t, err)
+	repos, err := provider.ListRepos(t.Context(), "ssh")
+	verifyDefaultRepo(t, err, repos)
+}
+
+func TestListReposBearerAuth(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "Bearer tolkien", r.Header.Get("Authorization"))
+		assert.Equal(t, "no-check", r.Header.Get("X-Atlassian-Token"))
+		defaultHandler(t)(w, r)
+	}))
+	defer ts.Close()
+	provider, err := NewBitbucketServerProviderBearerToken(t.Context(), "tolkien", ts.URL, "PROJECT", true, "", false, nil)
+	require.NoError(t, err)
+	repos, err := provider.ListRepos(t.Context(), "ssh")
 	verifyDefaultRepo(t, err, repos)
 }
 
 func TestListReposDefaultBranch(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
-		switch r.RequestURI {
-		case "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default":
+		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
 			_, err := io.WriteString(w, `{
 				"id": "refs/heads/default",
 				"displayId": "default",
@@ -443,11 +522,11 @@ func TestListReposDefaultBranch(t *testing.T) {
 		defaultHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	provider, err := NewBitbucketServerProviderNoAuth(context.Background(), ts.URL, "PROJECT", false)
-	assert.NoError(t, err)
-	repos, err := provider.ListRepos(context.Background(), "ssh")
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(repos))
+	provider, err := NewBitbucketServerProviderNoAuth(t.Context(), ts.URL, "PROJECT", false, "", false, nil)
+	require.NoError(t, err)
+	repos, err := provider.ListRepos(t.Context(), "ssh")
+	require.NoError(t, err)
+	assert.Len(t, repos, 1)
 	assert.Equal(t, Repository{
 		Organization: "PROJECT",
 		Repository:   "REPO",
@@ -462,34 +541,32 @@ func TestListReposDefaultBranch(t *testing.T) {
 func TestListReposMissingDefaultBranch(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
-		switch r.RequestURI {
-		case "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default":
+		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
 			http.Error(w, "Not found", http.StatusNotFound)
 		}
 		defaultHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	provider, err := NewBitbucketServerProviderNoAuth(context.Background(), ts.URL, "PROJECT", false)
-	assert.NoError(t, err)
-	repos, err := provider.ListRepos(context.Background(), "ssh")
-	assert.NoError(t, err)
+	provider, err := NewBitbucketServerProviderNoAuth(t.Context(), ts.URL, "PROJECT", false, "", false, nil)
+	require.NoError(t, err)
+	repos, err := provider.ListRepos(t.Context(), "ssh")
+	require.NoError(t, err)
 	assert.Empty(t, repos)
 }
 
 func TestListReposErrorDefaultBranch(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
-		switch r.RequestURI {
-		case "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default":
+		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 		}
 		defaultHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	provider, err := NewBitbucketServerProviderNoAuth(context.Background(), ts.URL, "PROJECT", false)
-	assert.NoError(t, err)
-	_, err = provider.ListRepos(context.Background(), "ssh")
-	assert.Error(t, err)
+	provider, err := NewBitbucketServerProviderNoAuth(t.Context(), ts.URL, "PROJECT", false, "", false, nil)
+	require.NoError(t, err)
+	_, err = provider.ListRepos(t.Context(), "ssh")
+	require.Error(t, err)
 }
 
 func TestListReposCloneProtocol(t *testing.T) {
@@ -498,11 +575,11 @@ func TestListReposCloneProtocol(t *testing.T) {
 		defaultHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	provider, err := NewBitbucketServerProviderNoAuth(context.Background(), ts.URL, "PROJECT", true)
-	assert.NoError(t, err)
-	repos, err := provider.ListRepos(context.Background(), "https")
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(repos))
+	provider, err := NewBitbucketServerProviderNoAuth(t.Context(), ts.URL, "PROJECT", true, "", false, nil)
+	require.NoError(t, err)
+	repos, err := provider.ListRepos(t.Context(), "https")
+	require.NoError(t, err)
+	assert.Len(t, repos, 1)
 	assert.Equal(t, Repository{
 		Organization: "PROJECT",
 		Repository:   "REPO",
@@ -520,10 +597,10 @@ func TestListReposUnknownProtocol(t *testing.T) {
 		defaultHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	provider, err := NewBitbucketServerProviderNoAuth(context.Background(), ts.URL, "PROJECT", true)
-	assert.NoError(t, err)
-	_, errProtocol := provider.ListRepos(context.Background(), "http")
-	assert.NotNil(t, errProtocol)
+	provider, err := NewBitbucketServerProviderNoAuth(t.Context(), ts.URL, "PROJECT", true, "", false, nil)
+	require.NoError(t, err)
+	_, errProtocol := provider.ListRepos(t.Context(), "http")
+	require.Error(t, errProtocol)
 }
 
 func TestBitbucketServerHasPath(t *testing.T) {
@@ -558,37 +635,37 @@ func TestBitbucketServerHasPath(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	provider, err := NewBitbucketServerProviderNoAuth(context.Background(), ts.URL, "PROJECT", true)
-	assert.NoError(t, err)
+	provider, err := NewBitbucketServerProviderNoAuth(t.Context(), ts.URL, "PROJECT", true, "", false, nil)
+	require.NoError(t, err)
 	repo := &Repository{
 		Organization: "PROJECT",
 		Repository:   "REPO",
 		Branch:       "main",
 	}
-	ok, err := provider.RepoHasPath(context.Background(), repo, "pkg")
-	assert.NoError(t, err)
+	ok, err := provider.RepoHasPath(t.Context(), repo, "pkg")
+	require.NoError(t, err)
 	assert.True(t, ok)
 
-	ok, err = provider.RepoHasPath(context.Background(), repo, "pkg/")
-	assert.NoError(t, err)
+	ok, err = provider.RepoHasPath(t.Context(), repo, "pkg/")
+	require.NoError(t, err)
 	assert.True(t, ok)
 
-	ok, err = provider.RepoHasPath(context.Background(), repo, "anotherpkg/file.txt")
-	assert.NoError(t, err)
+	ok, err = provider.RepoHasPath(t.Context(), repo, "anotherpkg/file.txt")
+	require.NoError(t, err)
 	assert.True(t, ok)
 
-	ok, err = provider.RepoHasPath(context.Background(), repo, "anotherpkg/missing.txt")
-	assert.NoError(t, err)
+	ok, err = provider.RepoHasPath(t.Context(), repo, "anotherpkg/missing.txt")
+	require.NoError(t, err)
 	assert.False(t, ok)
 
-	ok, err = provider.RepoHasPath(context.Background(), repo, "notathing")
-	assert.NoError(t, err)
+	ok, err = provider.RepoHasPath(t.Context(), repo, "notathing")
+	require.NoError(t, err)
 	assert.False(t, ok)
 
-	ok, err = provider.RepoHasPath(context.Background(), repo, "return-redirect")
-	assert.NoError(t, err)
+	ok, err = provider.RepoHasPath(t.Context(), repo, "return-redirect")
+	require.NoError(t, err)
 	assert.True(t, ok)
 
-	_, err = provider.RepoHasPath(context.Background(), repo, "unauthorized-response")
-	assert.Error(t, err)
+	_, err = provider.RepoHasPath(t.Context(), repo, "unauthorized-response")
+	require.Error(t, err)
 }

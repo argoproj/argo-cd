@@ -3,6 +3,7 @@ package env
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"testing"
 	"time"
 
@@ -23,10 +24,10 @@ func TestParseNumFromEnv(t *testing.T) {
 		{"Valid positive number", "200", 200},
 		{"Valid negative number", "-200", -200},
 		{"Invalid number", "abc", def},
-		{"Equals minimum", fmt.Sprintf("%d", math.MinInt+1), min},
-		{"Equals maximum", fmt.Sprintf("%d", math.MaxInt-1), max},
-		{"Less than minimum", fmt.Sprintf("%d", math.MinInt), def},
-		{"Greater than maximum", fmt.Sprintf("%d", math.MaxInt), def},
+		{"Equals minimum", strconv.Itoa(math.MinInt + 1), min},
+		{"Equals maximum", strconv.Itoa(math.MaxInt - 1), max},
+		{"Less than minimum", strconv.Itoa(math.MinInt), def},
+		{"Greater than maximum", strconv.Itoa(math.MaxInt), def},
 		{"Variable not set", "", def},
 	}
 
@@ -64,7 +65,7 @@ func TestParseFloatFromEnv(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv(envKey, tt.env)
 			f := ParseFloatFromEnv(envKey, def, min, max)
-			assert.Equal(t, tt.expected, f)
+			assert.InEpsilon(t, tt.expected, f, 0.0001)
 		})
 	}
 }
@@ -81,10 +82,10 @@ func TestParseInt64FromEnv(t *testing.T) {
 	}{
 		{"Valid int64", "200", 200},
 		{"Text as invalid int64", "abc", def},
-		{"Equals maximum", fmt.Sprintf("%d", max), max},
-		{"Equals minimum", fmt.Sprintf("%d", min), min},
-		{"Greater than maximum", fmt.Sprintf("%d", max+1), def},
-		{"Less than minimum", fmt.Sprintf("%d", min-1), def},
+		{"Equals maximum", strconv.FormatInt(max, 10), max},
+		{"Equals minimum", strconv.FormatInt(min, 10), min},
+		{"Greater than maximum", strconv.FormatInt(max+1, 10), def},
+		{"Less than minimum", strconv.FormatInt(min-1, 10), def},
 		{"Environment not set", "", def},
 	}
 
@@ -114,6 +115,10 @@ func TestParseDurationFromEnv(t *testing.T) {
 		name:     "ValidValueSet",
 		env:      "2s",
 		expected: time.Second * 2,
+	}, {
+		name:     "ValidValueSetMs",
+		env:      "2500ms",
+		expected: time.Millisecond * 2500,
 	}, {
 		name:     "MoreThanMaxSet",
 		env:      "6s",
@@ -238,7 +243,7 @@ func TestParseStringToStringFromEnv(t *testing.T) {
 		{"success, two keys, no value", "key1=,key2=", map[string]string{"key1": "", "key2": ""}, def, ","},
 		{"success, two keys, no value, with spaces", "key1 = , key2 = ", map[string]string{"key1": "", "key2": ""}, def, ","},
 		{"success, two pairs", "key1=value1,key2=value2", map[string]string{"key1": "value1", "key2": "value2"}, def, ","},
-		{"success, two pairs with semicolon as seperator", "key1=value1;key2=value2", map[string]string{"key1": "value1", "key2": "value2"}, def, ";"},
+		{"success, two pairs with semicolon as separator", "key1=value1;key2=value2", map[string]string{"key1": "value1", "key2": "value2"}, def, ";"},
 		{"success, two pairs with spaces", "key1 = value1, key2 = value2", map[string]string{"key1": "value1", "key2": "value2"}, def, ","},
 		{"failure, one key", "key1", map[string]string{}, def, ","},
 		{"failure, duplicate keys", "key1=value1,key1=value2", map[string]string{}, def, ","},

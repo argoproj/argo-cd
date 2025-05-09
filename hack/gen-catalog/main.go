@@ -9,23 +9,22 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/spf13/cobra/doc"
-
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
-
 	"github.com/argoproj/notifications-engine/pkg/services"
 	"github.com/argoproj/notifications-engine/pkg/triggers"
 	"github.com/argoproj/notifications-engine/pkg/util/misc"
 	"github.com/olekukonko/tablewriter"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/api/core/v1"
+	"github.com/spf13/cobra/doc"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/admin"
 )
 
 func main() {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use: "gen",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
@@ -43,8 +42,8 @@ func main() {
 func newCatalogCommand() *cobra.Command {
 	return &cobra.Command{
 		Use: "catalog",
-		Run: func(c *cobra.Command, args []string) {
-			cm := v1.ConfigMap{
+		Run: func(_ *cobra.Command, _ []string) {
+			cm := corev1.ConfigMap{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "ConfigMap",
 					APIVersion: "v1",
@@ -68,22 +67,21 @@ func newCatalogCommand() *cobra.Command {
 				trigger := triggers[name]
 				t, err := yaml.Marshal(trigger)
 				dieOnError(err, "Failed to marshal trigger")
-				cm.Data[fmt.Sprintf("trigger.%s", name)] = string(t)
+				cm.Data["trigger."+name] = string(t)
 			})
 
 			misc.IterateStringKeyMap(templates, func(name string) {
 				template := templates[name]
 				t, err := yaml.Marshal(template)
 				dieOnError(err, "Failed to marshal template")
-				cm.Data[fmt.Sprintf("template.%s", name)] = string(t)
+				cm.Data["template."+name] = string(t)
 			})
 
 			d, err := yaml.Marshal(cm)
 			dieOnError(err, "Failed to marshal final configmap")
 
-			err = os.WriteFile(target, d, 0644)
+			err = os.WriteFile(target, d, 0o644)
 			dieOnError(err, "Failed to write builtin configmap")
-
 		},
 	}
 }
@@ -91,7 +89,7 @@ func newCatalogCommand() *cobra.Command {
 func newDocsCommand() *cobra.Command {
 	return &cobra.Command{
 		Use: "docs",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			var builtItDocsData bytes.Buffer
 			wd, err := os.Getwd()
 			dieOnError(err, "Failed to get current working directory")
@@ -102,14 +100,14 @@ func newDocsCommand() *cobra.Command {
 			notificationTemplates, notificationTriggers, err := buildConfigFromFS(templatesDir, triggersDir)
 			dieOnError(err, "Failed to build builtin config")
 			generateBuiltInTriggersDocs(&builtItDocsData, notificationTriggers, notificationTemplates)
-			if err := os.WriteFile("./docs/operator-manual/notifications/catalog.md", builtItDocsData.Bytes(), 0644); err != nil {
+			if err := os.WriteFile("./docs/operator-manual/notifications/catalog.md", builtItDocsData.Bytes(), 0o644); err != nil {
 				log.Fatal(err)
 			}
 			var commandDocs bytes.Buffer
 			if err := generateCommandsDocs(&commandDocs); err != nil {
 				log.Fatal(err)
 			}
-			if err := os.WriteFile("./docs/operator-manual/notifications/troubleshooting-commands.md", commandDocs.Bytes(), 0644); err != nil {
+			if err := os.WriteFile("./docs/operator-manual/notifications/troubleshooting-commands.md", commandDocs.Bytes(), 0o644); err != nil {
 				log.Fatal(err)
 			}
 		},
@@ -169,7 +167,7 @@ func generateCommandsDocs(out io.Writer) error {
 				for _, c := range toolSubCommand.Commands() {
 					var cmdDesc bytes.Buffer
 					if err := doc.GenMarkdown(c, &cmdDesc); err != nil {
-						return err
+						return fmt.Errorf("error generating Markdown for command: %v : %w", c, err)
 					}
 					for _, line := range strings.Split(cmdDesc.String(), "\n") {
 						if strings.HasPrefix(line, "### SEE ALSO") {
@@ -195,19 +193,19 @@ func buildConfigFromFS(templatesDir string, triggersDir string) (map[string]serv
 	templatesCfg := map[string]services.Notification{}
 	err := filepath.Walk(templatesDir, func(p string, info os.FileInfo, e error) error {
 		if e != nil {
-			return e
+			return fmt.Errorf("error navigating the templates dirctory: %s : %w", templatesDir, e)
 		}
 		if info.IsDir() {
 			return nil
 		}
 		data, err := os.ReadFile(p)
 		if err != nil {
-			return err
+			return fmt.Errorf("error reading the template file: %s : %w", p, err)
 		}
 		name := strings.Split(path.Base(p), ".")[0]
 		var template services.Notification
 		if err := yaml.Unmarshal(data, &template); err != nil {
-			return err
+			return fmt.Errorf("error unmarshaling the data from file: %s : %w", p, err)
 		}
 		templatesCfg[name] = template
 		return nil
@@ -219,19 +217,19 @@ func buildConfigFromFS(templatesDir string, triggersDir string) (map[string]serv
 	triggersCfg := map[string][]triggers.Condition{}
 	err = filepath.Walk(triggersDir, func(p string, info os.FileInfo, e error) error {
 		if e != nil {
-			return e
+			return fmt.Errorf("error navigating the triggers dirctory: %s : %w", triggersDir, e)
 		}
 		if info.IsDir() {
 			return nil
 		}
 		data, err := os.ReadFile(p)
 		if err != nil {
-			return err
+			return fmt.Errorf("error reading the trigger file: %s : %w", p, err)
 		}
 		name := strings.Split(path.Base(p), ".")[0]
 		var trigger []triggers.Condition
 		if err := yaml.Unmarshal(data, &trigger); err != nil {
-			return err
+			return fmt.Errorf("error unmarshaling the data from file: %s : %w", p, err)
 		}
 		triggersCfg[name] = trigger
 		return nil

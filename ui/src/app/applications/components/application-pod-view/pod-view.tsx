@@ -25,8 +25,15 @@ interface PodViewProps {
 }
 
 export type PodGroupType = 'topLevelResource' | 'parentResource' | 'node';
+export type SortOrder = 'asc' | 'desc';
+
+const labelForSortOrder: Record<SortOrder, string> = {
+    asc: 'Oldest First',
+    desc: 'Newest First'
+};
 
 export interface PodGroup extends Partial<ResourceNode> {
+    timestamp?: number;
     type: PodGroupType;
     pods: Pod[];
     info?: InfoItem[];
@@ -53,6 +60,18 @@ export class PodView extends React.Component<PodViewProps> {
                     const podPrefs = prefs.appDetails.podView || ({} as PodViewPreferences);
                     const groups = this.processTree(podPrefs.sortMode, this.props.tree.hosts || []) || [];
 
+                    if (podPrefs.sortMode !== 'node' && podPrefs.sortOrder) {
+                        // Sort the groups in place based on precomputed timestamps
+                        groups.sort((a, b) => {
+                            const timeA = Date.parse(a.createdAt || '0');
+                            const timeB = Date.parse(b.createdAt || '0');
+                            a.timestamp = timeA;
+                            b.timestamp = timeB;
+
+                            return podPrefs.sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+                        });
+                    }
+
                     return (
                         <React.Fragment>
                             <div className='pod-view__settings'>
@@ -68,6 +87,20 @@ export class PodView extends React.Component<PodViewProps> {
                                         items={this.menuItemsFor(['node', 'parentResource', 'topLevelResource'], prefs)}
                                     />
                                 </div>
+                                {podPrefs.sortMode !== 'node' && (
+                                    <div className='pod-view__settings__section'>
+                                        SORT BY AGE:&nbsp;
+                                        <DropDownMenu
+                                            anchor={() => (
+                                                <button className='argo-button argo-button--base-o'>
+                                                    {labelForSortOrder[podPrefs.sortOrder || 'desc']}&nbsp;&nbsp;
+                                                    <i className='fa fa-chevron-circle-down' />
+                                                </button>
+                                            )}
+                                            items={this.sortOrderItemsFor(['asc', 'desc'], prefs)}
+                                        />
+                                    </div>
+                                )}
                                 {podPrefs.sortMode === 'node' && (
                                     <div className='pod-view__settings__section'>
                                         <button
@@ -216,6 +249,26 @@ export class PodView extends React.Component<PodViewProps> {
                 }}
             </DataLoader>
         );
+    }
+
+    private sortOrderItemsFor(orders: SortOrder[], prefs: ViewPreferences): MenuItem[] {
+        const podPrefs = prefs.appDetails.podView || ({} as PodViewPreferences);
+        return orders.map(order => ({
+            title: (
+                <React.Fragment>
+                    {podPrefs.sortOrder === order && <i className='fa fa-check' />} {labelForSortOrder[order]}{' '}
+                </React.Fragment>
+            ),
+            action: () => {
+                this.appContext.apis.navigation.goto('.', {podSortOrder: order});
+                services.viewPreferences.updatePreferences({
+                    appDetails: {
+                        ...prefs.appDetails,
+                        podView: {...podPrefs, sortOrder: order}
+                    }
+                });
+            }
+        }));
     }
 
     private menuItemsFor(modes: PodGroupType[], prefs: ViewPreferences): MenuItem[] {

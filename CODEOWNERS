@@ -8,5 +8,7 @@
 /mkdocs.yml  @argoproj/argocd-approvers @argoproj/argocd-approvers-docs
 
 # CI
-/.github/**       @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
-/.goreleaser.yaml @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+/.codecov.yml             @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+/.github/**               @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+/.goreleaser.yaml         @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+/sonar-project.properties @argoproj/argocd-approvers @argoproj/argocd-approvers-ci

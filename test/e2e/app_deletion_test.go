@@ -5,10 +5,11 @@ import (
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 )
 
 // when a app gets stuck in sync, and we try to delete it, it won't delete, instead we must then terminate it
@@ -16,11 +17,11 @@ import (
 func TestDeletingAppStuckInSync(t *testing.T) {
 	Given(t).
 		And(func() {
-			SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, SetResourceOverrides(map[string]ResourceOverride{
 				"ConfigMap": {
 					HealthLua: `return { status = obj.annotations and obj.annotations['health'] or 'Progressing' }`,
 				},
-			})
+			}))
 		}).
 		Async(true).
 		Path("hook-custom-health").
@@ -50,15 +51,15 @@ func TestDeletingAppByLabel(t *testing.T) {
 		CreateApp("--label=foo=bar").
 		Sync().
 		Then().
-		Expect(SyncStatusIs(SyncStatusCode(SyncStatusCodeSynced))).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
 		IgnoreErrors().
 		DeleteBySelector("foo=baz").
 		Then().
 		// delete is unsuccessful since no selector match
 		AndCLIOutput(
-			func(output string, err error) {
-				assert.Contains(t, err.Error(), "no apps match selector foo=baz")
+			func(_ string, err error) {
+				assert.ErrorContains(t, err, "no apps match selector foo=baz")
 			},
 		).
 		When().

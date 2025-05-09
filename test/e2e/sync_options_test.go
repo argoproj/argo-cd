@@ -1,18 +1,18 @@
 package e2e
 
 import (
-	"context"
 	"os"
 	"testing"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 // TestSyncOptionsValidateFalse verifies we can disable validation during kubectl apply, using the
@@ -53,11 +53,11 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 		Path(guestbookPath).
 		When().
 		And(func() {
-			fixture.SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, fixture.SetResourceOverrides(map[string]ResourceOverride{
 				"/": {
 					IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/status"}},
 				},
-			})
+			}))
 		}).
 		CreateFromFile(func(app *Application) {
 			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: true}}
@@ -73,8 +73,8 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 		// app should remain synced if k8s change detected
 		When().
 		And(func() {
-			errors.FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
-				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/status/observedGeneration", "value": 2 }]`), v1.PatchOptions{}))
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(t.Context(),
+				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/status/observedGeneration", "value": 2 }]`), metav1.PatchOptions{}))
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced))

@@ -1,28 +1,30 @@
 package db
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
-const Test_Cert1CN = "CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US"
-const Test_Cert2CN = "CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE"
+const (
+	TestCert1CN = "CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US"
+	TestCert2CN = "CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE"
+)
 
-var Test_TLS_Subjects []string = []string{
+var TestTLSSubjects = []string{
 	"CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US",
 	"CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE",
 }
 
-const Test_TLSValidSingleCert = `
+const TestTLSValidSingleCert = `
 -----BEGIN CERTIFICATE-----
 MIIFvTCCA6WgAwIBAgIUGrTmW3qc39zqnE08e3qNDhUkeWswDQYJKoZIhvcNAQEL
 BQAwbjELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAklMMRAwDgYDVQQHDAdDaGljYWdv
@@ -58,7 +60,7 @@ xO7Tr5lAo74vNUkF2EHNaI28/RGnJPm2TIxZqy4rNH6L
 -----END CERTIFICATE-----
 `
 
-const Test_TLSInvalidPEMData = `
+const TestTLSInvalidPEMData = `
 MIIF1zCCA7+gAwIBAgIUQdTcSHY2Sxd3Tq/v1eIEZPCNbOowDQYJKoZIhvcNAQEL
 BQAwezELMAkGA1UEBhMCREUxFTATBgNVBAgMDExvd2VyIFNheG9ueTEQMA4GA1UE
 BwwHSGFub3ZlcjEVMBMGA1UECgwMVGVzdGluZyBDb3JwMRIwEAYDVQQLDAlUZXN0
@@ -75,7 +77,7 @@ YilqCPFX+az09EqqK/iHXnkdZ/Z2fCuU+9M/Zhrnlwlygl3RuVBI6xhm/ZsXtL2E
 Gxa61lNy6pyx5+hSxHEFEJshXLtioRd702VdLKxEOuYSXKeJDs1x9o6cJ75S6hko
 `
 
-const Test_TLSInvalidSingleCert = `
+const TestTLSInvalidSingleCert = `
 -----BEGIN CERTIFICATE-----
 MIIF1zCCA7+gAwIBAgIUQdTcSHY2Sxd3Tq/v1eIEZPCNbOowDQYJKoZIhvcNAQEL
 BQAwezELMAkGA1UEBhMCREUxFTATBgNVBAgMDExvd2VyIFNheG9ueTEQMA4GA1UE
@@ -112,7 +114,7 @@ XWyb96wrUlv+E8I=
 -----END CERTIFICATE-----
 `
 
-const Test_TLSValidMultiCert = `
+const TestTLSValidMultiCert = `
 -----BEGIN CERTIFICATE-----
 MIIFvTCCA6WgAwIBAgIUGrTmW3qc39zqnE08e3qNDhUkeWswDQYJKoZIhvcNAQEL
 BQAwbjELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAklMMRAwDgYDVQQHDAdDaGljYWdv
@@ -183,7 +185,7 @@ XWyb96wrUlv+E8I=
 `
 
 // Taken from hack/ssh_known_hosts
-const Test_ValidSSHKnownHostsData = `
+const TestValidSSHKnownHostsData = `
 # BitBucket
 bitbucket.org ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDQeJzhupRu0u0cdegZIa8e86EG2qOCsIsD1Xw0xSeiPDlCr7kq97NLmMbpKTX6Esc30NuoqEEHCuc7yWtwp8dI76EEEB1VqY9QJq6vk+aySyboD5QF61I/1WeTwu+deCbgKMGbUijeXhtfbxSxm6JwGrXrhBdofTsbKRUsrN1WoNgUa8uqN1Vx6WAJw1JHPhglEGGHea6QICwJOAr/6mrui/oB7pkaWKHj3z7d1IC4KWLtY47elvjbaTlkN04Kc/5LFEirorGYVbt15kAUlqGM65pk6ZBxtaO3+30LVlORZkxOh+LKL/BvbZ/iRNhItLqNyieoQj/uh/7Iv4uyH/cV/0b4WDSd3DptigWq84lJubb9t/DnZlrJazxyDCulTmKdOR7vs9gMTo+uoIrPSb8ScTtvw65+odKAlBj59dhnVp9zd7QUojOpXlL62Aw56U4oO+FALuevvMjiWeavKhJqlR7i5n9srYcrNV7ttmDw7kf/97P5zauIhxcjX+xHv4M=
 # GitHub
@@ -197,7 +199,7 @@ ssh.dev.azure.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4Nak
 vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4NakVyIzf1rXYd4d7wo6jBlkLvCA4odBlL0mDUyZ0/QUfTTqeu+tm22gOsv+VrVTMk6vwRU75gY/y9ut5Mb3bR5BV58dKXyq9A9UeB5Cakehn5Zgm6x1mKoVyf+FFn26iYqXJRgzIZZcZ5V6hrE0Qg39kZm4az48o0AUbf6Sp4SLdvnuMa2sVNwHBboS7EJkm57XQPVU3/QpyNLHbWDdzwtrlS+ez30S3AdYhLKEOxAG8weOnyrtLJAUen9mTkol8oII1edf7mWWbWVf0nBmly21+nZcmCTISQBtdcyPaEno7fFQMDD26/s0lfKob4Kw8H
 `
 
-const Test_InvalidSSHKnownHostsData = `
+const TestInvalidSSHKnownHostsData = `
 bitbucket.org AAAAB3NzaC1yc2EAAAADAQABAAABgQDQeJzhupRu0u0cdegZIa8e86EG2qOCsIsD1Xw0xSeiPDlCr7kq97NLmMbpKTX6Esc30NuoqEEHCuc7yWtwp8dI76EEEB1VqY9QJq6vk+aySyboD5QF61I/1WeTwu+deCbgKMGbUijeXhtfbxSxm6JwGrXrhBdofTsbKRUsrN1WoNgUa8uqN1Vx6WAJw1JHPhglEGGHea6QICwJOAr/6mrui/oB7pkaWKHj3z7d1IC4KWLtY47elvjbaTlkN04Kc/5LFEirorGYVbt15kAUlqGM65pk6ZBxtaO3+30LVlORZkxOh+LKL/BvbZ/iRNhItLqNyieoQj/uh/7Iv4uyH/cV/0b4WDSd3DptigWq84lJubb9t/DnZlrJazxyDCulTmKdOR7vs9gMTo+uoIrPSb8ScTtvw65+odKAlBj59dhnVp9zd7QUojOpXlL62Aw56U4oO+FALuevvMjiWeavKhJqlR7i5n9srYcrNV7ttmDw7kf/97P5zauIhxcjX+xHv4M=
 # GitHub
 github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
@@ -210,7 +212,7 @@ ssh.dev.azure.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4Nak
 vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4NakVyIzf1rXYd4d7wo6jBlkLvCA4odBlL0mDUyZ0/QUfTTqeu+tm22gOsv+VrVTMk6vwRU75gY/y9ut5Mb3bR5BV58dKXyq9A9UeB5Cakehn5Zgm6x1mKoVyf+FFn26iYqXJRgzIZZcZ5V6hrE0Qg39kZm4az48o0AUbf6Sp4SLdvnuMa2sVNwHBboS7EJkm57XQPVU3/QpyNLHbWDdzwtrlS+ez30S3AdYhLKEOxAG8weOnyrtLJAUen9mTkol8oII1edf7mWWbWVf0nBmly21+nZcmCTISQBtdcyPaEno7fFQMDD26/s0lfKob4Kw8H
 `
 
-var Test_SSH_Hostname_Entries []string = []string{
+var TestSSHHostnameEntries = []string{
 	"bitbucket.org",
 	"github.com",
 	"gitlab.com",
@@ -220,7 +222,7 @@ var Test_SSH_Hostname_Entries []string = []string{
 	"vs-ssh.visualstudio.com",
 }
 
-var Test_SSH_Subtypes []string = []string{
+var TestSSHSubtypes = []string{
 	"ssh-rsa",
 	"ssh-rsa",
 	"ecdsa-sha2-nistp256",
@@ -230,17 +232,19 @@ var Test_SSH_Subtypes []string = []string{
 	"ssh-rsa",
 }
 
-var Test_TLS_Hostnames []string = []string{
+var TestTLSHostnames = []string{
 	"test.example.com",
 	"test.example.com",
 	"github.com",
 }
 
-const Test_NumSSHKnownHostsExpected = 7
-const Test_NumTLSCertificatesExpected = 3
+const (
+	TestNumSSHKnownHostsExpected   = 7
+	TestNumTLSCertificatesExpected = 3
+)
 
 func getCertClientset() *fake.Clientset {
-	cm := v1.ConfigMap{
+	cm := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: testNamespace,
@@ -251,7 +255,7 @@ func getCertClientset() *fake.Clientset {
 		Data: nil,
 	}
 
-	sshCM := v1.ConfigMap{
+	sshCM := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-ssh-known-hosts-cm",
 			Namespace: testNamespace,
@@ -260,11 +264,11 @@ func getCertClientset() *fake.Clientset {
 			},
 		},
 		Data: map[string]string{
-			"ssh_known_hosts": Test_ValidSSHKnownHostsData,
+			"ssh_known_hosts": TestValidSSHKnownHostsData,
 		},
 	}
 
-	tlsCM := v1.ConfigMap{
+	tlsCM := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-tls-certs-cm",
 			Namespace: testNamespace,
@@ -273,67 +277,67 @@ func getCertClientset() *fake.Clientset {
 			},
 		},
 		Data: map[string]string{
-			"test.example.com": Test_TLSValidMultiCert,
-			"gitlab.com":       Test_TLSValidSingleCert,
+			"test.example.com": TestTLSValidMultiCert,
+			"gitlab.com":       TestTLSValidSingleCert,
 		},
 	}
 
-	return fake.NewSimpleClientset([]runtime.Object{&cm, &sshCM, &tlsCM}...)
+	return fake.NewClientset([]runtime.Object{&cm, &sshCM, &tlsCM}...)
 }
 
-func Test_ListCertificate(t *testing.T) {
+func TestListCertificate(t *testing.T) {
 	clientset := getCertClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
 
 	// List all SSH known host entries from configuration.
 	// Expected: List of 7 entries
-	certList, err := db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err := db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "*",
 		CertType:        "ssh",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, Test_NumSSHKnownHostsExpected)
+	assert.Len(t, certList.Items, TestNumSSHKnownHostsExpected)
 	for idx, entry := range certList.Items {
-		assert.Equal(t, entry.ServerName, Test_SSH_Hostname_Entries[idx])
-		assert.Equal(t, entry.CertSubType, Test_SSH_Subtypes[idx])
+		assert.Equal(t, entry.ServerName, TestSSHHostnameEntries[idx])
+		assert.Equal(t, entry.CertSubType, TestSSHSubtypes[idx])
 	}
 
 	// List all TLS certificates from configuration.
 	// Expected: List of 3 entries
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "*",
 		CertType:        "https",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, Test_NumTLSCertificatesExpected)
+	assert.Len(t, certList.Items, TestNumTLSCertificatesExpected)
 
 	// List all certificates using selector
 	// Expected: List of 10 entries
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "*",
 		CertType:        "*",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, Test_NumTLSCertificatesExpected+Test_NumSSHKnownHostsExpected)
+	assert.Len(t, certList.Items, TestNumTLSCertificatesExpected+TestNumSSHKnownHostsExpected)
 
 	// List all certificates using nil selector
 	// Expected: List of 10 entries
-	certList, err = db.ListRepoCertificates(context.Background(), nil)
-	assert.NoError(t, err)
+	certList, err = db.ListRepoCertificates(t.Context(), nil)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, Test_NumTLSCertificatesExpected+Test_NumSSHKnownHostsExpected)
+	assert.Len(t, certList.Items, TestNumTLSCertificatesExpected+TestNumSSHKnownHostsExpected)
 
 	// List all certificates matching a host name pattern
 	// Expected: List of 4 entries, all with servername gitlab.com
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "gitlab.com",
 		CertType:        "*",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 4)
 	for _, entry := range certList.Items {
@@ -341,24 +345,24 @@ func Test_ListCertificate(t *testing.T) {
 	}
 
 	// List all TLS certificates matching a host name pattern
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "gitlab.com",
 		CertType:        "https",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 1)
 	assert.Equal(t, "gitlab.com", certList.Items[0].ServerName)
 	assert.Equal(t, "https", certList.Items[0].CertType)
 }
 
-func Test_CreateSSHKnownHostEntries(t *testing.T) {
+func TestCreateSSHKnownHostEntries(t *testing.T) {
 	clientset := getCertClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
 
 	// Valid known hosts entry
-	certList, err := db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err := db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "foo.example.com",
@@ -367,12 +371,12 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 1)
 
 	// Valid known hosts entry
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "[foo.example.com]:2222",
@@ -381,13 +385,13 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 1)
 
 	// Invalid hostname
 	// Result: Error
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "foo..example.com",
@@ -396,22 +400,22 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Check if it really was added
 	// Result: List of 1 entry
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "foo.example.com",
 		CertType:        "ssh",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 1)
 
 	// Existing cert, same data, no upsert
 	// Result: no error, should return 0 added certificates
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "foo.example.com",
@@ -420,13 +424,13 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
+	assert.Empty(t, certList.Items)
 
 	// Existing cert, different data, no upsert
 	// Result: Error
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "foo.example.com",
@@ -435,11 +439,11 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Existing cert, different data, upsert
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "foo.example.com",
@@ -448,13 +452,13 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 1)
 
 	// Invalid known hosts entry, case 1: key sub type missing
 	// Result: Error
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "bar.example.com",
@@ -463,12 +467,12 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Invalid known hosts entry, case 2: invalid base64 data
 	// Result: Error
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "bar.example.com",
@@ -477,130 +481,130 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, certList)
 }
 
-func Test_CreateTLSCertificates(t *testing.T) {
+func TestCreateTLSCertificates(t *testing.T) {
 	clientset := getCertClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
 
 	// Valid TLS certificate
 	// Expected: List of 1 entry
-	certList, err := db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err := db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "foo.example.com",
 				CertType:   "https",
-				CertData:   []byte(Test_TLSValidSingleCert),
+				CertData:   []byte(TestTLSValidSingleCert),
 			},
 		},
 	}, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 1)
 
 	// Invalid hostname
 	// Result: Error
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "foo..example",
 				CertType:   "https",
-				CertData:   []byte(Test_TLSValidSingleCert),
+				CertData:   []byte(TestTLSValidSingleCert),
 			},
 		},
 	}, false)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Check if it really was added
 	// Result: Return new certificate
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "foo.example.com",
 		CertType:        "https",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 1)
 
 	// Valid TLS certificates, multiple PEMs in data
 	// Expected: List of 2 entry
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "bar.example.com",
 				CertType:   "https",
-				CertData:   []byte(Test_TLSValidMultiCert),
+				CertData:   []byte(TestTLSValidMultiCert),
 			},
 		},
 	}, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 2)
 
 	// Check if it really was added
 	// Result: Return new certificate
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "bar.example.com",
 		CertType:        "https",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 2)
 
 	// Valid TLS certificate, existing cert, same data, no upsert
 	// Expected: List of 0 entry
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "foo.example.com",
 				CertType:   "https",
-				CertData:   []byte(Test_TLSValidSingleCert),
+				CertData:   []byte(TestTLSValidSingleCert),
 			},
 		},
 	}, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
+	assert.Empty(t, certList.Items)
 
 	// Valid TLS certificate, existing cert, different data, no upsert
 	// Expected: Error
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "foo.example.com",
 				CertType:   "https",
-				CertData:   []byte(Test_TLSValidMultiCert),
+				CertData:   []byte(TestTLSValidMultiCert),
 			},
 		},
 	}, false)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Valid TLS certificate, existing cert, different data, upsert
 	// Expected: List of 2 entries
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "foo.example.com",
 				CertType:   "https",
-				CertData:   []byte(Test_TLSValidMultiCert),
+				CertData:   []byte(TestTLSValidMultiCert),
 			},
 		},
 	}, true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 2)
 
 	// Check if upsert was successful
 	// Expected: List of 2 entries, matching hostnames & cert types
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "foo.example.com",
 		CertType:        "https",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 2)
 	for _, entry := range certList.Items {
@@ -610,169 +614,167 @@ func Test_CreateTLSCertificates(t *testing.T) {
 
 	// Invalid PEM data, new cert
 	// Expected: Error
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "baz.example.com",
 				CertType:   "https",
-				CertData:   []byte(Test_TLSInvalidPEMData),
+				CertData:   []byte(TestTLSInvalidPEMData),
 			},
 		},
 	}, false)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Valid PEM data, new cert, but invalid certificate
 	// Expected: Error
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "baz.example.com",
 				CertType:   "https",
-				CertData:   []byte(Test_TLSInvalidSingleCert),
+				CertData:   []byte(TestTLSInvalidSingleCert),
 			},
 		},
 	}, false)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Invalid PEM data, existing cert, upsert
 	// Expected: Error
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "baz.example.com",
 				CertType:   "https",
-				CertData:   []byte(Test_TLSInvalidPEMData),
+				CertData:   []byte(TestTLSInvalidPEMData),
 			},
 		},
 	}, true)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Valid PEM data, existing cert, but invalid certificate, upsert
 	// Expected: Error
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "baz.example.com",
 				CertType:   "https",
-				CertData:   []byte(Test_TLSInvalidSingleCert),
+				CertData:   []byte(TestTLSInvalidSingleCert),
 			},
 		},
 	}, true)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, certList)
-
 }
 
-func Test_RemoveSSHKnownHosts(t *testing.T) {
+func TestRemoveSSHKnownHosts(t *testing.T) {
 	clientset := getCertClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
 
 	// Remove single SSH known hosts entry by hostname
 	// Expected: List of 1 entry
-	certList, err := db.RemoveRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err := db.RemoveRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "github.com",
 		CertType:        "ssh",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 1)
 
 	// Check whether entry was really removed
 	// Expected: List of 0 entries
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "github.com",
 		CertType:        "ssh",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
+	assert.Empty(t, certList.Items)
 
 	// Remove single SSH known hosts entry by sub type
 	// Expected: List of 1 entry
-	certList, err = db.RemoveRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.RemoveRepoCertificates(t.Context(), &CertificateListSelector{
 		CertType:    "ssh",
 		CertSubType: "ssh-ed25519",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 1)
 
 	// Check whether entry was really removed
 	// Expected: List of 0 entries
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		CertType:    "ssh",
 		CertSubType: "ssh-ed25519",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
+	assert.Empty(t, certList.Items)
 
 	// Remove all remaining SSH known hosts entries
 	// Expected: List of 5 entry
-	certList, err = db.RemoveRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.RemoveRepoCertificates(t.Context(), &CertificateListSelector{
 		CertType: "ssh",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 5)
 
 	// Check whether the entries were really removed
 	// Expected: List of 0 entries
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		CertType: "ssh",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
+	assert.Empty(t, certList.Items)
 }
 
-func Test_RemoveTLSCertificates(t *testing.T) {
+func TestRemoveTLSCertificates(t *testing.T) {
 	clientset := getCertClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
 
 	// Remove single TLS certificate entry by hostname
 	// Expected: List of 1 entry
-	certList, err := db.RemoveRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err := db.RemoveRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "gitlab.com",
 		CertType:        "https",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 1)
 
 	// Check whether entry was really removed
 	// Expected: List of 0 entries
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "gitlab.com",
 		CertType:        "https",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
+	assert.Empty(t, certList.Items)
 
 	// Remove all TLS certificate entry for hostname
 	// Expected: List of 2 entry
-	certList, err = db.RemoveRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.RemoveRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "test.example.com",
 		CertType:        "https",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 2)
 
 	// Check whether entries were really removed
 	// Expected: List of 0 entries
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "test.example.com",
 		CertType:        "https",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
-
+	assert.Empty(t, certList.Items)
 }

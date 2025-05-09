@@ -7,7 +7,9 @@ The GitHub notification service changes commit status using [GitHub Apps](https:
 - `appID` - the app id
 - `installationID` - the app installation id
 - `privateKey` - the app private key
-- `enterpriseBaseURL` - optional URL, e.g. https://git.example.com/
+- `enterpriseBaseURL` - optional URL, e.g. https://git.example.com/api/v3
+
+> ⚠️ _NOTE:_ Specifying `/api/v3` in the `enterpriseBaseURL` is required until [argoproj/notifications-engine#205](https://github.com/argoproj/notifications-engine/issues/205) is resolved.
 
 ## Configuration
 
@@ -82,6 +84,19 @@ template.app-deployed: |
       content: |
         Application {{.app.metadata.name}} is now running new version of deployments manifests.
         See more here: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true
+    checkRun:
+      name: "continuous-delivery/{{.app.metadata.name}}"
+      details_url: "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true"
+      status: completed
+      conclusion: success
+      started_at: "YYYY-MM-DDTHH:MM:SSZ"
+      completed_at: "YYYY-MM-DDTHH:MM:SSZ"
+      output:
+        title: "Deployment of {{.app.metadata.name}} on ArgoCD"
+        summary: "Application {{.app.metadata.name}} is now running new version of deployments manifests."
+        text: |
+          Application {{.app.metadata.name}} is now running new version of deployments manifests.
+          See more here: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true
 ```
 
 **Notes**:

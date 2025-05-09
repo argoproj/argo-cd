@@ -1,20 +1,21 @@
 package admin
 
 import (
-	"context"
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+
+	"github.com/argoproj/argo-cd/v3/util/assets"
 )
 
 type FakeClientConfig struct {
@@ -55,8 +56,8 @@ func Test_validateRBACResourceAction(t *testing.T) {
 		{
 			name: "Test valid resource and action",
 			args: args{
-				resource: rbacpolicy.ResourceApplications,
-				action:   rbacpolicy.ActionCreate,
+				resource: rbac.ResourceApplications,
+				action:   rbac.ActionCreate,
 			},
 			valid: true,
 		},
@@ -70,7 +71,7 @@ func Test_validateRBACResourceAction(t *testing.T) {
 		{
 			name: "Test invalid action",
 			args: args{
-				resource: rbacpolicy.ResourceApplications,
+				resource: rbac.ResourceApplications,
 				action:   "invalid",
 			},
 			valid: false,
@@ -78,24 +79,24 @@ func Test_validateRBACResourceAction(t *testing.T) {
 		{
 			name: "Test invalid action for resource",
 			args: args{
-				resource: rbacpolicy.ResourceLogs,
-				action:   rbacpolicy.ActionCreate,
+				resource: rbac.ResourceLogs,
+				action:   rbac.ActionCreate,
 			},
 			valid: false,
 		},
 		{
 			name: "Test valid action with path",
 			args: args{
-				resource: rbacpolicy.ResourceApplications,
-				action:   rbacpolicy.ActionAction + "/apps/Deployment/restart",
+				resource: rbac.ResourceApplications,
+				action:   rbac.ActionAction + "/apps/Deployment/restart",
 			},
 			valid: true,
 		},
 		{
 			name: "Test invalid action with path",
 			args: args{
-				resource: rbacpolicy.ResourceApplications,
-				action:   rbacpolicy.ActionGet + "/apps/Deployment/restart",
+				resource: rbac.ResourceApplications,
+				action:   rbac.ActionGet + "/apps/Deployment/restart",
 			},
 			valid: false,
 		},
@@ -107,14 +108,14 @@ func Test_validateRBACResourceAction(t *testing.T) {
 			if tt.valid {
 				assert.NoError(t, result)
 			} else {
-				assert.NotNil(t, result)
+				assert.Error(t, result)
 			}
 		})
 	}
 }
 
 func Test_PolicyFromCSV(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	uPol, dRole, matchMode := getPolicy(ctx, "testdata/rbac/policy.csv", nil, "")
 	require.NotEmpty(t, uPol)
@@ -123,20 +124,22 @@ func Test_PolicyFromCSV(t *testing.T) {
 }
 
 func Test_PolicyFromYAML(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	uPol, dRole, matchMode := getPolicy(ctx, "testdata/rbac/argocd-rbac-cm.yaml", nil, "")
 	require.NotEmpty(t, uPol)
 	require.Equal(t, "role:unknown", dRole)
 	require.Empty(t, matchMode)
+	require.True(t, checkPolicy("my-org:team-qa", "update", "project", "foo",
+		"", uPol, dRole, matchMode, true))
 }
 
 func Test_PolicyFromK8s(t *testing.T) {
 	data, err := os.ReadFile("testdata/rbac/policy.csv")
-	ctx := context.Background()
+	ctx := t.Context()
 
 	require.NoError(t, err)
-	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
+	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-rbac-cm",
 			Namespace: "argocd",
@@ -149,7 +152,7 @@ func Test_PolicyFromK8s(t *testing.T) {
 	uPol, dRole, matchMode := getPolicy(ctx, "", kubeclientset, "argocd")
 	require.NotEmpty(t, uPol)
 	require.Equal(t, "role:unknown", dRole)
-	require.Equal(t, "", matchMode)
+	require.Empty(t, matchMode)
 
 	t.Run("get applications", func(t *testing.T) {
 		ok := checkPolicy("role:user", "get", "applications", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
@@ -179,6 +182,26 @@ func Test_PolicyFromK8s(t *testing.T) {
 		ok := checkPolicy("role:test", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
 		require.True(t, ok)
 	})
+	t.Run("no-such-user get logs", func(t *testing.T) {
+		ok := checkPolicy("no-such-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		require.False(t, ok)
+	})
+	t.Run("log-deny-user get logs", func(t *testing.T) {
+		ok := checkPolicy("log-deny-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		require.False(t, ok)
+	})
+	t.Run("log-allow-user get logs", func(t *testing.T) {
+		ok := checkPolicy("log-allow-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		require.True(t, ok)
+	})
+	t.Run("get logs", func(t *testing.T) {
+		ok := checkPolicy("role:test", "get", "logs", "*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		require.True(t, ok)
+	})
+	t.Run("get logs", func(t *testing.T) {
+		ok := checkPolicy("role:test", "get", "logs", "", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		require.True(t, ok)
+	})
 	t.Run("create exec", func(t *testing.T) {
 		ok := checkPolicy("role:test", "create", "exec", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
 		require.True(t, ok)
@@ -194,7 +217,7 @@ func Test_PolicyFromK8s(t *testing.T) {
 }
 
 func Test_PolicyFromK8sUsingRegex(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	policy := `
 p, role:user, clusters, get, .+, allow
@@ -207,7 +230,7 @@ p, role:user, logs, get, .*/.*, allow
 p, role:user, exec, create, .*/.*, allow
 `
 
-	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
+	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-rbac-cm",
 			Namespace: "argocd",

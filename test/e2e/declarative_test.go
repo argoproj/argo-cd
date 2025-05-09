@@ -6,8 +6,8 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 )
 
 func TestDeclarativeHappyApp(t *testing.T) {
@@ -58,11 +58,11 @@ func TestDeclarativeInvalidProject(t *testing.T) {
 
 	// TODO: you can`t delete application with invalid project due to enforcment that was recently added,
 	// in https://github.com/argoproj/argo-cd/security/advisories/GHSA-2gvw-w6fj-7m3c
-	//When().
-	//Delete(false).
-	//Then().
-	//Expect(Success("")).
-	//Expect(DoesNotExist())
+	// When().
+	// Delete(false).
+	// Then().
+	// Expect(Success("")).
+	// Expect(DoesNotExist())
 }
 
 func TestDeclarativeInvalidRepoURL(t *testing.T) {

@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/security"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/security"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,6 +33,12 @@ import (
 type SecretRef struct {
 	SecretName string `json:"secretName" protobuf:"bytes,1,opt,name=secretName"`
 	Key        string `json:"key" protobuf:"bytes,2,opt,name=key"`
+}
+
+// Utility struct for a reference to a configmap key.
+type ConfigMapKeyRef struct {
+	ConfigMapName string `json:"configMapName" protobuf:"bytes,1,opt,name=configMapName"`
+	Key           string `json:"key" protobuf:"bytes,2,opt,name=key"`
 }
 
 // ApplicationSet is a set of Application resources
@@ -63,6 +69,8 @@ type ApplicationSetSpec struct {
 	PreservedFields   *ApplicationPreservedFields `json:"preservedFields,omitempty" protobuf:"bytes,6,opt,name=preservedFields"`
 	GoTemplateOptions []string                    `json:"goTemplateOptions,omitempty" protobuf:"bytes,7,opt,name=goTemplateOptions"`
 	// ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
+	// Deprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future
+	// version of the ApplicationSet CRD.
 	ApplyNestedSelectors         bool                            `json:"applyNestedSelectors,omitempty" protobuf:"bytes,8,name=applyNestedSelectors"`
 	IgnoreApplicationDifferences ApplicationSetIgnoreDifferences `json:"ignoreApplicationDifferences,omitempty" protobuf:"bytes,9,name=ignoreApplicationDifferences"`
 	TemplatePatch                *string                         `json:"templatePatch,omitempty" protobuf:"bytes,10,name=templatePatch"`
@@ -373,6 +381,9 @@ type ClusterGenerator struct {
 
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values map[string]string `json:"values,omitempty" protobuf:"bytes,3,name=values"`
+
+	// returns the clusters a single 'clusters' value in the template
+	FlatList bool `json:"flatList,omitempty" protobuf:"bytes,4,name=flatList"`
 }
 
 // DuckType defines a generator to match against clusters registered with ArgoCD.
@@ -437,16 +448,17 @@ type SCMProviderGenerator struct {
 	// If you add a new SCM provider, update CustomApiUrl below.
 }
 
-func (g *SCMProviderGenerator) CustomApiUrl() string {
-	if g.Github != nil {
+func (g *SCMProviderGenerator) CustomApiUrl() string { //nolint:revive //FIXME(var-naming)
+	switch {
+	case g.Github != nil:
 		return g.Github.API
-	} else if g.Gitlab != nil {
+	case g.Gitlab != nil:
 		return g.Gitlab.API
-	} else if g.Gitea != nil {
+	case g.Gitea != nil:
 		return g.Gitea.API
-	} else if g.BitbucketServer != nil {
+	case g.BitbucketServer != nil:
 		return g.BitbucketServer.API
-	} else if g.AzureDevOps != nil {
+	case g.AzureDevOps != nil:
 		return g.AzureDevOps.API
 	}
 	return ""
@@ -498,6 +510,8 @@ type SCMProviderGeneratorGitlab struct {
 	IncludeSharedProjects *bool `json:"includeSharedProjects,omitempty" protobuf:"varint,7,opt,name=includeSharedProjects"`
 	// Filter repos list based on Gitlab Topic.
 	Topic string `json:"topic,omitempty" protobuf:"bytes,8,opt,name=topic"`
+	// ConfigMap key holding the trusted certificates
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,9,opt,name=caRef"`
 }
 
 func (s *SCMProviderGeneratorGitlab) WillIncludeSharedProjects() bool {
@@ -526,6 +540,12 @@ type SCMProviderGeneratorBitbucketServer struct {
 	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,3,opt,name=basicAuth"`
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,4,opt,name=allBranches"`
+	// Credentials for AccessToken (Bearer auth)
+	BearerToken *BearerTokenBitbucket `json:"bearerToken,omitempty" protobuf:"bytes,5,opt,name=bearerToken"`
+	// Allow self-signed TLS / Certificates; default: false
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
+	// ConfigMap key holding the trusted certificates
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,7,opt,name=caRef"`
 }
 
 // SCMProviderGeneratorAzureDevOps defines connection info specific to Azure DevOps.
@@ -592,10 +612,12 @@ type PullRequestGenerator struct {
 	Bitbucket           *PullRequestGeneratorBitbucket `json:"bitbucket,omitempty" protobuf:"bytes,8,opt,name=bitbucket"`
 	// Additional provider to use and config for it.
 	AzureDevOps *PullRequestGeneratorAzureDevOps `json:"azuredevops,omitempty" protobuf:"bytes,9,opt,name=azuredevops"`
+	// Values contains key/value pairs which are passed directly as parameters to the template
+	Values map[string]string `json:"values,omitempty" protobuf:"bytes,10,name=values"`
 	// If you add a new SCM provider, update CustomApiUrl below.
 }
 
-func (p *PullRequestGenerator) CustomApiUrl() string {
+func (p *PullRequestGenerator) CustomApiUrl() string { //nolint:revive //FIXME(var-naming)
 	if p.Github != nil {
 		return p.Github.API
 	}
@@ -629,6 +651,8 @@ type PullRequestGeneratorGitea struct {
 	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,4,opt,name=tokenRef"`
 	// Allow insecure tls, for self-signed certificates; default: false.
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+	// Labels is used to filter the PRs that you want to target
+	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
@@ -677,6 +701,8 @@ type PullRequestGeneratorGitLab struct {
 	PullRequestState string `json:"pullRequestState,omitempty" protobuf:"bytes,5,rep,name=pullRequestState"`
 	// Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
+	// ConfigMap key holding the trusted certificates
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,7,opt,name=caRef"`
 }
 
 // PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.
@@ -689,6 +715,12 @@ type PullRequestGeneratorBitbucketServer struct {
 	API string `json:"api" protobuf:"bytes,3,opt,name=api"`
 	// Credentials for Basic auth
 	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,4,opt,name=basicAuth"`
+	// Credentials for AccessToken (Bearer auth)
+	BearerToken *BearerTokenBitbucket `json:"bearerToken,omitempty" protobuf:"bytes,5,opt,name=bearerToken"`
+	// Allow self-signed TLS / Certificates; default: false
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
+	// ConfigMap key holding the trusted certificates
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,7,opt,name=caRef"`
 }
 
 // PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.
@@ -703,6 +735,12 @@ type PullRequestGeneratorBitbucket struct {
 	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,4,opt,name=basicAuth"`
 	// Credentials for AppToken (Bearer auth)
 	BearerToken *BearerTokenBitbucketCloud `json:"bearerToken,omitempty" protobuf:"bytes,5,opt,name=bearerToken"`
+}
+
+// BearerTokenBitbucket defines the Bearer token for BitBucket AppToken auth.
+type BearerTokenBitbucket struct {
+	// Password (or personal access token) reference.
+	TokenRef *SecretRef `json:"tokenRef" protobuf:"bytes,1,opt,name=tokenRef"`
 }
 
 // BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.
@@ -763,7 +801,7 @@ type ApplicationSetStatus struct {
 	Resources []ResourceStatus `json:"resources,omitempty" protobuf:"bytes,3,opt,name=resources"`
 }
 
-// ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning
+// ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning
 type ApplicationSetCondition struct {
 	// Type is an applicationset condition type
 	Type ApplicationSetConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
@@ -773,7 +811,7 @@ type ApplicationSetCondition struct {
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
 	// True/False/Unknown
 	Status ApplicationSetConditionStatus `json:"status" protobuf:"bytes,4,opt,name=status"`
-	//Single word camelcase representing the reason for the status eg ErrorOccurred
+	// Single word camelcase representing the reason for the status eg ErrorOccurred
 	Reason string `json:"reason" protobuf:"bytes,5,opt,name=reason"`
 }
 
@@ -835,6 +873,8 @@ type ApplicationSetApplicationStatus struct {
 	Status string `json:"status" protobuf:"bytes,4,opt,name=status"`
 	// Step tracks which step this Application should be updated in
 	Step string `json:"step" protobuf:"bytes,5,opt,name=step"`
+	// TargetRevision tracks the desired revisions the Application should be synced to.
+	TargetRevisions []string `json:"targetRevisions" protobuf:"bytes,6,opt,name=targetrevisions"`
 }
 
 // ApplicationSetList contains a list of ApplicationSet
@@ -875,7 +915,7 @@ func (a *ApplicationSet) RefreshRequired() bool {
 // If the applicationset has a pre-existing condition of a type that is not in the evaluated list,
 // it will be preserved. If the applicationset has a pre-existing condition of a type, status, reason that
 // is in the evaluated list, but not in the incoming conditions list, it will be removed.
-func (status *ApplicationSetStatus) SetConditions(conditions []ApplicationSetCondition, evaluatedTypes map[ApplicationSetConditionType]bool) {
+func (status *ApplicationSetStatus) SetConditions(conditions []ApplicationSetCondition, _ map[ApplicationSetConditionType]bool) {
 	applicationSetConditions := make([]ApplicationSetCondition, 0)
 	now := metav1.Now()
 	for i := range conditions {
@@ -927,7 +967,6 @@ func (status *ApplicationSetStatus) SetApplicationStatus(newStatus ApplicationSe
 func (a *ApplicationSet) QualifiedName() string {
 	if a.Namespace == "" {
 		return a.Name
-	} else {
-		return a.Namespace + "/" + a.Name
 	}
+	return a.Namespace + "/" + a.Name
 }

@@ -4,28 +4,25 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/env"
 	"math"
 	"time"
 
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/env"
+
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/timeout"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
-	argogrpc "github.com/argoproj/argo-cd/v2/util/grpc"
-	"github.com/argoproj/argo-cd/v2/util/io"
+	argogrpc "github.com/argoproj/argo-cd/v3/util/grpc"
+	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
-//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=RepoServerServiceClient
-
-var (
-	// MaxGRPCMessageSize contains max grpc message size
-	MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 100, 0, math.MaxInt32) * 1024 * 1024
-)
+// MaxGRPCMessageSize contains max grpc message size
+var MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 100, 0, math.MaxInt32) * 1024 * 1024
 
 // TLSConfiguration describes parameters for TLS configuration to be used by a repo server API client
 type TLSConfiguration struct {
@@ -63,11 +60,11 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 	}
 	unaryInterceptors := []grpc.UnaryClientInterceptor{grpc_retry.UnaryClientInterceptor(retryOpts...)}
 	if timeoutSeconds > 0 {
-		unaryInterceptors = append(unaryInterceptors, argogrpc.WithTimeout(time.Duration(timeoutSeconds)*time.Second))
+		unaryInterceptors = append(unaryInterceptors, timeout.UnaryClientInterceptor(time.Duration(timeoutSeconds)*time.Second))
 	}
 	opts := []grpc.DialOption{
 		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)),
-		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)),
+		grpc.WithChainUnaryInterceptor(unaryInterceptors...),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)),
 		grpc.WithUnaryInterceptor(argogrpc.OTELUnaryClientInterceptor()),
 		grpc.WithStreamInterceptor(argogrpc.OTELStreamClientInterceptor()),
@@ -85,6 +82,7 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
+	//nolint:staticcheck
 	conn, err := grpc.Dial(address, opts...)
 	if err != nil {
 		log.Errorf("Unable to connect to repository service with address %s", address)

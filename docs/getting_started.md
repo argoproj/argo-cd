@@ -23,7 +23,7 @@ This will create a new namespace, `argocd`, where Argo CD services and applicati
     namespace then make sure to update the namespace reference.
 
 !!! tip
-    If you are not interested in UI, SSO, and multi-cluster features, then you can install only the [core](operator-manual/core/#installing) Argo CD components.
+    If you are not interested in UI, SSO, and multi-cluster features, then you can install only the [core](operator-manual/core.md#installing) Argo CD components.
 
 This default installation will have a self-signed certificate and cannot be accessed without a bit of extra work.
 Do one of:
@@ -63,6 +63,11 @@ Change the argocd-server service type to `LoadBalancer`:
 
 ```bash
 kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+```
+After a short wait, your cloud provider will assign an external IP address to the service. You can retrieve this IP with:
+
+```bash
+kubectl get svc argocd-server -n argocd -o=jsonpath='{.status.loadBalancer.ingress[0].ip}'
 ```
 
 ### Ingress
@@ -141,6 +146,9 @@ service account token to perform its management tasks (i.e. deploy/monitoring).
 An example repository containing a guestbook application is available at
 [https://github.com/argoproj/argocd-example-apps.git](https://github.com/argoproj/argocd-example-apps.git) to demonstrate how Argo CD works.
 
+!!! note
+    Note: The following example application may only be compatible with AMD64 architecture. If you are running on a different architecture (such as ARM64 or ARMv7), you may encounter issues with dependencies or container images that are not built for your platform. Consider verifying the compatibility of the application or building architecture-specific images if necessary.
+
 ### Creating Apps Via CLI
 
 First we need to set the current namespace to argocd running the following command:
@@ -157,7 +165,7 @@ argocd app create guestbook --repo https://github.com/argoproj/argocd-example-ap
 
 ### Creating Apps Via UI
 
-Open a browser to the Argo CD external UI, and login by visiting the IP/hostname in a browser and use the credentials set in step 4.
+Open a browser to the Argo CD external UI, and login by visiting the IP/hostname in a browser and use the credentials set in step 4 or locally as explained in [Try Argo CD Locally](try_argo_cd_locally.md).
 
 After logging in, click the **+ New App** button as shown below:
 

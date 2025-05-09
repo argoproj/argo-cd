@@ -16,18 +16,20 @@ Argo CD currently has 3 different strategies to calculate diffs:
   in dryrun mode in order to generate the predicted live state.
 
 ## Structured-Merge Diff
-*Current Status: [Beta][1] (Since v2.5.0)*
 
-This is diff strategy is automatically used when Server-Side Apply
+!!! warning "Feature Discontinued"
+    After different issues were identified by the community, this strategy is being discontinued in favour of Server-Side Diff.
+
+This diff strategy is automatically used when Server-Side Apply
 sync option is enabled. It uses the [structured-merge-diff][2] library
 used by Kubernetes to calculate diffs based on fields ownership. There
 are some challenges using this strategy to calculate diffs for CRDs
-that define default values. After different issues were identified by
-the community, this strategy is being discontinued in favour of
-Server-Side Diff.
+that define default values.
 
 ## Server-Side Diff
-*Current Status: [Beta][1] (Since v2.10.0)*
+
+!!! warning "Beta Feature (Since v2.10.0)"
+    This feature is in the [Beta][1] stage. It is generally considered stable, but there may be unhandled edge cases.
 
 This diff strategy will execute a Server-Side Apply in dryrun mode for
 each resource of the application. The response of this operation is then
@@ -46,6 +48,12 @@ a validation webhook identifies a resource to be invalid, that will be
 informed to Argo CD during the diff stage rather than during the sync 
 stage.
 
+Note that Server-Side Diff will not be performed during the creation of new resources.
+This is to save an additional call to KubeAPI and provide a much lighter and faster diff calculation
+(Non-Server-Side Apply) when resources don't exist to compare against. During resource creation performing a
+Server-Side Diff won't have the benefit of the Kubernetes Admission Controller in the diff stage as validation webhooks 
+won't be executed when calculating diffs if the resource is not applied in the cluster yet.
+
 ### Enabling it
 
 Server-Side Diff can be enabled at the Argo CD Controller level or per
@@ -55,7 +63,7 @@ Application.
 
 Add the following entry in the argocd-cmd-params-cm configmap:
 
-```
+```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -72,7 +80,7 @@ after applying this configuration.
 
 Add the following annotation in the Argo CD Application resource:
 
-```
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -87,7 +95,7 @@ If Server-Side Diff is enabled globally in your Argo CD instance, it
 is possible to disable it at the application level. In order to do so,
 add the following annotation in the Application resource:
 
-```
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -105,7 +113,7 @@ Server-Side Diff does not include changes made by mutation webhooks by
 default. If you want to include mutation webhooks in Argo CD diffs add
 the following annotation in the Argo CD Application resource:
 
-```
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -118,7 +126,7 @@ Note: This annotation is only effective when Server-Side Diff is
 enabled. To enable both options for a given application add the
 following annotation in the Argo CD Application resource:
 
-```
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

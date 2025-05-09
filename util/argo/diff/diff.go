@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -8,11 +9,11 @@ import (
 
 	k8smanagedfields "k8s.io/apimachinery/pkg/util/managedfields"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
-	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
-	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/argo/managedfields"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -190,48 +191,63 @@ type diffConfig struct {
 func (c *diffConfig) Ignores() []v1alpha1.ResourceIgnoreDifferences {
 	return c.ignores
 }
+
 func (c *diffConfig) Overrides() map[string]v1alpha1.ResourceOverride {
 	return c.overrides
 }
+
 func (c *diffConfig) AppLabelKey() string {
 	return c.appLabelKey
 }
+
 func (c *diffConfig) TrackingMethod() string {
 	return c.trackingMethod
 }
+
 func (c *diffConfig) AppName() string {
 	return c.appName
 }
+
 func (c *diffConfig) NoCache() bool {
 	return c.noCache
 }
+
 func (c *diffConfig) StateCache() *appstatecache.Cache {
 	return c.stateCache
 }
+
 func (c *diffConfig) IgnoreAggregatedRoles() bool {
 	return c.ignoreAggregatedRoles
 }
+
 func (c *diffConfig) Logger() *logr.Logger {
 	return c.logger
 }
+
 func (c *diffConfig) GVKParser() *k8smanagedfields.GvkParser {
 	return c.gvkParser
 }
+
 func (c *diffConfig) StructuredMergeDiff() bool {
 	return c.structuredMergeDiff
 }
+
 func (c *diffConfig) Manager() string {
 	return c.manager
 }
+
 func (c *diffConfig) ServerSideDryRunner() diff.ServerSideDryRunner {
 	return c.serverSideDryRunner
 }
+
 func (c *diffConfig) ServerSideDiff() bool {
 	return c.serverSideDiff
 }
+
 func (c *diffConfig) IgnoreMutationWebhook() bool {
 	return c.ignoreMutationWebhook
 }
+
 func (c *diffConfig) IgnoreNormalizerOpts() normalizers.IgnoreNormalizerOpts {
 	return c.ignoreNormalizerOpts
 }
@@ -325,7 +341,7 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unstructured.Unstructured, cachedDiff []*v1alpha1.ResourceDiff, opts ...diff.Option) (*diff.DiffResultList, error) {
 	numItems := len(configArray)
 	if len(liveArray) != numItems {
-		return nil, fmt.Errorf("left and right arrays have mismatched lengths")
+		return nil, errors.New("left and right arrays have mismatched lengths")
 	}
 
 	diffByKey := map[kube.ResourceKey]*v1alpha1.ResourceDiff{}
@@ -396,11 +412,11 @@ func (c *diffConfig) DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDi
 // the diff. None of the attributes in the lives and targets params will be modified.
 func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig DiffConfig) (*NormalizationResult, error) {
 	if diffConfig == nil {
-		return nil, fmt.Errorf("preDiffNormalize error: diffConfig can not be nil")
+		return nil, errors.New("preDiffNormalize error: diffConfig can not be nil")
 	}
 	err := diffConfig.Validate()
 	if err != nil {
-		return nil, fmt.Errorf("preDiffNormalize error: %s", err)
+		return nil, fmt.Errorf("preDiffNormalize error: %w", err)
 	}
 
 	results := &NormalizationResult{}

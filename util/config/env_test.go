@@ -7,13 +7,15 @@ import (
 )
 
 func loadOpts(t *testing.T, opts string) {
+	t.Helper()
 	t.Setenv("ARGOCD_OPTS", opts)
-	assert.Nil(t, loadFlags())
+	assert.NoError(t, LoadFlags())
 }
 
 func loadInvalidOpts(t *testing.T, opts string) {
+	t.Helper()
 	t.Setenv("ARGOCD_OPTS", opts)
-	assert.Error(t, loadFlags())
+	assert.Error(t, LoadFlags())
 }
 
 func TestNilOpts(t *testing.T) {
@@ -82,7 +84,7 @@ func TestStringSliceFlag(t *testing.T) {
 	loadOpts(t, "--header='Content-Type: application/json; charset=utf-8,Strict-Transport-Security: max-age=31536000'")
 	strings := GetStringSliceFlag("header", []string{})
 
-	assert.Equal(t, 2, len(strings))
+	assert.Len(t, strings, 2)
 	assert.Equal(t, "Content-Type: application/json; charset=utf-8", strings[0])
 	assert.Equal(t, "Strict-Transport-Security: max-age=31536000", strings[1])
 }
@@ -91,7 +93,7 @@ func TestStringSliceFlagAtStart(t *testing.T) {
 	loadOpts(t, "--header='Strict-Transport-Security: max-age=31536000' --bar baz")
 	strings := GetStringSliceFlag("header", []string{})
 
-	assert.Equal(t, 1, len(strings))
+	assert.Len(t, strings, 1)
 	assert.Equal(t, "Strict-Transport-Security: max-age=31536000", strings[0])
 }
 
@@ -99,7 +101,7 @@ func TestStringSliceFlagInMiddle(t *testing.T) {
 	loadOpts(t, "--bar baz --header='Strict-Transport-Security: max-age=31536000' --qux")
 	strings := GetStringSliceFlag("header", []string{})
 
-	assert.Equal(t, 1, len(strings))
+	assert.Len(t, strings, 1)
 	assert.Equal(t, "Strict-Transport-Security: max-age=31536000", strings[0])
 }
 
@@ -107,7 +109,7 @@ func TestStringSliceFlagAtEnd(t *testing.T) {
 	loadOpts(t, "--bar baz --header='Strict-Transport-Security: max-age=31536000'")
 	strings := GetStringSliceFlag("header", []string{})
 
-	assert.Equal(t, 1, len(strings))
+	assert.Len(t, strings, 1)
 	assert.Equal(t, "Strict-Transport-Security: max-age=31536000", strings[0])
 }
 

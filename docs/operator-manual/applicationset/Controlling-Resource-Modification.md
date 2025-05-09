@@ -35,7 +35,7 @@ spec:
 - Policy `create-only`: Prevents ApplicationSet controller from modifying or deleting Applications. **WARNING**: It doesn't prevent Application controller from deleting Applications according to [ownerReferences](https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/) when deleting ApplicationSet.
 - Policy `create-update`: Prevents ApplicationSet controller from deleting Applications. Update is allowed. **WARNING**: It doesn't prevent Application controller from deleting Applications according to [ownerReferences](https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/) when deleting ApplicationSet.
 - Policy `create-delete`: Prevents ApplicationSet controller from modifying Applications. Delete is allowed.
-- Policy `sync`: Update and Delete are allowed.
+- Policy `sync`: Create, Update and Delete are allowed.
 
 If the controller parameter `--policy` is set, it takes precedence on the field `applicationsSync`. It is possible to allow per ApplicationSet sync policy by setting variable `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE` to argocd-cmd-params-cm `applicationsetcontroller.enable.policy.override` or directly with controller parameter `--enable-policy-override` (default to `false`).
 
@@ -343,3 +343,15 @@ metadata:
 data:
   applicationsetcontroller.log.level: debug
 ```
+
+## Previewing changes
+
+To preview changes that the ApplicationSet controller would make to Applications, you can create the AppSet in dry-run 
+mode. This works whether the AppSet already exists or not.
+
+```shell
+argocd appset create --dry-run ./appset.yaml -o json | jq -r '.status.resources[].name'
+```
+
+The dry-run will populate the returned ApplicationSet's status with the Applications which would be managed with the 
+given config. You can compare to the existing Applications to see what would change.

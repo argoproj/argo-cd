@@ -9,20 +9,23 @@ ApplicationSet is using [fasttemplate](https://github.com/valyala/fasttemplate) 
 An Argo CD Application is created by combining the parameters from the generator with fields of the template (via `{{values}}`), and from that a concrete `Application` resource is produced and applied to the cluster.
 
 Here is the template subfield from a Cluster generator:
+
 ```yaml
 # (...)
  template:
    metadata:
-     name: '{{cluster}}-guestbook'
+     name: '{{ .nameNormalized }}-guestbook'
    spec:
      source:
        repoURL: https://github.com/infra-team/cluster-deployments.git
        targetRevision: HEAD
-       path: guestbook/{{cluster}}
+       path: guestbook/{{ .nameNormalized }}
      destination:
-       server: '{{url}}'
+       server: '{{ .server }}'
        namespace: guestbook
 ```
+
+For details on all available parameters (like `.name`, `.nameNormalized`, etc.) please refer to the [Cluster Generator docs](./Generators-Cluster.md).
 
 The template subfields correspond directly to [the spec of an Argo CD `Application` resource](../../declarative-setup/#applications):
 
@@ -40,6 +43,7 @@ Note:
 
 - Referenced clusters must already be defined in Argo CD, for the ApplicationSet controller to use them
 - Only **one** of `name` or `server` may be specified: if both are specified, an error is returned.
+- Signature Verification does not work with the templated `project` field when using git generator.
 
 The `metadata` field of template may also be used to set an Application `name`, or to add labels or annotations to the Application.
 
@@ -53,7 +57,7 @@ template as a Helm string literal. For example:
 
 ```yaml
     metadata:
-      name: '{{`{{.cluster}}`}}-guestbook'
+      name: '{{`{{ .nameNormalized }}`}}-guestbook'
 ```
 
 This _only_ applies if you use Helm to deploy your ApplicationSet resources.
@@ -88,12 +92,12 @@ spec:
             targetRevision: HEAD
             repoURL: https://github.com/argoproj/argo-cd.git
             # New path value is generated here:
-            path: 'applicationset/examples/template-override/{{cluster}}-override'
+            path: 'applicationset/examples/template-override/{{ .nameNormalized }}-override'
           destination: {}
 
   template:
     metadata:
-      name: '{{cluster}}-guestbook'
+      name: '{{ .nameNormalized }}-guestbook'
     spec:
       project: "default"
       source:
@@ -102,7 +106,7 @@ spec:
         # This 'default' value is not used: it is replaced by the generator's template path, above
         path: applicationset/examples/template-override/default
       destination:
-        server: '{{url}}'
+        server: '{{ .server }}'
         namespace: guestbook
 ```
 (*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/template-override).*)
@@ -140,15 +144,15 @@ spec:
             - values.debug.yaml
   template:
     metadata:
-      name: '{{.cluster}}-deployment'
+      name: '{{ .nameNormalized }}-deployment'
     spec:
       project: "default"
       source:
         repoURL: https://github.com/infra-team/cluster-deployments.git
         targetRevision: HEAD
-        path: guestbook/{{ .cluster }}
+        path: guestbook/{{ .nameNormalized }}
       destination:
-        server: '{{.url}}'
+        server: '{{ .server }}'
         namespace: guestbook
   templatePatch: |
     spec:

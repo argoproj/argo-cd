@@ -8,14 +8,14 @@ import (
 	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
-	v1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
 
 type state = string
@@ -28,10 +28,10 @@ const (
 
 type Expectation func(c *Consequences) (state state, message string)
 
-func OperationPhaseIs(expected OperationPhase) Expectation {
+func OperationPhaseIs(expected common.OperationPhase) Expectation {
 	return func(c *Consequences) (state, string) {
 		operationState := c.app().Status.OperationState
-		actual := OperationRunning
+		actual := common.OperationRunning
 		if operationState != nil {
 			actual = operationState.Phase
 		}
@@ -53,19 +53,18 @@ func OperationMessageContains(text string) Expectation {
 func simple(success bool, message string) (state, string) {
 	if success {
 		return succeeded, message
-	} else {
-		return pending, message
 	}
+	return pending, message
 }
 
-func SyncStatusIs(expected SyncStatusCode) Expectation {
+func SyncStatusIs(expected v1alpha1.SyncStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.app().Status.Sync.Status
 		return simple(actual == expected, fmt.Sprintf("sync status to be %s, is %s", expected, actual))
 	}
 }
 
-func Condition(conditionType ApplicationConditionType, conditionMessage string) Expectation {
+func Condition(conditionType v1alpha1.ApplicationConditionType, conditionMessage string) Expectation {
 	return func(c *Consequences) (state, string) {
 		got := c.app().Status.Conditions
 		message := fmt.Sprintf("condition {%s %s} in %v", conditionType, conditionMessage, got)
@@ -108,12 +107,11 @@ func StatusExists() Expectation {
 	}
 }
 
-func Namespace(name string, block func(app *Application, ns *v1.Namespace)) Expectation {
+func Namespace(name string, block func(app *v1alpha1.Application, ns *corev1.Namespace)) Expectation {
 	return func(c *Consequences) (state, string) {
 		ns, err := namespace(name)
-
 		if err != nil {
-			return failed, fmt.Sprintf("namespace not found %s", err.Error())
+			return failed, "namespace not found " + err.Error()
 		}
 
 		block(c.app(), ns)
@@ -128,13 +126,14 @@ func HealthIs(expected health.HealthStatusCode) Expectation {
 	}
 }
 
-func ResourceSyncStatusIs(kind, resource string, expected SyncStatusCode) Expectation {
+func ResourceSyncStatusIs(kind, resource string, expected v1alpha1.SyncStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.resource(kind, resource, "").Status
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' sync status should be %s, is %s", kind, resource, expected, actual))
 	}
 }
-func ResourceSyncStatusWithNamespaceIs(kind, resource, namespace string, expected SyncStatusCode) Expectation {
+
+func ResourceSyncStatusWithNamespaceIs(kind, resource, namespace string, expected v1alpha1.SyncStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.resource(kind, resource, namespace).Status
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' sync status should be %s, is %s", kind, resource, expected, actual))
@@ -143,16 +142,32 @@ func ResourceSyncStatusWithNamespaceIs(kind, resource, namespace string, expecte
 
 func ResourceHealthIs(kind, resource string, expected health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
-		actual := c.resource(kind, resource, "").Health.Status
+		var actual health.HealthStatusCode
+		resourceHealth := c.resource(kind, resource, "").Health
+		if resourceHealth != nil {
+			actual = resourceHealth.Status
+		} else {
+			// Some resources like ConfigMap may not have health status when they are okay
+			actual = health.HealthStatusHealthy
+		}
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' health should be %s, is %s", kind, resource, expected, actual))
 	}
 }
+
 func ResourceHealthWithNamespaceIs(kind, resource, namespace string, expected health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
-		actual := c.resource(kind, resource, namespace).Health.Status
+		var actual health.HealthStatusCode
+		resourceHealth := c.resource(kind, resource, namespace).Health
+		if resourceHealth != nil {
+			actual = resourceHealth.Status
+		} else {
+			// Some resources like ConfigMap may not have health status when they are okay
+			actual = health.HealthStatusHealthy
+		}
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' health should be %s, is %s", kind, resource, expected, actual))
 	}
 }
+
 func ResourceResultNumbering(num int) Expectation {
 	return func(c *Consequences) (state, string) {
 		actualNum := len(c.app().Status.OperationState.SyncResult.Resources)
@@ -160,13 +175,12 @@ func ResourceResultNumbering(num int) Expectation {
 			return pending, fmt.Sprintf("not enough results yet, want %d, got %d", num, actualNum)
 		} else if actualNum == num {
 			return succeeded, fmt.Sprintf("right number of results, want %d, got %d", num, actualNum)
-		} else {
-			return failed, fmt.Sprintf("too many results, want %d, got %d", num, actualNum)
 		}
+		return failed, fmt.Sprintf("too many results, want %d, got %d", num, actualNum)
 	}
 }
 
-func ResourceResultIs(result ResourceResult) Expectation {
+func ResourceResultIs(result v1alpha1.ResourceResult) Expectation {
 	return func(c *Consequences) (state, string) {
 		results := c.app().Status.OperationState.SyncResult.Resources
 		for _, res := range results {
@@ -178,7 +192,7 @@ func ResourceResultIs(result ResourceResult) Expectation {
 	}
 }
 
-func sameResourceResult(res1, res2 ResourceResult) bool {
+func sameResourceResult(res1, res2 v1alpha1.ResourceResult) bool {
 	return res1.Kind == res2.Kind &&
 		res1.Group == res2.Group &&
 		res1.Namespace == res2.Namespace &&
@@ -188,7 +202,7 @@ func sameResourceResult(res1, res2 ResourceResult) bool {
 		res1.HookPhase == res2.HookPhase
 }
 
-func ResourceResultMatches(result ResourceResult) Expectation {
+func ResourceResultMatches(result v1alpha1.ResourceResult) Expectation {
 	return func(c *Consequences) (state, string) {
 		results := c.app().Status.OperationState.SyncResult.Resources
 		for _, res := range results {
@@ -207,7 +221,7 @@ func DoesNotExist() Expectation {
 	return func(c *Consequences) (state, string) {
 		_, err := c.get()
 		if err != nil {
-			if apierr.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				return succeeded, "app does not exist"
 			}
 			return failed, err.Error()
@@ -220,7 +234,7 @@ func DoesNotExistNow() Expectation {
 	return func(c *Consequences) (state, string) {
 		_, err := c.get()
 		if err != nil {
-			if apierr.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				return succeeded, "app does not exist"
 			}
 			return failed, err.Error()
@@ -229,8 +243,8 @@ func DoesNotExistNow() Expectation {
 	}
 }
 
-func Pod(predicate func(p v1.Pod) bool) Expectation {
-	return func(c *Consequences) (state, string) {
+func Pod(predicate func(p corev1.Pod) bool) Expectation {
+	return func(_ *Consequences) (state, string) {
 		pods, err := pods()
 		if err != nil {
 			return failed, err.Error()
@@ -244,8 +258,8 @@ func Pod(predicate func(p v1.Pod) bool) Expectation {
 	}
 }
 
-func NotPod(predicate func(p v1.Pod) bool) Expectation {
-	return func(c *Consequences) (state, string) {
+func NotPod(predicate func(p corev1.Pod) bool) Expectation {
+	return func(_ *Consequences) (state, string) {
 		pods, err := pods()
 		if err != nil {
 			return failed, err.Error()
@@ -259,25 +273,24 @@ func NotPod(predicate func(p v1.Pod) bool) Expectation {
 	}
 }
 
-func pods() (*v1.PodList, error) {
+func pods() (*corev1.PodList, error) {
 	fixture.KubeClientset.CoreV1()
 	pods, err := fixture.KubeClientset.CoreV1().Pods(fixture.DeploymentNamespace()).List(context.Background(), metav1.ListOptions{})
 	return pods, err
 }
 
 func NoNamespace(name string) Expectation {
-	return func(c *Consequences) (state, string) {
+	return func(_ *Consequences) (state, string) {
 		_, err := namespace(name)
-
 		if err != nil {
 			return succeeded, "namespace not found"
 		}
 
-		return failed, fmt.Sprintf("found namespace %s", name)
+		return failed, "found namespace " + name
 	}
 }
 
-func namespace(name string) (*v1.Namespace, error) {
+func namespace(name string) (*corev1.Namespace, error) {
 	fixture.KubeClientset.CoreV1()
 	return fixture.KubeClientset.CoreV1().Namespaces().Get(context.Background(), name, metav1.GetOptions{})
 }
@@ -357,7 +370,7 @@ func Error(message, err string, matchers ...func(string, string) bool) Expectati
 			return failed, fmt.Sprintf("output does not contain '%s'", message)
 		}
 		if !match(c.actions.lastError.Error(), err) {
-			return failed, fmt.Sprintf("error does not contain '%s'", message)
+			return failed, fmt.Sprintf("error does not contain '%s'", err)
 		}
 		return succeeded, fmt.Sprintf("error '%s'", message)
 	}

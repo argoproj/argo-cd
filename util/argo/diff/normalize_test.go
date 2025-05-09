@@ -7,11 +7,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/argo/diff"
-	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
-	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/argo/diff"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/argo/testdata"
 )
 
 func TestNormalize(t *testing.T) {
@@ -50,7 +50,7 @@ func TestNormalize(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.Equal(t, 1, len(result.Targets))
+		require.Len(t, result.Targets, 1)
 		_, ok, err := unstructured.NestedFloat64(result.Targets[0].Object, "spec", "revisionHistoryLimit")
 		require.NoError(t, err)
 		require.False(t, ok)
@@ -79,7 +79,7 @@ func TestNormalize(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.Equal(t, 1, len(normalized.Targets))
+		require.Len(t, normalized.Targets, 1)
 		_, ok, err := unstructured.NestedFloat64(normalized.Targets[0].Object, "spec", "revisionHistoryLimit")
 		require.NoError(t, err)
 		require.False(t, ok)
@@ -103,7 +103,7 @@ func TestNormalize(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.Equal(t, 1, len(result.Targets))
+		require.Len(t, result.Targets, 1)
 		assert.Equal(t, f.lives[0], result.Lives[0])
 		assert.Equal(t, f.targets[0], result.Targets[0])
 	})

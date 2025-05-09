@@ -7,22 +7,23 @@ import (
 	"testing"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v3/common"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appsfake "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	appinformers "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions/application/v1alpha1"
-	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
-	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appsfake "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
+	appinformers "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 )
@@ -33,17 +34,17 @@ func TestClusterSecretUpdater(t *testing.T) {
 	const updatedK8sVersion = "1.0"
 	now := time.Now()
 
-	var tests = []struct {
+	tests := []struct {
 		LastCacheSyncTime *time.Time
 		SyncError         error
 		ExpectedStatus    v1alpha1.ConnectionStatus
 	}{
 		{nil, nil, v1alpha1.ConnectionStatusUnknown},
 		{&now, nil, v1alpha1.ConnectionStatusSuccessful},
-		{&now, fmt.Errorf("sync failed"), v1alpha1.ConnectionStatusFailed},
+		{&now, errors.New("sync failed"), v1alpha1.ConnectionStatusFailed},
 	}
 
-	emptyArgoCDConfigMap := &v1.ConfigMap{
+	emptyArgoCDConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: fakeNamespace,
@@ -53,7 +54,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 		},
 		Data: map[string]string{},
 	}
-	argoCDSecret := &v1.Secret{
+	argoCDSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDSecretName,
 			Namespace: fakeNamespace,
@@ -66,17 +67,17 @@ func TestClusterSecretUpdater(t *testing.T) {
 			"server.secretkey": nil,
 		},
 	}
-	kubeclientset := fake.NewSimpleClientset(emptyArgoCDConfigMap, argoCDSecret)
+	kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecret)
 	appclientset := appsfake.NewSimpleClientset()
 	appInformer := appinformers.NewApplicationInformer(appclientset, "", time.Minute, cache.Indexers{})
-	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+	settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 	argoDB := db.NewDB(fakeNamespace, settingsManager, kubeclientset)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	appCache := appstate.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute)
 	cluster, err := argoDB.CreateCluster(ctx, &v1alpha1.Cluster{Server: "http://minikube"})
-	assert.NoError(t, err, "Test prepare test data create cluster failed")
+	require.NoError(t, err, "Test prepare test data create cluster failed")
 
 	for _, test := range tests {
 		info := &clustercache.ClusterInfo{
@@ -89,21 +90,21 @@ func TestClusterSecretUpdater(t *testing.T) {
 		lister := applisters.NewApplicationLister(appInformer.GetIndexer()).Applications(fakeNamespace)
 		updater := NewClusterInfoUpdater(nil, argoDB, lister, appCache, nil, nil, fakeNamespace)
 
-		err = updater.updateClusterInfo(context.Background(), *cluster, info)
-		assert.NoError(t, err, "Invoking updateClusterInfo failed.")
+		err = updater.updateClusterInfo(t.Context(), *cluster, info)
+		require.NoError(t, err, "Invoking updateClusterInfo failed.")
 
 		var clusterInfo v1alpha1.ClusterInfo
 		err = appCache.GetClusterInfo(cluster.Server, &clusterInfo)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, updatedK8sVersion, clusterInfo.ServerVersion)
 		assert.Equal(t, test.ExpectedStatus, clusterInfo.ConnectionState.Status)
 	}
 }
 
 func TestUpdateClusterLabels(t *testing.T) {
-	shouldNotBeInvoked := func(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
+	shouldNotBeInvoked := func(_ context.Context, _ *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
 		shouldNotHappen := errors.New("if an error happens here, something's wrong")
-		assert.NoError(t, shouldNotHappen)
+		require.NoError(t, shouldNotHappen)
 		return nil, shouldNotHappen
 	}
 	tests := []struct {
@@ -159,8 +160,8 @@ func TestUpdateClusterLabels(t *testing.T) {
 				Server: "kubernetes.svc.local",
 				Labels: map[string]string{"argocd.argoproj.io/kubernetes-version": "1.27", "argocd.argoproj.io/auto-label-cluster-info": "true"},
 			},
-			func(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
-				assert.Equal(t, cluster.Labels["argocd.argoproj.io/kubernetes-version"], "1.28")
+			func(_ context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
+				assert.Equal(t, "1.28", cluster.Labels["argocd.argoproj.io/kubernetes-version"])
 				return nil, nil
 			},
 			assert.NoError,
@@ -175,8 +176,8 @@ func TestUpdateClusterLabels(t *testing.T) {
 				Server: "kubernetes.svc.local",
 				Labels: map[string]string{"argocd.argoproj.io/kubernetes-version": "1.27", "argocd.argoproj.io/auto-label-cluster-info": "true"},
 			},
-			func(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
-				assert.Equal(t, cluster.Labels["argocd.argoproj.io/kubernetes-version"], "1.28")
+			func(_ context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
+				assert.Equal(t, "1.28", cluster.Labels["argocd.argoproj.io/kubernetes-version"])
 				return nil, errors.New("some error happened while saving")
 			},
 			assert.Error,
@@ -184,7 +185,7 @@ func TestUpdateClusterLabels(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.wantErr(t, updateClusterLabels(context.Background(), tt.clusterInfo, tt.cluster, tt.updateCluster), fmt.Sprintf("updateClusterLabels(%v, %v, %v)", context.Background(), tt.clusterInfo, tt.cluster))
+			tt.wantErr(t, updateClusterLabels(t.Context(), tt.clusterInfo, tt.cluster, tt.updateCluster), fmt.Sprintf("updateClusterLabels(%v, %v, %v)", t.Context(), tt.clusterInfo, tt.cluster))
 		})
 	}
 }

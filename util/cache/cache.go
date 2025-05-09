@@ -2,21 +2,22 @@ package cache
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
 	"fmt"
 	"math"
 	"os"
 	"strings"
 	"time"
 
-	"crypto/tls"
-	"crypto/x509"
-
-	"github.com/argoproj/argo-cd/v2/common"
-	certutil "github.com/argoproj/argo-cd/v2/util/cert"
-	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/argoproj/argo-cd/v3/common"
+	certutil "github.com/argoproj/argo-cd/v3/util/cert"
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
 const (
@@ -96,7 +97,7 @@ func (o *Options) callOnClientCreated(client *redis.Client) {
 }
 
 func (o *Options) getEnvPrefix() string {
-	return strings.Replace(strings.ToUpper(o.FlagPrefix), "-", "_", -1)
+	return strings.ReplaceAll(strings.ToUpper(o.FlagPrefix), "-", "_")
 }
 
 func mergeOptions(opts ...Options) Options {
@@ -178,7 +179,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 		redisCACertificate := redisCACertificateSrc()
 		compressionStr := compressionStrSrc()
 
-		var tlsConfig *tls.Config = nil
+		var tlsConfig *tls.Config
 		if redisUseTLS {
 			tlsConfig = &tls.Config{}
 			if redisClientCertificate != "" {
@@ -188,15 +189,16 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 				}
 				tlsConfig.Certificates = []tls.Certificate{clientCert}
 			}
-			if insecureRedis {
+			switch {
+			case insecureRedis:
 				tlsConfig.InsecureSkipVerify = true
-			} else if redisCACertificate != "" {
+			case redisCACertificate != "":
 				redisCA, err := certutil.ParseTLSCertificatesFromPath(redisCACertificate)
 				if err != nil {
 					return nil, err
 				}
 				tlsConfig.RootCAs = certutil.GetCertPoolFromPEMData(redisCA)
-			} else {
+			default:
 				var err error
 				tlsConfig.RootCAs, err = x509.SystemCertPool()
 				if err != nil {
@@ -268,9 +270,9 @@ func (c *Cache) generateFullKey(key string) string {
 }
 
 // Sets or deletes an item in cache
-func (c *Cache) SetItem(key string, item interface{}, opts *CacheActionOpts) error {
+func (c *Cache) SetItem(key string, item any, opts *CacheActionOpts) error {
 	if item == nil {
-		return fmt.Errorf("cannot set nil item in cache")
+		return errors.New("cannot set nil item in cache")
 	}
 	if opts == nil {
 		opts = &CacheActionOpts{}
@@ -279,12 +281,11 @@ func (c *Cache) SetItem(key string, item interface{}, opts *CacheActionOpts) err
 	client := c.GetClient()
 	if opts.Delete {
 		return client.Delete(fullKey)
-	} else {
-		return client.Set(&Item{Key: fullKey, Object: item, CacheActionOpts: *opts})
 	}
+	return client.Set(&Item{Key: fullKey, Object: item, CacheActionOpts: *opts})
 }
 
-func (c *Cache) GetItem(key string, item interface{}) error {
+func (c *Cache) GetItem(key string, item any) error {
 	key = c.generateFullKey(key)
 	if item == nil {
 		return fmt.Errorf("cannot get item into a nil for key %s", key)

@@ -1,7 +1,6 @@
 package pull_request
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,9 +9,11 @@ import (
 
 	"code.gitea.io/sdk/gitea"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Println(r.RequestURI)
@@ -51,7 +52,7 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 				},
 				"title": "add an empty file",
 				"body": "",
-				"labels": [],
+				"labels": [{"id": 1, "name": "label1", "color": "00aabb", "description": "foo", "url": ""}],
 				"milestone": null,
 				"assignee": null,
 				"assignees": null,
@@ -245,19 +246,69 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
+func TestGiteaContainLabels(t *testing.T) {
+	cases := []struct {
+		Name       string
+		Labels     []string
+		PullLabels []*gitea.Label
+		Expect     bool
+	}{
+		{
+			Name:   "Match labels",
+			Labels: []string{"label1", "label2"},
+			PullLabels: []*gitea.Label{
+				{Name: "label1"},
+				{Name: "label2"},
+				{Name: "label3"},
+			},
+			Expect: true,
+		},
+		{
+			Name:   "Not match labels",
+			Labels: []string{"label1", "label4"},
+			PullLabels: []*gitea.Label{
+				{Name: "label1"},
+				{Name: "label2"},
+				{Name: "label3"},
+			},
+			Expect: false,
+		},
+		{
+			Name:   "No specify",
+			Labels: []string{},
+			PullLabels: []*gitea.Label{
+				{Name: "label1"},
+				{Name: "label2"},
+				{Name: "label3"},
+			},
+			Expect: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			if got := giteaContainLabels(c.Labels, c.PullLabels); got != c.Expect {
+				t.Errorf("expect: %v, got: %v", c.Expect, got)
+			}
+		})
+	}
+}
+
 func TestGiteaList(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		giteaMockHandler(t)(w, r)
 	}))
-	host, err := NewGiteaService(context.Background(), "", ts.URL, "test-argocd", "pr-test", false)
-	assert.Nil(t, err)
-	prs, err := host.List(context.Background())
-	assert.Nil(t, err)
-	assert.Equal(t, len(prs), 1)
-	assert.Equal(t, prs[0].Number, 1)
-	assert.Equal(t, prs[0].Branch, "test")
-	assert.Equal(t, prs[0].TargetBranch, "main")
-	assert.Equal(t, prs[0].HeadSHA, "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f")
+	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", []string{"label1"}, false)
+	require.NoError(t, err)
+	prs, err := host.List(t.Context())
+	require.NoError(t, err)
+	assert.Len(t, prs, 1)
+	assert.Equal(t, 1, prs[0].Number)
+	assert.Equal(t, "add an empty file", prs[0].Title)
+	assert.Equal(t, "test", prs[0].Branch)
+	assert.Equal(t, "main", prs[0].TargetBranch)
+	assert.Equal(t, "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f", prs[0].HeadSHA)
+	assert.Equal(t, "graytshirt", prs[0].Author)
 }
 
 func TestGetGiteaPRLabelNames(t *testing.T) {

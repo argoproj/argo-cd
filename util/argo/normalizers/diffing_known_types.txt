@@ -1,5 +1,6 @@
 core/v1/AWSElasticBlockStoreVolumeSource
 core/v1/Affinity
+core/v1/AppArmorProfile
 core/v1/AttachedVolume
 core/v1/AvoidPods
 core/v1/AzureDiskVolumeSource
@@ -13,7 +14,6 @@ core/v1/CephFSPersistentVolumeSource
 core/v1/CephFSVolumeSource
 core/v1/CinderPersistentVolumeSource
 core/v1/CinderVolumeSource
-core/v1/ClaimSource
 core/v1/ClientIPConfig
 core/v1/ClusterTrustBundleProjection
 core/v1/ComponentCondition
@@ -35,6 +35,7 @@ core/v1/ContainerStateRunning
 core/v1/ContainerStateTerminated
 core/v1/ContainerStateWaiting
 core/v1/ContainerStatus
+core/v1/ContainerUser
 core/v1/DaemonEndpoint
 core/v1/DownwardAPIProjection
 core/v1/DownwardAPIVolumeFile
@@ -72,6 +73,7 @@ core/v1/HostIP
 core/v1/HostPathVolumeSource
 core/v1/ISCSIPersistentVolumeSource
 core/v1/ISCSIVolumeSource
+core/v1/ImageVolumeSource
 core/v1/KeyToPath
 core/v1/Lifecycle
 core/v1/LifecycleHandler
@@ -79,6 +81,7 @@ core/v1/LimitRange
 core/v1/LimitRangeItem
 core/v1/LimitRangeList
 core/v1/LimitRangeSpec
+core/v1/LinuxContainerUser
 core/v1/List
 core/v1/LoadBalancerIngress
 core/v1/LoadBalancerStatus
@@ -98,9 +101,11 @@ core/v1/NodeCondition
 core/v1/NodeConfigSource
 core/v1/NodeConfigStatus
 core/v1/NodeDaemonEndpoints
+core/v1/NodeFeatures
 core/v1/NodeList
 core/v1/NodeProxyOptions
-core/v1/NodeResources
+core/v1/NodeRuntimeHandler
+core/v1/NodeRuntimeHandlerFeatures
 core/v1/NodeSelector
 core/v1/NodeSelectorRequirement
 core/v1/NodeSelectorTerm
@@ -168,12 +173,14 @@ core/v1/ReplicationControllerSpec
 core/v1/ReplicationControllerStatus
 core/v1/ResourceClaim
 core/v1/ResourceFieldSelector
+core/v1/ResourceHealth
 core/v1/ResourceList
 core/v1/ResourceQuota
 core/v1/ResourceQuotaList
 core/v1/ResourceQuotaSpec
 core/v1/ResourceQuotaStatus
 core/v1/ResourceRequirements
+core/v1/ResourceStatus
 core/v1/SELinuxOptions
 core/v1/ScaleIOPersistentVolumeSource
 core/v1/ScaleIOVolumeSource
@@ -214,6 +221,7 @@ core/v1/TypedObjectReference
 core/v1/Volume
 core/v1/VolumeDevice
 core/v1/VolumeMount
+core/v1/VolumeMountStatus
 core/v1/VolumeNodeAffinity
 core/v1/VolumeProjection
 core/v1/VolumeResourceRequirements

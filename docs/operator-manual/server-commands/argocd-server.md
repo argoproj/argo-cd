@@ -29,6 +29,10 @@ argocd-server [flags]
       --api-content-types string                        Semicolon separated list of allowed content types for non GET api requests. Any content type is allowed if empty. (default "application/json")
       --app-state-cache-expiration duration             Cache expiration for app state (default 1h0m0s)
       --application-namespaces strings                  List of additional namespaces where application resources can be managed in
+      --appset-allowed-scm-providers strings            The list of allowed custom SCM provider API URLs. This restriction does not apply to SCM or PR generators which do not accept a custom API URL. (Default: Empty = all)
+      --appset-enable-new-git-file-globbing             Enable new globbing in Git files generator.
+      --appset-enable-scm-providers                     Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true) (default true)
+      --appset-scm-root-ca-path string                  Provide Root CA Path for self-signed TLS Certificates
       --as string                                       Username to impersonate for the operation
       --as-group stringArray                            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                                   UID to impersonate for the operation
@@ -47,13 +51,15 @@ argocd-server [flags]
       --disable-auth                                    Disable client authentication
       --disable-compression                             If true, opt-out of response compression for all requests to the server
       --enable-gzip                                     Enable GZIP compression (default true)
+      --enable-k8s-event none                           Enable ArgoCD to use k8s event. For disabling all events, set the value as none. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated) (default [all])
       --enable-proxy-extension                          Enable Proxy Extension feature
       --gloglevel int                                   Set the glog logging level
   -h, --help                                            help for argocd-server
+      --hydrator-enabled                                Feature flag to enable Hydrator. Default ("false")
       --insecure                                        Run server without TLS
       --insecure-skip-tls-verify                        If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                               Path to a kube config. Only required if out-of-cluster
-      --logformat string                                Set the logging format. One of: text|json (default "text")
+      --logformat string                                Set the logging format. One of: json|text (default "json")
       --login-attempts-expiration duration              Cache expiration for failed login attempts (default 24h0m0s)
       --loglevel string                                 Set the logging level. One of: debug|info|warn|error (default "info")
       --metrics-address string                          Listen for metrics on given address (default "0.0.0.0")
@@ -99,6 +105,7 @@ argocd-server [flags]
       --sentinelmaster string                           Redis sentinel master group name. (default "master")
       --server string                                   The address and port of the Kubernetes API server
       --staticassets string                             Directory path that contains additional static assets (default "/shared/app")
+      --sync-with-replace-allowed                       Whether to allow users to select replace for syncs from UI/CLI (default true)
       --tls-server-name string                          If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --tlsciphers string                               The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
       --tlsmaxversion string                            The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")
@@ -106,6 +113,7 @@ argocd-server [flags]
       --token string                                    Bearer token for authentication to the API server
       --user string                                     The name of the kubeconfig user to use
       --username string                                 Username for basic authentication to the API server
+      --webhook-parallelism-limit int                   Number of webhook requests processed concurrently (default 50)
       --x-frame-options value                           Set X-Frame-Options header in HTTP responses to value. To disable, set to "". (default "sameorigin")
 ```
 
