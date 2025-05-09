@@ -17,7 +17,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -37,6 +36,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/env"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
+	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
 var ErrInvalidRepoURL = errors.New("repo URL is invalid")
@@ -422,11 +422,14 @@ func (m *nativeGitClient) Fetch(revision string) error {
 func (m *nativeGitClient) LsFiles(path string, enableNewGitFileGlobbing bool) ([]string, error) {
 	if enableNewGitFileGlobbing {
 		// This is the new way with safer globbing
-		err := os.Chdir(m.root)
+
+		// evaluating the root path for symlinks
+		realRoot, err := filepath.EvalSymlinks(m.root)
 		if err != nil {
 			return nil, err
 		}
-		allFiles, err := doublestar.FilepathGlob(path)
+		// searching for the pattern inside the root path
+		allFiles, err := doublestar.FilepathGlob(filepath.Join(realRoot, path))
 		if err != nil {
 			return nil, err
 		}
@@ -440,10 +443,16 @@ func (m *nativeGitClient) LsFiles(path string, enableNewGitFileGlobbing bool) ([
 			if err != nil {
 				return nil, err
 			}
-			if strings.HasPrefix(absPath, m.root) {
-				files = append(files, file)
+
+			if strings.HasPrefix(absPath, realRoot) {
+				// removing the repository root prefix from the file path
+				relativeFile, err := filepath.Rel(realRoot, file)
+				if err != nil {
+					return nil, err
+				}
+				files = append(files, relativeFile)
 			} else {
-				log.Warnf("Absolute path for %s is outside of repository, removing it", file)
+				log.Warnf("Absolute path for %s is outside of repository, ignoring it", file)
 			}
 		}
 		return files, nil
@@ -634,6 +643,16 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 	return
 }
 
+func getGitTags(refs []*plumbing.Reference) []string {
+	var tags []string
+	for _, ref := range refs {
+		if ref.Name().IsTag() {
+			tags = append(tags, ref.Name().Short())
+		}
+	}
+	return tags
+}
+
 func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	if IsCommitSHA(revision) {
 		return revision, nil
@@ -648,9 +667,9 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 		revision = "HEAD"
 	}
 
-	semverSha := m.resolveSemverRevision(revision, refs)
-	if semverSha != "" {
-		return semverSha, nil
+	maxV, err := versions.MaxVersion(revision, getGitTags(refs))
+	if err == nil {
+		revision = maxV
 	}
 
 	// refToHash keeps a maps of remote refs to their hash
@@ -697,59 +716,6 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	// If we get here, revision string had non hexadecimal characters (indicating its a branch, tag,
 	// or symbolic ref) and we were unable to resolve it to a commit SHA.
 	return "", fmt.Errorf("unable to resolve '%s' to a commit SHA", revision)
-}
-
-// resolveSemverRevision is a part of the lsRemote method workflow.
-// When the user correctly configures the Git repository revision, and that revision is a valid semver constraint, we
-// use this logic path rather than the standard lsRemote revision resolution loop.
-// Some examples to illustrate the actual behavior - if the revision is:
-// * "v0.1.2"/"0.1.2" or "v0.1"/"0.1", then this is not a constraint, it's a pinned version - so we fall back to the standard tag matching in the lsRemote loop.
-// * "v0.1.*"/"0.1.*", and there's a tag matching that constraint, then we find the latest matching version and return its commit hash.
-// * "v0.1.*"/"0.1.*", and there is *no* tag matching that constraint, then we fall back to the standard tag matching in the lsRemote loop.
-// * "custom-tag", only the lsRemote loop will run - because that revision is an invalid semver;
-// * "master-branch", only the lsRemote loop will run because that revision is an invalid semver;
-func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbing.Reference) string {
-	if _, err := semver.NewVersion(revision); err == nil {
-		// If the revision is a valid version, then we know it isn't a constraint; it's just a pin.
-		// In which case, we should use standard tag resolution mechanisms.
-		return ""
-	}
-
-	constraint, err := semver.NewConstraint(revision)
-	if err != nil {
-		log.Debugf("Revision '%s' is not a valid semver constraint, skipping semver resolution.", revision)
-		return ""
-	}
-
-	maxVersion := semver.New(0, 0, 0, "", "")
-	maxVersionHash := plumbing.ZeroHash
-	for _, ref := range refs {
-		if !ref.Name().IsTag() {
-			continue
-		}
-
-		tag := ref.Name().Short()
-		version, err := semver.NewVersion(tag)
-		if err != nil {
-			log.Debugf("Error parsing version for tag: '%s': %v", tag, err)
-			// Skip this tag and continue to the next one
-			continue
-		}
-
-		if constraint.Check(version) {
-			if version.GreaterThan(maxVersion) {
-				maxVersion = version
-				maxVersionHash = ref.Hash()
-			}
-		}
-	}
-
-	if maxVersionHash.IsZero() {
-		return ""
-	}
-
-	log.Debugf("Semver constraint '%s' resolved to tag '%s', at reference '%s'", revision, maxVersion.Original(), maxVersionHash.String())
-	return maxVersionHash.String()
 }
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
