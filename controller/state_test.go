@@ -911,6 +911,9 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	}, nil)
 	manager := ctrl.appStateManager.(*appStateManager)
 	setRevisionHistoryLimit := func(value int) {
+		if value < 0 {
+			value = 0
+		}
 		i := int64(value)
 		app.Spec.RevisionHistoryLimit = &i
 	}
@@ -954,6 +957,11 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	err := manager.persistRevisionHistory(app, "my-revision", v1alpha1.ApplicationSource{}, []string{}, []v1alpha1.ApplicationSource{}, false, metav1NowTime, v1alpha1.OperationInitiator{})
 	require.NoError(t, err)
 	assert.Equal(t, app.Status.History.LastRevisionHistory().DeployStartedAt, &metav1NowTime)
+
+	// negative limit to 0
+	setRevisionHistoryLimit(-1)
+	addHistory()
+	assert.Empty(t, app.Status.History)
 }
 
 // helper function to read contents of a file to string
