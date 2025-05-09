@@ -44,4 +44,4 @@ declare module 'history' {
     export function createBrowserHistory<S = LocationState>(options?: BrowserHistoryBuildOptions): History<S>;
 
     // Add other history creators if needed (createMemoryHistory, createHashHistory)
-} 
+}
