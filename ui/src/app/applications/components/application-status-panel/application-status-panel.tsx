@@ -154,7 +154,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                         {application.spec.syncPolicy?.automated ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}
                     </div>
-                    {authSettings?.serverCommitSummaryEnabled &&
+                    {authSettings?.commitSummaryEnabled &&
                         application.status &&
                         application.status.sync &&
                         (hasMultipleSources
@@ -203,7 +203,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                         <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                             {appOperationState.phase} <Timestamp date={appOperationState.finishedAt || appOperationState.startedAt} />
                         </div>
-                        {authSettings?.serverCommitSummaryEnabled &&
+                        {authSettings?.commitSummaryEnabled &&
                             ((appOperationState.syncResult && operationStateRevision && (
                                 <RevisionMetadataPanel
                                     appName={application.metadata.name}

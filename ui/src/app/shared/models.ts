@@ -556,7 +556,7 @@ export interface AuthSettings {
     uiBannerURL: string;
     uiBannerPermanent: boolean;
     uiBannerPosition: string;
-    serverCommitSummaryEnabled: boolean;
+    commitSummaryEnabled: boolean;
     execEnabled: boolean;
     appsInAnyNamespaceEnabled: boolean;
     hydratorEnabled: boolean;

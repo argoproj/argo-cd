@@ -5292,6 +5292,9 @@
         "appsInAnyNamespaceEnabled": {
           "type": "boolean"
         },
+        "commitSummaryEnabled": {
+          "type": "boolean"
+        },
         "configManagementPlugins": {
           "description": "Deprecated: use sidecar plugins instead.",
           "type": "array",
@@ -5349,9 +5352,6 @@
           "additionalProperties": {
             "$ref": "#/definitions/v1alpha1ResourceOverride"
           }
-        },
-        "serverCommitSummaryEnabled": {
-          "type": "boolean"
         },
         "statusBadgeEnabled": {
           "type": "boolean"
