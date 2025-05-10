@@ -188,6 +188,10 @@ Wildcard checks are skipped if there is a specific check for the resource.
 
 If multiple wildcard checks match, the first one in the directory structure is used.
 
+!!!important "Avoid Massive Scripts"
+    Avoid writing massive scripts to handle multiple resources. They'll get hard to read and maintain. Instead, just
+    duplicate the relevant parts in resource-specific scripts.
+
 ## Overriding Go-Based Health Checks
 
 Health checks for some resources were [hardcoded as Go code](https://github.com/argoproj/gitops-engine/tree/master/pkg/health) 
