@@ -85,7 +85,9 @@ export class ApplicationsService {
     public watchResourceTree(name: string, appNamespace: string): Observable<models.ApplicationTree> {
         return requests
             .loadEventSource(`/stream/applications/${name}/resource-tree?appNamespace=${appNamespace}`)
-            .pipe(map(data => JSON.parse(data).result as models.ApplicationTree));
+            .pipe(map(data => JSON.parse(data).result as models.ApplicationTree))
+            .pipe(retry(500))
+            .pipe(repeat());
     }
 
     public managedResources(name: string, appNamespace: string, options: {id?: models.ResourceID; fields?: string[]} = {}): Promise<models.ResourceDiff[]> {
@@ -191,15 +193,15 @@ export class ApplicationsService {
         const url = `/stream/applications${(searchStr && '?' + searchStr) || ''}`;
         return requests
             .loadEventSource(url)
-            .pipe(repeat())
-            .pipe(retry())
             .pipe(map(data => JSON.parse(data).result as models.ApplicationWatchEvent))
             .pipe(
                 map(watchEvent => {
                     watchEvent.application = this.parseAppFields(watchEvent.application);
                     return watchEvent;
                 })
-            );
+            )
+            .pipe(retry(500))
+            .pipe(repeat());
     }
 
     public sync(
