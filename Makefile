@@ -5,7 +5,10 @@ CLI_NAME=argocd
 BIN_NAME=argocd
 
 # When using OSX/Darwin, you might need to enable CGO for local builds
-CGO_FLAG?=0
+CGO_ENABLED?=0
+ifeq ($(HOST_OS),darwin)
+CGO_FLAG=1
+else
 
 GEN_RESOURCES_CLI_NAME=argocd-resources-gen
 
