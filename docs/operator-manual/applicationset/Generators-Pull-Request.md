@@ -112,7 +112,7 @@ spec:
 * `api`: If using self-hosted GitLab, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Labels is used to filter the MRs that you want to target. (Optional)
-* `pullRequestState`: PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
+* `pullRequestState`: PullRequestState is an additional MRs filter to get only those with a certain state. By default all states. Default: "" (all states). Valid values: `""`, `opened`, `closed`, `merged` or `locked`. (Optional)
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
 * `caRef`: Optional `ConfigMap` name and key containing the GitLab certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
 
