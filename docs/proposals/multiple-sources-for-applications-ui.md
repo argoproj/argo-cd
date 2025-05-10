@@ -150,7 +150,7 @@ Figure 3: Source information in History
 Jorge has submitted a [PR](https://github.com/argoproj/argo-cd/pull/14124) for rollback which includes controller and UI changes. 
 This can be treated as a separate, independent proposal.
 
-Other related changes pertain to the Last Synced Details. The Sync Details panel needs to be updated to show sync info
+Other related changes pertain to the Repo Synced Details. The Repo Sync Details panel needs to be updated to show sync info
 from multiple sources.  See [Issue 13215](https://github.com/argoproj/argo-cd/issues/13215).
 
 ### New App Dialog
