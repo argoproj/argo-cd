@@ -507,7 +507,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 	relGenerators := generators.GetRelevantGenerators(requestedGenerator0, h.generators)
 	params := []map[string]any{}
 	for _, g := range relGenerators {
-		p, err := g.GenerateParams(requestedGenerator0, appSet, h.client)
+		p, err := g.GenerateParams(requestedGenerator0, appSet, nil, h.client)
 		if err != nil {
 			log.Error(err)
 			return false
