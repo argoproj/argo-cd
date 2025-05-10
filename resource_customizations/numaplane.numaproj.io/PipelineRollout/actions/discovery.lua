@@ -1,8 +1,22 @@
 local actions = {}
-actions["pause"] = {["disabled"] = true}
-actions["unpause"] = {["disabled"] = true}
-actions["allow-data-loss"] = {["disabled"] = true}
-actions["disallow-data-loss"] = {["disabled"] = true}
+actions["pause"] = {
+  ["disabled"] = true,
+  ["iconClass"] = "fa-solid fa-fw fa-pause"
+}
+actions["unpause"] = {
+  ["disabled"] = true,
+  ["iconClass"] = "fa-solid fa-fw fa-play"
+}
+actions["allow-data-loss"] = {
+  ["disabled"] = true,
+  ["displayName"] = "Allow Data Loss",
+  ["iconClass"] = "fa-solid fa-fw fa-unlock"
+}
+actions["disallow-data-loss"] = {
+  ["disabled"] = true,
+  ["displayName"] = "Disallow Data Loss",
+  ["iconClass"] = "fa-solid fa-fw fa-lock"
+}
 actions["enable-force-promote"] = {
   ["disabled"] = true,
   ["displayName"] = "Enable Force Promote"
@@ -32,6 +46,7 @@ if obj.metadata.annotations ~= nil and obj.metadata.annotations["numaplane.numap
 end
 
 -- force-promote
+-- will be removed and replaced in the future by force-promote action on child resource
 if (obj.status ~= nil and obj.status.upgradeInProgress == "Progressive" and obj.status.phase == "Pending") then
   actions["enable-force-promote"]["disabled"] = false
 end
