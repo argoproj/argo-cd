@@ -1,0 +1,58 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  annotations:
+  finalizers:
+    - finalizer.keda.sh
+  labels:
+    argocd.argoproj.io/instance: keda-default
+  name: keda-with-fallback
+  namespace: keda
+  resourceVersion: '160591443'
+  uid: 83ee438a-f383-43f3-9346-b901d9773f5c
+spec:
+  maxReplicaCount: 10
+  minReplicaCount: 1
+  fallback:
+    failureThreshold: 3
+    replicas: 5
+  scaleTargetRef:
+    name: keda-service
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus-server.monitoring.svc.cluster.local
+        metricName: http_requests_total
+        threshold: '100'
+        query: sum(rate(http_requests_total{app="keda-service"}[2m]))
+status:
+  conditions:
+    - message: ScaledObject is defined correctly and is ready for scaling
+      reason: ScaledObjectReady
+      status: 'True'
+      type: Ready
+    - message: Scaling is performed because triggers are active
+      reason: ScalerActive
+      status: 'True'
+      type: Active
+    - message: At least one trigger is falling back on this scaled object
+      reason: FallbackExists
+      status: 'True'
+      type: Fallback
+    - status: 'False'
+      type: Paused
+  externalMetricNames:
+    - s0-prometheus
+  health:
+    "prometheus": 
+      numberOfFailures: 4
+      status: Failing
+  hpaName: keda-with-fallback-hpa
+  lastActiveTime: '2023-12-19T10:35:22Z'
+  originalReplicaCount: 1
+  scaleTargetGVKR:
+    group: apps
+    kind: Deployment
+    resource: deployments
+    version: v1
+  scaleTargetKind: apps/v1.Deployment
