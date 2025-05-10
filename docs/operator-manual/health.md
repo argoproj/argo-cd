@@ -170,7 +170,7 @@ The [PR#1139](https://github.com/argoproj/argo-cd/pull/1139) is an example of Ce
 
 #### Wildcard Support for Built-in Health Checks
 
-You can use a single health check for multiple health checks by using a wildcard in the group or kind directory names.
+You can use a single health check for multiple resources by using a wildcard in the group or kind directory names.
 
 The `_` character behaves like a `*` wildcard. For example, consider the following directory structure:
 
