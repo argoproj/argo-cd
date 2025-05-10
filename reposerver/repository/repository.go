@@ -1715,12 +1715,15 @@ func getObjsFromYAMLOrJSON(logCtx *log.Entry, manifestPath string, filename stri
 				return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", filename, err)
 			}
 			// Read the whole file to check whether it looks like a manifest.
-			out, err := utfutil.ReadFile(manifestPath, utfutil.UTF8)
-			// Otherwise, let's see if it looks like a resource, if yes, we return error
+			out, rerr := utfutil.ReadFile(manifestPath, utfutil.UTF8)
+			if rerr != nil {
+				return status.Errorf(codes.FailedPrecondition, "Failed to read %q: %v", filename, rerr)
+			}
+			// Otherwise, let's see if it looks like a resource, if yes, we log a warning.
 			if bytes.Contains(out, []byte("apiVersion:")) &&
 				bytes.Contains(out, []byte("kind:")) &&
 				bytes.Contains(out, []byte("metadata:")) {
-				return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", filename, err)
+				logCtx.Warnf("Failed to unmarshal %q: file contains 'apiVersion:', 'kind:', and 'metadata:', but is not a valid manifest: %v", filename, err)
 			}
 			// Otherwise, it might be an unrelated YAML file which we will ignore
 		}
