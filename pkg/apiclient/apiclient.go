@@ -122,6 +122,7 @@ type ClientOptions struct {
 	KubeOverrides        *clientcmd.ConfigOverrides
 	AppControllerName    string
 	ServerName           string
+	RedisURL             string
 	RedisHaProxyName     string
 	RedisName            string
 	RedisCompression     string
