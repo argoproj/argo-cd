@@ -954,3 +954,12 @@ func createMockResource(kind string, name string, replicas int) *unstructured.Un
             image: nginx
     `, kind, name, replicas))
 }
+
+func Test_getHealthScriptPaths(t *testing.T) {
+	paths, err := getHealthScriptPaths()
+	require.NoError(t, err)
+
+	// This test will fail any time a glob pattern is added to the health script paths. We don't expect that to happen
+	// often.
+	assert.Equal(t, []string{"_.crossplane.io/_", "_.upbound.io/_"}, paths)
+}

@@ -6,9 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gobwas/glob"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -20,7 +24,7 @@ import (
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/resource_customizations"
-	"github.com/argoproj/argo-cd/v3/util/glob"
+	argoglob "github.com/argoproj/argo-cd/v3/util/glob"
 )
 
 const (
@@ -189,6 +193,15 @@ func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (script string, use
 	if err != nil {
 		var doesNotExist *ScriptDoesNotExistError
 		if errors.As(err, &doesNotExist) {
+			// Try to find a wildcard built-in health script
+			builtInScript, err = getWildcardBuiltInHealthOverrideLua(key)
+			if err != nil {
+				return "", false, fmt.Errorf("error while fetching built-in health script: %w", err)
+			}
+			if builtInScript != "" {
+				return builtInScript, true, nil
+			}
+
 			// It's okay if no built-in health script exists. Just return an empty string and let the caller handle it.
 			return "", false, nil
 		}
@@ -477,7 +490,7 @@ func getWildcardHealthOverrideLua(overrides map[string]appv1.ResourceOverride, g
 	gvkKeyToMatch := GetConfigMapKey(gvk)
 
 	for key, override := range overrides {
-		if glob.Match(key, gvkKeyToMatch) && override.HealthLua != "" {
+		if argoglob.Match(key, gvkKeyToMatch) && override.HealthLua != "" {
 			return override.HealthLua, override.UseOpenLibs
 		}
 	}
@@ -493,6 +506,119 @@ func (vm VM) getPredefinedLuaScripts(objKey string, scriptFile string) (string, 
 		return "", err
 	}
 	return string(data), nil
+}
+
+var healthScriptGlobsOnce sync.Once
+
+type healthScriptGlob struct {
+	g       glob.Glob
+	pattern string
+}
+
+// healthScriptGlobs is a cache for the glob patterns of directories containing health.lua files. Don't use this
+// directly, use getHealthScriptGlobs() instead.
+var healthScriptGlobs []healthScriptGlob
+
+func getHealthScriptGlobs() ([]healthScriptGlob, error) {
+	var err error
+	healthScriptGlobsOnce.Do(func() {
+		var patterns []string
+		patterns, err = getHealthScriptPaths()
+		if err != nil {
+			err = fmt.Errorf("error getting health script paths: %w", err)
+			return
+		}
+
+		for _, pattern := range patterns {
+			// Windows doesn't like * in directory names, so we use _ instead.
+			p := strings.ReplaceAll(pattern, "_", "*")
+
+			var g glob.Glob
+			g, err = glob.Compile(p)
+			if err != nil {
+				err = fmt.Errorf("error compiling glob pattern %q: %w", p, err)
+				return
+			}
+			healthScriptGlobs = append(healthScriptGlobs, healthScriptGlob{
+				g:       g,
+				pattern: pattern,
+			})
+		}
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error getting health script glob directories: %w", err)
+	}
+	return healthScriptGlobs, nil
+}
+
+func getHealthScriptPaths() ([]string, error) {
+	// Walk through the embedded filesystem and get the directory names of all directories containing a health.lua.
+	groupDirs, err := resource_customizations.Embedded.ReadDir(".")
+	if err != nil {
+		return nil, fmt.Errorf("getting dirs from root of embedded filesystem: %w", err)
+	}
+	var patterns []string
+	for _, dir := range groupDirs {
+		if !dir.IsDir() {
+			continue
+		}
+
+		var groupKindDirs []os.DirEntry
+		groupKindDirs, err = resource_customizations.Embedded.ReadDir(dir.Name())
+		if err != nil {
+			return nil, fmt.Errorf("getting dirs from %q: %w", dir.Name(), err)
+		}
+		for _, kindDir := range groupKindDirs {
+			if !kindDir.IsDir() {
+				continue
+			}
+
+			// Check if the directory contains a health.lua file
+			healthFilePath := filepath.Join(dir.Name(), kindDir.Name(), healthScriptFile)
+			_, err = resource_customizations.Embedded.Open(healthFilePath)
+			if err != nil {
+				if os.IsNotExist(err) {
+					// No health script for this GK, move on.
+					continue
+				}
+				return nil, fmt.Errorf("error opening %q: %w", healthFilePath, err)
+			}
+
+			groupKindPath := filepath.Join(dir.Name(), kindDir.Name())
+			if !strings.Contains(groupKindPath, "_") {
+				// It's not a wildcard directory.
+				continue
+			}
+
+			patterns = append(patterns, groupKindPath)
+		}
+	}
+
+	// Sort the patterns to ensure deterministic choice of wildcard directory for a given GK.
+	slices.Sort(patterns)
+
+	return patterns, nil
+}
+
+func getWildcardBuiltInHealthOverrideLua(objKey string) (string, error) {
+	// Check if the GVK matches any of the wildcard directories
+	globs, err := getHealthScriptGlobs()
+	if err != nil {
+		return "", fmt.Errorf("error getting health script globs: %w", err)
+	}
+	for _, g := range globs {
+		if !g.g.Match(objKey) {
+			continue
+		}
+
+		var script []byte
+		script, err = resource_customizations.Embedded.ReadFile(filepath.Join(g.pattern, healthScriptFile))
+		if err != nil {
+			return "", fmt.Errorf("error reading %q file in embedded filesystem: %w", filepath.Join(objKey, healthScriptFile), err)
+		}
+		return string(script), nil
+	}
+	return "", nil
 }
 
 func isValidHealthStatusCode(statusCode health.HealthStatusCode) bool {
