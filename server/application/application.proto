@@ -35,6 +35,41 @@ message ApplicationQuery {
 	optional string appNamespace = 7;
 	// the project names to restrict returned list applications (legacy name for backwards-compatibility)
 	repeated string project = 8;
+	// the application name to start from (app with min name is included in response)
+	optional string minName = 9;
+	// the application name to end at (app with max name is included in response)
+	optional string maxName = 10;
+	// the repos filter, ignore if the field repo was defined
+	repeated string repos = 11;
+	// the clusters filter
+	repeated string clusters = 12;
+	// the namespaces filter
+	repeated string namespaces = 13;
+	// the auth sync filter
+	optional bool autoSyncEnabled = 14;
+	// the sync status filter
+	repeated string syncStatuses = 15;
+	// the health status filter
+	repeated string healthStatuses = 16;
+	// search
+	optional string search = 17;
+  	// offset
+	optional int64 offset = 18;
+	// limit
+	optional int64 limit = 19;
+	// sort by enum=name;created-at;synchronized
+	optional ApplicationSortBy sortBy = 20;
+}
+
+enum ApplicationSortBy {
+	// unspecified, sort by name
+	ASB_UNSPECIFIED = 0;
+	// sort by .Name
+	ASB_NAME = 1;
+	// sort by .Metadata.CreateTimestamp
+	ASB_CREATED_AT = 2;
+	// sort by .Status.OperationState.FinishedAt
+	ASB_SYNCHRONIZED = 3;
 }
 
 message NodeQuery {
