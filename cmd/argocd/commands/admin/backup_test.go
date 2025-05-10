@@ -2,16 +2,27 @@ package admin
 
 import (
 	"bytes"
+	"context"
+	"slices"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/security"
+	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/yaml"
 
+	secutil "github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/argoproj/argo-cd/v3/common"
 )
@@ -360,6 +371,432 @@ status: {}
 			}
 		})
 	}
+}
+
+func Test_importResources(t *testing.T) {
+	type args struct {
+		bak  string
+		live string
+	}
+
+	tests := []struct {
+		name                     string
+		args                     args
+		applicationNamespaces    []string
+		applicationsetNamespaces []string
+		prune                    bool
+		skipResourcesWithLabel   string
+		stopOperation            bool
+		overrideOnConflict       bool
+	}{
+		{
+			name: "It should update live object if skip label is not present in backup object",
+			args: args{
+				bak: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-configmap
+  namespace: namespace
+  labels:
+    env: dev
+  annotations:
+    argocd.argoproj.io/instance: test-instance
+  finalizers:
+    - test.finalizer.io
+data:
+  foo: bar
+`,
+				live: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-configmap
+  namespace: namespace
+  labels:
+    env: prod
+  annotations:
+    argocd.argoproj.io/instance: old-instance
+  finalizers: []
+data:
+  foo: old
+`,
+			},
+			applicationNamespaces:    []string{"argocd", "dev"},
+			applicationsetNamespaces: []string{"argocd", "prod"},
+			skipResourcesWithLabel:   "env=dev",
+			stopOperation:            false,
+			overrideOnConflict:       true,
+		},
+		{
+			name: "It should update live object when data differs from backup",
+			args: args{
+				bak: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-configmap
+  namespace: namespace
+data:
+  foo: bar
+`,
+				live: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-configmap
+  namespace: namespace
+data:
+  foo: old				
+`,
+			},
+			applicationNamespaces:    []string{},
+			applicationsetNamespaces: []string{},
+			prune:                    true,
+		},
+		{
+			name: "It should update live spec if spec differs from backup for Application",
+			args: args{
+				bak: `apiVersion: v1
+kind: Application
+metadata:
+  name: app
+  namespace: argocd
+spec:
+  source:
+    repoURL: https://github.com/example/updated.git
+  destination:
+    namespace: default
+    server: https://kubernetes.default.svc
+`,
+				live: `apiVersion: v1
+kind: Application
+metadata:
+  name: app
+  namespace: argocd
+spec:
+  source:
+    repoURL: https://github.com/example/old.git
+  destination:
+    namespace: default
+    server: https://kubernetes.default.svc
+`,
+			},
+			applicationNamespaces:    []string{"argocd", "dev"},
+			applicationsetNamespaces: []string{"prod"},
+		},
+		{
+			name: "It should update live spec if spec differs from backup for ApplicationSet",
+			args: args{
+				bak: `apiVersion: v1
+kind: ApplicationSet
+metadata:
+  name: my-appset
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - clusters: dev
+  template:
+    metadata:
+      name: '{{appName}}'
+    spec: {}
+`,
+				live: `apiVersion: v1
+kind: ApplicationSet
+metadata:
+  name: my-appset
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - clusters: prod
+  template:
+    metadata:
+      name: '{{appName}}'
+    spec: {}
+`,
+			},
+			applicationNamespaces:    []string{},
+			applicationsetNamespaces: []string{"dev"},
+		},
+		{
+			name: "It should not update live object if it matches the backup exactly",
+			args: args{
+				bak: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-cm
+  namespace: argo-cd
+  labels:
+    env: dev
+data:
+  foo: bar
+`,
+				live: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-cm
+  namespace: argo-cd
+  labels:
+    env: dev
+data:
+  foo: bar
+`,
+			},
+			applicationNamespaces:    []string{"argo-*"},
+			applicationsetNamespaces: []string{"argo-*"},
+		},
+		{
+			name: "It should create live resource if it is missing",
+			args: args{
+				bak: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-cm
+  namespace: argocd
+  labels:
+    env: dev
+data:
+  foo: bar
+`,
+				live: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-cm
+  namespaces: argocd
+  labels:
+    env: dev
+`,
+			},
+			applicationNamespaces:    []string{"argocd", "dev"},
+			applicationsetNamespaces: []string{"argocd", "prod"},
+		},
+		{
+			name: "It should prune live resources not present in backup when prune is enabled",
+			args: args{
+				bak: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-to-keep
+  namespace: default
+`,
+				live: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: configmap-to-keep
+  namespace: default
+  labels:
+    env: dev
+data:
+  foo: bar
+`,
+			},
+			prune: true,
+		},
+		{
+			name: "It should clear the operation field when stopOperation is true",
+			args: args{
+				bak: `apiVersion: v1
+kind: Application
+metadata:
+  name: app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/example/repo.git
+    path: .
+    targetRevision: HEAD
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+`,
+				live: `apiVersion: v1
+kind: Application
+metadata:
+  name: app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/example/repo.git
+    namespace: default
+status:
+  operationState:
+    phase: Running
+    operation:
+      sync:
+        revision: HEAD
+`,
+			},
+			stopOperation: true,
+		},
+		{
+			name: "It should override live object when --override-on-conflict is true",
+			args: args{
+				bak: `apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret
+  namespace: argocd
+  labels:
+    env: dev
+type: Opaque
+data:
+  username: bar
+  password: abc
+`,
+				live: `apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret
+  namespace: argocd
+  labels:
+    env: prod
+type: Opaque
+data:
+  username: old
+  password: old-pwd
+`,
+			},
+			applicationNamespaces:    []string{"argocd"},
+			applicationsetNamespaces: []string{},
+			overrideOnConflict:       true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bakObj := decodeYAMLToUnstructured(t, tt.args.bak)
+			liveObj := decodeYAMLToUnstructured(t, tt.args.live)
+			pruneObjects := make(map[kube.ResourceKey]unstructured.Unstructured)
+
+			configMap := &unstructured.Unstructured{}
+			configMap.SetUnstructuredContent(map[string]interface{}{
+				"apiVersion": "v1",
+				"kind":       "ConfigMap",
+				"metadata": map[string]interface{}{
+					"name":      "argocd-cmd-params-cm",
+					"namespace": "default",
+				},
+				"data": map[string]interface{}{
+					"application.namespaces":    "argocd,dev",
+					"applicationset.namespaces": "argocd,stage",
+				},
+			})
+
+			ctx := context.Background()
+			gvr := schema.GroupVersionResource{
+				Group:    "",
+				Version:  "v1",
+				Resource: "configmaps",
+			}
+
+			dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), configMap)
+			configMapResource := dynamicClient.Resource(gvr).Namespace("default")
+
+			if len(tt.applicationNamespaces) == 0 || len(tt.applicationsetNamespaces) == 0 {
+				defaultNs := getAdditionalNamespaces(ctx, configMapResource)
+
+				if len(tt.applicationNamespaces) == 0 {
+					tt.applicationNamespaces = defaultNs.applicationNamespaces
+				}
+
+				if len(tt.applicationsetNamespaces) == 0 {
+					tt.applicationsetNamespaces = defaultNs.applicationsetNamespaces
+				}
+			}
+
+			// check if the object is a configMap or not
+			if isArgoCDConfigMap(bakObj.GetName()) {
+				pruneObjects[kube.ResourceKey{Group: "", Kind: "ConfigMap", Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}] = *bakObj
+			}
+			// check if the object is a secret or not
+			if isArgoCDSecret(*bakObj) {
+				pruneObjects[kube.ResourceKey{Group: "", Kind: "Secret", Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}] = *bakObj
+			}
+			// check if the object is an application or not
+			if bakObj.GetKind() == "Application" {
+				if secutil.IsNamespaceEnabled(bakObj.GetNamespace(), "argocd", tt.applicationNamespaces) {
+					pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "Application", Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}] = *bakObj
+				}
+			}
+			// check if the object is a project or not
+			if bakObj.GetKind() == "AppProject" {
+				pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "AppProject", Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}] = *bakObj
+			}
+			// check if the object is an applicationSet or not
+			if bakObj.GetKind() == "ApplicationSet" {
+				if secutil.IsNamespaceEnabled(bakObj.GetNamespace(), "argocd", tt.applicationsetNamespaces) {
+					pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "ApplicationSet", Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}] = *bakObj
+				}
+			}
+			gvk := bakObj.GroupVersionKind()
+			if bakObj.GetNamespace() == "" {
+				bakObj.SetNamespace("argocd")
+			}
+			key := kube.ResourceKey{Group: gvk.Group, Kind: gvk.Kind, Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}
+			liveObject, exists := pruneObjects[key]
+			delete(pruneObjects, key)
+
+			var updatedLive *unstructured.Unstructured
+			var dynClient dynamic.ResourceInterface
+
+			switch bakObj.GetKind() {
+			case "Secret":
+				dynClient = dynamicClient.Resource(secretResource).Namespace(bakObj.GetNamespace())
+			}
+
+			if slices.Contains(tt.applicationNamespaces, bakObj.GetNamespace()) || slices.Contains(tt.applicationsetNamespaces, bakObj.GetNamespace()) {
+				if !isSkipLabelMatches(bakObj, tt.skipResourcesWithLabel) || !isSkipLabelMatches(liveObj, tt.skipResourcesWithLabel) {
+					if tt.prune {
+						err := dynClient.Delete(ctx, key.Name, metav1.DeleteOptions{})
+						assert.NoError(t, err)
+					} else {
+						updatedLive = updateLive(bakObj, liveObj, tt.stopOperation)
+
+						if tt.overrideOnConflict {
+							switch {
+							case !exists:
+								_, err := dynClient.Create(ctx, bakObj, metav1.CreateOptions{})
+								assert.NoError(t, err)
+							default:
+								newLive := updateLive(bakObj, &liveObject, tt.stopOperation)
+								_, err := dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
+								if apierrors.IsConflict(err) && tt.overrideOnConflict {
+									err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+										liveObj, _ := dynClient.Get(ctx, newLive.GetName(), metav1.GetOptions{})
+
+										newLive.SetResourceVersion(liveObj.GetResourceVersion())
+										_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
+										return err
+									})
+
+									assert.NoError(t, err)
+								}
+							}
+						} else {
+
+							assert.Equal(t, bakObj.GetLabels(), updatedLive.GetLabels())
+							assert.Equal(t, bakObj.GetAnnotations(), updatedLive.GetAnnotations())
+							assert.Equal(t, bakObj.GetFinalizers(), updatedLive.GetFinalizers())
+							assert.Equal(t, bakObj.Object["data"], updatedLive.Object["data"])
+						}
+					}
+				}
+			} else {
+				assert.Nil(t, updatedLive)
+			}
+		})
+	}
+}
+
+func decodeYAMLToUnstructured(t *testing.T, yamlStr string) *unstructured.Unstructured {
+	t.Helper()
+
+	var m map[string]any
+	err := yaml.Unmarshal([]byte(yamlStr), &m)
+	require.NoError(t, err)
+	return &unstructured.Unstructured{Object: m}
 }
 
 func Test_updateTracking(t *testing.T) {
