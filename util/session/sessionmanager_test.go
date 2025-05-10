@@ -30,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test"
 	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
+	"github.com/argoproj/argo-cd/v3/util/dex"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/password"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -91,7 +92,7 @@ func TestSessionManager_AdminToken(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "pass", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(redisClient))
 
-	token, err := mgr.Create("admin:login", 0, "123")
+	token, err := mgr.Create("admin:login", int64(autoRegenerateTokenDuration.Seconds()*2), "123")
 	require.NoError(t, err, "Could not create token")
 
 	claims, newToken, err := mgr.Parse(token)
@@ -143,21 +144,57 @@ func TestSessionManager_AdminToken_Revoked(t *testing.T) {
 
 	mgr := newSessionManager(settingsMgr, getProjLister(), storage)
 
-	token, err := mgr.Create("admin:login", 0, "123")
+	token, err := mgr.Create("admin:login", int64(autoRegenerateTokenDuration.Seconds()*2), "123")
 	require.NoError(t, err)
 
-	err = storage.RevokeToken(t.Context(), "123", time.Hour)
+	err = storage.RevokeToken(t.Context(), "123", autoRegenerateTokenDuration*2)
 	require.NoError(t, err)
 
 	_, _, err = mgr.Parse(token)
-	assert.EqualError(t, err, "token is revoked, please re-login")
+	assert.Equal(t, "token has been revoked, please re-login", err.Error())
+}
+
+func TestSessionManager_AdminToken_NoExpirationTime(t *testing.T) {
+	redisClient, closer := test.NewInMemoryRedis()
+	defer closer()
+
+	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "pass", true), "argocd")
+	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(redisClient))
+
+	token, err := mgr.Create("admin:login", 0, "123")
+	if err != nil {
+		t.Errorf("Could not create token: %v", err)
+	}
+
+	_, _, err = mgr.Parse(token)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "token has no expiration time:")
+}
+
+func TestSessionManager_AdminToken_Expired(t *testing.T) {
+	redisClient, closer := test.NewInMemoryRedis()
+	defer closer()
+
+	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "pass", true), "argocd")
+	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(redisClient))
+
+	token, err := mgr.Create("admin:login", 2, "123")
+	if err != nil {
+		t.Errorf("Could not create token: %v", err)
+	}
+
+	time.Sleep(3 * time.Second)
+
+	_, _, err = mgr.Parse(token)
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "token is expired")
 }
 
 func TestSessionManager_AdminToken_Deactivated(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "pass", false), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
-	token, err := mgr.Create("admin:login", 0, "abc")
+	token, err := mgr.Create("admin:login", int64(autoRegenerateTokenDuration.Seconds()*2), "abc")
 	require.NoError(t, err, "Could not create token")
 
 	_, _, err = mgr.Parse(token)
@@ -168,7 +205,7 @@ func TestSessionManager_AdminToken_LoginCapabilityDisabled(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "pass", true, settings.AccountCapabilityLogin), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
-	token, err := mgr.Create("admin", 0, "abc")
+	token, err := mgr.Create("admin", int64(autoRegenerateTokenDuration.Seconds()*2), "abc")
 	require.NoError(t, err, "Could not create token")
 
 	_, _, err = mgr.Parse(token)
@@ -609,7 +646,7 @@ func TestSessionManager_VerifyToken(t *testing.T) {
 	t.Cleanup(dexTestServer.Close)
 
 	t.Run("RS512 is supported", func(t *testing.T) {
-		dexConfig := map[string]string{
+		config := map[string]string{
 			"url": "",
 			"oidc.config": fmt.Sprintf(`
 name: Test
@@ -619,7 +656,7 @@ clientSecret: yyy
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(dexConfig, nil), "argocd")
+		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, nil), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 		// Use test server's client to avoid TLS issues.
@@ -640,7 +677,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 	t.Run("oidcConfig.rootCA is respected", func(t *testing.T) {
 		cert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: oidcTestServer.TLS.Certificates[0].Certificate[0]})
 
-		dexConfig := map[string]string{
+		config := map[string]string{
 			"url": "",
 			"oidc.config": fmt.Sprintf(`
 name: Test
@@ -653,7 +690,7 @@ rootCA: |
 `, oidcTestServer.URL, strings.ReplaceAll(string(cert), "\n", "\n  ")),
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(dexConfig, nil), "argocd")
+		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, nil), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
@@ -673,7 +710,7 @@ rootCA: |
 	})
 
 	t.Run("OIDC provider is Dex, TLS is configured", func(t *testing.T) {
-		dexConfig := map[string]string{
+		config := map[string]string{
 			"url": dexTestServer.URL,
 			"dex.config": `connectors:
 - type: github
@@ -690,11 +727,11 @@ rootCA: |
 			"tls.key": utiltest.PrivateKey,
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, nil, NewUserStateStorage(nil))
+		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, secretConfig), "argocd")
+		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
-		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
+		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"argo-cd"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
 		claims.Issuer = dexTestServer.URL + "/api/dex"
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
@@ -703,12 +740,11 @@ rootCA: |
 		require.NoError(t, err)
 
 		_, _, err = mgr.VerifyToken(tokenString)
-		require.Error(t, err)
-		assert.ErrorIs(t, err, common.ErrTokenVerification)
+		require.NoError(t, err)
 	})
 
 	t.Run("OIDC provider is external, TLS is configured", func(t *testing.T) {
-		dexConfig := map[string]string{
+		config := map[string]string{
 			"url": "",
 			"oidc.config": fmt.Sprintf(`
 name: Test
@@ -725,11 +761,11 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			"tls.key": utiltest.PrivateKey,
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
+		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, secretConfig), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
-		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
+		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"argo-cd-cli"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
 		claims.Issuer = oidcTestServer.URL
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
@@ -742,43 +778,8 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
 
-	t.Run("OIDC provider is Dex, TLS is configured", func(t *testing.T) {
-		dexConfig := map[string]string{
-			"url": dexTestServer.URL,
-			"dex.config": `connectors:
-- type: github
-  name: GitHub
-  config:
-    clientID: aabbccddeeff00112233
-    clientSecret: aabbccddeeff00112233`,
-		}
-
-		// This is not actually used in the test. The test only calls the OIDC test server. But a valid cert/key pair
-		// must be set to test VerifyToken's behavior when Argo CD is configured with TLS enabled.
-		secretConfig := map[string][]byte{
-			"tls.crt": utiltest.Cert,
-			"tls.key": utiltest.PrivateKey,
-		}
-
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, nil, NewUserStateStorage(nil))
-		mgr.verificationDelayNoiseEnabled = false
-
-		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
-		claims.Issuer = dexTestServer.URL + "/api/dex"
-		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
-		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
-		require.NoError(t, err)
-		tokenString, err := token.SignedString(key)
-		require.NoError(t, err)
-
-		_, _, err = mgr.VerifyToken(tokenString)
-		require.Error(t, err)
-		assert.ErrorIs(t, err, common.ErrTokenVerification)
-	})
-
 	t.Run("OIDC provider is external, TLS is configured, OIDCTLSInsecureSkipVerify is true", func(t *testing.T) {
-		dexConfig := map[string]string{
+		config := map[string]string{
 			"url": "",
 			"oidc.config": fmt.Sprintf(`
 name: Test
@@ -796,7 +797,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			"tls.key": utiltest.PrivateKey,
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
+		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, secretConfig), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
@@ -814,7 +815,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 	})
 
 	t.Run("OIDC provider is external, TLS is not configured, OIDCTLSInsecureSkipVerify is true", func(t *testing.T) {
-		dexConfig := map[string]string{
+		config := map[string]string{
 			"url": "",
 			"oidc.config": fmt.Sprintf(`
 name: Test
@@ -825,7 +826,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			"oidc.tls.insecure.skip.verify": "true",
 		}
 
-		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(dexConfig, nil), "argocd")
+		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, nil), "argocd")
 		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
 		mgr.verificationDelayNoiseEnabled = false
 
@@ -1205,6 +1206,95 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
+	})
+
+	t.Run("OIDC provider is external, token is revoked", func(t *testing.T) {
+		tokenID := "123"
+		redisClient, closer := test.NewInMemoryRedis()
+		defer closer()
+
+		storage := NewUserStateStorage(redisClient)
+		err := storage.RevokeToken(t.Context(), tokenID, autoRegenerateTokenDuration*2)
+		require.NoError(t, err)
+
+		config := map[string]string{
+			"url": "",
+			"oidc.config": fmt.Sprintf(`
+ name: Test
+ issuer: %s
+ clientID: xxx
+ clientSecret: yyy
+ requestedScopes: ["oidc"]`, oidcTestServer.URL),
+			"oidc.tls.insecure.skip.verify": "true", // This isn't what we're testing.
+		}
+
+		// This is not actually used in the test. The test only calls the OIDC test server. But a valid cert/key pair
+		// must be set to test VerifyToken's behavior when Argo CD is configured with TLS enabled.
+		secretConfig := map[string][]byte{
+			"tls.crt": utiltest.Cert,
+			"tls.key": utiltest.PrivateKey,
+		}
+
+		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, secretConfig), "argocd")
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, storage)
+		mgr.verificationDelayNoiseEnabled = false
+
+		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"xxx"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
+		claims.Issuer = oidcTestServer.URL
+		claims.ID = tokenID
+		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
+		require.NoError(t, err)
+		tokenString, err := token.SignedString(key)
+		require.NoError(t, err)
+
+		_, _, err = mgr.VerifyToken(tokenString)
+		require.Error(t, err)
+		assert.Equal(t, "token has been revoked, please re-login", err.Error())
+	})
+
+	t.Run("OIDC provider is Dex, token is revoked", func(t *testing.T) {
+		tokenID := "123"
+		redisClient, closer := test.NewInMemoryRedis()
+		defer closer()
+
+		storage := NewUserStateStorage(redisClient)
+		err := storage.RevokeToken(t.Context(), tokenID, autoRegenerateTokenDuration*2)
+		require.NoError(t, err)
+
+		config := map[string]string{
+			"url": dexTestServer.URL,
+			"dex.config": `connectors:
+ - type: github
+   name: GitHub
+   config:
+     clientID: aabbccddeeff00112233
+     clientSecret: aabbccddeeff00112233`,
+		}
+
+		// This is not actually used in the test. The test only calls the OIDC test server. But a valid cert/key pair
+		// must be set to test VerifyToken's behavior when Argo CD is configured with TLS enabled.
+		secretConfig := map[string][]byte{
+			"tls.crt": utiltest.Cert,
+			"tls.key": utiltest.PrivateKey,
+		}
+
+		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, secretConfig), "argocd")
+		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, storage)
+		mgr.verificationDelayNoiseEnabled = false
+
+		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"argo-cd-cli"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
+		claims.Issuer = dexTestServer.URL + "/api/dex"
+		claims.ID = tokenID
+		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
+		require.NoError(t, err)
+		tokenString, err := token.SignedString(key)
+		require.NoError(t, err)
+
+		_, _, err = mgr.VerifyToken(tokenString)
+		require.Error(t, err)
+		assert.Equal(t, "token has been revoked, please re-login", err.Error())
 	})
 }
 
