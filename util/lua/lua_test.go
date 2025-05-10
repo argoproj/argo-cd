@@ -868,7 +868,7 @@ return hs`
 	})
 
 	t.Run("Get resource health for */* override with empty health.lua", func(t *testing.T) {
-		testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
+		testObj := StrToUnstructured(objWithNoScriptJSON)
 		overrides := getBaseWildcardHealthOverrides
 		status, err := overrides.GetResourceHealth(testObj)
 		require.NoError(t, err)
