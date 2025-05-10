@@ -15,12 +15,14 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/argoproj/argo-cd/v3/common"
 )
@@ -385,6 +387,7 @@ func Test_importResources(t *testing.T) {
 		prune                    bool
 		skipResourcesWithLabel   string
 		stopOperation            bool
+		overrideOnConflict       bool
 	}{
 		{
 			name: "It should update live object if skip label is not present in backup object",
@@ -421,6 +424,7 @@ data:
 			applicationsetNamespaces: []string{"argocd", "prod"},
 			skipResourcesWithLabel:   "env=dev",
 			stopOperation:            false,
+			overrideOnConflict:       true,
 		},
 		{
 			name: "It should update live object when data differs from backup",
@@ -626,6 +630,38 @@ status:
 			},
 			stopOperation: true,
 		},
+		{
+			name: "It should override live object when --override-on-conflict is true",
+			args: args{
+				bak: `apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret
+  namespace: argocd
+  labels:
+    env: dev
+type: Opaque
+data:
+  username: bar
+  password: abc
+`,
+				live: `apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret
+  namespace: argocd
+  labels:
+    env: prod
+type: Opaque
+data:
+  username: old
+  password: old-pwd
+`,
+			},
+			applicationNamespaces:    []string{"argocd"},
+			applicationsetNamespaces: []string{},
+			overrideOnConflict:       true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -699,33 +735,52 @@ status:
 				bakObj.SetNamespace("argocd")
 			}
 			key := kube.ResourceKey{Group: gvk.Group, Kind: gvk.Kind, Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}
+			liveObject, exists := pruneObjects[key]
 			delete(pruneObjects, key)
 
 			var updatedLive *unstructured.Unstructured
+			var dynClient dynamic.ResourceInterface
+
+			switch bakObj.GetKind() {
+			case "Secret":
+				dynClient = dynamicClient.Resource(secretResource).Namespace(bakObj.GetNamespace())
+			}
+
 			if slices.Contains(tt.applicationNamespaces, bakObj.GetNamespace()) || slices.Contains(tt.applicationsetNamespaces, bakObj.GetNamespace()) {
 				if !isSkipLabelMatches(bakObj, tt.skipResourcesWithLabel) || !isSkipLabelMatches(liveObj, tt.skipResourcesWithLabel) {
 					if tt.prune {
-						var dynClient dynamic.ResourceInterface
-						switch key.Kind {
-						case "Secret":
-							dynClient = dynamicClient.Resource(secretResource).Namespace(liveObj.GetNamespace())
-						case "AppProjectKind":
-							dynClient = dynamicClient.Resource(appprojectsResource).Namespace(liveObj.GetNamespace())
-						case "ApplicationSetKind":
-							dynClient = dynamicClient.Resource(appplicationSetResource).Namespace(liveObj.GetNamespace())
-						case "ApplicationKind":
-							dynClient = dynamicClient.Resource(applicationsResource).Namespace(liveObj.GetNamespace())
-						}
-
 						err := dynClient.Delete(ctx, key.Name, metav1.DeleteOptions{})
 						assert.NoError(t, err)
 					} else {
 						updatedLive = updateLive(bakObj, liveObj, tt.stopOperation)
 
-						assert.Equal(t, bakObj.GetLabels(), updatedLive.GetLabels())
-						assert.Equal(t, bakObj.GetAnnotations(), updatedLive.GetAnnotations())
-						assert.Equal(t, bakObj.GetFinalizers(), updatedLive.GetFinalizers())
-						assert.Equal(t, bakObj.Object["data"], updatedLive.Object["data"])
+						if tt.overrideOnConflict {
+							switch {
+							case !exists:
+								_, err := dynClient.Create(ctx, bakObj, metav1.CreateOptions{})
+								assert.NoError(t, err)
+							default:
+								newLive := updateLive(bakObj, &liveObject, tt.stopOperation)
+								_, err := dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
+								if apierrors.IsConflict(err) && tt.overrideOnConflict {
+									err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+										liveObj, _ := dynClient.Get(ctx, newLive.GetName(), metav1.GetOptions{})
+
+										newLive.SetResourceVersion(liveObj.GetResourceVersion())
+										_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
+										return err
+									})
+
+									assert.NoError(t, err)
+								}
+							}
+						} else {
+
+							assert.Equal(t, bakObj.GetLabels(), updatedLive.GetLabels())
+							assert.Equal(t, bakObj.GetAnnotations(), updatedLive.GetAnnotations())
+							assert.Equal(t, bakObj.GetFinalizers(), updatedLive.GetFinalizers())
+							assert.Equal(t, bakObj.Object["data"], updatedLive.Object["data"])
+						}
 					}
 				}
 			} else {
