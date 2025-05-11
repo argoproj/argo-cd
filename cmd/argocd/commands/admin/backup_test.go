@@ -6,12 +6,12 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/yaml"
 
-	secutil "github.com/argoproj/argo-cd/v3/util/security"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/security"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -671,14 +671,14 @@ data:
 			pruneObjects := make(map[kube.ResourceKey]unstructured.Unstructured)
 
 			configMap := &unstructured.Unstructured{}
-			configMap.SetUnstructuredContent(map[string]interface{}{
+			configMap.SetUnstructuredContent(map[string]any{
 				"apiVersion": "v1",
 				"kind":       "ConfigMap",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "argocd-cmd-params-cm",
 					"namespace": "default",
 				},
-				"data": map[string]interface{}{
+				"data": map[string]any{
 					"application.namespaces":    "argocd,dev",
 					"applicationset.namespaces": "argocd,stage",
 				},
@@ -716,7 +716,7 @@ data:
 			}
 			// check if the object is an application or not
 			if bakObj.GetKind() == "Application" {
-				if secutil.IsNamespaceEnabled(bakObj.GetNamespace(), "argocd", tt.applicationNamespaces) {
+				if security.IsNamespaceEnabled(bakObj.GetNamespace(), "argocd", tt.applicationNamespaces) {
 					pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "Application", Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}] = *bakObj
 				}
 			}
@@ -726,7 +726,7 @@ data:
 			}
 			// check if the object is an applicationSet or not
 			if bakObj.GetKind() == "ApplicationSet" {
-				if secutil.IsNamespaceEnabled(bakObj.GetNamespace(), "argocd", tt.applicationsetNamespaces) {
+				if security.IsNamespaceEnabled(bakObj.GetNamespace(), "argocd", tt.applicationsetNamespaces) {
 					pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "ApplicationSet", Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}] = *bakObj
 				}
 			}
@@ -741,8 +741,7 @@ data:
 			var updatedLive *unstructured.Unstructured
 			var dynClient dynamic.ResourceInterface
 
-			switch bakObj.GetKind() {
-			case "Secret":
+			if bakObj.GetKind() == "Secret" {
 				dynClient = dynamicClient.Resource(secretResource).Namespace(bakObj.GetNamespace())
 			}
 
@@ -750,7 +749,7 @@ data:
 				if !isSkipLabelMatches(bakObj, tt.skipResourcesWithLabel) || !isSkipLabelMatches(liveObj, tt.skipResourcesWithLabel) {
 					if tt.prune {
 						err := dynClient.Delete(ctx, key.Name, metav1.DeleteOptions{})
-						assert.NoError(t, err)
+						require.NoError(t, err)
 					} else {
 						updatedLive = updateLive(bakObj, liveObj, tt.stopOperation)
 
@@ -758,7 +757,7 @@ data:
 							switch {
 							case !exists:
 								_, err := dynClient.Create(ctx, bakObj, metav1.CreateOptions{})
-								assert.NoError(t, err)
+								require.NoError(t, err)
 							default:
 								newLive := updateLive(bakObj, &liveObject, tt.stopOperation)
 								_, err := dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
@@ -771,11 +770,10 @@ data:
 										return err
 									})
 
-									assert.NoError(t, err)
+									require.NoError(t, err)
 								}
 							}
 						} else {
-
 							assert.Equal(t, bakObj.GetLabels(), updatedLive.GetLabels())
 							assert.Equal(t, bakObj.GetAnnotations(), updatedLive.GetAnnotations())
 							assert.Equal(t, bakObj.GetFinalizers(), updatedLive.GetFinalizers())
