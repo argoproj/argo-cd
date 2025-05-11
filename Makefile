@@ -489,6 +489,7 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_E2E_TEST=true \
 	ARGOCD_HYDRATOR_ENABLED=true \
 	ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL=1ms \
+	KUBE_FEATURE_WatchListClient=true \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 	ls -lrt /tmp/coverage
 
