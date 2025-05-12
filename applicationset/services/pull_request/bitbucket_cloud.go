@@ -17,10 +17,19 @@ type BitbucketCloudService struct {
 }
 
 type BitbucketCloudPullRequest struct {
-	ID     int                             `json:"id"`
-	Title  string                          `json:"title"`
-	Source BitbucketCloudPullRequestSource `json:"source"`
-	Author BitbucketCloudPullRequestAuthor `json:"author"`
+	ID          int                                  `json:"id"`
+	Title       string                               `json:"title"`
+	Source      BitbucketCloudPullRequestSource      `json:"source"`
+	Author      BitbucketCloudPullRequestAuthor      `json:"author"`
+	Destination BitbucketCloudPullRequestDestination `json:"destination"`
+}
+
+type BitbucketCloudPullRequestDestination struct {
+	Branch BitbucketCloudPullRequestDestinationBranch `json:"branch"`
+}
+
+type BitbucketCloudPullRequestDestinationBranch struct {
+	Name string `json:"name"`
 }
 
 type BitbucketCloudPullRequestSource struct {
@@ -136,11 +145,12 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 	pullRequests := []*PullRequest{}
 	for _, pull := range pulls {
 		pullRequests = append(pullRequests, &PullRequest{
-			Number:  pull.ID,
-			Title:   pull.Title,
-			Branch:  pull.Source.Branch.Name,
-			HeadSHA: pull.Source.Commit.Hash,
-			Author:  pull.Author.Nickname,
+			Number:       pull.ID,
+			Title:        pull.Title,
+			Branch:       pull.Source.Branch.Name,
+			TargetBranch: pull.Destination.Branch.Name,
+			HeadSHA:      pull.Source.Commit.Hash,
+			Author:       pull.Author.Nickname,
 		})
 	}
 

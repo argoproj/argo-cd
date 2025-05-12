@@ -35,6 +35,10 @@ cd ${SRCROOT}/manifests/base && $KUSTOMIZE edit set image quay.io/argoproj/argoc
 cd ${SRCROOT}/manifests/ha/base && $KUSTOMIZE edit set image quay.io/argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG}
 cd ${SRCROOT}/manifests/core-install && $KUSTOMIZE edit set image quay.io/argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG}
 
+# Because commit-server is added as a resource outside the base, we have to explicitly set the image override here.
+# If/when commit-server is added to the base, this can be removed.
+cd ${SRCROOT}/manifests/base/commit-server && $KUSTOMIZE edit set image quay.io/argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG}
+
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/install.yaml"
 $KUSTOMIZE build "${SRCROOT}/manifests/cluster-install" >> "${SRCROOT}/manifests/install.yaml"
 

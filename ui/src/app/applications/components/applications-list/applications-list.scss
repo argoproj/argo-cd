@@ -219,3 +219,9 @@ i.menu_icon {
         }
     }
 }
+
+@media screen and (min-width: calc(map-get($breakpoints, large) - 1px)) {
+    .custom-tooltip {
+        display: none !important;
+    }
+}

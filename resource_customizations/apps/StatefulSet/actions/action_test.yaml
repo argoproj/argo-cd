@@ -1,4 +1,14 @@
 actionTests:
-- action: restart
-  inputPath: testdata/statefulset.yaml
-  expectedOutputPath: testdata/statefulset-restarted.yaml
+  - action: restart
+    inputPath: testdata/statefulset.yaml
+    expectedOutputPath: testdata/statefulset-restarted.yaml
+  - action: scale
+    inputPath: testdata/statefulset.yaml
+    expectedOutputPath: testdata/statefulset-scaled.yaml
+    parameters:
+      replicas: '6'
+  - action: scale
+    inputPath: testdata/statefulset.yaml
+    expectedErrorMessage: 'invalid number: not_a_number'
+    parameters:
+      replicas: 'not_a_number'

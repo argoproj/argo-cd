@@ -75,6 +75,9 @@ export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelPr
                                     component={CheckboxField}
                                 />
                             </div>
+                            <div className='argo-form-row'>
+                                <FormField formApi={api} label='Description' field='window.description' component={Text} />
+                            </div>
                         </div>
                         <div className='white-box'>
                             <ProjectSyncWindowApplicationsEdit projName={api.values.projName} window={api.values.window} formApi={api} />
