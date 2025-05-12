@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/argoproj/argo-cd/v3/util/io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -575,7 +577,8 @@ func getHealthScriptPaths() ([]string, error) {
 
 			// Check if the directory contains a health.lua file
 			healthFilePath := filepath.Join(dir.Name(), kindDir.Name(), healthScriptFile)
-			_, err = resource_customizations.Embedded.Open(healthFilePath)
+			var f fs.File
+			f, err = resource_customizations.Embedded.Open(healthFilePath)
 			if err != nil {
 				if os.IsNotExist(err) {
 					// No health script for this GK, move on.
@@ -583,6 +586,7 @@ func getHealthScriptPaths() ([]string, error) {
 				}
 				return nil, fmt.Errorf("error opening %q: %w", healthFilePath, err)
 			}
+			io.Close(f)
 
 			groupKindPath := filepath.Join(dir.Name(), kindDir.Name())
 			if !strings.Contains(groupKindPath, "_") {
