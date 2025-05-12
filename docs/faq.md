@@ -370,5 +370,5 @@ If you can avoid using these features, you can avoid triggering the error. The o
 
 ## Why does Argo CD not detect changes in deployment's environment variables ?
 
-Under the hood Argo CD uses `kubect diff` to detect changes, `kubectl diff` [doesn't detect changes in deployment's environment variables once the deployment is created](https://github.com/kubernetes/kubectl/issues/1587).
+Under the hood Argo CD uses `kubectl diff` to detect changes, `kubectl diff` [doesn't detect changes in deployment's environment variables once the deployment is created](https://github.com/kubernetes/kubectl/issues/1587).
 
