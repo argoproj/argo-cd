@@ -92,26 +92,6 @@ spec:
         # We need a writeable temp directory for the askpass socket file.
         - name: tmp
           mountPath: /tmp
-      initContainers:
-      - command:
-        - /bin/cp
-        - -n
-        - /usr/local/bin/argocd
-        - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:latest
-        name: copyutil
-        securityContext:
-          runAsNonRoot: true
-          readOnlyRootFilesystem: true
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          seccompProfile:
-            type: RuntimeDefault
-        volumeMounts:
-        - mountPath: /var/run/argocd
-          name: var-files
       volumes:
         - name: ssh-known-hosts
           configMap:
@@ -137,8 +117,6 @@ spec:
               path: tls.key
             - key: ca.crt
               path: ca.crt
-        - emptyDir: {}
-          name: var-files
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
