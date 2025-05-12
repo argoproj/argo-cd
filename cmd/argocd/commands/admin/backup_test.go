@@ -2,7 +2,6 @@ package admin
 
 import (
 	"bytes"
-	"context"
 	"slices"
 	"testing"
 
@@ -684,7 +683,7 @@ data:
 				},
 			})
 
-			ctx := context.Background()
+			ctx := t.Context()
 			gvr := schema.GroupVersionResource{
 				Group:    "",
 				Version:  "v1",
