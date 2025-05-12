@@ -1652,7 +1652,7 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 
 	// Create a file in temp dir
 	filePath := filepath.Join(tmpDir, "test.txt")
-	err = os.WriteFile(filePath, []byte("test"), 0644)
+	err = os.WriteFile(filePath, []byte("test"), 0o644)
 	require.NoError(t, err)
 
 	argocd, closer := fakeServer(t)
@@ -1672,7 +1672,7 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 
 	// Make sure a normal file works
 	normalFilePath := filepath.Join(argocd.StaticAssetsDir, "normal.txt")
-	err = os.WriteFile(normalFilePath, []byte("normal"), 0644)
+	err = os.WriteFile(normalFilePath, []byte("normal"), 0o644)
 	require.NoError(t, err)
 	req = httptest.NewRequest(http.MethodGet, "/normal.txt", nil)
 	w = httptest.NewRecorder()
