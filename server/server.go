@@ -331,7 +331,9 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 
 	var staticFS fs.FS = io.NewSubDirFS("dist/app", ui.Embedded)
 	if opts.StaticAssetsDir != "" {
-		staticFS = io.NewComposableFS(staticFS, os.DirFS(opts.StaticAssetsDir))
+		root, err := os.OpenRoot(opts.StaticAssetsDir)
+		errorsutil.CheckError(err)
+		staticFS = io.NewComposableFS(staticFS, root.FS())
 	}
 
 	argocdService, err := service.NewArgoCDService(opts.KubeClientset, opts.Namespace, opts.RepoClientset)
