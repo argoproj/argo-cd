@@ -1,4 +1,4 @@
-# Overview
+# Overview 
 
 <!-- markdownlint-disable MD026 -->
 ## What Is Argo CD?
