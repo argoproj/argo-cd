@@ -21,6 +21,9 @@ redis-ha:
     checkInterval: 3s
     metrics:
       enabled: true
+    extraConfig: |
+      global
+        maxconn 4096
     serviceAccount:
       automountToken: true
   image:
