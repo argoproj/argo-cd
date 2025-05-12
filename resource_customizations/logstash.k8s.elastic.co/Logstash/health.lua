@@ -15,6 +15,6 @@ if obj.status ~= nil and obj.status.health ~= nil then
   end
 end
 
-hs.status = "Unknown"
-hs.message = "Logstash status is unknown. Ensure your ArgoCD is current and then check for/file a bug report: https://github.com/argoproj/argo-cd/issues"
+hs.status = "Progressing"
+hs.message = "Waiting for Logstash"
 return hs

@@ -12,6 +12,6 @@ tests:
     message: "Logstash status is Red"
   inputPath: testdata/red.yaml
 - healthStatus:
-    status: Unknown
-    message: "Logstash status is unknown. Ensure your ArgoCD is current and then check for/file a bug report: https://github.com/argoproj/argo-cd/issues"
+    status: Progressing
+    message: "Waiting for Logstash"
   inputPath: testdata/unknown.yaml
