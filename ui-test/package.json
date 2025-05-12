@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
-    "@types/node": "^22.15.14",
+    "@types/node": "^22.15.17",
     "dotenv": "^16.5.0",
     "mocha": "^11.2.2",
     "prettier": "^2.8.8",
