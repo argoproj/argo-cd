@@ -7,7 +7,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	timeutil "github.com/argoproj/pkg/time"
+	timeutil "github.com/argoproj/pkg/v2/time"
 	jwtgo "github.com/golang-jwt/jwt/v5"
 	"github.com/spf13/cobra"
 
