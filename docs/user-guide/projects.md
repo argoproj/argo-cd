@@ -232,7 +232,7 @@ argocd app get $APP --auth-token $JWT
 
 ## Configuring RBAC With Projects
 
-The project Roles allows configuring RBAC rules scoped to the project. The following sample project provides read-only permissions on project applications to any member of `my-oidc-group` group.
+Project roles allow configuring RBAC rules scoped to the project. The following sample project provides read-only permissions on project applications to any member of `my-oidc-group` group.
 
 *AppProject example:*
 
