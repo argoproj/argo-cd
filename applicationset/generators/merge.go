@@ -130,11 +130,11 @@ func getParamSetsByMergeKey(mergeKeys []string, paramSets []map[string]any, useG
 		// Convert it to json and back to a string
 		// This is necessary, as the value indexed by this key may be a complex
 		// object. We want to index with this representation -> String.
-		paramSetReprJson, err := json.Marshal(paramSetRepr)
+		paramSetReprJSON, err := json.Marshal(paramSetRepr)
 		if err != nil {
 			return nil, fmt.Errorf("error marshalling param set key json: %w", err)
 		}
-		paramSetReprString := string(paramSetReprJson)
+		paramSetReprString := string(paramSetReprJSON)
 
 		// If this was already in the map, we have a duplicate value with respect
 		// to these merge keys and these paramSets are not distinguishable.
