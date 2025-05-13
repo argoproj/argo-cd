@@ -58,26 +58,15 @@ const sectionHeader = (info: SectionInfo, onClick?: () => any) => {
     );
 };
 
-const hasApplicationSetOwner = (application: models.Application): boolean => {
+const hasRollingSyncEnabled = (application: models.Application): boolean => {
     return application.metadata.ownerReferences?.some(ref => ref.kind === 'ApplicationSet') || false;
 };
 
-const hasRollingSyncEnabled = async (application: models.Application): Promise<boolean> => {
-    if (!hasApplicationSetOwner(application)) {
-        return false;
-    }
-    const appSetRef = application.metadata.ownerReferences.find(ref => ref.kind === 'ApplicationSet');
-    if (!appSetRef) {
-        return false;
-    }
-    const appSet = await services.applications.getApplicationSet(appSetRef.name, application.metadata.namespace);
-    return appSet?.spec?.strategy?.type === 'RollingSync';
-};
-
 const ProgressiveSyncStatus = ({application}: {application: models.Application}) => {
-    if (!hasApplicationSetOwner(application)) {
+    if (!hasRollingSyncEnabled(application)) {
         return null;
     }
+
     const appSetRef = application.metadata.ownerReferences.find(ref => ref.kind === 'ApplicationSet');
     if (!appSetRef) {
         return null;
@@ -104,6 +93,7 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                         </div>
                     );
                 }
+
                 // Get the current application's status from the ApplicationSet resources
                 const appResource = appSet.status?.applicationStatus?.find(status => status.application === application.metadata.name);
 
@@ -133,7 +123,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
     const [showProgressiveSync, setShowProgressiveSync] = React.useState(false);
 
     React.useEffect(() => {
-        hasRollingSyncEnabled(application).then(enabled => setShowProgressiveSync(enabled));
+        setShowProgressiveSync(hasRollingSyncEnabled(application));
     }, [application]);
 
     const today = new Date();
@@ -162,6 +152,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
     const errors = cntByCategory.get('error');
     const source = getAppDefaultSource(application);
     const hasMultipleSources = application.spec.sources?.length > 0;
+
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item'>
