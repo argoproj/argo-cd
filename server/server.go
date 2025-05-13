@@ -336,7 +336,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	root, err := os.OpenRoot(opts.StaticAssetsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			log.Warnf("Static assets directory %q does not exist, using embedded assets", opts.StaticAssetsDir)
+			log.Warnf("Static assets directory %q does not exist, using only embedded assets", opts.StaticAssetsDir)
 		} else {
 			errorsutil.CheckError(err)
 		}
