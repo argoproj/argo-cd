@@ -170,6 +170,11 @@ spec:
 ```
 
 !!! important
+    The `templatePatch` in the ApplicationSet only works when the [go templating](../applicationset/GoTemplate.md) is enabled.
+    This means that if the `goTemplate` field under the `spec` needs to be set to true for 
+    template patching to work.
+
+!!! important
     The `templatePatch` can apply arbitrary changes to the template. If parameters include untrustworthy user input, it 
     may be possible to inject malicious changes into the template. It is recommended to use `templatePatch` only with 
     trusted input or to carefully escape the input before using it in the template. Piping input to `toJson` should help
