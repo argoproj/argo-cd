@@ -509,6 +509,8 @@ const (
 	externalServerTLSSecretName = "argocd-server-tls"
 	// partOfArgoCDSelector holds label selector that should be applied to config maps and secrets used to manage Argo CD
 	partOfArgoCDSelector = "app.kubernetes.io/part-of=argocd"
+	// secretsPartOfArgoCDSelectorCheckEnabledForSecretsKey is the key to configure secrets label selector check
+	secretsPartOfArgoCDSelectorCheckEnabledForSecretsKey = "secrets.partOfSelectorCheckEnabled"
 	// settingsPasswordPatternKey is the key to configure user password regular expression
 	settingsPasswordPatternKey = "passwordPattern"
 	// inClusterEnabledKey is the key to configure whether to allow in-cluster server address
@@ -763,20 +765,44 @@ func (mgr *SettingsManager) GetSecretByName(secretName string) (*corev1.Secret, 
 	return secretCopy, err
 }
 
+func (mgr *SettingsManager) partOfArgoCDSelectorArgoCDSelectorCheckEnabled() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return false, err
+	}
+
+	if argoCDCM.Data[secretsPartOfArgoCDSelectorCheckEnabledForSecretsKey] == "" {
+		return true, nil
+	}
+
+	return strconv.ParseBool(argoCDCM.Data[secretsPartOfArgoCDSelectorCheckEnabledForSecretsKey])
+}
+
 func (mgr *SettingsManager) getSecrets() ([]*corev1.Secret, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
 		return nil, err
 	}
 
-	selector, err := labels.Parse(partOfArgoCDSelector)
+	selector := labels.Everything()
+
+	partOfArgoCDSelectorCheckEnabled, err := mgr.partOfArgoCDSelectorArgoCDSelectorCheckEnabled()
 	if err != nil {
-		return nil, fmt.Errorf("error parsing Argo CD selector %w", err)
+		return nil, err
 	}
+
+	if partOfArgoCDSelectorCheckEnabled {
+		selector, err = labels.Parse(partOfArgoCDSelector)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing Argo CD selector %w", err)
+		}
+	}
+
 	secrets, err := mgr.secrets.Secrets(mgr.namespace).List(selector)
 	if err != nil {
 		return nil, err
 	}
+
 	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
 	// Objects returned by the lister must be treated as read-only.
 	// To allow us to modify the secrets, make a copy
