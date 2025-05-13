@@ -130,6 +130,7 @@ API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/applicat
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ResourceOverride,IgnoreResourceUpdates
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ResourceOverride,KnownTypeFields
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,ResourceOverride,UseOpenLibs
+API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,SyncOperation,SelfHealAttemptsCount
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,objectMeta,Name
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,rawResourceOverride,HealthLua
 API rule violation: names_match,github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1,rawResourceOverride,UseOpenLibs

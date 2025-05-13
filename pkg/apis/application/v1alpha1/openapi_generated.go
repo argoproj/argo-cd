@@ -7533,6 +7533,13 @@ func schema_pkg_apis_application_v1alpha1_SyncOperation(ref common.ReferenceCall
 							},
 						},
 					},
+					"autoHealAttemptsCount": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SelfHealAttemptsCount contains the number of auto-heal attempts",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
 				},
 			},
 		},
