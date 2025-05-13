@@ -329,8 +329,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, projLister)
 	enf.SetClaimsEnforcerFunc(policyEnf.EnforceClaims)
 
-	var staticFS fs.FS
-	staticFS, err = fs.Sub(ui.Embedded, "dist/app")
+	staticFS, err := fs.Sub(ui.Embedded, "dist/app")
 	errorsutil.CheckError(err)
 
 	root, err := os.OpenRoot(opts.StaticAssetsDir)
