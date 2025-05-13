@@ -189,6 +189,7 @@ Wildcard checks are are only evaluated if there is no specific check for the res
 If multiple wildcard checks match, the first one in the directory structure is used.
 
 !!!important "Avoid Massive Scripts"
+
     Avoid writing massive scripts to handle multiple resources. They'll get hard to read and maintain. Instead, just
     duplicate the relevant parts in resource-specific scripts.
 
