@@ -184,7 +184,7 @@ argo-cd
 
 Any resource with a group that ends with `.group.io` will use the health check in `health.lua`.
 
-Wildcard checks are are only evaluated if there is no specific check for the resource.
+Wildcard checks are only evaluated if there is no specific check for the resource.
 
 If multiple wildcard checks match, the first one in the directory structure is used.
 
