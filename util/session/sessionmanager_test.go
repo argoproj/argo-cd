@@ -166,9 +166,16 @@ func TestSessionManager_AdminToken_NoExpirationTime(t *testing.T) {
 		t.Errorf("Could not create token: %v", err)
 	}
 
-	_, _, err = mgr.Parse(token)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "token has no expiration time:")
+	claims, newToken, err := mgr.Parse(token)
+	require.NoError(t, err)
+	assert.Empty(t, newToken)
+
+	mapClaims, err := jwtutil.MapClaims(claims)
+	require.NoError(t, err)
+	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
+	require.NoError(t, err)
+
+	assert.Equal(t, "admin", argoClaims.Subject)
 }
 
 func TestSessionManager_AdminToken_Expired(t *testing.T) {

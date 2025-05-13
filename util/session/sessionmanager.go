@@ -276,7 +276,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 
 	exp, err := jwtutil.ExpirationTime(claims)
 	if err != nil {
-		return nil, "", fmt.Errorf("token has no expiration time: %w", err)
+		return token.Claims, "", nil
 	}
 
 	newToken := ""
