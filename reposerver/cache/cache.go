@@ -16,12 +16,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/hash"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/hash"
 )
 
 var (
@@ -145,15 +145,15 @@ func listApps(repoURL, revision string) string {
 	return fmt.Sprintf("ldir|%s|%s", repoURL, revision)
 }
 
-func (c *Cache) ListApps(repoUrl, revision string) (map[string]string, error) {
+func (c *Cache) ListApps(repoURL, revision string) (map[string]string, error) {
 	res := make(map[string]string)
-	err := c.cache.GetItem(listApps(repoUrl, revision), &res)
+	err := c.cache.GetItem(listApps(repoURL, revision), &res)
 	return res, err
 }
 
-func (c *Cache) SetApps(repoUrl, revision string, apps map[string]string) error {
+func (c *Cache) SetApps(repoURL, revision string, apps map[string]string) error {
 	return c.cache.SetItem(
-		listApps(repoUrl, revision),
+		listApps(repoURL, revision),
 		apps,
 		&cacheutil.CacheActionOpts{
 			Expiration: c.repoCacheExpiration,
@@ -162,14 +162,14 @@ func (c *Cache) SetApps(repoUrl, revision string, apps map[string]string) error 
 }
 
 func helmIndexRefsKey(repo string) string {
-	return fmt.Sprintf("helm-index|%s", repo)
+	return "helm-index|" + repo
 }
 
 // SetHelmIndex stores helm repository index.yaml content to cache
 func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
 	if indexData == nil {
 		// Logged as warning upstream
-		return fmt.Errorf("helm index data is nil, skipping cache")
+		return errors.New("helm index data is nil, skipping cache")
 	}
 	return c.cache.SetItem(
 		helmIndexRefsKey(repo),
@@ -183,7 +183,7 @@ func (c *Cache) GetHelmIndex(repo string, indexData *[]byte) error {
 }
 
 func gitRefsKey(repo string) string {
-	return fmt.Sprintf("git-refs|%s", repo)
+	return "git-refs|" + repo
 }
 
 // SetGitReferences saves resolved Git repository references to cache
@@ -341,7 +341,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, s
 
 	hash, err := res.generateCacheEntryHash()
 	if err != nil {
-		return fmt.Errorf("Unable to generate hash value: %w", err)
+		return fmt.Errorf("unable to generate hash value: %w", err)
 	}
 
 	// If cached result does not have manifests or the expected hash of the cache entry does not match the actual hash value...
@@ -352,7 +352,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, s
 
 		err = c.DeleteManifests(revision, appSrc, srcRefs, clusterInfo, namespace, trackingMethod, appLabelKey, appName, refSourceCommitSHAs, installationID)
 		if err != nil {
-			return fmt.Errorf("Unable to delete manifest after hash mismatch, %w", err)
+			return fmt.Errorf("unable to delete manifest after hash mismatch: %w", err)
 		}
 
 		// Treat hash mismatches as cache misses, so that the underlying resource is reacquired
@@ -376,7 +376,7 @@ func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, s
 		res = res.shallowCopy()
 		hash, err := res.generateCacheEntryHash()
 		if err != nil {
-			return fmt.Errorf("Unable to generate hash value: %w", err)
+			return fmt.Errorf("unable to generate hash value: %w", err)
 		}
 		res.CacheEntryHash = hash
 	}

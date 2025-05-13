@@ -285,16 +285,18 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
                                 {toolbar.actionMenu && (
                                     <React.Fragment>
                                         {toolbar.actionMenu.items.map((item, i) => (
-                                            <button
-                                                disabled={!!item.disabled}
-                                                qe-id={item.qeId}
-                                                className='argo-button argo-button--base'
-                                                onClick={() => item.action()}
-                                                style={{marginRight: 2}}
-                                                key={i}>
-                                                {item.iconClassName && <i className={item.iconClassName} style={{marginLeft: '-5px', marginRight: '5px'}} />}
-                                                <span className='show-for-large'>{item.title}</span>
-                                            </button>
+                                            <Tooltip className='custom-tooltip' content={item.title}>
+                                                <button
+                                                    disabled={!!item.disabled}
+                                                    qe-id={item.qeId}
+                                                    className='argo-button argo-button--base'
+                                                    onClick={() => item.action()}
+                                                    style={{marginRight: 2}}
+                                                    key={i}>
+                                                    {item.iconClassName && <i className={item.iconClassName} style={{marginLeft: '-5px', marginRight: '5px'}} />}
+                                                    <span className='show-for-large'>{item.title}</span>
+                                                </button>
+                                            </Tooltip>
                                         ))}
                                     </React.Fragment>
                                 )}
@@ -390,6 +392,20 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                         {(applications: models.Application[]) => {
                                             const healthBarPrefs = pref.statusBarView || ({} as HealthStatusBarPreferences);
                                             const {filteredApps, filterResults} = filterApps(applications, pref, pref.search);
+                                            const handleCreatePanelClose = async () => {
+                                                const outsideDiv = document.querySelector('.sliding-panel__outside');
+                                                const closeButton = document.querySelector('.sliding-panel__close');
+
+                                                if (outsideDiv && closeButton && closeButton !== document.activeElement) {
+                                                    const confirmed = await ctx.popup.confirm('Close Panel', 'Closing this panel will discard all entered values. Continue?');
+                                                    if (confirmed) {
+                                                        ctx.navigation.goto('.', {new: null}, {replace: true});
+                                                    }
+                                                } else if (closeButton === document.activeElement) {
+                                                    // If the close button is focused or clicked, close without confirmation
+                                                    ctx.navigation.goto('.', {new: null}, {replace: true});
+                                                }
+                                            };
                                             return (
                                                 <React.Fragment>
                                                     <FlexTopBar
@@ -598,7 +614,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                     </ObservableQuery>
                                                     <SlidingPanel
                                                         isShown={!!appInput}
-                                                        onClose={() => ctx.navigation.goto('.', {new: null}, {replace: true})}
+                                                        onClose={() => handleCreatePanelClose()} //Separate handling for outside click.
                                                         header={
                                                             <div>
                                                                 <button

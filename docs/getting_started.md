@@ -64,6 +64,11 @@ Change the argocd-server service type to `LoadBalancer`:
 ```bash
 kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
 ```
+After a short wait, your cloud provider will assign an external IP address to the service. You can retrieve this IP with:
+
+```bash
+kubectl get svc argocd-server -n argocd -o=jsonpath='{.status.loadBalancer.ingress[0].ip}'
+```
 
 ### Ingress
 Follow the [ingress documentation](operator-manual/ingress.md) on how to configure Argo CD with ingress.
@@ -160,7 +165,7 @@ argocd app create guestbook --repo https://github.com/argoproj/argocd-example-ap
 
 ### Creating Apps Via UI
 
-Open a browser to the Argo CD external UI, and login by visiting the IP/hostname in a browser and use the credentials set in step 4.
+Open a browser to the Argo CD external UI, and login by visiting the IP/hostname in a browser and use the credentials set in step 4 or locally as explained in [Try Argo CD Locally](try_argo_cd_locally.md).
 
 After logging in, click the **+ New App** button as shown below:
 

@@ -9,7 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 
-	util "github.com/argoproj/argo-cd/v2/util/io"
+	util "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 const (
@@ -18,21 +18,23 @@ const (
 )
 
 type userStateStorage struct {
-	attempts       map[string]LoginAttempts
-	redis          *redis.Client
-	revokedTokens  map[string]bool
-	lock           sync.RWMutex
-	resyncDuration time.Duration
+	attempts            map[string]LoginAttempts
+	redis               *redis.Client
+	revokedTokens       map[string]bool
+	recentRevokedTokens map[string]bool
+	lock                sync.RWMutex
+	resyncDuration      time.Duration
 }
 
 var _ UserStateStorage = &userStateStorage{}
 
 func NewUserStateStorage(redis *redis.Client) *userStateStorage {
 	return &userStateStorage{
-		attempts:       map[string]LoginAttempts{},
-		revokedTokens:  map[string]bool{},
-		resyncDuration: time.Hour,
-		redis:          redis,
+		attempts:            map[string]LoginAttempts{},
+		revokedTokens:       map[string]bool{},
+		recentRevokedTokens: map[string]bool{},
+		resyncDuration:      time.Second * 15,
+		redis:               redis,
 	}
 }
 
@@ -63,6 +65,7 @@ func (storage *userStateStorage) watchRevokedTokens(ctx context.Context) {
 		case val := <-ch:
 			storage.lock.Lock()
 			storage.revokedTokens[val.Payload] = true
+			storage.recentRevokedTokens[val.Payload] = true
 			storage.lock.Unlock()
 		}
 	}
@@ -78,10 +81,8 @@ func (storage *userStateStorage) loadRevokedTokensSafe() {
 }
 
 func (storage *userStateStorage) loadRevokedTokens() error {
-	storage.lock.Lock()
-	defer storage.lock.Unlock()
-	storage.revokedTokens = map[string]bool{}
-	iterator := storage.redis.Scan(context.Background(), 0, revokedTokenPrefix+"*", -1).Iterator()
+	redisRevokedTokens := map[string]bool{}
+	iterator := storage.redis.Scan(context.Background(), 0, revokedTokenPrefix+"*", 10000).Iterator()
 	for iterator.Next(context.Background()) {
 		parts := strings.Split(iterator.Val(), "|")
 		if len(parts) != 2 {
@@ -90,11 +91,19 @@ func (storage *userStateStorage) loadRevokedTokens() error {
 				iterator.Val())
 			continue
 		}
-		storage.revokedTokens[parts[1]] = true
+		redisRevokedTokens[parts[1]] = true
 	}
 	if iterator.Err() != nil {
 		return iterator.Err()
 	}
+
+	storage.lock.Lock()
+	defer storage.lock.Unlock()
+	storage.revokedTokens = redisRevokedTokens
+	for recentRevokedToken := range storage.recentRevokedTokens {
+		storage.revokedTokens[recentRevokedToken] = true
+	}
+	storage.recentRevokedTokens = map[string]bool{}
 
 	return nil
 }
@@ -112,6 +121,7 @@ func (storage *userStateStorage) SetLoginAttempts(attempts map[string]LoginAttem
 func (storage *userStateStorage) RevokeToken(ctx context.Context, id string, expiringAt time.Duration) error {
 	storage.lock.Lock()
 	storage.revokedTokens[id] = true
+	storage.recentRevokedTokens[id] = true
 	storage.lock.Unlock()
 	if err := storage.redis.Set(ctx, revokedTokenPrefix+id, "", expiringAt).Err(); err != nil {
 		return err
@@ -125,6 +135,10 @@ func (storage *userStateStorage) IsTokenRevoked(id string) bool {
 	return storage.revokedTokens[id]
 }
 
+func (storage *userStateStorage) GetLockObject() *sync.RWMutex {
+	return &storage.lock
+}
+
 type UserStateStorage interface {
 	Init(ctx context.Context)
 	// GetLoginAttempts return number of concurrent login attempts
@@ -135,4 +149,6 @@ type UserStateStorage interface {
 	RevokeToken(ctx context.Context, id string, expiringAt time.Duration) error
 	// IsTokenRevoked checks if given token is revoked
 	IsTokenRevoked(id string) bool
+	// GetLockObject returns a lock used by the storage
+	GetLockObject() *sync.RWMutex
 }

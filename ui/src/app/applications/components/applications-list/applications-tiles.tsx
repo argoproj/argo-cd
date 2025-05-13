@@ -66,7 +66,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
         keys: Key.ENTER,
         action: () => {
             if (selectedApp > -1) {
-                ctxh.navigation.goto(`/applications/${applications[selectedApp].metadata.name}`);
+                ctxh.navigation.goto(AppUtils.getAppUrl(applications[selectedApp]));
                 return true;
             }
             return false;
@@ -118,9 +118,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                             }`}>
                                             <div
                                                 className='row applications-tiles__wrapper'
-                                                onClick={e =>
-                                                    ctx.navigation.goto(`applications/${app.metadata.namespace}/${app.metadata.name}`, {view: pref.appDetails.view}, {event: e})
-                                                }>
+                                                onClick={e => ctx.navigation.goto(AppUtils.getAppUrl(app), {view: pref.appDetails.view}, {event: e})}>
                                                 <div
                                                     className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(
                                                         app
@@ -278,27 +276,31 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                                 <i className='fa fa-sync' /> Sync
                                                             </a>
                                                             &nbsp;
-                                                            <a
-                                                                className='argo-button argo-button--base'
-                                                                qe-id='applications-tiles-button-refresh'
-                                                                {...AppUtils.refreshLinkAttrs(app)}
-                                                                onClick={e => {
-                                                                    e.stopPropagation();
-                                                                    refreshApplication(app.metadata.name, app.metadata.namespace);
-                                                                }}>
-                                                                <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppRefreshing(app)})} />{' '}
-                                                                <span className='show-for-xxlarge'>Refresh</span>
-                                                            </a>
+                                                            <Tooltip className='custom-tooltip' content={'Refresh'}>
+                                                                <a
+                                                                    className='argo-button argo-button--base'
+                                                                    qe-id='applications-tiles-button-refresh'
+                                                                    {...AppUtils.refreshLinkAttrs(app)}
+                                                                    onClick={e => {
+                                                                        e.stopPropagation();
+                                                                        refreshApplication(app.metadata.name, app.metadata.namespace);
+                                                                    }}>
+                                                                    <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppRefreshing(app)})} />{' '}
+                                                                    <span className='show-for-xxlarge'>Refresh</span>
+                                                                </a>
+                                                            </Tooltip>
                                                             &nbsp;
-                                                            <a
-                                                                className='argo-button argo-button--base'
-                                                                qe-id='applications-tiles-button-delete'
-                                                                onClick={e => {
-                                                                    e.stopPropagation();
-                                                                    deleteApplication(app.metadata.name, app.metadata.namespace);
-                                                                }}>
-                                                                <i className='fa fa-times-circle' /> <span className='show-for-xxlarge'>Delete</span>
-                                                            </a>
+                                                            <Tooltip className='custom-tooltip' content={'Delete'}>
+                                                                <a
+                                                                    className='argo-button argo-button--base'
+                                                                    qe-id='applications-tiles-button-delete'
+                                                                    onClick={e => {
+                                                                        e.stopPropagation();
+                                                                        deleteApplication(app.metadata.name, app.metadata.namespace);
+                                                                    }}>
+                                                                    <i className='fa fa-times-circle' /> <span className='show-for-xxlarge'>Delete</span>
+                                                                </a>
+                                                            </Tooltip>
                                                         </div>
                                                     </div>
                                                 </div>

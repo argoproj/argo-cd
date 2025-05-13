@@ -129,6 +129,7 @@ export interface ResourceResult {
 
 export type SyncResourceResult = ResourceResult & {
     health?: HealthStatus;
+    syncWave?: number;
 };
 
 export const AnnotationRefreshKey = 'argocd.argoproj.io/refresh';
@@ -210,6 +211,29 @@ export interface ApplicationSource {
     directory?: ApplicationSourceDirectory;
 
     ref?: string;
+
+    name?: string;
+}
+
+export interface SourceHydrator {
+    drySource: DrySource;
+    syncSource: SyncSource;
+    hydrateTo?: HydrateTo;
+}
+
+export interface DrySource {
+    repoURL: string;
+    targetRevision: string;
+    path: string;
+}
+
+export interface SyncSource {
+    targetBranch: string;
+    path: string;
+}
+
+export interface HydrateTo {
+    targetBranch: string;
 }
 
 export interface ApplicationSourceHelm {
@@ -266,6 +290,7 @@ export interface ApplicationSourceDirectory {
 export interface Automated {
     prune: boolean;
     selfHeal: boolean;
+    enabled: boolean;
 }
 
 export interface SyncPolicy {
@@ -283,6 +308,7 @@ export interface ApplicationSpec {
     project: string;
     source: ApplicationSource;
     sources: ApplicationSource[];
+    sourceHydrator?: SourceHydrator;
     destination: ApplicationDestination;
     syncPolicy?: SyncPolicy;
     ignoreDifferences?: ResourceIgnoreDifferences[];
@@ -443,7 +469,37 @@ export interface ApplicationStatus {
     health: HealthStatus;
     operationState?: OperationState;
     summary?: ApplicationSummary;
+    sourceHydrator?: SourceHydratorStatus;
 }
+
+export interface SourceHydratorStatus {
+    lastSuccessfulOperation?: SuccessfulHydrateOperation;
+    currentOperation?: HydrateOperation;
+}
+
+export interface HydrateOperation {
+    startedAt: models.Time;
+    finishedAt?: models.Time;
+    phase: HydrateOperationPhase;
+    message: string;
+    drySHA: string;
+    hydratedSHA: string;
+    sourceHydrator: SourceHydrator;
+}
+
+export interface SuccessfulHydrateOperation {
+    drySHA: string;
+    hydratedSHA: string;
+    sourceHydrator: SourceHydrator;
+}
+
+export type HydrateOperationPhase = 'Hydrating' | 'Failed' | 'Hydrated';
+
+export const HydrateOperationPhases = {
+    Hydrating: 'Hydrating' as OperationPhase,
+    Failed: 'Failed' as OperationPhase,
+    Hydrated: 'Hydrated' as OperationPhase
+};
 
 export interface JwtTokens {
     items: JwtToken[];
@@ -502,6 +558,7 @@ export interface AuthSettings {
     uiBannerPosition: string;
     execEnabled: boolean;
     appsInAnyNamespaceEnabled: boolean;
+    hydratorEnabled: boolean;
 }
 
 export interface UserInfo {
@@ -543,6 +600,7 @@ export interface Repository {
     project?: string;
     username?: string;
     password?: string;
+    bearerToken?: string;
     tlsClientCertData?: string;
     tlsClientCertKey?: string;
     proxy?: string;
@@ -552,6 +610,7 @@ export interface Repository {
     githubAppId?: string;
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
+    useAzureWorkloadIdentity: boolean;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}
@@ -559,6 +618,7 @@ export interface RepositoryList extends ItemsList<Repository> {}
 export interface RepoCreds {
     url: string;
     username?: string;
+    bearerToken?: string;
 }
 
 export interface RepoCredsList extends ItemsList<RepoCreds> {}
@@ -755,6 +815,8 @@ export interface SyncWindow {
     clusters: string[];
     manualSync: boolean;
     timeZone: string;
+    andOperator: boolean;
+    description: string;
 }
 
 export interface Project {

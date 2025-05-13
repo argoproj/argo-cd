@@ -2,15 +2,44 @@
 
 Sync windows are configurable windows of time where syncs will either be blocked or allowed. These are defined
 by a kind, which can be either `allow` or `deny`, a `schedule` in cron format and a duration along with one or 
-more of either `applications`, `namespaces` and `clusters`. Wildcards are supported. These windows affect the running 
-of both manual and automated syncs but allow an override for manual syncs which is useful if you are only interested
-in preventing automated syncs or if you need to temporarily override a window to perform a sync.
+more of either `applications`, `namespaces` and `clusters`. If more than one option is specified, by default, the enabled options will 
+be OR-ed. If you want to AND the options, you can tick the `Use AND operator` option.
+Wildcards are supported. 
 
-The windows work in the following way. If there are no windows matching an application then all syncs are allowed. If there
-are any `allow` windows matching an application then syncs will only be allowed when there is an active `allow` window. If there
-are any `deny` windows matching an application then all syncs will be denied when the `deny` windows are active. If there is an
-active matching `allow` and an active matching `deny` then syncs will be denied as `deny` windows override `allow` windows. The
-UI and the CLI will both display the state of the sync windows. The UI has a panel which will display different colours depending
+## Relationship between Sync Windows and Applications
+
+The relationship between Sync Windows and Application resources is many-to-many. This means that an Application resource
+may be affected by multiple Sync Windows, and that a single Sync Window definition may apply to multiple Application
+resources. 
+
+The relationship between Sync Window and Application is established as part of the definition of Sync Window.
+Sync Window definition includes a section defining the Application resources to which it applies. There
+are three mechanisms for selecting the Application resources to which a Sync Window applies:
+
+- By name of Application resource
+- By cluster into which resources are installed by Application resource. This is specified by `Application.spec.destination.name` and `.server` fields
+- By namespace into which resources are installed by Application resource. This is specified by `Application.spec.destination.namespace` field.
+
+All three mechanisms allow usage of wildcards. The mechanisms are not mutually exclusive, and all three of them can be used in single
+Sync Window definition. 
+
+When multiple selection mechanisms are used, they are effectively `ORed`, meaning that if any of the selector selects the Application,
+then the Application is affected by the Sync Window.
+
+## Effect of Sync Windows
+
+These windows affect the running of both manual and automated syncs but allow an override 
+for manual syncs which is useful if you are only interested in preventing automated syncs or if you need to temporarily 
+override a window to perform a sync.
+
+The windows work in the following way:
+
+- If there are no windows matching an application then all syncs are allowed.
+- If there are any `allow` windows matching an application then syncs will only be allowed when there is an active `allow` window.
+- If there are any `deny` windows matching an application then all syncs will be denied when the `deny` windows are active.
+- If there is an active matching `allow` and an active matching `deny` then syncs will be denied as `deny` windows override `allow` windows.
+
+The UI and the CLI will both display the state of the sync windows. The UI has a panel which will display different colours depending
 on the state. The colours are as follows. `Red: sync denied`, `Orange: manual allowed` and `Green: sync allowed`.
 
 To display the sync state using the CLI:

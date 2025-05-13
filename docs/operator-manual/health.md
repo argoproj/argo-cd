@@ -118,7 +118,7 @@ specify a wildcard in the resource kind, and anywhere in the resource group, lik
 
 !!!important
     Please, note that wildcards are only supported when using the `resource.customizations` key, the `resource.customizations.health.<group>_<kind>`
-style keys do not work since wildcards (`*`) are not supported in Kubernetes configmap keys.
+    style keys do not work since wildcards (`*`) are not supported in Kubernetes configmap keys.
 
 The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
 The custom health check might return one of the following health statuses:
@@ -229,3 +229,16 @@ App (healthy)
 └── CustomResource (healthy) <- This resource's health check needs to be fixed to mark the App as unhealthy
     └── CustomChildResource (unhealthy)
 ```
+## Ignoring Child Resource Health Check in Applications
+
+To ignore the health check of an immediate child resource within an Application, set the annotation `argocd.argoproj.io/ignore-healthcheck` to `true`. For example:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    argocd.argoproj.io/ignore-healthcheck: "true"
+```
+
+By doing this, the health status of the Deployment will not affect the health of its parent Application.

@@ -21,6 +21,9 @@ argocd admin repo generate-spec REPOURL [flags]
   # Add a private Git repository via HTTPS using username/password and TLS client certificates:
   argocd admin repo generate-spec https://git.example.com/repos/repo --username git --password secret --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key
 
+  # Add a private Git BitBucket Data Center repository via HTTPS using bearer token:
+  argocd admin repo generate-spec https://bitbucket.example.com/scm/proj/repo --bearer-token secret-token
+
   # Add a private Git repository via HTTPS using username/password without verifying the server's TLS certificate
   argocd admin repo generate-spec https://git.example.com/repos/repo --username git --password secret --insecure-skip-server-verification
 
@@ -38,6 +41,7 @@ argocd admin repo generate-spec REPOURL [flags]
 ### Options
 
 ```
+      --bearer-token string                     bearer token to the Git BitBucket Data Center repository
       --enable-lfs                              enable git-lfs (Large File Support) on this repository
       --enable-oci                              enable helm-oci (Helm OCI-Based Repository)
       --force-http-basic-auth                   whether to force use of basic auth when connecting repository via HTTP
@@ -59,6 +63,7 @@ argocd admin repo generate-spec REPOURL [flags]
       --tls-client-cert-key-path string         path to the TLS client cert's key path (must be PEM format)
       --tls-client-cert-path string             path to the TLS client cert (must be PEM format)
       --type string                             type of the repository, "git" or "helm" (default "git")
+      --use-azure-workload-identity             whether to use azure workload identity for authentication
       --username string                         username to the repository
 ```
 
@@ -72,18 +77,19 @@ argocd admin repo generate-spec REPOURL [flags]
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --controller-name string          Name of the Argo CD Application controller; set this or the ARGOCD_APPLICATION_CONTROLLER_NAME environment variable when the controller's name label differs from the default, for example when installing via the Helm chart (default "argocd-application-controller")
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
-      --force-prompts-enabled           Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: text|json (default "text")
+      --logformat string                Set the logging format. One of: json|text (default "json")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
+      --prompts-enabled                 Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
+      --redis-compress string           Enable this if the application controller is configured with redis compression enabled. (possible values: gzip, none) (default "gzip")
       --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
       --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
       --repo-server-name string         Name of the Argo CD Repo server; set this or the ARGOCD_REPO_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-repo-server")

@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
 )
 
 func TestTgz(t *testing.T) {
@@ -108,31 +108,21 @@ func TestUntgz(t *testing.T) {
 	createTmpDir := func(t *testing.T) string {
 		t.Helper()
 		tmpDir, err := os.MkdirTemp(getTestDataDir(t), "")
-		if err != nil {
-			t.Fatalf("error creating tmpDir: %s", err)
-		}
+		require.NoErrorf(t, err, "error creating tmpDir: %s", err)
 		return tmpDir
 	}
 	deleteTmpDir := func(t *testing.T, dirname string) {
 		t.Helper()
-		err := os.RemoveAll(dirname)
-		if err != nil {
-			t.Errorf("error removing tmpDir: %s", err)
-		}
+		assert.NoError(t, os.RemoveAll(dirname), "error removing tmpDir")
 	}
 	createTgz := func(t *testing.T, fromDir, destDir string) *os.File {
 		t.Helper()
 		f, err := os.CreateTemp(destDir, "")
-		if err != nil {
-			t.Fatalf("error creating tmpFile in %q: %s", destDir, err)
-		}
+		require.NoErrorf(t, err, "error creating tmpFile in %q: %s", destDir, err)
 		_, err = files.Tgz(fromDir, nil, nil, f)
-		if err != nil {
-			t.Fatalf("error during Tgz: %s", err)
-		}
-		if _, err := f.Seek(0, io.SeekStart); err != nil {
-			t.Fatalf("seek error: %s", err)
-		}
+		require.NoErrorf(t, err, "error during Tgz: %s", err)
+		_, err = f.Seek(0, io.SeekStart)
+		require.NoErrorf(t, err, "seek error: %s", err)
 		return f
 	}
 	readFiles := func(t *testing.T, basedir string) map[string]string {
@@ -154,9 +144,7 @@ func TestUntgz(t *testing.T) {
 			names[relativePath] = link
 			return nil
 		})
-		if err != nil {
-			t.Fatalf("error reading files: %s", err)
-		}
+		require.NoErrorf(t, err, "error reading files: %s", err)
 		return names
 	}
 	t.Run("will untgz successfully", func(t *testing.T) {

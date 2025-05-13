@@ -269,8 +269,9 @@ export const ApplicationParameters = (props: {
             );
         } else {
             // For single source field, details page where we have to do the load to retrieve repo details
+            // Input changes frequently due to updates higher in the tree, do not show loading state when reloading
             return (
-                <DataLoader input={app} load={application => getSingleSource(application)}>
+                <DataLoader noLoaderOnInputChange={true} input={app} load={application => getSingleSource(application)}>
                     {(details: models.RepoAppDetails) => {
                         attributes = [];
                         const attr = gatherDetails(
@@ -307,7 +308,7 @@ export const ApplicationParameters = (props: {
                     <i className={`fa fa-angle-down filter__collapse editable-panel__collapsible-button__override`} />
                 </div>
                 <div className='settings-overview__redirect-panel__content'>
-                    <div className='settings-overview__redirect-panel__title'>Source {index + 1 + ': ' + appSource.repoURL}</div>
+                    <div className='settings-overview__redirect-panel__title'>Source {index + 1 + (appSource.name ? ' - ' + appSource.name : '') + ': ' + appSource.repoURL}</div>
                     <div className='settings-overview__redirect-panel__description'>
                         {(appSource.path ? 'PATH=' + appSource.path : '') + (appSource.targetRevision ? (appSource.path ? ', ' : '') + 'REVISION=' + appSource.targetRevision : '')}
                     </div>
@@ -586,6 +587,7 @@ function gatherCoreSourceDetails(i: number, attributes: EditablePanelItem[], sou
     const repoUrlField = 'spec.sources[' + i + '].repoURL';
     const sourcesPathField = 'spec.sources[' + i + '].path';
     const refField = 'spec.sources[' + i + '].ref';
+    const nameField = 'spec.sources[' + i + '].name';
     const chartField = 'spec.sources[' + i + '].chart';
     const revisionField = 'spec.sources[' + i + '].targetRevision';
     // For single source apps using the source field, these fields are shown in the Summary tab.
@@ -594,6 +596,11 @@ function gatherCoreSourceDetails(i: number, attributes: EditablePanelItem[], sou
             title: 'REPO URL',
             view: <Repo url={source.repoURL} />,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field={repoUrlField} component={Text} />
+        });
+        attributes.push({
+            title: 'NAME',
+            view: <span>{source?.name}</span>,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field={nameField} component={Text} />
         });
         if (isHelm) {
             attributes.push({
@@ -1085,7 +1092,7 @@ async function getSourceFromAppSources(aSource: models.ApplicationSource, name: 
 
 // Delete when source field is removed
 async function getSingleSource(app: models.Application) {
-    if (app.spec.source) {
+    if (app.spec.source || app.spec.sourceHydrator) {
         const repoDetail = await services.repos.appDetails(getAppDefaultSource(app), app.metadata.name, app.spec.project, 0, 0).catch(() => ({
             type: 'Directory' as models.AppSourceType,
             path: getAppDefaultSource(app).path

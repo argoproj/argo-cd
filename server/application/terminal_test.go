@@ -9,9 +9,9 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/security"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/security"
 )
 
 func TestPodExists(t *testing.T) {
@@ -74,9 +74,7 @@ func TestPodExists(t *testing.T) {
 	} {
 		t.Run(tcase.name, func(t *testing.T) {
 			result := podExists(tcase.treeNodes, tcase.podName, tcase.namespace)
-			if result != tcase.expectedResult {
-				t.Errorf("Expected result %v, but got %v", tcase.expectedResult, result)
-			}
+			assert.Equalf(t, tcase.expectedResult, result, "Expected result %v, but got %v", tcase.expectedResult, result)
 		})
 	}
 }
@@ -110,9 +108,7 @@ func TestIsValidPodName(t *testing.T) {
 	} {
 		t.Run(tcase.name, func(t *testing.T) {
 			result := argo.IsValidPodName(tcase.resourceName)
-			if result != tcase.expectedResult {
-				t.Errorf("Expected result %v, but got %v", tcase.expectedResult, result)
-			}
+			assert.Equalf(t, tcase.expectedResult, result, "Expected result %v, but got %v", tcase.expectedResult, result)
 		})
 	}
 }
@@ -141,9 +137,7 @@ func TestIsValidNamespaceName(t *testing.T) {
 	} {
 		t.Run(tcase.name, func(t *testing.T) {
 			result := argo.IsValidNamespaceName(tcase.resourceName)
-			if result != tcase.expectedResult {
-				t.Errorf("Expected result %v, but got %v", tcase.expectedResult, result)
-			}
+			assert.Equalf(t, tcase.expectedResult, result, "Expected result %v, but got %v", tcase.expectedResult, result)
 		})
 	}
 }
@@ -172,9 +166,7 @@ func TestIsValidContainerNameName(t *testing.T) {
 	} {
 		t.Run(tcase.name, func(t *testing.T) {
 			result := argo.IsValidContainerName(tcase.resourceName)
-			if result != tcase.expectedResult {
-				t.Errorf("Expected result %v, but got %v", tcase.expectedResult, result)
-			}
+			assert.Equalf(t, tcase.expectedResult, result, "Expected result %v, but got %v", tcase.expectedResult, result)
 		})
 	}
 }
