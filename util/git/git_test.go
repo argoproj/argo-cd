@@ -518,18 +518,6 @@ func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
 	require.NoError(t, err)
 
 	// Setup directory structure and files
-	setupDirs := []string{
-		"cluster-charts/cluster1/mychart/charts/mysubchart",
-		"cluster-charts/cluster1/myotherchart",
-		"cluster-charts/cluster2",
-		"some-path",
-		"some-path/staging",
-		"cluster-config/engineering/production",
-		"cluster-config/engineering/dev",
-		"p1/p2",
-		"p1/app2",
-		"p1/app3",
-	}
 	files := []string{
 		"cluster-charts/cluster1/mychart/charts/mysubchart/values.yaml",
 		"cluster-charts/cluster1/mychart/values.yaml",
@@ -544,15 +532,12 @@ func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
 		"p1/app3/config.json",
 		"p1/config.json",
 	}
-
-	for _, dir := range setupDirs {
-		require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, dir), 0o755))
-	}
 	for _, file := range files {
+		dir := filepath.Dir(file)
+		require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, dir), 0o755))
 		_, err := os.Create(filepath.Join(tmpDir, file))
 		require.NoError(t, err)
 	}
-
 	require.NoError(t, runCmd(tmpDir, "git", "add", "."))
 	require.NoError(t, runCmd(tmpDir, "git", "commit", "-m", "Initial commit"))
 
