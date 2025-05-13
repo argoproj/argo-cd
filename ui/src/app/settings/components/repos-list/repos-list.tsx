@@ -178,12 +178,6 @@ export class ReposList extends React.Component<
         });
     }
 
-    public async componentDidMount() {
-        this.setState({
-            authSettings: await services.authService.settings()
-        });
-    }
-
     private ConnectRepoFormButton(method: string, onSelection: (method: string) => void) {
         return (
             <div className='white-box'>
