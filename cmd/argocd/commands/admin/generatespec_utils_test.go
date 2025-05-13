@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,7 +16,7 @@ import (
 func TestGetOutWriter_InlineOff(t *testing.T) {
 	out, closer, err := getOutWriter(false, "")
 	require.NoError(t, err)
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 
 	assert.Equal(t, os.Stdout, out)
 }
@@ -29,7 +29,7 @@ func TestGetOutWriter_InlineOn(t *testing.T) {
 
 	out, closer, err := getOutWriter(true, tmpFile)
 	require.NoError(t, err)
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 
 	assert.Equal(t, tmpFile, out.(*os.File).Name())
 	_, err = os.Stat(tmpFile + ".back")

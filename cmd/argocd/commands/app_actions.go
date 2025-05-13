@@ -24,7 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 type DisplayedAction struct {
@@ -83,7 +83,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		}
 		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
-		defer io.Close(conn)
+		defer utilio.Close(conn)
 		resources, err := getActionableResourcesForApplication(ctx, appIf, &appNs, &appName)
 		errors.CheckError(err)
 		filteredObjects, err := util.FilterResources(command.Flags().Changed("group"), resources, group, kind, namespace, resourceName, true)
@@ -175,7 +175,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 		actionName := args[1]
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
-		defer io.Close(conn)
+		defer utilio.Close(conn)
 		resources, err := getActionableResourcesForApplication(ctx, appIf, &appNs, &appName)
 		errors.CheckError(err)
 		filteredObjects, err := util.FilterResources(command.Flags().Changed("group"), resources, group, kind, namespace, resourceName, all)
