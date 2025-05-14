@@ -74,9 +74,9 @@ func getCommitMetadataMultipleSources(sourceIndex int, commitSHA string, app *un
 	if !ok {
 		panic(errors.New("failed to get application sources"))
 	}
-	sourceObj, ok := sources[sourceIndex].(map[string]interface{})
+	sourceObj, ok := sources[sourceIndex].(map[string]any)
 	if !ok {
-		panic(errors.New("failed to assert source to map[string]interface{}"))
+		panic(errors.New("failed to assert source to map[string]any"))
 	}
 	repoURL, ok, err := unstructured.NestedString(sourceObj, "repoURL")
 	if err != nil {
@@ -140,7 +140,7 @@ func NewExprs(argocdService service.Service, app *unstructured.Unstructured) map
 
 			return *meta
 		},
-		"GetCommitMetadataMultipleSources": func(sourceIndex int, commitSHA string) interface{} {
+		"GetCommitMetadataMultipleSources": func(sourceIndex int, commitSHA string) any {
 			meta, err := getCommitMetadataMultipleSources(sourceIndex, commitSHA, app, argocdService)
 			if err != nil {
 				panic(err)
