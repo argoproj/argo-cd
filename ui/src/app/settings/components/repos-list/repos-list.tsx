@@ -1310,7 +1310,9 @@ export class ReposList extends React.Component<
         if (trimmedName === '') {
             return repos;
         }
-        const newRepos = repos.filter(repo => repo.name && repo.name.toLowerCase().includes(trimmedName.toLowerCase()));
+        const newRepos = repos.filter(
+            repo => (repo.name && repo.name.toLowerCase().includes(trimmedName.toLowerCase())) || repo.repo.toLowerCase().includes(trimmedName.toLowerCase())
+        );
         return newRepos;
     }
 
