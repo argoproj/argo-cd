@@ -16,6 +16,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ecr"
+
 	"github.com/google/go-github/v69/github"
 
 	"golang.org/x/oauth2"
@@ -43,6 +46,9 @@ var (
 
 	// In memory cache for storing Azure tokens
 	azureTokenCache *gocache.Cache
+
+	// In memory cache for storing AWS tokens
+	awsTokenCache *gocache.Cache
 )
 
 const (
@@ -66,6 +72,7 @@ func init() {
 	// oauth2.TokenSource handles fetching new Tokens once they are expired. The oauth2.TokenSource itself does not expire.
 	googleCloudTokenSource = gocache.New(gocache.NoExpiration, 0)
 	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
+	awsTokenCache = gocache.New(gocache.NoExpiration, 0)
 }
 
 type NoopCredsStore struct{}
@@ -751,3 +758,63 @@ func (creds AzureWorkloadIdentityCreds) GetAzureDevOpsAccessToken() (string, err
 	accessToken, err := creds.getAccessToken(azureDevopsEntraResourceId) // wellknown resourceid of Azure DevOps
 	return accessToken, err
 }
+
+type AwsCreds struct {
+	store CredsStore
+}
+
+func (a AwsCreds) Environ() (io.Closer, []string, error) {
+	username := "aws"
+	token, _ := a.getAccessToken(context.Background())
+	nonce := a.store.Add(username, token)
+	env := a.store.Environ(nonce)
+
+	return argoioutils.NewCloser(func() error {
+		a.store.Remove(nonce)
+		return NopCloser{}.Close()
+	}), env, nil
+}
+
+func (a AwsCreds) getAccessToken(ctx context.Context) (string, error) {
+	tokenValue, found := awsTokenCache.Get("aws")
+	if found {
+		return tokenValue.(string), nil
+	}
+	svc := ecr.New(session.Must(session.NewSession()))
+	input := &ecr.GetAuthorizationTokenInput{}
+
+	result, err := svc.GetAuthorizationTokenWithContext(ctx, input)
+	if err != nil {
+		return "", fmt.Errorf("failed to get ECR authorization token: %w", err)
+	}
+
+	if len(result.AuthorizationData) == 0 {
+		return "", fmt.Errorf("no authorization data returned from ECR")
+	}
+
+	// ECR returns base64 encoded token in format user:password
+	token := *result.AuthorizationData[0].AuthorizationToken
+	decodedToken, err := base64.StdEncoding.DecodeString(token)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode ECR token: %w", err)
+	}
+
+	parts := strings.Split(string(decodedToken), ":")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid ECR token format")
+	}
+	awsTokenCache.Set("aws", parts[1], 11*time.Hour)
+	return parts[1], nil
+}
+
+func (a AwsCreds) GetUserInfo(ctx context.Context) (string, string, error) {
+	return "aws", "", nil
+}
+
+func NewAwsCreds(store CredsStore) AwsCreds {
+	return AwsCreds{
+		store: store,
+	}
+}
+
+var _ Creds = AwsCreds{}
