@@ -349,18 +349,18 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, projLister)
 	enf.SetClaimsEnforcerFunc(policyEnf.EnforceClaims)
 
-	var staticFS fs.FS = io.NewSubDirFS("dist/app", ui.Embedded)
-	if opts.StaticAssetsDir != "" {
-		root, err := os.OpenRoot(opts.StaticAssetsDir)
-		if err != nil {
-			if os.IsNotExist(err) {
-				log.Warnf("Static assets directory %q does not exist, using embedded assets", opts.StaticAssetsDir)
-			} else {
-				errorsutil.CheckError(err)
-			}
+	staticFS, err := fs.Sub(ui.Embedded, "dist/app")
+	errorsutil.CheckError(err)
+
+	root, err := os.OpenRoot(opts.StaticAssetsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			log.Warnf("Static assets directory %q does not exist, using only embedded assets", opts.StaticAssetsDir)
 		} else {
-			staticFS = io.NewComposableFS(staticFS, root.FS())
+			errorsutil.CheckError(err)
 		}
+	} else {
+		staticFS = io.NewComposableFS(staticFS, root.FS())
 	}
 
 	argocdService, err := service.NewArgoCDService(opts.KubeClientset, opts.Namespace, opts.RepoClientset)
