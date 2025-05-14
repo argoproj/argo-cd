@@ -9,7 +9,7 @@ import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 
 import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
-import {AppContext, ContextApis} from '../../../shared/context';
+import {AppContext, AuthSettingsCtx, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
 
@@ -680,15 +680,22 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         }}>
                                         <div className='application-details__wrapper'>
                                             <div className='application-details__status-panel'>
-                                                <ApplicationStatusPanel
-                                                    application={application}
-                                                    showDiff={() => this.selectNode(appFullName, 0, 'diff')}
-                                                    showOperation={() => this.setOperationStatusVisible(true)}
-                                                    showHydrateOperation={() => this.setHydrateOperationStatusVisible(true)}
-                                                    showConditions={() => this.setConditionsStatusVisible(true)}
-                                                    showExtension={id => this.setExtensionPanelVisible(id)}
-                                                    showMetadataInfo={revision => this.setState({...this.state, revision})}
-                                                />
+                                                <AuthSettingsCtx.Consumer>
+                                                    {authSettings => {
+                                                        return (
+                                                            <ApplicationStatusPanel
+                                                                application={application}
+                                                                showDiff={() => this.selectNode(appFullName, 0, 'diff')}
+                                                                showOperation={() => this.setOperationStatusVisible(true)}
+                                                                showHydrateOperation={() => this.setHydrateOperationStatusVisible(true)}
+                                                                showConditions={() => this.setConditionsStatusVisible(true)}
+                                                                showExtension={id => this.setExtensionPanelVisible(id)}
+                                                                showMetadataInfo={revision => this.setState({...this.state, revision})}
+                                                                authSettings={authSettings}
+                                                            />
+                                                        );
+                                                    }}
+                                                </AuthSettingsCtx.Consumer>
                                             </div>
                                             <div className='application-details__tree'>
                                                 {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
