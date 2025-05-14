@@ -1282,7 +1282,7 @@ export class ReposList extends React.Component<
     private filteredRepos(repos: models.Repository[], type: string, project: string, status: string, sort: string, name: string) {
         let newRepos = repos;
 
-        if (name !== '' || name !== null) {
+        if (name && name.trim() !== '') {
             const response = this.filteredName(newRepos, name);
             newRepos = response;
         }
