@@ -5292,6 +5292,9 @@
         "appsInAnyNamespaceEnabled": {
           "type": "boolean"
         },
+        "commitSummaryEnabled": {
+          "type": "boolean"
+        },
         "configManagementPlugins": {
           "description": "Deprecated: use sidecar plugins instead.",
           "type": "array",
