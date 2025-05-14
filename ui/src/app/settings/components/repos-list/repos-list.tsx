@@ -138,7 +138,6 @@ export class ReposList extends React.Component<
         currentRepo: models.Repository;
         displayEditPanel: boolean;
         authSettings: models.AuthSettings;
-        sortProperty: 'asc' | 'desc';
         statusProperty: 'all' | 'Successful' | 'Failed' | 'Unknown';
         projectProperty: string;
         typeProperty: 'all' | 'git' | 'helm';
@@ -164,7 +163,6 @@ export class ReposList extends React.Component<
             currentRepo: null,
             displayEditPanel: false,
             authSettings: null,
-            sortProperty: 'asc',
             statusProperty: 'all',
             projectProperty: 'all',
             typeProperty: 'all',
@@ -428,7 +426,6 @@ export class ReposList extends React.Component<
                                     this.state.typeProperty,
                                     this.state.projectProperty,
                                     this.state.statusProperty,
-                                    this.state.sortProperty,
                                     this.state.name
                                 );
 
@@ -1279,7 +1276,7 @@ export class ReposList extends React.Component<
     }
 
     // filtering function
-    private filteredRepos(repos: models.Repository[], type: string, project: string, status: string, sort: string, name: string) {
+    private filteredRepos(repos: models.Repository[], type: string, project: string, status: string, name: string) {
         let newRepos = repos;
 
         if (name && name.trim() !== '') {
