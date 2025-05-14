@@ -4,15 +4,15 @@ Sync phases and hooks define when resources are applied such as before or after 
 
 Argo CD has the following hook types:
 
-| Hook         | Description                                                                                                                                                        |
-|--------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `PreSync`    | Executes prior to the application of the manifests.                                                                                                                |
-| `Sync`       | Executes after all `PreSync` hooks completed and were successful, at the same time as the application of the manifests.                                            |
-| `Skip`       | Indicates to Argo CD to skip the application of the manifest.                                                                                                      |
-| `PostSync`   | Executes after all `Sync` hooks completed and were successful, a successful application, and all resources in a `Healthy` state.                                   |
-| `SyncFail`   | Executes when the sync operation fails.                                                                                                                            |
-| `PreDelete`  | Executes before Application resources are deleted. Only runs when the entire application is being deleted, not during normal sync operations with pruning enabled. |
-| `PostDelete` | Executes after all Application resources are deleted. _Available starting in v2.10._                                                                               |
+| Hook         | Description                                                                                                                                                                |
+|--------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `PreSync`    | Executes prior to the application of the manifests.                                                                                                                        |
+| `Sync`       | Executes after all `PreSync` hooks completed and were successful, at the same time as the application of the manifests.                                                    |
+| `Skip`       | Indicates to Argo CD to skip the application of the manifest.                                                                                                              |
+| `PostSync`   | Executes after all `Sync` hooks completed and were successful, a successful application, and all resources in a `Healthy` state.                                           |
+| `SyncFail`   | Executes when the sync operation fails.                                                                                                                                    |
+| `PreDelete`  | Executes before Application resources are deleted. Only runs when the entire Application is being deleted, not during normal sync operations (even with pruning enabled. ) |
+| `PostDelete` | Executes after all Application resources are deleted. _Available starting in v2.10._                                                                                       |
 
 Adding the argocd.argoproj.io/hook annotation to a resource will assign it to a specific phase. During a Sync operation, Argo CD will apply the resource during the appropriate phase of the deployment. Hooks can be any type of Kubernetes resource kind, but tend to be Pod, Job or Argo Workflows. Multiple hooks can be specified as a comma separated list.
 
