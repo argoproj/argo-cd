@@ -26,7 +26,6 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/resource_customizations"
 	argoglob "github.com/argoproj/argo-cd/v3/util/glob"
-	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
 const (
@@ -555,47 +554,28 @@ func getHealthScriptGlobs() ([]healthScriptGlob, error) {
 
 func getHealthScriptPaths() ([]string, error) {
 	// Walk through the embedded filesystem and get the directory names of all directories containing a health.lua.
-	groupDirs, err := resource_customizations.Embedded.ReadDir(".")
-	if err != nil {
-		return nil, fmt.Errorf("getting dirs from root of embedded filesystem: %w", err)
-	}
 	var patterns []string
-	for _, dir := range groupDirs {
-		if !dir.IsDir() {
-			continue
-		}
-
-		var groupKindDirs []os.DirEntry
-		groupKindDirs, err = resource_customizations.Embedded.ReadDir(dir.Name())
+	err := fs.WalkDir(resource_customizations.Embedded, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return nil, fmt.Errorf("getting dirs from %q: %w", dir.Name(), err)
+			return fmt.Errorf("error walking path %q: %w", path, err)
 		}
-		for _, kindDir := range groupKindDirs {
-			if !kindDir.IsDir() {
-				continue
-			}
 
-			// Check if the directory contains a health.lua file
-			healthFilePath := filepath.Join(dir.Name(), kindDir.Name(), healthScriptFile)
-			var f fs.File
-			f, err = resource_customizations.Embedded.Open(healthFilePath)
-			if err != nil {
-				if os.IsNotExist(err) {
-					// No health script for this GK, move on.
-					continue
-				}
-				return nil, fmt.Errorf("error opening %q: %w", healthFilePath, err)
-			}
-			io.Close(f)
-
-			groupKindPath := filepath.Join(dir.Name(), kindDir.Name())
-			if !strings.Contains(groupKindPath, "_") {
-				// It's not a wildcard directory.
-				continue
-			}
-
-			patterns = append(patterns, groupKindPath)
+		// Skip non-directories at the top level
+		if d.IsDir() && filepath.Dir(path) == "." {
+			return nil
 		}
+
+		// Check if the directory contains a health.lua file
+		if filepath.Base(path) == healthScriptFile {
+			groupKindPath := filepath.Dir(path)
+			if strings.Contains(groupKindPath, "_") {
+				patterns = append(patterns, groupKindPath)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error walking embedded filesystem: %w", err)
 	}
 
 	// Sort the patterns to ensure deterministic choice of wildcard directory for a given GK.
