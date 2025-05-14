@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 
 	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
@@ -62,6 +63,39 @@ func getCommitMetadata(commitSHA string, app *unstructured.Unstructured, argocdS
 		panic(errors.New("failed to get application project"))
 	}
 
+	return getCommitMetadataByRepoURL(repoURL, project, commitSHA, argocdService)
+}
+
+func getCommitMetadataMultipleSources(sourceIndex int, commitSHA string, app *unstructured.Unstructured, argocdService service.Service) (*shared.CommitMetadata, error) {
+	sources, ok, err := unstructured.NestedSlice(app.Object, "spec", "sources")
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		panic(errors.New("failed to get application sources"))
+	}
+	sourceObj, ok := sources[sourceIndex].(map[string]any)
+	if !ok {
+		panic(errors.New("failed to assert source to map[string]any"))
+	}
+	repoURL, ok, err := unstructured.NestedString(sourceObj, "repoURL")
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		panic(errors.New("failed to get source repo URL for index: " + strconv.Itoa(sourceIndex)))
+	}
+	project, ok, err := unstructured.NestedString(app.Object, "spec", "project")
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		panic(errors.New("failed to get application project"))
+	}
+	return getCommitMetadataByRepoURL(repoURL, project, commitSHA, argocdService)
+}
+
+func getCommitMetadataByRepoURL(repoURL, project string, commitSHA string, argocdService service.Service) (*shared.CommitMetadata, error) {
 	meta, err := argocdService.GetCommitMetadata(context.Background(), repoURL, commitSHA, project)
 	if err != nil {
 		return nil, err
@@ -104,6 +138,13 @@ func NewExprs(argocdService service.Service, app *unstructured.Unstructured) map
 				panic(err)
 			}
 
+			return *meta
+		},
+		"GetCommitMetadataMultipleSources": func(sourceIndex int, commitSHA string) any {
+			meta, err := getCommitMetadataMultipleSources(sourceIndex, commitSHA, app, argocdService)
+			if err != nil {
+				panic(err)
+			}
 			return *meta
 		},
 		"GetAppDetails": func() any {
