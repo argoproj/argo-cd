@@ -789,7 +789,7 @@ func (a AwsCreds) getAccessToken(ctx context.Context) (string, error) {
 	}
 
 	if len(result.AuthorizationData) == 0 {
-		return "", fmt.Errorf("no authorization data returned from ECR")
+		return "", errors.New("no authorization data returned from ECR")
 	}
 
 	// ECR returns base64 encoded token in format user:password
@@ -801,13 +801,13 @@ func (a AwsCreds) getAccessToken(ctx context.Context) (string, error) {
 
 	parts := strings.Split(string(decodedToken), ":")
 	if len(parts) != 2 {
-		return "", fmt.Errorf("invalid ECR token format")
+		return "", errors.New("invalid ECR token format")
 	}
 	awsTokenCache.Set("aws", parts[1], 11*time.Hour)
 	return parts[1], nil
 }
 
-func (a AwsCreds) GetUserInfo(ctx context.Context) (string, string, error) {
+func (a AwsCreds) GetUserInfo(_ context.Context) (string, string, error) {
 	return "aws", "", nil
 }
 
