@@ -35,10 +35,6 @@ func WriteForPaths(root *os.Root, repoUrl string, drySha string, paths []*apicli
 
 		err = mkdirAll(root, hydratePath)
 		if err != nil {
-			if errors.Is(err, fs.ErrExist) {
-				log.WithError(err).Warnf("path %s already exists, skipping", hydratePath)
-				continue
-			}
 			return fmt.Errorf("failed to create path: %w", err)
 		}
 
