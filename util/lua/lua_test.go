@@ -284,8 +284,7 @@ func TestGetResourceActionNoPredefined(t *testing.T) {
 	testObj := StrToUnstructured(objWithNoScriptJSON)
 	vm := VM{}
 	action, err := vm.GetResourceAction(testObj, "test")
-	var expectedErr *ScriptDoesNotExistError
-	require.ErrorAs(t, err, &expectedErr)
+	require.ErrorIs(t, err, errScriptDoesNotExist)
 	assert.Empty(t, action.ActionLua)
 }
 

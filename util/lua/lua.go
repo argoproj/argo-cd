@@ -36,15 +36,8 @@ const (
 	actionDiscoveryScriptFile = "discovery.lua"
 )
 
-// ScriptDoesNotExistError is an error type for when a built-in script does not exist.
-type ScriptDoesNotExistError struct {
-	// ScriptName is the name of the script that does not exist.
-	ScriptName string
-}
-
-func (e ScriptDoesNotExistError) Error() string {
-	return fmt.Sprintf("built-in script %q does not exist", e.ScriptName)
-}
+// errScriptDoesNotExist is an error type for when a built-in script does not exist.
+var errScriptDoesNotExist = errors.New("built-in script does not exist")
 
 type ResourceHealthOverrides map[string]appv1.ResourceOverride
 
@@ -192,8 +185,7 @@ func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (script string, use
 	// (as built-in scripts are files in folders, named after the GVK, currently there is no wildcard support for them)
 	builtInScript, err := vm.getPredefinedLuaScripts(key, healthScriptFile)
 	if err != nil {
-		var doesNotExist *ScriptDoesNotExistError
-		if errors.As(err, &doesNotExist) {
+		if errors.Is(err, errScriptDoesNotExist) {
 			// Try to find a wildcard built-in health script
 			builtInScript, err = getWildcardBuiltInHealthOverrideLua(key)
 			if err != nil {
@@ -436,8 +428,7 @@ func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) ([]strin
 	discoveryKey := key + "/actions/"
 	discoveryScript, err := vm.getPredefinedLuaScripts(discoveryKey, actionDiscoveryScriptFile)
 	if err != nil {
-		var doesNotExistErr *ScriptDoesNotExistError
-		if errors.As(err, &doesNotExistErr) {
+		if errors.Is(err, errScriptDoesNotExist) {
 			// No worries, just return what we have.
 			return discoveryScripts, nil
 		}
@@ -502,18 +493,22 @@ func (vm VM) getPredefinedLuaScripts(objKey string, scriptFile string) (string, 
 	data, err := resource_customizations.Embedded.ReadFile(filepath.Join(objKey, scriptFile))
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "", &ScriptDoesNotExistError{ScriptName: objKey}
+			return "", errScriptDoesNotExist
 		}
 		return "", err
 	}
 	return string(data), nil
 }
 
+// healthScriptGlobsOnce is a sync.Once instance to ensure that the healthScriptGlobs are only initialized once.
+// The globs come from an embedded filesystem, so it won't change at runtime.
 var healthScriptGlobsOnce sync.Once
 
 type healthScriptGlob struct {
-	g       glob.Glob
-	pattern string
+	// g is the compiled glob pattern
+	g glob.Glob
+	// path is the path to the directory containing the health.lua file
+	path string
 }
 
 // healthScriptGlobs is a cache for the glob patterns of directories containing health.lua files. Don't use this
@@ -541,8 +536,8 @@ func getHealthScriptGlobs() ([]healthScriptGlob, error) {
 				return
 			}
 			healthScriptGlobs = append(healthScriptGlobs, healthScriptGlob{
-				g:       g,
-				pattern: pattern,
+				g:    g,
+				path: pattern,
 			})
 		}
 	})
@@ -596,7 +591,7 @@ func getWildcardBuiltInHealthOverrideLua(objKey string) (string, error) {
 		}
 
 		var script []byte
-		script, err = resource_customizations.Embedded.ReadFile(filepath.Join(g.pattern, healthScriptFile))
+		script, err = resource_customizations.Embedded.ReadFile(filepath.Join(g.path, healthScriptFile))
 		if err != nil {
 			return "", fmt.Errorf("error reading %q file in embedded filesystem: %w", filepath.Join(objKey, healthScriptFile), err)
 		}
