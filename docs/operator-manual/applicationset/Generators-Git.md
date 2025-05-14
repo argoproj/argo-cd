@@ -381,8 +381,6 @@ This example excludes the `config.json` file in the `dev` directory from the lis
 
 (*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-files-discovery/excludes).*)
 
-File exclude paths are matched using [doublestar.Match](https://github.com/bmatcuk/doublestar/blob/master/match.go#L8)
-
 ### Pass additional key-value pairs via `values` field
 
 You may pass additional, arbitrary string key-value pairs via the `values` field of the git files generator. Values added via the `values` field are added as `values.(field)`.
