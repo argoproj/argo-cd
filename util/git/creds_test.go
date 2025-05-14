@@ -459,6 +459,6 @@ func TestGetHelmCredsShouldReturnHelmCredsIfAzureWorkloadIdentityNotSpecified(t 
 
 func TestNewAwsCreds(t *testing.T) {
 	store := &memoryCredsStore{creds: make(map[string]cred)}
-	awsCreds := NewAwsWorkloadIdentityCreds(store)
+	awsCreds := NewAwsCreds(store)
 	assert.NotNil(t, awsCreds)
 }
