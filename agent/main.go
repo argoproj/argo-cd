@@ -54,7 +54,7 @@ type settings struct {
 
 func (s *settings) getGCMark(key kube.ResourceKey) string {
 	h := sha256.New()
-	_, _ = h.Write([]byte(fmt.Sprintf("%s/%s", s.repoPath, strings.Join(s.paths, ","))))
+	_, _ = fmt.Fprintf(h, "%s/%s", s.repoPath, strings.Join(s.paths, ","))
 	_, _ = h.Write([]byte(strings.Join([]string{key.Group, key.Kind, key.Name}, "/")))
 	return "sha256." + base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }

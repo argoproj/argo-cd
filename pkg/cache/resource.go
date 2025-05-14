@@ -118,10 +118,11 @@ func (r *Resource) iterateChildrenV2(graph map[kube.ResourceKey]map[types.UID]*R
 	for _, c := range children {
 		childKey := c.ResourceKey()
 		child := ns[childKey]
-		if visited[childKey] == 1 {
+		switch visited[childKey] {
+		case 1:
 			// Since we encountered a node that we're currently processing, we know we have a circular dependency.
 			_ = action(fmt.Errorf("circular dependency detected. %s is child and parent of %s", childKey.String(), key.String()), child, ns)
-		} else if visited[childKey] == 0 {
+		case 0:
 			if action(nil, child, ns) {
 				child.iterateChildrenV2(graph, ns, visited, action)
 			}

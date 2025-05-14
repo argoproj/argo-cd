@@ -441,7 +441,7 @@ metadata:
 		return len(r.OwnerRefs) == 0
 	})
 	assert.Nil(t, managedObjs)
-	assert.EqualError(t, err, "Cluster level Deployment \"helm-guestbook\" can not be managed when in namespaced mode")
+	assert.EqualError(t, err, "cluster level Deployment \"helm-guestbook\" can not be managed when in namespaced mode")
 }
 
 func TestGetManagedLiveObjsNamespacedModeClusterLevelResource_ClusterResourceEnabled(t *testing.T) {
@@ -482,7 +482,7 @@ metadata:
 	_, err = cluster.GetManagedLiveObjs([]*unstructured.Unstructured{otherNamespaceRes}, func(r *Resource) bool {
 		return len(r.OwnerRefs) == 0
 	})
-	assert.EqualError(t, err, "Namespace \"some-other-namespace\" for Deployment \"helm-guestbook\" is not managed")
+	assert.EqualError(t, err, "namespace \"some-other-namespace\" for Deployment \"helm-guestbook\" is not managed")
 }
 
 func TestGetManagedLiveObjsAllNamespaces(t *testing.T) {
@@ -564,7 +564,7 @@ metadata:
 		return len(r.OwnerRefs) == 0
 	})
 	assert.Nil(t, managedObjs)
-	assert.EqualError(t, err, "Namespace \"production\" for Deployment \"helm-guestbook\" is not managed")
+	assert.EqualError(t, err, "namespace \"production\" for Deployment \"helm-guestbook\" is not managed")
 }
 
 func TestGetManagedLiveObjsFailedConversion(t *testing.T) {

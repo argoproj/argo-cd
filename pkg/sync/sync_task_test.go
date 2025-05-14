@@ -36,7 +36,7 @@ func Test_syncTask_hookType(t *testing.T) {
 				liveObj: tt.fields.liveObj,
 			}
 			hookType := task.hookType()
-			assert.EqualValues(t, tt.want, hookType)
+			assert.Equal(t, tt.want, hookType)
 		})
 	}
 }

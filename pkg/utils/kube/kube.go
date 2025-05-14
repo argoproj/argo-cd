@@ -245,10 +245,10 @@ func NewKubeConfig(restConfig *rest.Config, namespace string) *clientcmdapi.Conf
 		Clusters: map[string]*clientcmdapi.Cluster{
 			restConfig.Host: {
 				Server:                   restConfig.Host,
-				TLSServerName:            restConfig.TLSClientConfig.ServerName,
-				InsecureSkipTLSVerify:    restConfig.TLSClientConfig.Insecure,
-				CertificateAuthority:     restConfig.TLSClientConfig.CAFile,
-				CertificateAuthorityData: restConfig.TLSClientConfig.CAData,
+				TLSServerName:            restConfig.ServerName,
+				InsecureSkipTLSVerify:    restConfig.Insecure,
+				CertificateAuthority:     restConfig.CAFile,
+				CertificateAuthorityData: restConfig.CAData,
 				ProxyURL:                 proxyUrl,
 			},
 		},
@@ -263,20 +263,20 @@ func NewKubeConfig(restConfig *rest.Config, namespace string) *clientcmdapi.Conf
 func newAuthInfo(restConfig *rest.Config) *clientcmdapi.AuthInfo {
 	authInfo := clientcmdapi.AuthInfo{}
 	haveCredentials := false
-	if restConfig.TLSClientConfig.CertFile != "" {
-		authInfo.ClientCertificate = restConfig.TLSClientConfig.CertFile
+	if restConfig.CertFile != "" {
+		authInfo.ClientCertificate = restConfig.CertFile
 		haveCredentials = true
 	}
-	if len(restConfig.TLSClientConfig.CertData) > 0 {
-		authInfo.ClientCertificateData = restConfig.TLSClientConfig.CertData
+	if len(restConfig.CertData) > 0 {
+		authInfo.ClientCertificateData = restConfig.CertData
 		haveCredentials = true
 	}
-	if restConfig.TLSClientConfig.KeyFile != "" {
-		authInfo.ClientKey = restConfig.TLSClientConfig.KeyFile
+	if restConfig.KeyFile != "" {
+		authInfo.ClientKey = restConfig.KeyFile
 		haveCredentials = true
 	}
-	if len(restConfig.TLSClientConfig.KeyData) > 0 {
-		authInfo.ClientKeyData = restConfig.TLSClientConfig.KeyData
+	if len(restConfig.KeyData) > 0 {
+		authInfo.ClientKeyData = restConfig.KeyData
 		haveCredentials = true
 	}
 	if restConfig.Username != "" {

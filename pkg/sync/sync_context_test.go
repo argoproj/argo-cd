@@ -137,9 +137,9 @@ func TestSyncCreateInSortedOrder(t *testing.T) {
 		switch result.ResourceKey.Kind {
 		case "Pod":
 			assert.Equal(t, synccommon.ResultCodeSynced, result.Status)
-			assert.Equal(t, "", result.Message)
+			assert.Empty(t, result.Message)
 		case "Service":
-			assert.Equal(t, "", result.Message)
+			assert.Empty(t, result.Message)
 		default:
 			t.Error("Resource isn't a pod or a service")
 		}
@@ -271,7 +271,7 @@ func TestSyncSuccessfully(t *testing.T) {
 			assert.Equal(t, "pruned", result.Message)
 		case "Service":
 			assert.Equal(t, synccommon.ResultCodeSynced, result.Status)
-			assert.Equal(t, "", result.Message)
+			assert.Empty(t, result.Message)
 		default:
 			t.Error("Resource isn't a pod or a service")
 		}
@@ -959,7 +959,7 @@ func TestUnnamedHooksGetUniqueNames(t *testing.T) {
 		assert.Len(t, tasks, 2)
 		assert.Contains(t, tasks[0].name(), "foobarb-presync-")
 		assert.Contains(t, tasks[1].name(), "foobarb-postsync-")
-		assert.Equal(t, "", pod.GetName())
+		assert.Empty(t, pod.GetName())
 	})
 
 	t.Run("Short revision", func(t *testing.T) {
@@ -975,7 +975,7 @@ func TestUnnamedHooksGetUniqueNames(t *testing.T) {
 		assert.Len(t, tasks, 2)
 		assert.Contains(t, tasks[0].name(), "foobar-presync-")
 		assert.Contains(t, tasks[1].name(), "foobar-postsync-")
-		assert.Equal(t, "", pod.GetName())
+		assert.Empty(t, pod.GetName())
 	})
 }
 
@@ -993,8 +993,8 @@ func TestManagedResourceAreNotNamed(t *testing.T) {
 
 	assert.True(t, successful)
 	assert.Len(t, tasks, 1)
-	assert.Equal(t, "", tasks[0].name())
-	assert.Equal(t, "", pod.GetName())
+	assert.Empty(t, tasks[0].name())
+	assert.Empty(t, pod.GetName())
 }
 
 func TestDeDupingTasks(t *testing.T) {
@@ -1026,7 +1026,7 @@ func TestObjectsGetANamespace(t *testing.T) {
 	assert.True(t, successful)
 	assert.Len(t, tasks, 1)
 	assert.Equal(t, testingutils.FakeArgoCDNamespace, tasks[0].namespace())
-	assert.Equal(t, "", pod.GetNamespace())
+	assert.Empty(t, pod.GetNamespace())
 }
 
 func TestNamespaceAutoCreation(t *testing.T) {

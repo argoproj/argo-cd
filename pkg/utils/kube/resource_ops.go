@@ -95,13 +95,13 @@ func createManifestFile(obj *unstructured.Unstructured, log logr.Logger) (*os.Fi
 	}
 	manifestFile, err := os.CreateTemp(io.TempDir, "")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to generate temp file for manifest: %w", err)
+		return nil, fmt.Errorf("failed to generate temp file for manifest: %w", err)
 	}
 	if _, err = manifestFile.Write(manifestBytes); err != nil {
-		return nil, fmt.Errorf("Failed to write manifest: %w", err)
+		return nil, fmt.Errorf("failed to write manifest: %w", err)
 	}
 	if err = manifestFile.Close(); err != nil {
-		return nil, fmt.Errorf("Failed to close manifest: %w", err)
+		return nil, fmt.Errorf("failed to close manifest: %w", err)
 	}
 
 	err = maybeLogManifest(manifestBytes, log)
@@ -173,7 +173,7 @@ func (k *kubectlServerSideDiffDryRunApplier) runResourceCommand(obj *unstructure
 	stderr := stderrBuf.String()
 
 	if stderr != "" && stdout == "" {
-		err := fmt.Errorf("Server-side dry run apply had non-empty stderr: %s", stderr)
+		err := fmt.Errorf("server-side dry run apply had non-empty stderr: %s", stderr)
 		k.log.Error(err, "server-side diff")
 		return "", err
 	}
@@ -395,7 +395,7 @@ func newApplyOptionsCommon(config *rest.Config, fact cmdutil.Factory, ioStreams 
 		return nil, err
 	}
 
-	o.DeleteOptions.FilenameOptions.Filenames = []string{fileName}
+	o.DeleteOptions.Filenames = []string{fileName}
 	o.Namespace = obj.GetNamespace()
 	o.DeleteOptions.ForceDeletion = force
 	o.DryRunStrategy = dryRunStrategy
@@ -538,7 +538,7 @@ func (k *kubectlResourceOperations) newReplaceOptions(config *rest.Config, f cmd
 		return printer.PrintObj(obj, o.Out)
 	}
 
-	o.DeleteOptions.FilenameOptions.Filenames = []string{fileName}
+	o.DeleteOptions.Filenames = []string{fileName}
 	o.Namespace = namespace
 	o.DeleteOptions.ForceDeletion = force
 	return o, nil

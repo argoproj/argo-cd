@@ -170,5 +170,5 @@ func TestGetArgoWorkflowHealth(t *testing.T) {
 	health, err = getArgoWorkflowHealth(&sampleWorkflow)
 	require.NoError(t, err)
 	assert.Equal(t, HealthStatusProgressing, health.Status)
-	assert.Equal(t, "", health.Message)
+	assert.Empty(t, health.Message)
 }

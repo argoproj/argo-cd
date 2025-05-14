@@ -7,16 +7,14 @@ func removeFields(config, live any) any {
 		l, ok := live.(map[string]any)
 		if ok {
 			return RemoveMapFields(c, l)
-		} else {
-			return live
 		}
+		return live
 	case []any:
 		l, ok := live.([]any)
 		if ok {
 			return RemoveListFields(c, l)
-		} else {
-			return live
 		}
+		return live
 	default:
 		return live
 	}

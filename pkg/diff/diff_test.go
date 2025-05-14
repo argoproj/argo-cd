@@ -275,7 +275,7 @@ func TestDiffArrayModification(t *testing.T) {
 func TestThreeWayDiff(t *testing.T) {
 	// 1. get config and live to be the same. Both have a foo annotation.
 	configDep := newDeployment()
-	configDep.ObjectMeta.Namespace = ""
+	configDep.Namespace = ""
 	configDep.Annotations = map[string]string{
 		"foo": "bar",
 	}
@@ -540,7 +540,7 @@ func TestRemoveNamespaceAnnotation(t *testing.T) {
 			"namespace": "default",
 		},
 	}})
-	assert.Equal(t, "", obj.GetNamespace())
+	assert.Empty(t, obj.GetNamespace())
 
 	obj = removeNamespaceAnnotation(&unstructured.Unstructured{Object: map[string]any{
 		"metadata": map[string]any{
@@ -549,7 +549,7 @@ func TestRemoveNamespaceAnnotation(t *testing.T) {
 			"annotations": make(map[string]any),
 		},
 	}})
-	assert.Equal(t, "", obj.GetNamespace())
+	assert.Empty(t, obj.GetNamespace())
 	assert.Nil(t, obj.GetAnnotations())
 
 	obj = removeNamespaceAnnotation(&unstructured.Unstructured{Object: map[string]any{
@@ -559,7 +559,7 @@ func TestRemoveNamespaceAnnotation(t *testing.T) {
 			"annotations": "wrong value",
 		},
 	}})
-	assert.Equal(t, "", obj.GetNamespace())
+	assert.Empty(t, obj.GetNamespace())
 	val, _, _ := unstructured.NestedString(obj.Object, "metadata", "annotations")
 	assert.Equal(t, "wrong value", val)
 }

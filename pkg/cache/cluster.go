@@ -654,7 +654,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 	kube.RetryUntilSucceed(ctx, watchResourcesRetryTimeout, fmt.Sprintf("watch %s on %s", api.GroupKind, c.config.Host), c.log, func() (err error) {
 		defer func() {
 			if r := recover(); r != nil {
-				err = fmt.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+				err = fmt.Errorf("recovered from panic: %+v\n%s", r, debug.Stack())
 			}
 		}()
 
@@ -699,20 +699,20 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 
 			// re-synchronize API state and restart watch periodically
 			case <-watchResyncTimeoutCh:
-				return fmt.Errorf("Resyncing %s on %s due to timeout", api.GroupKind, c.config.Host)
+				return fmt.Errorf("resyncing %s on %s due to timeout", api.GroupKind, c.config.Host)
 
 			// re-synchronize API state and restart watch if retry watcher failed to continue watching using provided resource version
 			case <-w.Done():
-				return fmt.Errorf("Watch %s on %s has closed", api.GroupKind, c.config.Host)
+				return fmt.Errorf("watch %s on %s has closed", api.GroupKind, c.config.Host)
 
 			case event, ok := <-w.ResultChan():
 				if !ok {
-					return fmt.Errorf("Watch %s on %s has closed", api.GroupKind, c.config.Host)
+					return fmt.Errorf("watch %s on %s has closed", api.GroupKind, c.config.Host)
 				}
 
 				obj, ok := event.Object.(*unstructured.Unstructured)
 				if !ok {
-					return fmt.Errorf("Failed to convert to *unstructured.Unstructured: %v", event.Object)
+					return fmt.Errorf("failed to convert to *unstructured.Unstructured: %v", event.Object)
 				}
 
 				c.recordEvent(event.Type, obj)
@@ -1217,9 +1217,9 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 	for _, o := range targetObjs {
 		if len(c.namespaces) > 0 {
 			if o.GetNamespace() == "" && !c.clusterResources {
-				return nil, fmt.Errorf("Cluster level %s %q can not be managed when in namespaced mode", o.GetKind(), o.GetName())
+				return nil, fmt.Errorf("cluster level %s %q can not be managed when in namespaced mode", o.GetKind(), o.GetName())
 			} else if o.GetNamespace() != "" && !c.managesNamespace(o.GetNamespace()) {
-				return nil, fmt.Errorf("Namespace %q for %s %q is not managed", o.GetNamespace(), o.GetKind(), o.GetName())
+				return nil, fmt.Errorf("namespace %q for %s %q is not managed", o.GetNamespace(), o.GetKind(), o.GetName())
 			}
 		}
 	}

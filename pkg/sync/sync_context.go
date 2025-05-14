@@ -960,10 +960,10 @@ func (sc *syncContext) autoCreateNamespace(tasks syncTasks) syncTasks {
 			case apierrors.IsNotFound(err):
 				tasks = sc.appendNsTask(tasks, &syncTask{phase: common.SyncPhasePreSync, targetObj: managedNs, liveObj: nil}, managedNs, nil)
 			default:
-				tasks = sc.appendFailedNsTask(tasks, managedNs, fmt.Errorf("Namespace auto creation failed: %w", err))
+				tasks = sc.appendFailedNsTask(tasks, managedNs, fmt.Errorf("namespace auto creation failed: %w", err))
 			}
 		} else {
-			sc.setOperationPhase(common.OperationFailed, fmt.Sprintf("Namespace auto creation failed: %s", err))
+			sc.setOperationPhase(common.OperationFailed, fmt.Sprintf("namespace auto creation failed: %s", err))
 		}
 	}
 	return tasks

@@ -54,7 +54,7 @@ func TestUnsetLabels(t *testing.T) {
 		var dep extv1beta1.Deployment
 		err = json.Unmarshal(manifestBytes, &dep)
 		require.NoError(t, err)
-		assert.Empty(t, dep.ObjectMeta.Labels)
+		assert.Empty(t, dep.Labels)
 	}
 }
 
