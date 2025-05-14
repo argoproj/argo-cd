@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v3/util/consts"
+
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -3093,7 +3095,7 @@ func Test_RevisionMetadata(t *testing.T) {
 	singleSourceApp.Name = "single-source-app"
 	singleSourceApp.Spec = v1alpha1.ApplicationSpec{
 		Source: &v1alpha1.ApplicationSource{
-			RepoURL:        test.ManifestRepo,
+			RepoURL:        consts.ManifestRepo,
 			Path:           "helm-guestbook",
 			TargetRevision: "HEAD",
 		},
@@ -3104,12 +3106,12 @@ func Test_RevisionMetadata(t *testing.T) {
 	multiSourceApp.Spec = v1alpha1.ApplicationSpec{
 		Sources: []v1alpha1.ApplicationSource{
 			{
-				RepoURL:        test.ManifestRepo,
+				RepoURL:        consts.ManifestRepo,
 				Path:           "helm-guestbook",
 				TargetRevision: "HEAD",
 			},
 			{
-				RepoURL:        test.ManifestRepo,
+				RepoURL:        consts.ManifestRepo,
 				Path:           "kustomize-guestbook",
 				TargetRevision: "HEAD",
 			},

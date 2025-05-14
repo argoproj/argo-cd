@@ -7,15 +7,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v3/util/consts"
+
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets/utils"
@@ -46,7 +46,7 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
-					RepoURL:        test.ManifestRepo,
+					RepoURL:        consts.ManifestRepo,
 					TargetRevision: "HEAD",
 					Path:           name,
 				},
@@ -79,7 +79,7 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        test.ManifestRepo,
+							RepoURL:        consts.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
 						},
@@ -92,7 +92,7 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						Git: &v1alpha1.GitGenerator{
-							RepoURL: test.ManifestRepo,
+							RepoURL: consts.ManifestRepo,
 							Directories: []v1alpha1.GitDirectoryGeneratorItem{
 								{
 									Path: "*guestbook*",
@@ -155,7 +155,7 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
-					RepoURL:        test.ManifestRepo,
+					RepoURL:        consts.ManifestRepo,
 					TargetRevision: "HEAD",
 					Path:           name,
 				},
@@ -189,7 +189,7 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        test.ManifestRepo,
+							RepoURL:        consts.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "{{.path.path}}",
 						},
@@ -202,7 +202,7 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						Git: &v1alpha1.GitGenerator{
-							RepoURL: test.ManifestRepo,
+							RepoURL: consts.ManifestRepo,
 							Directories: []v1alpha1.GitDirectoryGeneratorItem{
 								{
 									Path: "*guestbook*",
@@ -287,7 +287,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
-					RepoURL:        test.ManifestRepo,
+					RepoURL:        consts.ManifestRepo,
 					TargetRevision: "HEAD",
 					Path:           name,
 				},
@@ -318,7 +318,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: project,
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        test.ManifestRepo,
+							RepoURL:        consts.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
 						},
@@ -331,7 +331,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						Git: &v1alpha1.GitGenerator{
-							RepoURL: test.ManifestRepo,
+							RepoURL: consts.ManifestRepo,
 							Directories: []v1alpha1.GitDirectoryGeneratorItem{
 								{
 									Path: guestbookPath,
@@ -386,7 +386,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
-					RepoURL:        test.ManifestRepo,
+					RepoURL:        consts.ManifestRepo,
 					TargetRevision: "HEAD",
 					Path:           name,
 				},
@@ -421,7 +421,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: project,
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        test.ManifestRepo,
+							RepoURL:        consts.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
 						},
@@ -438,7 +438,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						Git: &v1alpha1.GitGenerator{
-							RepoURL: test.ManifestRepo,
+							RepoURL: consts.ManifestRepo,
 							Directories: []v1alpha1.GitDirectoryGeneratorItem{
 								{
 									Path: guestbookPath,
@@ -471,7 +471,7 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
-					RepoURL:        test.ManifestRepo,
+					RepoURL:        consts.ManifestRepo,
 					TargetRevision: "HEAD",
 					Path:           "guestbook",
 				},
@@ -504,7 +504,7 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        test.ManifestRepo,
+							RepoURL:        consts.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
@@ -603,7 +603,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				Project: project,
 				Source: &v1alpha1.ApplicationSource{
-					RepoURL:        test.ManifestRepo,
+					RepoURL:        consts.ManifestRepo,
 					TargetRevision: "HEAD",
 					Path:           "guestbook",
 				},
@@ -634,7 +634,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: project,
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        test.ManifestRepo,
+							RepoURL:        consts.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
@@ -702,7 +702,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				Project: project,
 				Source: &v1alpha1.ApplicationSource{
-					RepoURL:        test.ManifestRepo,
+					RepoURL:        consts.ManifestRepo,
 					TargetRevision: "HEAD",
 					Path:           "guestbook",
 				},
@@ -736,7 +736,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: project,
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        test.ManifestRepo,
+							RepoURL:        consts.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
@@ -782,7 +782,7 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
-					RepoURL:        test.ManifestRepo,
+					RepoURL:        consts.ManifestRepo,
 					TargetRevision: "HEAD",
 					Path:           "guestbook",
 				},
@@ -816,7 +816,7 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        test.ManifestRepo,
+							RepoURL:        consts.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
@@ -892,7 +892,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletion(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        test.ManifestRepo,
+							RepoURL:        consts.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
@@ -953,7 +953,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletionGoTemplate(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        test.ManifestRepo,
+							RepoURL:        consts.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},

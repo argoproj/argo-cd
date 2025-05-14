@@ -3,6 +3,8 @@ package commit
 import (
 	"testing"
 
+	"github.com/argoproj/argo-cd/v3/util/consts"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -11,7 +13,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/commitserver/commit/mocks"
 	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
 )
@@ -21,7 +22,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 
 	validRequest := &apiclient.CommitHydratedManifestsRequest{
 		Repo: &v1alpha1.Repository{
-			Repo: test.ManifestRepo,
+			Repo: consts.ManifestRepo,
 		},
 		TargetBranch:  "main",
 		SyncBranch:    "env/test",
@@ -56,7 +57,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		service, _ := newServiceWithMocks(t)
 		request := &apiclient.CommitHydratedManifestsRequest{
 			Repo: &v1alpha1.Repository{
-				Repo: test.ManifestRepo,
+				Repo: consts.ManifestRepo,
 			},
 		}
 		_, err := service.CommitHydratedManifests(t.Context(), request)
@@ -70,7 +71,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		service, _ := newServiceWithMocks(t)
 		request := &apiclient.CommitHydratedManifestsRequest{
 			Repo: &v1alpha1.Repository{
-				Repo: test.ManifestRepo,
+				Repo: consts.ManifestRepo,
 			},
 			TargetBranch: "main",
 		}

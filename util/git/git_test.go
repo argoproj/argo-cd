@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v3/util/consts"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -390,7 +392,7 @@ func TestNewFactory(t *testing.T) {
 		name string
 		args args
 	}{
-		{"GitHub", args{url: "https://github.com/argoproj/argocd-example-apps"}},
+		{"GitHub", args{url: consts.ManifestRepo}},
 	}
 	for _, tt := range tests {
 		if tt.name == "PrivateSSHRepo" {

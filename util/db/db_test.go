@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v3/util/consts"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -17,7 +19,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -53,12 +54,12 @@ func TestCreateRepository(t *testing.T) {
 	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 
 	repo, err := db.CreateRepository(t.Context(), &v1alpha1.Repository{
-		Repo:     "https://github.com/argoproj/argocd-example-apps",
+		Repo:     consts.ManifestRepo,
 		Username: "test-username",
 		Password: "test-password",
 	})
 	require.NoError(t, err)
-	assert.Equal(t, "https://github.com/argoproj/argocd-example-apps", repo.Repo)
+	assert.Equal(t, consts.ManifestRepo, repo.Repo)
 
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), RepoURLToSecretName(repoSecretPrefix, repo.Repo, ""), metav1.GetOptions{})
 	require.NoError(t, err)
@@ -74,7 +75,7 @@ func TestCreateProjectScopedRepository(t *testing.T) {
 	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 
 	repo, err := db.CreateRepository(t.Context(), &v1alpha1.Repository{
-		Repo:     "https://github.com/argoproj/argocd-example-apps",
+		Repo:     consts.ManifestRepo,
 		Username: "test-username",
 		Password: "test-password",
 		Project:  "test-project",
@@ -82,7 +83,7 @@ func TestCreateProjectScopedRepository(t *testing.T) {
 	require.NoError(t, err)
 
 	otherRepo, err := db.CreateRepository(t.Context(), &v1alpha1.Repository{
-		Repo:     "https://github.com/argoproj/argocd-example-apps",
+		Repo:     consts.ManifestRepo,
 		Username: "other-username",
 		Password: "other-password",
 		Project:  "other-project",
@@ -90,13 +91,13 @@ func TestCreateProjectScopedRepository(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = db.CreateRepository(t.Context(), &v1alpha1.Repository{
-		Repo:     "https://github.com/argoproj/argocd-example-apps",
+		Repo:     consts.ManifestRepo,
 		Username: "wrong-username",
 		Password: "wrong-password",
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, "https://github.com/argoproj/argocd-example-apps", repo.Repo)
+	assert.Equal(t, consts.ManifestRepo, repo.Repo)
 
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), RepoURLToSecretName(repoSecretPrefix, repo.Repo, "test-project"), metav1.GetOptions{})
 	require.NoError(t, err)
@@ -203,14 +204,14 @@ func TestCreateExistingRepository(t *testing.T) {
 	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 
 	_, err := db.CreateRepository(t.Context(), &v1alpha1.Repository{
-		Repo:     "https://github.com/argoproj/argocd-example-apps",
+		Repo:     consts.ManifestRepo,
 		Username: "test-username",
 		Password: "test-password",
 	})
 	require.NoError(t, err)
 
 	_, err = db.CreateRepository(t.Context(), &v1alpha1.Repository{
-		Repo:     "https://github.com/argoproj/argocd-example-apps",
+		Repo:     consts.ManifestRepo,
 		Username: "test-username",
 		Password: "test-password",
 	})
@@ -378,26 +379,26 @@ func TestFuzzyEquivalence(t *testing.T) {
 	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 
 	repo, err := db.CreateRepository(ctx, &v1alpha1.Repository{
-		Repo: "https://github.com/argoproj/argocd-example-apps",
+		Repo: consts.ManifestRepo,
 	})
 	require.NoError(t, err)
-	assert.Equal(t, "https://github.com/argoproj/argocd-example-apps", repo.Repo)
+	assert.Equal(t, consts.ManifestRepo, repo.Repo)
 
 	repo, err = db.CreateRepository(ctx, &v1alpha1.Repository{
-		Repo: test.ManifestRepo,
+		Repo: consts.ManifestRepo,
 	})
 	require.ErrorContains(t, err, "already exists")
 	assert.Nil(t, repo)
 
 	repo, err = db.CreateRepository(ctx, &v1alpha1.Repository{
-		Repo: "https://github.com/argoproj/argocd-example-APPS",
+		Repo: consts.ManifestRepo,
 	})
 	require.ErrorContains(t, err, "already exists")
 	assert.Nil(t, repo)
 
-	repo, err = db.GetRepository(ctx, "https://github.com/argoproj/argocd-example-APPS", "")
+	repo, err = db.GetRepository(ctx, consts.ManifestRepo, "")
 	require.NoError(t, err)
-	assert.Equal(t, "https://github.com/argoproj/argocd-example-apps", repo.Repo)
+	assert.Equal(t, consts.ManifestRepo, repo.Repo)
 }
 
 func TestGetApplicationControllerReplicas(t *testing.T) {

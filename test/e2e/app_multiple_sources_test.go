@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v3/util/consts"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	. "github.com/argoproj/argo-cd/v3/util/argo"
@@ -66,7 +67,7 @@ func TestMultiSourceAppWithHelmExternalValueFiles(t *testing.T) {
 		RepoURL: RepoURL(RepoURLTypeFile),
 		Ref:     "values",
 	}, {
-		RepoURL:        test.ManifestRepo,
+		RepoURL:        consts.ManifestRepo,
 		TargetRevision: "HEAD",
 		Path:           "helm-guestbook",
 		Helm: &ApplicationSourceHelm{

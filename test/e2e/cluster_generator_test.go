@@ -4,11 +4,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v3/util/consts"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets/utils"
@@ -30,7 +31,7 @@ func TestSimpleClusterGeneratorExternalNamespace(t *testing.T) {
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
-				RepoURL:        test.ManifestRepo,
+				RepoURL:        consts.ManifestRepo,
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
@@ -60,7 +61,7 @@ func TestSimpleClusterGeneratorExternalNamespace(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        test.ManifestRepo,
+							RepoURL:        consts.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
@@ -130,7 +131,7 @@ func TestSimpleClusterGenerator(t *testing.T) {
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
-				RepoURL:        test.ManifestRepo,
+				RepoURL:        consts.ManifestRepo,
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
@@ -158,7 +159,7 @@ func TestSimpleClusterGenerator(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        test.ManifestRepo,
+							RepoURL:        consts.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
@@ -224,7 +225,7 @@ func TestClusterGeneratorWithLocalCluster(t *testing.T) {
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
-				RepoURL:        test.ManifestRepo,
+				RepoURL:        consts.ManifestRepo,
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
@@ -261,14 +262,14 @@ func TestClusterGeneratorWithLocalCluster(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
 			var expectedAppNewNamespace *v1alpha1.Application
 			var expectedAppNewMetadata *v1alpha1.Application
 
 			// Create the expected application from the template, and copy in the destination from the test case
 			expectedApp := *expectedAppTemplate.DeepCopy()
-			expectedApp.Spec.Destination = test.appDestination
+			expectedApp.Spec.Destination = tc.appDestination
 
 			Given(t).
 				// Create a ClusterGenerator-based ApplicationSet
@@ -283,11 +284,11 @@ func TestClusterGeneratorWithLocalCluster(t *testing.T) {
 							Spec: v1alpha1.ApplicationSpec{
 								Project: "default",
 								Source: &v1alpha1.ApplicationSource{
-									RepoURL:        test.TestManifestRepo,
+									RepoURL:        consts.ManifestRepo,
 									TargetRevision: "HEAD",
 									Path:           "guestbook",
 								},
-								Destination: test.appsetDestination,
+								Destination: tc.appsetDestination,
 							},
 						},
 						Generators: []v1alpha1.ApplicationSetGenerator{
@@ -341,7 +342,7 @@ func TestSimpleClusterGeneratorAddingCluster(t *testing.T) {
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
-				RepoURL:        test.ManifestRepo,
+				RepoURL:        consts.ManifestRepo,
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
@@ -374,7 +375,7 @@ func TestSimpleClusterGeneratorAddingCluster(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        test.ManifestRepo,
+							RepoURL:        consts.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
@@ -423,7 +424,7 @@ func TestSimpleClusterGeneratorDeletingCluster(t *testing.T) {
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
-				RepoURL:        test.ManifestRepo,
+				RepoURL:        consts.ManifestRepo,
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
@@ -457,7 +458,7 @@ func TestSimpleClusterGeneratorDeletingCluster(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        test.ManifestRepo,
+							RepoURL:        consts.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
@@ -507,7 +508,7 @@ func TestClusterGeneratorWithFlatListMode(t *testing.T) {
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
-				RepoURL:        test.ManifestRepo,
+				RepoURL:        consts.ManifestRepo,
 				TargetRevision: "HEAD",
 				Path:           "helm-guestbook",
 			},
@@ -551,7 +552,7 @@ func TestClusterGeneratorWithFlatListMode(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        test.ManifestRepo,
+							RepoURL:        consts.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "helm-guestbook",
 							Helm: &v1alpha1.ApplicationSourceHelm{

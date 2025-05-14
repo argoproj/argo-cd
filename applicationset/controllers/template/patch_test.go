@@ -3,12 +3,13 @@ package template
 import (
 	"testing"
 
+	"github.com/argoproj/argo-cd/v3/util/consts"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test"
 )
 
 func Test_ApplyTemplatePatch(t *testing.T) {
@@ -33,7 +34,7 @@ func Test_ApplyTemplatePatch(t *testing.T) {
 				Spec: appv1.ApplicationSpec{
 					Project: "default",
 					Source: &appv1.ApplicationSource{
-						RepoURL:        test.ManifestRepo,
+						RepoURL:        consts.ManifestRepo,
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
 					},
@@ -81,7 +82,7 @@ func Test_ApplyTemplatePatch(t *testing.T) {
 				Spec: appv1.ApplicationSpec{
 					Project: "default",
 					Source: &appv1.ApplicationSource{
-						RepoURL:        test.ManifestRepo,
+						RepoURL:        consts.ManifestRepo,
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
 						Helm: &appv1.ApplicationSourceHelm{
@@ -118,7 +119,7 @@ func Test_ApplyTemplatePatch(t *testing.T) {
 				Spec: appv1.ApplicationSpec{
 					Project: "default",
 					Source: &appv1.ApplicationSource{
-						RepoURL:        test.ManifestRepo,
+						RepoURL:        consts.ManifestRepo,
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
 					},
@@ -157,7 +158,7 @@ spec:
 				Spec: appv1.ApplicationSpec{
 					Project: "default",
 					Source: &appv1.ApplicationSource{
-						RepoURL:        test.ManifestRepo,
+						RepoURL:        consts.ManifestRepo,
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
 						Helm: &appv1.ApplicationSourceHelm{
@@ -193,7 +194,7 @@ spec:
 				Spec: appv1.ApplicationSpec{
 					Project: "default",
 					Source: &appv1.ApplicationSource{
-						RepoURL:        test.ManifestRepo,
+						RepoURL:        consts.ManifestRepo,
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
 					},
@@ -218,7 +219,7 @@ spec:
 				Spec: appv1.ApplicationSpec{
 					Project: "default",
 					Source: &appv1.ApplicationSource{
-						RepoURL:        test.ManifestRepo,
+						RepoURL:        consts.ManifestRepo,
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
 					},

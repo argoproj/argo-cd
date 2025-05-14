@@ -6,13 +6,14 @@ import (
 	"os"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v3/util/consts"
+
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func Test_setHelmOpt(t *testing.T) {
@@ -307,8 +308,8 @@ func Test_setAppSpecOptions(t *testing.T) {
 		assert.Equal(t, []string{"v1", "v2"}, f.spec.Source.Helm.APIVersions)
 	})
 	t.Run("source hydrator", func(t *testing.T) {
-		require.NoError(t, f.SetFlag("dry-source-repo", "https://github.com/argoproj/argocd-example-apps"))
-		assert.Equal(t, "https://github.com/argoproj/argocd-example-apps", f.spec.SourceHydrator.DrySource.RepoURL)
+		require.NoError(t, f.SetFlag("dry-source-repo", consts.ManifestRepo))
+		assert.Equal(t, consts.ManifestRepo, f.spec.SourceHydrator.DrySource.RepoURL)
 
 		require.NoError(t, f.SetFlag("dry-source-path", "apps"))
 		assert.Equal(t, "apps", f.spec.SourceHydrator.DrySource.Path)

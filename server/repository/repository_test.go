@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v3/util/consts"
+
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -28,7 +30,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v3/server/cache"
-	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/assets"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
@@ -200,7 +201,7 @@ var (
 			Project: "default",
 			Sources: []appsv1.ApplicationSource{
 				{
-					RepoURL:        test.ManifestRepo,
+					RepoURL:        consts.ManifestRepo,
 					Path:           "sock-shop",
 					TargetRevision: "HEAD",
 				},
@@ -220,7 +221,7 @@ var (
 					Revision: "HEAD",
 					Sources: []appsv1.ApplicationSource{
 						{
-							RepoURL:        test.ManifestRepo,
+							RepoURL:        consts.ManifestRepo,
 							TargetRevision: "1.0.0",
 						},
 					},
@@ -779,7 +780,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
 		enforcer := newEnforcer(kubeclientset)
 
-		url0 := test.ManifestRepo
+		url0 := consts.ManifestRepo
 		url1 := "https://helm.elastic.co"
 		helmRepos := []*appsv1.Repository{{Repo: url0}, {Repo: url1}}
 		db := &dbmocks.ArgoDB{}
