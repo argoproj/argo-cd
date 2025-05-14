@@ -25,6 +25,10 @@ type fakeIndexCache struct {
 	data []byte
 }
 
+type fakeTagsList struct {
+	Tags []string `json:"tags"`
+}
+
 func (f *fakeIndexCache) SetHelmIndex(_ string, indexData []byte) error {
 	f.data = indexData
 	return nil
@@ -80,7 +84,7 @@ func TestIndex(t *testing.T) {
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", "", false, math.MaxInt64, true)
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
 	require.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)
@@ -90,13 +94,13 @@ func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 
 func Test_nativeHelmChart_ExtractChartWithLimiter(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-	_, _, err := client.ExtractChart("argo-cd", "0.7.1", "", false, 100, false)
+	_, _, err := client.ExtractChart("argo-cd", "0.7.1", false, 100, false)
 	require.Error(t, err, "error while iterating on tar reader: unexpected EOF")
 }
 
 func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{InsecureSkipVerify: true}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", "", false, math.MaxInt64, true)
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
 	require.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)
@@ -170,19 +174,23 @@ func TestGetTagsFromUrl(t *testing.T) {
 	t.Run("should return tags correctly while following the link header", func(t *testing.T) {
 		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			t.Logf("called %s", r.URL.Path)
-			responseTags := TagsList{}
+			var responseTags fakeTagsList
 			w.Header().Set("Content-Type", "application/json")
 			if !strings.Contains(r.URL.String(), "token") {
 				w.Header().Set("Link", fmt.Sprintf("<https://%s%s?token=next-token>; rel=next", r.Host, r.URL.Path))
-				responseTags.Tags = []string{"first"}
+				responseTags = fakeTagsList{
+					Tags: []string{"first"},
+				}
 			} else {
-				responseTags.Tags = []string{
-					"second",
-					"2.8.0",
-					"2.8.0-prerelease",
-					"2.8.0_build",
-					"2.8.0-prerelease_build",
-					"2.8.0-prerelease.1_build.1234",
+				responseTags = fakeTagsList{
+					Tags: []string{
+						"second",
+						"2.8.0",
+						"2.8.0-prerelease",
+						"2.8.0_build",
+						"2.8.0-prerelease_build",
+						"2.8.0-prerelease.1_build.1234",
+					},
 				}
 			}
 			w.WriteHeader(http.StatusOK)
@@ -193,7 +201,7 @@ func TestGetTagsFromUrl(t *testing.T) {
 
 		tags, err := client.GetTags("mychart", true)
 		require.NoError(t, err)
-		assert.ElementsMatch(t, tags.Tags, []string{
+		assert.ElementsMatch(t, tags, []string{
 			"first",
 			"second",
 			"2.8.0",
@@ -229,7 +237,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 
 		assert.Equal(t, expectedAuthorization, authorization)
 
-		responseTags := TagsList{
+		responseTags := fakeTagsList{
 			Tags: []string{
 				"2.8.0",
 				"2.8.0-prerelease",
@@ -281,7 +289,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 			tags, err := client.GetTags("mychart", true)
 
 			require.NoError(t, err)
-			assert.ElementsMatch(t, tags.Tags, []string{
+			assert.ElementsMatch(t, tags, []string{
 				"2.8.0",
 				"2.8.0-prerelease",
 				"2.8.0+build",
@@ -326,7 +334,7 @@ func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *tes
 
 			assert.Equal(t, expectedAuthorization, authorization)
 
-			responseTags := TagsList{
+			responseTags := fakeTagsList{
 				Tags: []string{
 					"2.8.0",
 					"2.8.0-prerelease",
@@ -379,7 +387,7 @@ func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *tes
 			tags, err := client.GetTags("mychart", true)
 
 			require.NoError(t, err)
-			assert.ElementsMatch(t, tags.Tags, []string{
+			assert.ElementsMatch(t, tags, []string{
 				"2.8.0",
 				"2.8.0-prerelease",
 				"2.8.0+build",
@@ -405,7 +413,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 
 		assert.Equal(t, expectedAuthorization, authorization)
 
-		responseTags := TagsList{
+		responseTags := fakeTagsList{
 			Tags: []string{
 				"2.8.0",
 				"2.8.0-prerelease",
@@ -462,7 +470,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 			tags, err := client.GetTags("mychart", true)
 
 			require.NoError(t, err)
-			assert.ElementsMatch(t, tags.Tags, []string{
+			assert.ElementsMatch(t, tags, []string{
 				"2.8.0",
 				"2.8.0-prerelease",
 				"2.8.0+build",
