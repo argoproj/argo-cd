@@ -3093,7 +3093,7 @@ func Test_RevisionMetadata(t *testing.T) {
 	singleSourceApp.Name = "single-source-app"
 	singleSourceApp.Spec = v1alpha1.ApplicationSpec{
 		Source: &v1alpha1.ApplicationSource{
-			RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+			RepoURL:        test.ManifestRepo,
 			Path:           "helm-guestbook",
 			TargetRevision: "HEAD",
 		},
@@ -3104,12 +3104,12 @@ func Test_RevisionMetadata(t *testing.T) {
 	multiSourceApp.Spec = v1alpha1.ApplicationSpec{
 		Sources: []v1alpha1.ApplicationSource{
 			{
-				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				RepoURL:        test.ManifestRepo,
 				Path:           "helm-guestbook",
 				TargetRevision: "HEAD",
 			},
 			{
-				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				RepoURL:        test.ManifestRepo,
 				Path:           "kustomize-guestbook",
 				TargetRevision: "HEAD",
 			},

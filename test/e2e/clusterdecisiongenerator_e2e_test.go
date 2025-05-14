@@ -7,11 +7,11 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets/utils"
-
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
 var tenSec = int64(10)
@@ -32,7 +32,7 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
-				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				RepoURL:        test.ManifestRepo,
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
@@ -73,7 +73,7 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							RepoURL:        test.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
@@ -140,7 +140,7 @@ func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
-				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				RepoURL:        test.ManifestRepo,
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
@@ -179,7 +179,7 @@ func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							RepoURL:        test.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
@@ -242,7 +242,7 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
-				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				RepoURL:        test.ManifestRepo,
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
@@ -290,7 +290,7 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							RepoURL:        test.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
@@ -337,7 +337,7 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
-				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				RepoURL:        test.ManifestRepo,
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
@@ -386,7 +386,7 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							RepoURL:        test.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
@@ -434,7 +434,7 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *te
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
-				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				RepoURL:        test.ManifestRepo,
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
@@ -490,7 +490,7 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *te
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							RepoURL:        test.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},

@@ -11,6 +11,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/commitserver/commit/mocks"
 	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
 )
@@ -20,7 +21,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 
 	validRequest := &apiclient.CommitHydratedManifestsRequest{
 		Repo: &v1alpha1.Repository{
-			Repo: "https://github.com/argoproj/argocd-example-apps.git",
+			Repo: test.ManifestRepo,
 		},
 		TargetBranch:  "main",
 		SyncBranch:    "env/test",
@@ -55,7 +56,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		service, _ := newServiceWithMocks(t)
 		request := &apiclient.CommitHydratedManifestsRequest{
 			Repo: &v1alpha1.Repository{
-				Repo: "https://github.com/argoproj/argocd-example-apps.git",
+				Repo: test.ManifestRepo,
 			},
 		}
 		_, err := service.CommitHydratedManifests(t.Context(), request)
@@ -69,7 +70,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		service, _ := newServiceWithMocks(t)
 		request := &apiclient.CommitHydratedManifestsRequest{
 			Repo: &v1alpha1.Repository{
-				Repo: "https://github.com/argoproj/argocd-example-apps.git",
+				Repo: test.ManifestRepo,
 			},
 			TargetBranch: "main",
 		}

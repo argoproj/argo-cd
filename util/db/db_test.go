@@ -17,6 +17,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -383,7 +384,7 @@ func TestFuzzyEquivalence(t *testing.T) {
 	assert.Equal(t, "https://github.com/argoproj/argocd-example-apps", repo.Repo)
 
 	repo, err = db.CreateRepository(ctx, &v1alpha1.Repository{
-		Repo: "https://github.com/argoproj/argocd-example-apps.git",
+		Repo: test.ManifestRepo,
 	})
 	require.ErrorContains(t, err, "already exists")
 	assert.Nil(t, repo)

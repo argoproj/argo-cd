@@ -46,6 +46,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/test"
 )
 
 func Test_getInfos(t *testing.T) {
@@ -1862,7 +1863,7 @@ func testApp(name, project string, labels map[string]string, annotations map[str
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Source: &v1alpha1.ApplicationSource{
-				RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
+				RepoURL: test.ManifestRepo,
 			},
 			Project: project,
 		},

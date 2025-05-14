@@ -20,6 +20,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/repository"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	fakeapps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
@@ -27,6 +28,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v3/server/cache"
+	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/assets"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
@@ -34,8 +36,6 @@ import (
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/settings"
-
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
 const testNamespace = "default"
@@ -200,7 +200,7 @@ var (
 			Project: "default",
 			Sources: []appsv1.ApplicationSource{
 				{
-					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+					RepoURL:        test.ManifestRepo,
 					Path:           "sock-shop",
 					TargetRevision: "HEAD",
 				},
@@ -220,7 +220,7 @@ var (
 					Revision: "HEAD",
 					Sources: []appsv1.ApplicationSource{
 						{
-							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							RepoURL:        test.ManifestRepo,
 							TargetRevision: "1.0.0",
 						},
 					},
@@ -779,7 +779,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
 		enforcer := newEnforcer(kubeclientset)
 
-		url0 := "https://github.com/argoproj/argocd-example-apps.git"
+		url0 := test.ManifestRepo
 		url1 := "https://helm.elastic.co"
 		helmRepos := []*appsv1.Repository{{Repo: url0}, {Repo: url1}}
 		db := &dbmocks.ArgoDB{}

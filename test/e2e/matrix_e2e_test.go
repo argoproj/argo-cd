@@ -8,6 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets/utils"
 
@@ -29,7 +30,7 @@ func TestListMatrixGenerator(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
-					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+					RepoURL:        test.ManifestRepo,
 					TargetRevision: "HEAD",
 					Path:           name,
 				},
@@ -65,7 +66,7 @@ func TestListMatrixGenerator(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							RepoURL:        test.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
 						},
@@ -89,7 +90,7 @@ func TestListMatrixGenerator(t *testing.T) {
 								},
 								{
 									Git: &v1alpha1.GitGenerator{
-										RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
+										RepoURL: test.ManifestRepo,
 										Directories: []v1alpha1.GitDirectoryGeneratorItem{
 											{
 												Path: "*guestbook*",
@@ -152,7 +153,7 @@ func TestClusterMatrixGenerator(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
-					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+					RepoURL:        test.ManifestRepo,
 					TargetRevision: "HEAD",
 					Path:           name,
 				},
@@ -190,7 +191,7 @@ func TestClusterMatrixGenerator(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							RepoURL:        test.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
 						},
@@ -215,7 +216,7 @@ func TestClusterMatrixGenerator(t *testing.T) {
 								},
 								{
 									Git: &v1alpha1.GitGenerator{
-										RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
+										RepoURL: test.ManifestRepo,
 										Directories: []v1alpha1.GitDirectoryGeneratorItem{
 											{
 												Path: "*guestbook*",
@@ -278,7 +279,7 @@ func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
-					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+					RepoURL:        test.ManifestRepo,
 					TargetRevision: "HEAD",
 					Path:           name,
 				},
@@ -312,7 +313,7 @@ func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							RepoURL:        test.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
 						},
@@ -344,7 +345,7 @@ func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 											},
 											{
 												Git: &v1alpha1.GitGenerator{
-													RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
+													RepoURL: test.ManifestRepo,
 													Directories: []v1alpha1.GitDirectoryGeneratorItem{
 														{
 															Path: "*guestbook*",
@@ -389,7 +390,7 @@ func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 					},
 					{
 						Git: &v1alpha1.GitGenerator{
-							RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
+							RepoURL: test.ManifestRepo,
 							Directories: []v1alpha1.GitDirectoryGeneratorItem{
 								{
 									Path: "*guestbook*",
@@ -419,7 +420,7 @@ func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
-					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+					RepoURL:        test.ManifestRepo,
 					TargetRevision: "HEAD",
 					Path:           name,
 				},
@@ -451,7 +452,7 @@ func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							RepoURL:        test.ManifestRepo,
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
 						},
@@ -471,7 +472,7 @@ func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
 										Generators: []v1alpha1.ApplicationSetTerminalGenerator{
 											{
 												Git: &v1alpha1.GitGenerator{
-													RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
+													RepoURL: test.ManifestRepo,
 													Directories: []v1alpha1.GitDirectoryGeneratorItem{
 														{
 															Path: "*guestbook*",
@@ -517,7 +518,7 @@ func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
 				Generators: []v1alpha1.ApplicationSetTerminalGenerator{
 					{
 						Git: &v1alpha1.GitGenerator{
-							RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
+							RepoURL: test.ManifestRepo,
 							Directories: []v1alpha1.GitDirectoryGeneratorItem{
 								{
 									Path: "*guestbook*",
