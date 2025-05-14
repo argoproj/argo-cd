@@ -308,7 +308,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 					LabelSelector: testCase.labelSelector,
 					Values:        testCase.values,
 				},
-			}, &applicationSetInfo, nil)
+			}, &applicationSetInfo, nil, nil)
 
 			if testCase.expectedError != nil {
 				require.EqualError(t, err, testCase.expectedError.Error())
@@ -606,7 +606,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 					LabelSelector: testCase.labelSelector,
 					Values:        testCase.values,
 				},
-			}, &applicationSetInfo, nil)
+			}, &applicationSetInfo, nil, nil)
 
 			if testCase.expectedError != nil {
 				require.EqualError(t, err, testCase.expectedError.Error())
