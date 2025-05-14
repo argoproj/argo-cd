@@ -1376,6 +1376,8 @@ type OperationState struct {
 	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,7,opt,name=finishedAt"`
 	// RetryCount contains time of operation retries
 	RetryCount int64 `json:"retryCount,omitempty" protobuf:"bytes,8,opt,name=retryCount"`
+	// SyncId is the unique identifier of the sync operation
+	SyncId string `json:"syncId,omitempty" protobuf:"bytes,9,opt,name=syncId"`
 }
 
 type Info struct {

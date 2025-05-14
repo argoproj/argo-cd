@@ -8572,6 +8572,10 @@
         "startedAt": {
           "$ref": "#/definitions/v1Time"
         },
+        "syncId": {
+          "type": "string",
+          "title": "SyncId is the unique identifier of the sync operation"
+        },
         "syncResult": {
           "$ref": "#/definitions/v1alpha1SyncOperationResult"
         }

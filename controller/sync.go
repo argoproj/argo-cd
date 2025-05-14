@@ -256,6 +256,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 	syncId := fmt.Sprintf("%05d-%s", syncIdPrefix, randSuffix)
 
+	state.SyncId = syncId
+
 	logEntry := log.WithFields(log.Fields{"application": app.QualifiedName(), "syncId": syncId})
 	initialResourcesRes := make([]common.ResourceSyncResult, 0)
 	for i, res := range syncRes.Resources {

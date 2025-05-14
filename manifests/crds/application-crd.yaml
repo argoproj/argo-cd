@@ -3828,6 +3828,9 @@ spec:
                     description: StartedAt contains time of operation start
                     format: date-time
                     type: string
+                  syncId:
+                    description: SyncId is the unique identifier of the sync operation
+                    type: string
                   syncResult:
                     description: SyncResult is the result of a Sync operation
                     properties:
