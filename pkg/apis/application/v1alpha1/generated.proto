@@ -62,6 +62,7 @@ message AppProjectSpec {
   repeated ApplicationDestination destinations = 2;
 
   // Description contains optional project description
+  // +kubebuilder:validation:MaxLength=255
   optional string description = 3;
 
   // Roles are user defined RBAC roles associated with this project
@@ -1635,6 +1636,9 @@ message PullRequestGeneratorGitea {
 
   // Allow insecure tls, for self-signed certificates; default: false.
   optional bool insecure = 5;
+
+  // Labels is used to filter the PRs that you want to target
+  repeated string labels = 6;
 }
 
 // PullRequestGenerator defines connection info specific to GitHub.
@@ -2598,6 +2602,9 @@ message SyncWindow {
 
   // UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator
   optional bool andOperator = 9;
+
+  // Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example
+  optional string description = 10;
 }
 
 // TLSClientConfig contains settings to enable transport layer security
