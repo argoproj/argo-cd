@@ -10,8 +10,10 @@ end
 
 if obj.status ~= nil and obj.status.phase ~= nil then
     if obj.status.phase == "Running" then
-        hs.status = "Healthy"
-        hs.message = "Machines are running under this deployment"
+        if obj.status.replicas == obj.status.updatedReplicas and obj.status.replicas == obj.status.readyReplicas then
+            hs.status = "Healthy"
+            hs.message = "Machines are running under this deployment"
+        end
     end
     if obj.status.phase == "ScalingUp" then
         hs.status = "Progressing"

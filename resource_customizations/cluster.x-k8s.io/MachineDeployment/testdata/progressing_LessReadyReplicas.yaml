@@ -10,7 +10,6 @@ metadata:
   name: test-md-0
   namespace: test
 spec:
-  paused: true
   clusterName: test
   minReadySeconds: 0
   progressDeadlineSeconds: 600
@@ -41,9 +40,9 @@ spec:
         kind: VSphereMachineTemplate
       version: v1.18.10
 status:
-  availableReplicas: 5
+  availableReplicas: 4
   observedGeneration: 3
-  phase: Running
-  readyReplicas: 5
+  phase: ScalingUp
+  readyReplicas: 4
   replicas: 5
-  updatedReplicas: 5
+  updatedReplicas: 2
