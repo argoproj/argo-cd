@@ -1,10 +1,14 @@
 package helm
 
 import (
+	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ecr"
 	"io"
 	"net/http"
 	"net/url"
@@ -259,4 +263,66 @@ func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(azureCon
 	}
 
 	return tokenParams, nil
+}
+
+var _ Creds = AwsCreds{}
+
+type AwsCreds struct {
+	repoURL            string
+	CAPath             string
+	CertData           []byte
+	KeyData            []byte
+	InsecureSkipVerify bool
+}
+
+func NewAwsCreds(repoURL string, caPath string, certData []byte, keyData []byte, insecureSkipVerify bool) AwsCreds {
+	return AwsCreds{
+		repoURL:            repoURL,
+		CAPath:             caPath,
+		CertData:           certData,
+		KeyData:            keyData,
+		InsecureSkipVerify: insecureSkipVerify,
+	}
+}
+func (creds AwsCreds) GetUsername() string {
+	return "AWS"
+}
+func (creds AwsCreds) GetPassword() (string, error) {
+	sess := session.Must(session.NewSession())
+	svc := ecr.New(sess)
+	input := &ecr.GetAuthorizationTokenInput{}
+
+	result, err := svc.GetAuthorizationTokenWithContext(context.Background(), input)
+	if err != nil {
+		return "", fmt.Errorf("failed to get ECR authorization token: %w", err)
+	}
+
+	if len(result.AuthorizationData) == 0 {
+		return "", errors.New("no authorization data returned from ECR")
+	}
+
+	// ECR returns base64 encoded token in format user:password
+	token := *result.AuthorizationData[0].AuthorizationToken
+	decodedToken, err := base64.StdEncoding.DecodeString(token)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode ECR token: %w", err)
+	}
+
+	parts := strings.Split(string(decodedToken), ":")
+	if len(parts) != 2 {
+		return "", errors.New("invalid ECR token format")
+	}
+	return parts[1], nil
+}
+func (creds AwsCreds) GetCAPath() string {
+	return creds.CAPath
+}
+func (creds AwsCreds) GetCertData() []byte {
+	return creds.CertData
+}
+func (creds AwsCreds) GetKeyData() []byte {
+	return creds.KeyData
+}
+func (creds AwsCreds) GetInsecureSkipVerify() bool {
+	return creds.InsecureSkipVerify
 }

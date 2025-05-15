@@ -392,6 +392,8 @@ type RepositoryCredentials struct {
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"` //nolint:revive //FIXME(var-naming)
 	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
 	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty"`
+	// UseAWSAuthentication specifies whether to use AWS Authentication for authentication
+	UseAWSAuthentication bool `json:"useAWSAuthentication,omitempty" protobuf:"bytes,26,opt,name=useAWSAuthentication"`
 }
 
 // DeepLink structure

@@ -126,7 +126,7 @@ func (repo *Repository) IsLFSEnabled() bool {
 
 // HasCredentials returns true when the repository has been configured with any credentials
 func (repo *Repository) HasCredentials() bool {
-	return repo.Username != "" || repo.Password != "" || repo.BearerToken != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != "" || repo.UseAzureWorkloadIdentity
+	return repo.Username != "" || repo.Password != "" || repo.BearerToken != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != "" || repo.UseAzureWorkloadIdentity || repo.UseAWSAuthentication
 }
 
 // CopyCredentialsFromRepo copies all credential information from source repository to receiving repository
@@ -215,6 +215,7 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		}
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
 		repo.UseAzureWorkloadIdentity = source.UseAzureWorkloadIdentity
+		repo.UseAWSAuthentication = source.UseAWSAuthentication
 	}
 }
 
@@ -254,6 +255,16 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 			[]byte(repo.TLSClientCertKey),
 			repo.Insecure,
 			workloadidentity.NewWorkloadIdentityTokenProvider(),
+		)
+	}
+	if repo.UseAWSAuthentication {
+		log.Warnf("Obtained credentials for Helm repository '%s' using AWS ", repo.Repo)
+		return helm.NewAwsCreds(
+			repo.Repo,
+			getCAPath(repo.Repo),
+			[]byte(repo.TLSClientCertData),
+			[]byte(repo.TLSClientCertKey),
+			repo.Insecure,
 		)
 	}
 
