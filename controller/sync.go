@@ -257,10 +257,10 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	syncId := fmt.Sprintf("%05d-%s", syncIdPrefix, randSuffix)
 
 	logEntry := log.WithFields(log.Fields{"application": app.QualifiedName(), "syncId": syncId})
-	initialResourcesRes := make([]common.ResourceSyncResult, 0)
+	initialResourcesRes := make([]common.ResourceSyncResult, len(syncRes.Resources))
 	for i, res := range syncRes.Resources {
 		key := kube.ResourceKey{Group: res.Group, Kind: res.Kind, Namespace: res.Namespace, Name: res.Name}
-		initialResourcesRes = append(initialResourcesRes, common.ResourceSyncResult{
+		initialResourcesRes[i] = common.ResourceSyncResult{
 			ResourceKey: key,
 			Message:     res.Message,
 			Status:      res.Status,
@@ -269,7 +269,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			SyncPhase:   res.SyncPhase,
 			Version:     res.Version,
 			Order:       i + 1,
-		})
+		}
 	}
 
 	prunePropagationPolicy := metav1.DeletePropagationForeground
