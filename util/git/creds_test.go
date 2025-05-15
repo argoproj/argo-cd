@@ -456,9 +456,3 @@ func TestGetHelmCredsShouldReturnHelmCredsIfAzureWorkloadIdentityNotSpecified(t 
 	_, ok := creds.(AzureWorkloadIdentityCreds)
 	require.Truef(t, ok, "expected HelmCreds but got %T", creds)
 }
-
-func TestNewAwsCreds(t *testing.T) {
-	store := &memoryCredsStore{creds: make(map[string]cred)}
-	awsCreds := NewAwsCreds(store)
-	assert.NotNil(t, awsCreds)
-}
