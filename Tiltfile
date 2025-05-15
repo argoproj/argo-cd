@@ -1,0 +1,190 @@
+load('ext://restart_process', 'docker_build_with_restart')
+load('ext://uibutton', 'cmd_button', 'location')
+
+# add ui button in web ui to run make codegen-local (top nav)
+cmd_button(
+    'make codegen-local',
+    argv=['sh', '-c', 'make codegen-local'],
+    location=location.NAV,
+    icon_name='terminal',
+    text='make codegen-local',
+)
+
+# build the argocd binary on code changes
+local_resource(
+    'build',
+    'CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=readonly -o .tilt-bin/argocd_linux_amd64 cmd/main.go',
+    deps = [
+        'applicationset',
+        'cmd',
+        'cmpserver',
+        'commitserver',
+        'common',
+        'controller',
+        'notification-controller',
+        'pkg',
+        'reposerver',
+        'server',
+        'util',
+        'go.mod',
+        'go.sum',
+    ],
+)
+
+# deploy the argocd manifests
+k8s_yaml(kustomize('manifests/dev-tilt'))
+
+# build dev image
+docker_build_with_restart(
+    'argocd', 
+    context='.',
+    dockerfile='Dockerfile.tilt',
+    entrypoint=['/usr/bin/tini', '-s', '--'],
+    live_update=[
+        sync('.tilt-bin/argocd_linux_amd64', '/usr/local/bin/argocd'),
+    ],
+    only=[
+        '.tilt-bin',
+        'hack',
+        'entrypoint.sh',
+    ],
+    restart_file='/tilt/.restart-proc'
+)
+
+# build image for argocd-cli jobs
+docker_build(
+    'argocd-job', 
+    context='.',
+    dockerfile='Dockerfile.tilt',
+    only=[
+        '.tilt-bin',
+        'hack',
+        'entrypoint.sh',
+    ]
+)
+
+# track argocd-server resources and port forward
+k8s_resource(
+    workload='argocd-server',
+    objects=[
+        'argocd-server:serviceaccount',
+        'argocd-server:role',
+        'argocd-server:rolebinding',
+        'argocd-cm:configmap',
+        'argocd-cmd-params-cm:configmap',
+        'argocd-gpg-keys-cm:configmap',
+        'argocd-rbac-cm:configmap',
+        'argocd-ssh-known-hosts-cm:configmap',
+        'argocd-tls-certs-cm:configmap',
+        'argocd-secret:secret',
+        'argocd-server-network-policy:networkpolicy',
+    ],
+    port_forwards=[
+        '8080:8080',
+    ],
+)
+
+# track crds
+k8s_resource(
+    new_name='crds',
+    objects=[
+        'applications.argoproj.io:customresourcedefinition',
+        'applicationsets.argoproj.io:customresourcedefinition',
+        'appprojects.argoproj.io:customresourcedefinition',
+    ]
+)
+
+# track argocd-repo-server resources and port forward
+k8s_resource(
+    workload='argocd-repo-server',
+    objects=[
+        'argocd-repo-server:serviceaccount',
+        'argocd-repo-server-network-policy:networkpolicy',
+    ],
+    port_forwards=[
+        '8081:8081',
+    ],
+)
+
+# track argocd-redis resources and port forward
+k8s_resource(
+    workload='argocd-redis',
+    objects=[
+        'argocd-redis:serviceaccount',
+        'argocd-redis:role',
+        'argocd-redis:rolebinding',
+        'argocd-redis-network-policy:networkpolicy',
+    ],
+    port_forwards=[
+        '6379:6379',
+    ],
+)
+
+# track argocd-applicationset-controller resources
+k8s_resource(
+    workload='argocd-applicationset-controller',
+    objects=[
+        'argocd-applicationset-controller:serviceaccount',
+        'argocd-applicationset-controller-network-policy:networkpolicy',
+        'argocd-applicationset-controller:role',
+        'argocd-applicationset-controller:rolebinding',
+    ],
+)
+
+# track argocd-application-controller resources
+k8s_resource(
+    workload='argocd-application-controller',
+    objects=[
+        'argocd-application-controller:serviceaccount',
+        'argocd-application-controller-network-policy:networkpolicy',
+        'argocd-application-controller:role',
+        'argocd-application-controller:rolebinding',
+    ],
+)
+
+# track argocd-notifications-controller resources
+k8s_resource(
+    workload='argocd-notifications-controller',
+    objects=[
+        'argocd-notifications-controller:serviceaccount',
+        'argocd-notifications-controller-network-policy:networkpolicy',
+        'argocd-notifications-controller:role',
+        'argocd-notifications-controller:rolebinding',
+        'argocd-notifications-cm:configmap',
+        'argocd-notifications-secret:secret',
+    ],
+)
+
+# track argocd-dex-server resources
+k8s_resource(
+    workload='argocd-dex-server',
+    objects=[
+        'argocd-dex-server:serviceaccount',
+        'argocd-dex-server-network-policy:networkpolicy',
+        'argocd-dex-server:role',
+        'argocd-dex-server:rolebinding',
+    ],
+)
+
+
+# install ui dependencies
+local_resource(
+    'install-ui',
+    'yarn install',
+    dir='ui',
+    deps=['ui/package.json'],
+)
+
+# start ui
+local_resource(
+    'start-ui',
+    deps=['ui'],
+    ignore=['node_modules'],
+    resource_deps=['install-ui'],
+    serve_cmd='yarn start',
+    serve_dir='ui',
+    links=['http://localhost:4000'],
+)
+
+
+    
