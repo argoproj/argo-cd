@@ -11,7 +11,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/certs"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/gpgkeys"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
-	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -88,7 +87,7 @@ func GivenWithSameState(t *testing.T) *Context {
 		timeout:        timeout,
 		project:        "default",
 		prune:          true,
-		trackingMethod: argo.TrackingMethodLabel,
+		trackingMethod: v1alpha1.TrackingMethodLabel,
 	}
 }
 
