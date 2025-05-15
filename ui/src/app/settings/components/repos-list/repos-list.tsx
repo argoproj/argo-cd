@@ -421,13 +421,7 @@ export class ReposList extends React.Component<
                         </div>
                         <DataLoader load={services.repos.list} ref={loader => (this.repoLoader = loader)}>
                             {(repos: models.Repository[]) => {
-                                const filteredRepos = this.filteredRepos(
-                                    repos,
-                                    this.state.typeProperty,
-                                    this.state.projectProperty,
-                                    this.state.statusProperty,
-                                    this.state.name
-                                );
+                                const filteredRepos = this.filteredRepos(repos, this.state.typeProperty, this.state.projectProperty, this.state.statusProperty, this.state.name);
 
                                 return (
                                     (filteredRepos.length > 0 && (
