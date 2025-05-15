@@ -1240,6 +1240,10 @@ data:
 
 Custom Labels configured with `resource.customLabels` (comma separated string) will be displayed in the UI (for any resource that defines them).
 
+## Single and Double Quotes
+
+Argo CD treats YAML strings enclosed in single (') or double (") quotes identically; the choice of quotes affects only YAML parsing, not Argo CD's behavior.
+
 ## Labels on Application Events
 
 An optional comma-separated list of `metadata.labels` keys can be configured with `resource.includeEventLabelKeys` to add to Kubernetes events generated for Argo CD Applications. When events are generated for Applications containing the specified labels, the controller adds the matching labels to the event. This establishes an easy link between the event and the application, allowing for filtering using labels. In case of conflict between labels on the Application and AppProject, the Application label values are prioritized and added to the event.
