@@ -385,7 +385,7 @@ In `values` we can also interpolate all fields set by the git files generator as
 
 ## Webhook Configuration
 
-When using a Git generator, ApplicationSet polls Git repositories every every `requeueAfterSeconds` interval (defaulting to every three minutes) to detect changes. To eliminate
+When using a Git generator, the ApplicationSet controller polls Git repositories every 3 minutes (this can be customized per ApplicationSet with `requeueAfterSeconds`) to detect changes. To eliminate
 this delay from polling, the ApplicationSet webhook server can be configured to receive webhook events. ApplicationSet supports
 Git webhook notifications from GitHub and GitLab. The following explains how to configure a Git webhook for GitHub, but the same process should be applicable to other providers.
 
