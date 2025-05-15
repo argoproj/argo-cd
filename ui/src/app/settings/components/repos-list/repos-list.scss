@@ -41,4 +41,17 @@
         overflow-wrap: normal;
         overflow-x: scroll;
     }
+
+    .argo-container {
+        @include themify($themes) {
+            input.argo-field {
+                border-bottom: 2px solid themed('light-argo-teal-5') !important;
+            }
+        }
+
+        input.argo-field:focus {
+            outline: none;
+            border-bottom: 2px solid $argo-color-teal-6 !important;
+        }
+    }
 }
