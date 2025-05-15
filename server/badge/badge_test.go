@@ -451,6 +451,24 @@ func TestHandlerRevisionIsEnabledShortCommitSHA(t *testing.T) {
 	assert.Contains(t, response, "(abc)")
 }
 
+func TestHandlerRevisionIsEnabledMultipleSources(t *testing.T) {
+	app := testApp()
+	app.Status.OperationState.SyncResult.Revision = ""
+	app.Status.OperationState.SyncResult.Revisions = []string{"aa29b85", "cf41g63"}
+
+	settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm(), argoCDSecret()), "default")
+	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default", []string{})
+	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&revision=true", nil)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	response := rr.Body.String()
+	assert.Contains(t, response, "(aa29b85)")
+	assert.NotContains(t, response, "(cf41g63)")
+}
+
 func TestHandlerFeatureIsDisabled(t *testing.T) {
 	argoCDCmDisabled := argoCDCm()
 	delete(argoCDCmDisabled.Data, "statusbadge.enabled")
