@@ -62,14 +62,17 @@ export interface Operation {
     initiatedBy: OperationInitiator;
 }
 
-export type OperationPhase = 'Running' | 'Error' | 'Failed' | 'Succeeded' | 'Terminating';
+export type OperationPhase = 'Running' | 'Error' | 'Failed' | 'Succeeded' | 'Terminating' | 'Progressing' | 'Pending' | 'Waiting';
 
 export const OperationPhases = {
     Running: 'Running' as OperationPhase,
     Failed: 'Failed' as OperationPhase,
     Error: 'Error' as OperationPhase,
     Succeeded: 'Succeeded' as OperationPhase,
-    Terminating: 'Terminating' as OperationPhase
+    Terminating: 'Terminating' as OperationPhase,
+    Progressing: 'Progressing' as OperationPhase,
+    Pending: 'Pending' as OperationPhase,
+    Waiting: 'Waiting' as OperationPhase
 };
 
 /**
@@ -129,6 +132,7 @@ export interface ResourceResult {
 
 export type SyncResourceResult = ResourceResult & {
     health?: HealthStatus;
+    syncWave?: number;
 };
 
 export const AnnotationRefreshKey = 'argocd.argoproj.io/refresh';
@@ -289,6 +293,7 @@ export interface ApplicationSourceDirectory {
 export interface Automated {
     prune: boolean;
     selfHeal: boolean;
+    enabled: boolean;
 }
 
 export interface SyncPolicy {
@@ -598,6 +603,7 @@ export interface Repository {
     project?: string;
     username?: string;
     password?: string;
+    bearerToken?: string;
     tlsClientCertData?: string;
     tlsClientCertKey?: string;
     proxy?: string;
@@ -607,6 +613,7 @@ export interface Repository {
     githubAppId?: string;
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
+    useAzureWorkloadIdentity: boolean;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}
@@ -614,6 +621,7 @@ export interface RepositoryList extends ItemsList<Repository> {}
 export interface RepoCreds {
     url: string;
     username?: string;
+    bearerToken?: string;
 }
 
 export interface RepoCredsList extends ItemsList<RepoCreds> {}
@@ -810,6 +818,8 @@ export interface SyncWindow {
     clusters: string[];
     manualSync: boolean;
     timeZone: string;
+    andOperator: boolean;
+    description: string;
 }
 
 export interface Project {
@@ -1043,3 +1053,60 @@ export interface UserMessages {
 }
 
 export const AppDeletionConfirmedAnnotation = 'argocd.argoproj.io/deletion-approved';
+
+export interface ApplicationSetSpec {
+    strategy?: {
+        type: 'AllAtOnce' | 'RollingSync';
+        rollingSync?: {
+            steps: Array<{
+                matchExpressions: Array<{
+                    key: string;
+                    operator: string;
+                    values: string[];
+                }>;
+                maxUpdate: number;
+            }>;
+        };
+    };
+}
+
+export interface ApplicationSetCondition {
+    type: string;
+    status: string;
+    message: string;
+    lastTransitionTime: string;
+    reason: string;
+}
+
+export interface ApplicationSetResource {
+    group: string;
+    version: string;
+    kind: string;
+    name: string;
+    namespace: string;
+    status: string;
+    health?: {
+        status: string;
+        lastTransitionTime: models.Time;
+    };
+    labels?: {[key: string]: string};
+}
+
+export interface ApplicationSet {
+    apiVersion?: string;
+    kind?: string;
+    metadata: models.ObjectMeta;
+    spec: ApplicationSetSpec;
+    status?: {
+        conditions?: ApplicationSetCondition[];
+        applicationStatus?: Array<{
+            application: string;
+            status: 'Waiting' | 'Pending' | 'Progressing' | 'Healthy';
+            message?: string;
+            lastTransitionTime?: string;
+            step?: string;
+            targetRevisions?: string[];
+        }>;
+        resources?: ApplicationSetResource[];
+    };
+}

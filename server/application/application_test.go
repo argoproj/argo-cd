@@ -5,7 +5,9 @@ import (
 	stderrors "errors"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -16,18 +18,17 @@ import (
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
-	"github.com/argoproj/pkg/sync"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/argoproj/pkg/v2/sync"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	k8sappsv1 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	k8sbatchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -40,27 +41,24 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
-	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/assets"
-	"github.com/argoproj/argo-cd/v2/util/cache"
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
-	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/grpc"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
+	appinformer "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
+	servercache "github.com/argoproj/argo-cd/v3/server/cache"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/assets"
+	"github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/grpc"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -74,13 +72,13 @@ type broadcasterMock struct {
 	objects []runtime.Object
 }
 
-func (b broadcasterMock) Subscribe(ch chan *appv1.ApplicationWatchEvent, filters ...func(event *appv1.ApplicationWatchEvent) bool) func() {
+func (b broadcasterMock) Subscribe(ch chan *v1alpha1.ApplicationWatchEvent, _ ...func(event *v1alpha1.ApplicationWatchEvent) bool) func() {
 	// Simulate the broadcaster notifying the subscriber of an application update.
 	// The second parameter to Subscribe is filters. For the purposes of tests, we ignore the filters. Future tests
 	// might require implementing those.
 	go func() {
 		for _, obj := range b.objects {
-			app, ok := obj.(*appsv1.Application)
+			app, ok := obj.(*v1alpha1.Application)
 			if ok {
 				oldVersion, err := strconv.Atoi(app.ResourceVersion)
 				if err != nil {
@@ -88,28 +86,28 @@ func (b broadcasterMock) Subscribe(ch chan *appv1.ApplicationWatchEvent, filters
 				}
 				clonedApp := app.DeepCopy()
 				clonedApp.ResourceVersion = strconv.Itoa(oldVersion + 1)
-				ch <- &appsv1.ApplicationWatchEvent{Type: watch.Added, Application: *clonedApp}
+				ch <- &v1alpha1.ApplicationWatchEvent{Type: watch.Added, Application: *clonedApp}
 			}
 		}
 	}()
 	return func() {}
 }
 
-func (broadcasterMock) OnAdd(interface{}, bool)           {}
-func (broadcasterMock) OnUpdate(interface{}, interface{}) {}
-func (broadcasterMock) OnDelete(interface{})              {}
+func (broadcasterMock) OnAdd(any, bool)   {}
+func (broadcasterMock) OnUpdate(any, any) {}
+func (broadcasterMock) OnDelete(any)      {}
 
-func fakeRepo() *appsv1.Repository {
-	return &appsv1.Repository{
+func fakeRepo() *v1alpha1.Repository {
+	return &v1alpha1.Repository{
 		Repo: fakeRepoURL,
 	}
 }
 
-func fakeCluster() *appsv1.Cluster {
-	return &appsv1.Cluster{
+func fakeCluster() *v1alpha1.Cluster {
+	return &v1alpha1.Cluster{
 		Server: "https://cluster-api.example.com",
 		Name:   "fake-cluster",
-		Config: appsv1.ClusterConfig{},
+		Config: v1alpha1.ClusterConfig{},
 	}
 }
 
@@ -141,12 +139,12 @@ func fakeRepoServerClient(isHelm bool) *mocks.RepoServerServiceClient {
 	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil)
 	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.Anything).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 	mockRepoServiceClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
-	mockRepoServiceClient.On("GetRevisionMetadata", mock.Anything, mock.Anything).Return(&appsv1.RevisionMetadata{}, nil)
+	mockRepoServiceClient.On("GetRevisionMetadata", mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{}, nil)
 	mockWithFilesClient := &mocks.RepoServerService_GenerateManifestWithFilesClient{}
 	mockWithFilesClient.On("Send", mock.Anything).Return(nil)
 	mockWithFilesClient.On("CloseAndRecv").Return(&apiclient.ManifestResponse{}, nil)
 	mockRepoServiceClient.On("GenerateManifestWithFiles", mock.Anything, mock.Anything).Return(mockWithFilesClient, nil)
-	mockRepoServiceClient.On("GetRevisionChartDetails", mock.Anything, mock.Anything).Return(&appsv1.ChartDetails{}, nil)
+	mockRepoServiceClient.On("GetRevisionChartDetails", mock.Anything, mock.Anything).Return(&v1alpha1.ChartDetails{}, nil)
 
 	if isHelm {
 		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevisionResponseHelm(), nil)
@@ -169,7 +167,7 @@ func newTestAppServer(t *testing.T, objects ...runtime.Object) *Server {
 
 func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer), additionalConfig map[string]string, objects ...runtime.Object) *Server {
 	t.Helper()
-	kubeclientset := fake.NewClientset(&v1.ConfigMap{
+	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-cm",
@@ -178,7 +176,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 			},
 		},
 		Data: additionalConfig,
-	}, &v1.Secret{
+	}, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-secret",
 			Namespace: testNamespace,
@@ -188,39 +186,39 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 			"server.secretkey": []byte("test"),
 		},
 	})
-	ctx := context.Background()
+	ctx := t.Context()
 	db := db.NewDB(testNamespace, settings.NewSettingsManager(ctx, kubeclientset, testNamespace), kubeclientset)
 	_, err := db.CreateRepository(ctx, fakeRepo())
-	errors.CheckError(err)
+	require.NoError(t, err)
 	_, err = db.CreateCluster(ctx, fakeCluster())
-	errors.CheckError(err)
+	require.NoError(t, err)
 
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(false)}
 
-	defaultProj := &appsv1.AppProject{
+	defaultProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
-		Spec: appsv1.AppProjectSpec{
+		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
-			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
 
-	myProj := &appsv1.AppProject{
+	myProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "my-proj", Namespace: "default"},
-		Spec: appsv1.AppProjectSpec{
+		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
-			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
-	projWithSyncWindows := &appsv1.AppProject{
+	projWithSyncWindows := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "proj-maint", Namespace: "default"},
-		Spec: appsv1.AppProjectSpec{
+		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
-			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
-			SyncWindows:  appsv1.SyncWindows{},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			SyncWindows:  v1alpha1.SyncWindows{},
 		},
 	}
-	matchingWindow := &appsv1.SyncWindow{
+	matchingWindow := &v1alpha1.SyncWindow{
 		Kind:         "allow",
 		Schedule:     "* * * * *",
 		Duration:     "1h",
@@ -231,7 +229,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 	objects = append(objects, defaultProj, myProj, projWithSyncWindows)
 
 	fakeAppsClientset := apps.NewSimpleClientset(objects...)
-	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
 
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
@@ -243,7 +241,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 	// populate the app informer with the fake objects
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	// TODO(jessesuen): probably should return cancel function so tests can stop background informer
-	// ctx, cancel := context.WithCancel(context.Background())
+	// ctx, cancel := context.WithCancel(t.Context())
 	go appInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
 		panic("Timed out waiting for caches to sync")
@@ -262,16 +260,16 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 	appStateCache := appstate.NewCache(cache.NewCache(cache.NewInMemoryCache(time.Hour)), time.Hour)
 	// pre-populate the app cache
 	for _, obj := range objects {
-		app, ok := obj.(*appsv1.Application)
+		app, ok := obj.(*v1alpha1.Application)
 		if ok {
-			err := appStateCache.SetAppManagedResources(app.Name, []*appsv1.ResourceDiff{})
+			err := appStateCache.SetAppManagedResources(app.Name, []*v1alpha1.ResourceDiff{})
 			require.NoError(t, err)
 
 			// Pre-populate the resource tree based on the app's resources.
-			nodes := make([]appsv1.ResourceNode, len(app.Status.Resources))
+			nodes := make([]v1alpha1.ResourceNode, len(app.Status.Resources))
 			for i, res := range app.Status.Resources {
-				nodes[i] = appsv1.ResourceNode{
-					ResourceRef: appsv1.ResourceRef{
+				nodes[i] = v1alpha1.ResourceNode{
+					ResourceRef: v1alpha1.ResourceRef{
 						Group:     res.Group,
 						Kind:      res.Kind,
 						Version:   res.Version,
@@ -281,7 +279,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 					},
 				}
 			}
-			err = appStateCache.SetAppResourcesTree(app.Name, &appsv1.ApplicationTree{
+			err = appStateCache.SetAppResourcesTree(app.Name, &v1alpha1.ApplicationTree{
 				Nodes: nodes,
 			})
 			require.NoError(t, err)
@@ -318,6 +316,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 		projInformer,
 		[]string{},
 		testEnableEventList,
+		true,
 	)
 	return server.(*Server)
 }
@@ -334,7 +333,7 @@ func newTestAppServerWithBenchmark(b *testing.B, objects ...runtime.Object) *Ser
 
 func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rbac.Enforcer), objects ...runtime.Object) *Server {
 	b.Helper()
-	kubeclientset := fake.NewClientset(&v1.ConfigMap{
+	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-cm",
@@ -342,7 +341,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},
-	}, &v1.Secret{
+	}, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-secret",
 			Namespace: testNamespace,
@@ -352,7 +351,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 			"server.secretkey": []byte("test"),
 		},
 	})
-	ctx := context.Background()
+	ctx := b.Context()
 	db := db.NewDB(testNamespace, settings.NewSettingsManager(ctx, kubeclientset, testNamespace), kubeclientset)
 	_, err := db.CreateRepository(ctx, fakeRepo())
 	require.NoError(b, err)
@@ -361,29 +360,29 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(false)}
 
-	defaultProj := &appsv1.AppProject{
+	defaultProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
-		Spec: appsv1.AppProjectSpec{
+		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
-			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
-	myProj := &appsv1.AppProject{
+	myProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "my-proj", Namespace: "default"},
-		Spec: appsv1.AppProjectSpec{
+		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
-			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
-	projWithSyncWindows := &appsv1.AppProject{
+	projWithSyncWindows := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "proj-maint", Namespace: "default"},
-		Spec: appsv1.AppProjectSpec{
+		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
-			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
-			SyncWindows:  appsv1.SyncWindows{},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			SyncWindows:  v1alpha1.SyncWindows{},
 		},
 	}
-	matchingWindow := &appsv1.SyncWindow{
+	matchingWindow := &v1alpha1.SyncWindow{
 		Kind:         "allow",
 		Schedule:     "* * * * *",
 		Duration:     "1h",
@@ -394,7 +393,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 	objects = append(objects, defaultProj, myProj, projWithSyncWindows)
 
 	fakeAppsClientset := apps.NewSimpleClientset(objects...)
-	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
 
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
@@ -424,16 +423,16 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 	appStateCache := appstate.NewCache(cache.NewCache(cache.NewInMemoryCache(time.Hour)), time.Hour)
 	// pre-populate the app cache
 	for _, obj := range objects {
-		app, ok := obj.(*appsv1.Application)
+		app, ok := obj.(*v1alpha1.Application)
 		if ok {
-			err := appStateCache.SetAppManagedResources(app.Name, []*appsv1.ResourceDiff{})
+			err := appStateCache.SetAppManagedResources(app.Name, []*v1alpha1.ResourceDiff{})
 			require.NoError(b, err)
 
 			// Pre-populate the resource tree based on the app's resources.
-			nodes := make([]appsv1.ResourceNode, len(app.Status.Resources))
+			nodes := make([]v1alpha1.ResourceNode, len(app.Status.Resources))
 			for i, res := range app.Status.Resources {
-				nodes[i] = appsv1.ResourceNode{
-					ResourceRef: appsv1.ResourceRef{
+				nodes[i] = v1alpha1.ResourceNode{
+					ResourceRef: v1alpha1.ResourceRef{
 						Group:     res.Group,
 						Kind:      res.Kind,
 						Version:   res.Version,
@@ -443,7 +442,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 					},
 				}
 			}
-			err = appStateCache.SetAppResourcesTree(app.Name, &appsv1.ApplicationTree{
+			err = appStateCache.SetAppResourcesTree(app.Name, &v1alpha1.ApplicationTree{
 				Nodes: nodes,
 			})
 			require.NoError(b, err)
@@ -480,6 +479,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 		projInformer,
 		[]string{},
 		testEnableEventList,
+		true,
 	)
 	return server.(*Server)
 }
@@ -540,20 +540,20 @@ spec:
     server: https://cluster-api.example.com
 `
 
-func newTestAppWithDestName(opts ...func(app *appsv1.Application)) *appsv1.Application {
+func newTestAppWithDestName(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
 	return createTestApp(fakeAppWithDestName, opts...)
 }
 
-func newTestApp(opts ...func(app *appsv1.Application)) *appsv1.Application {
+func newTestApp(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
 	return createTestApp(fakeApp, opts...)
 }
 
-func newTestAppWithAnnotations(opts ...func(app *appsv1.Application)) *appsv1.Application {
+func newTestAppWithAnnotations(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
 	return createTestApp(fakeAppWithAnnotations, opts...)
 }
 
-func createTestApp(testApp string, opts ...func(app *appsv1.Application)) *appsv1.Application {
-	var app appsv1.Application
+func createTestApp(testApp string, opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
+	var app v1alpha1.Application
 	err := yaml.Unmarshal([]byte(testApp), &app)
 	if err != nil {
 		panic(err)
@@ -585,15 +585,15 @@ func (t *TestServerStream) Context() context.Context {
 	return t.ctx
 }
 
-func (t *TestServerStream) SendMsg(m interface{}) error {
+func (t *TestServerStream) SendMsg(_ any) error {
 	return nil
 }
 
-func (t *TestServerStream) RecvMsg(m interface{}) error {
+func (t *TestServerStream) RecvMsg(_ any) error {
 	return nil
 }
 
-func (t *TestServerStream) SendAndClose(r *apiclient.ManifestResponse) error {
+func (t *TestServerStream) SendAndClose(_ *apiclient.ManifestResponse) error {
 	return nil
 }
 
@@ -619,7 +619,7 @@ type TestResourceTreeServer struct {
 	ctx context.Context
 }
 
-func (t *TestResourceTreeServer) Send(tree *appsv1.ApplicationTree) error {
+func (t *TestResourceTreeServer) Send(_ *v1alpha1.ApplicationTree) error {
 	return nil
 }
 
@@ -637,11 +637,11 @@ func (t *TestResourceTreeServer) Context() context.Context {
 	return t.ctx
 }
 
-func (t *TestResourceTreeServer) SendMsg(m interface{}) error {
+func (t *TestResourceTreeServer) SendMsg(_ any) error {
 	return nil
 }
 
-func (t *TestResourceTreeServer) RecvMsg(m interface{}) error {
+func (t *TestResourceTreeServer) RecvMsg(_ any) error {
 	return nil
 }
 
@@ -649,7 +649,7 @@ type TestPodLogsServer struct {
 	ctx context.Context
 }
 
-func (t *TestPodLogsServer) Send(log *application.LogEntry) error {
+func (t *TestPodLogsServer) Send(_ *application.LogEntry) error {
 	return nil
 }
 
@@ -667,11 +667,11 @@ func (t *TestPodLogsServer) Context() context.Context {
 	return t.ctx
 }
 
-func (t *TestPodLogsServer) SendMsg(m interface{}) error {
+func (t *TestPodLogsServer) SendMsg(_ any) error {
 	return nil
 }
 
-func (t *TestPodLogsServer) RecvMsg(m interface{}) error {
+func (t *TestPodLogsServer) RecvMsg(_ any) error {
 	return nil
 }
 
@@ -693,7 +693,7 @@ func TestNoAppEnumeration(t *testing.T) {
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 		enf.SetDefaultRole("role:none")
 	}
-	deployment := k8sappsv1.Deployment{
+	deployment := appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
 			Kind:       "Deployment",
@@ -703,9 +703,9 @@ func TestNoAppEnumeration(t *testing.T) {
 			Namespace: "test",
 		},
 	}
-	testApp := newTestApp(func(app *appsv1.Application) {
+	testApp := newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "test"
-		app.Status.Resources = []appsv1.ResourceStatus{
+		app.Status.Resources = []v1alpha1.ResourceStatus{
 			{
 				Group:     deployment.GroupVersionKind().Group,
 				Kind:      deployment.GroupVersionKind().Kind,
@@ -715,20 +715,20 @@ func TestNoAppEnumeration(t *testing.T) {
 				Status:    "Synced",
 			},
 		}
-		app.Status.History = []appsv1.RevisionHistory{
+		app.Status.History = []v1alpha1.RevisionHistory{
 			{
 				ID: 0,
-				Source: appsv1.ApplicationSource{
+				Source: v1alpha1.ApplicationSource{
 					TargetRevision: "something-old",
 				},
 			},
 		}
 	})
-	testHelmApp := newTestApp(func(app *appsv1.Application) {
+	testHelmApp := newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "test-helm"
 		app.Spec.Source.Path = ""
 		app.Spec.Source.Chart = "test"
-		app.Status.Resources = []appsv1.ResourceStatus{
+		app.Status.Resources = []v1alpha1.ResourceStatus{
 			{
 				Group:     deployment.GroupVersionKind().Group,
 				Kind:      deployment.GroupVersionKind().Kind,
@@ -738,26 +738,26 @@ func TestNoAppEnumeration(t *testing.T) {
 				Status:    "Synced",
 			},
 		}
-		app.Status.History = []appsv1.RevisionHistory{
+		app.Status.History = []v1alpha1.RevisionHistory{
 			{
 				ID: 0,
-				Source: appsv1.ApplicationSource{
+				Source: v1alpha1.ApplicationSource{
 					TargetRevision: "something-old",
 				},
 			},
 		}
 	})
-	testAppMulti := newTestApp(func(app *appsv1.Application) {
+	testAppMulti := newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "test-multi"
-		app.Spec.Sources = appsv1.ApplicationSources{
-			appsv1.ApplicationSource{
+		app.Spec.Sources = v1alpha1.ApplicationSources{
+			v1alpha1.ApplicationSource{
 				TargetRevision: "something-old",
 			},
-			appsv1.ApplicationSource{
+			v1alpha1.ApplicationSource{
 				TargetRevision: "something-old",
 			},
 		}
-		app.Status.Resources = []appsv1.ResourceStatus{
+		app.Status.Resources = []v1alpha1.ResourceStatus{
 			{
 				Group:     deployment.GroupVersionKind().Group,
 				Kind:      deployment.GroupVersionKind().Kind,
@@ -767,14 +767,14 @@ func TestNoAppEnumeration(t *testing.T) {
 				Status:    "Synced",
 			},
 		}
-		app.Status.History = []appsv1.RevisionHistory{
+		app.Status.History = []v1alpha1.RevisionHistory{
 			{
 				ID: 1,
-				Sources: appsv1.ApplicationSources{
-					appsv1.ApplicationSource{
+				Sources: v1alpha1.ApplicationSources{
+					v1alpha1.ApplicationSource{
 						TargetRevision: "something-old",
 					},
-					appsv1.ApplicationSource{
+					v1alpha1.ApplicationSource{
 						TargetRevision: "something-old",
 					},
 				},
@@ -784,21 +784,17 @@ func TestNoAppEnumeration(t *testing.T) {
 	testDeployment := kube.MustToUnstructured(&deployment)
 	appServer := newTestAppServerWithEnforcerConfigure(t, f, map[string]string{}, testApp, testHelmApp, testAppMulti, testDeployment)
 
-	noRoleCtx := context.Background()
-	// nolint:staticcheck
+	noRoleCtx := t.Context()
+	//nolint:staticcheck
 	adminCtx := context.WithValue(noRoleCtx, "claims", &jwt.MapClaims{"groups": []string{"admin"}})
 
 	t.Run("Get", func(t *testing.T) {
-		// nolint:staticcheck
 		_, err := appServer.Get(adminCtx, &application.ApplicationQuery{Name: ptr.To("test")})
 		require.NoError(t, err)
-		// nolint:staticcheck
 		_, err = appServer.Get(noRoleCtx, &application.ApplicationQuery{Name: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		// nolint:staticcheck
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.Get(adminCtx, &application.ApplicationQuery{Name: ptr.To("doest-not-exist")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		// nolint:staticcheck
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.Get(adminCtx, &application.ApplicationQuery{Name: ptr.To("doest-not-exist"), Project: []string{"test"}})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -807,9 +803,9 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err := appServer.GetManifests(adminCtx, &application.ApplicationManifestQuery{Name: ptr.To("test")})
 		require.NoError(t, err)
 		_, err = appServer.GetManifests(noRoleCtx, &application.ApplicationManifestQuery{Name: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.GetManifests(adminCtx, &application.ApplicationManifestQuery{Name: ptr.To("doest-not-exist")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.GetManifests(adminCtx, &application.ApplicationManifestQuery{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -818,32 +814,32 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err := appServer.ListResourceEvents(adminCtx, &application.ApplicationResourceEventsQuery{Name: ptr.To("test")})
 		require.NoError(t, err)
 		_, err = appServer.ListResourceEvents(noRoleCtx, &application.ApplicationResourceEventsQuery{Name: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.ListResourceEvents(adminCtx, &application.ApplicationResourceEventsQuery{Name: ptr.To("doest-not-exist")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.ListResourceEvents(adminCtx, &application.ApplicationResourceEventsQuery{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
 
 	t.Run("UpdateSpec", func(t *testing.T) {
-		_, err := appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: ptr.To("test"), Spec: &appsv1.ApplicationSpec{
-			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
-			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
+		_, err := appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: ptr.To("test"), Spec: &v1alpha1.ApplicationSpec{
+			Destination: v1alpha1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
+			Source:      &v1alpha1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		require.NoError(t, err)
-		_, err = appServer.UpdateSpec(noRoleCtx, &application.ApplicationUpdateSpecRequest{Name: ptr.To("test"), Spec: &appsv1.ApplicationSpec{
-			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
-			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
+		_, err = appServer.UpdateSpec(noRoleCtx, &application.ApplicationUpdateSpecRequest{Name: ptr.To("test"), Spec: &v1alpha1.ApplicationSpec{
+			Destination: v1alpha1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
+			Source:      &v1alpha1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: ptr.To("doest-not-exist"), Spec: &appsv1.ApplicationSpec{
-			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
-			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		_, err = appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: ptr.To("doest-not-exist"), Spec: &v1alpha1.ApplicationSpec{
+			Destination: v1alpha1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
+			Source:      &v1alpha1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test"), Spec: &appsv1.ApplicationSpec{
-			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
-			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		_, err = appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test"), Spec: &v1alpha1.ApplicationSpec{
+			Destination: v1alpha1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
+			Source:      &v1alpha1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -852,9 +848,9 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err := appServer.Patch(adminCtx, &application.ApplicationPatchRequest{Name: ptr.To("test"), Patch: ptr.To(`[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`)})
 		require.NoError(t, err)
 		_, err = appServer.Patch(noRoleCtx, &application.ApplicationPatchRequest{Name: ptr.To("test"), Patch: ptr.To(`[{"op": "replace", "path": "/spec/source/path", "value": "foo"}]`)})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.Patch(adminCtx, &application.ApplicationPatchRequest{Name: ptr.To("doest-not-exist")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.Patch(adminCtx, &application.ApplicationPatchRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -863,9 +859,9 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err := appServer.GetResource(adminCtx, &application.ApplicationResourceRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
 		require.NoError(t, err)
 		_, err = appServer.GetResource(noRoleCtx, &application.ApplicationResourceRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.GetResource(adminCtx, &application.ApplicationResourceRequest{Name: ptr.To("doest-not-exist"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.GetResource(adminCtx, &application.ApplicationResourceRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -874,11 +870,11 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err := appServer.PatchResource(adminCtx, &application.ApplicationResourcePatchRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test"), Patch: ptr.To(`[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)})
 		// This will always throw an error, because the kubectl mock for PatchResource is hard-coded to return nil.
 		// The best we can do is to confirm we get past the permission check.
-		assert.NotEqual(t, permissionDeniedErr.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		assert.NotEqual(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.PatchResource(noRoleCtx, &application.ApplicationResourcePatchRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test"), Patch: ptr.To(`[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.PatchResource(adminCtx, &application.ApplicationResourcePatchRequest{Name: ptr.To("doest-not-exist"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test"), Patch: ptr.To(`[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.PatchResource(adminCtx, &application.ApplicationResourcePatchRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test"), Patch: ptr.To(`[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -887,9 +883,9 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err := appServer.DeleteResource(adminCtx, &application.ApplicationResourceDeleteRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
 		require.NoError(t, err)
 		_, err = appServer.DeleteResource(noRoleCtx, &application.ApplicationResourceDeleteRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.DeleteResource(adminCtx, &application.ApplicationResourceDeleteRequest{Name: ptr.To("doest-not-exist"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.DeleteResource(adminCtx, &application.ApplicationResourceDeleteRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -898,9 +894,9 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err := appServer.ResourceTree(adminCtx, &application.ResourcesQuery{ApplicationName: ptr.To("test")})
 		require.NoError(t, err)
 		_, err = appServer.ResourceTree(noRoleCtx, &application.ResourcesQuery{ApplicationName: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.ResourceTree(adminCtx, &application.ResourcesQuery{ApplicationName: ptr.To("doest-not-exist")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.ResourceTree(adminCtx, &application.ResourcesQuery{ApplicationName: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -911,9 +907,9 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err = appServer.RevisionMetadata(adminCtx, &application.RevisionMetadataQuery{Name: ptr.To("test-multi"), SourceIndex: ptr.To(int32(0)), VersionId: ptr.To(int32(1))})
 		require.NoError(t, err)
 		_, err = appServer.RevisionMetadata(noRoleCtx, &application.RevisionMetadataQuery{Name: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.RevisionMetadata(adminCtx, &application.RevisionMetadataQuery{Name: ptr.To("doest-not-exist")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.RevisionMetadata(adminCtx, &application.RevisionMetadataQuery{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -922,9 +918,9 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err := appServer.RevisionChartDetails(adminCtx, &application.RevisionMetadataQuery{Name: ptr.To("test-helm")})
 		require.NoError(t, err)
 		_, err = appServer.RevisionChartDetails(noRoleCtx, &application.RevisionMetadataQuery{Name: ptr.To("test-helm")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.RevisionChartDetails(adminCtx, &application.RevisionMetadataQuery{Name: ptr.To("doest-not-exist")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.RevisionChartDetails(adminCtx, &application.RevisionMetadataQuery{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -933,9 +929,9 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err := appServer.ManagedResources(adminCtx, &application.ResourcesQuery{ApplicationName: ptr.To("test")})
 		require.NoError(t, err)
 		_, err = appServer.ManagedResources(noRoleCtx, &application.ResourcesQuery{ApplicationName: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.ManagedResources(adminCtx, &application.ResourcesQuery{ApplicationName: ptr.To("doest-not-exist")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.ManagedResources(adminCtx, &application.ResourcesQuery{ApplicationName: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -944,9 +940,9 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err := appServer.Sync(adminCtx, &application.ApplicationSyncRequest{Name: ptr.To("test")})
 		require.NoError(t, err)
 		_, err = appServer.Sync(noRoleCtx, &application.ApplicationSyncRequest{Name: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.Sync(adminCtx, &application.ApplicationSyncRequest{Name: ptr.To("doest-not-exist")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.Sync(adminCtx, &application.ApplicationSyncRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -958,9 +954,9 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err := appServer.TerminateOperation(adminCtx, &application.OperationTerminateRequest{Name: ptr.To("test")})
 		require.NoError(t, err)
 		_, err = appServer.TerminateOperation(noRoleCtx, &application.OperationTerminateRequest{Name: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.TerminateOperation(adminCtx, &application.OperationTerminateRequest{Name: ptr.To("doest-not-exist")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.TerminateOperation(adminCtx, &application.OperationTerminateRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -972,9 +968,9 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err = appServer.Rollback(adminCtx, &application.ApplicationRollbackRequest{Name: ptr.To("test-multi"), Id: ptr.To(int64(1))})
 		require.NoError(t, err)
 		_, err = appServer.Rollback(noRoleCtx, &application.ApplicationRollbackRequest{Name: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.Rollback(adminCtx, &application.ApplicationRollbackRequest{Name: ptr.To("doest-not-exist")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.Rollback(adminCtx, &application.ApplicationRollbackRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -983,11 +979,11 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err := appServer.ListResourceActions(adminCtx, &application.ApplicationResourceRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
 		require.NoError(t, err)
 		_, err = appServer.ListResourceActions(noRoleCtx, &application.ApplicationResourceRequest{Name: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.ListResourceActions(noRoleCtx, &application.ApplicationResourceRequest{Group: ptr.To("argoproj.io"), Kind: ptr.To("Application"), Name: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.ListResourceActions(adminCtx, &application.ApplicationResourceRequest{Name: ptr.To("doest-not-exist")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.ListResourceActions(adminCtx, &application.ApplicationResourceRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -996,11 +992,11 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err := appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test"), Action: ptr.To("restart")})
 		require.NoError(t, err)
 		_, err = appServer.RunResourceAction(noRoleCtx, &application.ResourceActionRunRequest{Name: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.RunResourceAction(noRoleCtx, &application.ResourceActionRunRequest{Group: ptr.To("argoproj.io"), Kind: ptr.To("Application"), Name: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: ptr.To("doest-not-exist")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -1009,9 +1005,9 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err := appServer.GetApplicationSyncWindows(adminCtx, &application.ApplicationSyncWindowsQuery{Name: ptr.To("test")})
 		require.NoError(t, err)
 		_, err = appServer.GetApplicationSyncWindows(noRoleCtx, &application.ApplicationSyncWindowsQuery{Name: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.GetApplicationSyncWindows(adminCtx, &application.ApplicationSyncWindowsQuery{Name: ptr.To("doest-not-exist")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.GetApplicationSyncWindows(adminCtx, &application.ApplicationSyncWindowsQuery{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -1020,9 +1016,9 @@ func TestNoAppEnumeration(t *testing.T) {
 		err := appServer.GetManifestsWithFiles(&TestServerStream{ctx: adminCtx, appName: "test"})
 		require.NoError(t, err)
 		err = appServer.GetManifestsWithFiles(&TestServerStream{ctx: noRoleCtx, appName: "test"})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		err = appServer.GetManifestsWithFiles(&TestServerStream{ctx: adminCtx, appName: "does-not-exist"})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		err = appServer.GetManifestsWithFiles(&TestServerStream{ctx: adminCtx, appName: "does-not-exist", project: "test"})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"does-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -1031,9 +1027,9 @@ func TestNoAppEnumeration(t *testing.T) {
 		err := appServer.WatchResourceTree(&application.ResourcesQuery{ApplicationName: ptr.To("test")}, &TestResourceTreeServer{ctx: adminCtx})
 		require.NoError(t, err)
 		err = appServer.WatchResourceTree(&application.ResourcesQuery{ApplicationName: ptr.To("test")}, &TestResourceTreeServer{ctx: noRoleCtx})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		err = appServer.WatchResourceTree(&application.ResourcesQuery{ApplicationName: ptr.To("does-not-exist")}, &TestResourceTreeServer{ctx: adminCtx})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		err = appServer.WatchResourceTree(&application.ResourcesQuery{ApplicationName: ptr.To("does-not-exist"), Project: ptr.To("test")}, &TestResourceTreeServer{ctx: adminCtx})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"does-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -1042,9 +1038,9 @@ func TestNoAppEnumeration(t *testing.T) {
 		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
 		require.NoError(t, err)
 		err = appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: noRoleCtx})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		err = appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("does-not-exist")}, &TestPodLogsServer{ctx: adminCtx})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		err = appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("does-not-exist"), Project: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"does-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -1053,9 +1049,9 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err := appServer.ListLinks(adminCtx, &application.ListAppLinksRequest{Name: ptr.To("test")})
 		require.NoError(t, err)
 		_, err = appServer.ListLinks(noRoleCtx, &application.ListAppLinksRequest{Name: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.ListLinks(adminCtx, &application.ListAppLinksRequest{Name: ptr.To("does-not-exist")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.ListLinks(adminCtx, &application.ListAppLinksRequest{Name: ptr.To("does-not-exist"), Project: ptr.To("test")})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"does-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -1064,9 +1060,9 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err := appServer.ListResourceLinks(adminCtx, &application.ApplicationResourceRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
 		require.NoError(t, err)
 		_, err = appServer.ListResourceLinks(noRoleCtx, &application.ApplicationResourceRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.ListResourceLinks(adminCtx, &application.ApplicationResourceRequest{Name: ptr.To("does-not-exist"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.ListResourceLinks(adminCtx, &application.ApplicationResourceRequest{Name: ptr.To("does-not-exist"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test"), Project: ptr.To("test")})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"does-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -1076,9 +1072,9 @@ func TestNoAppEnumeration(t *testing.T) {
 		_, err := appServer.Delete(adminCtx, &application.ApplicationDeleteRequest{Name: ptr.To("test")})
 		require.NoError(t, err)
 		_, err = appServer.Delete(noRoleCtx, &application.ApplicationDeleteRequest{Name: ptr.To("test")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.Delete(adminCtx, &application.ApplicationDeleteRequest{Name: ptr.To("doest-not-exist")})
-		require.EqualError(t, err, permissionDeniedErr.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
 		_, err = appServer.Delete(adminCtx, &application.ApplicationDeleteRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -1088,11 +1084,11 @@ func TestNoAppEnumeration(t *testing.T) {
 func setSyncRunningOperationState(t *testing.T, appServer *Server) {
 	t.Helper()
 	appIf := appServer.appclientset.ArgoprojV1alpha1().Applications("default")
-	app, err := appIf.Get(context.Background(), "test", metav1.GetOptions{})
+	app, err := appIf.Get(t.Context(), "test", metav1.GetOptions{})
 	require.NoError(t, err)
 	// This sets the status that would be set by the controller usually.
-	app.Status.OperationState = &appsv1.OperationState{Phase: synccommon.OperationRunning, Operation: appsv1.Operation{Sync: &appsv1.SyncOperation{}}}
-	_, err = appIf.Update(context.Background(), app, metav1.UpdateOptions{})
+	app.Status.OperationState = &v1alpha1.OperationState{Phase: synccommon.OperationRunning, Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}}
+	_, err = appIf.Update(t.Context(), app, metav1.UpdateOptions{})
 	require.NoError(t, err)
 }
 
@@ -1100,26 +1096,26 @@ func setSyncRunningOperationState(t *testing.T, appServer *Server) {
 func unsetSyncRunningOperationState(t *testing.T, appServer *Server) {
 	t.Helper()
 	appIf := appServer.appclientset.ArgoprojV1alpha1().Applications("default")
-	app, err := appIf.Get(context.Background(), "test", metav1.GetOptions{})
+	app, err := appIf.Get(t.Context(), "test", metav1.GetOptions{})
 	require.NoError(t, err)
 	app.Operation = nil
 	app.Status.OperationState = nil
-	_, err = appIf.Update(context.Background(), app, metav1.UpdateOptions{})
+	_, err = appIf.Update(t.Context(), app, metav1.UpdateOptions{})
 	require.NoError(t, err)
 }
 
 func TestListAppsInNamespaceWithLabels(t *testing.T) {
-	appServer := newTestAppServer(t, newTestApp(func(app *appsv1.Application) {
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App1"
-		app.ObjectMeta.Namespace = "test-namespace"
+		app.Namespace = "test-namespace"
 		app.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
-	}), newTestApp(func(app *appsv1.Application) {
+	}), newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App2"
-		app.ObjectMeta.Namespace = "test-namespace"
+		app.Namespace = "test-namespace"
 		app.SetLabels(map[string]string{"key1": "value2"})
-	}), newTestApp(func(app *appsv1.Application) {
+	}), newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App3"
-		app.ObjectMeta.Namespace = "test-namespace"
+		app.Namespace = "test-namespace"
 		app.SetLabels(map[string]string{"key1": "value3"})
 	}))
 	appServer.ns = "test-namespace"
@@ -1130,13 +1126,13 @@ func TestListAppsInNamespaceWithLabels(t *testing.T) {
 }
 
 func TestListAppsInDefaultNSWithLabels(t *testing.T) {
-	appServer := newTestAppServer(t, newTestApp(func(app *appsv1.Application) {
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App1"
 		app.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
-	}), newTestApp(func(app *appsv1.Application) {
+	}), newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App2"
 		app.SetLabels(map[string]string{"key1": "value2"})
-	}), newTestApp(func(app *appsv1.Application) {
+	}), newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App3"
 		app.SetLabels(map[string]string{"key1": "value3"})
 	}))
@@ -1191,7 +1187,7 @@ func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery,
 	for _, validTest := range validTests {
 		t.Run(validTest.testName, func(t *testing.T) {
 			appQuery.Selector = &validTest.label
-			res, err := appServer.List(context.Background(), &appQuery)
+			res, err := appServer.List(t.Context(), &appQuery)
 			require.NoError(t, err)
 			apps := []string{}
 			for i := range res.Items {
@@ -1221,34 +1217,34 @@ func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery,
 	for _, invalidTest := range invalidTests {
 		t.Run(invalidTest.testName, func(t *testing.T) {
 			appQuery.Selector = &invalidTest.label
-			_, err := appServer.List(context.Background(), &appQuery)
+			_, err := appServer.List(t.Context(), &appQuery)
 			assert.ErrorContains(t, err, invalidTest.errorMesage)
 		})
 	}
 }
 
 func TestListAppWithProjects(t *testing.T) {
-	appServer := newTestAppServer(t, newTestApp(func(app *appsv1.Application) {
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App1"
 		app.Spec.Project = "test-project1"
-	}), newTestApp(func(app *appsv1.Application) {
+	}), newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App2"
 		app.Spec.Project = "test-project2"
-	}), newTestApp(func(app *appsv1.Application) {
+	}), newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App3"
 		app.Spec.Project = "test-project3"
 	}))
 
 	t.Run("List all apps", func(t *testing.T) {
 		appQuery := application.ApplicationQuery{}
-		appList, err := appServer.List(context.Background(), &appQuery)
+		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		assert.Len(t, appList.Items, 3)
 	})
 
 	t.Run("List apps with projects filter set", func(t *testing.T) {
 		appQuery := application.ApplicationQuery{Projects: []string{"test-project1"}}
-		appList, err := appServer.List(context.Background(), &appQuery)
+		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		assert.Len(t, appList.Items, 1)
 		for _, app := range appList.Items {
@@ -1258,7 +1254,7 @@ func TestListAppWithProjects(t *testing.T) {
 
 	t.Run("List apps with project filter set (legacy field)", func(t *testing.T) {
 		appQuery := application.ApplicationQuery{Project: []string{"test-project1"}}
-		appList, err := appServer.List(context.Background(), &appQuery)
+		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		assert.Len(t, appList.Items, 1)
 		for _, app := range appList.Items {
@@ -1269,7 +1265,7 @@ func TestListAppWithProjects(t *testing.T) {
 	t.Run("List apps with both projects and project filter set", func(t *testing.T) {
 		// If the older field is present, we should use it instead of the newer field.
 		appQuery := application.ApplicationQuery{Project: []string{"test-project1"}, Projects: []string{"test-project2"}}
-		appList, err := appServer.List(context.Background(), &appQuery)
+		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		assert.Len(t, appList.Items, 1)
 		for _, app := range appList.Items {
@@ -1279,15 +1275,15 @@ func TestListAppWithProjects(t *testing.T) {
 }
 
 func TestListApps(t *testing.T) {
-	appServer := newTestAppServer(t, newTestApp(func(app *appsv1.Application) {
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "bcd"
-	}), newTestApp(func(app *appsv1.Application) {
+	}), newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "abc"
-	}), newTestApp(func(app *appsv1.Application) {
+	}), newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "def"
 	}))
 
-	res, err := appServer.List(context.Background(), &application.ApplicationQuery{})
+	res, err := appServer.List(t.Context(), &application.ApplicationQuery{})
 	require.NoError(t, err)
 	var names []string
 	for i := range res.Items {
@@ -1298,18 +1294,18 @@ func TestListApps(t *testing.T) {
 
 func TestCoupleAppsListApps(t *testing.T) {
 	var objects []runtime.Object
-	ctx := context.Background()
+	ctx := t.Context()
 
 	var groups []string
 	for i := 0; i < 50; i++ {
 		groups = append(groups, fmt.Sprintf("group-%d", i))
 	}
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.MapClaims{"groups": groups})
 	for projectId := 0; projectId < 100; projectId++ {
 		projectName := fmt.Sprintf("proj-%d", projectId)
 		for appId := 0; appId < 100; appId++ {
-			objects = append(objects, newTestApp(func(app *appsv1.Application) {
+			objects = append(objects, newTestApp(func(app *v1alpha1.Application) {
 				app.Name = fmt.Sprintf("app-%d-%d", projectId, appId)
 				app.Spec.Project = projectName
 			}))
@@ -1339,10 +1335,10 @@ g, group-49, role:test3
 	assert.Len(t, names, 300)
 }
 
-func generateTestApp(num int) []*appsv1.Application {
-	apps := []*appsv1.Application{}
+func generateTestApp(num int) []*v1alpha1.Application {
+	apps := []*v1alpha1.Application{}
 	for i := 0; i < num; i++ {
-		apps = append(apps, newTestApp(func(app *appsv1.Application) {
+		apps = append(apps, newTestApp(func(app *v1alpha1.Application) {
 			app.Name = fmt.Sprintf("test-app%.6d", i)
 		}))
 	}
@@ -1361,7 +1357,7 @@ func BenchmarkListMuchApps(b *testing.B) {
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		_, err := appServer.List(context.Background(), &application.ApplicationQuery{})
+		_, err := appServer.List(b.Context(), &application.ApplicationQuery{})
 		if err != nil {
 			break
 		}
@@ -1379,7 +1375,7 @@ func BenchmarkListSomeApps(b *testing.B) {
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		_, err := appServer.List(context.Background(), &application.ApplicationQuery{})
+		_, err := appServer.List(b.Context(), &application.ApplicationQuery{})
 		if err != nil {
 			break
 		}
@@ -1397,7 +1393,7 @@ func BenchmarkListFewApps(b *testing.B) {
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		_, err := appServer.List(context.Background(), &application.ApplicationQuery{})
+		_, err := appServer.List(b.Context(), &application.ApplicationQuery{})
 		if err != nil {
 			break
 		}
@@ -1420,7 +1416,7 @@ func BenchmarkListMuchAppsWithName(b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		app := &application.ApplicationQuery{Name: strToPtr("test-app000099")}
-		_, err := appServer.List(context.Background(), app)
+		_, err := appServer.List(b.Context(), app)
 		if err != nil {
 			break
 		}
@@ -1441,7 +1437,7 @@ func BenchmarkListMuchAppsWithProjects(b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		app := &application.ApplicationQuery{Project: []string{"test-project1", "test-project2"}}
-		_, err := appServer.List(context.Background(), app)
+		_, err := appServer.List(b.Context(), app)
 		if err != nil {
 			break
 		}
@@ -1461,7 +1457,7 @@ func BenchmarkListMuchAppsWithRepo(b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		app := &application.ApplicationQuery{Repo: strToPtr("https://some-fake-source")}
-		_, err := appServer.List(context.Background(), app)
+		_, err := appServer.List(b.Context(), app)
 		if err != nil {
 			break
 		}
@@ -1475,7 +1471,7 @@ func TestCreateApp(t *testing.T) {
 	createReq := application.ApplicationCreateRequest{
 		Application: testApp,
 	}
-	app, err := appServer.Create(context.Background(), &createReq)
+	app, err := appServer.Create(t.Context(), &createReq)
 	require.NoError(t, err)
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Spec)
@@ -1488,10 +1484,9 @@ func TestCreateAppWithDestName(t *testing.T) {
 	createReq := application.ApplicationCreateRequest{
 		Application: testApp,
 	}
-	app, err := appServer.Create(context.Background(), &createReq)
+	app, err := appServer.Create(t.Context(), &createReq)
 	require.NoError(t, err)
 	assert.NotNil(t, app)
-	assert.Equal(t, "https://cluster-api.example.com", app.Spec.Destination.Server)
 }
 
 // TestCreateAppWithOperation tests that an application created with an operation is created with the operation removed.
@@ -1499,8 +1494,8 @@ func TestCreateAppWithDestName(t *testing.T) {
 func TestCreateAppWithOperation(t *testing.T) {
 	appServer := newTestAppServer(t)
 	testApp := newTestAppWithDestName()
-	testApp.Operation = &appsv1.Operation{
-		Sync: &appsv1.SyncOperation{
+	testApp.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{
 			Manifests: []string{
 				"test",
 			},
@@ -1509,7 +1504,7 @@ func TestCreateAppWithOperation(t *testing.T) {
 	createReq := application.ApplicationCreateRequest{
 		Application: testApp,
 	}
-	app, err := appServer.Create(context.Background(), &createReq)
+	app, err := appServer.Create(t.Context(), &createReq)
 	require.NoError(t, err)
 	require.NotNil(t, app)
 	assert.Nil(t, app.Operation)
@@ -1519,7 +1514,7 @@ func TestUpdateApp(t *testing.T) {
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
 	testApp.Spec.Project = ""
-	app, err := appServer.Update(context.Background(), &application.ApplicationUpdateRequest{
+	app, err := appServer.Update(t.Context(), &application.ApplicationUpdateRequest{
 		Application: testApp,
 	})
 	require.NoError(t, err)
@@ -1530,19 +1525,19 @@ func TestUpdateAppSpec(t *testing.T) {
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
 	testApp.Spec.Project = ""
-	spec, err := appServer.UpdateSpec(context.Background(), &application.ApplicationUpdateSpecRequest{
+	spec, err := appServer.UpdateSpec(t.Context(), &application.ApplicationUpdateSpecRequest{
 		Name: &testApp.Name,
 		Spec: &testApp.Spec,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "default", spec.Project)
-	app, err := appServer.Get(context.Background(), &application.ApplicationQuery{Name: &testApp.Name})
+	app, err := appServer.Get(t.Context(), &application.ApplicationQuery{Name: &testApp.Name})
 	require.NoError(t, err)
 	assert.Equal(t, "default", app.Spec.Project)
 }
 
 func TestDeleteApp(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	appServer := newTestAppServer(t)
 	createReq := application.ApplicationCreateRequest{
 		Application: newTestApp(),
@@ -1554,21 +1549,21 @@ func TestDeleteApp(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, app)
 
-	fakeAppCs := appServer.appclientset.(*apps.Clientset)
+	fakeAppCs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
 	// this removes the default */* reactor so we can set our own patch/delete reactor
 	fakeAppCs.ReactionChain = nil
 	patched := false
 	deleted := false
-	fakeAppCs.AddReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeAppCs.AddReactor("patch", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		patched = true
 		return true, nil, nil
 	})
-	fakeAppCs.AddReactor("delete", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeAppCs.AddReactor("delete", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		deleted = true
 		return true, nil, nil
 	})
-	fakeAppCs.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, &appsv1.Application{Spec: appsv1.ApplicationSpec{Source: &appsv1.ApplicationSource{}}}, nil
+	fakeAppCs.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
 	})
 	appServer.appclientset = fakeAppCs
 
@@ -1632,12 +1627,16 @@ func TestDeleteApp(t *testing.T) {
 }
 
 func TestDeleteResourcesRBAC(t *testing.T) {
-	ctx := context.Background()
-	// nolint:staticcheck
+	ctx := t.Context()
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
+
+	argoCM := map[string]string{"server.rbac.disableApplicationFineGrainedRBACInheritance": "false"}
+	appServerWithRBACInheritance := newTestAppServerWithEnforcerConfigure(t, func(_ *rbac.Enforcer) {}, argoCM, testApp)
+	appServerWithRBACInheritance.enf.SetDefaultRole("")
 
 	req := application.ApplicationResourceDeleteRequest{
 		Name:         &testApp.Name,
@@ -1655,6 +1654,14 @@ func TestDeleteResourcesRBAC(t *testing.T) {
 p, test-user, applications, delete, default/test-app, allow
 `)
 		_, err := appServer.DeleteResource(ctx, &req)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+
+	t.Run("delete with application permission with inheritance", func(t *testing.T) {
+		_ = appServerWithRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete, default/test-app, allow
+`)
+		_, err := appServerWithRBACInheritance.DeleteResource(ctx, &req)
 		assert.EqualError(t, err, expectedErrorWhenDeleteAllowed)
 	})
 
@@ -1664,6 +1671,15 @@ p, test-user, applications, delete, default/test-app, allow
 p, test-user, applications, delete/*, default/test-app, deny
 `)
 		_, err := appServer.DeleteResource(ctx, &req)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+
+	t.Run("delete with application permission but deny subresource with inheritance", func(t *testing.T) {
+		_ = appServerWithRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete, default/test-app, allow
+p, test-user, applications, delete/*, default/test-app, deny
+`)
+		_, err := appServerWithRBACInheritance.DeleteResource(ctx, &req)
 		assert.EqualError(t, err, expectedErrorWhenDeleteAllowed)
 	})
 
@@ -1684,6 +1700,15 @@ p, test-user, applications, delete/*, default/test-app, allow
 		assert.EqualError(t, err, expectedErrorWhenDeleteAllowed)
 	})
 
+	t.Run("delete with subresource but deny applications with inheritance", func(t *testing.T) {
+		_ = appServerWithRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete, default/test-app, deny
+p, test-user, applications, delete/*, default/test-app, allow
+`)
+		_, err := appServerWithRBACInheritance.DeleteResource(ctx, &req)
+		assert.EqualError(t, err, expectedErrorWhenDeleteAllowed)
+	})
+
 	t.Run("delete with specific subresource denied", func(t *testing.T) {
 		_ = appServer.enf.SetBuiltinPolicy(`
 p, test-user, applications, delete/*, default/test-app, allow
@@ -1695,12 +1720,16 @@ p, test-user, applications, delete/fake.io/PodTest/*, default/test-app, deny
 }
 
 func TestPatchResourcesRBAC(t *testing.T) {
-	ctx := context.Background()
-	// nolint:staticcheck
+	ctx := t.Context()
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
+
+	argoCM := map[string]string{"server.rbac.disableApplicationFineGrainedRBACInheritance": "false"}
+	appServerWithRBACInheritance := newTestAppServerWithEnforcerConfigure(t, func(_ *rbac.Enforcer) {}, argoCM, testApp)
+	appServerWithRBACInheritance.enf.SetDefaultRole("")
 
 	req := application.ApplicationResourcePatchRequest{
 		Name:         &testApp.Name,
@@ -1718,6 +1747,14 @@ func TestPatchResourcesRBAC(t *testing.T) {
 p, test-user, applications, update, default/test-app, allow
 `)
 		_, err := appServer.PatchResource(ctx, &req)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+
+	t.Run("patch with application permission with inheritance", func(t *testing.T) {
+		_ = appServerWithRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, update, default/test-app, allow
+`)
+		_, err := appServerWithRBACInheritance.PatchResource(ctx, &req)
 		assert.EqualError(t, err, expectedErrorWhenUpdateAllowed)
 	})
 
@@ -1727,6 +1764,15 @@ p, test-user, applications, update, default/test-app, allow
 p, test-user, applications, update/*, default/test-app, deny
 `)
 		_, err := appServer.PatchResource(ctx, &req)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+
+	t.Run("patch with application permission but deny subresource with inheritance", func(t *testing.T) {
+		_ = appServerWithRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, update, default/test-app, allow
+p, test-user, applications, update/*, default/test-app, deny
+`)
+		_, err := appServerWithRBACInheritance.PatchResource(ctx, &req)
 		assert.EqualError(t, err, expectedErrorWhenUpdateAllowed)
 	})
 
@@ -1747,6 +1793,15 @@ p, test-user, applications, update/*, default/test-app, allow
 		assert.EqualError(t, err, expectedErrorWhenUpdateAllowed)
 	})
 
+	t.Run("patch with subresource but deny applications with inheritance", func(t *testing.T) {
+		_ = appServerWithRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, update, default/test-app, deny
+p, test-user, applications, update/*, default/test-app, allow
+`)
+		_, err := appServerWithRBACInheritance.PatchResource(ctx, &req)
+		assert.EqualError(t, err, expectedErrorWhenUpdateAllowed)
+	})
+
 	t.Run("patch with specific subresource denied", func(t *testing.T) {
 		_ = appServer.enf.SetBuiltinPolicy(`
 p, test-user, applications, update/*, default/test-app, allow
@@ -1758,7 +1813,7 @@ p, test-user, applications, update/fake.io/PodTest/*, default/test-app, deny
 }
 
 func TestSyncAndTerminate(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	appServer := newTestAppServer(t)
 	testApp := newTestApp()
 	testApp.Spec.Source.RepoURL = "https://github.com/argoproj/argo-cd.git"
@@ -1772,19 +1827,19 @@ func TestSyncAndTerminate(t *testing.T) {
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Operation)
 
-	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(context.Background(), metav1.ListOptions{})
+	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
 	event := events.Items[1]
 
 	assert.Regexp(t, ".*initiated sync to HEAD \\([0-9A-Fa-f]{40}\\).*", event.Message)
 
 	// set status.operationState to pretend that an operation has started by controller
-	app.Status.OperationState = &appsv1.OperationState{
+	app.Status.OperationState = &v1alpha1.OperationState{
 		Operation: *app.Operation,
 		Phase:     synccommon.OperationRunning,
 		StartedAt: metav1.NewTime(time.Now()),
 	}
-	_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(appServer.ns).Update(context.Background(), app, metav1.UpdateOptions{})
+	_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(appServer.ns).Update(t.Context(), app, metav1.UpdateOptions{})
 	require.NoError(t, err)
 
 	resp, err := appServer.TerminateOperation(ctx, &application.OperationTerminateRequest{Name: &app.Name})
@@ -1798,7 +1853,7 @@ func TestSyncAndTerminate(t *testing.T) {
 }
 
 func TestSyncHelm(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	appServer := newTestAppServer(t)
 	testApp := newTestApp()
 	testApp.Spec.Source.RepoURL = "https://argoproj.github.io/argo-helm"
@@ -1816,13 +1871,13 @@ func TestSyncHelm(t *testing.T) {
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Operation)
 
-	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(context.Background(), metav1.ListOptions{})
+	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, "Unknown user initiated sync to 0.7.* (0.7.2)", events.Items[1].Message)
 }
 
 func TestSyncGit(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	appServer := newTestAppServer(t)
 	testApp := newTestApp()
 	testApp.Spec.Source.RepoURL = "https://github.com/org/test"
@@ -1844,21 +1899,21 @@ func TestSyncGit(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Operation)
-	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(context.Background(), metav1.ListOptions{})
+	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, "Unknown user initiated sync locally", events.Items[1].Message)
 }
 
 func TestRollbackApp(t *testing.T) {
 	testApp := newTestApp()
-	testApp.Status.History = []appsv1.RevisionHistory{{
+	testApp.Status.History = []v1alpha1.RevisionHistory{{
 		ID:       1,
 		Revision: "abc",
 		Source:   *testApp.Spec.Source.DeepCopy(),
 	}}
 	appServer := newTestAppServer(t, testApp)
 
-	updatedApp, err := appServer.Rollback(context.Background(), &application.ApplicationRollbackRequest{
+	updatedApp, err := appServer.Rollback(t.Context(), &application.ApplicationRollbackRequest{
 		Name: &testApp.Name,
 		Id:   ptr.To(int64(1)),
 	})
@@ -1873,8 +1928,8 @@ func TestRollbackApp(t *testing.T) {
 
 func TestUpdateAppProject(t *testing.T) {
 	testApp := newTestApp()
-	ctx := context.Background()
-	// nolint:staticcheck
+	ctx := t.Context()
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
@@ -1937,8 +1992,8 @@ p, admin, applications, update, my-proj/test-app, allow
 
 func TestAppJsonPatch(t *testing.T) {
 	testApp := newTestAppWithAnnotations()
-	ctx := context.Background()
-	// nolint:staticcheck
+	ctx := t.Context()
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
@@ -1962,8 +2017,8 @@ func TestAppJsonPatch(t *testing.T) {
 
 func TestAppMergePatch(t *testing.T) {
 	testApp := newTestApp()
-	ctx := context.Background()
-	// nolint:staticcheck
+	ctx := t.Context()
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
@@ -1981,7 +2036,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 		testApp.Spec.Project = "proj-maint"
 		appServer := newTestAppServer(t, testApp)
 
-		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
+		active, err := appServer.GetApplicationSyncWindows(t.Context(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
 		require.NoError(t, err)
 		assert.Len(t, active.ActiveWindows, 1)
 	})
@@ -1990,7 +2045,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 		testApp.Spec.Project = "default"
 		appServer := newTestAppServer(t, testApp)
 
-		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
+		active, err := appServer.GetApplicationSyncWindows(t.Context(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
 		require.NoError(t, err)
 		assert.Empty(t, active.ActiveWindows)
 	})
@@ -1999,7 +2054,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 		testApp.Spec.Project = "none"
 		appServer := newTestAppServer(t, testApp)
 
-		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
+		active, err := appServer.GetApplicationSyncWindows(t.Context(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
 		require.ErrorContains(t, err, "not exist")
 		assert.Nil(t, active)
 	})
@@ -2007,21 +2062,21 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 
 func TestGetCachedAppState(t *testing.T) {
 	testApp := newTestApp()
-	testApp.ObjectMeta.ResourceVersion = "1"
+	testApp.ResourceVersion = "1"
 	testApp.Spec.Project = "test-proj"
-	testProj := &appsv1.AppProject{
+	testProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-proj",
 			Namespace: testNamespace,
 		},
 	}
 	appServer := newTestAppServer(t, testApp, testProj)
-	fakeClientSet := appServer.appclientset.(*apps.Clientset)
-	fakeClientSet.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, &appsv1.Application{Spec: appsv1.ApplicationSpec{Source: &appsv1.ApplicationSource{}}}, nil
+	fakeClientSet := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
+	fakeClientSet.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
 	})
 	t.Run("NoError", func(t *testing.T) {
-		err := appServer.getCachedAppState(context.Background(), testApp, func() error {
+		err := appServer.getCachedAppState(t.Context(), testApp, func() error {
 			return nil
 		})
 		require.NoError(t, err)
@@ -2036,23 +2091,23 @@ func TestGetCachedAppState(t *testing.T) {
 			fakeClientSet.Lock()
 			fakeClientSet.ReactionChain = nil
 			fakeClientSet.WatchReactionChain = nil
-			fakeClientSet.AddReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			fakeClientSet.AddReactor("patch", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 				patched = true
 				updated := testApp.DeepCopy()
 				updated.ResourceVersion = "2"
 				appServer.appBroadcaster.OnUpdate(testApp, updated)
 				return true, testApp, nil
 			})
-			fakeClientSet.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-				return true, &appsv1.Application{Spec: appsv1.ApplicationSpec{Source: &appsv1.ApplicationSource{}}}, nil
+			fakeClientSet.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
 			})
 			fakeClientSet.Unlock()
-			fakeClientSet.AddWatchReactor("applications", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
+			fakeClientSet.AddWatchReactor("applications", func(_ kubetesting.Action) (handled bool, ret watch.Interface, err error) {
 				return true, watcher, nil
 			})
 		}
 
-		err := appServer.getCachedAppState(context.Background(), testApp, func() error {
+		err := appServer.getCachedAppState(t.Context(), testApp, func() error {
 			res := cache.ErrCacheMiss
 			if retryCount == 1 {
 				res = nil
@@ -2067,7 +2122,7 @@ func TestGetCachedAppState(t *testing.T) {
 
 	t.Run("NonCacheErrorDoesNotTriggerRefresh", func(t *testing.T) {
 		randomError := stderrors.New("random error")
-		err := appServer.getCachedAppState(context.Background(), testApp, func() error {
+		err := appServer.getCachedAppState(t.Context(), testApp, func() error {
 			return randomError
 		})
 		assert.Equal(t, randomError, err)
@@ -2106,14 +2161,14 @@ func TestSplitStatusPatch(t *testing.T) {
 }
 
 func TestLogsGetSelectedPod(t *testing.T) {
-	deployment := appsv1.ResourceRef{Group: "", Version: "v1", Kind: "Deployment", Name: "deployment", UID: "1"}
-	rs := appsv1.ResourceRef{Group: "", Version: "v1", Kind: "ReplicaSet", Name: "rs", UID: "2"}
-	podRS := appsv1.ResourceRef{Group: "", Version: "v1", Kind: "Pod", Name: "podrs", UID: "3"}
-	pod := appsv1.ResourceRef{Group: "", Version: "v1", Kind: "Pod", Name: "pod", UID: "4"}
-	treeNodes := []appsv1.ResourceNode{
+	deployment := v1alpha1.ResourceRef{Group: "", Version: "v1", Kind: "Deployment", Name: "deployment", UID: "1"}
+	rs := v1alpha1.ResourceRef{Group: "", Version: "v1", Kind: "ReplicaSet", Name: "rs", UID: "2"}
+	podRS := v1alpha1.ResourceRef{Group: "", Version: "v1", Kind: "Pod", Name: "podrs", UID: "3"}
+	pod := v1alpha1.ResourceRef{Group: "", Version: "v1", Kind: "Pod", Name: "pod", UID: "4"}
+	treeNodes := []v1alpha1.ResourceNode{
 		{ResourceRef: deployment, ParentRefs: nil},
-		{ResourceRef: rs, ParentRefs: []appsv1.ResourceRef{deployment}},
-		{ResourceRef: podRS, ParentRefs: []appsv1.ResourceRef{rs}},
+		{ResourceRef: rs, ParentRefs: []v1alpha1.ResourceRef{deployment}},
+		{ResourceRef: podRS, ParentRefs: []v1alpha1.ResourceRef{rs}},
 		{ResourceRef: pod, ParentRefs: nil},
 	}
 	appName := "appName"
@@ -2223,10 +2278,10 @@ func TestMaxPodLogsRender(t *testing.T) {
 func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRender ...int64) (*Server, context.Context) {
 	t.Helper()
 	runtimeObjects := make([]runtime.Object, podNumber+1)
-	resources := make([]appsv1.ResourceStatus, podNumber)
+	resources := make([]v1alpha1.ResourceStatus, podNumber)
 
 	for i := 0; i < podNumber; i++ {
-		pod := v1.Pod{
+		pod := corev1.Pod{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "v1",
 				Kind:       "Pod",
@@ -2236,7 +2291,7 @@ func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRend
 				Namespace: "test",
 			},
 		}
-		resources[i] = appsv1.ResourceStatus{
+		resources[i] = v1alpha1.ResourceStatus{
 			Group:     pod.GroupVersionKind().Group,
 			Kind:      pod.GroupVersionKind().Kind,
 			Version:   pod.GroupVersionKind().Version,
@@ -2247,14 +2302,14 @@ func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRend
 		runtimeObjects[i] = kube.MustToUnstructured(&pod)
 	}
 
-	testApp := newTestApp(func(app *appsv1.Application) {
+	testApp := newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "test"
 		app.Status.Resources = resources
 	})
 	runtimeObjects[podNumber] = testApp
 
-	noRoleCtx := context.Background()
-	// nolint:staticcheck
+	noRoleCtx := t.Context()
+	//nolint:staticcheck
 	adminCtx := context.WithValue(noRoleCtx, "claims", &jwt.MapClaims{"groups": []string{"admin"}})
 
 	if len(maxPodLogsToRender) > 0 {
@@ -2265,10 +2320,9 @@ func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRend
 		formatInt := strconv.FormatInt(maxPodLogsToRender[0], 10)
 		appServer := newTestAppServerWithEnforcerConfigure(t, f, map[string]string{"server.maxPodLogsToRender": formatInt}, runtimeObjects...)
 		return appServer, adminCtx
-	} else {
-		appServer := newTestAppServer(t, runtimeObjects...)
-		return appServer, adminCtx
 	}
+	appServer := newTestAppServer(t, runtimeObjects...)
+	return appServer, adminCtx
 }
 
 // refreshAnnotationRemover runs an infinite loop until it detects and removes refresh annotation or given context is done
@@ -2278,12 +2332,11 @@ func refreshAnnotationRemover(t *testing.T, ctx context.Context, patched *int32,
 		aName, appNs := argo.ParseFromQualifiedName(appName, appServer.ns)
 		a, err := appServer.appLister.Applications(appNs).Get(aName)
 		require.NoError(t, err)
-		a = a.DeepCopy()
-		if a.GetAnnotations() != nil && a.GetAnnotations()[appsv1.AnnotationKeyRefresh] != "" {
+		if a.GetAnnotations() != nil && a.GetAnnotations()[v1alpha1.AnnotationKeyRefresh] != "" {
 			a.SetAnnotations(map[string]string{})
 			a.SetResourceVersion("999")
 			_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(a.Namespace).Update(
-				context.Background(), a, metav1.UpdateOptions{})
+				t.Context(), a, metav1.UpdateOptions{})
 			require.NoError(t, err)
 			atomic.AddInt32(patched, 1)
 			ch <- ""
@@ -2293,10 +2346,10 @@ func refreshAnnotationRemover(t *testing.T, ctx context.Context, patched *int32,
 }
 
 func TestGetAppRefresh_NormalRefresh(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	testApp := newTestApp()
-	testApp.ObjectMeta.ResourceVersion = "1"
+	testApp.ResourceVersion = "1"
 	appServer := newTestAppServer(t, testApp)
 
 	var patched int32
@@ -2305,9 +2358,9 @@ func TestGetAppRefresh_NormalRefresh(t *testing.T) {
 
 	go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
 
-	_, err := appServer.Get(context.Background(), &application.ApplicationQuery{
+	_, err := appServer.Get(t.Context(), &application.ApplicationQuery{
 		Name:    &testApp.Name,
-		Refresh: ptr.To(string(appsv1.RefreshTypeNormal)),
+		Refresh: ptr.To(string(v1alpha1.RefreshTypeNormal)),
 	})
 	require.NoError(t, err)
 
@@ -2320,10 +2373,10 @@ func TestGetAppRefresh_NormalRefresh(t *testing.T) {
 }
 
 func TestGetAppRefresh_HardRefresh(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	testApp := newTestApp()
-	testApp.ObjectMeta.ResourceVersion = "1"
+	testApp.ResourceVersion = "1"
 	appServer := newTestAppServer(t, testApp)
 
 	var getAppDetailsQuery *apiclient.RepoServerAppDetailsQuery
@@ -2340,9 +2393,9 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 
 	go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
 
-	_, err := appServer.Get(context.Background(), &application.ApplicationQuery{
+	_, err := appServer.Get(t.Context(), &application.ApplicationQuery{
 		Name:    &testApp.Name,
-		Refresh: ptr.To(string(appsv1.RefreshTypeHard)),
+		Refresh: ptr.To(string(v1alpha1.RefreshTypeHard)),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, getAppDetailsQuery)
@@ -2359,11 +2412,11 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 }
 
 func TestInferResourcesStatusHealth(t *testing.T) {
-	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
+	cacheClient := cache.NewCache(cache.NewInMemoryCache(1 * time.Hour))
 
 	testApp := newTestApp()
-	testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
-	testApp.Status.Resources = []appsv1.ResourceStatus{{
+	testApp.Status.ResourceHealthSource = v1alpha1.ResourceHealthLocationAppTree
+	testApp.Status.Resources = []v1alpha1.ResourceStatus{{
 		Group:     "apps",
 		Kind:      "Deployment",
 		Name:      "guestbook",
@@ -2376,14 +2429,14 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 	}}
 	appServer := newTestAppServer(t, testApp)
 	appStateCache := appstate.NewCache(cacheClient, time.Minute)
-	err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: []appsv1.ResourceNode{{
-		ResourceRef: appsv1.ResourceRef{
+	err := appStateCache.SetAppResourcesTree(testApp.Name, &v1alpha1.ApplicationTree{Nodes: []v1alpha1.ResourceNode{{
+		ResourceRef: v1alpha1.ResourceRef{
 			Group:     "apps",
 			Kind:      "Deployment",
 			Name:      "guestbook",
 			Namespace: "default",
 		},
-		Health: &appsv1.HealthStatus{
+		Health: &v1alpha1.HealthStatus{
 			Status: health.HealthStatusDegraded,
 		},
 	}}})
@@ -2399,7 +2452,7 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 }
 
 func TestRunNewStyleResourceAction(t *testing.T) {
-	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
+	cacheClient := cache.NewCache(cache.NewInMemoryCache(1 * time.Hour))
 
 	group := "batch"
 	kind := "CronJob"
@@ -2409,7 +2462,7 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 	action := "create-job"
 	uid := "1"
 
-	resources := []appsv1.ResourceStatus{{
+	resources := []v1alpha1.ResourceStatus{{
 		Group:     group,
 		Kind:      kind,
 		Name:      resourceName,
@@ -2419,8 +2472,8 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 
 	appStateCache := appstate.NewCache(cacheClient, time.Minute)
 
-	nodes := []appsv1.ResourceNode{{
-		ResourceRef: appsv1.ResourceRef{
+	nodes := []v1alpha1.ResourceNode{{
+		ResourceRef: v1alpha1.ResourceRef{
 			Group:     group,
 			Kind:      kind,
 			Version:   version,
@@ -2430,11 +2483,11 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 		},
 	}}
 
-	createJobDenyingProj := &appsv1.AppProject{
+	createJobDenyingProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "createJobDenyingProj", Namespace: "default"},
-		Spec: appsv1.AppProjectSpec{
+		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:                []string{"*"},
-			Destinations:               []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			Destinations:               []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "never", Kind: "mind"}},
 		},
 	}
@@ -2476,16 +2529,16 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 	t.Run("CreateOperationNotPermitted", func(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Spec.Project = "createJobDenyingProj"
-		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
+		testApp.Status.ResourceHealthSource = v1alpha1.ResourceHealthLocationAppTree
 		testApp.Status.Resources = resources
 
 		appServer := newTestAppServer(t, testApp, createJobDenyingProj, kube.MustToUnstructured(&cronJob))
 		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
-		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
+		err := appStateCache.SetAppResourcesTree(testApp.Name, &v1alpha1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
 
-		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
+		appResponse, runErr := appServer.RunResourceAction(t.Context(), &application.ResourceActionRunRequest{
 			Name:         &testApp.Name,
 			Namespace:    &namespace,
 			Action:       &action,
@@ -2502,16 +2555,16 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 
 	t.Run("CreateOperationPermitted", func(t *testing.T) {
 		testApp := newTestApp()
-		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
+		testApp.Status.ResourceHealthSource = v1alpha1.ResourceHealthLocationAppTree
 		testApp.Status.Resources = resources
 
 		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&cronJob))
 		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
-		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
+		err := appStateCache.SetAppResourcesTree(testApp.Name, &v1alpha1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
 
-		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
+		appResponse, runErr := appServer.RunResourceAction(t.Context(), &application.ResourceActionRunRequest{
 			Name:         &testApp.Name,
 			Namespace:    &namespace,
 			Action:       &action,
@@ -2528,7 +2581,7 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 }
 
 func TestRunOldStyleResourceAction(t *testing.T) {
-	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
+	cacheClient := cache.NewCache(cache.NewInMemoryCache(1 * time.Hour))
 
 	group := "apps"
 	kind := "Deployment"
@@ -2538,7 +2591,7 @@ func TestRunOldStyleResourceAction(t *testing.T) {
 	action := "pause"
 	uid := "2"
 
-	resources := []appsv1.ResourceStatus{{
+	resources := []v1alpha1.ResourceStatus{{
 		Group:     group,
 		Kind:      kind,
 		Name:      resourceName,
@@ -2548,8 +2601,8 @@ func TestRunOldStyleResourceAction(t *testing.T) {
 
 	appStateCache := appstate.NewCache(cacheClient, time.Minute)
 
-	nodes := []appsv1.ResourceNode{{
-		ResourceRef: appsv1.ResourceRef{
+	nodes := []v1alpha1.ResourceNode{{
+		ResourceRef: v1alpha1.ResourceRef{
 			Group:     group,
 			Kind:      kind,
 			Version:   version,
@@ -2559,7 +2612,7 @@ func TestRunOldStyleResourceAction(t *testing.T) {
 		},
 	}}
 
-	deployment := k8sappsv1.Deployment{
+	deployment := appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
 			Kind:       "Deployment",
@@ -2572,17 +2625,17 @@ func TestRunOldStyleResourceAction(t *testing.T) {
 
 	t.Run("DefaultPatchOperation", func(t *testing.T) {
 		testApp := newTestApp()
-		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
+		testApp.Status.ResourceHealthSource = v1alpha1.ResourceHealthLocationAppTree
 		testApp.Status.Resources = resources
 
 		// appServer := newTestAppServer(t, testApp, returnDeployment())
 		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&deployment))
 		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
-		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
+		err := appStateCache.SetAppResourcesTree(testApp.Name, &v1alpha1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
 
-		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
+		appResponse, runErr := appServer.RunResourceAction(t.Context(), &application.ResourceActionRunRequest{
 			Name:         &testApp.Name,
 			Namespace:    &namespace,
 			Action:       &action,
@@ -2657,7 +2710,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		t.Parallel()
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
-		apps, err := appServer.List(context.TODO(), &application.ApplicationQuery{})
+		apps, err := appServer.List(t.Context(), &application.ApplicationQuery{})
 		require.NoError(t, err)
 		require.Len(t, apps.Items, 1)
 	})
@@ -2667,7 +2720,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp1 := newTestApp()
 		testApp1.Namespace = "argocd-1"
 		appServer := newTestAppServer(t, testApp1)
-		apps, err := appServer.List(context.TODO(), &application.ApplicationQuery{})
+		apps, err := appServer.List(t.Context(), &application.ApplicationQuery{})
 		require.NoError(t, err)
 		require.Empty(t, apps.Items)
 	})
@@ -2678,7 +2731,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp2 := newTestApp()
 		testApp2.Namespace = "argocd-1"
 		appServer := newTestAppServer(t, testApp1, testApp2)
-		apps, err := appServer.List(context.TODO(), &application.ApplicationQuery{AppNamespace: ptr.To("argocd-1")})
+		apps, err := appServer.List(t.Context(), &application.ApplicationQuery{AppNamespace: ptr.To("argocd-1")})
 		require.NoError(t, err)
 		require.Empty(t, apps.Items)
 	})
@@ -2689,7 +2742,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp1.Namespace = "argocd-1"
 		appServer := newTestAppServer(t, testApp1)
 		appServer.enabledNamespaces = []string{"argocd-1"}
-		apps, err := appServer.List(context.TODO(), &application.ApplicationQuery{})
+		apps, err := appServer.List(t.Context(), &application.ApplicationQuery{})
 		require.NoError(t, err)
 		require.Len(t, apps.Items, 1)
 	})
@@ -2698,7 +2751,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		t.Parallel()
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
-		app, err := appServer.Get(context.TODO(), &application.ApplicationQuery{
+		app, err := appServer.Get(t.Context(), &application.ApplicationQuery{
 			Name: ptr.To("test-app"),
 		})
 		require.NoError(t, err)
@@ -2709,7 +2762,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		appServer := newTestAppServer(t, testApp)
-		app, err := appServer.Get(context.TODO(), &application.ApplicationQuery{
+		app, err := appServer.Get(t.Context(), &application.ApplicationQuery{
 			Name:         ptr.To("test-app"),
 			AppNamespace: ptr.To("argocd-1"),
 		})
@@ -2721,17 +2774,17 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
-		otherNsProj := &appsv1.AppProject{
+		otherNsProj := &v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
-			Spec: appsv1.AppProjectSpec{
+			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
-				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 				SourceNamespaces: []string{"argocd-1"},
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
 		appServer.enabledNamespaces = []string{"argocd-1"}
-		app, err := appServer.Get(context.TODO(), &application.ApplicationQuery{
+		app, err := appServer.Get(t.Context(), &application.ApplicationQuery{
 			Name:         ptr.To("test-app"),
 			AppNamespace: ptr.To("argocd-1"),
 		})
@@ -2745,17 +2798,17 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
-		otherNsProj := &appsv1.AppProject{
+		otherNsProj := &v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
-			Spec: appsv1.AppProjectSpec{
+			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
-				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 				SourceNamespaces: []string{"argocd-2"},
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
 		appServer.enabledNamespaces = []string{"argocd-1"}
-		app, err := appServer.Get(context.TODO(), &application.ApplicationQuery{
+		app, err := appServer.Get(t.Context(), &application.ApplicationQuery{
 			Name:         ptr.To("test-app"),
 			AppNamespace: ptr.To("argocd-1"),
 		})
@@ -2768,17 +2821,17 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
-		otherNsProj := &appsv1.AppProject{
+		otherNsProj := &v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
-			Spec: appsv1.AppProjectSpec{
+			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
-				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 				SourceNamespaces: []string{"argocd-1"},
 			},
 		}
 		appServer := newTestAppServer(t, otherNsProj)
 		appServer.enabledNamespaces = []string{"argocd-1"}
-		app, err := appServer.Create(context.TODO(), &application.ApplicationCreateRequest{
+		app, err := appServer.Create(t.Context(), &application.ApplicationCreateRequest{
 			Application: testApp,
 		})
 		require.NoError(t, err)
@@ -2792,17 +2845,17 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
-		otherNsProj := &appsv1.AppProject{
+		otherNsProj := &v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
-			Spec: appsv1.AppProjectSpec{
+			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
-				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 				SourceNamespaces: []string{},
 			},
 		}
 		appServer := newTestAppServer(t, otherNsProj)
 		appServer.enabledNamespaces = []string{"argocd-1"}
-		app, err := appServer.Create(context.TODO(), &application.ApplicationCreateRequest{
+		app, err := appServer.Create(t.Context(), &application.ApplicationCreateRequest{
 			Application: testApp,
 		})
 		require.Error(t, err)
@@ -2815,17 +2868,17 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
-		otherNsProj := &appsv1.AppProject{
+		otherNsProj := &v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
-			Spec: appsv1.AppProjectSpec{
+			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
-				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 				SourceNamespaces: []string{"argocd-1"},
 			},
 		}
 		appServer := newTestAppServer(t, otherNsProj)
 		appServer.enabledNamespaces = []string{"argocd-2"}
-		app, err := appServer.Create(context.TODO(), &application.ApplicationCreateRequest{
+		app, err := appServer.Create(t.Context(), &application.ApplicationCreateRequest{
 			Application: testApp,
 		})
 		require.Error(t, err)
@@ -2837,17 +2890,17 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
-		otherNsProj := &appsv1.AppProject{
+		otherNsProj := &v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
-			Spec: appsv1.AppProjectSpec{
+			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
-				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 				SourceNamespaces: []string{"argocd-1"},
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
 		appServer.enabledNamespaces = []string{"argocd-1"}
-		active, err := appServer.GetApplicationSyncWindows(context.TODO(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name, AppNamespace: &testApp.Namespace})
+		active, err := appServer.GetApplicationSyncWindows(t.Context(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name, AppNamespace: &testApp.Namespace})
 		require.NoError(t, err)
 		assert.Empty(t, active.ActiveWindows)
 	})
@@ -2856,17 +2909,17 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
-		otherNsProj := &appsv1.AppProject{
+		otherNsProj := &v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
-			Spec: appsv1.AppProjectSpec{
+			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
-				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 				SourceNamespaces: []string{"argocd-2"},
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
 		appServer.enabledNamespaces = []string{"argocd-1"}
-		active, err := appServer.GetApplicationSyncWindows(context.TODO(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name, AppNamespace: &testApp.Namespace})
+		active, err := appServer.GetApplicationSyncWindows(t.Context(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name, AppNamespace: &testApp.Namespace})
 		require.Error(t, err)
 		require.Nil(t, active)
 		require.ErrorContains(t, err, "app is not allowed in project")
@@ -2876,17 +2929,17 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
-		otherNsProj := &appsv1.AppProject{
+		otherNsProj := &v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
-			Spec: appsv1.AppProjectSpec{
+			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
-				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 				SourceNamespaces: []string{"argocd-2"},
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
 		appServer.enabledNamespaces = []string{"argocd-1"}
-		links, err := appServer.ListLinks(context.TODO(), &application.ListAppLinksRequest{
+		links, err := appServer.ListLinks(t.Context(), &application.ListAppLinksRequest{
 			Name:      ptr.To("test-app"),
 			Namespace: ptr.To("argocd-1"),
 		})
@@ -2899,17 +2952,17 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
-		otherNsProj := &appsv1.AppProject{
+		otherNsProj := &v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
-			Spec: appsv1.AppProjectSpec{
+			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
-				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 				SourceNamespaces: []string{"argocd-1"},
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
 		appServer.enabledNamespaces = []string{"argocd-1"}
-		links, err := appServer.ListLinks(context.TODO(), &application.ListAppLinksRequest{
+		links, err := appServer.ListLinks(t.Context(), &application.ListAppLinksRequest{
 			Name:      ptr.To("test-app"),
 			Namespace: ptr.To("argocd-1"),
 		})
@@ -2919,9 +2972,9 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 }
 
 func TestGetAmbiguousRevision_MultiSource(t *testing.T) {
-	app := &appv1.Application{
-		Spec: appv1.ApplicationSpec{
-			Sources: []appv1.ApplicationSource{
+	app := &v1alpha1.Application{
+		Spec: v1alpha1.ApplicationSpec{
+			Sources: []v1alpha1.ApplicationSource{
 				{
 					TargetRevision: "revision1",
 				},
@@ -2947,8 +3000,8 @@ func TestGetAmbiguousRevision_MultiSource(t *testing.T) {
 	assert.Equal(t, expected, result, "Expected ambiguous revision to be %s, but got %s", expected, result)
 
 	// Test when app.Spec.HasMultipleSources() is false
-	app.Spec = appv1.ApplicationSpec{
-		Source: &appv1.ApplicationSource{
+	app.Spec = v1alpha1.ApplicationSpec{
+		Source: &v1alpha1.ApplicationSource{
 			TargetRevision: "revision3",
 		},
 		Sources: nil,
@@ -2962,9 +3015,9 @@ func TestGetAmbiguousRevision_MultiSource(t *testing.T) {
 }
 
 func TestGetAmbiguousRevision_SingleSource(t *testing.T) {
-	app := &appv1.Application{
-		Spec: appv1.ApplicationSpec{
-			Source: &appv1.ApplicationSource{
+	app := &v1alpha1.Application{
+		Spec: v1alpha1.ApplicationSpec{
+			Source: &v1alpha1.ApplicationSource{
 				TargetRevision: "revision1",
 			},
 		},
@@ -2983,10 +3036,10 @@ func TestGetAmbiguousRevision_SingleSource(t *testing.T) {
 func TestServer_ResolveSourceRevisions_MultiSource(t *testing.T) {
 	s := newTestAppServer(t)
 
-	ctx := context.Background()
-	a := &appv1.Application{
-		Spec: appv1.ApplicationSpec{
-			Sources: []appv1.ApplicationSource{
+	ctx := t.Context()
+	a := &v1alpha1.Application{
+		Spec: v1alpha1.ApplicationSpec{
+			Sources: []v1alpha1.ApplicationSource{
 				{
 					RepoURL: "https://github.com/example/repo.git",
 				},
@@ -3002,8 +3055,8 @@ func TestServer_ResolveSourceRevisions_MultiSource(t *testing.T) {
 	revision, displayRevision, sourceRevisions, displayRevisions, err := s.resolveSourceRevisions(ctx, a, syncReq)
 
 	require.NoError(t, err)
-	assert.Equal(t, "", revision)
-	assert.Equal(t, "", displayRevision)
+	assert.Empty(t, revision)
+	assert.Empty(t, displayRevision)
 	assert.Equal(t, []string{fakeResolveRevisionResponse().Revision}, sourceRevisions)
 	assert.Equal(t, []string{fakeResolveRevisionResponse().AmbiguousRevision}, displayRevisions)
 }
@@ -3011,10 +3064,10 @@ func TestServer_ResolveSourceRevisions_MultiSource(t *testing.T) {
 func TestServer_ResolveSourceRevisions_SingleSource(t *testing.T) {
 	s := newTestAppServer(t)
 
-	ctx := context.Background()
-	a := &appv1.Application{
-		Spec: appv1.ApplicationSpec{
-			Source: &appv1.ApplicationSource{
+	ctx := t.Context()
+	a := &v1alpha1.Application{
+		Spec: v1alpha1.ApplicationSpec{
+			Source: &v1alpha1.ApplicationSource{
 				RepoURL: "https://github.com/example/repo.git",
 			},
 		},
@@ -3038,8 +3091,8 @@ func Test_RevisionMetadata(t *testing.T) {
 
 	singleSourceApp := newTestApp()
 	singleSourceApp.Name = "single-source-app"
-	singleSourceApp.Spec = appv1.ApplicationSpec{
-		Source: &appv1.ApplicationSource{
+	singleSourceApp.Spec = v1alpha1.ApplicationSpec{
+		Source: &v1alpha1.ApplicationSource{
 			RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 			Path:           "helm-guestbook",
 			TargetRevision: "HEAD",
@@ -3048,8 +3101,8 @@ func Test_RevisionMetadata(t *testing.T) {
 
 	multiSourceApp := newTestApp()
 	multiSourceApp.Name = "multi-source-app"
-	multiSourceApp.Spec = appv1.ApplicationSpec{
-		Sources: []appv1.ApplicationSource{
+	multiSourceApp.Spec = v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
 			{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				Path:           "helm-guestbook",
@@ -3063,14 +3116,14 @@ func Test_RevisionMetadata(t *testing.T) {
 		},
 	}
 
-	singleSourceHistory := []appv1.RevisionHistory{
+	singleSourceHistory := []v1alpha1.RevisionHistory{
 		{
 			ID:       1,
 			Source:   singleSourceApp.Spec.GetSource(),
 			Revision: "a",
 		},
 	}
-	multiSourceHistory := []appv1.RevisionHistory{
+	multiSourceHistory := []v1alpha1.RevisionHistory{
 		{
 			ID:        1,
 			Sources:   multiSourceApp.Spec.GetSources(),
@@ -3289,12 +3342,115 @@ func Test_RevisionMetadata(t *testing.T) {
 				VersionId:   tcc.versionId,
 			}
 
-			_, err := s.RevisionMetadata(context.Background(), request)
+			_, err := s.RevisionMetadata(t.Context(), request)
 			if tcc.expectErrorContains != nil {
 				require.ErrorContains(t, err, *tcc.expectErrorContains)
 			} else {
 				require.NoError(t, err)
 			}
 		})
+	}
+}
+
+func Test_DeepCopyInformers(t *testing.T) {
+	t.Parallel()
+
+	namespace := "test-namespace"
+	var ro []runtime.Object
+	appOne := newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "appOne"
+		app.Namespace = namespace
+		app.Spec = v1alpha1.ApplicationSpec{}
+	})
+	appTwo := newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "appTwo"
+		app.Namespace = namespace
+		app.Spec = v1alpha1.ApplicationSpec{}
+	})
+	appThree := newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "appThree"
+		app.Namespace = namespace
+		app.Spec = v1alpha1.ApplicationSpec{}
+	})
+	ro = append(ro, appOne, appTwo, appThree)
+	appls := []v1alpha1.Application{*appOne, *appTwo, *appThree}
+
+	appSetOne := &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "appSetOne", Namespace: namespace},
+		Spec:       v1alpha1.ApplicationSetSpec{},
+	}
+	appSetTwo := &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "appSetTwo", Namespace: namespace},
+		Spec:       v1alpha1.ApplicationSetSpec{},
+	}
+	appSetThree := &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "appSetThree", Namespace: namespace},
+		Spec:       v1alpha1.ApplicationSetSpec{},
+	}
+	ro = append(ro, appSetOne, appSetTwo, appSetThree)
+	appSets := []v1alpha1.ApplicationSet{*appSetOne, *appSetTwo, *appSetThree}
+
+	appProjects := createAppProject("projOne", "projTwo", "projThree")
+	for i := range appProjects {
+		ro = append(ro, &appProjects[i])
+	}
+
+	s := newTestAppServer(t, ro...)
+
+	appList, err := s.appclientset.ArgoprojV1alpha1().Applications(namespace).List(t.Context(), metav1.ListOptions{})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, appls, appList.Items)
+	sAppList := appList.Items
+	slices.SortFunc(sAppList, func(a, b v1alpha1.Application) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	slices.SortFunc(appls, func(a, b v1alpha1.Application) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	// ensure there is a deep copy
+	for i := range appls {
+		assert.NotSame(t, &appls[i], &sAppList[i])
+		assert.NotSame(t, &appls[i].Spec, &sAppList[i].Spec)
+		a, err := s.appclientset.ArgoprojV1alpha1().Applications(namespace).Get(t.Context(), sAppList[i].Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.NotSame(t, a, &sAppList[i])
+	}
+
+	appSetList, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).List(t.Context(), metav1.ListOptions{})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, appSets, appSetList.Items)
+	sAppSetList := appSetList.Items
+	slices.SortFunc(sAppSetList, func(a, b v1alpha1.ApplicationSet) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	slices.SortFunc(appSets, func(a, b v1alpha1.ApplicationSet) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	for i := range appSets {
+		assert.NotSame(t, &appSets[i], &sAppSetList[i])
+		assert.NotSame(t, &appSets[i].Spec, &sAppSetList[i].Spec)
+		a, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).Get(t.Context(),
+			sAppSetList[i].Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.NotSame(t, a, &sAppSetList[i])
+	}
+
+	projList, err := s.appclientset.ArgoprojV1alpha1().AppProjects("deep-copy-ns").List(t.Context(), metav1.ListOptions{})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, appProjects, projList.Items)
+	spList := projList.Items
+	slices.SortFunc(spList, func(a, b v1alpha1.AppProject) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	slices.SortFunc(appProjects, func(a, b v1alpha1.AppProject) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	for i := range appProjects {
+		assert.NotSame(t, &appProjects[i], &spList[i])
+		assert.NotSame(t, &appProjects[i].Spec, &spList[i].Spec)
+		p, err := s.appclientset.ArgoprojV1alpha1().AppProjects("deep-copy-ns").Get(t.Context(),
+			spList[i].Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.NotSame(t, p, &spList[i])
 	}
 }

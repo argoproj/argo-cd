@@ -4,15 +4,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/certs"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/gpgkeys"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/certs"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/gpgkeys"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // Context implements the "given" part of given/when/then
@@ -87,7 +87,7 @@ func GivenWithSameState(t *testing.T) *Context {
 		timeout:        timeout,
 		project:        "default",
 		prune:          true,
-		trackingMethod: argo.TrackingMethodLabel,
+		trackingMethod: v1alpha1.TrackingMethodLabel,
 	}
 }
 
@@ -98,17 +98,15 @@ func (c *Context) AppName() string {
 func (c *Context) AppQualifiedName() string {
 	if c.appNamespace != "" {
 		return c.appNamespace + "/" + c.AppName()
-	} else {
-		return c.AppName()
 	}
+	return c.AppName()
 }
 
 func (c *Context) AppNamespace() string {
 	if c.appNamespace != "" {
 		return c.appNamespace
-	} else {
-		return fixture.TestNamespace()
 	}
+	return fixture.TestNamespace()
 }
 
 func (c *Context) SetAppNamespace(namespace string) *Context {
@@ -118,109 +116,110 @@ func (c *Context) SetAppNamespace(namespace string) *Context {
 }
 
 func (c *Context) GPGPublicKeyAdded() *Context {
-	gpgkeys.AddGPGPublicKey()
+	gpgkeys.AddGPGPublicKey(c.t)
 	return c
 }
 
 func (c *Context) GPGPublicKeyRemoved() *Context {
-	gpgkeys.DeleteGPGPublicKey()
+	gpgkeys.DeleteGPGPublicKey(c.t)
 	return c
 }
 
 func (c *Context) CustomCACertAdded() *Context {
-	certs.AddCustomCACert()
+	certs.AddCustomCACert(c.t)
 	return c
 }
 
 func (c *Context) CustomSSHKnownHostsAdded() *Context {
-	certs.AddCustomSSHKnownHostsKeys()
+	certs.AddCustomSSHKnownHostsKeys(c.t)
 	return c
 }
 
 func (c *Context) HTTPSRepoURLAdded(withCreds bool) *Context {
-	repos.AddHTTPSRepo(false, withCreds, fixture.RepoURLTypeHTTPS)
+	repos.AddHTTPSRepo(c.t, false, withCreds, "", fixture.RepoURLTypeHTTPS)
 	return c
 }
 
 func (c *Context) HTTPSInsecureRepoURLAdded(withCreds bool) *Context {
-	repos.AddHTTPSRepo(true, withCreds, fixture.RepoURLTypeHTTPS)
+	repos.AddHTTPSRepo(c.t, true, withCreds, "", fixture.RepoURLTypeHTTPS)
 	return c
 }
 
 func (c *Context) HTTPSInsecureRepoURLWithClientCertAdded() *Context {
-	repos.AddHTTPSRepoClientCert(true)
+	repos.AddHTTPSRepoClientCert(c.t, true)
 	return c
 }
 
 func (c *Context) HTTPSRepoURLWithClientCertAdded() *Context {
-	repos.AddHTTPSRepoClientCert(false)
+	repos.AddHTTPSRepoClientCert(c.t, false)
 	return c
 }
 
 func (c *Context) SubmoduleHTTPSRepoURLAdded(withCreds bool) *Context {
-	fixture.CreateSubmoduleRepos("https")
-	repos.AddHTTPSRepo(false, withCreds, fixture.RepoURLTypeHTTPSSubmoduleParent)
+	fixture.CreateSubmoduleRepos(c.t, "https")
+	repos.AddHTTPSRepo(c.t, false, withCreds, "", fixture.RepoURLTypeHTTPSSubmoduleParent)
 	return c
 }
 
 func (c *Context) SSHRepoURLAdded(withCreds bool) *Context {
-	repos.AddSSHRepo(false, withCreds, fixture.RepoURLTypeSSH)
+	repos.AddSSHRepo(c.t, false, withCreds, fixture.RepoURLTypeSSH)
 	return c
 }
 
 func (c *Context) SSHInsecureRepoURLAdded(withCreds bool) *Context {
-	repos.AddSSHRepo(true, withCreds, fixture.RepoURLTypeSSH)
+	repos.AddSSHRepo(c.t, true, withCreds, fixture.RepoURLTypeSSH)
 	return c
 }
 
 func (c *Context) SubmoduleSSHRepoURLAdded(withCreds bool) *Context {
-	fixture.CreateSubmoduleRepos("ssh")
-	repos.AddSSHRepo(false, withCreds, fixture.RepoURLTypeSSHSubmoduleParent)
+	fixture.CreateSubmoduleRepos(c.t, "ssh")
+	repos.AddSSHRepo(c.t, false, withCreds, fixture.RepoURLTypeSSHSubmoduleParent)
 	return c
 }
 
 func (c *Context) HelmRepoAdded(name string) *Context {
-	repos.AddHelmRepo(name)
+	repos.AddHelmRepo(c.t, name)
 	return c
 }
 
 func (c *Context) HelmOCIRepoAdded(name string) *Context {
-	repos.AddHelmOCIRepo(name)
+	repos.AddHelmOCIRepo(c.t, name)
 	return c
 }
 
 func (c *Context) PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
-	repos.PushChartToOCIRegistry(chartPathName, chartName, chartVersion)
+	repos.PushChartToOCIRegistry(c.t, chartPathName, chartName, chartVersion)
 	return c
 }
 
 func (c *Context) HTTPSCredentialsUserPassAdded() *Context {
-	repos.AddHTTPSCredentialsUserPass()
+	repos.AddHTTPSCredentialsUserPass(c.t)
 	return c
 }
 
 func (c *Context) HelmHTTPSCredentialsUserPassAdded() *Context {
-	repos.AddHelmHTTPSCredentialsTLSClientCert()
+	repos.AddHelmHTTPSCredentialsTLSClientCert(c.t)
 	return c
 }
 
 func (c *Context) HelmoOCICredentialsWithoutUserPassAdded() *Context {
-	repos.AddHelmoOCICredentialsWithoutUserPass()
+	repos.AddHelmoOCICredentialsWithoutUserPass(c.t)
 	return c
 }
 
 func (c *Context) HTTPSCredentialsTLSClientCertAdded() *Context {
-	repos.AddHTTPSCredentialsTLSClientCert()
+	repos.AddHTTPSCredentialsTLSClientCert(c.t)
 	return c
 }
 
 func (c *Context) SSHCredentialsAdded() *Context {
-	repos.AddSSHCredentials()
+	repos.AddSSHCredentials(c.t)
 	return c
 }
 
 func (c *Context) ProjectSpec(spec v1alpha1.AppProjectSpec) *Context {
-	errors.CheckError(fixture.SetProjectSpec(c.project, spec))
+	c.t.Helper()
+	require.NoError(c.t, fixture.SetProjectSpec(c.project, spec))
 	return c
 }
 
@@ -332,12 +331,14 @@ func (c *Context) NameSuffix(nameSuffix string) *Context {
 }
 
 func (c *Context) ResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) *Context {
-	errors.CheckError(fixture.SetResourceOverrides(overrides))
+	c.t.Helper()
+	require.NoError(c.t, fixture.SetResourceOverrides(overrides))
 	return c
 }
 
 func (c *Context) ResourceFilter(filter settings.ResourcesFilter) *Context {
-	errors.CheckError(fixture.SetResourceFilter(filter))
+	c.t.Helper()
+	require.NoError(c.t, fixture.SetResourceFilter(filter))
 	return c
 }
 
@@ -347,6 +348,7 @@ func (c *Context) And(block func()) *Context {
 }
 
 func (c *Context) When() *Actions {
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Actions{context: c}
 }
 
@@ -406,12 +408,14 @@ func (c *Context) HelmSkipTests() *Context {
 }
 
 func (c *Context) SetTrackingMethod(trackingMethod string) *Context {
-	errors.CheckError(fixture.SetTrackingMethod(trackingMethod))
+	c.t.Helper()
+	require.NoError(c.t, fixture.SetTrackingMethod(trackingMethod))
 	return c
 }
 
 func (c *Context) SetInstallationID(installationID string) *Context {
-	errors.CheckError(fixture.SetInstallationID(installationID))
+	c.t.Helper()
+	require.NoError(c.t, fixture.SetInstallationID(installationID))
 	return c
 }
 
