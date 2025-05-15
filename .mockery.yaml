@@ -3,7 +3,10 @@ filename: "{{.InterfaceName}}.go"
 dir: "{{.InterfaceDir}}/mocks"
 outpkg: "mocks"
 mockname: "{{.InterfaceName}}"
-with-expecter: false
+with-expecter: true
+resolve-type-alias: false
+disable-version-string: true
+issue-845-fix: true
 # individual interface config
 packages:
   github.com/argoproj/argo-cd/v3/applicationset/generators:
