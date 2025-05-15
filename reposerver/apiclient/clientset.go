@@ -10,7 +10,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/env"
 
-	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/timeout"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -64,7 +65,7 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 	}
 	opts := []grpc.DialOption{
 		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)),
-		grpc.WithChainUnaryInterceptor(unaryInterceptors...),
+		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)),
 		grpc.WithUnaryInterceptor(argogrpc.OTELUnaryClientInterceptor()),
 		grpc.WithStreamInterceptor(argogrpc.OTELStreamClientInterceptor()),

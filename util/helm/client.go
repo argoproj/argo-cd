@@ -20,7 +20,7 @@ import (
 
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 
-	"github.com/argoproj/pkg/v2/sync"
+	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"oras.land/oras-go/v2/registry/remote"
@@ -37,7 +37,7 @@ var (
 	globalLock = sync.NewKeyLock()
 	indexLock  = sync.NewKeyLock()
 
-	ErrOCINotEnabled = errors.New("could not perform the action when oci is not enabled")
+	OCINotEnabledErr = errors.New("could not perform the action when oci is not enabled")
 )
 
 type indexCache interface {
@@ -49,7 +49,7 @@ type Client interface {
 	CleanChartCache(chart string, version string) error
 	ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error)
 	GetIndex(noCache bool, maxIndexSize int64) (*Index, error)
-	GetTags(chart string, noCache bool) ([]string, error)
+	GetTags(chart string, noCache bool) (*TagsList, error)
 	TestHelmOCI() (bool, error)
 }
 
@@ -416,9 +416,9 @@ func getIndexURL(rawURL string) (string, error) {
 	return repoURL.String(), nil
 }
 
-func (c *nativeHelmChart) GetTags(chart string, noCache bool) ([]string, error) {
+func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error) {
 	if !c.enableOci {
-		return nil, ErrOCINotEnabled
+		return nil, OCINotEnabledErr
 	}
 
 	tagsURL := strings.Replace(fmt.Sprintf("%s/%s", c.repoURL, chart), "https://", "", 1)
@@ -432,11 +432,7 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) ([]string, error) 
 		}
 	}
 
-	type entriesStruct struct {
-		Tags []string
-	}
-
-	entries := &entriesStruct{}
+	tags := &TagsList{}
 	if len(data) == 0 {
 		start := time.Now()
 		repo, err := remote.NewRepository(tagsURL)
@@ -483,7 +479,7 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) ([]string, error) 
 			for _, tag := range tagsResult {
 				// By convention: Change underscore (_) back to plus (+) to get valid SemVer
 				convertedTag := strings.ReplaceAll(tag, "_", "+")
-				entries.Tags = append(entries.Tags, convertedTag)
+				tags.Tags = append(tags.Tags, convertedTag)
 			}
 
 			return nil
@@ -501,11 +497,11 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) ([]string, error) 
 			}
 		}
 	} else {
-		err := json.Unmarshal(data, entries)
+		err := json.Unmarshal(data, tags)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode tags: %w", err)
 		}
 	}
 
-	return entries.Tags, nil
+	return tags, nil
 }

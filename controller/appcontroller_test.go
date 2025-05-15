@@ -602,24 +602,6 @@ func TestAutoSync(t *testing.T) {
 	assert.False(t, app.Operation.Sync.Prune)
 }
 
-func TestAutoSyncEnabledSetToTrue(t *testing.T) {
-	app := newFakeApp()
-	enable := true
-	app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enabled: &enable}
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
-	syncStatus := v1alpha1.SyncStatus{
-		Status:   v1alpha1.SyncStatusCodeOutOfSync,
-		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-	}
-	cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
-	assert.Nil(t, cond)
-	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.NotNil(t, app.Operation)
-	assert.NotNil(t, app.Operation.Sync)
-	assert.False(t, app.Operation.Sync.Prune)
-}
-
 func TestMultiSourceSelfHeal(t *testing.T) {
 	// Simulate OutOfSync caused by object change in cluster
 	// So our Sync Revisions and SyncStatus Revisions should deep equal
@@ -717,23 +699,6 @@ func TestSkipAutoSync(t *testing.T) {
 	t.Run("AutoSyncIsDisabled", func(t *testing.T) {
 		app := newFakeApp()
 		app.Spec.SyncPolicy = nil
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
-		syncStatus := v1alpha1.SyncStatus{
-			Status:   v1alpha1.SyncStatusCodeOutOfSync,
-			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
-		assert.Nil(t, cond)
-		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
-		require.NoError(t, err)
-		assert.Nil(t, app.Operation)
-	})
-
-	// Verify we skip when auto-sync is disabled
-	t.Run("AutoSyncEnableFieldIsSetFalse", func(t *testing.T) {
-		app := newFakeApp()
-		enable := false
-		app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enabled: &enable}
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
 		syncStatus := v1alpha1.SyncStatus{
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
@@ -2375,7 +2340,7 @@ func TestAddControllerNamespace(t *testing.T) {
 		appNamespace := "app-namespace"
 
 		app := newFakeApp()
-		app.Namespace = appNamespace
+		app.ObjectMeta.Namespace = appNamespace
 		proj := defaultProj
 		proj.Spec.SourceNamespaces = []string{appNamespace}
 		ctrl := newFakeController(&fakeData{
@@ -2709,7 +2674,7 @@ func TestSyncTimeout(t *testing.T) {
 			}
 			ctrl.processRequestedAppOperation(app)
 
-			app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+			app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(t.Context(), app.ObjectMeta.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedPhase, app.Status.OperationState.Phase)
 			require.Equal(t, tc.expectedMessage, app.Status.OperationState.Message)

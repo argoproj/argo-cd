@@ -53,6 +53,7 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
         fieldApi: {getValue, setValue}
     } = props;
     const automated = getValue() as models.Automated;
+
     return (
         <React.Fragment>
             <label>Sync Policy</label>
@@ -60,16 +61,11 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
                 value={automated ? auto : manual}
                 options={[manual, auto]}
                 onChange={opt => {
-                    setValue(opt.value === auto ? {prune: false, selfHeal: false, enabled: true} : null);
+                    setValue(opt.value === auto ? {prune: false, selfHeal: false} : null);
                 }}
             />
             {automated && (
                 <div className='application-create-panel__sync-params'>
-                    <div className='checkbox-container'>
-                        <Checkbox onChange={val => setValue({...automated, enabled: val})} checked={automated.enabled === undefined ? true : automated.enabled} id='policyEnable' />
-                        <label htmlFor='policyEnable'>Enable Auto-Sync</label>
-                        <HelpIcon title='If checked, application will automatically sync when changes are detected' />
-                    </div>
                     <div className='checkbox-container'>
                         <Checkbox onChange={val => setValue({...automated, prune: val})} checked={!!automated.prune} id='policyPrune' />
                         <label htmlFor='policyPrune'>Prune Resources</label>

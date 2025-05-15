@@ -926,8 +926,7 @@ data:
     1\n  use-server R2 if { srv_is_up(R2) } { nbsrv(check_if_redis_is_master_2) ge
     2 }\n  server R2 argocd-redis-ha-announce-2:6379 check inter 3s fall 1 rise 1\nfrontend
     stats\n  mode http\n  bind :9101 \n  http-request use-service prometheus-exporter
-    if { path /metrics }\n  stats enable\n  stats uri /stats\n  stats refresh 10s\n#
-    Additional configuration\nglobal\n  maxconn 4096\n"
+    if { path /metrics }\n  stats enable\n  stats uri /stats\n  stats refresh 10s\n"
   haproxy_init.sh: |
     HAPROXY_CONF=/data/haproxy.cfg
     cp /readonly/haproxy.cfg "$HAPROXY_CONF"
@@ -1862,7 +1861,7 @@ spec:
               key: applicationsetcontroller.requeue.after
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.0.1
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -2028,6 +2027,26 @@ spec:
           name: gpg-keyring
         - mountPath: /tmp
           name: tmp
+      initContainers:
+      - command:
+        - /bin/cp
+        - -n
+        - /usr/local/bin/argocd
+        - /var/run/argocd/argocd-cmp-server
+        image: quay.io/argoproj/argocd:latest
+        name: copyutil
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - mountPath: /var/run/argocd
+          name: var-files
       serviceAccountName: argocd-commit-server
       volumes:
       - configMap:
@@ -2054,6 +2073,8 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-commit-server-tls
+      - emptyDir: {}
+        name: var-files
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2139,7 +2160,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.0.1
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -2235,7 +2256,7 @@ spec:
               key: notificationscontroller.repo.server.plaintext
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.0.1
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
@@ -2295,7 +2316,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: cd6508bdf9819601c454d0cc491fb77a209e3a88761d92514d105b6681829953
+        checksum/config: e34e8124c38bcfd2f16e75620bbde30158686692b13bc449eecc44c51b207d54
         prometheus.io/path: /metrics
         prometheus.io/port: "9101"
         prometheus.io/scrape: "true"
@@ -2359,7 +2380,7 @@ spec:
         - argocd
         - admin
         - redis-initial-password
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.0.1
         imagePullPolicy: IfNotPresent
         name: secret-init
         securityContext:
@@ -2658,7 +2679,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.0.1
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -2710,7 +2731,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.0.1
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -3084,7 +3105,7 @@ spec:
               key: server.sync.replace.allowed
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.0.1
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -3450,7 +3471,7 @@ spec:
               optional: true
         - name: KUBECACHEDIR
           value: /tmp/kubecache
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.0.1
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
