@@ -1799,6 +1799,10 @@ func formatConditionsSummary(app argoappv1.Application) string {
 			items = append(items, cndType)
 		}
 	}
+
+	// Sort the keys by name
+	sort.Strings(items)
+
 	summary := "<none>"
 	if len(items) > 0 {
 		slices.Sort(items)
@@ -2516,29 +2520,21 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 	if watch.delete {
 		return false
 	}
+
+	healthBeingChecked := watch.suspended || watch.health || watch.degraded
 	healthCheckPassed := true
 
-	switch {
-	case watch.suspended && watch.health && watch.degraded:
-		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
-			healthStatus == string(health.HealthStatusSuspended) ||
-			healthStatus == string(health.HealthStatusDegraded)
-	case watch.suspended && watch.degraded:
-		healthCheckPassed = healthStatus == string(health.HealthStatusDegraded) ||
-			healthStatus == string(health.HealthStatusSuspended)
-	case watch.degraded && watch.health:
-		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
-			healthStatus == string(health.HealthStatusDegraded)
-		// below are good
-	case watch.suspended && watch.health:
-		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
-			healthStatus == string(health.HealthStatusSuspended)
-	case watch.suspended:
-		healthCheckPassed = healthStatus == string(health.HealthStatusSuspended)
-	case watch.health:
-		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy)
-	case watch.degraded:
-		healthCheckPassed = healthStatus == string(health.HealthStatusDegraded)
+	if healthBeingChecked {
+		healthCheckPassed = false
+		if watch.health {
+			healthCheckPassed = healthCheckPassed || healthStatus == string(health.HealthStatusHealthy)
+		}
+		if watch.suspended {
+			healthCheckPassed = healthCheckPassed || healthStatus == string(health.HealthStatusSuspended)
+		}
+		if watch.degraded {
+			healthCheckPassed = healthCheckPassed || healthStatus == string(health.HealthStatusDegraded)
+		}
 	}
 
 	synced := !watch.sync || syncStatus == string(argoappv1.SyncStatusCodeSynced)

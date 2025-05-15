@@ -49,6 +49,22 @@ export function helpTip(text: string) {
         </Tooltip>
     );
 }
+
+//CLassic Solid circle-notch icon
+//<!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.-->
+//this will replace all <i> fa-spin </i> icons as they are currently misbehaving with no fix available.
+
+export const SpinningIcon = ({color, qeId}: {color: string; qeId: string}) => {
+    return (
+        <svg className='icon spin' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' style={{color}} qe-id={qeId}>
+            <path
+                fill={color}
+                d='M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z'
+            />
+        </svg>
+    );
+};
+
 export async function deleteApplication(appName: string, appNamespace: string, apis: ContextApis): Promise<boolean> {
     let confirmed = false;
     const propagationPolicies: {name: string; message: string}[] = [
@@ -221,7 +237,11 @@ export const OperationPhaseIcon = ({app, isButton}: {app: appModels.Application;
             color = COLORS.operation.running;
             break;
     }
-    return <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{color}} />;
+    return className.includes('fa-spin') ? (
+        <SpinningIcon color={color} qeId='utils-operations-status-title' />
+    ) : (
+        <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{color}} />
+    );
 };
 
 export const HydrateOperationPhaseIcon = ({operationState, isButton}: {operationState?: appModels.HydrateOperation; isButton?: boolean}) => {
@@ -244,7 +264,11 @@ export const HydrateOperationPhaseIcon = ({operationState, isButton}: {operation
             color = COLORS.operation.running;
             break;
     }
-    return <i title={operationState.phase} qe-id='utils-operations-status-title' className={className} style={{color}} />;
+    return className.includes('fa-spin') ? (
+        <SpinningIcon color={color} qeId='utils-operations-status-title' />
+    ) : (
+        <i title={operationState.phase} qe-id='utils-operations-status-title' className={className} style={{color}} />
+    );
 };
 
 export const ComparisonStatusIcon = ({
@@ -283,7 +307,9 @@ export const ComparisonStatusIcon = ({
             className = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}${isButton ? ' status-button' : ''}`;
             break;
     }
-    return (
+    return className.includes('fa-spin') ? (
+        <SpinningIcon color={color} qeId='utils-sync-status-title' />
+    ) : (
         <React.Fragment>
             <i qe-id='utils-sync-status-title' title={title} className={className} style={{color}} /> {label && title}
         </React.Fragment>
@@ -521,22 +547,45 @@ export const deletePopup = async (
     );
 };
 
-export function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
-    return services.applications
-        .getResourceActions(metadata.name, metadata.namespace, resource)
-        .then(actions => {
-            return actions.map(
-                action =>
-                    ({
-                        title: action.displayName ?? action.name,
-                        disabled: !!action.disabled,
-                        iconClassName: action.iconClass,
-                        action: async () => {
+export async function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
+    return services.applications.getResourceActions(metadata.name, metadata.namespace, resource).then(actions => {
+        return actions.map(action => ({
+            title: action.displayName ?? action.name,
+            disabled: !!action.disabled,
+            iconClassName: action.iconClass,
+            action: async () => {
+                const confirmed = false;
+                const title = action.params ? `Enter input parameters for action: ${action.name}` : `Perform ${action.name} action?`;
+                await apis.popup.prompt(
+                    title,
+                    api => (
+                        <div>
+                            {!action.params && (
+                                <div className='argo-form-row'>
+                                    <div> Are you sure you want to perform {action.name} action?</div>
+                                </div>
+                            )}
+                            {action.params &&
+                                action.params.map((param, index) => (
+                                    <div className='argo-form-row' key={index}>
+                                        <FormField label={param.name} field={param.name} formApi={api} component={Text} />
+                                    </div>
+                                ))}
+                        </div>
+                    ),
+                    {
+                        submit: async (vals, _, close) => {
                             try {
-                                const confirmed = await apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
-                                if (confirmed) {
-                                    await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name);
-                                }
+                                const resourceActionParameters = action.params
+                                    ? action.params.map(param => ({
+                                          name: param.name,
+                                          value: vals[param.name] || param.default,
+                                          type: param.type,
+                                          default: param.default
+                                      }))
+                                    : [];
+                                await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name, resourceActionParameters);
+                                close();
                             } catch (e) {
                                 apis.notifications.show({
                                     content: <ErrorNotification title='Unable to execute resource action' e={e} />,
@@ -544,10 +593,20 @@ export function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata
                                 });
                             }
                         }
-                    }) as MenuItem
-            );
-        })
-        .catch(() => [] as MenuItem[]);
+                    },
+                    null,
+                    null,
+                    action.params
+                        ? action.params.reduce((acc, res) => {
+                              acc[res.name] = res.default;
+                              return acc;
+                          }, {} as any)
+                        : {}
+                );
+                return confirmed;
+            }
+        }));
+    });
 }
 
 function getActionItems(
@@ -681,12 +740,22 @@ export function renderResourceMenu(
                     {items.map((item, i) => (
                         <li
                             className={classNames('application-details__action-menu', {disabled: item.disabled})}
+                            tabIndex={item.disabled ? undefined : 0}
                             key={i}
                             onClick={e => {
                                 e.stopPropagation();
                                 if (!item.disabled) {
                                     item.action();
                                     document.body.click();
+                                }
+                            }}
+                            onKeyDown={e => {
+                                if (e.keyCode === 13 || e.key === 'Enter') {
+                                    e.stopPropagation();
+                                    setTimeout(() => {
+                                        item.action();
+                                        document.body.click();
+                                    });
                                 }
                             }}>
                             {item.tooltip ? (
@@ -892,7 +961,11 @@ export const HealthStatusIcon = ({state, noSpin}: {state: appModels.HealthStatus
     if (state.message) {
         title = `${state.status}: ${state.message}`;
     }
-    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon + ' utils-health-status-icon'} style={{color}} />;
+    return icon.includes('fa-spin') ? (
+        <SpinningIcon color={color} qeId='utils-health-status-title' />
+    ) : (
+        <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon + ' utils-health-status-icon'} style={{color}} />
+    );
 };
 
 export const PodHealthIcon = ({state}: {state: appModels.HealthStatus}) => {
@@ -916,7 +989,11 @@ export const PodHealthIcon = ({state}: {state: appModels.HealthStatus}) => {
     if (state.message) {
         title = `${state.status}: ${state.message}`;
     }
-    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} />;
+    return icon.includes('fa-spin') ? (
+        <SpinningIcon color={'white'} qeId='utils-health-status-title' />
+    ) : (
+        <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} />
+    );
 };
 
 export const PodPhaseIcon = ({state}: {state: appModels.PodPhase}) => {
@@ -938,7 +1015,7 @@ export const PodPhaseIcon = ({state}: {state: appModels.PodPhase}) => {
             className = 'fa fa-question-circle';
             break;
     }
-    return <i qe-id='utils-pod-phase-icon' className={className} />;
+    return className.includes('fa-spin') ? <SpinningIcon color={'white'} qeId='utils-pod-phase-icon' /> : <i qe-id='utils-pod-phase-icon' className={className} />;
 };
 
 export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResult}) => {
@@ -997,7 +1074,7 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
         if (resource.message) {
             title = `${resource.hookPhase}: ${resource.message}`;
         }
-        return <i title={title} className={className} style={{color}} />;
+        return className.includes('fa-spin') ? <SpinningIcon color={color} qeId='utils-resource-result-icon' /> : <i title={title} className={className} style={{color}} />;
     }
     return null;
 };
@@ -1608,3 +1685,43 @@ export function getAppUrl(app: appModels.Application): string {
     }
     return `applications/${app.metadata.namespace}/${app.metadata.name}`;
 }
+
+export const getProgressiveSyncStatusIcon = ({status, isButton}: {status: string; isButton?: boolean}) => {
+    const getIconProps = () => {
+        switch (status) {
+            case 'Healthy':
+                return {icon: 'fa-check-circle', color: COLORS.health.healthy};
+            case 'Progressing':
+                return {icon: 'fa-circle-notch fa-spin', color: COLORS.health.progressing};
+            case 'Pending':
+                return {icon: 'fa-clock', color: COLORS.health.degraded};
+            case 'Waiting':
+                return {icon: 'fa-clock', color: COLORS.sync.out_of_sync};
+            case 'Error':
+                return {icon: 'fa-times-circle', color: COLORS.health.degraded};
+            default:
+                return {icon: 'fa-question-circle', color: COLORS.sync.unknown};
+        }
+    };
+
+    const {icon, color} = getIconProps();
+    const className = `fa ${icon}${isButton ? ' application-status-panel__item-value__status-button' : ''}`;
+    return <i className={className} style={{color}} />;
+};
+
+export const getProgressiveSyncStatusColor = (status: string): string => {
+    switch (status) {
+        case 'Waiting':
+            return COLORS.sync.out_of_sync;
+        case 'Pending':
+            return COLORS.health.degraded;
+        case 'Progressing':
+            return COLORS.health.progressing;
+        case 'Healthy':
+            return COLORS.health.healthy;
+        case 'Error':
+            return COLORS.health.degraded;
+        default:
+            return COLORS.sync.unknown;
+    }
+};
