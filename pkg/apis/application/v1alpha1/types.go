@@ -102,6 +102,12 @@ func (id IgnoreDifferences) Equals(other IgnoreDifferences) bool {
 
 type TrackingMethod string
 
+const (
+	TrackingMethodAnnotation         TrackingMethod = "annotation"
+	TrackingMethodLabel              TrackingMethod = "label"
+	TrackingMethodAnnotationAndLabel TrackingMethod = "annotation+label"
+)
+
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
 type ResourceIgnoreDifferences struct {
 	Group             string   `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`

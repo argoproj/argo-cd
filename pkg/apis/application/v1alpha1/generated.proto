@@ -1046,6 +1046,8 @@ message GitDirectoryGeneratorItem {
 
 message GitFileGeneratorItem {
   optional string path = 1;
+
+  optional bool exclude = 2;
 }
 
 message GitGenerator {

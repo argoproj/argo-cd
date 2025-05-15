@@ -8042,6 +8042,9 @@
     "v1alpha1GitFileGeneratorItem": {
       "type": "object",
       "properties": {
+        "exclude": {
+          "type": "boolean"
+        },
         "path": {
           "type": "string"
         }
