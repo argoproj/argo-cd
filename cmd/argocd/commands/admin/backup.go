@@ -2,6 +2,7 @@ package admin
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -222,48 +223,8 @@ func NewImportCommand() *cobra.Command {
 			// pruneObjects tracks live objects, and it's current resource version. any remaining
 			// items in this map indicates the resource should be pruned since it no longer appears
 			// in the backup
-			pruneObjects := make(map[kube.ResourceKey]unstructured.Unstructured)
-			configMaps, err := acdClients.configMaps.List(ctx, metav1.ListOptions{})
+			pruneObjects, err := createPruneObject(acdClients, ctx, applicationNamespaces, namespace, applicationsetNamespaces)
 
-			errors.CheckError(err)
-			for _, cm := range configMaps.Items {
-				if isArgoCDConfigMap(cm.GetName()) {
-					pruneObjects[kube.ResourceKey{Group: "", Kind: "ConfigMap", Name: cm.GetName(), Namespace: cm.GetNamespace()}] = cm
-				}
-			}
-
-			secrets, err := acdClients.secrets.List(ctx, metav1.ListOptions{})
-			errors.CheckError(err)
-			for _, secret := range secrets.Items {
-				if isArgoCDSecret(secret) {
-					pruneObjects[kube.ResourceKey{Group: "", Kind: "Secret", Name: secret.GetName(), Namespace: secret.GetNamespace()}] = secret
-				}
-			}
-			applications, err := acdClients.applications.List(ctx, metav1.ListOptions{})
-			errors.CheckError(err)
-			for _, app := range applications.Items {
-				if secutil.IsNamespaceEnabled(app.GetNamespace(), namespace, applicationNamespaces) {
-					pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.ApplicationKind, Name: app.GetName(), Namespace: app.GetNamespace()}] = app
-				}
-			}
-			projects, err := acdClients.projects.List(ctx, metav1.ListOptions{})
-			errors.CheckError(err)
-			for _, proj := range projects.Items {
-				pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.AppProjectKind, Name: proj.GetName(), Namespace: proj.GetNamespace()}] = proj
-			}
-			applicationSets, err := acdClients.applicationSets.List(ctx, metav1.ListOptions{})
-			if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
-				log.Warnf("argoproj.io/ApplicationSet: %v\n", err)
-			} else {
-				errors.CheckError(err)
-			}
-			if applicationSets != nil {
-				for _, appSet := range applicationSets.Items {
-					if secutil.IsNamespaceEnabled(appSet.GetNamespace(), namespace, applicationsetNamespaces) {
-						pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.ApplicationSetKind, Name: appSet.GetName(), Namespace: appSet.GetNamespace()}] = appSet
-					}
-				}
-			}
 			// Create or replace existing object
 			backupObjects, err := kube.SplitYAML(input)
 
@@ -285,25 +246,9 @@ func NewImportCommand() *cobra.Command {
 				}
 
 				var dynClient dynamic.ResourceInterface
-				switch bakObj.GetKind() {
-				case "Secret":
-					dynClient = client.Resource(secretResource).Namespace(bakObj.GetNamespace())
-				case "ConfigMap":
-					dynClient = client.Resource(configMapResource).Namespace(bakObj.GetNamespace())
-				case application.AppProjectKind:
-					dynClient = client.Resource(appprojectsResource).Namespace(bakObj.GetNamespace())
-				case application.ApplicationKind:
-					// If application is not in one of the allowed namespaces do not import it
-					if !secutil.IsNamespaceEnabled(bakObj.GetNamespace(), namespace, applicationNamespaces) {
-						continue
-					}
-					dynClient = client.Resource(applicationsResource).Namespace(bakObj.GetNamespace())
-				case application.ApplicationSetKind:
-					// If applicationset is not in one of the allowed namespaces do not import it
-					if !secutil.IsNamespaceEnabled(bakObj.GetNamespace(), namespace, applicationsetNamespaces) {
-						continue
-					}
-					dynClient = client.Resource(appplicationSetResource).Namespace(bakObj.GetNamespace())
+				dynClient = setDynamicClient(client, bakObj, namespace, applicationNamespaces, applicationsetNamespaces)
+				if dynClient == nil {
+					continue
 				}
 
 				// If there is a live object, remove the tracking annotations/label that might conflict
@@ -438,6 +383,80 @@ func NewImportCommand() *cobra.Command {
 	command.Flags().StringSliceVarP(&applicationsetNamespaces, "applicationset-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs which import of applicationsets is allowed. If not provided, value from '%s' in %s will be used. If it's not defined, only applicationsets without an explicit namespace will be imported to the Argo CD namespace", applicationsetNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
 	command.PersistentFlags().BoolVar(&promptsEnabled, "prompts-enabled", localconfig.GetPromptsEnabled(true), "Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.")
 	return &command
+}
+
+// helper function to create a pruneObject map
+func createPruneObject(acdClients *argoCDClientsets, ctx context.Context, applicationNamespaces []string, namespace string, applicationsetNamespaces []string) (map[kube.ResourceKey]unstructured.Unstructured, error) {
+	pruneObjects := make(map[kube.ResourceKey]unstructured.Unstructured)
+	configMaps, err := acdClients.configMaps.List(ctx, metav1.ListOptions{})
+
+	errors.CheckError(err)
+	for _, cm := range configMaps.Items {
+		if isArgoCDConfigMap(cm.GetName()) {
+			pruneObjects[kube.ResourceKey{Group: "", Kind: "ConfigMap", Name: cm.GetName(), Namespace: cm.GetNamespace()}] = cm
+		}
+	}
+	secrets, err := acdClients.secrets.List(ctx, metav1.ListOptions{})
+	errors.CheckError(err)
+	for _, secret := range secrets.Items {
+		if isArgoCDSecret(secret) {
+			pruneObjects[kube.ResourceKey{Group: "", Kind: "Secret", Name: secret.GetName(), Namespace: secret.GetNamespace()}] = secret
+		}
+	}
+	applications, err := acdClients.applications.List(ctx, metav1.ListOptions{})
+	errors.CheckError(err)
+
+	for _, app := range applications.Items {
+		if secutil.IsNamespaceEnabled(app.GetNamespace(), namespace, applicationNamespaces) {
+			pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.ApplicationKind, Name: app.GetName(), Namespace: app.GetNamespace()}] = app
+		}
+	}
+	projects, err := acdClients.projects.List(ctx, metav1.ListOptions{})
+	errors.CheckError(err)
+
+	for _, proj := range projects.Items {
+		pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.AppProjectKind, Name: proj.GetName(), Namespace: proj.GetNamespace()}] = proj
+	}
+	applicationSets, err := acdClients.applicationSets.List(ctx, metav1.ListOptions{})
+	if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
+		log.Warnf("argoproj.io/ApplicationSet: %v\n", err)
+	} else {
+		errors.CheckError(err)
+	}
+	if applicationSets != nil {
+		for _, appSet := range applicationSets.Items {
+			if secutil.IsNamespaceEnabled(appSet.GetNamespace(), namespace, applicationsetNamespaces) {
+				pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.ApplicationSetKind, Name: appSet.GetName(), Namespace: appSet.GetNamespace()}] = appSet
+			}
+		}
+	}
+	return pruneObjects, err
+}
+
+func setDynamicClient(client *dynamic.DynamicClient, bakObj *unstructured.Unstructured, namespace string, applicationNamespaces []string, applicationsetNamespaces []string) dynamic.ResourceInterface {
+	var dynClient dynamic.ResourceInterface
+	switch bakObj.GetKind() {
+	case "Secret":
+		dynClient = client.Resource(secretResource).Namespace(bakObj.GetNamespace())
+	case "ConfigMap":
+		dynClient = client.Resource(configMapResource).Namespace(bakObj.GetNamespace())
+	case application.AppProjectKind:
+		dynClient = client.Resource(appprojectsResource).Namespace(bakObj.GetNamespace())
+	case application.ApplicationKind:
+		// If application is not in one of the allowed namespaces do not import it
+		if !secutil.IsNamespaceEnabled(bakObj.GetNamespace(), namespace, applicationNamespaces) {
+			return nil
+		}
+		dynClient = client.Resource(applicationsResource).Namespace(bakObj.GetNamespace())
+	case application.ApplicationSetKind:
+		// If applicationset is not in one of the allowed namespaces do not import it
+		if !secutil.IsNamespaceEnabled(bakObj.GetNamespace(), namespace, applicationsetNamespaces) {
+			return nil
+		}
+		dynClient = client.Resource(appplicationSetResource).Namespace(bakObj.GetNamespace())
+	}
+
+	return dynClient
 }
 
 // check app has no need to stop operation.
