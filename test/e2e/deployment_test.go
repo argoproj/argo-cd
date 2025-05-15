@@ -18,7 +18,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/clusterauth"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -54,7 +53,7 @@ func TestDeployment(t *testing.T) {
 func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 	ctx := Given(t)
 
-	require.NoError(t, SetTrackingMethod(string(argo.TrackingMethodAnnotation)))
+	require.NoError(t, SetTrackingMethod(string(TrackingMethodAnnotation)))
 	ctx.
 		Path("deployment").
 		When().
@@ -77,7 +76,7 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 
 func TestDeploymentWithLabelTrackingMode(t *testing.T) {
 	ctx := Given(t)
-	require.NoError(t, SetTrackingMethod(string(argo.TrackingMethodLabel)))
+	require.NoError(t, SetTrackingMethod(string(TrackingMethodLabel)))
 	ctx.
 		Path("deployment").
 		When().
