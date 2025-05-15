@@ -780,6 +780,88 @@
         }
       }
     },
+    "/api/v1/applications/{name}/instance-info": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "GetInstanceInfo returns the Argo CD instance info for an application",
+        "operationId": "ApplicationService_GetInstanceInfo",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "the application's name",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "forces application reconciliation if set to 'hard'.",
+            "name": "refresh",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the project names to restrict returned list applications.",
+            "name": "projects",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "when specified with a watch call, shows changes that occur after that particular version of a resource.",
+            "name": "resourceVersion",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the selector to restrict returned list to applications only with matched labels.",
+            "name": "selector",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the repoURL to restrict returned list applications.",
+            "name": "repo",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the application's namespace.",
+            "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
+            "name": "project",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationInstanceInfo"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/links": {
       "get": {
         "tags": [
@@ -4935,6 +5017,21 @@
         }
       }
     },
+    "applicationInstanceInfo": {
+      "description": "InstanceInfo provides information about which Argo CD instance manages an application.",
+      "type": "object",
+      "properties": {
+        "instance_name": {
+          "type": "string"
+        },
+        "instance_namespace": {
+          "type": "string"
+        },
+        "instance_url": {
+          "type": "string"
+        }
+      }
+    },
     "applicationLinkInfo": {
       "type": "object",
       "properties": {
@@ -8895,7 +8992,7 @@
         },
         "pullRequestState": {
           "type": "string",
-          "title": "PullRequestState is an additional MRs filter to get only those with a certain state. PullRequestState is an additional MRs filter to get only those with a certain state. By default \"\" (all states). Valid values: opened, closed, merged, locked"
+          "title": "PullRequestState is an additional MRs filter to get only those with a certain state. Default: \"\" (all states)"
         },
         "tokenRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"
