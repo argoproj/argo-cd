@@ -25607,6 +25607,12 @@ spec:
               key: redis.db
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_CONN_MAX_IDLE_TIME
+          valueFrom:
+            configMapKeyRef:
+              key: redis.connection-max-idle-time
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
           valueFrom:
             configMapKeyRef:
@@ -26031,6 +26037,12 @@ spec:
               key: redis.db
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_CONN_MAX_IDLE_TIME
+          valueFrom:
+            configMapKeyRef:
+              key: redis.connection-max-idle-time
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
           valueFrom:
             configMapKeyRef:
@@ -26423,6 +26435,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: redis.db
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: REDIS_CONN_MAX_IDLE_TIME
+          valueFrom:
+            configMapKeyRef:
+              key: redis.connection-max-idle-time
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
