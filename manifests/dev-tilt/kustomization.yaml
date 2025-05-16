@@ -4,16 +4,7 @@ namespace: argocd
 resources:
   - namespace.yaml
   - ui-deployment.yaml
-  - ../base/application-controller
-  - ../base/dex
-  - ../base/repo-server
-  - ../base/server
-  - ../base/config
-  - ../base/redis
-  - ../crds
-  - ../base/notification
-  - ../base/applicationset-controller
-  - ../cluster-rbac
+  - ../cluster-install
 
 patches:
   - target:
