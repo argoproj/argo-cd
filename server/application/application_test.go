@@ -2436,7 +2436,7 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 			Name:      "guestbook",
 			Namespace: "default",
 		},
-		Health: &v1alpha1.HealthStatus{
+		Health: &v1alpha1.ResourceHealthStatus{
 			Status: health.HealthStatusDegraded,
 		},
 	}}})

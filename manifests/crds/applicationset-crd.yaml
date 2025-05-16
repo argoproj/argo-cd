@@ -17684,9 +17684,6 @@ spec:
                       type: string
                     health:
                       properties:
-                        lastTransitionTime:
-                          format: date-time
-                          type: string
                         message:
                           type: string
                         status:

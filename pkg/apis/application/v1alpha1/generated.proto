@@ -27,6 +27,15 @@ message AWSAuthConfig {
   optional string profile = 3;
 }
 
+// HealthStatus contains information about the currently observed health state of an application or resource
+message AppHealthStatus {
+  // Status holds the status code of the application or resource
+  optional string status = 1;
+
+  // LastTransitionTime is the time the HealthStatus was set or updated
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
+}
+
 // AppProject provides a logical grouping of applications, providing controls for:
 // * where the apps may deploy to (cluster whitelist)
 // * what may be deployed (repository whitelist, resource whitelist/blacklist)
@@ -667,7 +676,7 @@ message ApplicationStatus {
   optional SyncStatus sync = 2;
 
   // Health contains information about the application's current health status
-  optional HealthStatus health = 3;
+  optional AppHealthStatus health = 3;
 
   // History contains information about the application's sync history
   repeated RevisionHistory history = 4;
@@ -1095,18 +1104,6 @@ message GnuPGPublicKeyList {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated GnuPGPublicKey items = 2;
-}
-
-// HealthStatus contains information about the currently observed health state of an application or resource
-message HealthStatus {
-  // Status holds the status code of the application or resource
-  optional string status = 1;
-
-  // Message is a human-readable informational message describing the health status
-  optional string message = 2;
-
-  // LastTransitionTime is the time the HealthStatus was set or updated
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
 }
 
 // HelmFileParameter is a file parameter that's passed to helm template during manifest generation
@@ -1951,6 +1948,14 @@ message ResourceDiff {
   optional bool modified = 12;
 }
 
+message ResourceHealthStatus {
+  // Status holds the status code of the application or resource
+  optional string status = 1;
+
+  // Message is a human-readable informational message describing the health status
+  optional string message = 2;
+}
+
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
 message ResourceIgnoreDifferences {
   optional string group = 1;
@@ -2013,7 +2018,7 @@ message ResourceNode {
   repeated string images = 6;
 
   // Health represents the health status of the resource (e.g., Healthy, Degraded, Progressing).
-  optional HealthStatus health = 7;
+  optional ResourceHealthStatus health = 7;
 
   // CreatedAt records the timestamp when the resource was created.
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time createdAt = 8;
@@ -2110,7 +2115,7 @@ message ResourceStatus {
   optional string status = 6;
 
   // Health indicates the health status of the resource (e.g., Healthy, Degraded, Progressing).
-  optional HealthStatus health = 7;
+  optional ResourceHealthStatus health = 7;
 
   // Hook is true if the resource is used as a lifecycle hook in an Argo CD application.
   optional bool hook = 8;

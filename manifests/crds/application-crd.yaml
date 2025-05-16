@@ -1988,10 +1988,6 @@ spec:
                       set or updated
                     format: date-time
                     type: string
-                  message:
-                    description: Message is a human-readable informational message
-                      describing the health status
-                    type: string
                   status:
                     description: Status holds the status code of the application or
                       resource
@@ -4739,11 +4735,6 @@ spec:
                       description: Health indicates the health status of the resource
                         (e.g., Healthy, Degraded, Progressing).
                       properties:
-                        lastTransitionTime:
-                          description: LastTransitionTime is the time the HealthStatus
-                            was set or updated
-                          format: date-time
-                          type: string
                         message:
                           description: Message is a human-readable informational message
                             describing the health status

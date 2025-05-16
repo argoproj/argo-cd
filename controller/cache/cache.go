@@ -291,10 +291,10 @@ func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
 			UID:       string(ownerRef.UID),
 		}
 	}
-	var resHealth *appv1.HealthStatus
+	var resHealth *appv1.ResourceHealthStatus
 	resourceInfo := resInfo(r)
 	if resourceInfo.Health != nil {
-		resHealth = &appv1.HealthStatus{Status: resourceInfo.Health.Status, Message: resourceInfo.Health.Message}
+		resHealth = &appv1.ResourceHealthStatus{Status: resourceInfo.Health.Status, Message: resourceInfo.Health.Message}
 	}
 	return appv1.ResourceNode{
 		ResourceRef: appv1.ResourceRef{
