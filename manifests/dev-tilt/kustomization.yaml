@@ -1,4 +1,8 @@
+# This manifest is used by Tilt to deploy the argocd resources to the cluster.
+namespace: argocd
+
 resources:
+  - namespace.yaml
   - ../base/application-controller
   - ../base/dex
   - ../base/repo-server
@@ -9,11 +13,12 @@ resources:
   - ../base/notification
   - ../base/applicationset-controller
 
+# configuration overrides for argocd server
 configMapGenerator:
   - name: argocd-cmd-params-cm
     behavior: merge
     literals:
-      - server.insecure=true
+      - server.insecure=true # for ui development (TODO: should we find a better solution?)
 
 patches:
   - target:
