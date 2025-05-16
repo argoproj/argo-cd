@@ -78,6 +78,8 @@ k8s_resource(
         'argocd-tls-certs-cm:configmap',
         'argocd-secret:secret',
         'argocd-server-network-policy:networkpolicy',
+        'argocd-server:clusterrolebinding',
+        'argocd-server:clusterrole',
     ],
     port_forwards=[
         '8080:8080',
@@ -86,11 +88,12 @@ k8s_resource(
 
 # track crds
 k8s_resource(
-    new_name='crds',
+    new_name='cluster-resources',
     objects=[
         'applications.argoproj.io:customresourcedefinition',
         'applicationsets.argoproj.io:customresourcedefinition',
         'appprojects.argoproj.io:customresourcedefinition',
+        'argocd:namespace'
     ]
 )
 
@@ -128,6 +131,8 @@ k8s_resource(
         'argocd-applicationset-controller-network-policy:networkpolicy',
         'argocd-applicationset-controller:role',
         'argocd-applicationset-controller:rolebinding',
+        'argocd-applicationset-controller:clusterrolebinding',
+        'argocd-applicationset-controller:clusterrole',
     ],
 )
 
@@ -139,6 +144,8 @@ k8s_resource(
         'argocd-application-controller-network-policy:networkpolicy',
         'argocd-application-controller:role',
         'argocd-application-controller:rolebinding',
+        'argocd-application-controller:clusterrolebinding',
+        'argocd-application-controller:clusterrole',
     ],
 )
 
