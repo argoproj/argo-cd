@@ -11,24 +11,25 @@ cmd_button(
 )
 
 # build the argocd binary on code changes
+code_deps = [
+    'applicationset',
+    'cmd',
+    'cmpserver',
+    'commitserver',
+    'common',
+    'controller',
+    'notification-controller',
+    'pkg',
+    'reposerver',
+    'server',
+    'util',
+    'go.mod',
+    'go.sum',
+]
 local_resource(
     'build',
     'CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=readonly -o .tilt-bin/argocd_linux_amd64 cmd/main.go',
-    deps = [
-        'applicationset',
-        'cmd',
-        'cmpserver',
-        'commitserver',
-        'common',
-        'controller',
-        'notification-controller',
-        'pkg',
-        'reposerver',
-        'server',
-        'util',
-        'go.mod',
-        'go.sum',
-    ],
+    deps = code_deps,
 )
 
 # deploy the argocd manifests
@@ -179,6 +180,7 @@ docker_build(
     context='.',
     dockerfile='Dockerfile.ui.tilt',
     entrypoint=['sh', '-c', 'cd /app/ui && yarn start'], 
+    only=['ui'],
     live_update=[
         sync('ui', '/app/ui'),
         run('sh -c "cd /app/ui && yarn install"', trigger=['/app/ui/package.json', '/app/ui/yarn.lock']),
@@ -190,5 +192,20 @@ k8s_resource(
     workload='argocd-ui',
     port_forwards=[
         '4000:4000',
+    ],
+)
+
+# linting
+local_resource(
+    'lint',
+    'make lint-local',
+    deps = code_deps,
+)
+
+local_resource(
+    'lint-ui',
+    'make lint-ui-local',
+    deps = [
+        'ui',
     ],
 )
