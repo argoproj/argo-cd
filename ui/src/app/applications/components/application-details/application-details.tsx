@@ -480,7 +480,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                 services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: items}});
                             };
                             const clearFilter = () => setFilter([]);
-                            const refreshing = application.metadata.annotations && application.metadata.annotations[appModels.AnnotationRefreshKey];
+                            const refreshing =
+                                application.metadata.annotations && application.metadata.annotations[appModels.AnnotationRefreshKey] && !AppUtils.hasSkipReconcile(application);
                             const appNodesByName = this.groupAppNodesByKey(application, tree);
                             const selectedItem = (this.selectedNodeKey && appNodesByName.get(this.selectedNodeKey)) || null;
                             const isAppSelected = selectedItem === application;
@@ -960,7 +961,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         };
     }
     private getApplicationActionMenu(app: appModels.Application, needOverlapLabelOnNarrowScreen: boolean) {
-        const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
+        const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey] && !AppUtils.hasSkipReconcile(app);
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
         return [
@@ -1037,7 +1038,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                         />
                     </React.Fragment>
                 ),
-                disabled: !!refreshing,
+                disabled: !!refreshing || AppUtils.hasSkipReconcile(app),
                 action: () => {
                     if (!refreshing) {
                         services.applications.get(app.metadata.name, app.metadata.namespace, 'normal');
