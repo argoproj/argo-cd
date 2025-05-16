@@ -6,7 +6,7 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationSelector} from '../../../shared/components';
-import * as AppUtils from "../utils";
+import * as AppUtils from '../utils';
 
 interface Progress {
     percentage: number;
@@ -19,7 +19,10 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
     const [form, setForm] = React.useState<FormApi>(null);
     const [progress, setProgress] = React.useState<Progress>(null);
     const getSelectedApps = (params: any) => apps.filter((_, i) => params['app/' + i]);
+
+    // Filter out apps that should be skipped from reconciliation
     apps = apps.filter(app => !AppUtils.hasSkipReconcile(app));
+
     return (
         <Consumer>
             {ctx => (
