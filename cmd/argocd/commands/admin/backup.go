@@ -223,7 +223,7 @@ func NewImportCommand() *cobra.Command {
 			// pruneObjects tracks live objects, and it's current resource version. any remaining
 			// items in this map indicates the resource should be pruned since it no longer appears
 			// in the backup
-			pruneObjects, err := createPruneObject(acdClients, ctx, applicationNamespaces, namespace, applicationsetNamespaces)
+			pruneObjects, _ := createPruneObject(acdClients, ctx, applicationNamespaces, namespace, applicationsetNamespaces)
 
 			// Create or replace existing object
 			backupObjects, err := kube.SplitYAML(input)

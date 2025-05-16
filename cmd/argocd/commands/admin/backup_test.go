@@ -51,6 +51,10 @@ func newBackupObject(trackingValue string, trackingLabel bool, trackingAnnotatio
 
 func newConfigmapObject() *unstructured.Unstructured {
 	cm := corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: "argocd",
@@ -65,6 +69,10 @@ func newConfigmapObject() *unstructured.Unstructured {
 
 func newSecretsObject() *unstructured.Unstructured {
 	secret := corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDSecretName,
 			Namespace: "default",
@@ -83,6 +91,10 @@ func newSecretsObject() *unstructured.Unstructured {
 
 func newAppProject() *unstructured.Unstructured {
 	appProject := v1alpha1.AppProject{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AppProject",
+			APIVersion: "v1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "default",
 			Namespace: "argocd",
@@ -110,7 +122,8 @@ func newAppProject() *unstructured.Unstructured {
 func newApplication(namespace string) *unstructured.Unstructured {
 	app := v1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
-			Kind: "Application",
+			Kind:       "Application",
+			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
@@ -132,7 +145,8 @@ func newApplication(namespace string) *unstructured.Unstructured {
 func newApplicationSet(namespace string) *unstructured.Unstructured {
 	appSet := v1alpha1.ApplicationSet{
 		TypeMeta: metav1.TypeMeta{
-			Kind: "ApplicationSet",
+			Kind:       "ApplicationSet",
+			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-appset",
@@ -667,7 +681,39 @@ data:
 		t.Run(tt.name, func(t *testing.T) {
 			bakObj := decodeYAMLToUnstructured(t, tt.args.bak)
 			liveObj := decodeYAMLToUnstructured(t, tt.args.live)
-			pruneObjects := make(map[kube.ResourceKey]unstructured.Unstructured)
+
+			var (
+				configMapGVR = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
+				secretGVR    = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"}
+				appGVR       = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "applications"}
+				projGVR      = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "appprojects"}
+				appSetGVR    = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "applicationsets"}
+			)
+
+			cm := newConfigmapObject()
+			secret := newSecretsObject()
+			application := newApplication("argocd")
+			project := newAppProject()
+			applicationSet := newApplicationSet("argocd")
+
+			scheme := runtime.NewScheme()
+
+			listKinds := map[schema.GroupVersionResource]string{
+				configMapGVR: "ConfigMapList",
+				secretGVR:    "SecretList",
+				appGVR:       "ApplicationList",
+				projGVR:      "AppProjectList",
+				appSetGVR:    "ApplicationSetList",
+			}
+
+			fakeClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listKinds, cm, secret, application, project, applicationSet)
+			acdClientsets := &argoCDClientsets{
+				configMaps:      fakeClient.Resource(configMapGVR).Namespace("argocd"),
+				secrets:         fakeClient.Resource(secretGVR).Namespace("argocd"),
+				applications:    fakeClient.Resource(appGVR).Namespace("argocd"),
+				projects:        fakeClient.Resource(projGVR).Namespace("argocd"),
+				applicationSets: fakeClient.Resource(appSetGVR).Namespace("argocd"),
+			}
 
 			configMap := &unstructured.Unstructured{}
 			configMap.SetUnstructuredContent(map[string]any{
@@ -690,7 +736,7 @@ data:
 				Resource: "configmaps",
 			}
 
-			dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), configMap)
+			dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, configMap)
 			configMapResource := dynamicClient.Resource(gvr).Namespace("default")
 
 			if len(tt.applicationNamespaces) == 0 || len(tt.applicationsetNamespaces) == 0 {
@@ -705,30 +751,9 @@ data:
 				}
 			}
 
-			// check if the object is a configMap or not
-			if isArgoCDConfigMap(bakObj.GetName()) {
-				pruneObjects[kube.ResourceKey{Group: "", Kind: "ConfigMap", Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}] = *bakObj
-			}
-			// check if the object is a secret or not
-			if isArgoCDSecret(*bakObj) {
-				pruneObjects[kube.ResourceKey{Group: "", Kind: "Secret", Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}] = *bakObj
-			}
-			// check if the object is an application or not
-			if bakObj.GetKind() == "Application" {
-				if security.IsNamespaceEnabled(bakObj.GetNamespace(), "argocd", tt.applicationNamespaces) {
-					pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "Application", Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}] = *bakObj
-				}
-			}
-			// check if the object is a project or not
-			if bakObj.GetKind() == "AppProject" {
-				pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "AppProject", Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}] = *bakObj
-			}
-			// check if the object is an applicationSet or not
-			if bakObj.GetKind() == "ApplicationSet" {
-				if security.IsNamespaceEnabled(bakObj.GetNamespace(), "argocd", tt.applicationsetNamespaces) {
-					pruneObjects[kube.ResourceKey{Group: "argoproj.io", Kind: "ApplicationSet", Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}] = *bakObj
-				}
-			}
+			pruneObjects, err := createPruneObject(acdClientsets, ctx, tt.applicationNamespaces, namespace, tt.applicationsetNamespaces)
+			require.NoError(t, err)
+
 			gvk := bakObj.GroupVersionKind()
 			if bakObj.GetNamespace() == "" {
 				bakObj.SetNamespace("argocd")
