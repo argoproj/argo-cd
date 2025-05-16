@@ -542,7 +542,7 @@ func TestUpdateAppSet(t *testing.T) {
 			"label-key1": "label-value1-updated",
 			"label-key2": "label-value2",
 		}, updated.Labels)
-		assert.Equal(t, []string{"finalizer1-updated"}, updated.Finalizers)
+		assert.Equal(t, []string{"finalizer-updated"}, updated.Finalizers)
 	})
 
 	t.Run("Update no merge", func(t *testing.T) {
