@@ -135,6 +135,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
         }
     }
     operationAttributes.push({title: 'INITIATED BY', value: initiator || 'Unknown'});
+    operationAttributes.push({title: 'SYNC ID', value: operationState.syncId || ''});
 
     const resultAttributes: {title: string; value: string}[] = [];
     const syncResult = operationState.syncResult;

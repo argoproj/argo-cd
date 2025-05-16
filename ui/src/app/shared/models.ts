@@ -85,6 +85,7 @@ export interface OperationState {
     syncResult: SyncOperationResult;
     startedAt: models.Time;
     finishedAt: models.Time;
+    syncId: string;
 }
 
 export type HookType = 'PreSync' | 'Sync' | 'PostSync' | 'SyncFail' | 'Skip';
