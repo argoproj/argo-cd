@@ -3,6 +3,7 @@ namespace: argocd
 
 resources:
   - namespace.yaml
+  - ui-deployment.yaml
   - ../base/application-controller
   - ../base/dex
   - ../base/repo-server
@@ -12,13 +13,6 @@ resources:
   - ../crds
   - ../base/notification
   - ../base/applicationset-controller
-
-# configuration overrides for argocd server
-configMapGenerator:
-  - name: argocd-cmd-params-cm
-    behavior: merge
-    literals:
-      - server.insecure=true # for ui development (TODO: should we find a better solution?)
 
 patches:
   - target:

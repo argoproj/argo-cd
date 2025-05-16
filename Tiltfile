@@ -166,25 +166,22 @@ k8s_resource(
     ],
 )
 
-
-# install ui dependencies
-local_resource(
-    'install-ui',
-    'yarn install',
-    dir='ui',
-    deps=['ui/package.json'],
+# docker for ui
+docker_build(
+    'argocd-ui',
+    context='.',
+    dockerfile='Dockerfile.ui.tilt',
+    entrypoint=['sh', '-c', 'cd /app/ui && yarn start'], 
+    live_update=[
+        sync('ui', '/app/ui'),
+        run('sh -c "cd /app/ui && yarn install"', trigger=['/app/ui/package.json', '/app/ui/yarn.lock']),
+    ],
 )
 
-# start ui
-local_resource(
-    'start-ui',
-    deps=['ui'],
-    ignore=['node_modules'],
-    resource_deps=['install-ui'],
-    serve_cmd='yarn start',
-    serve_dir='ui',
-    links=['http://localhost:4000'],
+# track argocd-ui resources and port forward
+k8s_resource(
+    workload='argocd-ui',
+    port_forwards=[
+        '4000:4000',
+    ],
 )
-
-
-    
