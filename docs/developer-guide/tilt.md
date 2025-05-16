@@ -8,6 +8,7 @@
 * kustomize
 
 ### Running
-Spin up environment by running `tilt up` in the root directory of the repo
+1. Spin up environment by running `tilt up` in the root directory of the repo
+    * Resources will be deployed into the `argocd` namespace in the cluster that your `kubeconfig` is currently pointed to. 
 
-Spin down and remove deployment manifests: `tilt down`
+2. Spin down and remove deployment manifests: `tilt down`
