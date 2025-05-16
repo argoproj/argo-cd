@@ -320,6 +320,13 @@ message ListAppLinksRequest {
 	optional string project = 4;
 }
 
+// InstanceInfo provides information about which Argo CD instance manages an application.
+message InstanceInfo {
+	optional string instance_name = 1;
+    optional string instance_namespace = 2;
+	optional string instance_url = 3;
+}
+
 
 // ApplicationService
 service ApplicationService {
@@ -497,4 +504,9 @@ service ApplicationService {
 	rpc ListResourceLinks(ApplicationResourceRequest) returns (LinksResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/resource/links";
 	}
+
+  	// GetInstanceInfo returns the Argo CD instance info for an application
+    rpc GetInstanceInfo(ApplicationQuery) returns (InstanceInfo) {
+        option (google.api.http).get = "/api/v1/applications/{name}/instance-info";
+    }
 }

@@ -2750,3 +2750,22 @@ func getProjectsFromApplicationQuery(q application.ApplicationQuery) []string {
 	}
 	return q.Projects
 }
+
+// GetInstanceInfo returns information about which Argo CD instance manages an application.
+func (s *Server) GetInstanceInfo(ctx context.Context, q *application.ApplicationQuery) (*application.InstanceInfo, error) {
+	settings, err := s.settingsMgr.GetSettings()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get settings: %w", err)
+	}
+
+	ns := s.settingsMgr.GetNamespace()
+	url := settings.URL
+
+	strPtr := func(s string) *string { return &s }
+
+	return &application.InstanceInfo{
+		InstanceName:      strPtr(ns), // Use namespace as the instance name
+		InstanceNamespace: strPtr(ns),
+		InstanceUrl:       strPtr(url),
+	}, nil
+}
