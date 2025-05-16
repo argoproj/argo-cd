@@ -553,7 +553,7 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 	}
 
 	appOwnsHandler := getApplicationOwnsHandler(enableProgressiveSyncs)
-	appSetOwnsHandler := getApplicationSetOwnsHandler()
+	appSetOwnsHandler := getApplicationSetOwnsHandler(enableProgressiveSyncs)
 
 	return ctrl.NewControllerManagedBy(mgr).WithOptions(controller.Options{
 		MaxConcurrentReconciles: maxConcurrentReconciliations,
@@ -1550,7 +1550,7 @@ func shouldRequeueForApplication(appOld *argov1alpha1.Application, appNew *argov
 	return false
 }
 
-func getApplicationSetOwnsHandler() predicate.Funcs {
+func getApplicationSetOwnsHandler(enableProgressiveSyncs bool) predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			appSet, isApp := e.Object.(*argov1alpha1.ApplicationSet)
@@ -1579,7 +1579,7 @@ func getApplicationSetOwnsHandler() predicate.Funcs {
 			if !isAppSet {
 				return false
 			}
-			requeue := shouldRequeueForApplicationSet(appSetOld, appSetNew)
+			requeue := shouldRequeueForApplicationSet(appSetOld, appSetNew, enableProgressiveSyncs)
 			log.WithField("applicationset", appSetNew.QualifiedName()).
 				WithField("requeue", requeue).Debugln("received update event")
 			return requeue
@@ -1597,10 +1597,23 @@ func getApplicationSetOwnsHandler() predicate.Funcs {
 }
 
 // shouldRequeueForApplicationSet determines when we need to requeue an applicationset
-func shouldRequeueForApplicationSet(appSetOld, appSetNew *argov1alpha1.ApplicationSet) bool {
+func shouldRequeueForApplicationSet(appSetOld, appSetNew *argov1alpha1.ApplicationSet, enableProgressiveSyncs bool) bool {
 	if appSetOld == nil || appSetNew == nil {
 		return false
 	}
+
+	// Requeue if any ApplicationStatus.Status changed for Progressive sync strategy
+	if enableProgressiveSyncs {
+		for _, newApplicationStatus := range appSetNew.Status.ApplicationStatus {
+			idx := findApplicationStatusIndex(appSetOld.Status.ApplicationStatus, newApplicationStatus.Application)
+			if idx != -1 {
+				if appSetOld.Status.ApplicationStatus[idx].Status != newApplicationStatus.Status {
+					return true
+				}
+			}
+		}
+	}
+
 	// only compare the applicationset spec, annotations, labels and finalizers, specifically avoiding
 	// the status field. status is owned by the applicationset controller,
 	// and we do not need to requeue when it does bookkeeping
