@@ -51,6 +51,8 @@ type RepoCreds struct {
 	NoProxy string `json:"noProxy,omitempty" protobuf:"bytes,23,opt,name=noProxy"`
 	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
 	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty" protobuf:"bytes,24,opt,name=useAzureWorkloadIdentity"`
+	// UseAWSAuthentication specifies whether to use AWS Authentication for authentication
+	UseAWSAuthentication bool `json:"useAWSAuthentication,omitempty" protobuf:"bytes,26,opt,name=useAWSAuthentication"`
 	// BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
 	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
 }
@@ -106,6 +108,8 @@ type Repository struct {
 	NoProxy string `json:"noProxy,omitempty" protobuf:"bytes,23,opt,name=noProxy"`
 	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
 	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty" protobuf:"bytes,24,opt,name=useAzureWorkloadIdentity"`
+	// UseAWSAuthentication specifies whether to use AWS Authentication for authentication
+	UseAWSAuthentication bool `json:"useAWSAuthentication,omitempty" protobuf:"bytes,26,opt,name=useAWSAuthentication"`
 	// BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
 	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
 }
@@ -122,7 +126,7 @@ func (repo *Repository) IsLFSEnabled() bool {
 
 // HasCredentials returns true when the repository has been configured with any credentials
 func (repo *Repository) HasCredentials() bool {
-	return repo.Username != "" || repo.Password != "" || repo.BearerToken != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != "" || repo.UseAzureWorkloadIdentity
+	return repo.Username != "" || repo.Password != "" || repo.BearerToken != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != "" || repo.UseAzureWorkloadIdentity || repo.UseAWSAuthentication
 }
 
 // CopyCredentialsFromRepo copies all credential information from source repository to receiving repository
@@ -163,6 +167,7 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 		}
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
 		repo.UseAzureWorkloadIdentity = source.UseAzureWorkloadIdentity
+		repo.UseAWSAuthentication = source.UseAWSAuthentication
 	}
 }
 
@@ -210,6 +215,7 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		}
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
 		repo.UseAzureWorkloadIdentity = source.UseAzureWorkloadIdentity
+		repo.UseAWSAuthentication = source.UseAWSAuthentication
 	}
 }
 
@@ -233,6 +239,9 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 	if repo.UseAzureWorkloadIdentity {
 		return git.NewAzureWorkloadIdentityCreds(store, workloadidentity.NewWorkloadIdentityTokenProvider())
 	}
+	if repo.UseAWSAuthentication {
+		return git.NewAwsCreds(store)
+	}
 	return git.NopCreds{}
 }
 
@@ -246,6 +255,16 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 			[]byte(repo.TLSClientCertKey),
 			repo.Insecure,
 			workloadidentity.NewWorkloadIdentityTokenProvider(),
+		)
+	}
+	if repo.UseAWSAuthentication {
+		log.Warnf("Obtained credentials for Helm repository '%s' using AWS ", repo.Repo)
+		return helm.NewAwsCreds(
+			repo.Repo,
+			getCAPath(repo.Repo),
+			[]byte(repo.TLSClientCertData),
+			[]byte(repo.TLSClientCertKey),
+			repo.Insecure,
 		)
 	}
 

@@ -367,6 +367,12 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	}
 	repository.UseAzureWorkloadIdentity = useAzureWorkloadIdentity
 
+	useAwsAuthentication, err := boolOrFalse(secret, "useAWSAuthentication")
+	if err != nil {
+		return repository, err
+	}
+	repository.UseAWSAuthentication = useAwsAuthentication
+
 	return repository, nil
 }
 
@@ -398,6 +404,7 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretString(secret, "gcpServiceAccountKey", repository.GCPServiceAccountKey)
 	updateSecretBool(secret, "forceHttpBasicAuth", repository.ForceHttpBasicAuth)
 	updateSecretBool(secret, "useAzureWorkloadIdentity", repository.UseAzureWorkloadIdentity)
+	updateSecretBool(secret, "useAWSAuthentication", repository.UseAWSAuthentication)
 	addSecretMetadata(secret, s.getSecretType())
 }
 
@@ -448,6 +455,12 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 	}
 	repository.UseAzureWorkloadIdentity = useAzureWorkloadIdentity
 
+	useAWSAuthentication, err := boolOrFalse(secret, "useAWSAuthentication")
+	if err != nil {
+		return repository, err
+	}
+	repository.UseAWSAuthentication = useAWSAuthentication
+
 	return repository, nil
 }
 
@@ -474,6 +487,7 @@ func repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
 	updateSecretString(secret, "noProxy", repoCreds.NoProxy)
 	updateSecretBool(secret, "forceHttpBasicAuth", repoCreds.ForceHttpBasicAuth)
 	updateSecretBool(secret, "useAzureWorkloadIdentity", repoCreds.UseAzureWorkloadIdentity)
+	updateSecretBool(secret, "useAWSAuthentication", repoCreds.UseAWSAuthentication)
 	addSecretMetadata(secret, common.LabelValueSecretTypeRepoCreds)
 }
 
@@ -491,7 +505,6 @@ func (s *secretsRepositoryBackend) getRepositorySecret(repoURL, project string, 
 				if foundSecret != nil {
 					log.Warnf("Found multiple credentials for repoURL: %s", repoURL)
 				}
-
 				return secret, nil
 			}
 

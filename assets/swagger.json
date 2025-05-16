@@ -9036,6 +9036,10 @@
           "type": "string",
           "title": "URL is the URL to which these credentials match"
         },
+        "useAWSAuthentication": {
+          "type": "boolean",
+          "title": "UseAWSAuthentication specifies whether to use AWS Authentication for authentication"
+        },
         "useAzureWorkloadIdentity": {
           "type": "boolean",
           "title": "UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication"
@@ -9157,6 +9161,10 @@
         "type": {
           "description": "Type specifies the type of the repo. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent.",
           "type": "string"
+        },
+        "useAWSAuthentication": {
+          "type": "boolean",
+          "title": "UseAWSAuthentication specifies whether to use AWS Authentication for authentication"
         },
         "useAzureWorkloadIdentity": {
           "type": "boolean",
