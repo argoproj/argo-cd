@@ -848,7 +848,11 @@ func (mgr *SettingsManager) GetTrackingMethod() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return argoCDCM.Data[settingsResourceTrackingMethodKey], nil
+	tm := argoCDCM.Data[settingsResourceTrackingMethodKey]
+	if tm == "" {
+		return string(v1alpha1.TrackingMethodAnnotation), nil
+	}
+	return tm, nil
 }
 
 func (mgr *SettingsManager) GetInstallationID() (string, error) {
