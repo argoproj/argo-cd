@@ -31,6 +31,7 @@ interface Props {
     showConditions?: () => any;
     showExtension?: (id: string) => any;
     showMetadataInfo?: (revision: string) => any;
+    authSettings?: models.AuthSettings;
 }
 
 interface SectionInfo {
@@ -119,7 +120,7 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
     );
 };
 
-export const ApplicationStatusPanel = ({application, showDiff, showOperation, showHydrateOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
+export const ApplicationStatusPanel = ({application, showDiff, showOperation, showHydrateOperation, showConditions, showExtension, showMetadataInfo, authSettings}: Props) => {
     const [showProgressiveSync, setShowProgressiveSync] = React.useState(false);
 
     React.useEffect(() => {
@@ -224,7 +225,8 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                         {application.spec.syncPolicy?.automated ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}
                     </div>
-                    {application.status &&
+                    {authSettings?.commitSummaryEnabled &&
+                        application.status &&
                         application.status.sync &&
                         (hasMultipleSources
                             ? application.status.sync.revisions && application.status.sync.revisions[0] && application.spec.sources && !application.spec.sources[0].chart
@@ -272,15 +274,16 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                         <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                             {appOperationState.phase} <Timestamp date={appOperationState.finishedAt || appOperationState.startedAt} />
                         </div>
-                        {(appOperationState.syncResult && operationStateRevision && (
-                            <RevisionMetadataPanel
-                                appName={application.metadata.name}
-                                appNamespace={application.metadata.namespace}
-                                type={source?.chart && 'helm'}
-                                revision={operationStateRevision}
-                                versionId={utils.getAppCurrentVersion(application)}
-                            />
-                        )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
+                        {authSettings?.commitSummaryEnabled &&
+                            ((appOperationState.syncResult && operationStateRevision && (
+                                <RevisionMetadataPanel
+                                    appName={application.metadata.name}
+                                    appNamespace={application.metadata.namespace}
+                                    type={source?.chart && 'helm'}
+                                    revision={operationStateRevision}
+                                    versionId={utils.getAppCurrentVersion(application)}
+                                />
+                            )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>)}
                     </React.Fragment>
                 </div>
             )}
