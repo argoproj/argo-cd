@@ -121,8 +121,8 @@ const (
 	// GithubAppCredsExpirationDuration is the default time used to cache the GitHub app credentials
 	GithubAppCredsExpirationDuration = time.Minute * 60
 
-	// PasswordPatten is the default password patten
-	PasswordPatten = `^.{8,32}$`
+	// PasswordPattern is the default password pattern
+	PasswordPattern = `^.{8,32}$`
 
 	// LegacyShardingAlgorithm is the default value for Sharding Algorithm it uses an `uid` based distribution (non-uniform)
 	LegacyShardingAlgorithm = "legacy"

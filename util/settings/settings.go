@@ -849,7 +849,7 @@ func (mgr *SettingsManager) GetPasswordPattern() (string, error) {
 	}
 	label := argoCDCM.Data[settingsPasswordPatternKey]
 	if label == "" {
-		return common.PasswordPatten, nil
+		return common.PasswordPattern, nil
 	}
 	return label, nil
 }
@@ -1441,7 +1441,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	}
 	settings.PasswordPattern = argoCDCM.Data[settingsPasswordPatternKey]
 	if settings.PasswordPattern == "" {
-		settings.PasswordPattern = common.PasswordPatten
+		settings.PasswordPattern = common.PasswordPattern
 	}
 	if maxPodLogsToRenderStr, ok := argoCDCM.Data[settingsMaxPodLogsToRender]; ok {
 		if val, err := strconv.ParseInt(maxPodLogsToRenderStr, 10, 64); err != nil {
