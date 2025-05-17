@@ -112,7 +112,7 @@ spec:
 * `api`: If using self-hosted GitLab, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Labels is used to filter the MRs that you want to target. (Optional)
-* `pullRequestState`: PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
+* `pullRequestState`: PullRequestState is an additional MRs filter to get only those with a certain state. By default all states. Default: "" (all states). Valid values: `""`, `opened`, `closed`, `merged` or `locked`. (Optional)
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
 * `caRef`: Optional `ConfigMap` name and key containing the GitLab certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
 
@@ -262,6 +262,14 @@ spec:
         # Filter PRs using the source branch name. (optional)
         filters:
           - branchMatch: ".*-argocd"
+          
+          # If you need to filter destination branch too, you can use this
+          - targetBranchMatch: "master"
+            
+          # Also you can combine source and target branch filters like
+          # This case will match any pull-request where source branch ends with "-argocd" and destination branch is master
+          - branchMatch: ".*-argocd"
+            targetBranchMatch: "master"
   template:
   # ...
 ```
@@ -269,7 +277,12 @@ spec:
 - `owner`: Required name of the Bitbucket workspace
 - `repo`: Required name of the Bitbucket repository.
 - `api`: Optional URL to access the Bitbucket REST API. For the example above, an API request would be made to `https://api.bitbucket.org/2.0/repositories/{workspace}/{repo_slug}/pullrequests`. If not set, defaults to `https://api.bitbucket.org/2.0`
-- `branchMatch`: Optional regexp filter which should match the source branch name. This is an alternative to labels which are not supported by Bitbucket server.
+
+You can use branch `filters` like
+- `branchMatch`: Optional regexp filter which should match the source branch name.
+- `targetBranchMatch`: Optional regexp filter which should match destination branch name.
+
+> Note: Labels are not supported by Bitbucket.
 
 If you want to access a private repository, Argo CD will need credentials to access repository in Bitbucket Cloud. You can use Bitbucket App Password (generated per user, with access to whole workspace), or Bitbucket App Token (generated per repository, with access limited to repository scope only). If both App Password and App Token are defined, App Token will be used.
 
@@ -480,3 +493,39 @@ For more information about each event, please refer to the [official documentati
 ## Lifecycle
 
 An Application will be generated when a Pull Request is discovered when the configured criteria is met - i.e. for GitHub when a Pull Request matches the specified `labels` and/or `pullRequestState`. Application will be removed when a Pull Request no longer meets the specified criteria.
+
+## Pass additional key-value pairs via `values` field
+
+You may pass additional, arbitrary string key-value pairs via the `values` field of any Pull Request generator. Values added via the `values` field are added as `values.(field)`.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - pullRequest:
+      # ...
+      values:
+        pr_branch: '{{ .branch }}'
+  template:
+    metadata:
+      name: '{{ .values.name }}'
+    spec:
+      source:
+        repoURL: '{{ .url }}'
+        targetRevision: '{{ .branch }}'
+        path: kubernetes/
+      project: default
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: default
+```
+
+!!! note
+    The `values.` prefix is always prepended to values provided via `generators.pullRequest.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
+
+In `values` we can also interpolate all fields set by the Pull Request generator as mentioned above.

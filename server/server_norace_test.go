@@ -15,10 +15,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/test"
 )
 
 func TestUserAgent(t *testing.T) {
@@ -34,7 +34,7 @@ func TestUserAgent(t *testing.T) {
 
 	cancelInformer := test.StartInformer(s.projInformer)
 	defer cancelInformer()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	s.Init(ctx)
 	go s.Run(ctx, lns)
@@ -50,7 +50,7 @@ func TestUserAgent(t *testing.T) {
 	tests := []testData{
 		{
 			// Reject out-of-date user-agent
-			userAgent: fmt.Sprintf("%s/0.10.0", common.ArgoCDUserAgentName),
+			userAgent: common.ArgoCDUserAgentName + "/0.10.0",
 			errorMsg:  "unsatisfied client version constraint",
 		},
 		{
@@ -99,7 +99,7 @@ func Test_StaticHeaders(t *testing.T) {
 		require.NoError(t, err)
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		s.Init(ctx)
 		go s.Run(ctx, lns)
@@ -128,7 +128,7 @@ func Test_StaticHeaders(t *testing.T) {
 		defer cancelInformer()
 		lns, err := s.Listen()
 		require.NoError(t, err)
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		s.Init(ctx)
 		go s.Run(ctx, lns)
@@ -157,7 +157,7 @@ func Test_StaticHeaders(t *testing.T) {
 		defer cancelInformer()
 		lns, err := s.Listen()
 		require.NoError(t, err)
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		s.Init(ctx)
 		go s.Run(ctx, lns)

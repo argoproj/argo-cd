@@ -5,23 +5,22 @@ import (
 	"strings"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
+
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 func strToUnstructured(jsonStr string) *unstructured.Unstructured {
-	obj := make(map[string]interface{})
+	obj := make(map[string]any)
 	err := yaml.Unmarshal([]byte(jsonStr), &obj)
 	errors.CheckError(err)
 	return &unstructured.Unstructured{Object: obj}
@@ -159,7 +158,7 @@ var (
       ingress:
       - ip: 107.178.210.11`)
 
-	testIngressWithoutTls = strToUnstructured(`
+	testIngressWithoutTLS = strToUnstructured(`
   apiVersion: extensions/v1beta1
   kind: Ingress
   metadata:
@@ -313,7 +312,7 @@ func TestGetPodInfo(t *testing.T) {
 		assert.Equal(t, []string{"bar"}, info.Images)
 		assert.Equal(t, &PodInfo{
 			NodeName:         "minikube",
-			ResourceRequests: v1.ResourceList{v1.ResourceMemory: resource.MustParse("128Mi")},
+			ResourceRequests: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("128Mi")},
 		}, info.PodInfo)
 		assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{Labels: map[string]string{"app": "guestbook"}}, info.NetworkingInfo)
 	})
@@ -1079,8 +1078,8 @@ status:
 	populateNodeInfo(node, info, []string{})
 	assert.Equal(t, &NodeInfo{
 		Name:       "minikube",
-		Capacity:   v1.ResourceList{v1.ResourceMemory: resource.MustParse("6091320Ki"), v1.ResourceCPU: resource.MustParse("6")},
-		SystemInfo: v1.NodeSystemInfo{Architecture: "amd64", OperatingSystem: "linux", OSImage: "Ubuntu 20.04 LTS"},
+		Capacity:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("6091320Ki"), corev1.ResourceCPU: resource.MustParse("6")},
+		SystemInfo: corev1.NodeSystemInfo{Architecture: "amd64", OperatingSystem: "linux", OSImage: "Ubuntu 20.04 LTS"},
 	}, info.NodeInfo)
 }
 
@@ -1090,7 +1089,7 @@ func TestGetServiceInfo(t *testing.T) {
 	assert.Empty(t, info.Info)
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		TargetLabels: map[string]string{"app": "guestbook"},
-		Ingress:      []v1.LoadBalancerIngress{{Hostname: "localhost"}},
+		Ingress:      []corev1.LoadBalancerIngress{{Hostname: "localhost"}},
 	}, info.NetworkingInfo)
 }
 
@@ -1100,7 +1099,7 @@ func TestGetLinkAnnotatedServiceInfo(t *testing.T) {
 	assert.Empty(t, info.Info)
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		TargetLabels: map[string]string{"app": "guestbook"},
-		Ingress:      []v1.LoadBalancerIngress{{Hostname: "localhost"}},
+		Ingress:      []corev1.LoadBalancerIngress{{Hostname: "localhost"}},
 		ExternalURLs: []string{"http://my-grafana.example.com/pre-generated-link"},
 	}, info.NetworkingInfo)
 }
@@ -1158,7 +1157,7 @@ func TestGetIngressInfo(t *testing.T) {
 			return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
 		})
 		assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
-			Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+			Ingress: []corev1.LoadBalancerIngress{{IP: "107.178.210.11"}},
 			TargetRefs: []v1alpha1.ResourceRef{{
 				Namespace: "default",
 				Group:     "",
@@ -1183,7 +1182,7 @@ func TestGetLinkAnnotatedIngressInfo(t *testing.T) {
 		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
 	})
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
-		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+		Ingress: []corev1.LoadBalancerIngress{{IP: "107.178.210.11"}},
 		TargetRefs: []v1alpha1.ResourceRef{{
 			Namespace: "default",
 			Group:     "",
@@ -1207,7 +1206,7 @@ func TestGetIngressInfoWildCardPath(t *testing.T) {
 		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
 	})
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
-		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+		Ingress: []corev1.LoadBalancerIngress{{IP: "107.178.210.11"}},
 		TargetRefs: []v1alpha1.ResourceRef{{
 			Namespace: "default",
 			Group:     "",
@@ -1225,13 +1224,13 @@ func TestGetIngressInfoWildCardPath(t *testing.T) {
 
 func TestGetIngressInfoWithoutTls(t *testing.T) {
 	info := &ResourceInfo{}
-	populateNodeInfo(testIngressWithoutTls, info, []string{})
+	populateNodeInfo(testIngressWithoutTLS, info, []string{})
 	assert.Empty(t, info.Info)
 	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
 		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
 	})
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
-		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+		Ingress: []corev1.LoadBalancerIngress{{IP: "107.178.210.11"}},
 		TargetRefs: []v1alpha1.ResourceRef{{
 			Namespace: "default",
 			Group:     "",
@@ -1273,7 +1272,7 @@ func TestGetIngressInfoWithHost(t *testing.T) {
 	populateNodeInfo(ingress, info, []string{})
 
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
-		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+		Ingress: []corev1.LoadBalancerIngress{{IP: "107.178.210.11"}},
 		TargetRefs: []v1alpha1.ResourceRef{{
 			Namespace: "default",
 			Group:     "",

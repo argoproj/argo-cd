@@ -3,31 +3,32 @@ package sharding
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"hash/fnv"
 	"math"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	slices "golang.org/x/exp/slices"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/controller/sharding/consistent"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/controller/sharding/consistent"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
 	log "github.com/sirupsen/logrus"
-	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // Make it overridable for testing
@@ -62,7 +63,7 @@ type shardApplicationControllerMapping struct {
 // and returns whether or not the cluster should be processed by a given shard. It calls the distributionFunction
 // to determine which shard will process the cluster, and if the given shard is equal to the calculated shard
 // the function will return true.
-func GetClusterFilter(db db.ArgoDB, distributionFunction DistributionFunction, replicas, shard int) ClusterFilterFunction {
+func GetClusterFilter(_ db.ArgoDB, distributionFunction DistributionFunction, replicas, shard int) ClusterFilterFunction {
 	return func(c *v1alpha1.Cluster) bool {
 		clusterShard := 0
 		if c != nil && c.Shard != nil {
@@ -121,13 +122,12 @@ func LegacyDistributionFunction(replicas int) DistributionFunction {
 		log.Debugf("Calculating cluster shard for cluster id: %s", id)
 		if id == "" {
 			return 0
-		} else {
-			h := fnv.New32a()
-			_, _ = h.Write([]byte(id))
-			shard := int32(h.Sum32() % uint32(replicas))
-			log.Debugf("Cluster with id=%s will be processed by shard %d", id, shard)
-			return int(shard)
 		}
+		h := fnv.New32a()
+		_, _ = h.Write([]byte(id))
+		shard := int32(h.Sum32() % uint32(replicas))
+		log.Debugf("Cluster with id=%s will be processed by shard %d", id, shard)
+		return int(shard)
 	}
 }
 
@@ -148,17 +148,16 @@ func RoundRobinDistributionFunction(clusters clusterAccessor, replicas int) Dist
 			// then its value is returned otherwise it is the default calculated value
 			if c.Shard != nil && int(*c.Shard) < replicas {
 				return int(*c.Shard)
-			} else {
-				clusterIndexdByClusterIdMap := createClusterIndexByClusterIdMap(clusters)
-				clusterIndex, ok := clusterIndexdByClusterIdMap[c.ID]
-				if !ok {
-					log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
-					return -1
-				}
-				shard := int(clusterIndex % replicas)
-				log.Debugf("Cluster with id=%s will be processed by shard %d", c.ID, shard)
-				return shard
 			}
+			clusterIndexdByClusterIdMap := createClusterIndexByClusterIdMap(clusters)
+			clusterIndex, ok := clusterIndexdByClusterIdMap[c.ID]
+			if !ok {
+				log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
+				return -1
+			}
+			shard := int(clusterIndex % replicas)
+			log.Debugf("Cluster with id=%s will be processed by shard %d", c.ID, shard)
+			return shard
 		}
 		log.Warnf("The number of replicas (%d) is lower than 1", replicas)
 		return -1
@@ -180,22 +179,21 @@ func ConsistentHashingWithBoundedLoadsDistributionFunction(clusters clusterAcces
 			// then its value is returned otherwise it is the default calculated value
 			if c.Shard != nil && int(*c.Shard) < replicas {
 				return int(*c.Shard)
-			} else {
-				// if the cluster is not in the clusters list anymore, we should unassign it from any shard, so we
-				// return the reserved value of -1
-				if !slices.Contains(clusters(), c) {
-					log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
-					return -1
-				}
-				shardIndexedByCluster := createConsistentHashingWithBoundLoads(replicas, clusters, apps)
-				shard, ok := shardIndexedByCluster[c.ID]
-				if !ok {
-					log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
-					return -1
-				}
-				log.Debugf("Cluster with id=%s will be processed by shard %d", c.ID, shard)
-				return shard
 			}
+			// if the cluster is not in the clusters list anymore, we should unassign it from any shard, so we
+			// return the reserved value of -1
+			if !slices.Contains(clusters(), c) {
+				log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
+				return -1
+			}
+			shardIndexedByCluster := createConsistentHashingWithBoundLoads(replicas, clusters, apps)
+			shard, ok := shardIndexedByCluster[c.ID]
+			if !ok {
+				log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
+				return -1
+			}
+			log.Debugf("Cluster with id=%s will be processed by shard %d", c.ID, shard)
+			return shard
 		}
 		log.Warnf("The number of replicas (%d) is lower than 1", replicas)
 		return -1
@@ -254,7 +252,7 @@ func getAppDistribution(getCluster clusterAccessor, getApps appAccessor) map[str
 // NoShardingDistributionFunction returns a DistributionFunction that will process all cluster by shard 0
 // the function is created for API compatibility purposes and is not supposed to be activated.
 func NoShardingDistributionFunction() DistributionFunction {
-	return func(c *v1alpha1.Cluster) int { return 0 }
+	return func(_ *v1alpha1.Cluster) int { return 0 }
 }
 
 // InferShard extracts the shard index based on its hostname.
@@ -310,9 +308,8 @@ func GetOrUpdateShardFromConfigMap(kubeClient kubernetes.Interface, settingsMgr 
 
 	// fetch the shard mapping configMap
 	shardMappingCM, err := kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Get(context.Background(), common.ArgoCDAppControllerShardConfigMapName, metav1.GetOptions{})
-
 	if err != nil {
-		if !kubeerrors.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			return -1, fmt.Errorf("error getting sharding config map: %w", err)
 		}
 		log.Infof("shard mapping configmap %s not found. Creating default shard mapping configmap.", common.ArgoCDAppControllerShardConfigMapName)
@@ -330,28 +327,27 @@ func GetOrUpdateShardFromConfigMap(kubeClient kubernetes.Interface, settingsMgr 
 		}
 		// return 0 as the controller is assigned to shard 0 while generating default shard mapping ConfigMap
 		return shard, nil
-	} else {
-		// Identify the available shard and update the ConfigMap
-		data := shardMappingCM.Data[ShardControllerMappingKey]
-		var shardMappingData []shardApplicationControllerMapping
-		err := json.Unmarshal([]byte(data), &shardMappingData)
-		if err != nil {
-			return -1, fmt.Errorf("error unmarshalling shard config map data: %w", err)
-		}
-
-		shard, shardMappingData := getOrUpdateShardNumberForController(shardMappingData, hostname, replicas, shard)
-		updatedShardMappingData, err := json.Marshal(shardMappingData)
-		if err != nil {
-			return -1, fmt.Errorf("error marshalling data of shard mapping ConfigMap: %w", err)
-		}
-		shardMappingCM.Data[ShardControllerMappingKey] = string(updatedShardMappingData)
-
-		_, err = kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Update(context.Background(), shardMappingCM, metav1.UpdateOptions{})
-		if err != nil {
-			return -1, err
-		}
-		return shard, nil
 	}
+	// Identify the available shard and update the ConfigMap
+	data := shardMappingCM.Data[ShardControllerMappingKey]
+	var shardMappingData []shardApplicationControllerMapping
+	err = json.Unmarshal([]byte(data), &shardMappingData)
+	if err != nil {
+		return -1, fmt.Errorf("error unmarshalling shard config map data: %w", err)
+	}
+
+	shard, shardMappingData = getOrUpdateShardNumberForController(shardMappingData, hostname, replicas, shard)
+	updatedShardMappingData, err := json.Marshal(shardMappingData)
+	if err != nil {
+		return -1, fmt.Errorf("error marshalling data of shard mapping ConfigMap: %w", err)
+	}
+	shardMappingCM.Data[ShardControllerMappingKey] = string(updatedShardMappingData)
+
+	_, err = kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Update(context.Background(), shardMappingCM, metav1.UpdateOptions{})
+	if err != nil {
+		return -1, err
+	}
+	return shard, nil
 }
 
 // getOrUpdateShardNumberForController takes list of shardApplicationControllerMapping and performs computation to find the matching or empty shard number
@@ -419,8 +415,8 @@ func getOrUpdateShardNumberForController(shardMappingData []shardApplicationCont
 }
 
 // generateDefaultShardMappingCM creates a default shard mapping configMap. Assigns current controller to shard 0.
-func generateDefaultShardMappingCM(namespace, hostname string, replicas, shard int) (*v1.ConfigMap, error) {
-	shardingCM := &v1.ConfigMap{
+func generateDefaultShardMappingCM(namespace, hostname string, replicas, shard int) (*corev1.ConfigMap, error) {
+	shardingCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDAppControllerShardConfigMapName,
 			Namespace: namespace,
@@ -468,11 +464,10 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 			return nil, fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment: %w", err)
 		}
 
-		if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
-			replicasCount = int(*appControllerDeployment.Spec.Replicas)
-		} else {
-			return nil, fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment replica count")
+		if appControllerDeployment == nil || appControllerDeployment.Spec.Replicas == nil {
+			return nil, stderrors.New("(dynamic cluster distribution) failed to get app controller deployment replica count")
 		}
+		replicasCount = int(*appControllerDeployment.Spec.Replicas)
 	} else {
 		replicasCount = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
 	}
@@ -486,11 +481,14 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 			// If we still see conflicts after the retries, wait for next iteration of heartbeat process.
 			for i := 0; i <= common.AppControllerHeartbeatUpdateRetryCount; i++ {
 				shardNumber, err = GetOrUpdateShardFromConfigMap(kubeClient, settingsMgr, replicasCount, shardNumber)
-				if err != nil && !kubeerrors.IsConflict(err) {
+				if err != nil && !apierrors.IsConflict(err) {
 					err = fmt.Errorf("unable to get shard due to error updating the sharding config map: %w", err)
 					break
 				}
-				log.Warnf("conflict when getting shard from shard mapping configMap. Retrying (%d/3)", i)
+				// if `err == nil`, should not log the following warning message
+				if err != nil {
+					log.Warnf("conflict when getting shard from shard mapping configMap. Retrying (%d/3)", i)
+				}
 			}
 			errors.CheckError(err)
 		} else {

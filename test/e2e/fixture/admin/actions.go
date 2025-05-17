@@ -1,7 +1,9 @@
 package admin
 
 import (
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"time"
+
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
 
 // this implements the "when" part of given/when/then
@@ -63,5 +65,6 @@ func (a *Actions) runCliWithStdin(stdin string, args ...string) {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a}
 }

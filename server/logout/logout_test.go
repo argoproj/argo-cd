@@ -1,7 +1,6 @@
 package logout
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -9,13 +8,13 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/session"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/session"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -87,7 +86,7 @@ func TestConstructLogoutURL(t *testing.T) {
 }
 
 func TestHandlerConstructLogoutURL(t *testing.T) {
-	kubeClientWithOIDCConfig := fake.NewSimpleClientset(
+	kubeClientWithOIDCConfig := fake.NewClientset(
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
@@ -119,7 +118,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			},
 		},
 	)
-	kubeClientWithOIDCConfigButNoURL := fake.NewSimpleClientset(
+	kubeClientWithOIDCConfigButNoURL := fake.NewClientset(
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
@@ -151,7 +150,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			},
 		},
 	)
-	kubeClientWithOIDCConfigButNoLogoutURL := fake.NewSimpleClientset(
+	kubeClientWithOIDCConfigButNoLogoutURL := fake.NewClientset(
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
@@ -182,7 +181,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			},
 		},
 	)
-	kubeClientWithoutOIDCAndMultipleURLs := fake.NewSimpleClientset(
+	kubeClientWithoutOIDCAndMultipleURLs := fake.NewClientset(
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
@@ -210,7 +209,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			},
 		},
 	)
-	kubeClientWithoutOIDCConfig := fake.NewSimpleClientset(
+	kubeClientWithoutOIDCConfig := fake.NewClientset(
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
@@ -238,11 +237,11 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 		},
 	)
 
-	settingsManagerWithOIDCConfig := settings.NewSettingsManager(context.Background(), kubeClientWithOIDCConfig, "default")
-	settingsManagerWithoutOIDCConfig := settings.NewSettingsManager(context.Background(), kubeClientWithoutOIDCConfig, "default")
-	settingsManagerWithOIDCConfigButNoLogoutURL := settings.NewSettingsManager(context.Background(), kubeClientWithOIDCConfigButNoLogoutURL, "default")
-	settingsManagerWithoutOIDCAndMultipleURLs := settings.NewSettingsManager(context.Background(), kubeClientWithoutOIDCAndMultipleURLs, "default")
-	settingsManagerWithOIDCConfigButNoURL := settings.NewSettingsManager(context.Background(), kubeClientWithOIDCConfigButNoURL, "default")
+	settingsManagerWithOIDCConfig := settings.NewSettingsManager(t.Context(), kubeClientWithOIDCConfig, "default")
+	settingsManagerWithoutOIDCConfig := settings.NewSettingsManager(t.Context(), kubeClientWithoutOIDCConfig, "default")
+	settingsManagerWithOIDCConfigButNoLogoutURL := settings.NewSettingsManager(t.Context(), kubeClientWithOIDCConfigButNoLogoutURL, "default")
+	settingsManagerWithoutOIDCAndMultipleURLs := settings.NewSettingsManager(t.Context(), kubeClientWithoutOIDCAndMultipleURLs, "default")
+	settingsManagerWithOIDCConfigButNoURL := settings.NewSettingsManager(t.Context(), kubeClientWithOIDCConfigButNoURL, "default")
 
 	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
 

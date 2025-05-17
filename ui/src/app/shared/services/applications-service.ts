@@ -21,6 +21,8 @@ function optionsToSearch(options?: QueryOptions) {
 }
 
 export class ApplicationsService {
+    constructor() {}
+
     public list(projects: string[], options?: QueryOptions): Promise<models.ApplicationList> {
         return requests
             .get('/applications')
@@ -260,6 +262,7 @@ export class ApplicationsService {
         sinceSeconds?: number;
         untilTime?: string;
         filter?: string;
+        matchCase?: boolean;
         previous?: boolean;
     }): Observable<models.LogEntry> {
         const {applicationName} = query;
@@ -325,18 +328,27 @@ export class ApplicationsService {
             });
     }
 
-    public runResourceAction(name: string, appNamespace: string, resource: models.ResourceNode, action: string): Promise<models.ResourceAction[]> {
+    public runResourceAction(
+        name: string,
+        appNamespace: string,
+        resource: models.ResourceNode,
+        action: string,
+        resourceActionParameters: models.ResourceActionParam[]
+    ): Promise<models.ResourceAction[]> {
         return requests
             .post(`/applications/${name}/resource/actions`)
-            .query({
-                appNamespace,
-                namespace: resource.namespace,
-                resourceName: resource.name,
-                version: resource.version,
-                kind: resource.kind,
-                group: resource.group
-            })
-            .send(JSON.stringify(action))
+            .send(
+                JSON.stringify({
+                    appNamespace,
+                    namespace: resource.namespace,
+                    resourceName: resource.name,
+                    version: resource.version,
+                    kind: resource.kind,
+                    group: resource.group,
+                    resourceActionParameters: resourceActionParameters,
+                    action
+                })
+            )
             .then(res => (res.body.actions as models.ResourceAction[]) || []);
     }
 
@@ -458,9 +470,10 @@ export class ApplicationsService {
         sinceSeconds?: number;
         untilTime?: string;
         filter?: string;
+        matchCase?: boolean;
         previous?: boolean;
     }): URLSearchParams {
-        const {appNamespace, containerName, namespace, podName, resource, tail, sinceSeconds, untilTime, filter, previous} = query;
+        const {appNamespace, containerName, namespace, podName, resource, tail, sinceSeconds, untilTime, filter, previous, matchCase} = query;
         let {follow} = query;
         if (follow === undefined || follow === null) {
             follow = true;
@@ -480,9 +493,6 @@ export class ApplicationsService {
         if (tail) {
             search.set('tailLines', tail.toString());
         }
-        if (sinceSeconds) {
-            search.set('sinceSeconds', sinceSeconds.toString());
-        }
         if (untilTime) {
             search.set('untilTime', untilTime);
         }
@@ -492,8 +502,15 @@ export class ApplicationsService {
         if (previous) {
             search.set('previous', previous.toString());
         }
+        if (matchCase) {
+            search.set('matchCase', matchCase.toString());
+        }
         // The API requires that this field be set to a non-empty string.
-        search.set('sinceSeconds', '0');
+        if (sinceSeconds) {
+            search.set('sinceSeconds', sinceSeconds.toString());
+        } else {
+            search.set('sinceSeconds', '0');
+        }
         return search;
     }
 
@@ -514,5 +531,12 @@ export class ApplicationsService {
         );
 
         return data as models.Application;
+    }
+
+    public async getApplicationSet(name: string, namespace: string): Promise<models.ApplicationSet> {
+        return requests
+            .get(`/applicationsets/${name}`)
+            .query({namespace})
+            .then(res => res.body as models.ApplicationSet);
     }
 }

@@ -84,6 +84,19 @@ template.app-deployed: |
       content: |
         Application {{.app.metadata.name}} is now running new version of deployments manifests.
         See more here: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true
+    checkRun:
+      name: "continuous-delivery/{{.app.metadata.name}}"
+      details_url: "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true"
+      status: completed
+      conclusion: success
+      started_at: "YYYY-MM-DDTHH:MM:SSZ"
+      completed_at: "YYYY-MM-DDTHH:MM:SSZ"
+      output:
+        title: "Deployment of {{.app.metadata.name}} on ArgoCD"
+        summary: "Application {{.app.metadata.name}} is now running new version of deployments manifests."
+        text: |
+          Application {{.app.metadata.name}} is now running new version of deployments manifests.
+          See more here: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true
 ```
 
 **Notes**:
