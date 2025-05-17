@@ -411,7 +411,7 @@ spec:
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: "{{.values.base_dir}}/apps/guestbook"
+        path: '{{.values.base_dir}}/apps/guestbook'
       destination:
         server: '{{.cluster.address}}'
         namespace: guestbook
