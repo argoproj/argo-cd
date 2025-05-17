@@ -77,7 +77,7 @@ type AppStateManager interface {
 // comparisonResult holds the state of an application after the reconciliation
 type comparisonResult struct {
 	syncStatus           *v1alpha1.SyncStatus
-	healthStatus         *v1alpha1.HealthStatus
+	healthStatus         health.HealthStatusCode
 	resources            []v1alpha1.ResourceStatus
 	managedResources     []managedResource
 	reconciliationResult sync.ReconciliationResult
@@ -96,7 +96,7 @@ func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
 	return res.syncStatus
 }
 
-func (res *comparisonResult) GetHealthStatus() *v1alpha1.HealthStatus {
+func (res *comparisonResult) GetHealthStatus() health.HealthStatusCode {
 	return res.healthStatus
 }
 
@@ -518,7 +518,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	// return unknown comparison result if basic comparison settings cannot be loaded
 	if err != nil {
-		now := metav1.Now()
 		if hasMultipleSources {
 			return &comparisonResult{
 				syncStatus: &v1alpha1.SyncStatus{
@@ -526,7 +525,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					Status:     v1alpha1.SyncStatusCodeUnknown,
 					Revisions:  revisions,
 				},
-				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, LastTransitionTime: &now},
+				healthStatus: health.HealthStatusUnknown,
 			}, nil
 		}
 		return &comparisonResult{
@@ -535,7 +534,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				Status:     v1alpha1.SyncStatusCodeUnknown,
 				Revision:   revisions[0],
 			},
-			healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, LastTransitionTime: &now},
+			healthStatus: health.HealthStatusUnknown,
 		}, nil
 	}
 

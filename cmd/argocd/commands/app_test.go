@@ -116,7 +116,7 @@ func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
 		Sync:           v1alpha1.SyncStatus{},
-		Health:         v1alpha1.HealthStatus{},
+		Health:         v1alpha1.AppHealthStatus{},
 		History:        histories,
 		Conditions:     nil,
 		ReconciledAt:   nil,
@@ -176,7 +176,7 @@ func TestPrintTreeViewAppGet(t *testing.T) {
 func TestPrintTreeViewDetailedAppGet(t *testing.T) {
 	var nodes [3]v1alpha1.ResourceNode
 	nodes[0].ResourceRef = v1alpha1.ResourceRef{Group: "", Version: "v1", Kind: "Pod", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcd5457d5-6trpt", UID: "92c3a5fe-d13e-4ae2-b8ec-c10dd3543b28"}
-	nodes[0].Health = &v1alpha1.HealthStatus{Status: "Degraded", Message: "Readiness Gate failed"}
+	nodes[0].Health = &v1alpha1.ResourceHealthStatus{Status: "Degraded", Message: "Readiness Gate failed"}
 	nodes[0].ParentRefs = []v1alpha1.ResourceRef{{Group: "apps", Version: "v1", Kind: "ReplicaSet", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcd5457d5", UID: "75c30dce-1b66-414f-a86c-573a74be0f40"}}
 	nodes[1].ResourceRef = v1alpha1.ResourceRef{Group: "apps", Version: "v1", Kind: "ReplicaSet", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcd5457d5", UID: "75c30dce-1b66-414f-a86c-573a74be0f40"}
 	nodes[1].ParentRefs = []v1alpha1.ResourceRef{{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}}
@@ -224,7 +224,7 @@ func TestFindRevisionHistoryWithoutPassedIdWithMultipleSources(t *testing.T) {
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
 		Sync:           v1alpha1.SyncStatus{},
-		Health:         v1alpha1.HealthStatus{},
+		Health:         v1alpha1.AppHealthStatus{},
 		History:        histories,
 		Conditions:     nil,
 		ReconciledAt:   nil,
@@ -277,7 +277,7 @@ func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
 		Sync:           v1alpha1.SyncStatus{},
-		Health:         v1alpha1.HealthStatus{},
+		Health:         v1alpha1.AppHealthStatus{},
 		History:        histories,
 		Conditions:     nil,
 		ReconciledAt:   nil,
@@ -308,7 +308,7 @@ func TestFindRevisionHistoryWithPassedId(t *testing.T) {
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
 		Sync:           v1alpha1.SyncStatus{},
-		Health:         v1alpha1.HealthStatus{},
+		Health:         v1alpha1.AppHealthStatus{},
 		History:        histories,
 		Conditions:     nil,
 		ReconciledAt:   nil,
@@ -338,7 +338,7 @@ func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
 		Sync:           v1alpha1.SyncStatus{},
-		Health:         v1alpha1.HealthStatus{},
+		Health:         v1alpha1.AppHealthStatus{},
 		History:        histories,
 		Conditions:     nil,
 		ReconciledAt:   nil,
@@ -692,9 +692,8 @@ func TestPrintAppSummaryTable(t *testing.T) {
 				Sync: v1alpha1.SyncStatus{
 					Status: v1alpha1.SyncStatusCodeOutOfSync,
 				},
-				Health: v1alpha1.HealthStatus{
-					Status:  health.HealthStatusProgressing,
-					Message: "health-message",
+				Health: v1alpha1.AppHealthStatus{
+					Status: health.HealthStatusProgressing,
 				},
 			},
 		}
@@ -747,7 +746,7 @@ SyncWindow:         Sync Denied
 Assigned Windows:   allow:0 0 * * *:24h,deny:0 0 * * *:24h,allow:0 0 * * *:24h
 Sync Policy:        Automated (Prune)
 Sync Status:        OutOfSync from master
-Health Status:      Progressing (health-message)
+Health Status:      Progressing
 `
 	assert.Equalf(t, expectation, output, "Incorrect print app summary output %q, should be %q", output, expectation)
 }
@@ -787,9 +786,8 @@ func TestPrintAppSummaryTable_MultipleSources(t *testing.T) {
 				Sync: v1alpha1.SyncStatus{
 					Status: v1alpha1.SyncStatusCodeOutOfSync,
 				},
-				Health: v1alpha1.HealthStatus{
-					Status:  health.HealthStatusProgressing,
-					Message: "health-message",
+				Health: v1alpha1.AppHealthStatus{
+					Status: health.HealthStatusProgressing,
 				},
 			},
 		}
@@ -845,7 +843,7 @@ SyncWindow:         Sync Denied
 Assigned Windows:   allow:0 0 * * *:24h,deny:0 0 * * *:24h,allow:0 0 * * *:24h
 Sync Policy:        Automated (Prune)
 Sync Status:        OutOfSync from master
-Health Status:      Progressing (health-message)
+Health Status:      Progressing
 `
 	assert.Equalf(t, expectation, output, "Incorrect print app summary output %q, should be %q", output, expectation)
 }
@@ -1562,7 +1560,7 @@ func TestPrintApplicationTableNotWide(t *testing.T) {
 				Sync: v1alpha1.SyncStatus{
 					Status: "OutOfSync",
 				},
-				Health: v1alpha1.HealthStatus{
+				Health: v1alpha1.AppHealthStatus{
 					Status: "Healthy",
 				},
 			},
@@ -1598,7 +1596,7 @@ func TestPrintApplicationTableWide(t *testing.T) {
 				Sync: v1alpha1.SyncStatus{
 					Status: "OutOfSync",
 				},
-				Health: v1alpha1.HealthStatus{
+				Health: v1alpha1.AppHealthStatus{
 					Status: "Healthy",
 				},
 			},
@@ -1922,7 +1920,7 @@ Source:
 SyncWindow:         Sync Allowed
 Sync Policy:        Automated (Prune)
 Sync Status:        OutOfSync from master
-Health Status:      Progressing (health-message)
+Health Status:      Progressing
 
 Operation:          Sync
 Sync Revision:      revision
@@ -1987,7 +1985,7 @@ Source:
 SyncWindow:         Sync Allowed
 Sync Policy:        Automated (Prune)
 Sync Status:        OutOfSync from master
-Health Status:      Progressing (health-message)
+Health Status:      Progressing
 
 Operation:          Sync
 Sync Revision:      revision
@@ -2102,7 +2100,7 @@ func (c *fakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.Applicat
 					Namespace: "default",
 					Name:      "service-name1",
 					Status:    "Synced",
-					Health: &v1alpha1.HealthStatus{
+					Health: &v1alpha1.ResourceHealthStatus{
 						Status:  health.HealthStatusHealthy,
 						Message: "health-message",
 					},
@@ -2113,7 +2111,7 @@ func (c *fakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.Applicat
 					Namespace: "default",
 					Name:      "test",
 					Status:    "Synced",
-					Health: &v1alpha1.HealthStatus{
+					Health: &v1alpha1.ResourceHealthStatus{
 						Status:  health.HealthStatusHealthy,
 						Message: "health-message",
 					},
@@ -2129,9 +2127,8 @@ func (c *fakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.Applicat
 			Sync: v1alpha1.SyncStatus{
 				Status: v1alpha1.SyncStatusCodeOutOfSync,
 			},
-			Health: v1alpha1.HealthStatus{
-				Status:  health.HealthStatusProgressing,
-				Message: "health-message",
+			Health: v1alpha1.AppHealthStatus{
+				Status: health.HealthStatusProgressing,
 			},
 		},
 	}, nil

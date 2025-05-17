@@ -730,9 +730,6 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 	}
 	fmt.Printf(printOpFmtStr, "Sync Status:", syncStatusStr)
 	healthStr := string(app.Status.Health.Status)
-	if app.Status.Health.Message != "" {
-		healthStr = fmt.Sprintf("%s (%s)", app.Status.Health.Status, app.Status.Health.Message)
-	}
 	fmt.Printf(printOpFmtStr, "Health Status:", healthStr)
 }
 

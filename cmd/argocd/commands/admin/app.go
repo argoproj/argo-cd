@@ -10,6 +10,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -143,7 +144,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 
 type appReconcileResult struct {
 	Name       string                          `json:"name"`
-	Health     *v1alpha1.HealthStatus          `json:"health"`
+	Health     health.HealthStatusCode         `json:"health"`
 	Sync       *v1alpha1.SyncStatus            `json:"sync"`
 	Conditions []v1alpha1.ApplicationCondition `json:"conditions"`
 }
@@ -348,7 +349,7 @@ func getReconcileResults(ctx context.Context, appClientset appclientset.Interfac
 		items = append(items, appReconcileResult{
 			Name:       app.Name,
 			Conditions: app.Status.Conditions,
-			Health:     &app.Status.Health,
+			Health:     app.Status.Health.Status,
 			Sync:       &app.Status.Sync,
 		})
 	}

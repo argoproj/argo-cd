@@ -1139,7 +1139,7 @@ type ApplicationStatus struct {
 	// Sync contains information about the application's current sync status
 	Sync SyncStatus `json:"sync,omitempty" protobuf:"bytes,2,opt,name=sync"`
 	// Health contains information about the application's current health status
-	Health HealthStatus `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
+	Health AppHealthStatus `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
 	// History contains information about the application's sync history
 	History RevisionHistories `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
 	// Conditions is a list of currently observed application conditions
@@ -1787,13 +1787,18 @@ type SyncStatus struct {
 }
 
 // HealthStatus contains information about the currently observed health state of an application or resource
-type HealthStatus struct {
+type AppHealthStatus struct {
+	// Status holds the status code of the application or resource
+	Status health.HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
+	// LastTransitionTime is the time the HealthStatus was set or updated
+	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
+}
+
+type ResourceHealthStatus struct {
 	// Status holds the status code of the application or resource
 	Status health.HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
 	// Message is a human-readable informational message describing the health status
 	Message string `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
-	// LastTransitionTime is the time the HealthStatus was set or updated
-	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
 }
 
 // InfoItem contains arbitrary, human readable information about an application
@@ -2019,7 +2024,7 @@ type ResourceNode struct {
 	// This is primarily useful for pods and other workload resources.
 	Images []string `json:"images,omitempty" protobuf:"bytes,6,opt,name=images"`
 	// Health represents the health status of the resource (e.g., Healthy, Degraded, Progressing).
-	Health *HealthStatus `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
+	Health *ResourceHealthStatus `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
 	// CreatedAt records the timestamp when the resource was created.
 	CreatedAt *metav1.Time `json:"createdAt,omitempty" protobuf:"bytes,8,opt,name=createdAt"`
 }
@@ -2054,7 +2059,7 @@ type ResourceStatus struct {
 	// Status represents the synchronization state of the resource (e.g., Synced, OutOfSync).
 	Status SyncStatusCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
 	// Health indicates the health status of the resource (e.g., Healthy, Degraded, Progressing).
-	Health *HealthStatus `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
+	Health *ResourceHealthStatus `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
 	// Hook is true if the resource is used as a lifecycle hook in an Argo CD application.
 	Hook bool `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
 	// RequiresPruning is true if the resource needs to be pruned (deleted) as part of synchronization.

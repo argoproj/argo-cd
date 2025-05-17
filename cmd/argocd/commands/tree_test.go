@@ -56,7 +56,7 @@ func TestTreeViewDetailedAppGet(t *testing.T) {
 	var child v1alpha1.ResourceNode
 	child.ResourceRef = v1alpha1.ResourceRef{Group: "apps", Version: "v1", Kind: "ReplicaSet", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcd5457d5", UID: "75c30dce-1b66-414f-a86c-573a74be0f40"}
 	child.ParentRefs = []v1alpha1.ResourceRef{{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}}
-	child.Health = &v1alpha1.HealthStatus{Status: "Degraded", Message: "Readiness Gate failed"}
+	child.Health = &v1alpha1.ResourceHealthStatus{Status: "Degraded", Message: "Readiness Gate failed"}
 	objs["75c30dce-1b66-414f-a86c-573a74be0f40"] = child
 
 	childMapping := make(map[string][]string)
@@ -144,7 +144,7 @@ func TestTreeViewDetailedAppResources(t *testing.T) {
 	detailedTreeViewAppResourcesNotOrphaned("", objs, childMapping, parent, w)
 	var orphan v1alpha1.ResourceNode
 	orphan.ResourceRef = v1alpha1.ResourceRef{Group: "apps", Version: "v1", Kind: "ReplicaSet", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcdnk457d5", UID: "75c30dce-1b66-41hf-a86c-573a74be0f40"}
-	orphan.Health = &v1alpha1.HealthStatus{
+	orphan.Health = &v1alpha1.ResourceHealthStatus{
 		Status:  "Degraded",
 		Message: "Readiness Gate failed",
 	}
