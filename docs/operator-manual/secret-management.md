@@ -8,8 +8,7 @@ For further discussion, see [#1364](https://github.com/argoproj/argo-cd/issues/1
 ## Destination Cluster Secret Management
 
 In this approach, secrets are populated on the destination cluster, and Argo CD does not need to directly manage them.
-[Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets), [External Secrets Operator](https://github.com/external-secrets/external-secrets),
-and [Kubernetes Secrets Store CSI Driver](https://github.com/kubernetes-sigs/secrets-store-csi-driver) are examples of this style of secret management.
+[Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets), [External Secrets Operator](https://github.com/external-secrets/external-secrets), [Kubernetes Secrets Store CSI Driver](https://github.com/kubernetes-sigs/secrets-store-csi-driver) and [SOPS-Operator](https://github.com/peak-scale/sops-operator) are examples of this style of secret management.
 
 This approach has two main advantages:
 
