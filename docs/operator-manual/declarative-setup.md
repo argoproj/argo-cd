@@ -12,7 +12,7 @@ All resources, including `Application` and `AppProject` specs, have to be instal
 |-----------------------------------------------------------------------|------------------------------------------------------------------------------------|-----------|--------------------------------------------------------------------------------------|
 | [`argocd-cm.yaml`](argocd-cm-yaml.md)                                 | argocd-cm                                                                          | ConfigMap | General Argo CD configuration                                                        |
 | [`argocd-repositories.yaml`](argocd-repositories-yaml.md)             | my-private-repo / istio-helm-repo / private-helm-repo / private-repo               | Secrets   | Sample repository connection details                                                 |
-| [`argocd-repo-creds.yaml`](argocd-repo-creds-yaml.md)                    | argoproj-https-creds / argoproj-ssh-creds / github-creds / github-enterprise-creds | Secrets   | Sample repository credential templates                                               |
+| [`argocd-repo-creds.yaml`](argocd-repo-creds-yaml.md)                 | argoproj-https-creds / argoproj-ssh-creds / github-creds / github-enterprise-creds | Secrets   | Sample repository credential templates                                               |
 | [`argocd-cmd-params-cm.yaml`](argocd-cmd-params-cm-yaml.md)           | argocd-cmd-params-cm                                                               | ConfigMap | Argo CD env variables configuration                                                  |
 | [`argocd-secret.yaml`](argocd-secret-yaml.md)                         | argocd-secret                                                                      | Secret    | User Passwords, Certificates (deprecated), Signing Key, Dex secrets, Webhook secrets |
 | [`argocd-rbac-cm.yaml`](argocd-rbac-cm-yaml.md)                       | argocd-rbac-cm                                                                     | ConfigMap | RBAC Configuration                                                                   |
@@ -30,7 +30,7 @@ For each specific kind of ConfigMap and Secret resource, there is only a single 
 |------------------------------------------------------------------|-------------|--------------------------|
 | [`application.yaml`](../user-guide/application-specification.md) | Application | Example application spec |
 | [`project.yaml`](./project-specification.md)                     | AppProject  | Example project spec     |
-| [`argocd-repositories.yaml`](./argocd-repositories-yaml.md)                                                                | Secret      | Repository credentials   |
+| [`argocd-repositories.yaml`](./argocd-repositories-yaml.md)      | Secret      | Repository credentials   |
 
 For `Application` and `AppProject` resources, the name of the resource equals the name of the application or project within Argo CD. This also means that application and project names are unique within a given Argo CD installation - you cannot have the same application name for two different applications.
 
@@ -166,7 +166,17 @@ spec:
     - iat: 1535390316
 ```
 
-## Repositories
+## Repository details
+
+Repository details are stored in secrets. To configure details for a repository,
+create a secret which contains repository details. Consider using
+[bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to
+store an encrypted secret definition as a Kubernetes manifest.
+
+!!!warning
+    When using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) the labels will be removed and have to be readded as described here: https://github.com/bitnami-labs/sealed-secrets#sealedsecrets-as-templates-for-secrets
+
+Each repository secret must have at least a `url` field.
 
 !!!note
     Some Git hosters - notably GitLab and possibly on-premise GitLab instances as well - require you to
@@ -174,15 +184,22 @@ spec:
     repository URL suffixed with `.git`. Argo CD will **not** follow these redirects, so you have to
     adjust your repository URL to be suffixed with `.git`.
 
-Repository details are stored in secrets. To configure a repo, create a secret which contains repository details.
-Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store an encrypted secret definition as a Kubernetes manifest.
-Each repository must have a `url` field and, depending on whether you connect using HTTPS, SSH, or GitHub App, `username` and `password` (for HTTPS), `sshPrivateKey` (for SSH), or `githubAppPrivateKey` (for GitHub App).
-Credentials can be scoped to a project using the optional `project` field. When omitted, the credential will be used as the default for all projects without a scoped credential.
+### Credentials
 
-!!!warning
-    When using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) the labels will be removed and have to be readded as described here: https://github.com/bitnami-labs/sealed-secrets#sealedsecrets-as-templates-for-secrets
+The repository secret holds credentials for Argo CD to access your repositories.
 
-Example for HTTPS:
+Credentials can be scoped to a project using the optional `project` field. When
+omitted, the credential will be used as the default for all projects without a
+scoped credential.
+
+Argo CD supports the following authentication methods for accessing repositories:
+
+#### HTTPS
+
+* `username` and `password` - the username and/or password for accessing the repositories
+* `tlsClientCertData` and `tlsClientCertKey` - a TLS client certificate and the corresponding private key for accessing GitHub Enterprise if custom certificates are used
+
+Example:
 
 ```yaml
 apiVersion: v1
@@ -193,14 +210,18 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
-  type: git
-  url: https://github.com/argoproj/private-repo
-  password: my-password
-  username: my-username
-  project: my-project
+  type: "git"
+  url: "https://github.com/argoproj/private-repo"
+  password: "my-password"
+  username: "my-username"
+  project: "my-project"
 ```
 
-Example for SSH:
+#### SSH
+
+* `sshPrivateKey` - an SSH private key for accessing the repositories
+
+Example:
 
 ```yaml
 apiVersion: v1
@@ -211,34 +232,25 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
-  type: git
-  url: git@github.com:argoproj/my-private-repository.git
+  type: "git"
+  url: "git@github.com:argoproj/my-private-repository.git"
   sshPrivateKey: |
     -----BEGIN OPENSSH PRIVATE KEY-----
     ...
     -----END OPENSSH PRIVATE KEY-----
 ```
 
-Example for GitHub App:
+#### GitHub App
+
+* `githubAppPrivateKey` - a private key used by your GitHub App
+* `githubAppID` - the Application ID of your GitHub App
+* `githubAppInstallationID` - the Installation ID of your GitHub App
+* `githubAppEnterpriseBaseUrl` - the base API URL for GitHub Enterprise (e.g. `https://ghe.example.com/api/v3`)
+* `tlsClientCertData` and `tlsClientCertKey` - a TLS client certificate and the corresponding private key for accessing GitHub Enterprise if custom certificates are used
+
+Example:
 
 ```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: github-repo
-  namespace: argocd
-  labels:
-    argocd.argoproj.io/secret-type: repository
-stringData:
-  type: git
-  url: https://github.com/argoproj/my-private-repository
-  githubAppID: 1
-  githubAppInstallationID: 2
-  githubAppPrivateKey: |
-    -----BEGIN OPENSSH PRIVATE KEY-----
-    ...
-    -----END OPENSSH PRIVATE KEY-----
----
 apiVersion: v1
 kind: Secret
 metadata:
@@ -247,18 +259,22 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
-  type: git
-  url: https://ghe.example.com/argoproj/my-private-repository
-  githubAppID: 1
-  githubAppInstallationID: 2
-  githubAppEnterpriseBaseUrl: https://ghe.example.com/api/v3
+  type: "git"
+  url: "https://ghe.example.com/argoproj/my-private-repository"
+  githubAppID: "1"
+  githubAppInstallationID: "2"
+  githubAppEnterpriseBaseUrl: "https://ghe.example.com/api/v3"
   githubAppPrivateKey: |
     -----BEGIN OPENSSH PRIVATE KEY-----
     ...
     -----END OPENSSH PRIVATE KEY-----
 ```
 
-Example for Google Cloud Source repositories:
+#### Google Cloud Source Repositories
+
+* `gcpServiceAccountKey` - a GCP Service Account access key
+
+Example:
 
 ```yaml
 kind: Secret
@@ -285,82 +301,98 @@ stringData:
     }
 ```
 
+#### Azure Container Registry/Azure Repos using Azure Workload Identity
+
+Refer to [Azure Container Registry/Azure Repos using Azure Workload Identity](../user-guide/private-repositories.md#azure-container-registryazure-repos-using-azure-workload-identity).
+
 !!! tip
     The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys).
 
-Example for Azure Container Registry/ Azure Devops repositories using Azure workload identity:
+### Credential templates
 
-Refer to [Azure Container Registry/Azure Repos using Azure Workload Identity](../user-guide/private-repositories.md#azure-container-registryazure-repos-using-azure-workload-identity)
+By setting the `argocd.argoproj.io/secret-type` label to `repo-creds`, the
+secret becomes a credential template. The `url` is then treated as a prefix
+string, and the given credentials are used to access all repositories that match
+the given string. All other parameters are identical for `repository` and
+`repo-creds`.
 
-### Repository Credentials
+In order for Argo CD to use a credential template for any given repository, the
+following conditions must be met:
 
-If you want to use the same credentials for multiple repositories, you can configure credential templates. Credential templates can carry the same credentials information as repositories.
+* The repository must either not be configured at all, or if configured, must not contain any credential information (i.e. contain none of `sshPrivateKey`, `username`, `password`, etc.)
+* The URL configured for a credential template (e.g. `https://github.com/argoproj`) must match as prefix for the repository URL (e.g. `https://github.com/argoproj/argocd-example-apps`)
+
+!!! note
+    Matching credential template URL prefixes is done on a _best match_ effort,
+    so the longest (best) match will take precedence. The order of definition is
+    not important, as opposed to pre-`v1.4` configuration.
 
 ```yaml
 apiVersion: v1
 kind: Secret
 metadata:
-  name: first-repo
+  name: special-repo-credentials
   namespace: argocd
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
-  type: git
-  url: https://github.com/argoproj/private-repo
+  type: "git"
+  url: "https://github.com/argoproj/special-repo"
+  username: "my-special-username"
+  password: "my-special-password"
 ---
 apiVersion: v1
 kind: Secret
 metadata:
-  name: second-repo
-  namespace: argocd
-  labels:
-    argocd.argoproj.io/secret-type: repository
-stringData:
-  type: git
-  url: https://github.com/argoproj/other-private-repo
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: private-repo-creds
+  name: argoproj-credential-template
   namespace: argocd
   labels:
     argocd.argoproj.io/secret-type: repo-creds
 stringData:
-  type: git
-  url: https://github.com/argoproj
-  password: my-password
-  username: my-username
+  type: "git"
+  url: "https://github.com/argoproj"
+  username: "my-template-username"
+  password: "my-template-password"
 ```
 
-In the above example, every repository accessed via HTTPS whose URL is prefixed with `https://github.com/argoproj` would use a username stored in the key `username` and a password stored in the key `password` of the secret `private-repo-creds` for connecting to Git.
+In this example, the repo...
+* `https://github.com/argoproj/special-repo` would be accessed using the credentials given in `special-repo-credentials`
+* `https://github.com/argoproj/argo-cd` would be accessed using the credentials given in `argoproj-credential-template`
+* `https://github.com/argoproj-org/my-private-repo` would be accessed using the credentials given in `argoproj-credential-template`
 
-In order for Argo CD to use a credential template for any given repository, the following conditions must be met:
+To prevent the third repo from matching the credential template, a `/` could be
+added to the end of the `url` in the credential template.
 
-* The repository must either not be configured at all, or if configured, must not contain any credential information (i.e. contain none of `sshPrivateKey`, `username`, `password` )
-* The URL configured for a credential template (e.g. `https://github.com/argoproj`) must match as prefix for the repository URL (e.g. `https://github.com/argoproj/argocd-example-apps`).
+### Proxy configuration
 
-!!! note
-    Matching credential template URL prefixes is done on a _best match_ effort, so the longest (best) match will take precedence. The order of definition is not important, as opposed to pre v1.4 configuration.
+Proxy configuration can be set for all repositories using the standard `PROXY`
+and `NO_PROXY` environment variables in the Argo CD repository server.
 
-The following keys are valid to refer to credential secrets:
+To instruct Argo CD to only use a proxy when accessing a specific repository,
+set the `proxy` and `noProxy` fields of the corresponding repository secret:
 
-#### SSH repositories
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: private-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: "git"
+  url: "https://github.com/argoproj/private-repo"
+  proxy: "https://proxy-server-url:8888"
+  noProxy: ".internal.example.com,company.org,10.123.0.0/16"
+  username: "my-username"
+  password: "my-password"
+```
 
-* `sshPrivateKey` refers to the SSH private key for accessing the repositories
-
-#### HTTPS repositories
-
-* `username` and `password` refer to the username and/or password for accessing the repositories
-* `tlsClientCertData` and `tlsClientCertKey` refer to secrets where a TLS client certificate (`tlsClientCertData`) and the corresponding private key `tlsClientCertKey` are stored for accessing the repositories
-
-#### GitHub App repositories
-
-* `githubAppPrivateKey` refers to the GitHub App private key for accessing the repositories
-* `githubAppID` refers to the GitHub Application ID for the application you created.
-* `githubAppInstallationID` refers to the Installation ID of the GitHub app you created and installed.
-* `githubAppEnterpriseBaseUrl` refers to the base api URL for GitHub Enterprise (e.g. `https://ghe.example.com/api/v3`)
-* `tlsClientCertData` and `tlsClientCertKey` refer to secrets where a TLS client certificate (`tlsClientCertData`) and the corresponding private key `tlsClientCertKey` are stored for accessing GitHub Enterprise if custom certificates are used.
+!!! warning
+    Argo CD uses `exec` to interact with different tools such as helm and kustomize. Not all of these tools support the
+    same `noProxy` syntax as the [httpproxy go package](https://cs.opensource.google/go/x/net/+/internal-branch.go1.21-vendor:http/httpproxy/proxy.go;l=38-50)
+    does. In case you run in trouble with `noProxy` not being respected, you might want to try using the full domain
+    instead of a wildcard pattern or IP range to find a common syntax that all tools support.
 
 ### Repositories using self-signed TLS certificates (or are signed by custom CA)
 
@@ -472,31 +504,6 @@ data:
 
 !!! note
     The `argocd-ssh-known-hosts-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/ssh` in the pods of `argocd-server` and `argocd-repo-server`. It will create a file `ssh_known_hosts` in that directory, which contains the SSH known hosts data used by Argo CD for connecting to Git repositories via SSH. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration.
-
-### Configure repositories with proxy
-
-Proxy for your repository can be specified in the `proxy` field of the repository secret, along with a corresponding `noProxy` config. Argo CD uses this proxy/noProxy config to access the repository and do related helm/kustomize operations. Argo CD looks for the standard proxy environment variables in the repository server if the custom proxy config is absent.
-
-An example repository with proxy and noProxy:
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: private-repo
-  namespace: argocd
-  labels:
-    argocd.argoproj.io/secret-type: repository
-stringData:
-  type: git
-  url: https://github.com/argoproj/private-repo
-  proxy: https://proxy-server-url:8888
-  noProxy: ".internal.example.com,company.org,10.123.0.0/16"
-  password: my-password
-  username: my-username
-```
-
-A note on noProxy: Argo CD uses exec to interact with different tools such as helm and kustomize. Not all of these tools support the same noProxy syntax as the [httpproxy go package](https://cs.opensource.google/go/x/net/+/internal-branch.go1.21-vendor:http/httpproxy/proxy.go;l=38-50) does. In case you run in trouble with noProxy not beeing respected you might want to try using the full domain instead of a wildcard pattern or IP range to find a common syntax that all tools support.
 
 ## Clusters
 
