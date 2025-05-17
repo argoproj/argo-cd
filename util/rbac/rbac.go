@@ -338,16 +338,18 @@ func (e *Enforcer) EnforceErr(rvals ...any) error {
 			for i, rval := range rvals[1:] {
 				rvalsStrs[i] = fmt.Sprintf("%s", rval)
 			}
-			if s, ok := rvals[0].(jwt.Claims); ok {
-				claims, err := jwtutil.MapClaims(s)
-				if err == nil {
-					argoClaims, err := claimsutil.MapClaimsToArgoClaims(claims)
+			if rvals[0] != nil {
+				if s, ok := rvals[0].(jwt.Claims); ok {
+					claims, err := jwtutil.MapClaims(s)
 					if err == nil {
-						if argoClaims.GetUserIdentifier() != "" {
-							rvalsStrs = append(rvalsStrs, "sub: "+argoClaims.GetUserIdentifier())
-						}
-						if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
-							rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+						argoClaims, err := claimsutil.MapClaimsToArgoClaims(claims)
+						if err == nil {
+							if argoClaims.GetUserIdentifier() != "" {
+								rvalsStrs = append(rvalsStrs, "sub: "+argoClaims.GetUserIdentifier())
+							}
+							if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil && issuedAtTime != nil {
+								rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+							}
 						}
 					}
 				}

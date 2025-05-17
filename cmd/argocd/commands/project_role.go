@@ -336,8 +336,16 @@ Create token succeeded for proj:test-project:test-role.
 				return
 			}
 
-			issuedAt, _ := jwt.IssuedAt(claims)
-			expiresAt := int64(jwt.Float64Field(claims, "exp"))
+			issuedAtPtr, _ := jwt.IssuedAtTime(claims)
+			var issuedAt int64
+			if issuedAtPtr != nil {
+				issuedAt = issuedAtPtr.Unix()
+			}
+			expPtr, _ := jwt.ExpirationTime(claims)
+			var expiresAt int64
+			if expPtr != nil {
+				expiresAt = expPtr.Unix()
+			}
 			id := argoClaims.ID
 			subject := argoClaims.GetUserIdentifier()
 
