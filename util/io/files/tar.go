@@ -83,7 +83,12 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 			continue
 		}
 
-		target := filepath.Join(dstPath, header.Name)
+		// Sanitize header.Name to prevent directory traversal attacks
+		cleanName := filepath.Clean(header.Name)
+		if strings.HasPrefix(cleanName, "..") || filepath.IsAbs(cleanName) {
+			return fmt.Errorf("illegal filepath in archive: %s", header.Name)
+		}
+		target := filepath.Join(dstPath, cleanName)
 		// Sanity check to protect against zip-slip
 		if !Inbound(target, dstPath) {
 			return fmt.Errorf("illegal filepath in archive: %s", target)
