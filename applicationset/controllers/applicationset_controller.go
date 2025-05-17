@@ -224,7 +224,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				appMap[app.Name] = app
 			}
 
-			appSyncMap, err = r.performProgressiveSyncs(ctx, logCtx, applicationSetInfo, currentApplications, desiredApplications, appMap)
+			appSyncMap, err = r.performProgressiveSyncs(ctx, logCtx, &applicationSetInfo, currentApplications, desiredApplications, appMap)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
 			}
@@ -854,10 +854,10 @@ func (r *ApplicationSetReconciler) removeOwnerReferencesOnDeleteAppSet(ctx conte
 	return nil
 }
 
-func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, appMap map[string]argov1alpha1.Application) (map[string]bool, error) {
-	appDependencyList, appStepMap := r.buildAppDependencyList(logCtx, appset, desiredApplications)
+func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, appMap map[string]argov1alpha1.Application) (map[string]bool, error) {
+	appDependencyList, appStepMap := r.buildAppDependencyList(logCtx, *appset, desiredApplications)
 
-	_, err := r.updateApplicationSetApplicationStatus(ctx, logCtx, &appset, applications, appStepMap)
+	_, err := r.updateApplicationSetApplicationStatus(ctx, logCtx, appset, applications, appStepMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update applicationset app status: %w", err)
 	}
@@ -867,15 +867,15 @@ func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, 
 		logCtx.Infof("step %v: %+v", i+1, step)
 	}
 
-	appSyncMap := r.buildAppSyncMap(appset, appDependencyList, appMap)
+	appSyncMap := r.buildAppSyncMap(*appset, appDependencyList, appMap)
 	logCtx.Infof("Application allowed to sync before maxUpdate?: %+v", appSyncMap)
 
-	_, err = r.updateApplicationSetApplicationStatusProgress(ctx, logCtx, &appset, appSyncMap, appStepMap)
+	_, err = r.updateApplicationSetApplicationStatusProgress(ctx, logCtx, appset, appSyncMap, appStepMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update applicationset application status progress: %w", err)
 	}
 
-	_ = r.updateApplicationSetApplicationStatusConditions(ctx, &appset)
+	_ = r.updateApplicationSetApplicationStatusConditions(ctx, appset)
 
 	return appSyncMap, nil
 }
