@@ -223,7 +223,7 @@ func NewImportCommand() *cobra.Command {
 			// pruneObjects tracks live objects, and it's current resource version. any remaining
 			// items in this map indicates the resource should be pruned since it no longer appears
 			// in the backup
-			pruneObjects, _ := createPruneObject(acdClients, ctx, applicationNamespaces, namespace, applicationsetNamespaces)
+			pruneObjects, _ := createPruneObject(ctx, acdClients, applicationNamespaces, namespace, applicationsetNamespaces)
 
 			// Create or replace existing object
 			backupObjects, err := kube.SplitYAML(input)
@@ -245,8 +245,8 @@ func NewImportCommand() *cobra.Command {
 					continue
 				}
 
-				var dynClient dynamic.ResourceInterface
-				dynClient = setDynamicClient(client, bakObj, namespace, applicationNamespaces, applicationsetNamespaces)
+				//var dynClient dynamic.ResourceInterface
+				dynClient := setDynamicClient(client, bakObj, namespace, applicationNamespaces, applicationsetNamespaces)
 				if dynClient == nil {
 					continue
 				}
@@ -386,7 +386,7 @@ func NewImportCommand() *cobra.Command {
 }
 
 // helper function to create a pruneObject map
-func createPruneObject(acdClients *argoCDClientsets, ctx context.Context, applicationNamespaces []string, namespace string, applicationsetNamespaces []string) (map[kube.ResourceKey]unstructured.Unstructured, error) {
+func createPruneObject(ctx context.Context, acdClients *argoCDClientsets, applicationNamespaces []string, namespace string, applicationsetNamespaces []string) (map[kube.ResourceKey]unstructured.Unstructured, error) {
 	pruneObjects := make(map[kube.ResourceKey]unstructured.Unstructured)
 	configMaps, err := acdClients.configMaps.List(ctx, metav1.ListOptions{})
 

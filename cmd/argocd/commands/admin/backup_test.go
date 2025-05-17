@@ -751,7 +751,7 @@ data:
 				}
 			}
 
-			pruneObjects, err := createPruneObject(acdClientsets, ctx, tt.applicationNamespaces, namespace, tt.applicationsetNamespaces)
+			pruneObjects, err := createPruneObject(ctx, acdClientsets, tt.applicationNamespaces, namespace, tt.applicationsetNamespaces)
 			require.NoError(t, err)
 
 			gvk := bakObj.GroupVersionKind()
