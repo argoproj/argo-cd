@@ -245,7 +245,6 @@ func NewImportCommand() *cobra.Command {
 					continue
 				}
 
-				//var dynClient dynamic.ResourceInterface
 				dynClient := setDynamicClient(client, bakObj, namespace, applicationNamespaces, applicationsetNamespaces)
 				if dynClient == nil {
 					continue
