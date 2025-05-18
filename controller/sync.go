@@ -257,10 +257,10 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	syncId := fmt.Sprintf("%05d-%s", syncIdPrefix, randSuffix)
 
 	logEntry := log.WithFields(log.Fields{"application": app.QualifiedName(), "syncId": syncId})
-	initialResourcesRes := make([]common.ResourceSyncResult, 0)
+	initialResourcesRes := make([]common.ResourceSyncResult, len(syncRes.Resources))
 	for i, res := range syncRes.Resources {
 		key := kube.ResourceKey{Group: res.Group, Kind: res.Kind, Namespace: res.Namespace, Name: res.Name}
-		initialResourcesRes = append(initialResourcesRes, common.ResourceSyncResult{
+		initialResourcesRes[i] = common.ResourceSyncResult{
 			ResourceKey: key,
 			Message:     res.Message,
 			Status:      res.Status,
@@ -269,7 +269,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			SyncPhase:   res.SyncPhase,
 			Version:     res.Version,
 			Order:       i + 1,
-		})
+		}
 	}
 
 	prunePropagationPolicy := metav1.DeletePropagationForeground
@@ -309,7 +309,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		log.Errorf("Could not get installation ID: %v", err)
 		return
 	}
-	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
+	trackingMethod, err := m.settingsMgr.GetTrackingMethod()
+	if err != nil {
+		log.Errorf("Could not get trackingMethod: %v", err)
+		return
+	}
 
 	impersonationEnabled, err := m.settingsMgr.IsImpersonationEnabled()
 	if err != nil {
@@ -360,7 +364,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			return (len(syncOp.Resources) == 0 ||
 				isPostDeleteHook(target) ||
 				argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)) &&
-				m.isSelfReferencedObj(live, target, app.GetName(), trackingMethod, installationID)
+				m.isSelfReferencedObj(live, target, app.GetName(), v1alpha1.TrackingMethod(trackingMethod), installationID)
 		}),
 		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
 		sync.WithSyncWaveHook(delayBetweenSyncWaves),
