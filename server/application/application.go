@@ -528,6 +528,10 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			if err != nil {
 				return fmt.Errorf("error getting installation ID: %w", err)
 			}
+			trackingMethod, err := s.settingsMgr.GetTrackingMethod()
+			if err != nil {
+				return fmt.Errorf("error getting trackingMethod from settings: %w", err)
+			}
 
 			manifestInfo, err := client.GenerateManifest(ctx, &apiclient.ManifestRequest{
 				Repo:                            repo,
@@ -542,7 +546,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
 				HelmRepoCreds:                   helmCreds,
 				HelmOptions:                     helmOptions,
-				TrackingMethod:                  string(argo.GetTrackingMethod(s.settingsMgr)),
+				TrackingMethod:                  trackingMethod,
 				EnabledSourceTypes:              enableGenerateManifests,
 				ProjectName:                     proj.Name,
 				ProjectSourceRepos:              proj.Spec.SourceRepos,
@@ -613,6 +617,11 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			return fmt.Errorf("error getting app instance label key from settings: %w", err)
 		}
 
+		trackingMethod, err := s.settingsMgr.GetTrackingMethod()
+		if err != nil {
+			return fmt.Errorf("error getting trackingMethod from settings: %w", err)
+		}
+
 		config, err := s.getApplicationClusterConfig(ctx, a)
 		if err != nil {
 			return fmt.Errorf("error getting application cluster config: %w", err)
@@ -662,7 +671,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
 			HelmRepoCreds:                   helmCreds,
 			HelmOptions:                     helmOptions,
-			TrackingMethod:                  string(argo.GetTrackingMethod(s.settingsMgr)),
+			TrackingMethod:                  trackingMethod,
 			EnabledSourceTypes:              enableGenerateManifests,
 			ProjectName:                     proj.Name,
 			ProjectSourceRepos:              proj.Spec.SourceRepos,
@@ -777,6 +786,10 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings: %w", err)
 			}
+			trackingMethod, err := s.settingsMgr.GetTrackingMethod()
+			if err != nil {
+				return fmt.Errorf("error getting trackingMethod from settings: %w", err)
+			}
 			kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource())
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings options: %w", err)
@@ -788,7 +801,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 				KustomizeOptions:   kustomizeOptions,
 				Repos:              helmRepos,
 				NoCache:            true,
-				TrackingMethod:     string(argo.GetTrackingMethod(s.settingsMgr)),
+				TrackingMethod:     trackingMethod,
 				EnabledSourceTypes: enabledSourceTypes,
 				HelmOptions:        helmOptions,
 			})
@@ -2461,7 +2474,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return nil, fmt.Errorf("error getting Lua resource action: %w", err)
 	}
 
-	newObjects, err := luaVM.ExecuteResourceAction(liveObj, action.ActionLua)
+	newObjects, err := luaVM.ExecuteResourceAction(liveObj, action.ActionLua, q.GetResourceActionParameters())
 	if err != nil {
 		return nil, fmt.Errorf("error executing Lua resource action: %w", err)
 	}

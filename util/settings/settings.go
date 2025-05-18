@@ -832,7 +832,11 @@ func (mgr *SettingsManager) GetTrackingMethod() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return argoCDCM.Data[settingsResourceTrackingMethodKey], nil
+	tm := argoCDCM.Data[settingsResourceTrackingMethodKey]
+	if tm == "" {
+		return string(v1alpha1.TrackingMethodAnnotation), nil
+	}
+	return tm, nil
 }
 
 func (mgr *SettingsManager) GetInstallationID() (string, error) {
@@ -988,7 +992,6 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 	}
 
 	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
-	crdPrsvUnkn := "/spec/preserveUnknownFields"
 
 	switch diffOptions.IgnoreResourceStatusField {
 	case "", IgnoreResourceStatusInAll:
@@ -996,7 +999,6 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 		log.Info("Ignore status for all objects")
 	case IgnoreResourceStatusInCRD:
 		addStatusOverrideToGK(resourceOverrides, crdGK)
-		addIgnoreDiffItemOverrideToGK(resourceOverrides, crdGK, crdPrsvUnkn)
 	case IgnoreResourceStatusInNone, "off", "false":
 		// Yaml 'off' non-string value can be converted to 'false'
 		// Support these cases because compareoptions is a yaml string in the config

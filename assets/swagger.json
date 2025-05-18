@@ -1490,43 +1490,8 @@
             "in": "body",
             "required": true,
             "schema": {
-              "type": "string"
+              "$ref": "#/definitions/applicationResourceActionRunRequest"
             }
-          },
-          {
-            "type": "string",
-            "name": "namespace",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "resourceName",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "version",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "group",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "kind",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "appNamespace",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "project",
-            "in": "query"
           }
         ],
         "responses": {
@@ -5032,6 +4997,55 @@
     "applicationOperationTerminateResponse": {
       "type": "object"
     },
+    "applicationResourceActionParameters": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationResourceActionRunRequest": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "appNamespace": {
+          "type": "string"
+        },
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "project": {
+          "type": "string"
+        },
+        "resourceActionParameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationResourceActionParameters"
+          }
+        },
+        "resourceName": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
     "applicationResourceActionsListResponse": {
       "type": "object",
       "properties": {
@@ -6529,7 +6543,7 @@
         },
         "description": {
           "type": "string",
-          "title": "Description contains optional project description"
+          "title": "Description contains optional project description\n+kubebuilder:validation:MaxLength=255"
         },
         "destinationServiceAccounts": {
           "description": "DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.",
@@ -8028,6 +8042,9 @@
     "v1alpha1GitFileGeneratorItem": {
       "type": "object",
       "properties": {
+        "exclude": {
+          "type": "boolean"
+        },
         "path": {
           "type": "string"
         }
@@ -8877,8 +8894,8 @@
           "type": "string"
         },
         "pullRequestState": {
-          "type": "string",
-          "title": "PullRequestState is an additional MRs filter to get only those with a certain state. Default: \"\" (all states)"
+          "description": "PullRequestState is an additional MRs filter to get only those with a certain state. Default: \"\" (all states).\nValid values: opened, closed, merged, locked\".",
+          "type": "string"
         },
         "tokenRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"
@@ -8896,6 +8913,13 @@
         "insecure": {
           "description": "Allow insecure tls, for self-signed certificates; default: false.",
           "type": "boolean"
+        },
+        "labels": {
+          "type": "array",
+          "title": "Labels is used to filter the PRs that you want to target",
+          "items": {
+            "type": "string"
+          }
         },
         "owner": {
           "description": "Gitea org or user to scan. Required.",
@@ -10210,6 +10234,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "description": {
+          "type": "string",
+          "title": "Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example"
         },
         "duration": {
           "type": "string",
