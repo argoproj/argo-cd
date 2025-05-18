@@ -28,4 +28,6 @@ if obj.status ~= nil and not(fullyPromoted) then
     end
 end
 
+actions["skip-current-step"] = {["disabled"] = obj.spec.strategy.canary == nil or obj.spec.strategy.canary.steps == nil or obj.status.currentStepIndex == table.getn(obj.spec.strategy.canary.steps)}
+
 return actions
