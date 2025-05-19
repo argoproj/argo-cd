@@ -1837,7 +1837,7 @@ apps/Deployment:
     hs = {}
     hs.status = ""
     hs.message = ""
-    
+
     if obj.metadata ~= nil then
       if obj.metadata.labels ~= nil then
         current_status = obj.metadata.labels["status"]
