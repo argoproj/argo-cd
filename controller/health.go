@@ -8,7 +8,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -22,7 +21,9 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 	var savedErr error
 	var errCount uint
 
-	appHealth := appv1.HealthStatus{Status: health.HealthStatusHealthy}
+	appHealth := app.Status.Health.DeepCopy()
+	appHealth.Status = health.HealthStatusHealthy
+
 	for i, res := range resources {
 		if res.Target != nil && hookutil.Skip(res.Target) {
 			continue
@@ -95,5 +96,5 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 	if savedErr != nil && errCount > 1 {
 		savedErr = fmt.Errorf("see application-controller logs for %d other errors; most recent error was: %w", errCount-1, savedErr)
 	}
-	return &appHealth, savedErr
+	return appHealth, savedErr
 }
