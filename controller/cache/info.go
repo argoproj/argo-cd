@@ -446,7 +446,8 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	}
 
 	req, _ := resourcehelper.PodRequestsAndLimits(&pod)
-	CPUReq, MemoryReq := req[v1.ResourceCPU], req[v1.ResourceMemory]
+
+	CPUReq, MemoryReq := req[corev1.ResourceCPU], req[corev1.ResourceMemory]
 
 	res.PodInfo = &PodInfo{NodeName: pod.Spec.NodeName, ResourceRequests: req, Phase: pod.Status.Phase}
 
