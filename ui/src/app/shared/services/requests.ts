@@ -68,20 +68,7 @@ export default {
 
     loadEventSource(url: string): Observable<string> {
         return Observable.create((observer: Observer<any>) => {
-            const fullUrl = `${apiRoot()}${url}`;
-
-            const abortController = new AbortController();
-
-            // If there is an error, show it beforehand
-            fetch(fullUrl, {signal: abortController.signal}).then(response => {
-                if (!response.ok) {
-                    return response.text().then(text => {
-                        observer.error({status: response.status, statusText: response.statusText, body: text});
-                    });
-                }
-            });
-
-            let eventSource = new EventSource(fullUrl);
+            let eventSource = new EventSource(`${apiRoot()}${url}`);
             eventSource.onmessage = msg => observer.next(msg.data);
             eventSource.onerror = e => () => {
                 observer.error(e);
@@ -98,7 +85,6 @@ export default {
             return () => {
                 clearInterval(interval);
                 eventSource.close();
-                abortController.abort();
                 eventSource = null;
             };
         });

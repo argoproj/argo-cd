@@ -11,22 +11,22 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/httpstream"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
-	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	servercache "github.com/argoproj/argo-cd/v3/server/cache"
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/rbac"
-	"github.com/argoproj/argo-cd/v3/util/security"
-	util_session "github.com/argoproj/argo-cd/v3/util/session"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	util_session "github.com/argoproj/argo-cd/v2/util/session"
+
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v2/util/security"
+	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type terminalHandler struct {
@@ -47,7 +47,7 @@ type TerminalOptions struct {
 }
 
 // NewHandler returns a new terminal handler.
-func NewHandler(appLister applisters.ApplicationLister, namespace string, enabledNamespaces []string, db db.ArgoDB, cache *servercache.Cache, appResourceTree AppResourceTreeFn, allowedShells []string, sessionManager *util_session.SessionManager, terminalOptions *TerminalOptions) *terminalHandler {
+func NewHandler(appLister applisters.ApplicationLister, namespace string, enabledNamespaces []string, db db.ArgoDB, cache *servercache.Cache, appResourceTree AppResourceTreeFn, allowedShells []string, sessionManager *sessionmgr.SessionManager, terminalOptions *TerminalOptions) *terminalHandler {
 	return &terminalHandler{
 		appLister:         appLister,
 		db:                db,
@@ -62,11 +62,14 @@ func NewHandler(appLister applisters.ApplicationLister, namespace string, enable
 }
 
 func (s *terminalHandler) getApplicationClusterRawConfig(ctx context.Context, a *appv1.Application) (*rest.Config, error) {
-	destCluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)
+	if err := argo.ValidateDestination(ctx, &a.Spec.Destination, s.db); err != nil {
+		return nil, err
+	}
+	clst, err := s.db.GetCluster(ctx, a.Spec.Destination.Server)
 	if err != nil {
 		return nil, err
 	}
-	rawConfig, err := destCluster.RawRestConfig()
+	rawConfig, err := clst.RawRestConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +163,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fieldLog := log.WithFields(log.Fields{
-		"application": app, "userName": util_session.Username(ctx), "container": container,
+		"application": app, "userName": sessionmgr.Username(ctx), "container": container,
 		"podName": podName, "namespace": namespace, "project": project, "appNamespace": appNamespace,
 	})
 
@@ -319,19 +322,6 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, namespace, p
 		return err
 	}
 
-	// Fallback executor is default, unless feature flag is explicitly disabled.
-	// Reuse environment variable for kubectl to disable the feature flag, default is enabled.
-	if !cmdutil.RemoteCommandWebsockets.IsDisabled() {
-		// WebSocketExecutor must be "GET" method as described in RFC 6455 Sec. 4.1 (page 17).
-		websocketExec, err := remotecommand.NewWebSocketExecutor(cfg, "GET", req.URL().String())
-		if err != nil {
-			return err
-		}
-		exec, err = remotecommand.NewFallbackExecutor(websocketExec, exec, httpstream.IsUpgradeFailure)
-		if err != nil {
-			return err
-		}
-	}
 	return exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
 		Stdin:             ptyHandler,
 		Stdout:            ptyHandler,

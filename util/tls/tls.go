@@ -21,7 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v2/util/env"
 )
 
 const (
@@ -89,10 +89,11 @@ func getTLSCipherSuitesByString(cipherSuites string) ([]uint16, error) {
 	allowedSuites := make([]uint16, 0)
 	for _, s := range strings.Split(cipherSuites, ":") {
 		id, ok := suiteMap[strings.TrimSpace(s)]
-		if !ok {
+		if ok {
+			allowedSuites = append(allowedSuites, id)
+		} else {
 			return nil, fmt.Errorf("invalid cipher suite specified: %s", s)
 		}
-		allowedSuites = append(allowedSuites, id)
 	}
 	return allowedSuites, nil
 }
@@ -127,7 +128,7 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) 
 		return nil, fmt.Errorf("error retrieving TLS version by max version %q: %w", maxVersionStr, err)
 	}
 	if minVersion > maxVersion {
-		return nil, fmt.Errorf("minimum TLS version %s must not be higher than maximum TLS version %s", minVersionStr, maxVersionStr)
+		return nil, fmt.Errorf("Minimum TLS version %s must not be higher than maximum TLS version %s", minVersionStr, maxVersionStr)
 	}
 
 	// Cipher suites for TLSv1.3 are not configurable
@@ -178,7 +179,7 @@ func AddTLSFlagsToCmd(cmd *cobra.Command) func() (ConfigCustomizer, error) {
 	}
 }
 
-func publicKey(priv any) any {
+func publicKey(priv interface{}) interface{} {
 	switch k := priv.(type) {
 	case *rsa.PrivateKey:
 		return &k.PublicKey
@@ -189,7 +190,7 @@ func publicKey(priv any) any {
 	}
 }
 
-func pemBlockForKey(priv any) *pem.Block {
+func pemBlockForKey(priv interface{}) *pem.Block {
 	switch k := priv.(type) {
 	case *rsa.PrivateKey:
 		return &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(k)}
@@ -207,7 +208,7 @@ func pemBlockForKey(priv any) *pem.Block {
 
 func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 	if len(opts.Hosts) == 0 {
-		return nil, nil, errors.New("hosts not supplied")
+		return nil, nil, fmt.Errorf("hosts not supplied")
 	}
 
 	var privateKey crypto.PrivateKey
@@ -228,7 +229,7 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 	case "P521":
 		privateKey, err = ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	default:
-		return nil, nil, fmt.Errorf("unrecognized elliptic curve: %q", opts.ECDSACurve)
+		return nil, nil, fmt.Errorf("Unrecognized elliptic curve: %q", opts.ECDSACurve)
 	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate private key: %w", err)
@@ -255,7 +256,7 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 	}
 
 	if opts.Organization == "" {
-		return nil, nil, errors.New("organization not supplied")
+		return nil, nil, fmt.Errorf("organization not supplied")
 	}
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
@@ -285,7 +286,7 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 
 	certBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, publicKey(privateKey), privateKey)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create certificate: %w", err)
+		return nil, nil, fmt.Errorf("Failed to create certificate: %w", err)
 	}
 	return certBytes, privateKey, nil
 }
@@ -344,13 +345,14 @@ func LoadX509CertPool(paths ...string) (*x509.CertPool, error) {
 			}
 			// ...but everything else is considered an error
 			return nil, fmt.Errorf("could not load TLS certificate: %w", err)
-		}
-		f, err := os.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("failure to load TLS certificates from %s: %w", path, err)
-		}
-		if ok := pool.AppendCertsFromPEM(f); !ok {
-			return nil, fmt.Errorf("invalid cert data in %s", path)
+		} else {
+			f, err := os.ReadFile(path)
+			if err != nil {
+				return nil, fmt.Errorf("failure to load TLS certificates from %s: %w", path, err)
+			}
+			if ok := pool.AppendCertsFromPEM(f); !ok {
+				return nil, fmt.Errorf("invalid cert data in %s", path)
+			}
 		}
 	}
 	return pool, nil
@@ -364,7 +366,7 @@ func LoadX509Cert(path string) (*x509.Certificate, error) {
 	}
 	block, _ := pem.Decode(bytes)
 	if block == nil {
-		return nil, errors.New("could not decode PEM")
+		return nil, fmt.Errorf("could not decode PEM")
 	}
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
@@ -421,7 +423,7 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string) (*tls
 		log.Infof("Loading TLS configuration from cert=%s and key=%s", tlsCertPath, tlsKeyPath)
 		c, err := tls.LoadX509KeyPair(tlsCertPath, tlsKeyPath)
 		if err != nil {
-			return nil, fmt.Errorf("unable to initialize TLS configuration with cert=%s and key=%s: %w", tlsCertPath, tlsKeyPath, err)
+			return nil, fmt.Errorf("Unable to initialize TLS configuration with cert=%s and key=%s: %w", tlsCertPath, tlsKeyPath, err)
 		}
 		cert = &c
 	}

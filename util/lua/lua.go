@@ -17,10 +17,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	luajson "layeh.com/gopher-json"
 
-	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/resource_customizations"
-	"github.com/argoproj/argo-cd/v3/util/glob"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/resource_customizations"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 )
 
 const (
@@ -71,10 +70,6 @@ type VM struct {
 }
 
 func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState, error) {
-	return vm.runLuaWithResourceActionParameters(obj, script, nil)
-}
-
-func (vm VM) runLuaWithResourceActionParameters(obj *unstructured.Unstructured, script string, resourceActionParameters []*applicationpkg.ResourceActionParameters) (*lua.LState, error) {
 	l := lua.NewState(lua.Options{
 		SkipOpenLibs: !vm.UseOpenLibs,
 	})
@@ -104,29 +99,9 @@ func (vm VM) runLuaWithResourceActionParameters(obj *unstructured.Unstructured, 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 	l.SetContext(ctx)
-
-	// Inject action parameters as a hash table global variable
-	actionParams := l.CreateTable(0, len(resourceActionParameters))
-	for _, resourceActionParameter := range resourceActionParameters {
-		value := decodeValue(l, resourceActionParameter.GetValue())
-		actionParams.RawSetH(lua.LString(resourceActionParameter.GetName()), value)
-	}
-	l.SetGlobal("actionParams", actionParams) // Set the actionParams table as a global variable
-
 	objectValue := decodeValue(l, obj.Object)
 	l.SetGlobal("obj", objectValue)
 	err := l.DoString(script)
-
-	// Remove the default lua stack trace from execution errors since these
-	// errors will make it back to the user
-	var apiErr *lua.ApiError
-	if errors.As(err, &apiErr) {
-		if apiErr.Type == lua.ApiErrorRun {
-			apiErr.StackTrace = ""
-			err = apiErr
-		}
-	}
-
 	return l, err
 }
 
@@ -198,8 +173,8 @@ func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (script string, use
 	return builtInScript, true, err
 }
 
-func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string, resourceActionParameters []*applicationpkg.ResourceActionParameters) ([]ImpactedResource, error) {
-	l, err := vm.runLuaWithResourceActionParameters(obj, script, resourceActionParameters)
+func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string) ([]ImpactedResource, error) {
+	l, err := vm.runLua(obj, script)
 	if err != nil {
 		return nil, err
 	}
@@ -213,9 +188,8 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 		var impactedResources []ImpactedResource
 
 		jsonString := bytes.NewBuffer(jsonBytes).String()
-		// nolint:staticcheck // Lua is fine to be capitalized.
 		if len(jsonString) < 2 {
-			return nil, errors.New("Lua output was not a valid json object or array")
+			return nil, fmt.Errorf("Lua output was not a valid json object or array")
 		}
 		// The output from Lua is either an object (old-style action output) or an array (new-style action output).
 		// Check whether the string starts with an opening square bracket and ends with a closing square bracket,
@@ -265,7 +239,7 @@ func UnmarshalToImpactedResources(resources string) ([]ImpactedResource, error) 
 // cleanReturnedObj Lua cannot distinguish an empty table as an array or map, and the library we are using choose to
 // decoded an empty table into an empty array. This function prevents the lua scripts from unintentionally changing an
 // empty struct into empty arrays
-func cleanReturnedObj(newObj, obj map[string]any) map[string]any {
+func cleanReturnedObj(newObj, obj map[string]interface{}) map[string]interface{} {
 	mapToReturn := newObj
 	for key := range obj {
 		if newValueInterface, ok := newObj[key]; ok {
@@ -274,19 +248,19 @@ func cleanReturnedObj(newObj, obj map[string]any) map[string]any {
 				continue
 			}
 			switch newValue := newValueInterface.(type) {
-			case map[string]any:
-				if oldValue, ok := oldValueInterface.(map[string]any); ok {
+			case map[string]interface{}:
+				if oldValue, ok := oldValueInterface.(map[string]interface{}); ok {
 					convertedMap := cleanReturnedObj(newValue, oldValue)
 					mapToReturn[key] = convertedMap
 				}
 
-			case []any:
+			case []interface{}:
 				switch oldValue := oldValueInterface.(type) {
-				case map[string]any:
+				case map[string]interface{}:
 					if len(newValue) == 0 {
 						mapToReturn[key] = oldValue
 					}
-				case []any:
+				case []interface{}:
 					newArray := cleanReturnedArray(newValue, oldValue)
 					mapToReturn[key] = newArray
 				}
@@ -298,17 +272,17 @@ func cleanReturnedObj(newObj, obj map[string]any) map[string]any {
 
 // cleanReturnedArray allows Argo CD to recurse into nested arrays when checking for unintentional empty struct to
 // empty array conversions.
-func cleanReturnedArray(newObj, obj []any) []any {
+func cleanReturnedArray(newObj, obj []interface{}) []interface{} {
 	arrayToReturn := newObj
 	for i := range newObj {
 		switch newValue := newObj[i].(type) {
-		case map[string]any:
-			if oldValue, ok := obj[i].(map[string]any); ok {
+		case map[string]interface{}:
+			if oldValue, ok := obj[i].(map[string]interface{}); ok {
 				convertedMap := cleanReturnedObj(newValue, oldValue)
 				arrayToReturn[i] = convertedMap
 			}
-		case []any:
-			if oldValue, ok := obj[i].([]any); ok {
+		case []interface{}:
+			if oldValue, ok := obj[i].([]interface{}); ok {
 				convertedMap := cleanReturnedArray(newValue, oldValue)
 				arrayToReturn[i] = convertedMap
 			}
@@ -319,7 +293,7 @@ func cleanReturnedArray(newObj, obj []any) []any {
 
 func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scripts []string) ([]appv1.ResourceAction, error) {
 	if len(scripts) == 0 {
-		return nil, errors.New("no action discovery script provided")
+		return nil, fmt.Errorf("no action discovery script provided")
 	}
 	availableActionsMap := make(map[string]appv1.ResourceAction)
 
@@ -329,40 +303,41 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 			return nil, err
 		}
 		returnValue := l.Get(-1)
-		if returnValue.Type() != lua.LTTable {
-			return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
-		}
-		jsonBytes, err := luajson.Encode(returnValue)
-		if err != nil {
-			return nil, fmt.Errorf("error in converting to lua table: %w", err)
-		}
-		if noAvailableActions(jsonBytes) {
-			continue
-		}
-		actionsMap := make(map[string]any)
-		err = json.Unmarshal(jsonBytes, &actionsMap)
-		if err != nil {
-			return nil, fmt.Errorf("error unmarshaling action table: %w", err)
-		}
-		for key, value := range actionsMap {
-			resourceAction := appv1.ResourceAction{Name: key, Disabled: isActionDisabled(value)}
-			if _, exist := availableActionsMap[key]; exist {
-				continue
-			}
-			if emptyResourceActionFromLua(value) {
-				availableActionsMap[key] = resourceAction
-				continue
-			}
-			resourceActionBytes, err := json.Marshal(value)
+		if returnValue.Type() == lua.LTTable {
+			jsonBytes, err := luajson.Encode(returnValue)
 			if err != nil {
-				return nil, fmt.Errorf("error marshaling resource action: %w", err)
+				return nil, fmt.Errorf("error in converting to lua table: %w", err)
 			}
+			if noAvailableActions(jsonBytes) {
+				continue
+			}
+			actionsMap := make(map[string]interface{})
+			err = json.Unmarshal(jsonBytes, &actionsMap)
+			if err != nil {
+				return nil, fmt.Errorf("error unmarshaling action table: %w", err)
+			}
+			for key, value := range actionsMap {
+				resourceAction := appv1.ResourceAction{Name: key, Disabled: isActionDisabled(value)}
+				if _, exist := availableActionsMap[key]; exist {
+					continue
+				}
+				if emptyResourceActionFromLua(value) {
+					availableActionsMap[key] = resourceAction
+					continue
+				}
+				resourceActionBytes, err := json.Marshal(value)
+				if err != nil {
+					return nil, fmt.Errorf("error marshaling resource action: %w", err)
+				}
 
-			err = json.Unmarshal(resourceActionBytes, &resourceAction)
-			if err != nil {
-				return nil, fmt.Errorf("error unmarshaling resource action: %w", err)
+				err = json.Unmarshal(resourceActionBytes, &resourceAction)
+				if err != nil {
+					return nil, fmt.Errorf("error unmarshaling resource action: %w", err)
+				}
+				availableActionsMap[key] = resourceAction
 			}
-			availableActionsMap[key] = resourceAction
+		} else {
+			return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
 		}
 	}
 
@@ -375,13 +350,14 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 }
 
 // Actions are enabled by default
-func isActionDisabled(actionsMap any) bool {
-	actions, ok := actionsMap.(map[string]any)
+func isActionDisabled(actionsMap interface{}) bool {
+	actions, ok := actionsMap.(map[string]interface{})
 	if !ok {
 		return false
 	}
 	for key, val := range actions {
-		if vv, ok := val.(bool); ok {
+		switch vv := val.(type) {
+		case bool:
 			if key == "disabled" {
 				return vv
 			}
@@ -390,8 +366,8 @@ func isActionDisabled(actionsMap any) bool {
 	return false
 }
 
-func emptyResourceActionFromLua(i any) bool {
-	_, ok := i.([]any)
+func emptyResourceActionFromLua(i interface{}) bool {
+	_, ok := i.([]interface{})
 	return ok
 }
 
@@ -412,14 +388,15 @@ func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) ([]strin
 			return nil, err
 		}
 		// Append the action discovery Lua script if built-in actions are to be included
-		if !actions.MergeBuiltinActions {
+		if actions.MergeBuiltinActions {
+			discoveryScripts = append(discoveryScripts, actions.ActionDiscoveryLua)
+		} else {
 			return []string{actions.ActionDiscoveryLua}, nil
 		}
-		discoveryScripts = append(discoveryScripts, actions.ActionDiscoveryLua)
 	}
 
 	// Fetch predefined Lua scripts
-	discoveryKey := key + "/actions/"
+	discoveryKey := fmt.Sprintf("%s/actions/", key)
 	discoveryScript, err := vm.getPredefinedLuaScripts(discoveryKey, actionDiscoveryScriptFile)
 	if err != nil {
 		var doesNotExistErr *ScriptDoesNotExistError
@@ -506,7 +483,7 @@ func isValidHealthStatusCode(statusCode health.HealthStatusCode) bool {
 // Took logic from the link below and added the int, int32, and int64 types since the value would have type int64
 // while actually running in the controller and it was not reproducible through testing.
 // https://github.com/layeh/gopher-json/blob/97fed8db84274c421dbfffbb28ec859901556b97/json.go#L154
-func decodeValue(l *lua.LState, value any) lua.LValue {
+func decodeValue(l *lua.LState, value interface{}) lua.LValue {
 	switch converted := value.(type) {
 	case bool:
 		return lua.LBool(converted)
@@ -522,13 +499,13 @@ func decodeValue(l *lua.LState, value any) lua.LValue {
 		return lua.LNumber(converted)
 	case int64:
 		return lua.LNumber(converted)
-	case []any:
+	case []interface{}:
 		arr := l.CreateTable(len(converted), 0)
 		for _, item := range converted {
 			arr.Append(decodeValue(l, item))
 		}
 		return arr
-	case map[string]any:
+	case map[string]interface{}:
 		tbl := l.CreateTable(0, len(converted))
 		for key, item := range converted {
 			tbl.RawSetH(lua.LString(key), decodeValue(l, item))

@@ -67,7 +67,6 @@ export interface ApplicationResourceTreeProps {
     filters?: string[];
     setTreeFilterGraph?: (filterGraph: any[]) => void;
     nameDirection: boolean;
-    nameWrap: boolean;
     setNodeExpansion: (node: string, isExpanded: boolean) => any;
     getNodeExpansion: (node: string) => boolean;
 }
@@ -465,11 +464,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                     <br />
                     {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
                 </div>
-                <div
-                    className={classNames('application-resource-tree__node-content', {
-                        'application-resource-tree__fullname': props.nameWrap,
-                        'application-resource-tree__wrappedname': !props.nameWrap
-                    })}>
+                <div className='application-resource-tree__node-content'>
                     <span
                         className={classNames('application-resource-tree__node-title', {
                             'application-resource-tree__direction-right': props.nameDirection,
@@ -749,11 +744,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 <br />
                 {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
             </div>
-            <div
-                className={classNames('application-resource-tree__node-content', {
-                    'application-resource-tree__fullname': props.nameWrap,
-                    'application-resource-tree__wrappedname': !props.nameWrap
-                })}>
+            <div className='application-resource-tree__node-content'>
                 <div
                     className={classNames('application-resource-tree__node-title', {
                         'application-resource-tree__direction-right': props.nameDirection,
@@ -935,16 +926,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         graphNodesFilter.nodes().forEach(nodeId => {
             const node: ResourceTreeNode = graphNodesFilter.node(nodeId) as any;
             const parentIds = graphNodesFilter.predecessors(nodeId);
-
-            const shouldKeepNode = () => {
-                //case for podgroup in group node view
-                if (node.podGroup) {
-                    return predicate(node) || node.podGroup.pods.some(pod => predicate({...node, kind: 'Pod', name: pod.name}));
-                }
-                return predicate(node);
-            };
-
-            if (node.root != null && !shouldKeepNode() && appKey !== nodeId) {
+            if (node.root != null && !predicate(node) && appKey !== nodeId) {
                 const childIds = graphNodesFilter.successors(nodeId);
                 graphNodesFilter.removeNode(nodeId);
                 filtered++;
@@ -957,14 +939,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 if (node.root != null) filteredNodes.push(node);
             }
         });
-
         if (filtered) {
-            graphNodesFilter.setNode(FILTERED_INDICATOR_NODE, {
-                height: NODE_HEIGHT,
-                width: NODE_WIDTH,
-                count: filtered,
-                type: NODE_TYPES.filteredIndicator
-            });
+            graphNodesFilter.setNode(FILTERED_INDICATOR_NODE, {height: NODE_HEIGHT, width: NODE_WIDTH, count: filtered, type: NODE_TYPES.filteredIndicator});
             graphNodesFilter.setEdge(filteredIndicatorParent, FILTERED_INDICATOR_NODE);
         }
     }

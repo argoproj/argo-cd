@@ -10,25 +10,25 @@ import (
 	"text/tabwriter"
 	"time"
 
-	timeutil "github.com/argoproj/pkg/v2/time"
+	timeutil "github.com/argoproj/pkg/time"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
-	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
-	accountpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/v3/util/cli"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/localconfig"
-	sessionutil "github.com/argoproj/argo-cd/v3/util/session"
-	"github.com/argoproj/argo-cd/v3/util/templates"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/localconfig"
+	sessionutil "github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 func NewAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {

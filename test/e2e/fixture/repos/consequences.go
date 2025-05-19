@@ -2,12 +2,11 @@ package repos
 
 import (
 	"context"
-	"errors"
-	"time"
+	"fmt"
 
-	repositorypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repository"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 )
 
 // this implements the "then" part of given/when/then
@@ -47,7 +46,7 @@ func (c *Consequences) get() (*v1alpha1.Repository, error) {
 		}
 	}
 
-	return nil, errors.New("repo not found")
+	return nil, fmt.Errorf("repo not found")
 }
 
 func (c *Consequences) Given() *Context {
@@ -55,6 +54,5 @@ func (c *Consequences) Given() *Context {
 }
 
 func (c *Consequences) When() *Actions {
-	time.Sleep(fixture.WhenThenSleepInterval)
 	return c.actions
 }
