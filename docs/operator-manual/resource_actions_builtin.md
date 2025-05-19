@@ -13,6 +13,7 @@
 - [argoproj.io/Rollout/restart](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/argoproj.io/Rollout/actions/restart/action.lua)
 - [argoproj.io/Rollout/resume](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/argoproj.io/Rollout/actions/resume/action.lua)
 - [argoproj.io/Rollout/retry](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/argoproj.io/Rollout/actions/retry/action.lua)
+- [argoproj.io/Rollout/skip-current-step](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/argoproj.io/Rollout/actions/skip-current-step/action.lua)
 - [argoproj.io/WorkflowTemplate/create-workflow](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/argoproj.io/WorkflowTemplate/actions/create-workflow/action.lua)
 - [batch/CronJob/create-job](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/batch/CronJob/actions/create-job/action.lua)
 - [external-secrets.io/ExternalSecret/refresh](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/external-secrets.io/ExternalSecret/actions/refresh/action.lua)
