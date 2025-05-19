@@ -27,10 +27,15 @@ message AWSAuthConfig {
   optional string profile = 3;
 }
 
-// HealthStatus contains information about the currently observed health state of an application or resource
+// AppHealthStatus contains information about the currently observed health state of an application
 message AppHealthStatus {
-  // Status holds the status code of the application or resource
+  // Status holds the status code of the application
   optional string status = 1;
+
+  // Message is a human-readable informational message describing the health status
+  //
+  // Deprecated: this field is not used and will be removed in a future release.
+  optional string message = 2;
 
   // LastTransitionTime is the time the HealthStatus was set or updated
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
@@ -1106,6 +1111,20 @@ message GnuPGPublicKeyList {
   repeated GnuPGPublicKey items = 2;
 }
 
+// HealthStatus contains information about the currently observed health state of a resource
+message HealthStatus {
+  // Status holds the status code of the resource
+  optional string status = 1;
+
+  // Message is a human-readable informational message describing the health status
+  optional string message = 2;
+
+  // LastTransitionTime is the time the HealthStatus was set or updated
+  //
+  // Deprecated: this field is not used and will be removed in a future release.
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
+}
+
 // HelmFileParameter is a file parameter that's passed to helm template during manifest generation
 message HelmFileParameter {
   // Name is the name of the Helm parameter
@@ -1948,14 +1967,6 @@ message ResourceDiff {
   optional bool modified = 12;
 }
 
-message ResourceHealthStatus {
-  // Status holds the status code of the application or resource
-  optional string status = 1;
-
-  // Message is a human-readable informational message describing the health status
-  optional string message = 2;
-}
-
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
 message ResourceIgnoreDifferences {
   optional string group = 1;
@@ -2018,7 +2029,7 @@ message ResourceNode {
   repeated string images = 6;
 
   // Health represents the health status of the resource (e.g., Healthy, Degraded, Progressing).
-  optional ResourceHealthStatus health = 7;
+  optional HealthStatus health = 7;
 
   // CreatedAt records the timestamp when the resource was created.
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time createdAt = 8;
@@ -2115,7 +2126,7 @@ message ResourceStatus {
   optional string status = 6;
 
   // Health indicates the health status of the resource (e.g., Healthy, Degraded, Progressing).
-  optional ResourceHealthStatus health = 7;
+  optional HealthStatus health = 7;
 
   // Hook is true if the resource is used as a lifecycle hook in an Argo CD application.
   optional bool hook = 8;

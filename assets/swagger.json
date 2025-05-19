@@ -5123,7 +5123,7 @@
           "type": "string"
         },
         "health": {
-          "$ref": "#/definitions/v1alpha1ResourceHealthStatus"
+          "$ref": "#/definitions/v1alpha1HealthStatus"
         },
         "hook": {
           "description": "Hook is true if the resource is used as a lifecycle hook in an Argo CD application.",
@@ -6495,14 +6495,19 @@
     },
     "v1alpha1AppHealthStatus": {
       "type": "object",
-      "title": "HealthStatus contains information about the currently observed health state of an application or resource",
+      "title": "AppHealthStatus contains information about the currently observed health state of an application",
       "properties": {
         "lastTransitionTime": {
           "$ref": "#/definitions/v1Time"
         },
+        "message": {
+          "description": "Deprecated: this field is not used and will be removed in a future release.",
+          "type": "string",
+          "title": "Message is a human-readable informational message describing the health status"
+        },
         "status": {
           "type": "string",
-          "title": "Status holds the status code of the application or resource"
+          "title": "Status holds the status code of the application"
         }
       }
     },
@@ -8148,6 +8153,23 @@
         }
       }
     },
+    "v1alpha1HealthStatus": {
+      "type": "object",
+      "title": "HealthStatus contains information about the currently observed health state of a resource",
+      "properties": {
+        "lastTransitionTime": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message is a human-readable informational message describing the health status"
+        },
+        "status": {
+          "type": "string",
+          "title": "Status holds the status code of the resource"
+        }
+      }
+    },
     "v1alpha1HelmFileParameter": {
       "type": "object",
       "title": "HelmFileParameter is a file parameter that's passed to helm template during manifest generation",
@@ -9327,19 +9349,6 @@
         }
       }
     },
-    "v1alpha1ResourceHealthStatus": {
-      "type": "object",
-      "properties": {
-        "message": {
-          "type": "string",
-          "title": "Message is a human-readable informational message describing the health status"
-        },
-        "status": {
-          "type": "string",
-          "title": "Status holds the status code of the application or resource"
-        }
-      }
-    },
     "v1alpha1ResourceIgnoreDifferences": {
       "description": "ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.",
       "type": "object",
@@ -9426,7 +9435,7 @@
           "$ref": "#/definitions/v1Time"
         },
         "health": {
-          "$ref": "#/definitions/v1alpha1ResourceHealthStatus"
+          "$ref": "#/definitions/v1alpha1HealthStatus"
         },
         "images": {
           "description": "Images lists container images associated with the resource.\nThis is primarily useful for pods and other workload resources.",

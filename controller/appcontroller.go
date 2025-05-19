@@ -1686,7 +1686,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if hasErrors {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = health.HealthStatusUnknown
-		app.Status.Health.LastTransitionTime = &now
 		patchDuration = ctrl.persistAppStatus(origApp, &app.Status)
 
 		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), &appv1.ApplicationTree{}); err != nil {
@@ -2013,11 +2012,16 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		ctrl.logAppEvent(context.TODO(), orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: corev1.EventTypeNormal}, message)
 	}
 	if orig.Status.Health.Status != newStatus.Health.Status {
+		// Update the last transition time to now. This should be the ONLY place in code where this is set, because it's
+		// the only place that is reliably aware of the previous and updated health statuses.
 		now := metav1.Now()
 		newStatus.Health.LastTransitionTime = &now
 
 		message := fmt.Sprintf("Updated health status: %s -> %s", orig.Status.Health.Status, newStatus.Health.Status)
 		ctrl.logAppEvent(context.TODO(), orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: corev1.EventTypeNormal}, message)
+	} else {
+		// make sure the last transition time is the same and populated if the health is the same
+		newStatus.Health.LastTransitionTime = orig.Status.Health.LastTransitionTime
 	}
 	var newAnnotations map[string]string
 	if orig.GetAnnotations() != nil {

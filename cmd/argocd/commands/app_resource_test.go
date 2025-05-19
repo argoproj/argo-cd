@@ -52,7 +52,7 @@ func TestPrintTreeViewDetailedAppResources(t *testing.T) {
 	nodes[1].ResourceRef = v1alpha1.ResourceRef{Group: "apps", Version: "v1", Kind: "ReplicaSet", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcd5457d5", UID: "75c30dce-1b66-414f-a86c-573a74be0f40"}
 	nodes[1].ParentRefs = []v1alpha1.ResourceRef{{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}}
 	nodes[2].ResourceRef = v1alpha1.ResourceRef{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}
-	nodes[2].Health = &v1alpha1.ResourceHealthStatus{
+	nodes[2].Health = &v1alpha1.HealthStatus{
 		Status:  "Degraded",
 		Message: "Readiness Gate failed",
 	}

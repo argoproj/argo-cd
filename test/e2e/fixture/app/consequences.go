@@ -133,7 +133,7 @@ func (c *Consequences) resource(kind, name, namespace string) v1alpha1.ResourceS
 		}
 	}
 	return v1alpha1.ResourceStatus{
-		Health: &v1alpha1.ResourceHealthStatus{
+		Health: &v1alpha1.HealthStatus{
 			Status:  health.HealthStatusMissing,
 			Message: "not found",
 		},

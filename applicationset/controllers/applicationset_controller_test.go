@@ -6165,7 +6165,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 				{
 					Name:   "app1",
 					Status: v1alpha1.SyncStatusCodeSynced,
-					Health: &v1alpha1.ResourceHealthStatus{
+					Health: &v1alpha1.HealthStatus{
 						Status: health.HealthStatusHealthy,
 					},
 				},
@@ -6183,7 +6183,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 						{
 							Name:   "app1",
 							Status: v1alpha1.SyncStatusCodeSynced,
-							Health: &v1alpha1.ResourceHealthStatus{
+							Health: &v1alpha1.HealthStatus{
 								Status: health.HealthStatusHealthy,
 							},
 						},
@@ -6209,7 +6209,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 				{
 					Name:   "app1",
 					Status: v1alpha1.SyncStatusCodeSynced,
-					Health: &v1alpha1.ResourceHealthStatus{
+					Health: &v1alpha1.HealthStatus{
 						Status: health.HealthStatusHealthy,
 					},
 				},
@@ -6227,7 +6227,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 						{
 							Name:   "app1",
 							Status: v1alpha1.SyncStatusCodeOutOfSync,
-							Health: &v1alpha1.ResourceHealthStatus{
+							Health: &v1alpha1.HealthStatus{
 								Status:  health.HealthStatusProgressing,
 								Message: "Progressing",
 							},
@@ -6254,7 +6254,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 				{
 					Name:   "app1",
 					Status: v1alpha1.SyncStatusCodeSynced,
-					Health: &v1alpha1.ResourceHealthStatus{
+					Health: &v1alpha1.HealthStatus{
 						Status: health.HealthStatusHealthy,
 					},
 				},
@@ -6272,7 +6272,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 						{
 							Name:   "app1",
 							Status: v1alpha1.SyncStatusCodeSynced,
-							Health: &v1alpha1.ResourceHealthStatus{
+							Health: &v1alpha1.HealthStatus{
 								Status:  health.HealthStatusHealthy,
 								Message: "OK",
 							},
@@ -6316,7 +6316,7 @@ func generateNAppResourceStatuses(n int) []v1alpha1.ResourceStatus {
 		r = append(r, v1alpha1.ResourceStatus{
 			Name:   "app" + strconv.Itoa(i),
 			Status: v1alpha1.SyncStatusCodeSynced,
-			Health: &v1alpha1.ResourceHealthStatus{
+			Health: &v1alpha1.HealthStatus{
 				Status: health.HealthStatusHealthy,
 			},
 		},

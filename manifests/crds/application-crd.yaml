@@ -1988,9 +1988,14 @@ spec:
                       set or updated
                     format: date-time
                     type: string
+                  message:
+                    description: |-
+                      Message is a human-readable informational message describing the health status
+
+                      Deprecated: this field is not used and will be removed in a future release.
+                    type: string
                   status:
-                    description: Status holds the status code of the application or
-                      resource
+                    description: Status holds the status code of the application
                     type: string
                 type: object
               history:
@@ -4735,13 +4740,19 @@ spec:
                       description: Health indicates the health status of the resource
                         (e.g., Healthy, Degraded, Progressing).
                       properties:
+                        lastTransitionTime:
+                          description: |-
+                            LastTransitionTime is the time the HealthStatus was set or updated
+
+                            Deprecated: this field is not used and will be removed in a future release.
+                          format: date-time
+                          type: string
                         message:
                           description: Message is a human-readable informational message
                             describing the health status
                           type: string
                         status:
-                          description: Status holds the status code of the application
-                            or resource
+                          description: Status holds the status code of the resource
                           type: string
                       type: object
                     hook:

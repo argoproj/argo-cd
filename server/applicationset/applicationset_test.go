@@ -567,7 +567,7 @@ func TestResourceTree(t *testing.T) {
 				Group:     "argoproj.io",
 				Version:   "v1alpha1",
 				Namespace: "default",
-				Health: &appsv1.ResourceHealthStatus{
+				Health: &appsv1.HealthStatus{
 					Status:  health.HealthStatusHealthy,
 					Message: "OK",
 				},
@@ -603,7 +603,7 @@ func TestResourceTree(t *testing.T) {
 						Name:      "AppSet1",
 					},
 				},
-				Health: &appsv1.ResourceHealthStatus{
+				Health: &appsv1.HealthStatus{
 					Status:  health.HealthStatusHealthy,
 					Message: "OK",
 				},
