@@ -2002,7 +2002,11 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		newStatus.Health.LastTransitionTime = &now
 		message := fmt.Sprintf("Updated health status: %s -> %s", orig.Status.Health.Status, newStatus.Health.Status)
 		ctrl.logAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message, context.TODO())
+	} else {
+		// make sure the last transition time is the same and populated if the health is the same
+		newStatus.Health.LastTransitionTime = orig.Status.Health.LastTransitionTime
 	}
+
 	var newAnnotations map[string]string
 	if orig.GetAnnotations() != nil {
 		newAnnotations = make(map[string]string)
