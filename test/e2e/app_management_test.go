@@ -3030,6 +3030,7 @@ func TestDeletionConfirmation(t *testing.T) {
 		Then().Expect(DoesNotExist())
 }
 
+func TestLastTransitionTimeUnchangedError(t *testing.T) {
 	// Ensure that, if the health status hasn't changed, the lastTransitionTime is not updated.
 
 	ctx := Given(t)
