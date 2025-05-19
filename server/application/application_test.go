@@ -2035,7 +2035,7 @@ func TestSyncMultiSourceInconsistent(t *testing.T) {
 			Name:      "fake-cluster",
 		},
 	}
-	t.Run("multisource sync with pos <= 0 should fail", func(t *testing.T) {
+	t.Run("multisource sync with pos > len should fail", func(t *testing.T) {
 		_ = appServer.enf.SetBuiltinPolicy(`
 		p, test-user, applications, get, default/*, allow
 		p, test-user, applications, create, default/*, allow
@@ -2053,7 +2053,7 @@ func TestSyncMultiSourceInconsistent(t *testing.T) {
 		_, err = appServer.Sync(ctx, syncReq)
 		require.EqualError(t, err, "source position is out of range")
 	})
-	t.Run("multisource sync with pos > len should fail", func(t *testing.T) {
+	t.Run("multisource sync with pos <= 0 should fail", func(t *testing.T) {
 		_ = appServer.enf.SetBuiltinPolicy(`
 		p, test-user, applications, get, default/*, allow
 		p, test-user, applications, create, default/*, allow
