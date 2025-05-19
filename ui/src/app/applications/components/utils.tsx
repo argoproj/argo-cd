@@ -1414,7 +1414,7 @@ export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {
 }
 
 export function isAppRefreshing(app: appModels.Application) {
-    return !!(app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey]);
+    return !!(app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey]) && !hasSkipReconcile(app);
 }
 
 export function setAppRefreshing(app: appModels.Application) {
