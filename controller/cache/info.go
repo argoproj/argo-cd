@@ -460,8 +460,8 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	// requests will be released for terminated pods either with success or failed state termination.
 
 	if reason != "Completed" && reason != "Error" {
-		res.Info = append(res.Info, v1alpha1.InfoItem{Name: common.PodRequestsCPU, Value: fmt.Sprintf("%d", CPUReq.MilliValue())})
-		res.Info = append(res.Info, v1alpha1.InfoItem{Name: common.PodRequestsMEM, Value: fmt.Sprintf("%d", MemoryReq.MilliValue())})
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: common.PodRequestsCPU, Value: strconv.FormatInt(CPUReq.MilliValue(), 10)})
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: common.PodRequestsMEM, Value: strconv.FormatInt(MemoryReq.MilliValue(), 10)})
 	}
 
 	var urls []string
