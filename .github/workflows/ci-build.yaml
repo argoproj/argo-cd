@@ -10,7 +10,6 @@ on:
     branches:
       - 'master'
       - 'release-*'
-  workflow_dispatch:
 
 env:
   # Golang version to use across CI steps
