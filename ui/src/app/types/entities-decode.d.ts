@@ -1,3 +1,5 @@
+// the following was added for backward compatability after upgrading eslint and its dependencies to current.
+// it is expected to remove this once we upgrade react, react-router, and storybook. Target react version is V19
 declare module 'entities/decode' {
     const decode: any; // Assuming decode is a function or value
     export default decode;
