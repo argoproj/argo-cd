@@ -403,7 +403,7 @@ func Test_importResources(t *testing.T) {
 		overrideOnConflict       bool
 	}{
 		{
-			name: "It should update live object if skip label is not present in backup object",
+			name: "Update live object when skip label missing in backup",
 			args: args{
 				bak: `apiVersion: v1
 kind: ConfigMap
@@ -440,7 +440,7 @@ data:
 			overrideOnConflict:       true,
 		},
 		{
-			name: "It should update live object when data differs from backup",
+			name: "Update live object when data differs from backup",
 			args: args{
 				bak: `apiVersion: v1
 kind: ConfigMap
@@ -464,7 +464,7 @@ data:
 			prune:                    true,
 		},
 		{
-			name: "It should update live spec if spec differs from backup for Application",
+			name: "Update live if spec differs from backup for Application",
 			args: args{
 				bak: `apiVersion: v1
 kind: Application
@@ -495,7 +495,7 @@ spec:
 			applicationsetNamespaces: []string{"prod"},
 		},
 		{
-			name: "It should update live spec if spec differs from backup for ApplicationSet",
+			name: "Update live if spec differs from backup for ApplicationSet",
 			args: args{
 				bak: `apiVersion: v1
 kind: ApplicationSet
@@ -532,7 +532,7 @@ spec:
 			applicationsetNamespaces: []string{"dev"},
 		},
 		{
-			name: "It should not update live object if it matches the backup exactly",
+			name: "Should not update live object if it matches the backup",
 			args: args{
 				bak: `apiVersion: v1
 kind: ConfigMap
@@ -559,7 +559,7 @@ data:
 			applicationsetNamespaces: []string{"argo-*"},
 		},
 		{
-			name: "It should create live resource if it is missing",
+			name: "Create resource if it's missing from live",
 			args: args{
 				bak: `apiVersion: v1
 kind: ConfigMap
@@ -584,7 +584,7 @@ metadata:
 			applicationsetNamespaces: []string{"argocd", "prod"},
 		},
 		{
-			name: "It should prune live resources not present in backup when prune is enabled",
+			name: "Prune live resources when not present in backup",
 			args: args{
 				bak: `apiVersion: v1
 kind: ConfigMap
@@ -606,7 +606,7 @@ data:
 			prune: true,
 		},
 		{
-			name: "It should clear the operation field when stopOperation is true",
+			name: "Clear the operation field when stopOperation is enabled",
 			args: args{
 				bak: `apiVersion: v1
 kind: Application
@@ -644,7 +644,7 @@ status:
 			stopOperation: true,
 		},
 		{
-			name: "It should override live object when --override-on-conflict is true",
+			name: "Override live object on conflict with backup",
 			args: args{
 				bak: `apiVersion: v1
 kind: Secret
