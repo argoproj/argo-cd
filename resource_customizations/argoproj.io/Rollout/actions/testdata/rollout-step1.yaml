@@ -1,0 +1,84 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollouts-demo
+  namespace: rollout-test-custom-actions
+spec:
+  replicas: 5
+  restartAt: "2025-05-15T14:13:44Z"
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: rollouts-demo
+  strategy:
+    canary:
+      steps:
+      - pause: {}
+      - pause: {}
+  template:
+    metadata:
+      labels:
+        app: rollouts-demo
+    spec:
+      containers:
+      - image: argoproj/rollouts-demo:blue
+        name: rollouts-demo
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 5m
+            memory: 32Mi
+status:
+  HPAReplicas: 5
+  availableReplicas: 5
+  blueGreen: {}
+  canary: {}
+  conditions:
+  - lastTransitionTime: "2025-05-15T14:15:48Z"
+    lastUpdateTime: "2025-05-15T14:15:48Z"
+    message: Rollout has minimum availability
+    reason: AvailableReason
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2025-05-15T14:16:58Z"
+    lastUpdateTime: "2025-05-15T14:16:58Z"
+    message: Rollout is not healthy
+    reason: RolloutHealthy
+    status: "False"
+    type: Healthy
+  - lastTransitionTime: "2025-05-15T14:16:58Z"
+    lastUpdateTime: "2025-05-15T14:16:58Z"
+    message: RolloutCompleted
+    reason: RolloutCompleted
+    status: "False"
+    type: Completed
+  - lastTransitionTime: "2025-05-15T14:16:58Z"
+    lastUpdateTime: "2025-05-15T14:16:58Z"
+    message: Rollout is paused
+    reason: RolloutPaused
+    status: Unknown
+    type: Progressing
+  - lastTransitionTime: "2025-05-15T14:16:58Z"
+    lastUpdateTime: "2025-05-15T14:16:58Z"
+    message: Rollout is paused
+    reason: RolloutPaused
+    status: "True"
+    type: Paused
+  controllerPause: true
+  currentPodHash: 687d76d795
+  currentStepHash: 79c9b9f6bf
+  currentStepIndex: 0
+  message: CanaryPauseStep
+  observedGeneration: "20"
+  pauseConditions:
+  - reason: CanaryPauseStep
+    startTime: "2025-05-15T14:16:58Z"
+  phase: Paused
+  readyReplicas: 5
+  replicas: 5
+  restartedAt: "2025-05-15T14:13:44Z"
+  selector: app=rollouts-demo
+  stableRS: 6cf78c66c5
