@@ -144,7 +144,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
   argocd app create nginx-ingress --repo https://charts.helm.sh/stable --helm-chart nginx-ingress --revision 1.24.3 --dest-namespace default --dest-server https://kubernetes.default.svc
 
   # Create a Kustomize app
-  argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
+  argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image quay.io/argoprojlabs/argocd-e2e-container:0.1
 
   # Create a MultiSource app while yaml file contains an application with multiple sources
   argocd app create guestbook --file <path-to-yaml-file>
@@ -2520,29 +2520,21 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 	if watch.delete {
 		return false
 	}
+
+	healthBeingChecked := watch.suspended || watch.health || watch.degraded
 	healthCheckPassed := true
 
-	switch {
-	case watch.suspended && watch.health && watch.degraded:
-		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
-			healthStatus == string(health.HealthStatusSuspended) ||
-			healthStatus == string(health.HealthStatusDegraded)
-	case watch.suspended && watch.degraded:
-		healthCheckPassed = healthStatus == string(health.HealthStatusDegraded) ||
-			healthStatus == string(health.HealthStatusSuspended)
-	case watch.degraded && watch.health:
-		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
-			healthStatus == string(health.HealthStatusDegraded)
-		// below are good
-	case watch.suspended && watch.health:
-		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
-			healthStatus == string(health.HealthStatusSuspended)
-	case watch.suspended:
-		healthCheckPassed = healthStatus == string(health.HealthStatusSuspended)
-	case watch.health:
-		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy)
-	case watch.degraded:
-		healthCheckPassed = healthStatus == string(health.HealthStatusDegraded)
+	if healthBeingChecked {
+		healthCheckPassed = false
+		if watch.health {
+			healthCheckPassed = healthCheckPassed || healthStatus == string(health.HealthStatusHealthy)
+		}
+		if watch.suspended {
+			healthCheckPassed = healthCheckPassed || healthStatus == string(health.HealthStatusSuspended)
+		}
+		if watch.degraded {
+			healthCheckPassed = healthCheckPassed || healthStatus == string(health.HealthStatusDegraded)
+		}
 	}
 
 	synced := !watch.sync || syncStatus == string(argoappv1.SyncStatusCodeSynced)

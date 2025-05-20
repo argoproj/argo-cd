@@ -8042,6 +8042,9 @@
     "v1alpha1GitFileGeneratorItem": {
       "type": "object",
       "properties": {
+        "exclude": {
+          "type": "boolean"
+        },
         "path": {
           "type": "string"
         }
@@ -8891,8 +8894,8 @@
           "type": "string"
         },
         "pullRequestState": {
-          "type": "string",
-          "title": "PullRequestState is an additional MRs filter to get only those with a certain state. Default: \"\" (all states)"
+          "description": "PullRequestState is an additional MRs filter to get only those with a certain state. Default: \"\" (all states).\nValid values: opened, closed, merged, locked\".",
+          "type": "string"
         },
         "tokenRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"
