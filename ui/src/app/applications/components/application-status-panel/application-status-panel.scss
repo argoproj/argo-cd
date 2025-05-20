@@ -55,11 +55,9 @@
         margin-left: auto;
         font-size: 14px;
         line-height: 20px;
-        display: flex;
-        padding: 1px 5px;
+        padding: 0 5px;
         cursor: pointer;
         color: $argo-color-gray-6;
-        border: 1px solid $argo-color-gray-5;
     }
 
     &__item {
@@ -142,7 +140,6 @@
         align-items: center;
         margin-bottom: 0.5em;
         font-weight: 500;
-        padding: 2px 0px;
         .fa {
             font-size: 1em;
         }
@@ -182,17 +179,6 @@
             padding-left: 8px;
             margin-bottom: 2px;
         }
-
-        &__status-button {
-            display: inline;
-            border-radius: 5px;
-            padding: 2px;
-            border: 1px solid $argo-color-gray-5;
-            &:hover {
-                background-color: $argo-color-gray-4;
-            }
-        }
-
     }
 
     &__hydrator-link {

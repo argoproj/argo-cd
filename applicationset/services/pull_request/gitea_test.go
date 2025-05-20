@@ -1,6 +1,7 @@
 package pull_request
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -52,7 +53,7 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 				},
 				"title": "add an empty file",
 				"body": "",
-				"labels": [{"id": 1, "name": "label1", "color": "00aabb", "description": "foo", "url": ""}],
+				"labels": [],
 				"milestone": null,
 				"assignee": null,
 				"assignees": null,
@@ -246,61 +247,13 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-func TestGiteaContainLabels(t *testing.T) {
-	cases := []struct {
-		Name       string
-		Labels     []string
-		PullLabels []*gitea.Label
-		Expect     bool
-	}{
-		{
-			Name:   "Match labels",
-			Labels: []string{"label1", "label2"},
-			PullLabels: []*gitea.Label{
-				{Name: "label1"},
-				{Name: "label2"},
-				{Name: "label3"},
-			},
-			Expect: true,
-		},
-		{
-			Name:   "Not match labels",
-			Labels: []string{"label1", "label4"},
-			PullLabels: []*gitea.Label{
-				{Name: "label1"},
-				{Name: "label2"},
-				{Name: "label3"},
-			},
-			Expect: false,
-		},
-		{
-			Name:   "No specify",
-			Labels: []string{},
-			PullLabels: []*gitea.Label{
-				{Name: "label1"},
-				{Name: "label2"},
-				{Name: "label3"},
-			},
-			Expect: true,
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
-			if got := giteaContainLabels(c.Labels, c.PullLabels); got != c.Expect {
-				t.Errorf("expect: %v, got: %v", c.Expect, got)
-			}
-		})
-	}
-}
-
 func TestGiteaList(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		giteaMockHandler(t)(w, r)
 	}))
-	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", []string{"label1"}, false)
+	host, err := NewGiteaService(context.Background(), "", ts.URL, "test-argocd", "pr-test", false)
 	require.NoError(t, err)
-	prs, err := host.List(t.Context())
+	prs, err := host.List(context.Background())
 	require.NoError(t, err)
 	assert.Len(t, prs, 1)
 	assert.Equal(t, 1, prs[0].Number)

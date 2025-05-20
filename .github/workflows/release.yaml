@@ -11,7 +11,7 @@ permissions: {}
 
 env:
   # renovate: datasource=golang-version packageName=golang
-  GOLANG_VERSION: '1.24.3' # Note: go-version must also be set in job argocd-image.with.go-version
+  GOLANG_VERSION: '1.23.3' # Note: go-version must also be set in job argocd-image.with.go-version
 
 jobs:
   argocd-image:
@@ -25,7 +25,7 @@ jobs:
       quay_image_name: quay.io/argoproj/argocd:${{ github.ref_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.24.3
+      go-version: 1.23.3
       platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
       push: true
     secrets:
@@ -33,20 +33,20 @@ jobs:
       quay_password: ${{ secrets.RELEASE_QUAY_TOKEN }}
 
   argocd-image-provenance:
-    needs: [argocd-image]
-    permissions:
-      actions: read # for detecting the Github Actions environment.
-      id-token: write # for creating OIDC tokens for signing.
-      packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
-    # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-    if: github.repository == 'argoproj/argo-cd'
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.0.0
-    with:
-      image: quay.io/argoproj/argocd
-      digest: ${{ needs.argocd-image.outputs.image-digest }}
-    secrets:
-      registry-username: ${{ secrets.RELEASE_QUAY_USERNAME }}
-      registry-password: ${{ secrets.RELEASE_QUAY_TOKEN }}
+      needs: [argocd-image]
+      permissions:
+        actions: read # for detecting the Github Actions environment.
+        id-token: write # for creating OIDC tokens for signing.
+        packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
+      # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+      if: github.repository == 'argoproj/argo-cd'
+      uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.0.0
+      with:
+        image: quay.io/argoproj/argocd
+        digest: ${{ needs.argocd-image.outputs.image-digest }}
+      secrets:
+        registry-username: ${{ secrets.RELEASE_QUAY_USERNAME }}
+        registry-password: ${{ secrets.RELEASE_QUAY_TOKEN }}
 
   goreleaser:
     needs:
@@ -73,13 +73,11 @@ jobs:
         uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
-          cache: false
 
       - name: Set GORELEASER_PREVIOUS_TAG # Workaround, GoReleaser uses 'git-describe' to determine a previous tag. Our tags are created in release branches.
         run: |
           set -xue
-          GORELEASER_PREVIOUS_TAG=$(go run hack/get-previous-release/get-previous-version-for-release-notes.go ${{ github.ref_name }}) || exit 1
-          echo "GORELEASER_PREVIOUS_TAG=$GORELEASER_PREVIOUS_TAG" >> $GITHUB_ENV
+          echo "GORELEASER_PREVIOUS_TAG=$(go run hack/get-previous-release/get-previous-version-for-release-notes.go ${{ github.ref_name }})" >> $GITHUB_ENV
 
       - name: Set environment variables for ldflags
         id: set_ldflag
@@ -109,7 +107,7 @@ jobs:
       - name: Generate subject for provenance
         id: hash
         env:
-          ARTIFACTS: '${{ steps.run-goreleaser.outputs.artifacts }}'
+          ARTIFACTS: "${{ steps.run-goreleaser.outputs.artifacts }}"
         run: |
           set -euo pipefail
 
@@ -130,8 +128,8 @@ jobs:
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
     with:
-      base64-subjects: '${{ needs.goreleaser.outputs.hashes }}'
-      provenance-name: 'argocd-cli.intoto.jsonl'
+      base64-subjects: "${{ needs.goreleaser.outputs.hashes }}"
+      provenance-name: "argocd-cli.intoto.jsonl"
       upload-assets: true
 
   generate-sbom:
@@ -156,7 +154,6 @@ jobs:
         uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
-          cache: false
 
       - name: Generate SBOM (spdx)
         id: spdx-builder
@@ -167,7 +164,7 @@ jobs:
           SIGS_BOM_VERSION: v0.2.1
           # comma delimited list of project relative folders to inspect for package
           # managers (gomod, yarn, npm).
-          PROJECT_FOLDERS: '.,./ui'
+          PROJECT_FOLDERS: ".,./ui"
           # full qualified name of the docker image to be inspected
           DOCKER_IMAGE: quay.io/argoproj/argocd:${{ github.ref_name }}
         run: |
@@ -215,8 +212,8 @@ jobs:
     # Must be referenced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
     with:
-      base64-subjects: '${{ needs.generate-sbom.outputs.hashes }}'
-      provenance-name: 'argocd-sbom.intoto.jsonl'
+      base64-subjects: "${{ needs.generate-sbom.outputs.hashes }}"
+      provenance-name: "argocd-sbom.intoto.jsonl"
       upload-assets: true
 
   post-release:
@@ -299,7 +296,7 @@ jobs:
         uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f # v7.0.5
         with:
           commit-message: Bump version in master
-          title: 'chore: Bump version in master'
+          title: "chore: Bump version in master"
           body: All images built from master should indicate which version we are on track for.
           signoff: true
           branch: update-version
