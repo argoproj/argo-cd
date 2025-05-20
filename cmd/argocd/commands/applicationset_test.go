@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func TestPrintApplicationSetNames(t *testing.T) {
@@ -29,7 +29,9 @@ func TestPrintApplicationSetNames(t *testing.T) {
 		return nil
 	})
 	expectation := "test\nteam-one/test\n"
-	require.Equalf(t, output, expectation, "Incorrect print params output %q, should be %q", output, expectation)
+	if output != expectation {
+		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
+	}
 }
 
 func TestPrintApplicationSetTable(t *testing.T) {
@@ -145,26 +147,6 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 			},
 		},
 	}
-	appsetSpecSource := baseAppSet.DeepCopy()
-	appsetSpecSource.Spec.Template.Spec.Source = &v1alpha1.ApplicationSource{
-		RepoURL:        "test1",
-		TargetRevision: "master1",
-		Path:           "/test1",
-	}
-
-	appsetSpecSources := baseAppSet.DeepCopy()
-	appsetSpecSources.Spec.Template.Spec.Sources = v1alpha1.ApplicationSources{
-		{
-			RepoURL:        "test1",
-			TargetRevision: "master1",
-			Path:           "/test1",
-		},
-		{
-			RepoURL:        "test2",
-			TargetRevision: "master2",
-			Path:           "/test2",
-		},
-	}
 
 	appsetSpecSyncPolicy := baseAppSet.DeepCopy()
 	appsetSpecSyncPolicy.Spec.SyncPolicy = &v1alpha1.ApplicationSetSyncPolicy{
@@ -230,37 +212,6 @@ Source:
 - Repo:             
   Target:           
 SyncPolicy:         Automated
-`,
-		},
-		{
-			name:   "appset with a single source",
-			appSet: appsetSpecSource,
-			expectedOutput: `Name:               app-name
-Project:            default
-Server:             
-Namespace:          
-Source:
-- Repo:             test1
-  Target:           master1
-  Path:             /test1
-SyncPolicy:         <none>
-`,
-		},
-		{
-			name:   "appset with a multiple sources",
-			appSet: appsetSpecSources,
-			expectedOutput: `Name:               app-name
-Project:            default
-Server:             
-Namespace:          
-Sources:
-- Repo:             test1
-  Target:           master1
-  Path:             /test1
-- Repo:             test2
-  Target:           master2
-  Path:             /test2
-SyncPolicy:         <none>
 `,
 		},
 	} {

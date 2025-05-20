@@ -10,15 +10,15 @@ import (
 
 	healthutil "github.com/argoproj/gitops-engine/pkg/health"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/validation"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	validation "k8s.io/apimachinery/pkg/api/validation"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	"github.com/argoproj/argo-cd/v3/util/assets"
-	"github.com/argoproj/argo-cd/v3/util/security"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/assets"
+	"github.com/argoproj/argo-cd/v2/util/security"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 // NewHandler creates handler serving to do api/badge endpoint
@@ -108,14 +108,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	reqNs := ""
 	if ns, ok := r.URL.Query()["namespace"]; ok && enabled {
-		if !argo.IsValidNamespaceName(ns[0]) {
+		if argo.IsValidNamespaceName(ns[0]) {
+			if security.IsNamespaceEnabled(ns[0], h.namespace, h.enabledNamespaces) {
+				reqNs = ns[0]
+			} else {
+				notFound = true
+			}
+		} else {
 			w.WriteHeader(http.StatusBadRequest)
 			return
-		}
-		if security.IsNamespaceEnabled(ns[0], h.namespace, h.enabledNamespaces) {
-			reqNs = ns[0]
-		} else {
-			notFound = true
 		}
 	} else {
 		reqNs = h.namespace
@@ -123,19 +124,20 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Sample url: http://localhost:8080/api/badge?name=123
 	if name, ok := r.URL.Query()["name"]; ok && enabled && !notFound {
-		if !argo.IsValidAppName(name[0]) {
+		if argo.IsValidAppName(name[0]) {
+			if app, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).Get(context.Background(), name[0], v1.GetOptions{}); err == nil {
+				health = app.Status.Health.Status
+				status = app.Status.Sync.Status
+				applicationName = name[0]
+				if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
+					revision = app.Status.OperationState.SyncResult.Revision
+				}
+			} else if errors.IsNotFound(err) {
+				notFound = true
+			}
+		} else {
 			w.WriteHeader(http.StatusBadRequest)
 			return
-		}
-		if app, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).Get(context.Background(), name[0], metav1.GetOptions{}); err == nil {
-			health = app.Status.Health.Status
-			status = app.Status.Sync.Status
-			applicationName = name[0]
-			if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
-				revision = app.Status.OperationState.SyncResult.Revision
-			}
-		} else if errors.IsNotFound(err) {
-			notFound = true
 		}
 	}
 	// Sample url: http://localhost:8080/api/badge?project=default
@@ -146,7 +148,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		if apps, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).List(context.Background(), metav1.ListOptions{}); err == nil {
+		if apps, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).List(context.Background(), v1.ListOptions{}); err == nil {
 			applicationSet := argo.FilterByProjects(apps.Items, projects)
 			for _, a := range applicationSet {
 				if a.Status.Sync.Status != appv1.SyncStatusCodeSynced {
@@ -204,7 +206,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		adjustWidth = true
 		displayedRevision = revision
-		if keepFullRevisionParam, ok := r.URL.Query()["keepFullRevision"]; (!ok || !strings.EqualFold(keepFullRevisionParam[0], "true")) && len(revision) > 7 {
+		if keepFullRevisionParam, ok := r.URL.Query()["keepFullRevision"]; !(ok && strings.EqualFold(keepFullRevisionParam[0], "true")) && len(revision) > 7 {
 			displayedRevision = revision[:7]
 			svgWidth = svgWidthWithRevision
 		} else {
@@ -240,7 +242,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if displayAppName && applicationName != "" {
 		titleRectWidth := len(applicationName) * widthPerChar
-		longerWidth := max(titleRectWidth, svgWidth)
+		var longerWidth int = max(titleRectWidth, svgWidth)
 		rightRectWidth := longerWidth - leftRectWidth
 		badge = titleRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, longerWidth))
 		badge = rightRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, rightRectWidth))

@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.13.6 (2025-03-21)
+
+### Bug fixes
+- fix: handle annotated git tags correctly in repo server cache (#21548) (#21771)
+
 ## v2.4.8 (2022-07-29)
 
 ### Bug fixes

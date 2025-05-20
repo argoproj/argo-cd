@@ -2,7 +2,6 @@ import {DataLoader, SlidingPanel, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {VersionMessage} from '../../models';
 import {services} from '../../services';
-import {ThemeWrapper} from '../layout/layout';
 
 interface VersionPanelProps {
     isShown: boolean;
@@ -27,14 +26,14 @@ export class VersionPanel extends React.Component<VersionPanelProps, {copyState:
                     <DataLoader load={() => this.props.version}>
                         {version => {
                             return (
-                                <ThemeWrapper theme={pref.theme}>
+                                <div className={'theme-' + pref.theme}>
                                     <SlidingPanel header={this.header} isShown={this.props.isShown} onClose={() => this.props.onClose()} hasCloseButton={true} isNarrow={true}>
                                         <div className='argo-table-list'>{this.buildVersionTable(version)}</div>
                                         <div>
                                             <Tooltip content='Copy all version info as JSON'>{this.getCopyButton(version)}</Tooltip>
                                         </div>
                                     </SlidingPanel>
-                                </ThemeWrapper>
+                                </div>
                             );
                         }}
                     </DataLoader>

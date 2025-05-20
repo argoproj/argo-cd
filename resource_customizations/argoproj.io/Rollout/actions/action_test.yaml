@@ -5,22 +5,16 @@ discoveryTests:
       disabled: false
     - name: restart
       disabled: false
-      displayName: Restart Pods
     - name: abort
       disabled: false
     - name: retry
       disabled: true
     - name: promote-full
-      disabled: true
-    - name: skip-current-step
-      disabled: true
-    - name: pause
       disabled: true
 - inputPath: testdata/pre_v0.6_not_paused_rollout.yaml
   result:
     - name: restart
       disabled: false
-      displayName: Restart Pods
     - name: resume
       disabled: true
     - name: abort
@@ -29,15 +23,10 @@ discoveryTests:
       disabled: true
     - name: promote-full
       disabled: true
-    - name: skip-current-step
-      disabled: true
-    - name: pause
-      disabled: false
 - inputPath: testdata/pre_v0.6_nil_paused_rollout.yaml
   result:
     - name: restart
       disabled: false
-      displayName: Restart Pods
     - name: resume
       disabled: true
     - name: abort
@@ -46,15 +35,10 @@ discoveryTests:
       disabled: true
     - name: promote-full
       disabled: true
-    - name: skip-current-step
-      disabled: true
-    - name: pause
-      disabled: false
 - inputPath: testdata/has_pause_condition_rollout.yaml
   result:
     - name: restart
       disabled: false
-      displayName: Restart Pods
     - name: resume
       disabled: false
     - name: abort
@@ -62,16 +46,11 @@ discoveryTests:
     - name: retry
       disabled: true
     - name: promote-full
-      disabled: false
-    - name: skip-current-step
-      disabled: false
-    - name: pause
       disabled: false
 - inputPath: testdata/no_pause_condition_rollout.yaml
   result:
     - name: restart
       disabled: false
-      displayName: Restart Pods
     - name: resume
       disabled: true
     - name: abort
@@ -79,16 +58,11 @@ discoveryTests:
     - name: retry
       disabled: true
     - name: promote-full
-      disabled: false
-    - name: skip-current-step
-      disabled: false
-    - name: pause
       disabled: false
 - inputPath: testdata/healthy_rollout.yaml
   result:
     - name: restart
       disabled: false
-      displayName: Restart Pods
     - name: resume
       disabled: true
     - name: abort
@@ -96,16 +70,11 @@ discoveryTests:
     - name: retry
       disabled: true
     - name: promote-full
-      disabled: true
-    - name: skip-current-step
-      disabled: true
-    - name: pause
       disabled: true
 - inputPath: testdata/v0.9_aborted_rollout.yaml
   result:
     - name: restart
       disabled: false
-      displayName: Restart Pods
     - name: resume
       disabled: true
     - name: abort
@@ -114,15 +83,10 @@ discoveryTests:
       disabled: false
     - name: promote-full
       disabled: false
-    - name: skip-current-step
-      disabled: false
-    - name: pause
-      disabled: true
 - inputPath: testdata/v0.9_aborted_bg_rollout.yaml
   result:
     - name: restart
       disabled: false
-      displayName: Restart Pods
     - name: resume
       disabled: true
     - name: abort
@@ -130,16 +94,11 @@ discoveryTests:
     - name: retry
       disabled: false
     - name: promote-full
-      disabled: true
-    - name: skip-current-step
-      disabled: true
-    - name: pause
       disabled: true
 - inputPath: testdata/aborted_bg_rollout.yaml
   result:
     - name: restart
       disabled: false
-      displayName: Restart Pods
     - name: resume
       disabled: true
     - name: abort
@@ -148,10 +107,6 @@ discoveryTests:
       disabled: false
     - name: promote-full
       disabled: false
-    - name: skip-current-step
-      disabled: true
-    - name: pause
-      disabled: true
 actionTests:
 - action: resume
   inputPath: testdata/pre_v0.6_paused_rollout.yaml
@@ -174,6 +129,3 @@ actionTests:
 - action: promote-full
   inputPath: testdata/aborted_rollout.yaml
   expectedOutputPath: testdata/promote-full_rollout.yaml
-- action: skip-current-step
-  inputPath: testdata/rollout-step1.yaml
-  expectedOutputPath: testdata/rollout-step1-after-skip-current-step.yaml

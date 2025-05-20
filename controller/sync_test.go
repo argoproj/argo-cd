@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"strconv"
 	"testing"
 
@@ -10,16 +11,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj/argo-cd/v3/controller/testdata"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/test"
-	"github.com/argoproj/argo-cd/v3/util/argo/diff"
-	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v2/controller/testdata"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/argo/diff"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 )
 
 func TestPersistRevisionHistory(t *testing.T) {
@@ -28,7 +29,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 	app.Status.History = nil
 
 	defaultProject := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Namespace: test.FakeArgoCDNamespace,
 			Name:      "default",
 		},
@@ -53,9 +54,9 @@ func TestPersistRevisionHistory(t *testing.T) {
 	// Ensure we record spec.source into sync result
 	assert.Equal(t, app.Spec.GetSource(), opState.SyncResult.Source)
 
-	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, v1.GetOptions{})
 	require.NoError(t, err)
-	require.Len(t, updatedApp.Status.History, 1)
+	assert.Len(t, updatedApp.Status.History, 1)
 	assert.Equal(t, app.Spec.GetSource(), updatedApp.Status.History[0].Source)
 	assert.Equal(t, "abc123", updatedApp.Status.History[0].Revision)
 }
@@ -74,7 +75,7 @@ func TestPersistManagedNamespaceMetadataState(t *testing.T) {
 	}
 
 	defaultProject := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Namespace: test.FakeArgoCDNamespace,
 			Name:      "default",
 		},
@@ -105,7 +106,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 	app.Status.OperationState = nil
 	app.Status.History = nil
 	defaultProject := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Namespace: test.FakeArgoCDNamespace,
 			Name:      "default",
 		},
@@ -142,7 +143,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 	// Ensure we record opState's source into sync result
 	assert.Equal(t, source, opState.SyncResult.Source)
 
-	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, v1.GetOptions{})
 	require.NoError(t, err)
 	assert.Len(t, updatedApp.Status.History, 1)
 	assert.Equal(t, source, updatedApp.Status.History[0].Source)
@@ -155,7 +156,7 @@ func TestSyncComparisonError(t *testing.T) {
 	app.Status.History = nil
 
 	defaultProject := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Namespace: test.FakeArgoCDNamespace,
 			Name:      "default",
 		},
@@ -201,7 +202,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 		app.Status.History = nil
 
 		project := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: v1.ObjectMeta{
 				Namespace: test.FakeArgoCDNamespace,
 				Name:      "default",
 			},
@@ -269,7 +270,7 @@ func TestSyncWindowDeniesSync(t *testing.T) {
 		app.Status.History = nil
 
 		project := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: v1.ObjectMeta{
 				Namespace: test.FakeArgoCDNamespace,
 				Name:      "default",
 			},
@@ -463,7 +464,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	type fixture struct {
 		comparisonResult *comparisonResult
 	}
-	setupHTTPProxy := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
+	setupHttpProxy := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
 		t.Helper()
 		dc, err := diff.NewDiffConfigBuilder().
 			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
@@ -493,7 +494,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 				// JSONPointers: []string{"/spec/routes"},
 			},
 		}
-		f := setupHTTPProxy(t, ignores)
+		f := setupHttpProxy(t, ignores)
 		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
@@ -507,19 +508,19 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		require.Len(t, patchedTargets, 1)
 
 		// live should have 1 entry
-		require.Len(t, dig[[]any](f.comparisonResult.reconciliationResult.Live[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"}), 1)
+		require.Len(t, dig[[]any](f.comparisonResult.reconciliationResult.Live[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"}), 1)
 		// assert some arbitrary field to show `entries[0]` is not an empty object
-		require.Equal(t, "sample-header", dig[string](f.comparisonResult.reconciliationResult.Live[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeader", "headerName"}))
+		require.Equal(t, "sample-header", dig[string](f.comparisonResult.reconciliationResult.Live[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeader", "headerName"}))
 
 		// target has 2 entries
-		require.Len(t, dig[[]any](f.comparisonResult.reconciliationResult.Target[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries"}), 2)
+		require.Len(t, dig[[]any](f.comparisonResult.reconciliationResult.Target[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries"}), 2)
 		// assert some arbitrary field to show `entries[0]` is not an empty object
-		require.Equal(t, "sample-header", dig[string](f.comparisonResult.reconciliationResult.Target[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeaderValueMatch", "headers", 0, "name"}))
+		require.Equal(t, "sample-header", dig[string](f.comparisonResult.reconciliationResult.Target[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeaderValueMatch", "headers", 0, "name"}))
 
 		// It should be *1* entries in the array
-		require.Len(t, dig[[]any](patchedTargets[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"}), 1)
+		require.Len(t, dig[[]any](patchedTargets[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"}), 1)
 		// and it should NOT equal an empty object
-		require.Len(t, dig[any](patchedTargets[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0}), 1)
+		require.Len(t, dig[any](patchedTargets[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0}), 1)
 	})
 	t.Run("will correctly set array entries if new entries have been added", func(t *testing.T) {
 		// given
@@ -530,7 +531,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 				JQPathExpressions: []string{".spec.template.spec.containers[].env[] | select(.name == \"SOME_ENV_VAR\")"},
 			},
 		}
-		f := setupHTTPProxy(t, ignores)
+		f := setupHttpProxy(t, ignores)
 		live := test.YamlToUnstructured(testdata.LiveDeploymentEnvVarsYaml)
 		target := test.YamlToUnstructured(testdata.TargetDeploymentEnvVarsYaml)
 		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
@@ -547,10 +548,10 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		require.True(t, ok)
 		assert.Len(t, containers, 1)
 
-		ports := containers[0].(map[string]any)["ports"].([]any)
+		ports := containers[0].(map[string]interface{})["ports"].([]interface{})
 		assert.Len(t, ports, 1)
 
-		env := containers[0].(map[string]any)["env"].([]any)
+		env := containers[0].(map[string]interface{})["env"].([]interface{})
 		assert.Len(t, env, 3)
 
 		first := env[0]
@@ -558,14 +559,14 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		third := env[2]
 
 		// Currently the defined order at this time is the insertion order of the target manifest.
-		assert.Equal(t, "SOME_ENV_VAR", first.(map[string]any)["name"])
-		assert.Equal(t, "some_value", first.(map[string]any)["value"])
+		assert.Equal(t, "SOME_ENV_VAR", first.(map[string]interface{})["name"])
+		assert.Equal(t, "some_value", first.(map[string]interface{})["value"])
 
-		assert.Equal(t, "SOME_OTHER_ENV_VAR", second.(map[string]any)["name"])
-		assert.Equal(t, "some_other_value", second.(map[string]any)["value"])
+		assert.Equal(t, "SOME_OTHER_ENV_VAR", second.(map[string]interface{})["name"])
+		assert.Equal(t, "some_other_value", second.(map[string]interface{})["value"])
 
-		assert.Equal(t, "YET_ANOTHER_ENV_VAR", third.(map[string]any)["name"])
-		assert.Equal(t, "yet_another_value", third.(map[string]any)["value"])
+		assert.Equal(t, "YET_ANOTHER_ENV_VAR", third.(map[string]interface{})["name"])
+		assert.Equal(t, "yet_another_value", third.(map[string]interface{})["value"])
 	})
 
 	t.Run("ignore-deployment-image-replicas-changes-additive", func(t *testing.T) {
@@ -582,7 +583,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 				JQPathExpressions: []string{".spec.template.spec.containers[].image"},
 			},
 		}
-		f := setupHTTPProxy(t, ignores)
+		f := setupHttpProxy(t, ignores)
 		live := test.YamlToUnstructured(testdata.MinimalImageReplicaDeploymentYaml)
 		target := test.YamlToUnstructured(testdata.AdditionalImageReplicaDeploymentYaml)
 		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
@@ -597,7 +598,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		metadata, ok, err := unstructured.NestedMap(targets[0].Object, "metadata")
 		require.NoError(t, err)
 		require.True(t, ok)
-		labels, ok := metadata["labels"].(map[string]any)
+		labels, ok := metadata["labels"].(map[string]interface{})
 		require.True(t, ok)
 		assert.Len(t, labels, 2)
 		assert.Equal(t, "web", labels["appProcess"])
@@ -608,29 +609,29 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 
 		assert.Equal(t, int64(1), spec["replicas"])
 
-		template, ok := spec["template"].(map[string]any)
+		template, ok := spec["template"].(map[string]interface{})
 		require.True(t, ok)
 
-		tMetadata, ok := template["metadata"].(map[string]any)
+		tMetadata, ok := template["metadata"].(map[string]interface{})
 		require.True(t, ok)
-		tLabels, ok := tMetadata["labels"].(map[string]any)
+		tLabels, ok := tMetadata["labels"].(map[string]interface{})
 		require.True(t, ok)
 		assert.Len(t, tLabels, 2)
 		assert.Equal(t, "web", tLabels["appProcess"])
 
-		tSpec, ok := template["spec"].(map[string]any)
+		tSpec, ok := template["spec"].(map[string]interface{})
 		require.True(t, ok)
 		containers, ok, err := unstructured.NestedSlice(tSpec, "containers")
 		require.NoError(t, err)
 		require.True(t, ok)
 		assert.Len(t, containers, 1)
 
-		first := containers[0].(map[string]any)
+		first := containers[0].(map[string]interface{})
 		assert.Equal(t, "alpine:3", first["image"])
 
-		resources, ok := first["resources"].(map[string]any)
+		resources, ok := first["resources"].(map[string]interface{})
 		require.True(t, ok)
-		requests, ok := resources["requests"].(map[string]any)
+		requests, ok := resources["requests"].(map[string]interface{})
 		require.True(t, ok)
 		assert.Equal(t, "400m", requests["cpu"])
 
@@ -639,7 +640,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		require.True(t, ok)
 		assert.Len(t, env, 1)
 
-		env0 := env[0].(map[string]any)
+		env0 := env[0].(map[string]interface{})
 		assert.Equal(t, "EV", env0["name"])
 		assert.Equal(t, "here", env0["value"])
 	})
@@ -653,7 +654,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 	setup := func(destinationServiceAccounts []v1alpha1.ApplicationDestinationServiceAccount, destinationNamespace, destinationServerURL, applicationNamespace string) *fixture {
 		project := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: v1.ObjectMeta{
 				Namespace: "argocd-ns",
 				Name:      "testProj",
 			},
@@ -662,7 +663,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 			},
 		}
 		app := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: v1.ObjectMeta{
 				Namespace: applicationNamespace,
 				Name:      "testApp",
 			},
@@ -999,7 +1000,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 	setup := func(destinationServiceAccounts []v1alpha1.ApplicationDestinationServiceAccount, destinationNamespace, destinationServerURL, applicationNamespace string) *fixture {
 		project := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: v1.ObjectMeta{
 				Namespace: "argocd-ns",
 				Name:      "testProj",
 			},
@@ -1008,7 +1009,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 			},
 		}
 		app := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: v1.ObjectMeta{
 				Namespace: applicationNamespace,
 				Name:      "testApp",
 			},
@@ -1278,7 +1279,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 		app.Status.OperationState = nil
 		app.Status.History = nil
 		project := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: v1.ObjectMeta{
 				Namespace: test.FakeArgoCDNamespace,
 				Name:      "default",
 			},
@@ -1296,7 +1297,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 		additionalObjs := []runtime.Object{}
 		if serviceAccountName != "" {
 			syncServiceAccount := &corev1.ServiceAccount{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: v1.ObjectMeta{
 					Name:      serviceAccountName,
 					Namespace: test.FakeDestNamespace,
 				},
@@ -1410,15 +1411,15 @@ func TestSyncWithImpersonate(t *testing.T) {
 	})
 }
 
-func dig[T any](obj any, path []any) T {
+func dig[T any](obj interface{}, path []interface{}) T {
 	i := obj
 
 	for _, segment := range path {
 		switch segment.(type) {
 		case int:
-			i = i.([]any)[segment.(int)]
+			i = i.([]interface{})[segment.(int)]
 		case string:
-			i = i.(map[string]any)[segment.(string)]
+			i = i.(map[string]interface{})[segment.(string)]
 		default:
 			panic("invalid path for object")
 		}

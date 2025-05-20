@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func TestSCMProviderGenerateParams(t *testing.T) {
@@ -16,7 +16,7 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 		name          string
 		repos         []*scm_provider.Repository
 		values        map[string]string
-		expected      []map[string]any
+		expected      []map[string]interface{}
 		expectedError error
 	}{
 		{
@@ -25,7 +25,6 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 				{
 					Organization: "myorg",
 					Repository:   "repo1",
-					RepositoryId: 190320251,
 					URL:          "git@github.com:myorg/repo1.git",
 					Branch:       "main",
 					SHA:          "0bc57212c3cbbec69d20b34c507284bd300def5b",
@@ -34,17 +33,15 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 				{
 					Organization: "myorg",
 					Repository:   "repo2",
-					RepositoryId: 190320252,
 					URL:          "git@github.com:myorg/repo2.git",
 					Branch:       "main",
 					SHA:          "59d0",
 				},
 			},
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"organization":     "myorg",
 					"repository":       "repo1",
-					"repository_id":    190320251,
 					"url":              "git@github.com:myorg/repo1.git",
 					"branch":           "main",
 					"branchNormalized": "main",
@@ -56,7 +53,6 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 				{
 					"organization":     "myorg",
 					"repository":       "repo2",
-					"repository_id":    190320252,
 					"url":              "git@github.com:myorg/repo2.git",
 					"branch":           "main",
 					"branchNormalized": "main",
@@ -73,7 +69,6 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 				{
 					Organization: "myorg",
 					Repository:   "repo3",
-					RepositoryId: 190320253,
 					URL:          "git@github.com:myorg/repo3.git",
 					Branch:       "main",
 					SHA:          "0bc57212c3cbbec69d20b34c507284bd300def5b",
@@ -84,11 +79,10 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 				"foo":                    "bar",
 				"should_i_force_push_to": "{{ branch }}?",
 			},
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"organization":                  "myorg",
 					"repository":                    "repo3",
-					"repository_id":                 190320253,
 					"url":                           "git@github.com:myorg/repo3.git",
 					"branch":                        "main",
 					"branchNormalized":              "main",
@@ -98,52 +92,6 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 					"labels":                        "prod,staging",
 					"values.foo":                    "bar",
 					"values.should_i_force_push_to": "main?",
-				},
-			},
-		},
-		{
-			name: "Repos with and without id",
-			repos: []*scm_provider.Repository{
-				{
-					Organization: "myorg",
-					Repository:   "repo4",
-					RepositoryId: "idaz09",
-					URL:          "git@github.com:myorg/repo4.git",
-					Branch:       "main",
-					SHA:          "0bc57212c3cbbec69d20b34c507284bd300def5b",
-				},
-				{
-					Organization: "myorg",
-					Repository:   "repo5",
-					URL:          "git@github.com:myorg/repo5.git",
-					Branch:       "main",
-					SHA:          "0bc57212c3cbbec69d20b34c507284bd300def5b",
-				},
-			},
-			expected: []map[string]any{
-				{
-					"organization":     "myorg",
-					"repository":       "repo4",
-					"repository_id":    "idaz09",
-					"url":              "git@github.com:myorg/repo4.git",
-					"branch":           "main",
-					"branchNormalized": "main",
-					"sha":              "0bc57212c3cbbec69d20b34c507284bd300def5b",
-					"short_sha":        "0bc57212",
-					"short_sha_7":      "0bc5721",
-					"labels":           "",
-				},
-				{
-					"organization":     "myorg",
-					"repository":       "repo5",
-					"repository_id":    nil,
-					"url":              "git@github.com:myorg/repo5.git",
-					"branch":           "main",
-					"branchNormalized": "main",
-					"sha":              "0bc57212c3cbbec69d20b34c507284bd300def5b",
-					"short_sha":        "0bc57212",
-					"short_sha_7":      "0bc5721",
-					"labels":           "",
 				},
 			},
 		},
