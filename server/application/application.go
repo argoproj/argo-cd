@@ -48,6 +48,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/server/deeplinks"
+	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/collections"
 	"github.com/argoproj/argo-cd/v3/util/db"
@@ -337,7 +338,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		validate = *q.Validate
 	}
 
-	proj, err := s.getAppProject(ctx, a, log.WithField("application", a.Name))
+	proj, err := s.getAppProject(ctx, a, log.WithFields(applog.GetAppLogFields(a)))
 	if err != nil {
 		return nil, err
 	}
@@ -355,10 +356,10 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 
 	// Don't let the app creator set the operation explicitly. Those requests should always go through the Sync API.
 	if a.Operation != nil {
-		log.WithFields(log.Fields{
-			"application":            a.Name,
-			argocommon.SecurityField: argocommon.SecurityLow,
-		}).Warn("User attempted to set operation on application creation. This could have allowed them to bypass branch protection rules by setting manifests directly. Ignoring the set operation.")
+		log.WithFields(applog.GetAppLogFields(a)).
+			WithFields(log.Fields{
+				argocommon.SecurityField: argocommon.SecurityLow,
+			}).Warn("User attempted to set operation on application creation. This could have allowed them to bypass branch protection rules by setting manifests directly. Ignoring the set operation.")
 		a.Operation = nil
 	}
 
@@ -931,7 +932,7 @@ var informerSyncTimeout = 2 * time.Second
 // after a mutating API call (create/update). This function should be called after a creates &
 // update to give a probable (but not guaranteed) chance of being up-to-date after the create/update.
 func (s *Server) waitSync(app *v1alpha1.Application) {
-	logCtx := log.WithField("application", app.Name)
+	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	deadline := time.Now().Add(informerSyncTimeout)
 	minVersion, err := strconv.Atoi(app.ResourceVersion)
 	if err != nil {
@@ -2189,11 +2190,10 @@ func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *v1alpha1.Appli
 
 	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, s.db)
 	if err != nil {
-		log.WithFields(map[string]any{
-			"application": app.GetName(),
-			"ns":          app.GetNamespace(),
-			"destination": app.Spec.Destination,
-		}).Warnf("cannot validate cluster, error=%v", err.Error())
+		log.WithFields(applog.GetAppLogFields(app)).
+			WithFields(map[string]any{
+				"destination": app.Spec.Destination,
+			}).Warnf("cannot validate cluster, error=%v", err.Error())
 		return nil, nil, nil
 	}
 
@@ -2229,7 +2229,7 @@ func (s *Server) ListResourceLinks(ctx context.Context, req *application.Applica
 		return nil, err
 	}
 
-	proj, err := s.getAppProject(ctx, app, log.WithField("application", app.GetName()))
+	proj, err := s.getAppProject(ctx, app, log.WithFields(applog.GetAppLogFields(app)))
 	if err != nil {
 		return nil, err
 	}
@@ -2483,7 +2483,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		}
 	}
 
-	proj, err := s.getAppProject(ctx, a, log.WithField("application", a.Name))
+	proj, err := s.getAppProject(ctx, a, log.WithFields(applog.GetAppLogFields(a)))
 	if err != nil {
 		return nil, err
 	}
