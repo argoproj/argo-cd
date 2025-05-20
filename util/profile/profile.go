@@ -5,7 +5,7 @@ import (
 	"net/http/pprof"
 	"os"
 
-	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
 var enableProfilerFilePath = env.StringFromEnv("ARGOCD_ENABLE_PROFILER_FILE_PATH", "/home/argocd/params/profiler.enabled")

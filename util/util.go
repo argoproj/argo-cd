@@ -2,7 +2,10 @@ package util
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
+	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -26,4 +29,16 @@ func SliceCopy[T runtime.Object](items []T) []T {
 		itemsCopy[i] = item.DeepCopyObject().(T)
 	}
 	return itemsCopy
+}
+
+// GenerateCacheKey generates a cache key based on a format string and arguments
+func GenerateCacheKey(format string, args ...any) (string, error) {
+	h := sha256.New()
+	_, err := h.Write([]byte(fmt.Sprintf(format, args...)))
+	if err != nil {
+		return "", err
+	}
+
+	key := hex.EncodeToString(h.Sum(nil))
+	return key, nil
 }

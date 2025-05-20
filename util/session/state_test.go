@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v3/test"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,10 +15,10 @@ func TestUserStateStorage_LoadRevokedTokens(t *testing.T) {
 	redis, closer := test.NewInMemoryRedis()
 	defer closer()
 
-	err := redis.Set(context.Background(), revokedTokenPrefix+"abc", "", time.Hour).Err()
+	err := redis.Set(t.Context(), revokedTokenPrefix+"abc", "", time.Hour).Err()
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	storage := NewUserStateStorage(redis)

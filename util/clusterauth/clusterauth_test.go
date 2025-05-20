@@ -1,15 +1,15 @@
 package clusterauth
 
 import (
-	"context"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -17,8 +17,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	"sigs.k8s.io/yaml"
-
-	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 const (
@@ -27,29 +25,33 @@ const (
 )
 
 var testClaims = ServiceAccountClaims{
-	Sub:                "system:serviceaccount:kube-system:argocd-manager",
-	Iss:                "kubernetes/serviceaccount",
-	Namespace:          "kube-system",
-	SecretName:         "argocd-manager-token-tj79r",
-	ServiceAccountName: "argocd-manager",
-	ServiceAccountUID:  "91dd37cf-8d92-11e9-a091-d65f2ae7fa8d",
+	"kube-system",
+	"argocd-manager-token-tj79r",
+	"argocd-manager",
+	"91dd37cf-8d92-11e9-a091-d65f2ae7fa8d",
+	jwt.RegisteredClaims{
+		Subject: "system:serviceaccount:kube-system:argocd-manager",
+		Issuer:  "kubernetes/serviceaccount",
+	},
 }
 
-func newServiceAccount() *corev1.ServiceAccount {
+func newServiceAccount(t *testing.T) *corev1.ServiceAccount {
+	t.Helper()
 	saBytes, err := os.ReadFile("./testdata/argocd-manager-sa.yaml")
-	errors.CheckError(err)
+	require.NoError(t, err)
 	var sa corev1.ServiceAccount
 	err = yaml.Unmarshal(saBytes, &sa)
-	errors.CheckError(err)
+	require.NoError(t, err)
 	return &sa
 }
 
-func newServiceAccountSecret() *corev1.Secret {
+func newServiceAccountSecret(t *testing.T) *corev1.Secret {
+	t.Helper()
 	secretBytes, err := os.ReadFile("./testdata/argocd-manager-sa-token.yaml")
-	errors.CheckError(err)
+	require.NoError(t, err)
 	var secret corev1.Secret
 	err = yaml.Unmarshal(secretBytes, &secret)
-	errors.CheckError(err)
+	require.NoError(t, err)
 	return &secret
 }
 
@@ -80,7 +82,7 @@ func TestCreateServiceAccount(t *testing.T) {
 		cs := fake.NewClientset(ns)
 		err := CreateServiceAccount(cs, "argocd-manager", "kube-system")
 		require.NoError(t, err)
-		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
+		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get(t.Context(), "argocd-manager", metav1.GetOptions{})
 		require.NoError(t, err)
 		assert.NotNil(t, rsa)
 	})
@@ -89,7 +91,7 @@ func TestCreateServiceAccount(t *testing.T) {
 		cs := fake.NewClientset(ns, sa)
 		err := CreateServiceAccount(cs, "argocd-manager", "kube-system")
 		require.NoError(t, err)
-		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
+		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get(t.Context(), "argocd-manager", metav1.GetOptions{})
 		require.NoError(t, err)
 		assert.NotNil(t, rsa)
 	})
@@ -98,7 +100,7 @@ func TestCreateServiceAccount(t *testing.T) {
 		cs := fake.NewClientset()
 		err := CreateServiceAccount(cs, "argocd-manager", "invalid")
 		require.NoError(t, err)
-		rsa, err := cs.CoreV1().ServiceAccounts("invalid").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
+		rsa, err := cs.CoreV1().ServiceAccounts("invalid").Get(t.Context(), "argocd-manager", metav1.GetOptions{})
 		require.NoError(t, err)
 		assert.NotNil(t, rsa)
 	})
@@ -172,23 +174,23 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 
 func TestUninstallClusterManagerRBAC(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		cs := fake.NewClientset(newServiceAccountSecret())
+		cs := fake.NewClientset(newServiceAccountSecret(t))
 		err := UninstallClusterManagerRBAC(cs)
 		require.NoError(t, err)
 	})
 }
 
 func TestGenerateNewClusterManagerSecret(t *testing.T) {
-	kubeclientset := fake.NewClientset(newServiceAccountSecret())
+	kubeclientset := fake.NewClientset(newServiceAccountSecret(t))
 	kubeclientset.ReactionChain = nil
 
-	generatedSecret := newServiceAccountSecret()
+	generatedSecret := newServiceAccountSecret(t)
 	generatedSecret.Name = "argocd-manager-token-abc123"
 	generatedSecret.Data = map[string][]byte{
 		"token": []byte("fake-token"),
 	}
 
-	kubeclientset.AddReactor("*", "secrets", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	kubeclientset.AddReactor("*", "secrets", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, generatedSecret, nil
 	})
 
@@ -199,20 +201,20 @@ func TestGenerateNewClusterManagerSecret(t *testing.T) {
 }
 
 func TestRotateServiceAccountSecrets(t *testing.T) {
-	generatedSecret := newServiceAccountSecret()
+	generatedSecret := newServiceAccountSecret(t)
 	generatedSecret.Name = "argocd-manager-token-abc123"
 	generatedSecret.Data = map[string][]byte{
 		"token": []byte("fake-token"),
 	}
 
-	kubeclientset := fake.NewClientset(newServiceAccount(), newServiceAccountSecret(), generatedSecret)
+	kubeclientset := fake.NewClientset(newServiceAccount(t), newServiceAccountSecret(t), generatedSecret)
 
 	err := RotateServiceAccountSecrets(kubeclientset, &testClaims, generatedSecret)
 	require.NoError(t, err)
 
 	// Verify service account references new secret and old secret is deleted
 	saClient := kubeclientset.CoreV1().ServiceAccounts(testClaims.Namespace)
-	sa, err := saClient.Get(context.Background(), testClaims.ServiceAccountName, metav1.GetOptions{})
+	sa, err := saClient.Get(t.Context(), testClaims.ServiceAccountName, metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, []corev1.ObjectReference{
 		{
@@ -220,13 +222,13 @@ func TestRotateServiceAccountSecrets(t *testing.T) {
 		},
 	}, sa.Secrets)
 	secretsClient := kubeclientset.CoreV1().Secrets(testClaims.Namespace)
-	_, err = secretsClient.Get(context.Background(), testClaims.SecretName, metav1.GetOptions{})
-	assert.True(t, apierr.IsNotFound(err))
+	_, err = secretsClient.Get(t.Context(), testClaims.SecretName, metav1.GetOptions{})
+	assert.True(t, apierrors.IsNotFound(err))
 }
 
 func TestGetServiceAccountBearerToken(t *testing.T) {
-	sa := newServiceAccount()
-	tokenSecret := newServiceAccountSecret()
+	sa := newServiceAccount(t)
+	tokenSecret := newServiceAccountSecret(t)
 	dockercfgSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-manager-dockercfg-d8j66",
@@ -288,9 +290,7 @@ func Test_getOrCreateServiceAccountTokenSecret_NoSecretForSA(t *testing.T) {
 
 	obj, err := cs.Tracker().Get(schema.GroupVersionResource{Version: "v1", Resource: "serviceaccounts"},
 		ns.Name, ArgoCDManagerServiceAccount)
-	if err != nil {
-		t.Errorf("ServiceAccount %s not found but was expected to be found: %s", ArgoCDManagerServiceAccount, err.Error())
-	}
+	require.NoError(t, err, "ServiceAccount %s not found but was expected to be found", ArgoCDManagerServiceAccount)
 
 	sa := obj.(*corev1.ServiceAccount)
 	assert.Len(t, sa.Secrets, 1)
@@ -339,9 +339,7 @@ func Test_getOrCreateServiceAccountTokenSecret_SAHasSecret(t *testing.T) {
 
 	obj, err := cs.Tracker().Get(schema.GroupVersionResource{Version: "v1", Resource: "serviceaccounts"},
 		ns.Name, ArgoCDManagerServiceAccount)
-	if err != nil {
-		t.Errorf("ServiceAccount %s not found but was expected to be found: %s", ArgoCDManagerServiceAccount, err.Error())
-	}
+	require.NoError(t, err, "ServiceAccount %s not found but was expected to be found", ArgoCDManagerServiceAccount)
 
 	sa := obj.(*corev1.ServiceAccount)
 	assert.Len(t, sa.Secrets, 1)

@@ -47,7 +47,7 @@ const sectionHeader = (info: SectionInfo, onClick?: () => any) => {
         <div style={{display: 'flex', alignItems: 'center', marginBottom: '0.5em'}}>
             {sectionLabel(info)}
             {onClick && (
-                <button className='application-status-panel__more-button' onClick={onClick}>
+                <button className='argo-button application-status-panel__more-button' onClick={onClick}>
                     <i className='fa fa-ellipsis-h' />
                 </button>
             )}
@@ -103,7 +103,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     </div>
                     <div className='application-status-panel__item-value'>
                         <a className='application-status-panel__item-value__hydrator-link' onClick={() => showHydrateOperation && showHydrateOperation()}>
-                            <HydrateOperationPhaseIcon operationState={application.status.sourceHydrator.currentOperation} />
+                            <HydrateOperationPhaseIcon operationState={application.status.sourceHydrator.currentOperation} isButton={true} />
                             &nbsp;
                             {application.status.sourceHydrator.currentOperation.phase}
                         </a>
@@ -142,7 +142,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                         <div>
                             {application.status.sync.status === models.SyncStatuses.OutOfSync ? (
                                 <a onClick={() => showDiff && showDiff()}>
-                                    <ComparisonStatusIcon status={application.status.sync.status} label={true} />
+                                    <ComparisonStatusIcon status={application.status.sync.status} label={true} isButton={true} />
                                 </a>
                             ) : (
                                 <ComparisonStatusIcon status={application.status.sync.status} label={true} />
@@ -190,7 +190,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                         )}
                         <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
                             <a onClick={() => showOperation && showOperation()}>
-                                <OperationState app={application} />{' '}
+                                <OperationState app={application} isButton={true} />{' '}
                             </a>
                             {appOperationState.syncResult && (appOperationState.syncResult.revision || appOperationState.syncResult.revisions) && (
                                 <div className='application-status-panel__item-value__revision show-for-large'>
@@ -219,17 +219,17 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     <div className='application-status-panel__item-value application-status-panel__conditions' onClick={() => showConditions && showConditions()}>
                         {infos && (
                             <a className='info'>
-                                <i className='fa fa-info-circle' /> {infos} Info
+                                <i className='fa fa-info-circle application-status-panel__item-value__status-button' /> {infos} Info
                             </a>
                         )}
                         {warnings && (
                             <a className='warning'>
-                                <i className='fa fa-exclamation-triangle' /> {warnings} Warning{warnings !== 1 && 's'}
+                                <i className='fa fa-exclamation-triangle application-status-panel__item-value__status-button' /> {warnings} Warning{warnings !== 1 && 's'}
                             </a>
                         )}
                         {errors && (
                             <a className='error'>
-                                <i className='fa fa-exclamation-circle' /> {errors} Error{errors !== 1 && 's'}
+                                <i className='fa fa-exclamation-circle application-status-panel__item-value__status-button' /> {errors} Error{errors !== 1 && 's'}
                             </a>
                         )}
                     </div>

@@ -14,13 +14,13 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/kubectl/pkg/util/slice"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/password"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
-	"github.com/argoproj/argo-cd/v2/util/session"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/util/password"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/session"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // Server provides a Session service
@@ -37,15 +37,16 @@ func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.Setting
 
 // UpdatePassword updates the password of the currently authenticated account or the account specified in the request.
 func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRequest) (*account.UpdatePasswordResponse, error) {
-	issuer := session.Iss(ctx)
-	username := session.Sub(ctx)
-	updatedUsername := username
+	username := session.GetUserIdentifier(ctx)
 
+	updatedUsername := username
 	if q.Name != "" {
 		updatedUsername = q.Name
 	}
+
 	// check for permission is user is trying to change someone else's password
 	// assuming user is trying to update someone else if username is different or issuer is not Argo CD
+	issuer := session.Iss(ctx)
 	if updatedUsername != username || issuer != session.SessionManagerClaimsIssuer {
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceAccounts, rbac.ActionUpdate, q.Name); err != nil {
 			return nil, fmt.Errorf("permission denied: %w", err)
@@ -125,21 +126,6 @@ func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.Can
 		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbac.Resources, r.Resource)
 	}
 
-	// Logs RBAC will be enforced only if an internal var serverRBACLogEnforceEnable (representing server.rbac.log.enforce.enable env var)
-	// is defined and has a "true" value
-	// Otherwise, no RBAC enforcement for logs will take place (meaning, can-i request on a logs resource will result in "yes",
-	// even if there is no explicit RBAC allow, or if there is an explicit RBAC deny)
-	if r.Resource == "logs" {
-		serverRBACLogEnforceEnable, err := s.settingsMgr.GetServerRBACLogEnforceEnable()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get server RBAC log enforcement setting: %w", err)
-		}
-
-		if !serverRBACLogEnforceEnable {
-			return &account.CanIResponse{Value: "yes"}, nil
-		}
-	}
-
 	ok := s.enf.Enforce(ctx.Value("claims"), r.Resource, r.Action, r.Subresource)
 	if ok {
 		return &account.CanIResponse{Value: "yes"}, nil
@@ -168,8 +154,10 @@ func toAPIAccount(name string, a settings.Account) *account.Account {
 }
 
 func (s *Server) ensureHasAccountPermission(ctx context.Context, action string, account string) error {
+	id := session.GetUserIdentifier(ctx)
+
 	// account has always has access to itself
-	if session.Sub(ctx) == account && session.Iss(ctx) == session.SessionManagerClaimsIssuer {
+	if id == account && session.Iss(ctx) == session.SessionManagerClaimsIssuer {
 		return nil
 	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceAccounts, action, account); err != nil {

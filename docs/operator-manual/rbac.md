@@ -42,7 +42,7 @@ The anonymous access to Argo CD can be enabled using the `users.anonymous.enable
 
 ## RBAC Model Structure
 
-The model syntax is based on [Casbin](https://casbin.org/docs/overview). There are two different types of syntax: one for assigning policies, and another one for assigning users to internal roles.
+The model syntax is based on [Casbin](https://casbin.org/docs/overview) (an open source ACL/ACLs). There are two different types of syntax: one for assigning policies, and another one for assigning users to internal roles.
 
 **Group**: Allows to assign authenticated users/groups to internal roles.
 
@@ -114,8 +114,8 @@ The `applications` resource is an [Application-Specific Policy](#application-spe
 
 #### Fine-grained Permissions for `update`/`delete` action
 
-The `update` and `delete` actions, when granted on an application, will allow the user to perform the operation on the application itself **and** all of its resources.
-It can be desirable to only allow `update` or `delete` on specific resources within an application.
+The `update` and `delete` actions, when granted on an application, will allow the user to perform the operation on the application itself,
+but not on its resources.
 
 To do so, when the action if performed on an application's resource, the `<action>` will have the `<action>/<group>/<kind>/<ns>/<name>` format.
 
@@ -148,28 +148,30 @@ p, example-user, applications, delete, default/prod-app, deny
 p, example-user, applications, delete/*/Pod/*/*, default/prod-app, allow
 ```
 
-!!! note "Disable Application permission Inheritance"
+If we want to explicitly allow updates to the application, but deny updates to any sub-resources:
 
-    By default, it is not possible to deny fine-grained permissions for a sub-resource if the action was **explicitly allowed on the application**.
-    For instance, the following policies will **allow** a user to delete the Pod and any other resources in the application:
+```csv
+p, example-user, applications, update, default/prod-app, allow
+p, example-user, applications, update/*, default/prod-app, deny
+```
+
+!!! note "Preserve Application permission Inheritance (Since v3.0.0)"
+
+    Prior to v3, `update` and `delete` actions (without a `/*`) were also evaluated
+    on sub-resources.
+
+    To preserve this behavior, you can set the config value
+    `server.rbac.disableApplicationFineGrainedRBACInheritance` to `false` in
+    the Argo CD ConfigMap `argocd-cm`.
+
+    When disabled, it is not possible to deny fine-grained permissions for a sub-resource
+    if the action was **explicitly allowed on the application**.
+    For instance, the following policies will **allow** a user to delete the Pod and any
+    other resources in the application:
 
     ```csv
     p, example-user, applications, delete, default/prod-app, allow
-    p, example-user, applications, delete/*/Pod/*/*, default/prod-app, deny
-    ```
-
-    To change this behavior, you can set the config value
-    `server.rbac.disableApplicationFineGrainedRBACInheritance` to `true` in
-    the Argo CD ConfigMap `argocd-cm`.
-
-    When inheritance is disabled, it is now possible to deny fine-grained permissions for a sub-resource
-    if the action was **explicitly allowed on the application**.
-
-    For instance, if we want to explicitly allow updates to the application, but deny updates to any sub-resources:
-
-    ```csv
-    p, example-user, applications, update, default/prod-app, allow
-    p, example-user, applications, update/*, default/prod-app, deny
+    p, example-user, applications, delete/*/Pod/*, default/prod-app, deny
     ```
 
 #### The `action` action
