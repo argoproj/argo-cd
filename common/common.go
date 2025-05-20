@@ -311,6 +311,8 @@ const (
 	EnvServerSideDiff = "ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF"
 	// EnvGRPCMaxSizeMB is the environment variable to look for a max GRPC message size
 	EnvGRPCMaxSizeMB = "ARGOCD_GRPC_MAX_SIZE_MB"
+	// EnvGRPCMaxMaxRetries is the environment variable to look for a max GRPC retries
+	EnvGRPCMaxMaxRetries = "ARGOCD_GRPC_MAX_RETRIES"
 )
 
 // Config Management Plugin related constants
