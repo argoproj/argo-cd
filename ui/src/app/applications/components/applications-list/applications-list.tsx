@@ -4,8 +4,8 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
-import {combineLatest, from, merge, Observable} from 'rxjs';
-import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
+import {combineLatest, from, fromEvent, merge, Observable} from 'rxjs';
+import {bufferTime, debounceTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query, Spinner} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -191,7 +191,7 @@ function tryJsonParse(input: string) {
 const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Application[]}) => {
     const {content, ctx, apps} = {...props};
 
-    const searchBar = React.useRef<HTMLDivElement>(null);
+    const searchBarInput = React.useRef<HTMLInputElement>(null);
 
     const query = new URLSearchParams(window.location.search);
     const appInput = tryJsonParse(query.get('new'));
@@ -203,8 +203,8 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
     useKeybinding({
         keys: Key.SLASH,
         action: () => {
-            if (searchBar.current && !appInput) {
-                searchBar.current.querySelector('input').focus();
+            if (searchBarInput.current && !appInput) {
+                searchBarInput.current.focus();
                 setFocus(true);
                 return true;
             }
@@ -215,8 +215,8 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
     useKeybinding({
         keys: Key.ESCAPE,
         action: () => {
-            if (searchBar.current && !appInput && isFocused) {
-                searchBar.current.querySelector('input').blur();
+            if (searchBarInput.current && !appInput && isFocused) {
+                searchBarInput.current.blur();
                 setFocus(false);
                 return true;
             }
@@ -224,17 +224,26 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
         }
     });
 
+    React.useEffect(() => {
+      fromEvent(searchBarInput.current, 'input')
+          .pipe(debounceTime(500))
+          .subscribe(res => {
+              ctx.navigation.goto('.', {search: res.target.value}, {replace: true})
+           });
+    }, []);
+
     return (
         <Autocomplete
+            ref={(ac) => { searchBarInput = ac.refs.input; }}
             filterSuggestions={true}
             renderInput={inputProps => (
-                <div className='applications-list__search' ref={searchBar}>
+                <div className='applications-list__search'>
                     <i
                         className='fa fa-search'
                         style={{marginRight: '9px', cursor: 'pointer'}}
                         onClick={() => {
-                            if (searchBar.current) {
-                                searchBar.current.querySelector('input').focus();
+                            if (searchBarInput.current) {
+                                searchBarInput.current.focus();
                             }
                         }}
                     />
@@ -265,7 +274,6 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
             onSelect={val => {
                 ctx.navigation.goto(`./${val}`);
             }}
-            onChange={e => ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
             value={content || ''}
             items={apps.map(app => AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled))}
         />
