@@ -16,10 +16,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/TomOnTime/utfutil"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
-	"github.com/argoproj/pkg/v2/sync"
+	"github.com/argoproj/pkg/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -59,7 +60,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/kustomize"
 	"github.com/argoproj/argo-cd/v3/util/manifeststream"
 	"github.com/argoproj/argo-cd/v3/util/text"
-	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
 const (
@@ -920,7 +920,6 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 				// Otherwise, manifest generation is still paused
 				log.Infof("manifest error cache hit: %s/%s", q.ApplicationSource.String(), cacheKey)
 
-				// nolint:staticcheck // Error message constant is very old, best not to lowercase the first letter.
 				cachedErrorResponse := fmt.Errorf(cachedManifestGenerationPrefix+": %s", res.MostRecentError)
 
 				if firstInvocation {
@@ -2258,7 +2257,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 }
 
 func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
-	if !git.IsCommitSHA(q.Revision) && !git.IsTruncatedCommitSHA(q.Revision) {
+	if !(git.IsCommitSHA(q.Revision) || git.IsTruncatedCommitSHA(q.Revision)) {
 		return nil, fmt.Errorf("revision %s must be resolved", q.Revision)
 	}
 	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, q.Revision)
@@ -2404,37 +2403,40 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, noRevisionCache bool) (helm.Client, string, error) {
 	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
 	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), enableOCI, repo.Proxy, repo.NoProxy, helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths))
-
-	// Note: This check runs the risk of returning a version which is not found in the helm registry.
-	if versions.IsVersion(revision) {
+	if helm.IsVersion(revision) {
 		return helmClient, revision, nil
 	}
+	constraints, err := semver.NewConstraint(revision)
+	if err != nil {
+		return nil, "", fmt.Errorf("invalid revision '%s': %w", revision, err)
+	}
 
-	var tags []string
 	if enableOCI {
-		var err error
-		tags, err = helmClient.GetTags(chart, noRevisionCache)
+		tags, err := helmClient.GetTags(chart, noRevisionCache)
 		if err != nil {
 			return nil, "", fmt.Errorf("unable to get tags: %w", err)
 		}
-	} else {
-		index, err := helmClient.GetIndex(noRevisionCache, s.initConstants.HelmRegistryMaxIndexSize)
+
+		version, err := tags.MaxVersion(constraints)
 		if err != nil {
-			return nil, "", err
+			return nil, "", fmt.Errorf("no version for constraints: %w", err)
 		}
-		entries, err := index.GetEntries(chart)
-		if err != nil {
-			return nil, "", err
-		}
-		tags = entries.Tags()
+		return helmClient, version.String(), nil
 	}
 
-	maxV, err := versions.MaxVersion(revision, tags)
+	index, err := helmClient.GetIndex(noRevisionCache, s.initConstants.HelmRegistryMaxIndexSize)
 	if err != nil {
-		return nil, "", fmt.Errorf("invalid revision: %w", err)
+		return nil, "", err
 	}
-
-	return helmClient, maxV, nil
+	entries, err := index.GetEntries(chart)
+	if err != nil {
+		return nil, "", err
+	}
+	version, err := entries.MaxVersion(constraints)
+	if err != nil {
+		return nil, "", err
+	}
+	return helmClient, version.String(), nil
 }
 
 // directoryPermissionInitializer ensures the directory has read/write/execute permissions and returns
@@ -2562,10 +2564,13 @@ func (s *Service) GetHelmCharts(_ context.Context, q *apiclient.HelmChartsReques
 	}
 	res := apiclient.HelmChartsResponse{}
 	for chartName, entries := range index.Entries {
-		res.Items = append(res.Items, &apiclient.HelmChart{
-			Name:     chartName,
-			Versions: entries.Tags(),
-		})
+		chart := apiclient.HelmChart{
+			Name: chartName,
+		}
+		for _, entry := range entries {
+			chart.Versions = append(chart.Versions, entry.Version)
+		}
+		res.Items = append(res.Items, &chart)
 	}
 	return &res, nil
 }

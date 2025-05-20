@@ -340,7 +340,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, s
 
 	hash, err := res.generateCacheEntryHash()
 	if err != nil {
-		return fmt.Errorf("unable to generate hash value: %w", err)
+		return fmt.Errorf("Unable to generate hash value: %w", err)
 	}
 
 	// If cached result does not have manifests or the expected hash of the cache entry does not match the actual hash value...
@@ -351,7 +351,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, s
 
 		err = c.DeleteManifests(revision, appSrc, srcRefs, clusterInfo, namespace, trackingMethod, appLabelKey, appName, refSourceCommitSHAs, installationID)
 		if err != nil {
-			return fmt.Errorf("unable to delete manifest after hash mismatch: %w", err)
+			return fmt.Errorf("Unable to delete manifest after hash mismatch, %w", err)
 		}
 
 		// Treat hash mismatches as cache misses, so that the underlying resource is reacquired
@@ -375,7 +375,7 @@ func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, s
 		res = res.shallowCopy()
 		hash, err := res.generateCacheEntryHash()
 		if err != nil {
-			return fmt.Errorf("unable to generate hash value: %w", err)
+			return fmt.Errorf("Unable to generate hash value: %w", err)
 		}
 		res.CacheEntryHash = hash
 	}

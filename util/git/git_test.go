@@ -119,19 +119,19 @@ func TestSameURL(t *testing.T) {
 func TestCustomHTTPClient(t *testing.T) {
 	certFile, err := filepath.Abs("../../test/fixture/certs/argocd-test-client.crt")
 	require.NoError(t, err)
-	assert.NotEmpty(t, certFile)
+	assert.NotEqual(t, "", certFile)
 
 	keyFile, err := filepath.Abs("../../test/fixture/certs/argocd-test-client.key")
 	require.NoError(t, err)
-	assert.NotEmpty(t, keyFile)
+	assert.NotEqual(t, "", keyFile)
 
 	certData, err := os.ReadFile(certFile)
 	require.NoError(t, err)
-	assert.NotEmpty(t, string(certData))
+	assert.NotEqual(t, "", string(certData))
 
 	keyData, err := os.ReadFile(keyFile)
 	require.NoError(t, err)
-	assert.NotEmpty(t, string(keyData))
+	assert.NotEqual(t, "", string(keyData))
 
 	// Get HTTPSCreds with client cert creds specified, and insecure connection
 	creds := NewHTTPSCreds("test", "test", "", string(certData), string(keyData), false, "http://proxy:5000", "", &NoopCredsStore{}, false)
@@ -311,7 +311,7 @@ func TestLFSClient(t *testing.T) {
 
 	commitSHA, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
-	assert.NotEmpty(t, commitSHA)
+	assert.NotEqual(t, "", commitSHA)
 
 	err = client.Init()
 	require.NoError(t, err)
@@ -458,256 +458,46 @@ func TestLsFiles(t *testing.T) {
 	client, err := NewClientExt("", tmpDir1, NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
-	require.NoError(t, runCmd(tmpDir1, "git", "init"))
-
-	// Setup files
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir1, "a.yaml"), []byte{}, 0o644))
-	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir1, "subdir"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir1, "subdir", "b.yaml"), []byte{}, 0o644))
-
-	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir2, "subdir"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir2, "c.yaml"), []byte{}, 0o644))
-
-	require.NoError(t, os.Symlink(filepath.Join(tmpDir2, "c.yaml"), filepath.Join(tmpDir1, "link.yaml")))
-
-	require.NoError(t, runCmd(tmpDir1, "git", "add", "."))
-	require.NoError(t, runCmd(tmpDir1, "git", "commit", "-m", "Initial commit"))
-
-	tests := []struct {
-		name           string
-		pattern        string
-		safeGlobbing   bool
-		expectedResult []string
-	}{
-		{
-			name:           "Old globbing with symlinks and subdir",
-			pattern:        "*.yaml",
-			safeGlobbing:   false,
-			expectedResult: []string{"a.yaml", "link.yaml", "subdir/b.yaml"},
-		},
-		{
-			name:           "Safe globbing excludes symlinks",
-			pattern:        "*.yaml",
-			safeGlobbing:   true,
-			expectedResult: []string{"a.yaml"},
-		},
-		{
-			name:           "Safe globbing excludes external paths",
-			pattern:        filepath.Join(tmpDir2, "*.yaml"),
-			safeGlobbing:   true,
-			expectedResult: nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			lsResult, err := client.LsFiles(tt.pattern, tt.safeGlobbing)
-			require.NoError(t, err)
-			assert.Equal(t, tt.expectedResult, lsResult)
-		})
-	}
-}
-
-func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	client, err := NewClientExt("", tmpDir, NopCreds{}, false, false, "", "")
+	err = runCmd(tmpDir1, "git", "init")
 	require.NoError(t, err)
 
-	err = runCmd(tmpDir, "git", "init")
+	// Prepare files
+	a, err := os.Create(filepath.Join(tmpDir1, "a.yaml"))
+	require.NoError(t, err)
+	a.Close()
+	err = os.MkdirAll(filepath.Join(tmpDir1, "subdir"), 0o755)
+	require.NoError(t, err)
+	b, err := os.Create(filepath.Join(tmpDir1, "subdir", "b.yaml"))
+	require.NoError(t, err)
+	b.Close()
+	err = os.MkdirAll(filepath.Join(tmpDir2, "subdir"), 0o755)
+	require.NoError(t, err)
+	c, err := os.Create(filepath.Join(tmpDir2, "c.yaml"))
+	require.NoError(t, err)
+	c.Close()
+	err = os.Symlink(filepath.Join(tmpDir2, "c.yaml"), filepath.Join(tmpDir1, "link.yaml"))
 	require.NoError(t, err)
 
-	// Setup directory structure and files
-	files := []string{
-		"cluster-charts/cluster1/mychart/charts/mysubchart/values.yaml",
-		"cluster-charts/cluster1/mychart/values.yaml",
-		"cluster-charts/cluster1/myotherchart/values.yaml",
-		"cluster-charts/cluster2/values.yaml",
-		"some-path/values.yaml",
-		"some-path/staging/values.yaml",
-		"cluster-config/engineering/production/config.json",
-		"cluster-config/engineering/dev/config.json",
-		"p1/p2/config.json",
-		"p1/app2/config.json",
-		"p1/app3/config.json",
-		"p1/config.json",
-	}
-	for _, file := range files {
-		dir := filepath.Dir(file)
-		require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, dir), 0o755))
-		_, err := os.Create(filepath.Join(tmpDir, file))
-		require.NoError(t, err)
-	}
-	require.NoError(t, runCmd(tmpDir, "git", "add", "."))
-	require.NoError(t, runCmd(tmpDir, "git", "commit", "-m", "Initial commit"))
-
-	tests := []struct {
-		name                 string
-		pattern              string
-		isNewGlobbingEnabled bool
-		expected             []string
-	}{
-		{
-			name:                 "**/config.json (isNewGlobbingEnabled)",
-			pattern:              "**/config.json",
-			isNewGlobbingEnabled: true,
-			expected: []string{
-				"cluster-config/engineering/production/config.json",
-				"cluster-config/engineering/dev/config.json",
-				"p1/config.json",
-				"p1/p2/config.json",
-				"p1/app2/config.json",
-				"p1/app3/config.json",
-			},
-		},
-		{
-			name:                 "**/config.json (non-isNewGlobbingEnabled)",
-			pattern:              "**/config.json",
-			isNewGlobbingEnabled: false,
-			expected: []string{
-				"cluster-config/engineering/production/config.json",
-				"cluster-config/engineering/dev/config.json",
-				"p1/config.json",
-				"p1/p2/config.json",
-				"p1/app2/config.json",
-				"p1/app3/config.json",
-			},
-		},
-		{
-			name:                 "some-path/*.yaml (isNewGlobbingEnabled)",
-			pattern:              "some-path/*.yaml",
-			isNewGlobbingEnabled: true,
-			expected:             []string{"some-path/values.yaml"},
-		},
-		{
-			name:                 "some-path/*.yaml (non-isNewGlobbingEnabled)",
-			pattern:              "some-path/*.yaml",
-			isNewGlobbingEnabled: false,
-			expected: []string{
-				"some-path/values.yaml",
-				"some-path/staging/values.yaml",
-			},
-		},
-		{
-			name:                 "p1/**/config.json (isNewGlobbingEnabled)",
-			pattern:              "p1/**/config.json",
-			isNewGlobbingEnabled: true,
-			expected: []string{
-				"p1/config.json",
-				"p1/p2/config.json",
-				"p1/app2/config.json",
-				"p1/app3/config.json",
-			},
-		},
-		{
-			name:                 "p1/**/config.json (non-isNewGlobbingEnabled)",
-			pattern:              "p1/**/config.json",
-			isNewGlobbingEnabled: false,
-			expected: []string{
-				"p1/p2/config.json",
-				"p1/app2/config.json",
-				"p1/app3/config.json",
-			},
-		},
-		{
-			name:                 "cluster-config/**/config.json (isNewGlobbingEnabled)",
-			pattern:              "cluster-config/**/config.json",
-			isNewGlobbingEnabled: true,
-			expected: []string{
-				"cluster-config/engineering/production/config.json",
-				"cluster-config/engineering/dev/config.json",
-			},
-		},
-		{
-			name:                 "cluster-config/**/config.json (isNewGlobbingEnabled=false)",
-			pattern:              "cluster-config/**/config.json",
-			isNewGlobbingEnabled: false,
-			expected: []string{
-				"cluster-config/engineering/dev/config.json",
-				"cluster-config/engineering/production/config.json",
-			},
-		},
-		{
-			name:                 "cluster-config/*/dev/config.json (isNewGlobbingEnabled)",
-			pattern:              "cluster-config/*/dev/config.json",
-			isNewGlobbingEnabled: true,
-			expected:             []string{"cluster-config/engineering/dev/config.json"},
-		},
-		{
-			name:                 "cluster-config/*/dev/config.json (isNewGlobbingEnabled=false)",
-			pattern:              "cluster-config/*/dev/config.json",
-			isNewGlobbingEnabled: false,
-			expected:             []string{"cluster-config/engineering/dev/config.json"},
-		},
-		{
-			name:                 "cluster-charts/*/*/values.yaml (isNewGlobbingEnabled)",
-			pattern:              "cluster-charts/*/*/values.yaml",
-			isNewGlobbingEnabled: true,
-			expected: []string{
-				"cluster-charts/cluster1/mychart/values.yaml",
-				"cluster-charts/cluster1/myotherchart/values.yaml",
-			},
-		},
-		{
-			name:                 "cluster-charts/*/*/values.yaml (isNewGlobbingEnabled=false)",
-			pattern:              "cluster-charts/*/*/values.yaml",
-			isNewGlobbingEnabled: false,
-			expected: []string{
-				"cluster-charts/cluster1/mychart/values.yaml",
-				"cluster-charts/cluster1/myotherchart/values.yaml",
-				"cluster-charts/cluster1/mychart/charts/mysubchart/values.yaml",
-			},
-		},
-		{
-			name:                 "cluster-charts/*/values.yaml (isNewGlobbingEnabled)",
-			pattern:              "cluster-charts/*/values.yaml",
-			isNewGlobbingEnabled: true,
-			expected: []string{
-				"cluster-charts/cluster2/values.yaml",
-			},
-		},
-		{
-			name:                 "cluster-charts/*/values.yaml (non-isNewGlobbingEnabled)",
-			pattern:              "cluster-charts/*/values.yaml",
-			isNewGlobbingEnabled: false,
-			expected: []string{
-				"cluster-charts/cluster2/values.yaml",
-				"cluster-charts/cluster1/mychart/values.yaml",
-				"cluster-charts/cluster1/myotherchart/values.yaml",
-				"cluster-charts/cluster1/mychart/charts/mysubchart/values.yaml",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			lsResult, err := client.LsFiles(tt.pattern, tt.isNewGlobbingEnabled)
-			require.NoError(t, err)
-			assert.ElementsMatch(t, tt.expected, lsResult)
-		})
-	}
-}
-
-func TestAnnotatedTagHandling(t *testing.T) {
-	dir := t.TempDir()
-
-	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", dir, NopCreds{}, false, false, "", "")
+	err = runCmd(tmpDir1, "git", "add", ".")
+	require.NoError(t, err)
+	err = runCmd(tmpDir1, "git", "commit", "-m", "Initial commit")
 	require.NoError(t, err)
 
-	err = client.Init()
+	// Old and default globbing
+	expectedResult := []string{"a.yaml", "link.yaml", "subdir/b.yaml"}
+	lsResult, err := client.LsFiles("*.yaml", false)
 	require.NoError(t, err)
+	assert.Equal(t, expectedResult, lsResult)
 
-	// Test annotated tag resolution
-	commitSHA, err := client.LsRemote("v1.0.0") // Known annotated tag
+	// New and safer globbing, do not return symlinks resolving outside of the repo
+	expectedResult = []string{"a.yaml"}
+	lsResult, err = client.LsFiles("*.yaml", true)
 	require.NoError(t, err)
+	assert.Equal(t, expectedResult, lsResult)
 
-	// Verify we get commit SHA, not tag SHA
-	assert.True(t, IsCommitSHA(commitSHA))
-
-	// Test tag reference handling
-	refs, err := client.LsRefs()
+	// New globbing, do not return files outside of the repo
+	var nilResult []string
+	lsResult, err = client.LsFiles(filepath.Join(tmpDir2, "*.yaml"), true)
 	require.NoError(t, err)
-
-	// Verify tag exists in the list and points to a valid commit SHA
-	assert.Contains(t, refs.Tags, "v1.0.0", "Tag v1.0.0 should exist in refs")
+	assert.Equal(t, nilResult, lsResult)
 }

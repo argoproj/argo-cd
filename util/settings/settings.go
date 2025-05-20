@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	enginecache "github.com/argoproj/gitops-engine/pkg/cache"
-	timeutil "github.com/argoproj/pkg/v2/time"
+	timeutil "github.com/argoproj/pkg/time"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -987,6 +987,7 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 	}
 
 	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
+	crdPrsvUnkn := "/spec/preserveUnknownFields"
 
 	switch diffOptions.IgnoreResourceStatusField {
 	case "", IgnoreResourceStatusInAll:
@@ -994,6 +995,7 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 		log.Info("Ignore status for all objects")
 	case IgnoreResourceStatusInCRD:
 		addStatusOverrideToGK(resourceOverrides, crdGK)
+		addIgnoreDiffItemOverrideToGK(resourceOverrides, crdGK, crdPrsvUnkn)
 	case IgnoreResourceStatusInNone, "off", "false":
 		// Yaml 'off' non-string value can be converted to 'false'
 		// Support these cases because compareoptions is a yaml string in the config
@@ -1330,7 +1332,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}()
 
 	if !cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced, secretsInformer.HasSynced) {
-		return errors.New("timed out waiting for settings cache to sync")
+		return errors.New("Timed out waiting for settings cache to sync")
 	}
 	log.Info("Configmap/secret informer synced")
 
@@ -1481,7 +1483,7 @@ func validateExternalURL(u string) error {
 	}
 	URL, err := url.Parse(u)
 	if err != nil {
-		return fmt.Errorf("failed to parse URL: %w", err)
+		return fmt.Errorf("Failed to parse URL: %w", err)
 	}
 	if URL.Scheme != "http" && URL.Scheme != "https" {
 		return errors.New("URL must include http or https protocol")

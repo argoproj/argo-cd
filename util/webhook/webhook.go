@@ -10,9 +10,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"time"
-
-	bb "github.com/ktrysmt/go-bitbucket"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/go-playground/webhooks/v6/azuredevops"
@@ -33,7 +30,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -66,7 +62,6 @@ type ArgoCDWebhookHandler struct {
 	bitbucketserver        *bitbucketserver.Webhook
 	azuredevops            *azuredevops.Webhook
 	gogs                   *gogs.Webhook
-	settings               *settings.ArgoCDSettings
 	settingsSrc            settingsSource
 	queue                  chan any
 	maxWebhookPayloadSizeB int64
@@ -111,7 +106,6 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		settingsSrc:            settingsSrc,
 		repoCache:              repoCache,
 		serverCache:            serverCache,
-		settings:               set,
 		db:                     argoDB,
 		queue:                  make(chan any, payloadQueueSize),
 		maxWebhookPayloadSizeB: maxWebhookPayloadSizeB,
@@ -144,8 +138,8 @@ func ParseRevision(ref string) string {
 }
 
 // affectedRevisionInfo examines a payload from a webhook event, and extracts the repo web URL,
-// the revision, and whether, or not this affected origin/HEAD (the default branch of the repository)
-func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
+// the revision, and whether or not this affected origin/HEAD (the default branch of the repository)
+func affectedRevisionInfo(payloadIf any) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
 	switch payload := payloadIf.(type) {
 	case azuredevops.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
@@ -196,54 +190,15 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		// See: https://confluence.atlassian.com/bitbucket/event-payloads-740262817.html#EventPayloads-Push
 		// NOTE: this is untested
 		webURLs = append(webURLs, payload.Repository.Links.HTML.Href)
-		for _, changes := range payload.Push.Changes {
-			revision = changes.New.Name
-			change.shaBefore = changes.Old.Target.Hash
-			change.shaAfter = changes.New.Target.Hash
+		// TODO: bitbucket includes multiple changes as part of a single event.
+		// We only pick the first but need to consider how to handle multiple
+		for _, change := range payload.Push.Changes {
+			revision = change.New.Name
 			break
 		}
 		// Not actually sure how to check if the incoming change affected HEAD just by examining the
 		// payload alone. To be safe, we just return true and let the controller check for himself.
 		touchedHead = true
-
-		// Get DiffSet only for authenticated webhooks.
-		// when WebhookBitbucketUUID is set in argocd-secret, then the payload must be signed and
-		// signature is validated before payload is parsed.
-		if len(a.settings.WebhookBitbucketUUID) > 0 {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			argoRepo, err := a.lookupRepository(ctx, webURLs[0])
-			if err != nil {
-				log.Warnf("error trying to find a matching repo for URL %s: %v", payload.Repository.Links.HTML.Href, err)
-				break
-			}
-			if argoRepo == nil {
-				// it could be a public repository with no repo creds stored.
-				// initialize with empty bearer token to use the no auth bitbucket client.
-				log.Debugf("no bitbucket repository configured for URL %s, initializing with empty bearer token", webURLs[0])
-				argoRepo = &v1alpha1.Repository{BearerToken: "", Repo: webURLs[0]}
-			}
-			apiBaseURL := strings.ReplaceAll(payload.Repository.Links.Self.Href, "/repositories/"+payload.Repository.FullName, "")
-			bbClient, err := newBitbucketClient(ctx, argoRepo, apiBaseURL)
-			if err != nil {
-				log.Warnf("error creating Bitbucket client for repo %s: %v", payload.Repository.Name, err)
-				break
-			}
-			log.Debugf("created bitbucket client with base URL '%s'", apiBaseURL)
-			owner := strings.ReplaceAll(payload.Repository.FullName, "/"+payload.Repository.Name, "")
-			spec := change.shaBefore + ".." + change.shaAfter
-			diffStatChangedFiles, err := fetchDiffStatFromBitbucket(ctx, bbClient, owner, payload.Repository.Name, spec)
-			if err != nil {
-				log.Warnf("error fetching changed files using bitbucket diffstat api: %v", err)
-			}
-			changedFiles = append(changedFiles, diffStatChangedFiles...)
-			touchedHead, err = isHeadTouched(ctx, bbClient, owner, payload.Repository.Name, revision)
-			if err != nil {
-				log.Warnf("error fetching bitbucket repo details: %v", err)
-				// To be safe, we just return true and let the controller check for himself.
-				touchedHead = true
-			}
-		}
 
 	// Bitbucket does not include a list of changed files anywhere in it's payload
 	// so we cannot update changedFiles for this type of payload
@@ -297,7 +252,7 @@ type changeInfo struct {
 
 // HandleEvent handles webhook events for repo push events
 func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
-	webURLs, revision, change, touchedHead, changedFiles := a.affectedRevisionInfo(payload)
+	webURLs, revision, change, touchedHead, changedFiles := affectedRevisionInfo(payload)
 	// NOTE: the webURL does not include the .git extension
 	if len(webURLs) == 0 {
 		log.Info("Ignoring webhook event")
@@ -357,11 +312,11 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 				if sourceRevisionHasChanged(drySource, revision, touchedHead) && sourceUsesURL(drySource, webURL, repoRegexp) {
 					refreshPaths := path.GetAppRefreshPaths(&app)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
-						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-						log.Infof("webhook trigger refresh app to hydrate '%s'", app.Name)
-						_, err = argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, true)
+						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
+						log.Infof("webhook trigger refresh app to hydrate '%s'", app.ObjectMeta.Name)
+						_, err = argo.RefreshApp(namespacedAppInterface, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal, true)
 						if err != nil {
-							log.Warnf("Failed to hydrate app '%s' for controller reprocessing: %v", app.Name, err)
+							log.Warnf("Failed to hydrate app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
 							continue
 						}
 					}
@@ -372,10 +327,10 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
 					refreshPaths := path.GetAppRefreshPaths(&app)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
-						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-						_, err = argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, true)
+						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
+						_, err = argo.RefreshApp(namespacedAppInterface, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal, true)
 						if err != nil {
-							log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.Name, err)
+							log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
 							continue
 						}
 						// No need to refresh multiple times if multiple sources match.
@@ -467,23 +422,6 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 	return nil
 }
 
-// lookupRepository returns a repository with its credentials for a given URL. If there are no matching repository secret found,
-// then nil repository is returned.
-func (a *ArgoCDWebhookHandler) lookupRepository(ctx context.Context, repoURL string) (*v1alpha1.Repository, error) {
-	repositories, err := a.db.ListRepositories(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error listing repositories: %w", err)
-	}
-	var repository *v1alpha1.Repository
-	for _, repo := range repositories {
-		if git.SameURL(repo.Repo, repoURL) {
-			log.Debugf("found a matching repository for URL %s", repoURL)
-			return repo, nil
-		}
-	}
-	return repository, nil
-}
-
 func sourceRevisionHasChanged(source v1alpha1.ApplicationSource, revision string, touchedHead bool) bool {
 	targetRev := ParseRevision(source.TargetRevision)
 	if targetRev == "HEAD" || targetRev == "" { // revision is head
@@ -529,76 +467,6 @@ func sourceUsesURL(source v1alpha1.ApplicationSource, webURL string, repoRegexp 
 
 	log.Debugf("%s uses repoURL %s", source.RepoURL, webURL)
 	return true
-}
-
-// newBitbucketClient creates a new bitbucket client for the given repository and uses the provided apiURL to connect
-// to the bitbucket server. If the repository uses basic auth, then a basic auth client is created or if bearer token
-// is provided, then oauth based client is created.
-func newBitbucketClient(_ context.Context, repository *v1alpha1.Repository, apiBaseURL string) (*bb.Client, error) {
-	var bbClient *bb.Client
-	if repository.Username != "" && repository.Password != "" {
-		log.Debugf("fetched user/password for repository URL '%s', initializing basic auth client", repository.Repo)
-		if repository.Username == "x-token-auth" {
-			bbClient = bb.NewOAuthbearerToken(repository.Password)
-		} else {
-			bbClient = bb.NewBasicAuth(repository.Username, repository.Password)
-		}
-	} else {
-		if repository.BearerToken != "" {
-			log.Debugf("fetched bearer token for repository URL '%s', initializing bearer token auth based client", repository.Repo)
-		} else {
-			log.Debugf("no credentials available for repository URL '%s', initializing no auth client", repository.Repo)
-		}
-		bbClient = bb.NewOAuthbearerToken(repository.BearerToken)
-	}
-	// parse and set the target URL of the Bitbucket server in the client
-	repoBaseURL, err := url.Parse(apiBaseURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse bitbucket api base URL '%s'", apiBaseURL)
-	}
-	bbClient.SetApiBaseURL(*repoBaseURL)
-	return bbClient, nil
-}
-
-// fetchDiffStatFromBitbucket gets the list of files changed between two commits, by making a diffstat api callback to the
-// bitbucket server from where the webhook orignated.
-func fetchDiffStatFromBitbucket(_ context.Context, bbClient *bb.Client, owner, repoSlug, spec string) ([]string, error) {
-	// Getting the files changed from diff API:
-	// https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-diffstat-spec-get
-
-	// invoke the diffstat api call to get the list of changed files between two commit shas
-	log.Debugf("invoking diffstat call with parameters: [Owner:%s, RepoSlug:%s, Spec:%s]", owner, repoSlug, spec)
-	diffStatResp, err := bbClient.Repositories.Diff.GetDiffStat(&bb.DiffStatOptions{
-		Owner:    owner,
-		RepoSlug: repoSlug,
-		Spec:     spec,
-		Renames:  true,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error getting the diffstat: %w", err)
-	}
-	changedFiles := make([]string, len(diffStatResp.DiffStats))
-	for i, value := range diffStatResp.DiffStats {
-		changedFilePath := value.New["path"]
-		if changedFilePath != nil {
-			changedFiles[i] = changedFilePath.(string)
-		}
-	}
-	log.Debugf("changed files for spec %s: %v", spec, changedFiles)
-	return changedFiles, nil
-}
-
-// isHeadTouched returns true if the repository's main branch is modified, false otherwise
-func isHeadTouched(ctx context.Context, bbClient *bb.Client, owner, repoSlug, revision string) (bool, error) {
-	bbRepoOptions := &bb.RepositoryOptions{
-		Owner:    owner,
-		RepoSlug: repoSlug,
-	}
-	bbRepo, err := bbClient.Repositories.Repository.Get(bbRepoOptions.WithContext(ctx))
-	if err != nil {
-		return false, err
-	}
-	return bbRepo.Mainbranch.Name == revision, nil
 }
 
 func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {

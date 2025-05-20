@@ -129,7 +129,7 @@ func TestSetAppInstanceAnnotationNotFound(t *testing.T) {
 	resourceTracking := NewResourceTracking()
 
 	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, v1alpha1.TrackingMethodAnnotation, "")
-	assert.Empty(t, app)
+	assert.Equal(t, "", app)
 }
 
 func TestParseAppInstanceValue(t *testing.T) {
@@ -157,13 +157,13 @@ func TestParseAppInstanceValueColon(t *testing.T) {
 func TestParseAppInstanceValueWrongFormat1(t *testing.T) {
 	resourceTracking := NewResourceTracking()
 	_, err := resourceTracking.ParseAppInstanceValue("app")
-	require.ErrorIs(t, err, ErrWrongResourceTrackingFormat)
+	require.ErrorIs(t, err, WrongResourceTrackingFormat)
 }
 
 func TestParseAppInstanceValueWrongFormat2(t *testing.T) {
 	resourceTracking := NewResourceTracking()
 	_, err := resourceTracking.ParseAppInstanceValue("app;group/kind/ns")
-	require.ErrorIs(t, err, ErrWrongResourceTrackingFormat)
+	require.ErrorIs(t, err, WrongResourceTrackingFormat)
 }
 
 func TestParseAppInstanceValueCorrectFormat(t *testing.T) {

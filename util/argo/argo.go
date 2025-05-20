@@ -1013,7 +1013,6 @@ func GetDestinationCluster(ctx context.Context, destination argoappv1.Applicatio
 		}
 		return cluster, nil
 	}
-	// nolint:staticcheck // Error constant is very old, shouldn't lowercase the first letter.
 	return nil, errors.New(ErrDestinationMissing)
 }
 
