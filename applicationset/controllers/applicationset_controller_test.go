@@ -36,6 +36,7 @@ import (
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -1210,7 +1211,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 			clusterList, err := utils.ListClusters(t.Context(), kubeclientset, "namespace")
 			require.NoError(t, err)
 
-			appLog := log.WithFields(log.Fields{"app": app.Name, "appSet": ""})
+			appLog := log.WithFields(applog.GetAppLogFields(&app)).WithField("appSet", "")
 
 			appInputParam := app.DeepCopy()
 
@@ -1366,7 +1367,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 			clusterList, err := utils.ListClusters(t.Context(), kubeclientset, "argocd")
 			require.NoError(t, err)
 
-			appLog := log.WithFields(log.Fields{"app": app.Name, "appSet": ""})
+			appLog := log.WithFields(applog.GetAppLogFields(&app)).WithField("appSet", "")
 
 			appInputParam := app.DeepCopy()
 
