@@ -2,7 +2,6 @@ package project
 
 import (
 	"context"
-	"time"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 
@@ -44,6 +43,5 @@ func (c *Consequences) Given() *Context {
 }
 
 func (c *Consequences) When() *Actions {
-	time.Sleep(fixture.WhenThenSleepInterval)
 	return c.actions
 }

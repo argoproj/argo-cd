@@ -139,18 +139,8 @@ func NewExportCommand() *cobra.Command {
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().StringVarP(&out, "out", "o", "-", "Output to the specified file instead of stdout")
-	command.Flags().StringSliceVarP(&applicationNamespaces, "application-namespaces", "", []string{}, fmt.Sprintf("Comma-separated list of namespace globs to export applications from, in addition to the control plane namespace (Argo CD namespace). "+
-		"By default, all applications from the control plane namespace are always exported. "+
-		"If this flag is provided, applications from the specified namespaces are exported along with the control plane namespace. "+
-		"If not specified, the value from '%s' in %s is used (if defined in the ConfigMap). "+
-		"If the ConfigMap value is not set, only applications from the control plane namespace are exported.",
-		applicationNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
-	command.Flags().StringSliceVarP(&applicationsetNamespaces, "applicationset-namespaces", "", []string{}, fmt.Sprintf("Comma-separated list of namespace globs to export ApplicationSets from, in addition to the control plane namespace (Argo CD namespace). "+
-		"By default, all ApplicationSets from the control plane namespace are always exported. "+
-		"If this flag is provided, ApplicationSets from the specified namespaces are exported along with the control plane namespace. "+
-		"If not specified, the value from '%s' in %s is used (if defined in the ConfigMap). "+
-		"If the ConfigMap value is not set, only ApplicationSets from the control plane namespace are exported.",
-		applicationsetNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
+	command.Flags().StringSliceVarP(&applicationNamespaces, "application-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs to export applications from. If not provided value from '%s' in %s will be used. If it's not defined, only applications from Argo CD namespace will be exported", applicationNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
+	command.Flags().StringSliceVarP(&applicationsetNamespaces, "applicationset-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs to export applicationsets from. If not provided value from '%s' in %s will be used. If it's not defined, only applicationsets from Argo CD namespace will be exported", applicationsetNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
 	return &command
 }
 

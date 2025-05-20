@@ -17,11 +17,13 @@ import (
 )
 
 // setApplicationHealth updates the health statuses of all resources performed in the comparison
-func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (health.HealthStatusCode, error) {
+func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (*appv1.HealthStatus, error) {
 	var savedErr error
 	var errCount uint
 
-	appHealthStatus := health.HealthStatusHealthy
+	appHealth := app.Status.Health.DeepCopy()
+	appHealth.Status = health.HealthStatusHealthy
+
 	for i, res := range resources {
 		if res.Target != nil && hookutil.Skip(res.Target) {
 			continue
@@ -75,8 +77,8 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			continue
 		}
 
-		if health.IsWorse(appHealthStatus, healthStatus.Status) {
-			appHealthStatus = healthStatus.Status
+		if health.IsWorse(appHealth.Status, healthStatus.Status) {
+			appHealth.Status = healthStatus.Status
 		}
 	}
 	if persistResourceHealth {
@@ -87,5 +89,5 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 	if savedErr != nil && errCount > 1 {
 		savedErr = fmt.Errorf("see application-controller logs for %d other errors; most recent error was: %w", errCount-1, savedErr)
 	}
-	return appHealthStatus, savedErr
+	return appHealth, savedErr
 }

@@ -1,8 +1,6 @@
 package project
 
 import (
-	"time"
-
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -83,6 +81,5 @@ func (a *Actions) runCli(args ...string) {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
-	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a}
 }

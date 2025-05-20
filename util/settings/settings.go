@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	enginecache "github.com/argoproj/gitops-engine/pkg/cache"
-	timeutil "github.com/argoproj/pkg/v2/time"
+	timeutil "github.com/argoproj/pkg/time"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -1330,7 +1330,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}()
 
 	if !cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced, secretsInformer.HasSynced) {
-		return errors.New("timed out waiting for settings cache to sync")
+		return errors.New("Timed out waiting for settings cache to sync")
 	}
 	log.Info("Configmap/secret informer synced")
 
@@ -1481,7 +1481,7 @@ func validateExternalURL(u string) error {
 	}
 	URL, err := url.Parse(u)
 	if err != nil {
-		return fmt.Errorf("failed to parse URL: %w", err)
+		return fmt.Errorf("Failed to parse URL: %w", err)
 	}
 	if URL.Scheme != "http" && URL.Scheme != "https" {
 		return errors.New("URL must include http or https protocol")

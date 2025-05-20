@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/google/go-github/v69/github"
+	"github.com/google/go-github/v66/github"
 )
 
 type GithubService struct {

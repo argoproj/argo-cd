@@ -3,7 +3,6 @@ package project
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -65,6 +64,5 @@ func (c *Consequences) Given() *Context {
 }
 
 func (c *Consequences) When() *Actions {
-	time.Sleep(fixture.WhenThenSleepInterval)
 	return c.actions
 }

@@ -29,7 +29,6 @@ func Given(t *testing.T) *Context {
 }
 
 func (c *Context) When() *Actions {
-	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Actions{context: c}
 }
 

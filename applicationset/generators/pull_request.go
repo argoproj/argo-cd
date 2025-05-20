@@ -19,7 +19,7 @@ import (
 var _ Generator = (*PullRequestGenerator)(nil)
 
 const (
-	DefaultPullRequestRequeueAfter = 30 * time.Minute
+	DefaultPullRequestRequeueAfterSeconds = 30 * time.Minute
 )
 
 type PullRequestGenerator struct {
@@ -44,7 +44,7 @@ func (g *PullRequestGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alph
 		return time.Duration(*appSetGenerator.PullRequest.RequeueAfterSeconds) * time.Second
 	}
 
-	return DefaultPullRequestRequeueAfter
+	return DefaultPullRequestRequeueAfterSeconds
 }
 
 func (g *PullRequestGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
@@ -53,11 +53,11 @@ func (g *PullRequestGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.A
 
 func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
-		return nil, ErrEmptyAppSetGenerator
+		return nil, EmptyAppSetGeneratorError
 	}
 
 	if appSetGenerator.PullRequest == nil {
-		return nil, ErrEmptyAppSetGenerator
+		return nil, EmptyAppSetGeneratorError
 	}
 
 	ctx := context.Background()
@@ -157,8 +157,7 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %w", err)
 		}
-
-		return pullrequest.NewGiteaService(token, providerConfig.API, providerConfig.Owner, providerConfig.Repo, providerConfig.Labels, providerConfig.Insecure)
+		return pullrequest.NewGiteaService(token, providerConfig.API, providerConfig.Owner, providerConfig.Repo, providerConfig.Insecure)
 	}
 	if generatorConfig.BitbucketServer != nil {
 		providerConfig := generatorConfig.BitbucketServer
