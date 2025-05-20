@@ -27,6 +27,20 @@ message AWSAuthConfig {
   optional string profile = 3;
 }
 
+// AppHealthStatus contains information about the currently observed health state of an application
+message AppHealthStatus {
+  // Status holds the status code of the application
+  optional string status = 1;
+
+  // Message is a human-readable informational message describing the health status
+  //
+  // Deprecated: this field is not used and will be removed in a future release.
+  optional string message = 2;
+
+  // LastTransitionTime is the time the HealthStatus was set or updated
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
+}
+
 // AppProject provides a logical grouping of applications, providing controls for:
 // * where the apps may deploy to (cluster whitelist)
 // * what may be deployed (repository whitelist, resource whitelist/blacklist)
@@ -667,7 +681,7 @@ message ApplicationStatus {
   optional SyncStatus sync = 2;
 
   // Health contains information about the application's current health status
-  optional HealthStatus health = 3;
+  optional AppHealthStatus health = 3;
 
   // History contains information about the application's sync history
   repeated RevisionHistory history = 4;
@@ -1097,15 +1111,17 @@ message GnuPGPublicKeyList {
   repeated GnuPGPublicKey items = 2;
 }
 
-// HealthStatus contains information about the currently observed health state of an application or resource
+// HealthStatus contains information about the currently observed health state of a resource
 message HealthStatus {
-  // Status holds the status code of the application or resource
+  // Status holds the status code of the resource
   optional string status = 1;
 
   // Message is a human-readable informational message describing the health status
   optional string message = 2;
 
   // LastTransitionTime is the time the HealthStatus was set or updated
+  //
+  // Deprecated: this field is not used and will be removed in a future release.
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
 }
 
