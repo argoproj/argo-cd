@@ -2244,8 +2244,11 @@ func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application, alread
 		return true, time.Duration(0)
 	}
 
+	timeSinceOperation := time.Since(app.Status.OperationState.FinishedAt.Time)
+
 	// Reset counter if the prior sync was successful and the cooldown period is over OR if the revision has changed
-	if !alreadyAttempted || (len(app.Status.History) > 0 && time.Since(app.Status.History[len(app.Status.History)-1].DeployedAt.Time) >= ctrl.selfHealBackoffCooldown && app.Status.Sync.Status == appv1.SyncStatusCodeSynced) {
+	if !alreadyAttempted || (len(app.Status.History) > 0 && timeSinceOperation >= ctrl.selfHealBackoffCooldown && app.Status.Sync.Status == appv1.SyncStatusCodeSynced) {
+		log.Printf("Resetting self-heal attempts count for %s/%s", app.Namespace, app.Name)
 		app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount = 0
 	}
 
@@ -2254,7 +2257,7 @@ func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application, alread
 		if app.Status.OperationState.FinishedAt == nil {
 			retryAfter = ctrl.selfHealTimeout
 		} else {
-			retryAfter = ctrl.selfHealTimeout - time.Since(app.Status.OperationState.FinishedAt.Time)
+			retryAfter = ctrl.selfHealTimeout - timeSinceOperation
 		}
 	} else {
 		backOff := *ctrl.selfHealBackOff
@@ -2267,7 +2270,7 @@ func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application, alread
 		if app.Status.OperationState.FinishedAt == nil {
 			retryAfter = delay
 		} else {
-			retryAfter = delay - time.Since(app.Status.OperationState.FinishedAt.Time)
+			retryAfter = delay - timeSinceOperation
 		}
 	}
 	return retryAfter <= 0, retryAfter
