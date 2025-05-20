@@ -66,7 +66,6 @@ type ApplicationSetSpec struct {
 	Template          ApplicationSetTemplate      `json:"template" protobuf:"bytes,3,name=template"`
 	SyncPolicy        *ApplicationSetSyncPolicy   `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
 	Strategy          *ApplicationSetStrategy     `json:"strategy,omitempty" protobuf:"bytes,5,opt,name=strategy"`
-	DeletionStrategy  *ApplicationSetStrategy     `json:"deletionStrategy,omitempty" protobuf:"bytes,6,opt,name=deletionStrategy"`
 	PreservedFields   *ApplicationPreservedFields `json:"preservedFields,omitempty" protobuf:"bytes,6,opt,name=preservedFields"`
 	GoTemplateOptions []string                    `json:"goTemplateOptions,omitempty" protobuf:"bytes,7,opt,name=goTemplateOptions"`
 	// ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
