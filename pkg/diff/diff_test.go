@@ -1030,6 +1030,31 @@ func TestServerSideDiff(t *testing.T) {
 		assert.Empty(t, predictedDeploy.Annotations[AnnotationLastAppliedConfig])
 		assert.Empty(t, liveDeploy.Annotations[AnnotationLastAppliedConfig])
 	})
+
+	t.Run("will reflect deletion of labels in predicted live", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ServiceLiveLabelYAMLSSD)
+		desiredState := StrToUnstructured(testdata.ServiceConfigNoLabelYAMLSSD)
+		opts := buildOpts(testdata.ServicePredictedLiveNoLabelJSONSSD)
+
+		// when
+		result, err := serverSideDiff(desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
+
+		predictedSvc := YamlToSvc(t, result.PredictedLive)
+		liveSvc := YamlToSvc(t, result.NormalizedLive)
+
+		// Ensure that the deleted label is not present in predicted and exists in live
+		_, predictedLabelExists := predictedSvc.Labels["delete-me"]
+		_, liveLabelExists := liveSvc.Labels["delete-me"]
+		assert.False(t, predictedLabelExists)
+		assert.True(t, liveLabelExists)
+	})
 }
 
 func createSecret(data map[string]string) *unstructured.Unstructured {

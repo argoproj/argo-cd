@@ -68,4 +68,13 @@ var (
 
 	//go:embed ssd-deploy-with-manual-apply-predicted-live.json
 	DeploymentApplyPredictedLiveJSONSSD string
+
+	//go:embed ssd-svc-label-live.yaml
+	ServiceLiveLabelYAMLSSD string
+
+	//go:embed ssd-svc-no-label-config.yaml
+	ServiceConfigNoLabelYAMLSSD string
+
+	//go:embed ssd-svc-no-label-predicted-live.json
+	ServicePredictedLiveNoLabelJSONSSD string
 )
