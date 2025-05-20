@@ -36,18 +36,18 @@ esac
 
 export TARGET_FILE="protoc-${protoc_version}-${protoc_os}-${protoc_arch}.zip"
 url="https://github.com/protocolbuffers/protobuf/releases/download/v${protoc_version}/protoc-${protoc_version}-${protoc_os}-${protoc_arch}.zip"
-[ -e "$DOWNLOADS/${TARGET_FILE}" ] || curl -sLf --retry 3 -o "$DOWNLOADS/${TARGET_FILE}" ${url}
+[ -e "$DOWNLOADS/${TARGET_FILE}" ] || curl -sLf --retry 3 -o "$DOWNLOADS/${TARGET_FILE}" "${url}"
 "$(dirname "$0")"/compare-chksum.sh
-mkdir -p /tmp/protoc-${protoc_version}
-unzip -o "$DOWNLOADS/${TARGET_FILE}" -d /tmp/protoc-${protoc_version}
+mkdir -p "/tmp/protoc-${protoc_version}"
+unzip -o "$DOWNLOADS/${TARGET_FILE}" -d "/tmp/protoc-${protoc_version}"
 mkdir -p "${DIST_PATH}/protoc-include"
-sudo install -m 0755 /tmp/protoc-${protoc_version}/bin/protoc "${DIST_PATH}/protoc"
+sudo install -m 0755 "/tmp/protoc-${protoc_version}/bin/protoc" "${DIST_PATH}/protoc"
 (
-    cd /tmp/protoc-${protoc_version}/include/
+    cd "/tmp/protoc-${protoc_version}/include/"
     find -- * -type d -exec install -m 0755 -d "${DIST_PATH}/protoc-include/{}" \;
 )
 (
-    cd /tmp/protoc-${protoc_version}/include/
+    cd "/tmp/protoc-${protoc_version}/include/"
     find -- * -type f -exec install -m 0644 "/tmp/protoc-${protoc_version}/include/{}" "${DIST_PATH}/protoc-include/{}" \;
 )
 protoc --version
