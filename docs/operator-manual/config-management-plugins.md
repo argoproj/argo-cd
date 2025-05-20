@@ -338,7 +338,7 @@ If you are actively developing a sidecar-installed CMP, keep a few things in min
    repo-server Pod so the plugin will pick up the changes. If you are using `:latest`, the Pod will always pull the new
    image. If you're using a different, static tag, set `imagePullPolicy: Always` on the CMP's sidecar container.
 3. CMP errors are cached by the repo-server in Redis. Restarting the repo-server Pod will not clear the cache. Always
-   do a "Hard Refresh" when actively developing a CMP so you have the latest output.
+   do an "Invalidate Cache" (or `argocd app get ... --hard-refresh`) when actively developing a CMP so you have the latest output.
 4. Verify your sidecar has started properly by viewing the Pod and seeing that two containers are running `kubectl get pod -l app.kubernetes.io/component=repo-server -n argocd`
 5. Write log message to stderr and set the `--loglevel=info` flag in the sidecar. This will print everything written to stderr, even on successfull command execution.
 
