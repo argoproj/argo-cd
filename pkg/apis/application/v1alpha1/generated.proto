@@ -1407,6 +1407,9 @@ message OperationState {
 
   // RetryCount contains time of operation retries
   optional int64 retryCount = 8;
+
+  // SyncId is the unique identifier of the sync operation
+  optional string syncId = 9;
 }
 
 message OptionalArray {
