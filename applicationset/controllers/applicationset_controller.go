@@ -17,6 +17,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"reflect"
 	"runtime/debug"
 	"sort"
@@ -137,6 +138,16 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				return ctrl.Result{}, err
 			}
 			logCtx.Debugf("ownerReferences referring %s is deleted from generated applications", appsetName)
+		}
+		if isRollingSyncDeletionReversed(&applicationSetInfo) {
+			currentApplications, err := r.getCurrentApplications(ctx, applicationSetInfo)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			err = r.performReverseDeletion(ctx, logCtx, applicationSetInfo, currentApplications)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
 		}
 		controllerutil.RemoveFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
 		if err := r.Update(ctx, &applicationSetInfo); err != nil {
@@ -354,6 +365,102 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	return ctrl.Result{
 		RequeueAfter: requeueAfter,
 	}, nil
+}
+
+func (r *ApplicationSetReconciler) performReverseDeletion(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, currentApps []argov1alpha1.Application) error {
+	// get deletionOrder using current Apps
+	stepLength := len(appset.Spec.Strategy.RollingSync.Steps)
+	if stepLength == 0 {
+		logCtx.Info("no rolling sync steps found")
+	}
+	deleteStepMap := make(map[string]int, stepLength)
+	appMap := make(map[string]*argov1alpha1.Application)
+	for _, app := range currentApps {
+		appMap[app.Name] = &app
+		// if this app is in the step, reverse its step
+		for i, step := range appset.Spec.Strategy.RollingSync.Steps {
+			for _, expr := range step.MatchExpressions {
+				if val, ok := app.Labels[expr.Key]; ok {
+					valueMatched := labelMatchedExpression(logCtx, val, expr)
+					if valueMatched {
+						deleteStepMap[app.Name] = stepLength - i - 1
+					}
+				}
+
+			}
+		}
+	}
+
+	// Or approach 2
+	_, appStepMap := r.buildAppDependencyList(logCtx, appset, currentApps)
+	// reverse the AppStepMap to perform deletion
+	type deleteInOrder struct {
+		AppName      string
+		Step         int
+		hasFinalizer bool
+	}
+	var reverseDeleteAppSteps []deleteInOrder
+	for appName, appStep := range appStepMap {
+		reverseDeleteAppSteps = append(reverseDeleteAppSteps, deleteInOrder{appName, stepLength - appStep - 1, true})
+	}
+
+	sort.Slice(reverseDeleteAppSteps, func(i, j int) bool {
+		return reverseDeleteAppSteps[i].Step < reverseDeleteAppSteps[j].Step
+	})
+
+	logCtx.Infof("reverse deletion steps of Appset %v", appset.Name)
+	for _, step := range reverseDeleteAppSteps {
+		logCtx.Infof("step %v : app %v", step.Step, step.AppName)
+		app := appMap[step.AppName]
+		updated := controllerutil.RemoveFinalizer(app, argov1alpha1.ProgressiveSyncDeletionOrderFinalizerName)
+		if !updated {
+			logCtx.Infof("Removing finalizer app did not update the finalizer list, either the finalizer does not exist or was unable to remove finalizer.")
+		} else {
+			// Update the application to persist finalizer removal
+			if err := r.Client.Update(ctx, app); err != nil {
+				return fmt.Errorf("failed to update application %s after finalizer removal: %w", step.AppName, err)
+			}
+			logCtx.Infof("successfully removed finalizer from application %s", step.AppName)
+		}
+		// Wait for the application to be deleted
+		if err := r.waitForAppDeletion(ctx, step.AppName, appset.Namespace); err != nil {
+			return fmt.Errorf("failed waiting for application %s deletion: %w", step.AppName, err)
+		}
+
+		logCtx.Infof("application %s successfully deleted", step.AppName)
+
+	}
+	logCtx.Infof("completed reverse deletion for ApplicationSet %v", appset.Name)
+	return nil
+}
+
+func (r *ApplicationSetReconciler) waitForAppDeletion(ctx context.Context, appName string, namespace string) error {
+	// Create a polling interval and timeout
+	pollInterval := time.Second * 5
+	timeout := time.Minute * 5
+
+	// Create a context with timeout
+	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	// Keep checking until the app is gone or we time out
+	return wait.PollUntilContextCancel(timeoutCtx, pollInterval, true, func(ctx context.Context) (bool, error) {
+		app := &argov1alpha1.Application{}
+		err := r.Client.Get(ctx, types.NamespacedName{
+			Name:      appName,
+			Namespace: namespace,
+		}, app)
+
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return true, nil
+			}
+			return false, fmt.Errorf("error getting application : %w", err)
+		}
+
+		// Application still exists, continue polling
+		return false, nil
+	})
 }
 
 func getParametersGeneratedCondition(parametersGenerated bool, message string) argov1alpha1.ApplicationSetCondition {
@@ -731,7 +838,7 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 		return fmt.Errorf("error getting current applications: %w", err)
 	}
 
-	m := make(map[string]bool) // Will holds the app names in appList for the deletion process
+	m := make(map[string]bool) // will hold the app names in appList for the deletion process
 
 	for _, app := range desiredApplications {
 		m[app.Name] = true
@@ -1010,6 +1117,10 @@ func progressiveSyncsRollingSyncStrategyEnabled(appset *argov1alpha1.Application
 	return isRollingSyncStrategy(appset) && len(appset.Spec.Strategy.RollingSync.Steps) > 0
 }
 
+func isRollingSyncDeletionReversed(appset *argov1alpha1.ApplicationSet) bool {
+	return isRollingSyncStrategy(appset) && appset.Spec.Strategy.DeletionOrder == "Reverse"
+}
+
 func isApplicationHealthy(app argov1alpha1.Application) bool {
 	healthStatusString, syncStatusString, operationPhaseString := statusStrings(app)
 
@@ -1139,15 +1250,10 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 
 	// if we have no RollingUpdate steps, clear out the existing ApplicationStatus entries
 	if progressiveSyncsRollingSyncStrategyEnabled(applicationSet) {
-		updateCountMap := []int{}
-		totalCountMap := []int{}
-
 		length := len(applicationSet.Spec.Strategy.RollingSync.Steps)
 
-		for s := 0; s < length; s++ {
-			updateCountMap = append(updateCountMap, 0)
-			totalCountMap = append(totalCountMap, 0)
-		}
+		updateCountMap := make([]int, length)
+		totalCountMap := make([]int, length)
 
 		// populate updateCountMap with counts of existing Pending and Progressing Applications
 		for _, appStatus := range applicationSet.Status.ApplicationStatus {

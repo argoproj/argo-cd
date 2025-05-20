@@ -9,6 +9,9 @@ const (
 	// ResourcesFinalizerName is the finalizer value which we inject to finalize deletion of an application
 	ResourcesFinalizerName string = "resources-finalizer.argocd.argoproj.io"
 
+	// ProgressiveSyncDeletionOrderFinalizerName is the finalizer value which we use to trigger order of deletion when progressive sync is enabled and DeletionOrder is specified
+	ProgressiveSyncDeletionOrderFinalizerName string = "progressive-sync-deletion-finalizer.argocd.argoproj.io"
+
 	// PostDeleteFinalizerName is the finalizer that controls post-delete hooks execution
 	PostDeleteFinalizerName string = "post-delete-finalizer.argocd.argoproj.io"
 
