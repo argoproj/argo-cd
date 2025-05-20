@@ -718,7 +718,7 @@ func TestSetHealth(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
-	assert.False(t, compRes.healthStatus.LastTransitionTime.IsZero())
+	assert.Equal(t, app.Status.Health.LastTransitionTime, compRes.healthStatus.LastTransitionTime)
 }
 
 func TestPreserveStatusTimestamp(t *testing.T) {
@@ -793,7 +793,7 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
-	assert.False(t, compRes.healthStatus.LastTransitionTime.IsZero())
+	assert.Equal(t, app.Status.Health.LastTransitionTime, compRes.healthStatus.LastTransitionTime)
 }
 
 func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
@@ -869,7 +869,7 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusUnknown, compRes.healthStatus.Status)
-	assert.False(t, compRes.healthStatus.LastTransitionTime.IsZero())
+	assert.Equal(t, app.Status.Health.LastTransitionTime, compRes.healthStatus.LastTransitionTime)
 	assert.Equal(t, v1alpha1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
 }
 
