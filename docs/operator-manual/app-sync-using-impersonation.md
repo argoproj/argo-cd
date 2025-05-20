@@ -7,6 +7,8 @@
     the control plane operations.
 
 !!! warning
+    This is a breaking change and there is no service account configured by default.
+    Once the feature is enabled, it is at system level and if no matching service account is found for a given destination, the sync operation would fail.
     Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
 
 ## Introduction
@@ -81,6 +83,43 @@ It is possible to specify service accounts along with its namespace. eg: `tenant
 
 `DestinationServiceAccounts` associated to a `AppProject` can be created and managed, either declaratively or through the Argo CD API (e.g. using the CLI, the web UI, the REST API, etc).
 
+### Configuring global default service account in Global project.
+It is possible to create a destination service account that matches all destinations in a global AppProject and
+ensure all AppProjects are configured to inherit from this global AppProject.
+```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: AppProject
+    metadata:
+      name: my-global-project
+      namespace: argocd
+    spec:
+      destinationServiceAccounts:
+          - server: '*'
+            namespace: '*'
+            defaultServiceAccount: 'argocd:argocd-application-controller'
+```
+
+```yaml
+    kind: ConfigMap
+    metadata:
+      name: argocd-cm
+      namespace: argocd
+    data:
+      globalProjects: |-
+        - labelSelector:
+            matchExpressions:
+              - key: global-inheritance
+                operator: In
+                values:
+                  - "true"
+          projectName: my-global-project
+```
+
+Apply the inheritance label to all existing AppProjects to ensure that they inherit the global wildcard destination service account across all existing AppProjects.
+```shell
+argocd login <hostname> --username admin --password $(kubectl get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d) --insecure
+for proj in $(argocd proj list -o json | jq -r '.[].metadata.name');do;kubectl label appproject $proj -n argocd global-inheritance=true;done;
+```
 ### Using declarative yaml
 
 For declaratively configuring destination service accounts, create an yaml file for the `AppProject` as below and apply the changes using `kubectl apply` command.
