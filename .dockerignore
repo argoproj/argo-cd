@@ -17,6 +17,8 @@ manifests/
 hack/
 docs/
 examples/
+.dockerignore
+.git/
 .github/
 !test/container
 !test/e2e/testdata

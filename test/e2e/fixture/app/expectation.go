@@ -343,7 +343,7 @@ func Success(message string, matchers ...func(string, string) bool) Expectation 
 			return failed, "error"
 		}
 		if !match(c.actions.lastOutput, message) {
-			return failed, fmt.Sprintf("output did not contain '%s'", message)
+			return failed, fmt.Sprintf("output did not contain '%s', but got: '%s'", message, c.actions.lastOutput)
 		}
 		return succeeded, fmt.Sprintf("no error and output contained '%s'", message)
 	}

@@ -91,6 +91,8 @@ type Client interface {
 	RemoveContents() (string, error)
 	// CommitAndPush commits and pushes changes to the target branch.
 	CommitAndPush(branch, message string) (string, error)
+	ListRevisions(revision string, targetRevision string) ([]string, error)
+	DiffTree(targetRevision string) ([]string, error)
 }
 
 type EventHandlers struct {

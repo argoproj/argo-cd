@@ -818,12 +818,12 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 	t.Run("VersionDoesNotExist", func(t *testing.T) {
 		_, err := settings.GetOptions(v1alpha1.ApplicationSource{
 			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v4"},
-		})
+		}, true)
 		require.Error(t, err)
 	})
 
 	t.Run("DefaultBuildOptions", func(t *testing.T) {
-		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{})
+		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{}, true)
 		require.NoError(t, err)
 		assert.Equal(t, "", ver.BinaryPath)
 		assert.Equal(t, "--opt1 val1", ver.BuildOptions)
@@ -832,7 +832,7 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 	t.Run("VersionExists", func(t *testing.T) {
 		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{
 			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v2"},
-		})
+		}, true)
 		require.NoError(t, err)
 		assert.Equal(t, "path_v2", ver.BinaryPath)
 		assert.Equal(t, "", ver.BuildOptions)
@@ -841,7 +841,7 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 	t.Run("VersionExistsWithBuildOption", func(t *testing.T) {
 		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{
 			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v3"},
-		})
+		}, true)
 		require.NoError(t, err)
 		assert.Equal(t, "path_v3", ver.BinaryPath)
 		assert.Equal(t, "--opt2 val2", ver.BuildOptions)

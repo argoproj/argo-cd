@@ -3,10 +3,10 @@ name: Image
 on:
   push:
     branches:
-      - master
+      - sync-*
   pull_request:
     branches:
-      - master
+      - sync-*
     types: [labeled, unlabeled, opened, synchronize, reopened]
 
 concurrency:
@@ -19,17 +19,25 @@ jobs:
   set-vars:
     permissions:
       contents: read
-    if: github.repository == 'argoproj/argo-cd'
+    if: github.repository == 'codefresh-io/argo-cd'
     runs-on: ubuntu-22.04
     outputs:
-      image-tag: ${{ steps.image.outputs.tag}}
+      image-tag: ${{ steps.image-pr.outputs.tag || steps.image-push.outputs.tag }}
       platforms: ${{ steps.platforms.outputs.platforms }}
     steps:
       - uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
 
-      - name: Set image tag for ghcr
-        run: echo "tag=$(cat ./VERSION)-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
-        id: image
+      - name: Set image tag (push to feature branch)
+        if: ${{ github.repository == 'codefresh-io/argo-cd' && github.event_name == 'pull_request' }}
+        run: |
+          CLEAN_REF=$(echo "${{ github.head_ref }}" | sed 's|^refs/[^/]*||; s|/|_|g')
+          echo "tag=v$(cat ./VERSION)-${CLEAN_REF}-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+        id: image-pr
+
+      - name: Set image tag (push to sync-* branch)
+        if: ${{ github.repository == 'codefresh-io/argo-cd' && github.event_name == 'push' }}
+        run: echo "tag=v$(cat ./VERSION)-$(date +%Y-%m-%d)-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+        id: image-push
 
       - name: Determine image platforms to use
         id: platforms
@@ -48,7 +56,7 @@ jobs:
       contents: read
       packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
       id-token: write # for creating OIDC tokens for signing.
-    if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name != 'push' }}
+    if: ${{ false }}
     uses: ./.github/workflows/image-reuse.yaml
     with:
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
@@ -63,11 +71,11 @@ jobs:
       contents: read
       packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
       id-token: write # for creating OIDC tokens for signing.
-    if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
+    if: ${{ github.repository == 'codefresh-io/argo-cd' }}
     uses: ./.github/workflows/image-reuse.yaml
     with:
-      quay_image_name: quay.io/argoproj/argocd:latest
-      ghcr_image_name: ghcr.io/argoproj/argo-cd/argocd:${{ needs.set-vars.outputs.image-tag }}
+      quay_image_name: ${{ github.event_name == 'pull_request' && 'quay.io/codefresh/dev/argocd' || 'quay.io/codefresh/argocd' }}:${{ needs.set-vars.outputs.image-tag }}
+      # ghcr_image_name: ghcr.io/codefresh-io/argo-cd/argocd:${{ needs.set-vars.outputs.image-tag }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
       go-version: 1.24.1
@@ -86,7 +94,7 @@ jobs:
       actions: read # for detecting the Github Actions environment.
       id-token: write # for creating OIDC tokens for signing.
       packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
-    if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
+    if: ${{ false }}
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.0.0
     with:
@@ -103,7 +111,7 @@ jobs:
     permissions:
       contents: write # for git to push upgrade commit if not already deployed
       packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
-    if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
+    if: ${{ false }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0

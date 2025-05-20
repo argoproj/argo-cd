@@ -319,8 +319,26 @@ func (s *Service) runRepoOperation(
 		return err
 	}
 
+	cacheKey := revision
+
+	if source.Kustomize != nil && len(source.Kustomize.Components) > 0 {
+		cacheKey, err = s.getCacheKeyWithKustomizeComponents(
+			revision,
+			repo,
+			source,
+			settings,
+			gitClient,
+		)
+		if err != nil {
+			log.WithError(err).
+				WithField("repo", repo.Repo).
+				Warn("failed to calculate cache key with components, using only the revision of the base repository")
+			cacheKey = revision
+		}
+	}
+
 	if !settings.noCache {
-		if ok, err := cacheFn(revision, repoRefs, true); ok {
+		if ok, err := cacheFn(cacheKey, repoRefs, true); ok {
 			return err
 		}
 	}
@@ -418,7 +436,7 @@ func (s *Service) runRepoOperation(
 
 	// Here commitSHA refers to the SHA of the actual commit, whereas revision refers to the branch/tag name etc
 	// We use the commitSHA to generate manifests and store them in cache, and revision to retrieve them from cache
-	return operation(gitClient.Root(), commitSHA, revision, func() (*operationContext, error) {
+	return operation(gitClient.Root(), commitSHA, cacheKey, func() (*operationContext, error) {
 		var signature string
 		if verifyCommit {
 			// When the revision is an annotated tag, we need to pass the unresolved revision (i.e. the tag name)
@@ -1421,7 +1439,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
 			KubeVersion: text.SemVer(q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion)),
 			APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
-		})
+		}, q.Namespace)
 	case v1alpha1.ApplicationSourceTypePlugin:
 		pluginName := ""
 		if q.ApplicationSource.Plugin != nil {
@@ -2201,7 +2219,7 @@ func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apicl
 		ApplicationSource: q.Source,
 	}
 	env := newEnv(&fakeManifestRequest, reversion)
-	_, images, _, err := k.Build(q.Source.Kustomize, q.KustomizeOptions, env, nil)
+	_, images, _, err := k.Build(q.Source.Kustomize, q.KustomizeOptions, env, nil, "")
 	if err != nil {
 		return err
 	}

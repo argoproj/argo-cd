@@ -102,6 +102,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	var sources []v1alpha1.ApplicationSource
 	revisions := make([]string, 0)
 
+	logCtx := log.WithField("application", app.Name)
+
 	if state.Operation.Sync == nil {
 		state.Phase = common.OperationFailed
 		state.Message = "Invalid operation request: no operation specified"
@@ -145,6 +147,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		syncRes = state.SyncResult
 		revision = state.SyncResult.Revision
 		revisions = append(revisions, state.SyncResult.Revisions...)
+		logCtx.Infof("Resuming sync operation to revision %s", revision)
 	} else {
 		syncRes = &v1alpha1.SyncOperationResult{}
 		// status.operationState.syncResult.source. must be set properly since auto-sync relies
@@ -167,6 +170,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		}
 	} else {
 		if revision == "" {
+			logCtx.Infof("No previous sync state found, revision is empty. Take revision from operation \"%s\"", syncOp.Revision)
 			revision = syncOp.Revision
 		}
 	}
@@ -404,6 +408,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	if state.Phase == common.OperationTerminating {
 		syncCtx.Terminate()
 	} else {
+		logEntry.Infof("Starting sync operation for revision \"%s\"", compareResult.syncStatus.Revision)
 		syncCtx.Sync()
 	}
 	var resState []common.ResourceSyncResult

@@ -6,6 +6,9 @@ mockname: "{{.InterfaceName}}"
 with-expecter: false
 # individual interface config
 packages:
+  github.com/argoproj/argo-cd/v3/acr_controller/application:
+    interfaces:
+      ApplicationClient:
   github.com/argoproj/argo-cd/v3/applicationset/generators:
     interfaces:
       Generator:

@@ -39,7 +39,12 @@ type BuildOpts struct {
 // Kustomize provides wrapper functionality around the `kustomize` command.
 type Kustomize interface {
 	// Build returns a list of unstructured objects from a `kustomize build` command and extract supported parameters
-	Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, buildOpts *BuildOpts) ([]*unstructured.Unstructured, []Image, []string, error)
+	Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, buildOpts *BuildOpts, namespace string) ([]*unstructured.Unstructured, []Image, []string, error)
+	// Codefresh-fix
+	// GetCacheKeyWithComponents returns a cache key that takes remote components repositories in consideration and
+	// not just the repository that contains the base Kustomization file. This is required if we want to rebuild the
+	// manifests everytime one of the component repositories change and not wait for a hard refresh.
+	GetCacheKeyWithComponents(revision string, source *v1alpha1.ApplicationSourceKustomize, resolveRevisionFunc ResolveRevisionFunc) (string, error)
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
@@ -124,7 +129,7 @@ func mapToEditAddArgs(val map[string]string) []string {
 	return args
 }
 
-func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, buildOpts *BuildOpts) ([]*unstructured.Unstructured, []Image, []string, error) {
+func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, buildOpts *BuildOpts, namespace string) ([]*unstructured.Unstructured, []Image, []string, error) {
 	// commands stores all the commands that were run as part of this build.
 	var commands []string
 
@@ -162,6 +167,15 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 
 	env = append(env, environ...)
+
+	if kustomizeOptions != nil && kustomizeOptions.SetNamespace && namespace != "" {
+		cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namespace", "--", namespace)
+		cmd.Dir = k.path
+		_, err := executil.Run(cmd)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+	}
 
 	if opts != nil {
 		if opts.NamePrefix != "" {

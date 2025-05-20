@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-declare -a services=("controller" "api-server" "redis" "repo-server" "ui")
+declare -a services=("controller" "api-server" "redis" "repo-server" "ui" "applicationset-controller")
 
 EXCLUDE=$exclude
 

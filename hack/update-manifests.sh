@@ -12,16 +12,17 @@ KUSTOMIZE=kustomize
 
 cd ${SRCROOT}/manifests/ha/base/redis-ha && ./generate.sh
 
-IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-quay.io/argoproj}"
+IMAGE_NAMESPACE="${IMAGE_NAMESPACE:-quay.io/codefresh}"
 IMAGE_TAG="${IMAGE_TAG:-}"
 
 # if the tag has not been declared, and we are on a release branch, use the VERSION file.
+# CODEFRESH: we always want to generate the manifests with the version from the VERSION file, so we will always set IMAGE_TAG to the version in the VERSION file.
 if [ "$IMAGE_TAG" = "" ]; then
-  branch=$(git rev-parse --abbrev-ref HEAD)
-  if [[ $branch = release-* ]]; then
+  # branch=$(git rev-parse --abbrev-ref HEAD)
+  # if [[ $branch = sync-* ]]; then
     pwd
     IMAGE_TAG=v$(cat $SRCROOT/VERSION)
-  fi
+  # fi
 fi
 # otherwise, use latest
 if [ "$IMAGE_TAG" = "" ]; then

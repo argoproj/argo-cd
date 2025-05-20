@@ -128,6 +128,8 @@ type ArgoCDSettings struct {
 	// ImpersonationEnabled indicates whether Application sync privileges can be decoupled from control plane
 	// privileges using impersonation
 	ImpersonationEnabled bool `json:"impersonationEnabled"`
+	// KustomizeSetNamespaceEnabled enable set namespace for kustomize by default
+	KustomizeSetNamespaceEnabled bool `json:"kustomizeSetNamespaceEnabled"`
 }
 
 type GoogleAnalytics struct {
@@ -289,7 +291,7 @@ var (
 	}
 )
 
-func (ks *KustomizeSettings) GetOptions(source v1alpha1.ApplicationSource) (*v1alpha1.KustomizeOptions, error) {
+func (ks *KustomizeSettings) GetOptions(source v1alpha1.ApplicationSource, setNamespace bool) (*v1alpha1.KustomizeOptions, error) {
 	binaryPath := ""
 	buildOptions := ""
 	if source.Kustomize != nil && source.Kustomize.Version != "" {
@@ -311,6 +313,7 @@ func (ks *KustomizeSettings) GetOptions(source v1alpha1.ApplicationSource) (*v1a
 	return &v1alpha1.KustomizeOptions{
 		BuildOptions: buildOptions,
 		BinaryPath:   binaryPath,
+		SetNamespace: setNamespace,
 	}, nil
 }
 
@@ -538,6 +541,8 @@ const (
 	RespectRBACValueNormal = "normal"
 	// impersonationEnabledKey is the key to configure whether the application sync decoupling through impersonation feature is enabled
 	impersonationEnabledKey = "application.sync.impersonation.enabled"
+	// kustomizeSetNamespaceEnabledKey is the key to configure if kustomize set namespace should be executed
+	kustomizeSetNamespaceEnabledKey = "kustomize.setNamespace.enabled"
 )
 
 const (

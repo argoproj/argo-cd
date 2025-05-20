@@ -2,14 +2,16 @@ name: Integration tests
 on:
   push:
     branches:
-      - 'master'
-      - 'release-*'
-      - '!release-1.4'
-      - '!release-1.5'
+      - 'sync-*'
+      # - 'master'
+      # - 'release-*'
+      # - '!release-1.4'
+      # - '!release-1.5'
   pull_request:
     branches:
-      - 'master'
-      - 'release-*'
+      - 'sync-*'
+      # - 'master'
+      # - 'release-*'
 
 env:
   # Golang version to use across CI steps
@@ -383,7 +385,7 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload test results to Codecov
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push' && github.repository == 'argoproj/argo-cd'
+        if: startsWith(github.ref, 'refs/heads/sync-') && github.event_name == 'push' && github.repository == 'codefresh-io/argo-cd'
         uses: codecov/test-results-action@9739113ad922ea0a9abb4b2c0f8bf6a4aa8ef820 # v1.0.1
         with:
           file: test-results/junit.xml
@@ -394,7 +396,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         uses: SonarSource/sonarqube-scan-action@bfd4e558cda28cda6b5defafb9232d191be8c203 # v4.2.1
-        if: env.sonar_secret != ''
+        if: false && env.sonar_secret != ''
   test-e2e:
     name: Run end-to-end tests
     if: ${{ needs.changes.outputs.backend == 'true' }}

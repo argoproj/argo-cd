@@ -2163,6 +2163,18 @@ func (c *fakeAppServiceClient) RunResourceAction(_ context.Context, _ *applicati
 	return nil, nil
 }
 
+func (c *fakeAppServiceClient) RollbackApplicationRollout(_ context.Context, _ *applicationpkg.ApplicationRolloutRollbackRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationRolloutRollbackResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ValidateSrcAndDst(_ context.Context, _ *applicationpkg.ApplicationValidationRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationValidateResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetChangeRevision(_ context.Context, _ *applicationpkg.ChangeRevisionRequest, _ ...grpc.CallOption) (*applicationpkg.ChangeRevisionResponse, error) {
+	return nil, nil
+}
+
 func (c *fakeAppServiceClient) DeleteResource(_ context.Context, _ *applicationpkg.ApplicationResourceDeleteRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
 	return nil, nil
 }

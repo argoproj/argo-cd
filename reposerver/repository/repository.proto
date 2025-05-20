@@ -3,6 +3,8 @@ option go_package = "github.com/argoproj/argo-cd/v3/reposerver/apiclient";
 
 package repository;
 
+import "k8s.io/api/core/v1/generated.proto";
+import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.proto";
 import "google/protobuf/empty.proto";
 
@@ -296,6 +298,19 @@ message UpdateRevisionForPathsResponse {
     string revision = 2;
 }
 
+message ChangeRevisionRequest {
+    string appName = 1;
+    string namespace = 2;
+    string currentRevision = 3;
+    string previousRevision = 4;
+    repeated string paths = 5;
+    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 6;
+}
+
+message ChangeRevisionResponse {
+    string revision = 1;
+}
+
 // ManifestService
 service RepoServerService {
 
@@ -353,5 +368,8 @@ service RepoServerService {
 
     // UpdateRevisionForPaths will compare two revisions and update the cache with the new revision if no changes are detected in the provided paths
     rpc UpdateRevisionForPaths(UpdateRevisionForPathsRequest) returns (UpdateRevisionForPathsResponse) {
+    }
+
+    rpc GetChangeRevision(ChangeRevisionRequest) returns (ChangeRevisionResponse) {
     }
 }

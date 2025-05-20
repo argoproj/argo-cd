@@ -28,7 +28,7 @@ require (
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/dustin/go-humanize v1.0.1
 	github.com/evanphx/json-patch v5.9.11+incompatible
-	github.com/expr-lang/expr v1.16.9
+	github.com/expr-lang/expr v1.17.0
 	github.com/felixge/httpsnoop v1.0.4
 	github.com/fsnotify/fsnotify v1.8.0
 	github.com/gfleury/go-bitbucket-v1 v0.0.0-20240917142304-df385efaac68
@@ -317,6 +317,7 @@ replace (
 	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.32.2
 	k8s.io/dynamic-resource-allocation => k8s.io/dynamic-resource-allocation v0.32.2
 	k8s.io/endpointslice => k8s.io/endpointslice v0.32.2
+	k8s.io/externaljwt => k8s.io/externaljwt v0.32.2
 	k8s.io/kms => k8s.io/kms v0.32.2
 	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.32.2
 	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.32.2

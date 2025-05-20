@@ -429,6 +429,7 @@ func TestNamespacedTrackAppStateAndSyncApp(t *testing.T) {
 		When().
 		CreateApp().
 		Sync().
+		Wait().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -1134,6 +1135,7 @@ func TestNamespacedPermissions(t *testing.T) {
 		}).
 		CreateApp().
 		Sync().
+		Wait().
 		Then().
 		// make sure application resource actiions are successful
 		And(func(app *Application) {

@@ -520,7 +520,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				return fmt.Errorf("error getting kustomize settings: %w", err)
 			}
 
-			kustomizeOptions, err := kustomizeSettings.GetOptions(source)
+			kustomizeOptions, err := kustomizeSettings.GetOptions(source, s.settingsMgr.GetKustomizeSetNamespaceEnabled())
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings options: %w", err)
 			}
@@ -653,7 +653,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 		if err != nil {
 			return fmt.Errorf("error getting kustomize settings: %w", err)
 		}
-		kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource())
+		kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource(), s.settingsMgr.GetKustomizeSetNamespaceEnabled())
 		if err != nil {
 			return fmt.Errorf("error getting kustomize settings options: %w", err)
 		}
@@ -790,7 +790,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 			if err != nil {
 				return fmt.Errorf("error getting trackingMethod from settings: %w", err)
 			}
-			kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource())
+			kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource(), s.settingsMgr.GetKustomizeSetNamespaceEnabled())
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings options: %w", err)
 			}

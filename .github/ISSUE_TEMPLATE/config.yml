@@ -5,7 +5,7 @@ contact_links:
     url: https://argo-cd.readthedocs.io/
     about: Much help can be found in the docs
   - name: Ask a question
-    url: https://github.com/argoproj/argo-cd/discussions/new
+    url: https://github.com/codefresh-io/argo-cd/discussions/new
     about: Ask a question or start a discussion about Argo CD
   - name: Chat on Slack
     url: https://argoproj.github.io/community/join-slack

@@ -88,6 +88,16 @@ message ApplicationManifestQueryWithFiles {
 	optional string project = 4;
 }
 
+message ApplicationValidateResponse {
+	optional string error = 1;
+	optional string entity = 2;
+}
+
+message ApplicationRolloutRollbackResponse {
+	required string rollout = 1;
+	required int64 newRevision = 2;
+}
+
 message ApplicationManifestQueryWithFilesWrapper {
 	oneof part {
 		ApplicationManifestQueryWithFiles query = 1;
@@ -139,6 +149,18 @@ message ApplicationSyncRequest {
 	repeated string revisions = 15;
 }
 
+message ApplicationValidationRequest {
+	required github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Application application = 1;
+}
+
+message ApplicationRolloutRollbackRequest {
+	required string name = 1;
+	required string namespace = 2;
+	required string rolloutName = 3;
+	required string rolloutNamespace = 4;
+	required int64 rolloutRevision = 5;
+}
+
 // ApplicationUpdateSpecRequest is a request to update application spec
 message ApplicationUpdateSpecRequest {
 	required string name = 1;
@@ -175,6 +197,17 @@ message ApplicationResourceRequest {
 	required string kind = 6;
 	optional string appNamespace = 7;
 	optional string project = 8;
+}
+
+message ChangeRevisionRequest {
+	required string appName = 1;
+	optional string namespace = 2;
+	optional string currentRevision = 3;
+	optional string previousRevision = 4;
+}
+
+message ChangeRevisionResponse {
+	required string revision = 1;
 }
 
 message ApplicationResourcePatchRequest {
@@ -467,9 +500,25 @@ service ApplicationService {
 		};
 	}
 
+	// Rollback application rollout
+	rpc RollbackApplicationRollout(ApplicationRolloutRollbackRequest) returns (ApplicationRolloutRollbackResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/applications/{name}/rollout-rollback"
+			body: "*"
+		};
+	}
+
 	// DeleteResource deletes a single application resource
 	rpc DeleteResource(ApplicationResourceDeleteRequest) returns (ApplicationResponse) {
 		option (google.api.http).delete = "/api/v1/applications/{name}/resource";
+	}
+
+	// Create creates an application
+	rpc ValidateSrcAndDst(ApplicationValidationRequest) returns (ApplicationValidateResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/application-validate"
+			body: "application"
+		};
 	}
 
 	// PodLogs returns stream of log entries for the specified pod. Pod
@@ -490,5 +539,9 @@ service ApplicationService {
 	// ListResourceLinks returns the list of all resource deep links
 	rpc ListResourceLinks(ApplicationResourceRequest) returns (LinksResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/resource/links";
+	}
+
+	rpc GetChangeRevision(ChangeRevisionRequest) returns (ChangeRevisionResponse) {
+		option (google.api.http).get = "/api/v1/application/changeRevision";
 	}
 }

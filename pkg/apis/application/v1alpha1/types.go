@@ -1355,7 +1355,9 @@ type SyncOperation struct {
 	// If omitted, will use the revision specified in app spec.
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,11,opt,name=revisions"`
 	// SelfHealAttemptsCount contains the number of auto-heal attempts
-	SelfHealAttemptsCount int64 `json:"autoHealAttemptsCount,omitempty" protobuf:"bytes,12,opt,name=autoHealAttemptsCount"`
+	SelfHealAttemptsCount int64    `json:"autoHealAttemptsCount,omitempty" protobuf:"bytes,12,opt,name=autoHealAttemptsCount"`
+	ChangeRevisions       []string `json:"changeRevisions,omitempty" protobuf:"-"`
+	ChangeRevision        string   `json:"changeRevision,omitempty" protobuf:"-"`
 }
 
 // IsApplyStrategy returns true if the sync strategy is "apply"
@@ -3088,6 +3090,8 @@ type KustomizeOptions struct {
 	BuildOptions string `protobuf:"bytes,1,opt,name=buildOptions"`
 	// BinaryPath holds optional path to kustomize binary
 	BinaryPath string `protobuf:"bytes,2,opt,name=binaryPath"`
+
+	SetNamespace bool `protobuf:"varint,3,opt,name=setNamespace"`
 }
 
 // ApplicationDestinationServiceAccount holds information about the service account to be impersonated for the application sync operation.

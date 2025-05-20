@@ -120,6 +120,12 @@ spec:
                       attempts
                     format: int64
                     type: integer
+                  changeRevision:
+                    type: string
+                  changeRevisions:
+                    items:
+                      type: string
+                    type: array
                   dryRun:
                     description: DryRun specifies to perform a `kubectl apply --dry-run`
                       without actually performing the sync
@@ -2910,6 +2916,12 @@ spec:
                               of auto-heal attempts
                             format: int64
                             type: integer
+                          changeRevision:
+                            type: string
+                          changeRevisions:
+                            items:
+                              type: string
+                            type: array
                           dryRun:
                             description: DryRun specifies to perform a `kubectl apply
                               --dry-run` without actually performing the sync
@@ -25975,7 +25987,7 @@ spec:
               key: applicationsetcontroller.requeue.after
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v3.0.2
+        image: quay.io/codefresh/argocd:v3.0.2
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -26274,7 +26286,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:v3.0.2
+        image: quay.io/codefresh/argocd:v3.0.2
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -26370,7 +26382,7 @@ spec:
               key: notificationscontroller.repo.server.plaintext
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v3.0.2
+        image: quay.io/codefresh/argocd:v3.0.2
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
@@ -26494,7 +26506,7 @@ spec:
         - argocd
         - admin
         - redis-initial-password
-        image: quay.io/argoproj/argocd:v3.0.2
+        image: quay.io/codefresh/argocd:v3.0.2
         imagePullPolicy: IfNotPresent
         name: secret-init
         securityContext:
@@ -26793,7 +26805,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:v3.0.2
+        image: quay.io/codefresh/argocd:v3.0.2
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -26845,7 +26857,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:v3.0.2
+        image: quay.io/codefresh/argocd:v3.0.2
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -27219,7 +27231,7 @@ spec:
               key: server.sync.replace.allowed
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:v3.0.2
+        image: quay.io/codefresh/argocd:v3.0.2
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -27585,7 +27597,7 @@ spec:
               optional: true
         - name: KUBECACHEDIR
           value: /tmp/kubecache
-        image: quay.io/argoproj/argocd:v3.0.2
+        image: quay.io/codefresh/argocd:v3.0.2
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
