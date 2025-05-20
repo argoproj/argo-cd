@@ -1828,11 +1828,11 @@ func TestService_newHelmClientResolveRevision(t *testing.T) {
 
 	t.Run("EmptyRevision", func(t *testing.T) {
 		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "", "my-chart", true)
-		assert.EqualError(t, err, "invalid revision: failed to determine semver constraint: improper constraint: ")
+		assert.EqualError(t, err, "invalid revision '': improper constraint: ")
 	})
 	t.Run("InvalidRevision", func(t *testing.T) {
 		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "???", "my-chart", true)
-		assert.EqualError(t, err, "invalid revision: failed to determine semver constraint: improper constraint: ???")
+		assert.EqualError(t, err, "invalid revision '???': improper constraint: ???")
 	})
 }
 
@@ -1863,7 +1863,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				AppName: "testapp",
 			})
 			require.NoError(t, err)
-			assert.Equal(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.2"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("Only app specific override", func(t *testing.T) {
