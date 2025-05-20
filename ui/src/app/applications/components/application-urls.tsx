@@ -71,7 +71,9 @@ export const ApplicationURLs = ({urls}: {urls: string[]}) => {
                         e.stopPropagation();
                         window.open(externalLinks[0].ref);
                     }}>
-                    <i className='fa fa-external-link-alt' />{' '}
+                    <a href='#'>
+                        <i className='fa fa-external-link-alt' />{' '}
+                    </a>
                     {externalLinks.length > 1 && (
                         <DropDownMenu
                             anchor={() => <i className='fa fa-caret-down' />}
