@@ -7,5 +7,20 @@
     "github>argoproj/argo-cd//renovate-presets/fix/disable-all-updates.json5",
     "github>argoproj/argo-cd//renovate-presets/devtool.json5",
     "github>argoproj/argo-cd//renovate-presets/docs.json5"
-  ]
+  ],
+  "enabledManagers": ["helm"],
+  "packageRules": [
+    {
+      "matchPackageNames": ["redis-ha"],
+      "datasourceTemplate": "helm",
+      "groupName": "redis-ha Helm Chart"
+    }
+  ],
+  "postUpgradeTasks": {
+    "commands": [
+      "bash manifests/ha/base/redis-ha/generate.sh",
+      "make manifests-local"
+    ],
+    "fileFilters": ["manifests/ha/base/redis-ha/**"]
+  }
 }
