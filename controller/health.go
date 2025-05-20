@@ -14,6 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/lua"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // setApplicationHealth updates the health statuses of all resources performed in the comparison
