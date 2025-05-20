@@ -3454,3 +3454,21 @@ func Test_DeepCopyInformers(t *testing.T) {
 		assert.NotSame(t, p, &spList[i])
 	}
 }
+
+func TestGetInstanceInfo(t *testing.T) {
+	server := newTestAppServer(t)
+	ctx := context.Background()
+	query := &application.ApplicationQuery{}
+
+	info, err := server.GetInstanceInfo(ctx, query)
+	require.NoError(t, err)
+
+	// The instance name and namespace should be the test namespace, and the URL should match settings
+	ns := server.settingsMgr.GetNamespace()
+	settings, _ := server.settingsMgr.GetSettings()
+
+	assert.NotNil(t, info)
+	assert.Equal(t, ns, *info.InstanceName)
+	assert.Equal(t, ns, *info.InstanceNamespace)
+	assert.Equal(t, settings.URL, *info.InstanceUrl)
+}
