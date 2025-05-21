@@ -6,18 +6,12 @@ import (
 	"regexp"
 	"strings"
 
+	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/kube"
-	"github.com/argoproj/argo-cd/v3/util/settings"
-)
-
-const (
-	TrackingMethodAnnotation         v1alpha1.TrackingMethod = "annotation"
-	TrackingMethodLabel              v1alpha1.TrackingMethod = "label"
-	TrackingMethodAnnotationAndLabel v1alpha1.TrackingMethod = "annotation+label"
 )
 
 var (
@@ -51,17 +45,8 @@ func NewResourceTracking() ResourceTracking {
 	return &resourceTracking{}
 }
 
-// GetTrackingMethod retrieve tracking method from settings
-func GetTrackingMethod(settingsMgr *settings.SettingsManager) v1alpha1.TrackingMethod {
-	tm, err := settingsMgr.GetTrackingMethod()
-	if err != nil || tm == "" {
-		return TrackingMethodAnnotation
-	}
-	return v1alpha1.TrackingMethod(tm)
-}
-
 func IsOldTrackingMethod(trackingMethod string) bool {
-	return trackingMethod == "" || trackingMethod == string(TrackingMethodLabel)
+	return trackingMethod == "" || trackingMethod == string(v1alpha1.TrackingMethodLabel)
 }
 
 func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, installationID string) *AppInstanceValue {
@@ -89,15 +74,15 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 		return ""
 	}
 	switch trackingMethod {
-	case TrackingMethodLabel:
+	case v1alpha1.TrackingMethodLabel:
 		label, err := kube.GetAppInstanceLabel(un, key)
 		if err != nil {
 			return ""
 		}
 		return label
-	case TrackingMethodAnnotationAndLabel:
+	case v1alpha1.TrackingMethodAnnotationAndLabel:
 		return retrieveAppInstanceValue()
-	case TrackingMethodAnnotation:
+	case v1alpha1.TrackingMethodAnnotation:
 		return retrieveAppInstanceValue()
 	default:
 		return retrieveAppInstanceValue()
@@ -109,7 +94,7 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 // not be parsed, it returns nil.
 func (rt *resourceTracking) GetAppInstance(un *unstructured.Unstructured, trackingMethod v1alpha1.TrackingMethod, instanceID string) *AppInstanceValue {
 	switch trackingMethod {
-	case TrackingMethodAnnotation, TrackingMethodAnnotationAndLabel:
+	case v1alpha1.TrackingMethodAnnotation, v1alpha1.TrackingMethodAnnotationAndLabel:
 		return rt.getAppInstanceValue(un, instanceID)
 	default:
 		return nil
@@ -151,15 +136,15 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		return kube.SetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance, rt.BuildAppInstanceValue(appInstanceValue))
 	}
 	switch trackingMethod {
-	case TrackingMethodLabel:
+	case v1alpha1.TrackingMethodLabel:
 		err := kube.SetAppInstanceLabel(un, key, val)
 		if err != nil {
 			return fmt.Errorf("failed to set app instance label: %w", err)
 		}
 		return nil
-	case TrackingMethodAnnotation:
+	case v1alpha1.TrackingMethodAnnotation:
 		return setAppInstanceAnnotation()
-	case TrackingMethodAnnotationAndLabel:
+	case v1alpha1.TrackingMethodAnnotationAndLabel:
 		err := setAppInstanceAnnotation()
 		if err != nil {
 			return err
@@ -229,6 +214,11 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 		return fmt.Errorf("failed to get app instance label: %w", err)
 	}
 	if label == "" {
+		return nil
+	}
+
+	if kubeutil.IsCRD(live) {
+		// CRDs don't get tracking annotations.
 		return nil
 	}
 

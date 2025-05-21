@@ -27,7 +27,7 @@ import (
 	"time"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
-	"github.com/argoproj/pkg/sync"
+	"github.com/argoproj/pkg/v2/sync"
 	"github.com/golang-jwt/jwt/v5"
 	golang_proto "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/gorilla/handlers"
@@ -114,7 +114,7 @@ import (
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
@@ -329,9 +329,18 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, projLister)
 	enf.SetClaimsEnforcerFunc(policyEnf.EnforceClaims)
 
-	var staticFS fs.FS = io.NewSubDirFS("dist/app", ui.Embedded)
-	if opts.StaticAssetsDir != "" {
-		staticFS = io.NewComposableFS(staticFS, os.DirFS(opts.StaticAssetsDir))
+	staticFS, err := fs.Sub(ui.Embedded, "dist/app")
+	errorsutil.CheckError(err)
+
+	root, err := os.OpenRoot(opts.StaticAssetsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			log.Warnf("Static assets directory %q does not exist, using only embedded assets", opts.StaticAssetsDir)
+		} else {
+			errorsutil.CheckError(err)
+		}
+	} else {
+		staticFS = utilio.NewComposableFS(staticFS, root.FS())
 	}
 
 	argocdService, err := service.NewArgoCDService(opts.KubeClientset, opts.Namespace, opts.RepoClientset)
@@ -500,7 +509,7 @@ func (server *ArgoCDServer) Listen() (*Listeners, error) {
 	}
 	metricsLn, err := startListener(server.ListenHost, server.MetricsPort)
 	if err != nil {
-		io.Close(mainLn)
+		utilio.Close(mainLn)
 		return nil, err
 	}
 	var dOpts []grpc.DialOption
@@ -526,8 +535,8 @@ func (server *ArgoCDServer) Listen() (*Listeners, error) {
 	//nolint:staticcheck
 	conn, err := grpc.Dial(fmt.Sprintf("localhost:%d", server.ListenPort), dOpts...)
 	if err != nil {
-		io.Close(mainLn)
-		io.Close(metricsLn)
+		utilio.Close(mainLn)
+		utilio.Close(metricsLn)
 		return nil, err
 	}
 	return &Listeners{Main: mainLn, Metrics: metricsLn, GatewayConn: conn}, nil
@@ -1004,7 +1013,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	clusterService := cluster.NewServer(a.db, a.enf, a.Cache, kubectl)
 	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr, a.HydratorEnabled)
 	repoCredsService := repocreds.NewServer(a.RepoClientset, a.db, a.enf, a.settingsMgr)
-	var loginRateLimiter func() (io.Closer, error)
+	var loginRateLimiter func() (utilio.Closer, error)
 	if maxConcurrentLoginRequestsCount > 0 {
 		loginRateLimiter = session.NewLoginRateLimiter(maxConcurrentLoginRequestsCount)
 	}
@@ -1125,8 +1134,13 @@ func (server *ArgoCDServer) setTokenCookie(token string, w http.ResponseWriter) 
 }
 
 func withRootPath(handler http.Handler, a *ArgoCDServer) http.Handler {
+	// If RootPath is empty, directly return the original handler
+	if a.RootPath == "" {
+		return handler
+	}
+
 	// get rid of slashes
-	root := strings.TrimRight(strings.TrimLeft(a.RootPath, "/"), "/")
+	root := strings.Trim(a.RootPath, "/")
 
 	mux := http.NewServeMux()
 	mux.Handle("/"+root+"/", http.StripPrefix("/"+root, handler))
@@ -1304,7 +1318,7 @@ func (server *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.
 				if err != nil {
 					return fmt.Errorf("failed to open file '%s': %w", filePath, err)
 				}
-				defer io.Close(f)
+				defer utilio.Close(f)
 
 				if _, err := goio.Copy(w, f); err != nil {
 					return fmt.Errorf("failed to copy file '%s': %w", filePath, err)
@@ -1343,15 +1357,32 @@ func (server *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 
 // newRedirectServer returns an HTTP server which does a 307 redirect to the HTTPS server
 func newRedirectServer(port int, rootPath string) *http.Server {
-	addr := fmt.Sprintf("localhost:%d/%s", port, strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/"))
+	var addr string
+	if rootPath == "" {
+		addr = fmt.Sprintf("localhost:%d", port)
+	} else {
+		addr = fmt.Sprintf("localhost:%d/%s", port, strings.Trim(rootPath, "/"))
+	}
+
 	return &http.Server{
 		Addr: addr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			target := "https://" + req.Host
+
 			if rootPath != "" {
-				target += "/" + strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/")
+				root := strings.Trim(rootPath, "/")
+				prefix := "/" + root
+
+				// If the request path already starts with rootPath, no need to add rootPath again
+				if strings.HasPrefix(req.URL.Path, prefix) {
+					target += req.URL.Path
+				} else {
+					target += prefix + req.URL.Path
+				}
+			} else {
+				target += req.URL.Path
 			}
-			target += req.URL.Path
+
 			if len(req.URL.RawQuery) > 0 {
 				target += "?" + req.URL.RawQuery
 			}
@@ -1395,7 +1426,7 @@ func (server *ArgoCDServer) uiAssetExists(filename string) bool {
 	if err != nil {
 		return false
 	}
-	defer io.Close(f)
+	defer utilio.Close(f)
 	stat, err := f.Stat()
 	if err != nil {
 		return false
@@ -1441,7 +1472,7 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 			if err != nil {
 				modTime = time.Now()
 			}
-			http.ServeContent(w, r, "index.html", modTime, io.NewByteReadSeeker(data))
+			http.ServeContent(w, r, "index.html", modTime, utilio.NewByteReadSeeker(data))
 		} else {
 			if isMainJsBundle(r.URL) {
 				cacheControl := "public, max-age=31536000, immutable"
