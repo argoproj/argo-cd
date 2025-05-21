@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 // MaxGRPCMessageSize contains max grpc message size
@@ -22,14 +22,14 @@ var MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 100, 0, ma
 
 // Clientset represents config management plugin server api clients
 type Clientset interface {
-	NewConfigManagementPluginClient() (io.Closer, ConfigManagementPluginServiceClient, error)
+	NewConfigManagementPluginClient() (utilio.Closer, ConfigManagementPluginServiceClient, error)
 }
 
 type clientSet struct {
 	address string
 }
 
-func (c *clientSet) NewConfigManagementPluginClient() (io.Closer, ConfigManagementPluginServiceClient, error) {
+func (c *clientSet) NewConfigManagementPluginClient() (utilio.Closer, ConfigManagementPluginServiceClient, error) {
 	conn, err := NewConnection(c.address)
 	if err != nil {
 		return nil, nil, err

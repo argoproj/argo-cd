@@ -53,7 +53,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/gpg"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/helm"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
 	"github.com/argoproj/argo-cd/v3/util/kustomize"
@@ -76,8 +76,8 @@ var ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined m
 type Service struct {
 	gitCredsStore             git.CredsStore
 	rootDir                   string
-	gitRepoPaths              io.TempPaths
-	chartPaths                io.TempPaths
+	gitRepoPaths              utilio.TempPaths
+	chartPaths                utilio.TempPaths
 	gitRepoInitializer        func(rootPath string) goio.Closer
 	repoLock                  *repositoryLock
 	cache                     *cache.Cache
@@ -118,8 +118,8 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 		parallelismLimitSemaphore = semaphore.NewWeighted(initConstants.ParallelismLimit)
 	}
 	repoLock := NewRepositoryLock()
-	gitRandomizedPaths := io.NewRandomizedTempPaths(rootDir)
-	helmRandomizedPaths := io.NewRandomizedTempPaths(rootDir)
+	gitRandomizedPaths := utilio.NewRandomizedTempPaths(rootDir)
+	helmRandomizedPaths := utilio.NewRandomizedTempPaths(rootDir)
 	return &Service{
 		parallelismLimitSemaphore: parallelismLimitSemaphore,
 		repoLock:                  repoLock,
@@ -169,7 +169,7 @@ func (s *Service) Init() error {
 				s.gitRepoPaths.Add(git.NormalizeGitURL(remotes[0].Config().URLs[0]), fullPath)
 			}
 		}
-		io.Close(closer)
+		utilio.Close(closer)
 	}
 	// remove read permissions since no-one should be able to list the directories
 	return os.Chmod(s.rootDir, 0o300)
@@ -219,7 +219,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 		return nil, fmt.Errorf("error acquiring repository lock: %w", err)
 	}
 
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 	apps, err := discovery.Discover(ctx, gitClient.Root(), gitClient.Root(), q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs, []string{})
 	if err != nil {
 		return nil, fmt.Errorf("error discovering applications: %w", err)
@@ -351,7 +351,7 @@ func (s *Service) runRepoOperation(
 		if err != nil {
 			return err
 		}
-		defer io.Close(closer)
+		defer utilio.Close(closer)
 		if !s.initConstants.AllowOutOfBoundsSymlinks {
 			err := apppathutil.CheckOutOfBoundsSymlinks(chartPath)
 			if err != nil {
@@ -379,7 +379,7 @@ func (s *Service) runRepoOperation(
 		return err
 	}
 
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 
 	if !s.initConstants.AllowOutOfBoundsSymlinks {
 		err := apppathutil.CheckOutOfBoundsSymlinks(gitClient.Root())
@@ -1087,7 +1087,7 @@ func isSourcePermitted(url string, repos []string) bool {
 	return p.IsSourcePermitted(v1alpha1.ApplicationSource{RepoURL: url})
 }
 
-func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]*unstructured.Unstructured, string, error) {
+func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths) ([]*unstructured.Unstructured, string, error) {
 	// We use the app name as Helm's release name property, which must not
 	// contain any underscore characters and must not exceed 53 characters.
 	// We are not interested in the fully qualified application name while
@@ -1244,7 +1244,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 // redactPaths removes temp repo paths, since those paths are randomized (and therefore not helpful for the user) and
 // sensitive (so not suitable for logging). It also replaces the path of the randomly-named values file which is used
 // to hold the `spec.source.helm.values` or `valuesObject` contents.
-func redactPaths(s string, paths io.TempPaths, extraValuesPath pathutil.ResolvedFilePath) string {
+func redactPaths(s string, paths utilio.TempPaths, extraValuesPath pathutil.ResolvedFilePath) string {
 	if paths == nil {
 		return s
 	}
@@ -1265,7 +1265,7 @@ func getResolvedValueFiles(
 	allowedValueFilesSchemas []string,
 	rawValueFiles []string,
 	refSources map[string]*v1alpha1.RefTarget,
-	gitRepoPaths io.TempPaths,
+	gitRepoPaths utilio.TempPaths,
 	ignoreMissingValueFiles bool,
 ) ([]pathutil.ResolvedFilePath, error) {
 	var resolvedValueFiles []pathutil.ResolvedFilePath
@@ -1309,7 +1309,7 @@ func getResolvedRefValueFile(
 	env *v1alpha1.Env,
 	allowedValueFilesSchemas []string,
 	refSourceRepo string,
-	gitRepoPaths io.TempPaths,
+	gitRepoPaths utilio.TempPaths,
 ) (pathutil.ResolvedFilePath, error) {
 	pathStrings := strings.Split(rawValueFile, "/")
 	repoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(refSourceRepo))
@@ -1389,7 +1389,7 @@ func WithCMPUseManifestGeneratePaths(enabled bool) GenerateManifestOpt {
 }
 
 // GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
-func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths io.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths utilio.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
 	opt := newGenerateManifestOpt(opts...)
 	var targetObjs []*unstructured.Unstructured
 
@@ -1961,7 +1961,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 	if err != nil {
 		return nil, err
 	}
-	defer io.Close(conn)
+	defer utilio.Close(conn)
 
 	rootPath := repoPath
 	if useManifestGeneratePaths {
@@ -2087,7 +2087,7 @@ func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsR
 	}
 }
 
-func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath string, repoRoot string, q *apiclient.RepoServerAppDetailsQuery, gitRepoPaths io.TempPaths) error {
+func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath string, repoRoot string, q *apiclient.RepoServerAppDetailsQuery, gitRepoPaths utilio.TempPaths) error {
 	var selectedValueFiles []string
 	var availableValueFiles []string
 
@@ -2234,7 +2234,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 	if err != nil {
 		return fmt.Errorf("failed to detect CMP for app: %w", err)
 	}
-	defer io.Close(conn)
+	defer utilio.Close(conn)
 
 	parametersAnnouncementStream, err := cmpClient.GetParametersAnnouncement(ctx, grpc_retry.Disable())
 	if err != nil {
@@ -2299,7 +2299,7 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 		return nil, fmt.Errorf("error acquiring repo lock: %w", err)
 	}
 
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 
 	m, err := gitClient.RevisionMetadata(q.Revision)
 	if err != nil {
@@ -2352,7 +2352,7 @@ func (s *Service) GetRevisionChartDetails(_ context.Context, q *apiclient.RepoSe
 	if err != nil {
 		return nil, fmt.Errorf("error extracting chart: %w", err)
 	}
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 	helmCmd, err := helm.NewCmdWithVersion(chartPath, q.Repo.EnableOCI, q.Repo.Proxy, q.Repo.NoProxy)
 	if err != nil {
 		return nil, fmt.Errorf("error creating helm cmd: %w", err)
@@ -2448,7 +2448,7 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 		}
 	}
 
-	return io.NewCloser(func() error {
+	return utilio.NewCloser(func() error {
 		if err := os.Chmod(rootPath, 0o000); err != nil {
 			log.Warnf("Failed to remove permissions on %s: %v", rootPath, err)
 		} else {
@@ -2674,7 +2674,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
 	}
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 
 	gitFiles, err := gitClient.LsFiles(gitPath, enableNewGitFileGlobbing)
 	if err != nil {
@@ -2756,7 +2756,7 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 
 	repoRoot := gitClient.Root()
 	var paths []string
@@ -2848,7 +2848,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 
 	if err := s.fetch(gitClient, []string{syncedRevision}); err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
