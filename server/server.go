@@ -56,13 +56,23 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	runtimepkg "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/clientcmd"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
+	"github.com/argoproj/argo-cd/v3/applicationset/generators"
+	"github.com/argoproj/argo-cd/v3/applicationset/services"
+	appsetwebhook "github.com/argoproj/argo-cd/v3/applicationset/webhook"
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
@@ -79,6 +89,7 @@ import (
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
 	versionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	appinformer "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
@@ -111,6 +122,7 @@ import (
 	dexutil "github.com/argoproj/argo-cd/v3/util/dex"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	errorsutil "github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/github_app"
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
@@ -118,6 +130,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
+	"github.com/argoproj/argo-cd/v3/util/merger"
 	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
 	"github.com/argoproj/argo-cd/v3/util/notification/k8s"
 	settings_notif "github.com/argoproj/argo-cd/v3/util/notification/settings"
@@ -127,7 +140,7 @@ import (
 	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
-	"github.com/argoproj/argo-cd/v3/util/webhook"
+	argocdwebhook "github.com/argoproj/argo-cd/v3/util/webhook"
 )
 
 const (
@@ -223,6 +236,7 @@ type ArgoCDServerOpts struct {
 	DexTLSConfig            *dexutil.DexTLSConfig
 	BaseHRef                string
 	RootPath                string
+	ClientConfig            clientcmd.ClientConfig
 	DynamicClientset        dynamic.Interface
 	KubeControllerClientset client.Client
 	KubeClientset           kubernetes.Interface
@@ -243,10 +257,16 @@ type ArgoCDServerOpts struct {
 }
 
 type ApplicationSetOpts struct {
+	MetricsAddr              string
+	ProbeBindAddr            string
+	DryRun                   bool
+	EnableLeaderElection     bool
 	GitSubmoduleEnabled      bool
 	EnableNewGitFileGlobbing bool
+	TokenRefStrictMode       bool
 	ScmRootCAPath            string
 	AllowedScmProviders      []string
+	ApplicationSetNamespaces []string
 	EnableScmProviders       bool
 }
 
@@ -1229,11 +1249,112 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	// Dex reverse proxy and client app and OAuth2 login/callback
 	server.registerDexHandlers(mux)
 
+	namespace, _, err := server.ArgoCDServerOpts.ClientConfig.Namespace()
+	if err != nil {
+		log.Error(err, "error while getting namespace from client config")
+		os.Exit(1)
+	}
+	server.ArgoCDServerOpts.ApplicationNamespaces = append(server.ArgoCDServerOpts.ApplicationNamespaces, namespace)
+
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
+	acdWebhookHandler := argocdwebhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
 
-	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
+	cfg := ctrl.GetConfigOrDie()
+	err = appv1alpha1.SetK8SConfigDefaults(cfg)
+	if err != nil {
+		log.Error(err, "Unable to apply K8s REST config defaults")
+		os.Exit(1)
+	}
+
+	scheme := runtimepkg.NewScheme()
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = appv1alpha1.AddToScheme(scheme)
+
+	// By default, watch all namespaces
+	var watchedNamespace string
+	// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
+	if len(server.ApplicationSetOpts.ApplicationSetNamespaces) == 1 {
+		watchedNamespace = (server.ApplicationSetOpts.ApplicationSetNamespaces)[0]
+	} else if server.ApplicationSetOpts.EnableScmProviders && len(server.ApplicationSetOpts.AllowedScmProviders) == 0 {
+		log.Error("When enabling applicationset in any namespace using applicationset-namespaces, you must either set --enable-scm-providers=false or specify --allowed-scm-providers")
+		os.Exit(1)
+	}
+
+	var cacheOpt ctrlcache.Options
+	if watchedNamespace != "" {
+		cacheOpt = ctrlcache.Options{
+			DefaultNamespaces: map[string]ctrlcache.Config{
+				watchedNamespace: {},
+			},
+		}
+	}
+
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: server.ApplicationSetOpts.MetricsAddr,
+		},
+		Cache:                  cacheOpt,
+		HealthProbeBindAddress: server.ApplicationSetOpts.ProbeBindAddr,
+		LeaderElection:         server.ApplicationSetOpts.EnableLeaderElection,
+		LeaderElectionID:       "58ac56fa.applicationsets.argoproj.io",
+		Client: ctrlclient.Options{
+			DryRun: &server.ApplicationSetOpts.DryRun,
+		},
+	})
+	if err != nil {
+		log.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+	dynamicClient, err := dynamic.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		log.Error(err, "failed to create dynamic client")
+		os.Exit(1)
+	}
+
+	argoCDService := services.NewArgoCDService(
+		argoDB,
+		server.ApplicationSetOpts.GitSubmoduleEnabled,
+		server.RepoClientset,
+		server.ApplicationSetOpts.EnableNewGitFileGlobbing,
+	)
+
+	scmConfig := generators.NewSCMConfig(
+		server.ApplicationSetOpts.ScmRootCAPath,
+		server.AllowedScmProviders,
+		server.EnableNewGitFileGlobbing,
+		github_app.NewAuthCredentials(argoDB.(db.RepoCredsDB)),
+		server.ApplicationSetOpts.TokenRefStrictMode,
+	)
+
+	topLevelGenerators := generators.GetGenerators(
+		ctx,
+		mgr.GetClient(),
+		server.KubeClientset,
+		server.Namespace,
+		argoCDService,
+		dynamicClient,
+		scmConfig,
+	)
+
+	// start a webhook server that listens to incoming webhook payloads
+	appSetWebhookHandler, err := appsetwebhook.NewWebhookHandler(
+		server.Namespace,
+		server.WebhookParallelism,
+		server.settingsMgr,
+		server.KubeControllerClientset,
+		topLevelGenerators,
+	)
+	if err != nil {
+		log.Error(err, "failed to create webhook handler")
+		os.Exit(1)
+	}
+
+	mux.HandleFunc("/api/webhook", merger.NewWebhookMerger(
+		acdWebhookHandler,
+		appSetWebhookHandler,
+	).Handler)
 
 	// Serve cli binaries directly from API server
 	registerDownloadHandlers(mux, "/download")
