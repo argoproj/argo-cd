@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -238,6 +239,11 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 		return fmt.Errorf("failed to get app instance label: %w", err)
 	}
 	if label == "" {
+		return nil
+	}
+
+	if kubeutil.IsCRD(live) {
+		// CRDs don't get tracking annotations.
 		return nil
 	}
 
