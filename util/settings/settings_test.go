@@ -210,12 +210,39 @@ func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
 }
 
 func TestGetAppInstanceLabelKey(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
-		"application.instanceLabelKey": "testLabel",
+	t.Run("should get custom instanceLabelKey", func(t *testing.T) {
+		_, settingsManager := fixtures(map[string]string{
+			"application.instanceLabelKey": "testLabel",
+		})
+		label, err := settingsManager.GetAppInstanceLabelKey()
+		require.NoError(t, err)
+		assert.Equal(t, "testLabel", label)
 	})
-	label, err := settingsManager.GetAppInstanceLabelKey()
-	require.NoError(t, err)
-	assert.Equal(t, "testLabel", label)
+
+	t.Run("should get default instanceLabelKey if custom not defined", func(t *testing.T) {
+		_, settingsManager := fixtures(map[string]string{})
+		label, err := settingsManager.GetAppInstanceLabelKey()
+		require.NoError(t, err)
+		assert.Equal(t, common.LabelKeyAppInstance, label)
+	})
+}
+
+func TestGetTrackingMethod(t *testing.T) {
+	t.Run("should get custom trackingMethod", func(t *testing.T) {
+		_, settingsManager := fixtures(map[string]string{
+			"application.resourceTrackingMethod": string(v1alpha1.TrackingMethodLabel),
+		})
+		label, err := settingsManager.GetTrackingMethod()
+		require.NoError(t, err)
+		assert.Equal(t, string(v1alpha1.TrackingMethodLabel), label)
+	})
+
+	t.Run("should get default trackingMethod if custom not defined", func(t *testing.T) {
+		_, settingsManager := fixtures(map[string]string{})
+		label, err := settingsManager.GetTrackingMethod()
+		require.NoError(t, err)
+		assert.Equal(t, string(v1alpha1.TrackingMethodAnnotation), label)
+	})
 }
 
 func TestApplicationFineGrainedRBACInheritanceDisabledDefault(t *testing.T) {
@@ -330,7 +357,7 @@ func TestGetResourceOverrides(t *testing.T) {
 	crdOverrides := overrides[crdGK]
 	assert.NotNil(t, crdOverrides)
 	assert.Equal(t, v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
-		JSONPointers:      []string{"/webhooks/0/clientConfig/caBundle", "/status", "/spec/preserveUnknownFields"},
+		JSONPointers:      []string{"/webhooks/0/clientConfig/caBundle", "/status"},
 		JQPathExpressions: []string{".webhooks[0].clientConfig.caBundle"},
 	}}, crdOverrides)
 
