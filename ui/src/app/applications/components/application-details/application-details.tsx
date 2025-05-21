@@ -40,6 +40,7 @@ interface ApplicationDetailsState {
     slidingPanelPage?: number;
     filteredGraph?: any[];
     truncateNameOnRight?: boolean;
+    showFullNodeName?: boolean;
     collapsedNodes?: string[];
     extensions?: AppViewExtension[];
     extensionsMap?: {[key: string]: AppViewExtension};
@@ -92,6 +93,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             slidingPanelPage: 0,
             filteredGraph: [],
             truncateNameOnRight: false,
+            showFullNodeName: false,
             collapsedNodes: [],
             ...this.getExtensionsState()
         };
@@ -552,6 +554,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                     (pref.userHelpTipMsgs || []).push(usrHelpTip);
                                 }
                             };
+                            const toggleNodeName = () => {
+                                this.setState({showFullNodeName: !this.state.showFullNodeName});
+                            };
                             const toggleNameDirection = () => {
                                 this.setState({truncateNameOnRight: !this.state.truncateNameOnRight});
                             };
@@ -715,6 +720,19 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                     })}
                                                                 />
                                                             </a>
+                                                            <a
+                                                                className={`group-nodes-button`}
+                                                                onClick={() => {
+                                                                    toggleNodeName();
+                                                                }}
+                                                                title={this.state.showFullNodeName ? 'Show wrapped resource name' : 'Show full resource name'}>
+                                                                <i
+                                                                    className={classNames({
+                                                                        'fa fa-expand': this.state.showFullNodeName,
+                                                                        'fa fa-compress': !this.state.showFullNodeName
+                                                                    })}
+                                                                />
+                                                            </a>
                                                             {(pref.view === 'tree' || pref.view === 'network') && (
                                                                 <Tooltip
                                                                     content={AppUtils.userMsgsList[showToolTip?.msgKey] || 'Group Nodes'}
@@ -729,7 +747,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                     </a>
                                                                 </Tooltip>
                                                             )}
-
                                                             <span className={`separator`} />
                                                             <a className={`group-nodes-button`} onClick={() => expandAll()} title='Expand all child nodes of all parent nodes'>
                                                                 <i className='fa fa-plus fa-fw' />
@@ -769,6 +786,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                             podGroupCount={pref.podGroupCount}
                                                             appContext={this.appContext}
                                                             nameDirection={this.state.truncateNameOnRight}
+                                                            nameWrap={this.state.showFullNodeName}
                                                             filters={pref.resourceFilter}
                                                             setTreeFilterGraph={setFilterGraph}
                                                             updateUsrHelpTipMsgs={updateHelpTipState}
@@ -1204,7 +1222,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
             if (confirmed) {
                 if (needDisableRollback) {
                     const update = JSON.parse(JSON.stringify(application)) as appModels.Application;
-                    update.spec.syncPolicy = {automated: null};
+                    update.spec.syncPolicy.automated = null;
                     await services.applications.update(update);
                 }
                 await services.applications.rollback(this.props.match.params.name, this.getAppNamespace(), revisionHistory.id);

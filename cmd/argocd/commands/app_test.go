@@ -116,7 +116,7 @@ func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
 		Sync:           v1alpha1.SyncStatus{},
-		Health:         v1alpha1.HealthStatus{},
+		Health:         v1alpha1.AppHealthStatus{},
 		History:        histories,
 		Conditions:     nil,
 		ReconciledAt:   nil,
@@ -224,7 +224,7 @@ func TestFindRevisionHistoryWithoutPassedIdWithMultipleSources(t *testing.T) {
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
 		Sync:           v1alpha1.SyncStatus{},
-		Health:         v1alpha1.HealthStatus{},
+		Health:         v1alpha1.AppHealthStatus{},
 		History:        histories,
 		Conditions:     nil,
 		ReconciledAt:   nil,
@@ -277,7 +277,7 @@ func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
 		Sync:           v1alpha1.SyncStatus{},
-		Health:         v1alpha1.HealthStatus{},
+		Health:         v1alpha1.AppHealthStatus{},
 		History:        histories,
 		Conditions:     nil,
 		ReconciledAt:   nil,
@@ -308,7 +308,7 @@ func TestFindRevisionHistoryWithPassedId(t *testing.T) {
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
 		Sync:           v1alpha1.SyncStatus{},
-		Health:         v1alpha1.HealthStatus{},
+		Health:         v1alpha1.AppHealthStatus{},
 		History:        histories,
 		Conditions:     nil,
 		ReconciledAt:   nil,
@@ -338,7 +338,7 @@ func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
 		Sync:           v1alpha1.SyncStatus{},
-		Health:         v1alpha1.HealthStatus{},
+		Health:         v1alpha1.AppHealthStatus{},
 		History:        histories,
 		Conditions:     nil,
 		ReconciledAt:   nil,
@@ -692,9 +692,8 @@ func TestPrintAppSummaryTable(t *testing.T) {
 				Sync: v1alpha1.SyncStatus{
 					Status: v1alpha1.SyncStatusCodeOutOfSync,
 				},
-				Health: v1alpha1.HealthStatus{
-					Status:  health.HealthStatusProgressing,
-					Message: "health-message",
+				Health: v1alpha1.AppHealthStatus{
+					Status: health.HealthStatusProgressing,
 				},
 			},
 		}
@@ -747,7 +746,7 @@ SyncWindow:         Sync Denied
 Assigned Windows:   allow:0 0 * * *:24h,deny:0 0 * * *:24h,allow:0 0 * * *:24h
 Sync Policy:        Automated (Prune)
 Sync Status:        OutOfSync from master
-Health Status:      Progressing (health-message)
+Health Status:      Progressing
 `
 	assert.Equalf(t, expectation, output, "Incorrect print app summary output %q, should be %q", output, expectation)
 }
@@ -787,9 +786,8 @@ func TestPrintAppSummaryTable_MultipleSources(t *testing.T) {
 				Sync: v1alpha1.SyncStatus{
 					Status: v1alpha1.SyncStatusCodeOutOfSync,
 				},
-				Health: v1alpha1.HealthStatus{
-					Status:  health.HealthStatusProgressing,
-					Message: "health-message",
+				Health: v1alpha1.AppHealthStatus{
+					Status: health.HealthStatusProgressing,
 				},
 			},
 		}
@@ -845,7 +843,7 @@ SyncWindow:         Sync Denied
 Assigned Windows:   allow:0 0 * * *:24h,deny:0 0 * * *:24h,allow:0 0 * * *:24h
 Sync Policy:        Automated (Prune)
 Sync Status:        OutOfSync from master
-Health Status:      Progressing (health-message)
+Health Status:      Progressing
 `
 	assert.Equalf(t, expectation, output, "Incorrect print app summary output %q, should be %q", output, expectation)
 }
@@ -1562,7 +1560,7 @@ func TestPrintApplicationTableNotWide(t *testing.T) {
 				Sync: v1alpha1.SyncStatus{
 					Status: "OutOfSync",
 				},
-				Health: v1alpha1.HealthStatus{
+				Health: v1alpha1.AppHealthStatus{
 					Status: "Healthy",
 				},
 			},
@@ -1598,7 +1596,7 @@ func TestPrintApplicationTableWide(t *testing.T) {
 				Sync: v1alpha1.SyncStatus{
 					Status: "OutOfSync",
 				},
-				Health: v1alpha1.HealthStatus{
+				Health: v1alpha1.AppHealthStatus{
 					Status: "Healthy",
 				},
 			},
@@ -1922,7 +1920,72 @@ Source:
 SyncWindow:         Sync Allowed
 Sync Policy:        Automated (Prune)
 Sync Status:        OutOfSync from master
-Health Status:      Progressing (health-message)
+Health Status:      Progressing
+
+Operation:          Sync
+Sync Revision:      revision
+Phase:              
+Start:              0001-01-01 00:00:00 +0000 UTC
+Finished:           2020-11-10 23:00:00 +0000 UTC
+Duration:           2333448h16m18.871345152s
+Message:            test
+
+GROUP  KIND        NAMESPACE  NAME           STATUS  HEALTH   HOOK  MESSAGE
+       Service     default    service-name1  Synced  Healthy        
+apps   Deployment  default    test           Synced  Healthy        
+`
+	expectation = fmt.Sprintf(expectation, timeStr, timeStr)
+	expectationParts := strings.Split(expectation, "\n")
+	slices.Sort(expectationParts)
+	expectationSorted := strings.Join(expectationParts, "\n")
+	outputParts := strings.Split(output, "\n")
+	slices.Sort(outputParts)
+	outputSorted := strings.Join(outputParts, "\n")
+	// Need to compare sorted since map entries may not keep a specific order during serialization, leading to flakiness.
+	assert.Equalf(t, expectationSorted, outputSorted, "Incorrect output %q, should be %q (items order doesn't matter)", output, expectation)
+}
+
+func TestWaitOnApplicationStatus_JSON_YAML_WideOutput_With_Timeout(t *testing.T) {
+	acdClient := &customAcdClient{&fakeAcdClient{simulateTimeout: 15}}
+	ctx := t.Context()
+	var selectResource []*v1alpha1.SyncOperationResource
+	watch := watchOpts{
+		sync:      false,
+		health:    false,
+		operation: true,
+		suspended: false,
+	}
+	watch = getWatchOpts(watch)
+
+	output, _ := captureOutput(func() error {
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 5, watch, selectResource, "")
+		return nil
+	})
+	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
+
+	expectation := `TIMESTAMP                  GROUP        KIND   NAMESPACE                  NAME    STATUS   HEALTH        HOOK  MESSAGE
+%s            Service     default         service-name1    Synced  Healthy              
+%s   apps  Deployment     default                  test    Synced  Healthy              
+
+The command timed out waiting for the conditions to be met.
+
+This is the state of the app after wait timed out:
+
+Name:               argocd/test
+Project:            default
+Server:             local
+Namespace:          argocd
+URL:                http://localhost:8080/applications/app-name
+Source:
+- Repo:             test
+  Target:           master
+  Path:             /test
+  Helm Values:      path1,path2
+  Name Prefix:      prefix
+SyncWindow:         Sync Allowed
+Sync Policy:        Automated (Prune)
+Sync Status:        OutOfSync from master
+Health Status:      Progressing
 
 Operation:          Sync
 Sync Revision:      revision
@@ -1965,6 +2028,7 @@ func (c *customAcdClient) WatchApplicationWithRetry(ctx context.Context, _ strin
 	}
 
 	go func() {
+		time.Sleep(time.Duration(c.simulateTimeout) * time.Second)
 		appEventsCh <- &v1alpha1.ApplicationWatchEvent{
 			Type:        watch.Bookmark,
 			Application: newApp,
@@ -2063,9 +2127,8 @@ func (c *fakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.Applicat
 			Sync: v1alpha1.SyncStatus{
 				Status: v1alpha1.SyncStatusCodeOutOfSync,
 			},
-			Health: v1alpha1.HealthStatus{
-				Status:  health.HealthStatusProgressing,
-				Message: "health-message",
+			Health: v1alpha1.AppHealthStatus{
+				Status: health.HealthStatusProgressing,
 			},
 		},
 	}, nil
@@ -2179,7 +2242,9 @@ func (c *fakeAppServiceClient) ListResourceLinks(_ context.Context, _ *applicati
 	return nil, nil
 }
 
-type fakeAcdClient struct{}
+type fakeAcdClient struct {
+	simulateTimeout uint
+}
 
 func (c *fakeAcdClient) ClientOptions() argocdclient.ClientOptions {
 	return argocdclient.ClientOptions{}

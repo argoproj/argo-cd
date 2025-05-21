@@ -126,10 +126,11 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 			chart:    {{Version: "1.0.0"}, {Version: version}},
 			oobChart: {{Version: "1.0.0"}, {Version: version}},
 		}}, nil)
-		helmClient.On("ExtractChart", chart, version, "", false, int64(0), false).Return("./testdata/my-chart", io.NopCloser, nil)
-		helmClient.On("ExtractChart", oobChart, version, "", false, int64(0), false).Return("./testdata2/out-of-bounds-chart", io.NopCloser, nil)
-		helmClient.On("CleanChartCache", chart, version, "").Return(nil)
-		helmClient.On("CleanChartCache", oobChart, version, "").Return(nil)
+		helmClient.On("GetTags", mock.Anything, mock.Anything).Return(nil, nil)
+		helmClient.On("ExtractChart", chart, version, false, int64(0), false).Return("./testdata/my-chart", io.NopCloser, nil)
+		helmClient.On("ExtractChart", oobChart, version, false, int64(0), false).Return("./testdata2/out-of-bounds-chart", io.NopCloser, nil)
+		helmClient.On("CleanChartCache", chart, version).Return(nil)
+		helmClient.On("CleanChartCache", oobChart, version).Return(nil)
 		helmClient.On("DependencyBuild").Return(nil)
 
 		paths.On("Add", mock.Anything, mock.Anything).Return(root, nil)
@@ -1826,12 +1827,12 @@ func TestService_newHelmClientResolveRevision(t *testing.T) {
 	service := newService(t, ".")
 
 	t.Run("EmptyRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "", "", true)
-		assert.EqualError(t, err, "invalid revision '': improper constraint: ")
+		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "", "my-chart", true)
+		assert.EqualError(t, err, "invalid revision: failed to determine semver constraint: improper constraint: ")
 	})
 	t.Run("InvalidRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "???", "", true)
-		assert.EqualError(t, err, "invalid revision '???': improper constraint: ???", true)
+		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "???", "my-chart", true)
+		assert.EqualError(t, err, "invalid revision: failed to determine semver constraint: improper constraint: ???")
 	})
 }
 
@@ -1847,7 +1848,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				},
 			})
 			require.NoError(t, err)
-			assert.Equal(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.2"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("No app specific override", func(t *testing.T) {
@@ -1862,7 +1863,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				AppName: "testapp",
 			})
 			require.NoError(t, err)
-			assert.Equal(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.2"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("Only app specific override", func(t *testing.T) {
@@ -1877,7 +1878,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				AppName: "testapp",
 			})
 			require.NoError(t, err)
-			assert.Equal(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.3"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.3"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("App specific override", func(t *testing.T) {
@@ -1892,7 +1893,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				AppName: "testapp",
 			})
 			require.NoError(t, err)
-			assert.Equal(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.3"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.3"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("App specific overrides containing non-mergeable field", func(t *testing.T) {
@@ -1907,7 +1908,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				AppName: "unmergeable",
 			})
 			require.NoError(t, err)
-			assert.Equal(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.3"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.3"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("Broken app-specific overrides", func(t *testing.T) {
@@ -1979,7 +1980,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			require.True(t, ok)
 			image, ok, _ := unstructured.NestedString(containers[0].(map[string]any), "image")
 			require.True(t, ok)
-			assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.2", image)
+			assert.Equal(t, "quay.io/argoprojlabs/argocd-e2e-container:0.2", image)
 		})
 	})
 
@@ -2009,7 +2010,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			require.True(t, ok)
 			image, ok, _ := unstructured.NestedString(containers[0].(map[string]any), "image")
 			require.True(t, ok)
-			assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.2", image)
+			assert.Equal(t, "quay.io/argoprojlabs/argocd-e2e-container:0.2", image)
 		})
 	})
 
@@ -2040,7 +2041,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			require.True(t, ok)
 			image, ok, _ := unstructured.NestedString(containers[0].(map[string]any), "image")
 			require.True(t, ok)
-			assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.3", image)
+			assert.Equal(t, "quay.io/argoprojlabs/argocd-e2e-container:0.3", image)
 		})
 	})
 
@@ -2093,7 +2094,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			require.True(t, ok)
 			image, ok, _ := unstructured.NestedString(containers[0].(map[string]any), "image")
 			require.True(t, ok)
-			assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.1", image)
+			assert.Equal(t, "quay.io/argoprojlabs/argocd-e2e-container:0.1", image)
 		})
 	})
 
@@ -3270,8 +3271,7 @@ func Test_getResolvedValueFiles(t *testing.T) {
 	tempDir := t.TempDir()
 	paths := io.NewRandomizedTempPaths(tempDir)
 
-	key, _ := json.Marshal(map[string]string{"url": git.NormalizeGitURL("https://github.com/org/repo1"), "project": ""})
-	paths.Add(string(key), path.Join(tempDir, "repo1"))
+	paths.Add(git.NormalizeGitURL("https://github.com/org/repo1"), path.Join(tempDir, "repo1"))
 
 	testCases := []struct {
 		name         string
@@ -4102,7 +4102,7 @@ func TestGetRefs_CacheLockTryLockGitRefCacheError(t *testing.T) {
 }
 
 func TestGetRevisionChartDetails(t *testing.T) {
-	t.Run("Test revision semvar", func(t *testing.T) {
+	t.Run("Test revision semver", func(t *testing.T) {
 		root := t.TempDir()
 		service := newService(t, root)
 		_, err := service.GetRevisionChartDetails(t.Context(), &apiclient.RepoServerRevisionChartDetailsRequest{

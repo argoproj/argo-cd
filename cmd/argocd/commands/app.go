@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 	"time"
 	"unicode/utf8"
@@ -143,7 +144,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
   argocd app create nginx-ingress --repo https://charts.helm.sh/stable --helm-chart nginx-ingress --revision 1.24.3 --dest-namespace default --dest-server https://kubernetes.default.svc
 
   # Create a Kustomize app
-  argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
+  argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image quay.io/argoprojlabs/argocd-e2e-container:0.1
 
   # Create a MultiSource app while yaml file contains an application with multiple sources
   argocd app create guestbook --file <path-to-yaml-file>
@@ -301,8 +302,8 @@ func parentChildDetails(ctx context.Context, appIf application.ApplicationServic
 }
 
 func printHeader(ctx context.Context, acdClient argocdclient.Client, app *argoappv1.Application, windows *argoappv1.SyncWindows, showOperation bool, showParams bool, sourcePosition int) {
-	aURL := appURL(ctx, acdClient, app.Name)
-	printAppSummaryTable(app, aURL, windows)
+	appURL := getAppURL(ctx, acdClient, app.Name)
+	printAppSummaryTable(app, appURL, windows)
 
 	if len(app.Status.Conditions) > 0 {
 		fmt.Println()
@@ -337,6 +338,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		refresh        bool
 		hardRefresh    bool
 		output         string
+		timeout        uint
 		showParams     bool
 		showOperation  bool
 		appNamespace   string
@@ -382,7 +384,8 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
   		`),
 
 		Run: func(c *cobra.Command, args []string) {
-			ctx := c.Context()
+			ctx, cancel := context.WithCancel(c.Context())
+			defer cancel()
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -393,13 +396,54 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
 			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 
-			app, err := appIf.Get(ctx, &application.ApplicationQuery{
-				Name:         &appName,
-				Refresh:      getRefreshType(refresh, hardRefresh),
-				AppNamespace: &appNs,
-			})
+			if timeout != 0 {
+				time.AfterFunc(time.Duration(timeout)*time.Second, func() {
+					if ctx.Err() != nil {
+						fmt.Println("Timeout function: context already cancelled:", ctx.Err())
+					} else {
+						fmt.Println("Timeout function: cancelling context manually")
+						cancel()
+					}
+				})
+			}
+			getAppStateWithRetry := func() (*argoappv1.Application, error) {
+				type getResponse struct {
+					app *argoappv1.Application
+					err error
+				}
+
+				ch := make(chan getResponse, 1)
+
+				go func() {
+					app, err := appIf.Get(ctx, &application.ApplicationQuery{
+						Name:         &appName,
+						Refresh:      getRefreshType(refresh, hardRefresh),
+						AppNamespace: &appNs,
+					})
+					ch <- getResponse{app: app, err: err}
+				}()
+
+				select {
+				case result := <-ch:
+					return result.app, result.err
+				case <-ctx.Done():
+					// Timeout occurred, try again without refresh flag
+					// Create new context for retry request
+					ctx := context.Background()
+					app, err := appIf.Get(ctx, &application.ApplicationQuery{
+						Name:         &appName,
+						AppNamespace: &appNs,
+					})
+					return app, err
+				}
+			}
+
+			app, err := getAppStateWithRetry()
 			errors.CheckError(err)
 
+			if ctx.Err() != nil {
+				ctx = context.Background() // Reset context for subsequent requests
+			}
 			if sourceName != "" && sourcePosition != -1 {
 				errors.Fatal(errors.ErrorGeneric, "Only one of source-position and source-name can be specified.")
 			}
@@ -462,6 +506,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree")
+	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().BoolVar(&showOperation, "show-operation", false, "Show application operation")
 	command.Flags().BoolVar(&showParams, "show-params", false, "Show application parameters and overrides")
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
@@ -685,9 +730,6 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 	}
 	fmt.Printf(printOpFmtStr, "Sync Status:", syncStatusStr)
 	healthStr := string(app.Status.Health.Status)
-	if app.Status.Health.Message != "" {
-		healthStr = fmt.Sprintf("%s (%s)", app.Status.Health.Status, app.Status.Health.Message)
-	}
 	fmt.Printf(printOpFmtStr, "Health Status:", healthStr)
 }
 
@@ -731,8 +773,8 @@ func appURLDefault(acdClient argocdclient.Client, appName string) string {
 	return fmt.Sprintf("%s://%s/applications/%s", scheme, server, appName)
 }
 
-// appURL returns the URL of an application
-func appURL(ctx context.Context, acdClient argocdclient.Client, appName string) string {
+// getAppURL returns the URL of an application
+func getAppURL(ctx context.Context, acdClient argocdclient.Client, appName string) string {
 	conn, settingsIf := acdClient.NewSettingsClientOrDie()
 	defer argoio.Close(conn)
 	argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
@@ -1754,6 +1796,10 @@ func formatConditionsSummary(app argoappv1.Application) string {
 			items = append(items, cndType)
 		}
 	}
+
+	// Sort the keys by name
+	sort.Strings(items)
+
 	summary := "<none>"
 	if len(items) > 0 {
 		slices.Sort(items)
@@ -2471,29 +2517,21 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 	if watch.delete {
 		return false
 	}
+
+	healthBeingChecked := watch.suspended || watch.health || watch.degraded
 	healthCheckPassed := true
 
-	switch {
-	case watch.suspended && watch.health && watch.degraded:
-		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
-			healthStatus == string(health.HealthStatusSuspended) ||
-			healthStatus == string(health.HealthStatusDegraded)
-	case watch.suspended && watch.degraded:
-		healthCheckPassed = healthStatus == string(health.HealthStatusDegraded) ||
-			healthStatus == string(health.HealthStatusSuspended)
-	case watch.degraded && watch.health:
-		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
-			healthStatus == string(health.HealthStatusDegraded)
-		// below are good
-	case watch.suspended && watch.health:
-		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
-			healthStatus == string(health.HealthStatusSuspended)
-	case watch.suspended:
-		healthCheckPassed = healthStatus == string(health.HealthStatusSuspended)
-	case watch.health:
-		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy)
-	case watch.degraded:
-		healthCheckPassed = healthStatus == string(health.HealthStatusDegraded)
+	if healthBeingChecked {
+		healthCheckPassed = false
+		if watch.health {
+			healthCheckPassed = healthCheckPassed || healthStatus == string(health.HealthStatusHealthy)
+		}
+		if watch.suspended {
+			healthCheckPassed = healthCheckPassed || healthStatus == string(health.HealthStatusSuspended)
+		}
+		if watch.degraded {
+			healthCheckPassed = healthCheckPassed || healthStatus == string(health.HealthStatusDegraded)
+		}
 	}
 
 	synced := !watch.sync || syncStatus == string(argoappv1.SyncStatusCodeSynced)
@@ -2518,6 +2556,31 @@ func resourceParentChild(ctx context.Context, acdClient argocdclient.Client, app
 
 const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 
+// AppWithLock encapsulates the application and its lock
+type AppWithLock struct {
+	mu  sync.Mutex
+	app *argoappv1.Application
+}
+
+// NewAppWithLock creates a new AppWithLock instance
+func NewAppWithLock() *AppWithLock {
+	return &AppWithLock{}
+}
+
+// SetApp safely updates the application
+func (a *AppWithLock) SetApp(app *argoappv1.Application) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.app = app
+}
+
+// GetApp safely retrieves the application
+func (a *AppWithLock) GetApp() *argoappv1.Application {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.app
+}
+
 // waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
 // are fulfilled or we reach the timeout. Returns the app once desired conditions have been filled.
 // Additionally return the operationState at time of fulfilment (which may be different than returned app).
@@ -2525,10 +2588,14 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	appWithLock := NewAppWithLock()
 	// refresh controls whether or not we refresh the app before printing the final status.
 	// We only want to do this when an operation is in progress, since operations are the only
 	// time when the sync status lags behind when an operation completes
 	refresh := false
+
+	// appURL is declared here so that it can be used in the printFinalStatus function when the context is cancelled
+	appURL := getAppURL(ctx, acdClient, appName)
 
 	// printSummary controls whether we print the app summary table, OperationState, and ResourceState
 	// We don't want to print these when output type is json or yaml, as the output would become unparsable.
@@ -2552,7 +2619,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 
 		if printSummary {
 			fmt.Println()
-			printAppSummaryTable(app, appURL(ctx, acdClient, appName), nil)
+			printAppSummaryTable(app, appURL, nil)
 			fmt.Println()
 			if watch.operation {
 				printOperationResult(app.Status.OperationState)
@@ -2591,19 +2658,24 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 
 	if timeout != 0 {
 		time.AfterFunc(time.Duration(timeout)*time.Second, func() {
-			_, appClient := acdClient.NewApplicationClientOrDie()
+			conn, appClient := acdClient.NewApplicationClientOrDie()
+			defer conn.Close()
+			// We want to print the final status of the app even if the conditions are not met
+			if printSummary {
+				fmt.Println()
+				fmt.Println("This is the state of the app after wait timed out:")
+			}
+			// Setting refresh = false because we don't want printFinalStatus to execute a refresh
+			refresh = false
+			// Updating the app object to the latest state
 			app, err := appClient.Get(ctx, &application.ApplicationQuery{
 				Name:         &appRealName,
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
-
-			if printSummary {
-				fmt.Println()
-				fmt.Println("This is the state of the app after `wait` timed out:")
-			}
-
-			printFinalStatus(app)
+			// Update the app object
+			appWithLock.SetApp(app)
+			// Cancel the context to stop the watch
 			cancel()
 
 			if printSummary {
@@ -2626,6 +2698,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 		AppNamespace: &appNs,
 	})
 	errors.CheckError(err)
+	appWithLock.SetApp(app) // Update the app object
 
 	// printFinalStatus() will refresh and update the app object, potentially causing the app's
 	// status.operationState to be different than the version when we break out of the event loop.
@@ -2633,11 +2706,12 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	// finalOperationState captures the operationState as it was seen when we met the conditions of
 	// the wait, so the caller can rely on it to determine the outcome of the operation.
 	// See: https://github.com/argoproj/argo-cd/issues/5592
-	finalOperationState := app.Status.OperationState
+	finalOperationState := appWithLock.GetApp().Status.OperationState
 
-	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName, app.ResourceVersion)
+	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName, appWithLock.GetApp().ResourceVersion)
 	for appEvent := range appEventCh {
-		app = &appEvent.Application
+		appWithLock.SetApp(&appEvent.Application)
+		app = appWithLock.GetApp()
 
 		finalOperationState = app.Status.OperationState
 		operationInProgress := false
@@ -2708,7 +2782,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 		}
 		_ = w.Flush()
 	}
-	_ = printFinalStatus(app)
+	_ = printFinalStatus(appWithLock.GetApp())
 	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
 }
 

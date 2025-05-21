@@ -42,7 +42,6 @@ You will need at least the following things in your toolchain in order to develo
 When you submit a PR against Argo CD's GitHub repository, a couple of CI checks will be run automatically to ensure your changes will build fine and meet certain quality standards. Your contribution needs to pass those checks in order to be merged into the repository.
 
 !!!note
-
     Please make sure that you always create PRs from a branch that is up-to-date with the latest changes from Argo CD's master branch. Depending on how long it takes for the maintainers to review and merge your PR, it might be necessary to pull in latest changes into your branch again.
 
 Please understand that we, as an Open Source project, have limited capacities for reviewing and merging PRs to Argo CD. We will do our best to review your PR and give you feedback as soon as possible, but please bear with us if it takes a little longer as expected.
@@ -95,7 +94,7 @@ ok      github.com/argoproj/argo-cd/server/cache        0.029s  coverage: 89.3% 
 
 ## Local vs Virtualized toolchain
 
-Argo CD provides a fully virtualized development and testing toolchain using Docker images. It is recommended to use those images, as they provide the same runtime environment as the final product and it is much easier to keep up-to-date with changes to the toolchain and dependencies. But as using Docker comes with a slight performance penalty, you might want to setup a local toolchain.
+Argo CD provides a fully virtualized development and testing toolchain using Docker images. It is recommended to use those images, as they provide the same runtime environment as the final product, and it is much easier to keep up-to-date with changes to the toolchain and dependencies. But as using Docker comes with a slight performance penalty, you might want to set up a local toolchain.
 
 Most relevant targets for the build & test cycles in the `Makefile` provide two variants, one of them suffixed with `-local`. For example, `make test` will run unit tests in the Docker container, `make test-local` will run it natively on your local system.
 
@@ -104,7 +103,7 @@ If you are going to use the virtualized toolchain, please bear in mind the follo
 * Your Kubernetes API server must listen on the interface of your local machine or VM, and not on `127.0.0.1` only.
 * Your Kubernetes client configuration (`~/.kube/config`) must not use an API URL that points to `localhost` or `127.0.0.1`.
 
-You can test whether the virtualized toolchain has access to your Kubernetes cluster by running `make verify-kube-connect` (*after* you have setup your development environment, as described below), which will run `kubectl version` inside the Docker container used for running all tests.
+You can test whether the virtualized toolchain has access to your Kubernetes cluster by running `make verify-kube-connect` (*after* you have set up your development environment, as described below), which will run `kubectl version` inside the Docker container used for running all tests.
 
 The Docker container for the virtualized toolchain will use the following local mounts from your workstation, and possibly modify its contents:
 
@@ -151,7 +150,7 @@ The following steps are required no matter whether you chose to use a virtualize
 * `git clone https://github.com/YOUR-USERNAME/argo-cd`
 * `cd argo-cd`
 
-### Optional: Setup an additional Git remote
+### Optional: Set up an additional Git remote
 
 While everyone has their own Git workflow, the author of this document recommends to create a remote called `upstream` in your local copy pointing to the original Argo CD repository. This way, you can easily keep your local branches up-to-date by merging in latest changes from the Argo CD repository, i.e. by doing a `git pull upstream master` in your locally checked out branch. To create the remote, run `git remote add upstream https://github.com/argoproj/argo-cd`
 
@@ -215,7 +214,7 @@ k3d cluster create my-cluster --wait --k3s-arg '--disable=traefik@server:*' --ap
 ```
 
 !!!note
-For k3d versions less than v5.0.0, the example command flags `--k3s-arg` and `'--disable=traefik@server:*'` should change to `--k3s-server-arg` and `'--disable=traefik'`, respectively.
+    For k3d versions less than v5.0.0, the example command flags `--k3s-arg` and `'--disable=traefik@server:*'` should change to `--k3s-server-arg` and `'--disable=traefik'`, respectively.
 
 ## The development cycle
 
@@ -250,7 +249,7 @@ After the code glue has been generated, your code should build and the unit test
 * `make build`
 * `make test`
 
-These steps are non-modifying, so there's no need to check for changes afterwards.
+These steps are non-modifying, so there's no need to check for changes afterward.
 
 ### Lint your code base
 
@@ -327,7 +326,7 @@ You need to pull in all required Go dependencies. To do so, run
 
 ### Test your build toolchain
 
-The first thing you can do to test whether your build toolchain is setup correctly is by generating the glue code for the API and after that, run a normal build:
+The first thing you can do to test whether your build toolchain is set up correctly is by generating the glue code for the API and after that, run a normal build:
 
 * `make codegen-local`
 * `make build-local`
@@ -336,7 +335,7 @@ This should return without any error.
 
 ### Run unit-tests
 
-The next thing is to make sure that unit tests are running correctly on your system. These will require that all dependencies, such as Helm, Kustomize, Git, GnuPG, etc are correctly installed and fully functioning:
+The next thing is to make sure that unit tests are running correctly on your system. These will require that all dependencies, such as Helm, Kustomize, Git, GnuPG, etc. are correctly installed and fully functioning:
 
 * `make test-local`
 

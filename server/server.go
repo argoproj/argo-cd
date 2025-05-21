@@ -27,7 +27,7 @@ import (
 	"time"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
-	"github.com/argoproj/pkg/sync"
+	"github.com/argoproj/pkg/v2/sync"
 	"github.com/golang-jwt/jwt/v5"
 	golang_proto "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/gorilla/handlers"
@@ -329,9 +329,18 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, projLister)
 	enf.SetClaimsEnforcerFunc(policyEnf.EnforceClaims)
 
-	var staticFS fs.FS = io.NewSubDirFS("dist/app", ui.Embedded)
-	if opts.StaticAssetsDir != "" {
-		staticFS = io.NewComposableFS(staticFS, os.DirFS(opts.StaticAssetsDir))
+	staticFS, err := fs.Sub(ui.Embedded, "dist/app")
+	errorsutil.CheckError(err)
+
+	root, err := os.OpenRoot(opts.StaticAssetsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			log.Warnf("Static assets directory %q does not exist, using only embedded assets", opts.StaticAssetsDir)
+		} else {
+			errorsutil.CheckError(err)
+		}
+	} else {
+		staticFS = io.NewComposableFS(staticFS, root.FS())
 	}
 
 	argocdService, err := service.NewArgoCDService(opts.KubeClientset, opts.Namespace, opts.RepoClientset)
@@ -1125,8 +1134,13 @@ func (server *ArgoCDServer) setTokenCookie(token string, w http.ResponseWriter) 
 }
 
 func withRootPath(handler http.Handler, a *ArgoCDServer) http.Handler {
+	// If RootPath is empty, directly return the original handler
+	if a.RootPath == "" {
+		return handler
+	}
+
 	// get rid of slashes
-	root := strings.TrimRight(strings.TrimLeft(a.RootPath, "/"), "/")
+	root := strings.Trim(a.RootPath, "/")
 
 	mux := http.NewServeMux()
 	mux.Handle("/"+root+"/", http.StripPrefix("/"+root, handler))
@@ -1343,15 +1357,32 @@ func (server *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 
 // newRedirectServer returns an HTTP server which does a 307 redirect to the HTTPS server
 func newRedirectServer(port int, rootPath string) *http.Server {
-	addr := fmt.Sprintf("localhost:%d/%s", port, strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/"))
+	var addr string
+	if rootPath == "" {
+		addr = fmt.Sprintf("localhost:%d", port)
+	} else {
+		addr = fmt.Sprintf("localhost:%d/%s", port, strings.Trim(rootPath, "/"))
+	}
+
 	return &http.Server{
 		Addr: addr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			target := "https://" + req.Host
+
 			if rootPath != "" {
-				target += "/" + strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/")
+				root := strings.Trim(rootPath, "/")
+				prefix := "/" + root
+
+				// If the request path already starts with rootPath, no need to add rootPath again
+				if strings.HasPrefix(req.URL.Path, prefix) {
+					target += req.URL.Path
+				} else {
+					target += prefix + req.URL.Path
+				}
+			} else {
+				target += req.URL.Path
 			}
-			target += req.URL.Path
+
 			if len(req.URL.RawQuery) > 0 {
 				target += "?" + req.URL.RawQuery
 			}

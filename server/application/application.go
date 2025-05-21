@@ -21,7 +21,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
-	"github.com/argoproj/pkg/sync"
+	"github.com/argoproj/pkg/v2/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -48,6 +48,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/server/deeplinks"
+	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/collections"
 	"github.com/argoproj/argo-cd/v3/util/db"
@@ -337,7 +338,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		validate = *q.Validate
 	}
 
-	proj, err := s.getAppProject(ctx, a, log.WithField("application", a.Name))
+	proj, err := s.getAppProject(ctx, a, log.WithFields(applog.GetAppLogFields(a)))
 	if err != nil {
 		return nil, err
 	}
@@ -355,10 +356,10 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 
 	// Don't let the app creator set the operation explicitly. Those requests should always go through the Sync API.
 	if a.Operation != nil {
-		log.WithFields(log.Fields{
-			"application":            a.Name,
-			argocommon.SecurityField: argocommon.SecurityLow,
-		}).Warn("User attempted to set operation on application creation. This could have allowed them to bypass branch protection rules by setting manifests directly. Ignoring the set operation.")
+		log.WithFields(applog.GetAppLogFields(a)).
+			WithFields(log.Fields{
+				argocommon.SecurityField: argocommon.SecurityLow,
+			}).Warn("User attempted to set operation on application creation. This could have allowed them to bypass branch protection rules by setting manifests directly. Ignoring the set operation.")
 		a.Operation = nil
 	}
 
@@ -528,6 +529,10 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			if err != nil {
 				return fmt.Errorf("error getting installation ID: %w", err)
 			}
+			trackingMethod, err := s.settingsMgr.GetTrackingMethod()
+			if err != nil {
+				return fmt.Errorf("error getting trackingMethod from settings: %w", err)
+			}
 
 			manifestInfo, err := client.GenerateManifest(ctx, &apiclient.ManifestRequest{
 				Repo:                            repo,
@@ -542,7 +547,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
 				HelmRepoCreds:                   helmCreds,
 				HelmOptions:                     helmOptions,
-				TrackingMethod:                  string(argo.GetTrackingMethod(s.settingsMgr)),
+				TrackingMethod:                  trackingMethod,
 				EnabledSourceTypes:              enableGenerateManifests,
 				ProjectName:                     proj.Name,
 				ProjectSourceRepos:              proj.Spec.SourceRepos,
@@ -613,6 +618,11 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			return fmt.Errorf("error getting app instance label key from settings: %w", err)
 		}
 
+		trackingMethod, err := s.settingsMgr.GetTrackingMethod()
+		if err != nil {
+			return fmt.Errorf("error getting trackingMethod from settings: %w", err)
+		}
+
 		config, err := s.getApplicationClusterConfig(ctx, a)
 		if err != nil {
 			return fmt.Errorf("error getting application cluster config: %w", err)
@@ -662,7 +672,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
 			HelmRepoCreds:                   helmCreds,
 			HelmOptions:                     helmOptions,
-			TrackingMethod:                  string(argo.GetTrackingMethod(s.settingsMgr)),
+			TrackingMethod:                  trackingMethod,
 			EnabledSourceTypes:              enableGenerateManifests,
 			ProjectName:                     proj.Name,
 			ProjectSourceRepos:              proj.Spec.SourceRepos,
@@ -777,6 +787,10 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings: %w", err)
 			}
+			trackingMethod, err := s.settingsMgr.GetTrackingMethod()
+			if err != nil {
+				return fmt.Errorf("error getting trackingMethod from settings: %w", err)
+			}
 			kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource())
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings options: %w", err)
@@ -788,7 +802,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 				KustomizeOptions:   kustomizeOptions,
 				Repos:              helmRepos,
 				NoCache:            true,
-				TrackingMethod:     string(argo.GetTrackingMethod(s.settingsMgr)),
+				TrackingMethod:     trackingMethod,
 				EnabledSourceTypes: enabledSourceTypes,
 				HelmOptions:        helmOptions,
 			})
@@ -918,7 +932,7 @@ var informerSyncTimeout = 2 * time.Second
 // after a mutating API call (create/update). This function should be called after a creates &
 // update to give a probable (but not guaranteed) chance of being up-to-date after the create/update.
 func (s *Server) waitSync(app *v1alpha1.Application) {
-	logCtx := log.WithField("application", app.Name)
+	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	deadline := time.Now().Add(informerSyncTimeout)
 	minVersion, err := strconv.Atoi(app.ResourceVersion)
 	if err != nil {
@@ -2176,11 +2190,10 @@ func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *v1alpha1.Appli
 
 	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, s.db)
 	if err != nil {
-		log.WithFields(map[string]any{
-			"application": app.GetName(),
-			"ns":          app.GetNamespace(),
-			"destination": app.Spec.Destination,
-		}).Warnf("cannot validate cluster, error=%v", err.Error())
+		log.WithFields(applog.GetAppLogFields(app)).
+			WithFields(map[string]any{
+				"destination": app.Spec.Destination,
+			}).Warnf("cannot validate cluster, error=%v", err.Error())
 		return nil, nil, nil
 	}
 
@@ -2216,7 +2229,7 @@ func (s *Server) ListResourceLinks(ctx context.Context, req *application.Applica
 		return nil, err
 	}
 
-	proj, err := s.getAppProject(ctx, app, log.WithField("application", app.GetName()))
+	proj, err := s.getAppProject(ctx, app, log.WithFields(applog.GetAppLogFields(app)))
 	if err != nil {
 		return nil, err
 	}
@@ -2455,7 +2468,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return nil, fmt.Errorf("error getting Lua resource action: %w", err)
 	}
 
-	newObjects, err := luaVM.ExecuteResourceAction(liveObj, action.ActionLua)
+	newObjects, err := luaVM.ExecuteResourceAction(liveObj, action.ActionLua, q.GetResourceActionParameters())
 	if err != nil {
 		return nil, fmt.Errorf("error executing Lua resource action: %w", err)
 	}
@@ -2470,7 +2483,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		}
 	}
 
-	proj, err := s.getAppProject(ctx, a, log.WithField("application", a.Name))
+	proj, err := s.getAppProject(ctx, a, log.WithFields(applog.GetAppLogFields(a)))
 	if err != nil {
 		return nil, err
 	}
