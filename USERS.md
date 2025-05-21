@@ -344,6 +344,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Sumo Logic](https://sumologic.com/)
 1. [Sutpc](http://www.sutpc.com/)
 1. [Swiss Post](https://github.com/swisspost)
+1. [Swissblock Technologies](https://swissblock.net/)
 1. [Swisscom](https://www.swisscom.ch)
 1. [Swissquote](https://github.com/swissquote)
 1. [Syncier](https://syncier.com/)

@@ -38,7 +38,7 @@ func TestGetReconcileResults(t *testing.T) {
 			Namespace: "default",
 		},
 		Status: v1alpha1.ApplicationStatus{
-			Health: v1alpha1.HealthStatus{Status: health.HealthStatusHealthy},
+			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
 			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
 		},
 	})
@@ -48,7 +48,7 @@ func TestGetReconcileResults(t *testing.T) {
 
 	expectedResults := []appReconcileResult{{
 		Name:   "test",
-		Health: &v1alpha1.HealthStatus{Status: health.HealthStatusHealthy},
+		Health: health.HealthStatusHealthy,
 		Sync:   &v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
 	}}
 	assert.ElementsMatch(t, expectedResults, result)
@@ -132,7 +132,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 
 	require.NoError(t, err)
 
-	assert.Equal(t, health.HealthStatusMissing, result[0].Health.Status)
+	assert.Equal(t, health.HealthStatusMissing, result[0].Health)
 	assert.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, result[0].Sync.Status)
 }
 
@@ -177,7 +177,7 @@ func TestDiffReconcileResults_DifferentApps(t *testing.T) {
 app2
 1,9d0
 < conditions: null
-< health: null
+< health: ""
 < name: app2
 < sync:
 <   comparedTo:
@@ -188,7 +188,7 @@ app2
 app3
 0a1,9
 > conditions: null
-> health: null
+> health: ""
 > name: app3
 > sync:
 >   comparedTo:
