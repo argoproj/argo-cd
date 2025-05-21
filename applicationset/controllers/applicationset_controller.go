@@ -373,25 +373,12 @@ func (r *ApplicationSetReconciler) performReverseDeletion(ctx context.Context, l
 	if stepLength == 0 {
 		logCtx.Info("no rolling sync steps found")
 	}
-	deleteStepMap := make(map[string]int, stepLength)
 	appMap := make(map[string]*argov1alpha1.Application)
 	for _, app := range currentApps {
 		appMap[app.Name] = &app
-		// if this app is in the step, reverse its step
-		for i, step := range appset.Spec.Strategy.RollingSync.Steps {
-			for _, expr := range step.MatchExpressions {
-				if val, ok := app.Labels[expr.Key]; ok {
-					valueMatched := labelMatchedExpression(logCtx, val, expr)
-					if valueMatched {
-						deleteStepMap[app.Name] = stepLength - i - 1
-					}
-				}
-
-			}
-		}
 	}
 
-	// Or approach 2
+	// Get Rolling Sync Step Maps
 	_, appStepMap := r.buildAppDependencyList(logCtx, appset, currentApps)
 	// reverse the AppStepMap to perform deletion
 	type deleteInOrder struct {
