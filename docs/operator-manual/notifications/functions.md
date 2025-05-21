@@ -107,6 +107,16 @@ Returns commit metadata. The commit must belong to the application source reposi
 * `Tags []string` - Associated tags
 
 <hr>
+**`repo.GetCommitMetadataMultipleSources(sourceIndex int, sha string) CommitMetadata`**
+
+This function is used to get commit metadata for a specific source index. The commit must belong to the application source repository. `CommitMetadata` fields:
+
+* `Message string` commit message
+* `Author string` - commit author
+* `Date time.Time` - commit creation date
+* `Tags []string` - Associated tags
+
+<hr>
 **`repo.GetAppDetails() AppDetail`**
 
 Returns application details. `AppDetail` fields:
