@@ -36,7 +36,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/cli"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 )
@@ -122,7 +122,7 @@ type forwardRepoClientset struct {
 	kubeClientset  kubernetes.Interface
 }
 
-func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.RepoServerServiceClient, error) {
+func (c *forwardRepoClientset) NewRepoServerClient() (utilio.Closer, repoapiclient.RepoServerServiceClient, error) {
 	c.init.Do(func() {
 		overrides := clientcmd.ConfigOverrides{
 			CurrentContext: c.context,
@@ -164,7 +164,7 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to create version client: %w", err)
 	}
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 	_, err = versionClient.Version(ctx, &empty.Empty{})
 	if err != nil {
 		return fmt.Errorf("failed to get version: %w", err)
@@ -218,7 +218,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 			return fmt.Errorf("failed to listen on %q: %w", addr, err)
 		}
 		port = &ln.Addr().(*net.TCPAddr).Port
-		io.Close(ln)
+		utilio.Close(ln)
 	}
 
 	restConfig, err := clientConfig.ClientConfig()
