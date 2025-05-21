@@ -1,7 +1,7 @@
 import {AutocompleteField, DataLoader, ErrorNotification, FormField, FormSelect, getNestedField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import {FieldApi, FormApi, FormField as ReactFormField, Text, TextArea} from 'react-form';
-import {cloneDeep} from 'lodash-es';
+import {cloneDeep, merge, isEqual, forEach, isObject, isArray, set} from 'lodash-es';
 import {
     ArrayInputField,
     ArrayValueField,
@@ -140,6 +140,268 @@ function getParamsEditableItems(
             }
         }))
         .map((item, i) => ({...item, before: (i === 0 && <p style={{marginTop: '1em'}}>{title}</p>) || null}));
+}
+
+function mergeAndFormatHelmValues(valuesObject: any, values: string) {
+    if (!valuesObject && !values) {
+        return '';
+    }
+    //Order of precedence: valuesObject > values
+    const mergedValueObject = merge(jsYaml.load(values || ''), valuesObject || {});
+    return jsYaml.dump(mergedValueObject);
+}
+
+function flattenObject(obj: any, parentPath = '', result = {} as any) {
+    forEach(obj, (value, key) => {
+        const fullPath = parentPath ? (isArray(obj) ? `${parentPath}[${key}]` : `${parentPath}.${key}`) : key;
+        if (isObject(value) || isArray(value)) {
+            flattenObject(value, fullPath, result);
+        } else {
+            result[fullPath] = value;
+        }
+    });
+    return result;
+}
+
+function unflattenedObject(obj: any) {
+    const result = {};
+    for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            set(result, key, obj[key]);
+        }
+    }
+    return result;
+}
+
+interface HelmParamItem {
+    key: string;
+    title: string;
+    view: React.ReactNode;
+    edit: (formApi: FormApi) => React.ReactNode;
+}
+
+function getHelmParamsEditableItems(
+    repoDetails: models.RepoAppDetails,
+    source: models.ApplicationSource,
+    removedOverrides: boolean[],
+    setRemovedOverrides: React.Dispatch<React.SetStateAction<boolean[]>>,
+    isMultiSource: boolean,
+    ind: number
+) {
+    const newAttributes: HelmParamItem[] = [];
+
+    // values
+    let flattenedValues: Record<string, string> = {};
+    let originalFlattenedValues: Record<string, string> = {};
+    try {
+        if (repoDetails.helm.values) {
+            const originalParsedValues = jsYaml.load(repoDetails.helm.values) || {};
+            originalFlattenedValues = flattenObject(originalParsedValues);
+        }
+        const mergedValueStr = mergeAndFormatHelmValues(source.helm?.valuesObject || {}, source.helm?.values || '');
+        flattenedValues = flattenObject(jsYaml.load(mergedValueStr) || {});
+    } catch (e) {
+        console.error('Error parsing helm values:', e);
+    }
+    const getValuesData = (key: string, value?: string) => {
+        const flattenedObject = cloneDeep(flattenedValues);
+        if (value) {
+            flattenedObject[key] = value;
+        } else {
+            delete flattenedObject[key];
+        }
+
+        return jsYaml.dump(unflattenedObject(flattenedObject));
+    };
+
+    // parameters
+    const paramsByName = new Map<string, models.HelmParameter>();
+    (repoDetails.helm.parameters || []).forEach(param => paramsByName.set(param.name, param));
+    const overridesByName = new Map<string, number>();
+    ((source.helm && source.helm.parameters) || []).forEach((override, i) => overridesByName.set(override.name, i));
+
+    // Create a unique set of keys using a temporary object
+    const uniqueKeys: {[key: string]: boolean} = {};
+    Object.keys(flattenedValues).forEach(key => originalFlattenedValues[key] !== undefined && (uniqueKeys[key] = true));
+    paramsByName.forEach((_, key) => (uniqueKeys[key] = true));
+    overridesByName.forEach((_, key) => (uniqueKeys[key] = true));
+
+    // Convert to array
+    const allKeys = Object.keys(uniqueKeys).sort((a, b) => {
+        const overrideIndexA = overridesByName.get(a) ?? Infinity;
+        const overrideIndexB = overridesByName.get(b) ?? Infinity;
+        if (overrideIndexA !== overrideIndexB) {
+            return overrideIndexA - overrideIndexB;
+        }
+
+        const flattenedValueA = flattenedValues[a] !== undefined ? 0 : 1;
+        const flattenedValueB = flattenedValues[b] !== undefined ? 0 : 1;
+        if (flattenedValueA !== flattenedValueB) {
+            return flattenedValueA - flattenedValueB;
+        }
+
+        const paramA = paramsByName.get(a);
+        const paramB = paramsByName.get(b);
+        if (paramA && paramB) {
+            return paramA.name.localeCompare(paramB.name);
+        } else if (paramA) {
+            return -1;
+        } else if (paramB) {
+            return 1;
+        }
+
+        return 0;
+    });
+
+    allKeys.forEach((name, index) => {
+        const param = paramsByName.get(name);
+        let overrideIndex = overridesByName.get(name);
+        const valueFromValues = flattenedValues[name];
+        const paramPath = isMultiSource ? `spec.sources[${ind}].helm.parameters` : 'spec.source.helm.parameters';
+        const overrideRemoved = removedOverrides[index];
+
+        if (overrideIndex > -1) {
+            if (overrideIndex === undefined) {
+                overrideIndex = -1;
+            }
+            const original = (param && param.value) || '';
+            const value = (overrideIndex > -1 && source.helm.parameters[overrideIndex].value) || original;
+
+            newAttributes.push({
+                key: name,
+                title: name,
+                view: (
+                    <span title={value}>
+                        {overrideIndex > -1 && <span className='fa fa-gavel' title={`Original value: ${original}`} />} {value}
+                    </span>
+                ),
+                edit(formApi: FormApi) {
+                    const labelStyle = {position: 'absolute', right: 0, top: 0, zIndex: 11} as any;
+                    return (
+                        <React.Fragment>
+                            {(overrideRemoved && <span>{original}</span>) || (
+                                <FormField
+                                    formApi={formApi}
+                                    field={`${paramPath}[${overrideIndex > -1 ? overrideIndex : paramsByName.size}]`}
+                                    component={TextWithMetadataField}
+                                    componentProps={{
+                                        metadata: {name, value}
+                                    }}
+                                />
+                            )}
+                            {value !== original && !overrideRemoved && (
+                                <a
+                                    onClick={() => {
+                                        formApi.setValue(`${paramPath}[${overrideIndex}]`, null);
+                                        removedOverrides[index] = true;
+                                        setRemovedOverrides([...removedOverrides]);
+                                    }}
+                                    style={labelStyle}>
+                                    Remove override
+                                </a>
+                            )}
+                            {overrideRemoved && (
+                                <a
+                                    onClick={() => {
+                                        formApi.setValue(`${paramPath}[${overrideIndex}]`, {name, value});
+                                        removedOverrides[index] = false;
+                                        setRemovedOverrides([...removedOverrides]);
+                                    }}
+                                    style={labelStyle}>
+                                    Keep override
+                                </a>
+                            )}
+                        </React.Fragment>
+                    );
+                }
+            });
+        } else if (valueFromValues !== undefined) {
+            const originalValueFromValues = originalFlattenedValues[name];
+            const valuesPath = isMultiSource ? `spec.sources[${ind}].helm.values` : 'spec.source.helm.values';
+            let inputValue = valueFromValues || '';
+            newAttributes.push({
+                key: name,
+                title: name,
+                view: (
+                    <span title={valueFromValues}>
+                        {!overrideRemoved && <span className='fa fa-gavel' title={`Original value: ${originalValueFromValues}`} />} {valueFromValues}
+                    </span>
+                ),
+                edit(formApi: FormApi) {
+                    const labelStyle = {position: 'absolute', right: 0, top: 0, zIndex: 11} as any;
+                    return (
+                        <React.Fragment>
+                            {(overrideRemoved && <span>{originalValueFromValues}</span>) || (
+                                <textarea
+                                    value={inputValue}
+                                    onInput={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
+                                        try {
+                                            const value = event.target.value;
+                                            formApi.setValue(valuesPath, getValuesData(name, value));
+                                            inputValue = value;
+                                        } catch (e) {
+                                            console.error('Error updating values:', e);
+                                        }
+                                    }}
+                                    className='argo-field'
+                                />
+                            )}
+                            {!overrideRemoved && (
+                                <a
+                                    onClick={() => {
+                                        try {
+                                            formApi.setValue(valuesPath, getValuesData(name));
+                                            removedOverrides[index] = true;
+                                            setRemovedOverrides([...removedOverrides]);
+                                        } catch (e) {
+                                            console.error('Error removing override:', e);
+                                        }
+                                    }}
+                                    style={labelStyle}>
+                                    Remove override
+                                </a>
+                            )}
+                            {overrideRemoved && (
+                                <a
+                                    onClick={() => {
+                                        try {
+                                            formApi.setValue(valuesPath, getValuesData(name, valueFromValues));
+                                            removedOverrides[index] = false;
+                                            setRemovedOverrides([...removedOverrides]);
+                                        } catch (e) {
+                                            console.error('Error keeping override:', e);
+                                        }
+                                    }}
+                                    style={labelStyle}>
+                                    Keep override
+                                </a>
+                            )}
+                        </React.Fragment>
+                    );
+                }
+            });
+        } else if (param) {
+            newAttributes.push({
+                key: name,
+                title: name,
+                view: <span title={param.value}>{param.value}</span>,
+                edit(formApi: FormApi) {
+                    return (
+                        <FormField
+                            formApi={formApi}
+                            field={`${paramPath}[${overrideIndex > -1 ? overrideIndex : paramsByName.size}]`}
+                            component={TextWithMetadataField}
+                            componentProps={{
+                                metadata: {name, value: param.value}
+                            }}
+                        />
+                    );
+                }
+            });
+        }
+    });
+
+    return newAttributes;
 }
 
 export const ApplicationParameters = (props: {
@@ -381,8 +643,12 @@ export const ApplicationParameters = (props: {
                                 input.spec.source.plugin.parameters = params;
                             }
                             if (input.spec.source && input.spec.source.helm?.valuesObject) {
-                                input.spec.source.helm.valuesObject = jsYaml.load(input.spec.source.helm.values); // Deserialize json
-                                input.spec.source.helm.values = '';
+                                try {
+                                    input.spec.source.helm.values = mergeAndFormatHelmValues(input.spec.source.helm.valuesObject, input.spec.source.helm.values);
+                                    delete input.spec.source.helm.valuesObject;
+                                } catch (e) {
+                                    console.error('Error processing helm values:', e);
+                                }
                             }
                             await props.save(input, {});
                             setRemovedOverrides(new Array<boolean>());
@@ -523,8 +789,12 @@ export const ApplicationParameters = (props: {
                             appSrc.plugin.parameters = params;
                         }
                         if (appSrc.helm && appSrc.helm.valuesObject) {
-                            appSrc.helm.valuesObject = jsYaml.load(appSrc.helm.values); // Deserialize json
-                            appSrc.helm.values = '';
+                            try {
+                                appSrc.helm.values = mergeAndFormatHelmValues(appSrc.helm.valuesObject, appSrc.helm.values);
+                                delete appSrc.helm.valuesObject;
+                            } catch (e) {
+                                console.error('Error processing helm values:', e);
+                            }
                         }
 
                         await props.save(input, {});
@@ -790,7 +1060,7 @@ function gatherDetails(
             ),
             edit: (formApi: FormApi) => {
                 // In case source.helm.valuesObject is set, set source.helm.values to its value
-                if (source.helm) {
+                if (source.helm && helmValues && !isEqual(helmValues, source.helm.values)) {
                     source.helm.values = helmValues;
                 }
 
@@ -803,29 +1073,10 @@ function gatherDetails(
                 );
             }
         });
-        const paramsByName = new Map<string, models.HelmParameter>();
-        (repoDetails.helm.parameters || []).forEach(param => paramsByName.set(param.name, param));
-        const overridesByName = new Map<string, number>();
-        ((source.helm && source.helm.parameters) || []).forEach((override, i) => overridesByName.set(override.name, i));
-        attributes = attributes.concat(
-            getParamsEditableItems(
-                app,
-                'PARAMETERS',
-                isMultiSource ? 'spec.sources[' + ind + '].helm.parameters' : 'spec.source.helm.parameters',
-                removedOverrides,
-                setRemovedOverrides,
-                distinct(paramsByName.keys(), overridesByName.keys()).map(name => {
-                    const param = paramsByName.get(name);
-                    const original = (param && param.value) || '';
-                    let overrideIndex = overridesByName.get(name);
-                    if (overrideIndex === undefined) {
-                        overrideIndex = -1;
-                    }
-                    const value = (overrideIndex > -1 && source.helm.parameters[overrideIndex].value) || original;
-                    return {overrideIndex, original, metadata: {name, value}};
-                })
-            )
-        );
+
+        // Add parameters
+        attributes = attributes.concat(getHelmParamsEditableItems(repoDetails, source, removedOverrides, setRemovedOverrides, isMultiSource, ind));
+
         const fileParamsByName = new Map<string, models.HelmFileParameter>();
         (repoDetails.helm.fileParameters || []).forEach(param => fileParamsByName.set(param.name, param));
         const fileOverridesByName = new Map<string, number>();
