@@ -387,7 +387,7 @@ jobs:
       - name: Upload code coverage information to codecov.io
         uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
         with:
-          file: test-results/full-coverage.out
+          files: test-results/full-coverage.out
           fail_ci_if_error: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
