@@ -18,7 +18,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	argogrpc "github.com/argoproj/argo-cd/v3/util/grpc"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 // MaxGRPCMessageSize contains max grpc message size
@@ -36,7 +36,7 @@ type TLSConfiguration struct {
 
 // Clientset represents repository server api clients
 type Clientset interface {
-	NewRepoServerClient() (io.Closer, RepoServerServiceClient, error)
+	NewRepoServerClient() (utilio.Closer, RepoServerServiceClient, error)
 }
 
 type clientSet struct {
@@ -45,7 +45,7 @@ type clientSet struct {
 	tlsConfig      TLSConfiguration
 }
 
-func (c *clientSet) NewRepoServerClient() (io.Closer, RepoServerServiceClient, error) {
+func (c *clientSet) NewRepoServerClient() (utilio.Closer, RepoServerServiceClient, error) {
 	conn, err := NewConnection(c.address, c.timeoutSeconds, &c.tlsConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to open a new connection to repo server: %w", err)

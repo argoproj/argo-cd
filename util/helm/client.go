@@ -28,7 +28,7 @@ import (
 	"oras.land/oras-go/v2/registry/remote/credentials"
 
 	"github.com/argoproj/argo-cd/v3/util/cache"
-	argoio "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
@@ -47,7 +47,7 @@ type indexCache interface {
 
 type Client interface {
 	CleanChartCache(chart string, version string) error
-	ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error)
+	ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, utilio.Closer, error)
 	GetIndex(noCache bool, maxIndexSize int64) (*Index, error)
 	GetTags(chart string, noCache bool) ([]string, error)
 	TestHelmOCI() (bool, error)
@@ -61,7 +61,7 @@ func WithIndexCache(indexCache indexCache) ClientOpts {
 	}
 }
 
-func WithChartPaths(chartPaths argoio.TempPaths) ClientOpts {
+func WithChartPaths(chartPaths utilio.TempPaths) ClientOpts {
 	return func(c *nativeHelmChart) {
 		c.chartCachePaths = chartPaths
 	}
@@ -79,7 +79,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enabl
 		enableOci:       enableOci,
 		proxy:           proxy,
 		noProxy:         noProxy,
-		chartCachePaths: argoio.NewRandomizedTempPaths(os.TempDir()),
+		chartCachePaths: utilio.NewRandomizedTempPaths(os.TempDir()),
 	}
 	for i := range opts {
 		opts[i](c)
@@ -90,7 +90,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enabl
 var _ Client = &nativeHelmChart{}
 
 type nativeHelmChart struct {
-	chartCachePaths argoio.TempPaths
+	chartCachePaths utilio.TempPaths
 	repoURL         string
 	creds           Creds
 	repoLock        sync.KeyLock
@@ -138,7 +138,7 @@ func untarChart(tempDir string, cachedChartPath string, manifestMaxExtractedSize
 	return files.Untgz(tempDir, reader, manifestMaxExtractedSize, false)
 }
 
-func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error) {
+func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, utilio.Closer, error) {
 	// always use Helm V3 since we don't have chart content to determine correct Helm version
 	helmCmd, err := NewCmdWithVersion("", c.enableOci, c.proxy, c.noProxy)
 	if err != nil {
@@ -230,7 +230,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 		_ = os.RemoveAll(tempDir)
 		return "", nil, fmt.Errorf("error untarring chart: %w", err)
 	}
-	return path.Join(tempDir, normalizeChartName(chart)), argoio.NewCloser(func() error {
+	return path.Join(tempDir, normalizeChartName(chart)), utilio.NewCloser(func() error {
 		return os.RemoveAll(tempDir)
 	}), nil
 }

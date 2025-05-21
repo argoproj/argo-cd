@@ -31,7 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	argoutils "github.com/argoproj/argo-cd/v3/util"
 	certutil "github.com/argoproj/argo-cd/v3/util/cert"
-	argoioutils "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 )
 
@@ -252,7 +252,7 @@ func (creds HTTPSCreds) Environ() (io.Closer, []string, error) {
 	}
 	nonce := creds.store.Add(text.FirstNonEmpty(creds.username, githubAccessTokenUsername), creds.password)
 	env = append(env, creds.store.Environ(nonce)...)
-	return argoioutils.NewCloser(func() error {
+	return utilio.NewCloser(func() error {
 		creds.store.Remove(nonce)
 		return httpCloser.Close()
 	}), env, nil
@@ -455,7 +455,7 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 	}
 	nonce := g.store.Add(githubAccessTokenUsername, token)
 	env = append(env, g.store.Environ(nonce)...)
-	return argoioutils.NewCloser(func() error {
+	return utilio.NewCloser(func() error {
 		g.store.Remove(nonce)
 		return httpCloser.Close()
 	}), env, nil
@@ -625,7 +625,7 @@ func (c GoogleCloudCreds) Environ() (io.Closer, []string, error) {
 	nonce := c.store.Add(username, token)
 	env := c.store.Environ(nonce)
 
-	return argoioutils.NewCloser(func() error {
+	return utilio.NewCloser(func() error {
 		c.store.Remove(nonce)
 		return NopCloser{}.Close()
 	}), env, nil
@@ -720,7 +720,7 @@ func (creds AzureWorkloadIdentityCreds) Environ() (io.Closer, []string, error) {
 	nonce := creds.store.Add("", token)
 	env := creds.store.Environ(nonce)
 
-	return argoioutils.NewCloser(func() error {
+	return utilio.NewCloser(func() error {
 		creds.store.Remove(nonce)
 		return nil
 	}), env, nil
