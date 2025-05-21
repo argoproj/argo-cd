@@ -188,6 +188,9 @@ Wildcard checks are only evaluated if there is no specific check for the resourc
 
 If multiple wildcard checks match, the first one in the directory structure is used.
 
+We use the [doublestar](https://github.com/bmatcuk/doublestar) glob library to match the wildcard checks. We currently
+only treat a path as a wildcard if it contains a `_` character, but this may change in the future.
+
 !!!important "Avoid Massive Scripts"
 
     Avoid writing massive scripts to handle multiple resources. They'll get hard to read and maintain. Instead, just
