@@ -20,7 +20,7 @@ require (
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.15.0
 	github.com/casbin/casbin/v2 v2.105.0
-	github.com/casbin/govaluate v1.3.0
+	github.com/casbin/govaluate v1.7.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/chainguard-dev/git-urls v1.0.2
 	github.com/coreos/go-oidc/v3 v3.14.1
