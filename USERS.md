@@ -355,6 +355,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [TBC Bank](https://tbcbank.ge/)
 1. [Techcombank](https://www.techcombank.com.vn/trang-chu)
 1. [Technacy](https://www.technacy.it/)
+1. [Tencent](https://www.tencent.com/)
 1. [Telavita](https://www.telavita.com.br/)
 1. [Tesla](https://tesla.com/)
 1. [TextNow](https://www.textnow.com/)
@@ -411,5 +412,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Zimpler](https://www.zimpler.com/)
 1. [ZipRecruiter](https://www.ziprecruiter.com/)
 1. [ZOZO](https://corp.zozo.com/)
-
 
