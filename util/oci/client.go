@@ -569,7 +569,7 @@ func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc imagev1.D
 func getOCIManifest(ctx context.Context, digest string, repo oras.ReadOnlyTarget) (*imagev1.Manifest, error) {
 	desc, err := repo.Resolve(ctx, digest)
 	if err != nil {
-		return nil, fmt.Errorf("error resolving oci repo from digest %s: %w", digest, err)
+		return nil, fmt.Errorf("error resolving oci repo from digest, %w", err)
 	}
 
 	rc, err := repo.Fetch(ctx, desc)
