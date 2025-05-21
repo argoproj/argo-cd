@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/v2/sync"
 	jsonpatch "github.com/evanphx/json-patch"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -679,7 +680,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			AnnotationManifestGeneratePaths: a.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
 		}
 
-		repoStreamClient, err := client.GenerateManifestWithFiles(stream.Context())
+		repoStreamClient, err := client.GenerateManifestWithFiles(stream.Context(), grpc_retry.Disable())
 		if err != nil {
 			return fmt.Errorf("error opening stream: %w", err)
 		}

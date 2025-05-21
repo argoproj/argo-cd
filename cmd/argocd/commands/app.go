@@ -1375,7 +1375,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				diffOption.revision = revision
 			case local != "":
 				if serverSideGenerate {
-					client, err := appIf.GetManifestsWithFiles(ctx, grpc_retry.Disable())
+					client, err := appIf.GetManifestsWithFiles(ctx, grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(grpc_retry.Disable())))
 					errors.CheckError(err)
 
 					err = manifeststream.SendApplicationManifestQueryWithFiles(ctx, client, appName, appNs, local, localIncludes)
