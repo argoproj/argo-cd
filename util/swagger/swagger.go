@@ -27,7 +27,7 @@ func ServeSwaggerUI(mux *http.ServeMux, swaggerJSON string, uiPath string, rootP
 	}
 
 	// handler for swagger.json endpoint
-	mux.HandleFunc(swaggerPath, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(swaggerPath, func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("X-Frame-Options", "DENY")
 		_, _ = fmt.Fprint(w, swaggerJSON)
 	})
