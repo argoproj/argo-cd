@@ -29,11 +29,13 @@ func (m *WebhookMerger) Handler(w http.ResponseWriter, r *http.Request) {
 		"application set": m.appSetWebhookHandler.HandleRequest,
 	} {
 		go func() {
-			cr, err := copyRequest(r)
+			req, err := copyRequest(r)
 			if err == nil {
-				if err = h(w, cr); err != nil {
+				if err = h(w, req); err != nil {
 					log.Error("error handling %s webhook: %+v. maybe not suitable?", name, err)
 				}
+			} else {
+				log.Error("error copying request: %+v", err)
 			}
 		}()
 	}
