@@ -21,6 +21,8 @@ function optionsToSearch(options?: QueryOptions) {
 }
 
 export class ApplicationsService {
+    constructor() {}
+
     public list(projects: string[], options?: QueryOptions): Promise<models.ApplicationList> {
         return requests
             .get('/applications')
@@ -540,5 +542,12 @@ export class ApplicationsService {
         );
 
         return data as models.Application;
+    }
+
+    public async getApplicationSet(name: string, namespace: string): Promise<models.ApplicationSet> {
+        return requests
+            .get(`/applicationsets/${name}`)
+            .query({namespace})
+            .then(res => res.body as models.ApplicationSet);
     }
 }

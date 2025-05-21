@@ -14,7 +14,7 @@ on:
 env:
   # Golang version to use across CI steps
   # renovate: datasource=golang-version packageName=golang
-  GOLANG_VERSION: '1.24.1'
+  GOLANG_VERSION: '1.24.3'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -332,6 +332,15 @@ jobs:
       - name: Run ESLint
         run: yarn lint
         working-directory: ui/
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+      - run: |
+          sudo apt-get install shellcheck
+          shellcheck -e SC2086 -e SC2046 -e SC2068 -e SC2206 -e SC2048 -e SC2059 -e SC2154 -e SC2034 -e SC2016 -e SC2128 -e SC1091 -e SC2207  $(find . -type f -name '*.sh') | tee sc.log
+          test ! -s sc.log
 
   analyze:
     name: Process & analyze test artifacts

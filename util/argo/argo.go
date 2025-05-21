@@ -801,6 +801,15 @@ func verifyGenerateManifests(
 			continue
 		}
 
+		trackingMethod, err := settingsMgr.GetTrackingMethod()
+		if err != nil {
+			conditions = append(conditions, argoappv1.ApplicationCondition{
+				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Message: fmt.Sprintf("Error getting trackingMethod: %v", err),
+			})
+			continue
+		}
+
 		verifySignature := false
 		if len(proj.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled() {
 			verifySignature = true
@@ -838,7 +847,7 @@ func verifyGenerateManifests(
 			ApiVersions:                     apiVersions,
 			HelmOptions:                     helmOptions,
 			HelmRepoCreds:                   helmRepoCreds,
-			TrackingMethod:                  string(GetTrackingMethod(settingsMgr)),
+			TrackingMethod:                  trackingMethod,
 			EnabledSourceTypes:              enableGenerateManifests,
 			NoRevisionCache:                 true,
 			HasMultipleSources:              app.Spec.HasMultipleSources(),

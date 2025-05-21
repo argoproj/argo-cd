@@ -18,7 +18,6 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/hash"
@@ -326,7 +325,7 @@ func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs 
 
 func trackingKey(appLabelKey string, trackingMethod string) string {
 	trackingKey := appLabelKey
-	if text.FirstNonEmpty(trackingMethod, string(argo.TrackingMethodLabel)) != string(argo.TrackingMethodLabel) {
+	if text.FirstNonEmpty(trackingMethod, string(appv1.TrackingMethodLabel)) != string(appv1.TrackingMethodLabel) {
 		trackingKey = trackingMethod + ":" + trackingKey
 	}
 	return trackingKey
@@ -420,7 +419,7 @@ func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource
 
 func appDetailsCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, trackingMethod appv1.TrackingMethod, refSourceCommitSHAs ResolvedRevisions) string {
 	if trackingMethod == "" {
-		trackingMethod = argo.TrackingMethodLabel
+		trackingMethod = appv1.TrackingMethodLabel
 	}
 	return fmt.Sprintf("appdetails|%s|%d|%s", revision, appSourceKey(appSrc, srcRefs, refSourceCommitSHAs), trackingMethod)
 }
