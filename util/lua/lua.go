@@ -536,7 +536,7 @@ func getGlobHealthScriptPaths() ([]string, error) {
 				return nil
 			}
 
-			pattern := strings.Replace(groupKindPath, "_", "*", -1)
+			pattern := strings.ReplaceAll(groupKindPath, "_", "*")
 			// Check that the pattern is valid.
 			if !glob.ValidatePattern(pattern) {
 				return fmt.Errorf("invalid glob pattern %q: %w", pattern, err)
