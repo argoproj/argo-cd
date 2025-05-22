@@ -30,6 +30,7 @@ local_resource(
     'build',
     'CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=readonly -o .tilt-bin/argocd_linux_amd64 cmd/main.go',
     deps = code_deps,
+    allow_parallel=True,
 )
 
 # deploy the argocd manifests
@@ -200,6 +201,7 @@ local_resource(
     'lint',
     'make lint-local',
     deps = code_deps,
+    allow_parallel=True,
 )
 
 local_resource(
@@ -208,4 +210,15 @@ local_resource(
     deps = [
         'ui',
     ],
+    allow_parallel=True,
 )
+
+local_resource(
+    'vendor',
+    'go mod vendor',
+    deps = [
+        'go.mod',
+        'go.sum',
+    ],
+)
+
