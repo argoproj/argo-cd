@@ -1250,7 +1250,7 @@ spec:
       automountServiceAccountToken: false
       initContainers:
       - name: config-init
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image: docker.io/library/redis:7.2.7-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -1290,7 +1290,7 @@ spec:
 
       containers:
       - name: redis
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image: docker.io/library/redis:7.2.7-alpine
         imagePullPolicy: IfNotPresent
         command:
           - redis-server
@@ -1364,7 +1364,7 @@ spec:
               - /bin/sh
               - /readonly-config/trigger-failover-if-master.sh
       - name: sentinel
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image: docker.io/library/redis:7.2.7-alpine
         imagePullPolicy: IfNotPresent
         command:
           - redis-sentinel
@@ -1437,7 +1437,7 @@ spec:
               - sleep 30; redis-cli -p 26379 sentinel reset argocd
 
       - name: split-brain-fix
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image: docker.io/library/redis:7.2.7-alpine
         imagePullPolicy: IfNotPresent
         command:
           - sh
