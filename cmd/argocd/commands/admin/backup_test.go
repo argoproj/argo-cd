@@ -403,7 +403,7 @@ func Test_importResources(t *testing.T) {
 		overrideOnConflict       bool
 	}{
 		{
-			name: "Update live object when skip label missing in backup",
+			name: "Update live object when backup does not match skip label",
 			args: args{
 				bak: `apiVersion: v1
 kind: ConfigMap
@@ -461,7 +461,6 @@ data:
 			},
 			applicationNamespaces:    []string{},
 			applicationsetNamespaces: []string{},
-			prune:                    true,
 		},
 		{
 			name: "Update live if spec differs from backup for Application",
