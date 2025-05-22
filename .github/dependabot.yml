@@ -10,7 +10,7 @@ updates:
     groups:
       otel:
         patterns:
-          - "^go\.opentelemetry\.io\/.*"
+          - "go.opentelemetry.io/*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
