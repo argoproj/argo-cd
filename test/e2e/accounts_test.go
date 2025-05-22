@@ -13,7 +13,7 @@ import (
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 func TestCreateAndUseAccount(t *testing.T) {
@@ -112,7 +112,7 @@ func TestLoginBadCredentials(t *testing.T) {
 	EnsureCleanState(t)
 
 	closer, sessionClient := ArgoCDClientset.NewSessionClientOrDie()
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 
 	requests := []session.SessionCreateRequest{{
 		Username: "user-does-not-exist", Password: "some-password",
