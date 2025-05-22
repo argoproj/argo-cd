@@ -34,6 +34,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
@@ -41,7 +42,7 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/gpg"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/stats"
 )
@@ -77,7 +78,7 @@ type AppStateManager interface {
 // comparisonResult holds the state of an application after the reconciliation
 type comparisonResult struct {
 	syncStatus           *v1alpha1.SyncStatus
-	healthStatus         *v1alpha1.HealthStatus
+	healthStatus         health.HealthStatusCode
 	resources            []v1alpha1.ResourceStatus
 	managedResources     []managedResource
 	reconciliationResult sync.ReconciliationResult
@@ -96,7 +97,7 @@ func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
 	return res.syncStatus
 }
 
-func (res *comparisonResult) GetHealthStatus() *v1alpha1.HealthStatus {
+func (res *comparisonResult) GetHealthStatus() health.HealthStatusCode {
 	return res.healthStatus
 }
 
@@ -191,7 +192,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to connect to repo server: %w", err)
 	}
-	defer io.Close(conn)
+	defer utilio.Close(conn)
 
 	manifestInfos := make([]*apiclient.ManifestResponse, 0)
 	targetObjs := make([]*unstructured.Unstructured, 0)
@@ -314,7 +315,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 
 	ts.AddCheckpoint("manifests_ms")
-	logCtx := log.WithField("application", app.QualifiedName())
+	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	for k, v := range ts.Timings() {
 		logCtx = logCtx.WithField(k, v.Milliseconds())
 	}
@@ -336,7 +337,7 @@ func (m *appStateManager) ResolveGitRevision(repoURL string, revision string) (s
 	if err != nil {
 		return "", fmt.Errorf("failed to connect to repo server: %w", err)
 	}
-	defer io.Close(conn)
+	defer utilio.Close(conn)
 
 	repo, err := m.db.GetRepository(context.Background(), repoURL, "")
 	if err != nil {
@@ -518,7 +519,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	// return unknown comparison result if basic comparison settings cannot be loaded
 	if err != nil {
-		now := metav1.Now()
 		if hasMultipleSources {
 			return &comparisonResult{
 				syncStatus: &v1alpha1.SyncStatus{
@@ -526,7 +526,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					Status:     v1alpha1.SyncStatusCodeUnknown,
 					Revisions:  revisions,
 				},
-				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, LastTransitionTime: &now},
+				healthStatus: health.HealthStatusUnknown,
 			}, nil
 		}
 		return &comparisonResult{
@@ -535,7 +535,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				Status:     v1alpha1.SyncStatusCodeUnknown,
 				Revision:   revisions[0],
 			},
-			healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, LastTransitionTime: &now},
+			healthStatus: health.HealthStatusUnknown,
 		}, nil
 	}
 
@@ -551,8 +551,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		return nil, err
 	}
 
-	logCtx := log.WithField("application", app.QualifiedName())
-	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", destCluster.Server, app.Spec.Destination.Namespace)
+	logCtx := log.WithFields(applog.GetAppLogFields(app))
+	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
 
 	var targetObjs []*unstructured.Unstructured
 	now := metav1.Now()

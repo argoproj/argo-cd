@@ -517,7 +517,7 @@ func newFakeMultiSourceApp() *v1alpha1.Application {
 
 func createFakeAppWithHealthAndTime(testApp string, status health.HealthStatusCode, timestamp metav1.Time) *v1alpha1.Application {
 	app := createFakeApp(testApp)
-	app.Status.Health = v1alpha1.HealthStatus{
+	app.Status.Health = v1alpha1.AppHealthStatus{
 		Status:             status,
 		LastTransitionTime: &timestamp,
 	}
