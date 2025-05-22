@@ -763,7 +763,7 @@ data:
 			delete(pruneObjects, key)
 
 			var updatedLive *unstructured.Unstructured
-			var dynClient dynamic.ResourceInterface
+			dynClient := setDynamicClient(&dynamic.DynamicClient{}, bakObj, "argocd", tt.applicationNamespaces, tt.applicationsetNamespaces)
 
 			if bakObj.GetKind() == "Secret" {
 				dynClient = dynamicClient.Resource(secretResource).Namespace(bakObj.GetNamespace())
