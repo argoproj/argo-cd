@@ -18,6 +18,8 @@ data:
   redis.compression: gzip
   # Redis database
   redis.db:
+  # Redis clients connection maximum idle time (default 30 minutes)
+  redis.connection-max-idle-time: "5m"
 
   # Enables the alpha "manifest hydrator" feature. (default "false")
   hydrator.enabled: "false"
