@@ -142,7 +142,7 @@ jobs:
 
       - name: Build and push container image
         id: image
-        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 #v6.10.0
+        uses: docker/build-push-action@1dc73863535b631f98b2378be8619f83b136f4a0 #v6.17.0
         with:
           context: .
           platforms: ${{ inputs.platforms }}
