@@ -3454,3 +3454,15 @@ func Test_DeepCopyInformers(t *testing.T) {
 		assert.NotSame(t, p, &spList[i])
 	}
 }
+
+func TestDiffBetweenAppSpec(t *testing.T) {
+	original := newTestApp()
+	updated := newTestApp()
+
+	updated.Spec.Source.TargetRevision = "BRANCH"
+
+	expectedDiff := "{\"source\":{\"targetRevision\":\"BRANCH\"}}"
+	actualDiff, err := diffBetweenApplicationSpecs(&original.Spec, &updated.Spec)
+	require.NoError(t, err)
+	assert.JSONEq(t, expectedDiff, actualDiff)
+}
