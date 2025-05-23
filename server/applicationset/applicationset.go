@@ -3,6 +3,7 @@ package applicationset
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/argoproj/pkg/v2/sync"
+	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -221,7 +223,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 
 	created, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).Create(ctx, appset, metav1.CreateOptions{})
 	if err == nil {
-		s.logAppSetEvent(ctx, created, argo.EventReasonResourceCreated, "created ApplicationSet")
+		s.logAppSetEvent(ctx, created, argo.EventReasonResourceCreated, "created ApplicationSet", nil)
 		s.waitSync(created)
 		return created, nil
 	}
@@ -275,6 +277,10 @@ func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.E
 }
 
 func (s *Server) updateAppSet(ctx context.Context, appset *v1alpha1.ApplicationSet, newAppset *v1alpha1.ApplicationSet, merge bool) (*v1alpha1.ApplicationSet, error) {
+	applicationSetDiff, err := getApplicationSetPatch(appset, newAppset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ApplicationSet patch while updating ApplicationSet: %w", err)
+	}
 	if appset != nil && appset.Spec.Template.Spec.Project != newAppset.Spec.Template.Spec.Project {
 		// When changing projects, caller must have applicationset create and update privileges in new project
 		// NOTE: the update check was already verified in the caller to this function
@@ -299,7 +305,10 @@ func (s *Server) updateAppSet(ctx context.Context, appset *v1alpha1.ApplicationS
 		appset.Finalizers = newAppset.Finalizers
 		res, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(s.ns).Update(ctx, appset, metav1.UpdateOptions{})
 		if err == nil {
-			s.logAppSetEvent(ctx, appset, argo.EventReasonResourceUpdated, "updated ApplicationSets spec")
+			logFields := map[string]any{
+				"patch": applicationSetDiff,
+			}
+			s.logAppSetEvent(ctx, appset, argo.EventReasonResourceUpdated, "updated ApplicationSets spec", logFields)
 			s.waitSync(res)
 			return res, nil
 		}
@@ -313,6 +322,43 @@ func (s *Server) updateAppSet(ctx context.Context, appset *v1alpha1.ApplicationS
 		}
 	}
 	return nil, status.Errorf(codes.Internal, "Failed to update ApplicationSets. Too many conflicts")
+}
+
+func getApplicationSetPatch(a, b *v1alpha1.ApplicationSet) (map[string]any, error) {
+	applicationSetSpecPatch, err := jsonDiff(&a.Spec, &b.Spec)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get diff between ApplicationSets Spec: %w", err)
+	}
+	applicationSetMetadataPatch, err := jsonDiff(&a.ObjectMeta, &b.ObjectMeta)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get diff between ApplicationSets Metadata: %w", err)
+	}
+	applicationSetDiff := map[string]any{
+		"spec":     applicationSetSpecPatch,
+		"metadata": applicationSetMetadataPatch,
+	}
+	return applicationSetDiff, nil
+}
+
+func jsonDiff(a, b any) (map[string]any, error) {
+	aBytes, err := json.Marshal(a)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal %T: %w", a, err)
+	}
+	bBytes, err := json.Marshal(b)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal %T: %w", b, err)
+	}
+
+	patch, err := jsonpatch.CreateMergePatch(aBytes, bBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create json diff between item %T and %T : %w", a, b, err)
+	}
+	var patchDict map[string]any
+	if err := json.Unmarshal(patch, &patchDict); err != nil {
+		return nil, fmt.Errorf("failed to unmarshall the json diff between item %T and %T : %w", a, b, err)
+	}
+	return patchDict, nil
 }
 
 func (s *Server) Delete(ctx context.Context, q *applicationset.ApplicationSetDeleteRequest) (*applicationset.ApplicationSetResponse, error) {
@@ -334,7 +380,7 @@ func (s *Server) Delete(ctx context.Context, q *applicationset.ApplicationSetDel
 	if err != nil {
 		return nil, fmt.Errorf("error deleting ApplicationSets: %w", err)
 	}
-	s.logAppSetEvent(ctx, appset, argo.EventReasonResourceDeleted, "deleted ApplicationSets")
+	s.logAppSetEvent(ctx, appset, argo.EventReasonResourceDeleted, "deleted ApplicationSets", nil)
 	return &applicationset.ApplicationSetResponse{}, nil
 }
 
@@ -485,14 +531,14 @@ func (s *Server) waitSync(appset *v1alpha1.ApplicationSet) {
 	logCtx.Warnf("waitSync failed: timed out")
 }
 
-func (s *Server) logAppSetEvent(ctx context.Context, a *v1alpha1.ApplicationSet, reason string, action string) {
+func (s *Server) logAppSetEvent(ctx context.Context, a *v1alpha1.ApplicationSet, reason string, action string, logFields map[string]any) {
 	eventInfo := argo.EventInfo{Type: corev1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	s.auditLogger.LogAppSetEvent(a, eventInfo, message, user)
+	s.auditLogger.LogAppSetEvent(a, eventInfo, message, user, logFields)
 }
 
 func (s *Server) appsetNamespaceOrDefault(appNs string) string {
