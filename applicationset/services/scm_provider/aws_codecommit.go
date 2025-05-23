@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	pathpkg "path"
 	"path/filepath"
 	"strings"
@@ -18,7 +19,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/codecommit"
 	"github.com/aws/aws-sdk-go/service/resourcegroupstaggingapi"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/exp/maps"
 	"k8s.io/utils/strings/slices"
 
 	application "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
