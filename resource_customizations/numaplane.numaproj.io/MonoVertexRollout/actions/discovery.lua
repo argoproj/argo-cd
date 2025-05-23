@@ -1,13 +1,11 @@
 local actions = {}
-actions["pause"] = {["disabled"] = true}
-actions["unpause"] = {["disabled"] = true}
-actions["enable-force-promote"] = {
+actions["pause"] = {
   ["disabled"] = true,
-  ["displayName"] = "Enable Force Promote"
+  ["iconClass"] = "fa-solid fa-fw fa-pause"
 }
-actions["disable-force-promote"] = {
+actions["unpause"] = {
   ["disabled"] = true,
-  ["displayName"] = "Disable Force Promote"
+  ["iconClass"] = "fa-solid fa-fw fa-play"
 }
 
 -- pause/unpause
@@ -19,14 +17,6 @@ if paused then
   actions["unpause"]["disabled"] = false
 else
   actions["pause"]["disabled"] = false
-end
-
--- force-promote
-if (obj.status ~= nil and obj.status.upgradeInProgress == "Progressive" and obj.status.phase == "Pending") then
-  actions["enable-force-promote"]["disabled"] = false
-end
-if (obj.spec ~= nil and obj.spec.strategy ~= nil and obj.spec.strategy.progressive ~= nil and obj.spec.strategy.progressive.forcePromote == true) then
-  actions["disable-force-promote"]["disabled"] = false
 end
 
 return actions
