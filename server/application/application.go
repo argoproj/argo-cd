@@ -982,6 +982,10 @@ func (s *Server) waitSync(app *v1alpha1.Application) {
 }
 
 func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newApp *v1alpha1.Application, merge bool) (*v1alpha1.Application, error) {
+	diff, err := diffBetweenApplicationSpecs(&app.Spec, &newApp.Spec)
+	if err != nil {
+		return nil, err
+	}
 	for i := 0; i < 10; i++ {
 		app.Spec = newApp.Spec
 		if merge {
@@ -996,7 +1000,7 @@ func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newAp
 
 		res, err := s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Update(ctx, app, metav1.UpdateOptions{})
 		if err == nil {
-			s.logAppEvent(ctx, app, argo.EventReasonResourceUpdated, "updated application spec")
+			s.logAppEvent(ctx, app, argo.EventReasonResourceUpdated, "updated application spec: "+diff)
 			s.waitSync(res)
 			return res, nil
 		}
@@ -1011,6 +1015,23 @@ func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newAp
 		s.inferResourcesStatusHealth(app)
 	}
 	return nil, status.Errorf(codes.Internal, "Failed to update application. Too many conflicts")
+}
+
+func diffBetweenApplicationSpecs(a *v1alpha1.ApplicationSpec, b *v1alpha1.ApplicationSpec) (string, error) {
+	aBytes, err := json.Marshal(a)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal application: %w", err)
+	}
+	bBytes, err := json.Marshal(b)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal application: %w", err)
+	}
+
+	patch, err := jsonpatch.CreateMergePatch(aBytes, bBytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to create json diff between applications: %w", err)
+	}
+	return string(patch), nil
 }
 
 // Update updates an application

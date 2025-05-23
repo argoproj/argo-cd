@@ -3848,3 +3848,15 @@ func TestServerSideDiff(t *testing.T) {
 		assert.Contains(t, err.Error(), "application")
 	})
 }
+
+func TestDiffBetweenAppSpec(t *testing.T) {
+	original := newTestApp()
+	updated := newTestApp()
+
+	updated.Spec.Source.TargetRevision = "BRANCH"
+
+	expectedDiff := "{\"source\":{\"targetRevision\":\"BRANCH\"}}"
+	actualDiff, err := diffBetweenApplicationSpecs(&original.Spec, &updated.Spec)
+	require.NoError(t, err)
+	assert.JSONEq(t, expectedDiff, actualDiff)
+}
