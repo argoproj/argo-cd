@@ -990,9 +990,9 @@ func (s *Server) waitSync(app *v1alpha1.Application) {
 }
 
 func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newApp *v1alpha1.Application, merge bool) (*v1alpha1.Application, error) {
-	applicationPatch, err := diffBetweenApplicationSpecs(&app.Spec, &newApp.Spec)
+	applicationPatch, err := getApplicationPatch(app, newApp)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get application patch while updating app: %w", err)
 	}
 	for i := 0; i < 10; i++ {
 		app.Spec = newApp.Spec
@@ -1008,8 +1008,9 @@ func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newAp
 
 		res, err := s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Update(ctx, app, metav1.UpdateOptions{})
 		if err == nil {
-			logFields := make(map[string]string)
-			logFields["patch"] = applicationPatch
+			logFields := map[string]any{
+				"patch": applicationPatch,
+			}
 			s.logAppEvent(ctx, app, argo.EventReasonResourceUpdated, "updated application spec", logFields)
 			s.waitSync(res)
 			return res, nil
@@ -1027,21 +1028,41 @@ func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newAp
 	return nil, status.Errorf(codes.Internal, "Failed to update application. Too many conflicts")
 }
 
-func diffBetweenApplicationSpecs(a *v1alpha1.ApplicationSpec, b *v1alpha1.ApplicationSpec) (string, error) {
+func getApplicationPatch(a, b *v1alpha1.Application) (map[string]any, error) {
+	applicationSpecPatch, err := jsonDiff(&a.Spec, &b.Spec)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get diff between Applications Spec: %w", err)
+	}
+	applicationMetadataPatch, err := jsonDiff(&a.ObjectMeta, &b.ObjectMeta)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get diff between Applications Metadata: %w", err)
+	}
+	applicationDiff := map[string]any{
+		"spec":     applicationSpecPatch,
+		"metadata": applicationMetadataPatch,
+	}
+	return applicationDiff, nil
+}
+
+func jsonDiff(a, b any) (map[string]any, error) {
 	aBytes, err := json.Marshal(a)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal application: %w", err)
+		return nil, fmt.Errorf("failed to marshal %T: %w", a, err)
 	}
 	bBytes, err := json.Marshal(b)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal application: %w", err)
+		return nil, fmt.Errorf("failed to marshal %T: %w", b, err)
 	}
 
 	patch, err := jsonpatch.CreateMergePatch(aBytes, bBytes)
 	if err != nil {
-		return "", fmt.Errorf("failed to create json diff between applications: %w", err)
+		return nil, fmt.Errorf("failed to create json diff between item %T and %T : %w", a, b, err)
 	}
-	return string(patch), nil
+	var patchDict map[string]any
+	if err := json.Unmarshal(patch, &patchDict); err != nil {
+		return nil, fmt.Errorf("failed to unmarshall the json diff between item %T and %T : %w", a, b, err)
+	}
+	return patchDict, nil
 }
 
 // Update updates an application
@@ -2433,7 +2454,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 	return nil, status.Errorf(codes.Internal, "Failed to terminate app. Too many conflicts")
 }
 
-func (s *Server) logAppEvent(ctx context.Context, a *v1alpha1.Application, reason string, action string, logFields map[string]string) {
+func (s *Server) logAppEvent(ctx context.Context, a *v1alpha1.Application, reason string, action string, logFields map[string]any) {
 	eventInfo := argo.EventInfo{Type: corev1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {
@@ -2442,7 +2463,7 @@ func (s *Server) logAppEvent(ctx context.Context, a *v1alpha1.Application, reaso
 	message := fmt.Sprintf("%s %s", user, action)
 
 	if logFields == nil {
-		logFields = make(map[string]string)
+		logFields = make(map[string]any)
 	}
 	eventLabels := argo.GetAppEventLabels(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db)
 	s.auditLogger.LogAppEvent(a, eventInfo, message, user, eventLabels, logFields)

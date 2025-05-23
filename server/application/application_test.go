@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	stderrors "errors"
 	"fmt"
 	"io"
@@ -3453,7 +3454,8 @@ func Test_DeepCopyInformers(t *testing.T) {
 	}
 }
 
-func TestDiffBetweenAppSpec(t *testing.T) {
+func TestGetApplicationPatch(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name         string
 		original     *v1alpha1.Application
@@ -3465,23 +3467,23 @@ func TestDiffBetweenAppSpec(t *testing.T) {
 			name:         "Test that identical apps show no difference",
 			original:     newTestApp(),
 			updated:      newTestApp(),
-			testMutation: func(original, updated *v1alpha1.Application) {},
-			expectedDiff: "{}",
+			testMutation: func(_, _ *v1alpha1.Application) {},
+			expectedDiff: "{\"metadata\": {}, \"spec\": {}}",
 		},
 		{
 			name:     "Test that targetRevision displays correctly",
 			original: newTestApp(),
 			updated:  newTestApp(),
-			testMutation: func(original, updated *v1alpha1.Application) {
+			testMutation: func(_, updated *v1alpha1.Application) {
 				updated.Spec.Source.TargetRevision = "BRANCH"
 			},
-			expectedDiff: "{\"source\":{\"targetRevision\":\"BRANCH\"}}",
+			expectedDiff: "{\"metadata\": {}, \"spec\": {\"source\":{\"targetRevision\":\"BRANCH\"}}}",
 		},
 		{
 			name:     "Test that Helm Parameters displays correctly",
 			original: newTestApp(),
 			updated:  newTestApp(),
-			testMutation: func(original, updated *v1alpha1.Application) {
+			testMutation: func(_, updated *v1alpha1.Application) {
 				updated.Spec.Source.Helm = &v1alpha1.ApplicationSourceHelm{
 					Parameters: []v1alpha1.HelmParameter{
 						{
@@ -3491,7 +3493,35 @@ func TestDiffBetweenAppSpec(t *testing.T) {
 					},
 				}
 			},
-			expectedDiff: "{\"source\":{\"helm\":{\"parameters\": [{\"name\": \"foo\", \"value\": \"bar\"}]}}}",
+			expectedDiff: "{\"metadata\": {}, \"spec\": {\"source\":{\"helm\":{\"parameters\": [{\"name\": \"foo\", \"value\": \"bar\"}]}}}}",
+		},
+		{
+			name:     "Test that Metadata updates displays correctly",
+			original: newTestApp(),
+			updated:  newTestApp(),
+			testMutation: func(_, updated *v1alpha1.Application) {
+				updated.SetAnnotations(map[string]string{"foo": "bar"})
+			},
+			expectedDiff: "{\"metadata\": {\"annotations\":{\"foo\": \"bar\"}}, \"spec\": {}}",
+		},
+		{
+			name:     "Test that Metadata removals displays correctly",
+			original: newTestApp(),
+			updated:  newTestApp(),
+			testMutation: func(original, _ *v1alpha1.Application) {
+				original.SetAnnotations(map[string]string{"foo": "bar"})
+			},
+			expectedDiff: "{\"metadata\": {\"annotations\": null}, \"spec\": {}}",
+		},
+		{
+			name:     "Test that Metadata partial removals displays correctly",
+			original: newTestApp(),
+			updated:  newTestApp(),
+			testMutation: func(original, modified *v1alpha1.Application) {
+				original.SetAnnotations(map[string]string{"foo": "bar", "baz": "foobar"})
+				modified.SetAnnotations(map[string]string{"foo": "bar"})
+			},
+			expectedDiff: "{\"metadata\": {\"annotations\": {\"baz\": null}}, \"spec\": {}}",
 		},
 	}
 	for _, tc := range testCases {
@@ -3499,9 +3529,12 @@ func TestDiffBetweenAppSpec(t *testing.T) {
 		t.Run(tcc.name, func(t *testing.T) {
 			t.Parallel()
 			tcc.testMutation(tcc.original, tcc.updated)
-			actualDiff, err := diffBetweenApplicationSpecs(&tcc.original.Spec, &tcc.updated.Spec)
+			diff, err := getApplicationPatch(tcc.original, tcc.updated)
 			require.NoError(t, err)
-			assert.JSONEq(t, tcc.expectedDiff, actualDiff)
+
+			actual, err := json.Marshal(diff)
+			require.NoError(t, err)
+			assert.JSONEq(t, string(tcc.expectedDiff), string(actual))
 		})
 	}
 }
