@@ -76,7 +76,7 @@
     "@types/dagre": "^0.7.40",
     "@types/deepmerge": "^2.2.0",
     "@types/git-url-parse": "^9.0.1",
-    "@types/jest": "^29.5.12",
+    "@types/jest": "^29.5.14",
     "@types/js-yaml": "^4.0.9",
     "@types/lodash-es": "^4.17.6",
     "@types/minimatch": "^3.0.3",
