@@ -2,6 +2,7 @@ package helm
 
 import (
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -146,10 +147,35 @@ func (creds AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
 		return "", fmt.Errorf("failed to get Azure access token after challenge: %w", err)
 	}
 
+	tokenExpiry, err := getJWTExpiry(token)
+	if err != nil {
+		tokenExpiry = time.Now().Add(15 * time.Minute)
+	}
 	// Azure Container Registry does not provide expires_on in the response
 	// so we set a default expiration time of 10 minutes
-	storeAzureToken(key, token, 10*time.Minute)
+	storeAzureToken(key, token, tokenExpiry.Sub(time.Now().Add(5*time.Minute)))
 	return token, nil
+}
+
+func getJWTExpiry(token string) (time.Time, error) {
+	parts := strings.Split(token, ".")
+	if len(parts) < 2 {
+		return time.Time{}, errors.New("invalid JWT token")
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to decode JWT payload: %w", err)
+	}
+	var claims struct {
+		Exp int64 `json:"exp"`
+	}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return time.Time{}, fmt.Errorf("failed to unmarshal JWT claims: %w", err)
+	}
+	if claims.Exp == 0 {
+		return time.Time{}, errors.New("'exp' claim not found in token")
+	}
+	return time.Unix(claims.Exp, 0), nil
 }
 
 func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams map[string]string) (string, error) {
