@@ -127,7 +127,7 @@ func TestHandleCallback(t *testing.T) {
 }
 
 func TestClientApp_HandleLogin(t *testing.T) {
-	oidcTestServer := test.GetOIDCTestServer(t)
+	oidcTestServer := test.GetOIDCTestServer(t, nil)
 	t.Cleanup(oidcTestServer.Close)
 
 	dexTestServer := test.GetDexTestServer(t)
@@ -408,7 +408,7 @@ func Test_Login_Flow(t *testing.T) {
 	// Show that SSO login works when no redirect URL is provided, and we fall back to the configured base href for the
 	// Argo CD instance.
 
-	oidcTestServer := test.GetOIDCTestServer(t)
+	oidcTestServer := test.GetOIDCTestServer(t, nil)
 	t.Cleanup(oidcTestServer.Close)
 
 	cdSettings := &settings.ArgoCDSettings{
@@ -418,7 +418,8 @@ name: Test
 issuer: %s
 clientID: xxx
 clientSecret: yyy
-requestedScopes: ["oidc"]`, oidcTestServer.URL),
+requestedScopes: ["oidc"]
+skipAudienceCheckWhenTokenHasNoAudience: true`, oidcTestServer.URL),
 		OIDCTLSInsecureSkipVerify: true,
 	}
 	// The base href (the last argument for NewClientApp) is what HandleLogin will fall back to when no explicit
@@ -435,7 +436,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 	redirectURL, err := w.Result().Location()
 	require.NoError(t, err)
 
-	state := redirectURL.Query()["state"]
+	state := redirectURL.Query().Get("state")
 
 	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("https://argocd.example.com/auth/callback?state=%s&code=abc", state), nil)
 	for _, cookie := range w.Result().Cookies() {
@@ -446,11 +447,66 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 	app.HandleCallback(w, req)
 
+	assert.Equal(t, 303, w.Code)
+	assert.NotContains(t, w.Body.String(), ErrInvalidRedirectURL.Error())
+}
+
+func Test_Login_Flow_With_PKCE(t *testing.T) {
+	var codeChallenge string
+
+	oidcTestServer := test.GetOIDCTestServer(t, func(r *http.Request) {
+		codeVerifier := r.FormValue("code_verifier")
+		assert.NotEmpty(t, codeVerifier)
+		assert.Equal(t, oauth2.S256ChallengeFromVerifier(codeVerifier), codeChallenge)
+	})
+	t.Cleanup(oidcTestServer.Close)
+
+	cdSettings := &settings.ArgoCDSettings{
+		URL: "https://example.com/argocd",
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]
+skipAudienceCheckWhenTokenHasNoAudience: true
+enablePKCEAuthentication: true`, oidcTestServer.URL),
+		OIDCTLSInsecureSkipVerify: true,
+	}
+	app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+
+	req := httptest.NewRequest(http.MethodGet, "https://example.com/argocd/auth/login", nil)
+
+	app.HandleLogin(w, req)
+
+	redirectURL, err := w.Result().Location()
+	require.NoError(t, err)
+
+	codeChallenge = redirectURL.Query().Get("code_challenge")
+
+	assert.NotEmpty(t, codeChallenge)
+	assert.Equal(t, "S256", redirectURL.Query().Get("code_challenge_method"))
+
+	state := redirectURL.Query().Get("state")
+
+	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("https://example.com/argocd/auth/callback?state=%s&code=abc", state), nil)
+	for _, cookie := range w.Result().Cookies() {
+		req.AddCookie(cookie)
+	}
+
+	w = httptest.NewRecorder()
+
+	app.HandleCallback(w, req)
+
+	assert.Equal(t, 303, w.Code)
 	assert.NotContains(t, w.Body.String(), ErrInvalidRedirectURL.Error())
 }
 
 func TestClientApp_HandleCallback(t *testing.T) {
-	oidcTestServer := test.GetOIDCTestServer(t)
+	oidcTestServer := test.GetOIDCTestServer(t, nil)
 	t.Cleanup(oidcTestServer.Close)
 
 	dexTestServer := test.GetDexTestServer(t)
@@ -758,7 +814,8 @@ func TestGenerateAppState(t *testing.T) {
 	app, err := NewClientApp(&settings.ArgoCDSettings{ServerSignature: signature, URL: expectedReturnURL}, "", nil, "", cache.NewInMemoryCache(24*time.Hour))
 	require.NoError(t, err)
 	generateResponse := httptest.NewRecorder()
-	state, err := app.generateAppState(expectedReturnURL, generateResponse)
+	expectedPKCEVerifier := oauth2.GenerateVerifier()
+	state, err := app.generateAppState(expectedReturnURL, expectedPKCEVerifier, generateResponse)
 	require.NoError(t, err)
 
 	t.Run("VerifyAppState_Successful", func(t *testing.T) {
@@ -767,9 +824,10 @@ func TestGenerateAppState(t *testing.T) {
 			req.AddCookie(cookie)
 		}
 
-		returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), state)
+		returnURL, pkceVerifier, err := app.verifyAppState(req, httptest.NewRecorder(), state)
 		require.NoError(t, err)
 		assert.Equal(t, expectedReturnURL, returnURL)
+		assert.Equal(t, expectedPKCEVerifier, pkceVerifier)
 	})
 
 	t.Run("VerifyAppState_Failed", func(t *testing.T) {
@@ -778,7 +836,7 @@ func TestGenerateAppState(t *testing.T) {
 			req.AddCookie(cookie)
 		}
 
-		_, err := app.verifyAppState(req, httptest.NewRecorder(), "wrong state")
+		_, _, err := app.verifyAppState(req, httptest.NewRecorder(), "wrong state")
 		require.Error(t, err)
 	})
 }
@@ -803,7 +861,7 @@ func TestGenerateAppState_XSS(t *testing.T) {
 
 		expectedReturnURL := "javascript: alert('hi')"
 		generateResponse := httptest.NewRecorder()
-		state, err := app.generateAppState(expectedReturnURL, generateResponse)
+		state, err := app.generateAppState(expectedReturnURL, "", generateResponse)
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -811,7 +869,7 @@ func TestGenerateAppState_XSS(t *testing.T) {
 			req.AddCookie(cookie)
 		}
 
-		returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), state)
+		returnURL, _, err := app.verifyAppState(req, httptest.NewRecorder(), state)
 		require.ErrorIs(t, err, ErrInvalidRedirectURL)
 		assert.Empty(t, returnURL)
 	})
@@ -819,7 +877,7 @@ func TestGenerateAppState_XSS(t *testing.T) {
 	t.Run("valid return URL succeeds", func(t *testing.T) {
 		expectedReturnURL := "https://argocd.example.com/some/path"
 		generateResponse := httptest.NewRecorder()
-		state, err := app.generateAppState(expectedReturnURL, generateResponse)
+		state, err := app.generateAppState(expectedReturnURL, "", generateResponse)
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -827,7 +885,7 @@ func TestGenerateAppState_XSS(t *testing.T) {
 			req.AddCookie(cookie)
 		}
 
-		returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), state)
+		returnURL, _, err := app.verifyAppState(req, httptest.NewRecorder(), state)
 		require.NoError(t, err)
 		assert.Equal(t, expectedReturnURL, returnURL)
 	})
@@ -847,7 +905,7 @@ func TestGenerateAppState_NoReturnURL(t *testing.T) {
 	require.NoError(t, err)
 
 	req.AddCookie(&http.Cookie{Name: common.StateCookieName, Value: hex.EncodeToString(encrypted)})
-	returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), "123")
+	returnURL, _, err := app.verifyAppState(req, httptest.NewRecorder(), "123")
 	require.NoError(t, err)
 	assert.Equal(t, "/argo-cd", returnURL)
 }
