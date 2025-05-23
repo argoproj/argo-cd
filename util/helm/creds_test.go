@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -252,4 +253,122 @@ func TestGetAccessTokenAfterChallenge_MalformedResponse(t *testing.T) {
 	refreshToken, err := creds.getAccessTokenAfterChallenge(tokenParams)
 	require.ErrorContains(t, err, "failed to unmarshal response body")
 	assert.Empty(t, refreshToken)
+}
+
+// Helper to generate a mock JWT token with a given expiry time
+func generateMockJWT(expiry time.Time) (string, error) {
+	claims := jwt.MapClaims{
+		"exp": expiry.Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	// Use a dummy secret for signing
+	return token.SignedString([]byte("dummy-secret"))
+}
+
+func TestGetAccessToken_FetchNewTokenIfExistingIsExpired(t *testing.T) {
+	resetAzureTokenCache()
+	accessToken1, _ := generateMockJWT(time.Now().Add(1 * time.Minute))
+	accessToken2, _ := generateMockJWT(time.Now().Add(1 * time.Minute))
+
+	mockServerURL := ""
+	mockedServerURL := func() string {
+		return mockServerURL
+	}
+
+	callCount := 0
+	mockServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v2/":
+			assert.Equal(t, "/v2/", r.URL.Path)
+			w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm="%s",service="%s"`, mockedServerURL(), mockedServerURL()[8:]))
+			w.WriteHeader(http.StatusUnauthorized)
+		case "/oauth2/exchange":
+			assert.Equal(t, "/oauth2/exchange", r.URL.Path)
+			var response string
+			switch callCount {
+			case 0:
+				response = fmt.Sprintf(`{"refresh_token": "%s"}`, accessToken1)
+			case 1:
+				response = fmt.Sprintf(`{"refresh_token": "%s"}`, accessToken2)
+			default:
+				response = `{"refresh_token": "defaultToken"}`
+			}
+			callCount++
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte(response))
+			require.NoError(t, err)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer mockServer.Close()
+	mockServerURL = mockServer.URL
+
+	workloadIdentityMock := new(mocks.TokenProvider)
+	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return(workloadidentity.Token{AccessToken: "accessToken"}, nil)
+	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
+
+	refreshToken, err := creds.GetAccessToken()
+	require.NoError(t, err)
+	assert.Equal(t, accessToken1, refreshToken)
+
+	time.Sleep(5 * time.Second) // Wait for the token to expire
+
+	refreshToken, err = creds.GetAccessToken()
+	require.NoError(t, err)
+	assert.Equal(t, accessToken2, refreshToken)
+}
+
+func TestGetAccessToken_ReuseTokenIfExistingIsNotExpired(t *testing.T) {
+	resetAzureTokenCache()
+	accessToken1, _ := generateMockJWT(time.Now().Add(6 * time.Minute))
+	accessToken2, _ := generateMockJWT(time.Now().Add(1 * time.Minute))
+
+	mockServerURL := ""
+	mockedServerURL := func() string {
+		return mockServerURL
+	}
+
+	callCount := 0
+	mockServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v2/":
+			assert.Equal(t, "/v2/", r.URL.Path)
+			w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm="%s",service="%s"`, mockedServerURL(), mockedServerURL()[8:]))
+			w.WriteHeader(http.StatusUnauthorized)
+		case "/oauth2/exchange":
+			assert.Equal(t, "/oauth2/exchange", r.URL.Path)
+			var response string
+			switch callCount {
+			case 0:
+				response = fmt.Sprintf(`{"refresh_token": "%s"}`, accessToken1)
+			case 1:
+				response = fmt.Sprintf(`{"refresh_token": "%s"}`, accessToken2)
+			default:
+				response = `{"refresh_token": "defaultToken"}`
+			}
+			callCount++
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte(response))
+			require.NoError(t, err)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer mockServer.Close()
+	mockServerURL = mockServer.URL
+
+	workloadIdentityMock := new(mocks.TokenProvider)
+	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return(workloadidentity.Token{AccessToken: "accessToken"}, nil)
+	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
+
+	refreshToken, err := creds.GetAccessToken()
+	require.NoError(t, err)
+	assert.Equal(t, accessToken1, refreshToken)
+
+	time.Sleep(5 * time.Second) // Wait for the token to expire
+
+	refreshToken, err = creds.GetAccessToken()
+	require.NoError(t, err)
+	assert.Equal(t, accessToken1, refreshToken)
 }

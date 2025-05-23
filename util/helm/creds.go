@@ -2,7 +2,6 @@ package helm
 
 import (
 	"crypto/tls"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	gocache "github.com/patrickmn/go-cache"
 
 	argoutils "github.com/argoproj/argo-cd/v3/util"
@@ -23,7 +23,7 @@ import (
 var azureTokenCache *gocache.Cache
 
 func init() {
-	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
+	azureTokenCache = gocache.New(10*time.Minute, 0)
 }
 
 // StoreToken stores a token in the cache
@@ -149,33 +149,33 @@ func (creds AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
 
 	tokenExpiry, err := getJWTExpiry(token)
 	if err != nil {
-		tokenExpiry = time.Now().Add(15 * time.Minute)
+		tokenExpiry = time.Now()
 	}
-	// Azure Container Registry does not provide expires_on in the response
-	// so we set a default expiration time of 10 minutes
-	storeAzureToken(key, token, tokenExpiry.Sub(time.Now().Add(5*time.Minute)))
+
+	cacheExpiry := tokenExpiry.Sub(time.Now()) - time.Minute*5
+
+	// If token exires in negative time, cache will never expire
+	// If expiry is 0 then default cache expiry is used.
+	if cacheExpiry <= 0 {
+		cacheExpiry = time.Second
+	}
+
+	storeAzureToken(key, token, cacheExpiry)
 	return token, nil
 }
 
 func getJWTExpiry(token string) (time.Time, error) {
-	parts := strings.Split(token, ".")
-	if len(parts) < 2 {
-		return time.Time{}, errors.New("invalid JWT token")
-	}
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	parser := jwt.NewParser()
+	claims := jwt.MapClaims{}
+	_, _, err := parser.ParseUnverified(token, claims)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("failed to decode JWT payload: %w", err)
+		return time.Time{}, fmt.Errorf("failed to parse JWT: %w", err)
 	}
-	var claims struct {
-		Exp int64 `json:"exp"`
+	exp, ok := claims["exp"].(float64)
+	if !ok {
+		return time.Time{}, errors.New("'exp' claim not found or invalid in token")
 	}
-	if err := json.Unmarshal(payload, &claims); err != nil {
-		return time.Time{}, fmt.Errorf("failed to unmarshal JWT claims: %w", err)
-	}
-	if claims.Exp == 0 {
-		return time.Time{}, errors.New("'exp' claim not found in token")
-	}
-	return time.Unix(claims.Exp, 0), nil
+	return time.Unix(int64(exp), 0), nil
 }
 
 func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams map[string]string) (string, error) {
@@ -286,4 +286,8 @@ func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(azureCon
 	}
 
 	return tokenParams, nil
+}
+
+func resetAzureTokenCache() {
+	azureTokenCache = gocache.New(10*time.Minute, 0)
 }
