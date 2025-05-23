@@ -3454,13 +3454,54 @@ func Test_DeepCopyInformers(t *testing.T) {
 }
 
 func TestDiffBetweenAppSpec(t *testing.T) {
-	original := newTestApp()
-	updated := newTestApp()
-
-	updated.Spec.Source.TargetRevision = "BRANCH"
-
-	expectedDiff := "{\"source\":{\"targetRevision\":\"BRANCH\"}}"
-	actualDiff, err := diffBetweenApplicationSpecs(&original.Spec, &updated.Spec)
-	require.NoError(t, err)
-	assert.JSONEq(t, expectedDiff, actualDiff)
+	testCases := []struct {
+		name         string
+		original     *v1alpha1.Application
+		updated      *v1alpha1.Application
+		testMutation func(original, updated *v1alpha1.Application)
+		expectedDiff string
+	}{
+		{
+			name:         "Test that identical apps show no difference",
+			original:     newTestApp(),
+			updated:      newTestApp(),
+			testMutation: func(original, updated *v1alpha1.Application) {},
+			expectedDiff: "{}",
+		},
+		{
+			name:     "Test that targetRevision displays correctly",
+			original: newTestApp(),
+			updated:  newTestApp(),
+			testMutation: func(original, updated *v1alpha1.Application) {
+				updated.Spec.Source.TargetRevision = "BRANCH"
+			},
+			expectedDiff: "{\"source\":{\"targetRevision\":\"BRANCH\"}}",
+		},
+		{
+			name:     "Test that Helm Parameters displays correctly",
+			original: newTestApp(),
+			updated:  newTestApp(),
+			testMutation: func(original, updated *v1alpha1.Application) {
+				updated.Spec.Source.Helm = &v1alpha1.ApplicationSourceHelm{
+					Parameters: []v1alpha1.HelmParameter{
+						{
+							Name:  "foo",
+							Value: "bar",
+						},
+					},
+				}
+			},
+			expectedDiff: "{\"source\":{\"helm\":{\"parameters\": [{\"name\": \"foo\", \"value\": \"bar\"}]}}}",
+		},
+	}
+	for _, tc := range testCases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			tcc.testMutation(tcc.original, tcc.updated)
+			actualDiff, err := diffBetweenApplicationSpecs(&tcc.original.Spec, &tcc.updated.Spec)
+			require.NoError(t, err)
+			assert.JSONEq(t, tcc.expectedDiff, actualDiff)
+		})
+	}
 }

@@ -366,7 +366,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 
 	created, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Create(ctx, a, metav1.CreateOptions{})
 	if err == nil {
-		s.logAppEvent(ctx, created, argo.EventReasonResourceCreated, "created application")
+		s.logAppEvent(ctx, created, argo.EventReasonResourceCreated, "created application", nil)
 		s.waitSync(created)
 		return created, nil
 	}
@@ -990,7 +990,7 @@ func (s *Server) waitSync(app *v1alpha1.Application) {
 }
 
 func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newApp *v1alpha1.Application, merge bool) (*v1alpha1.Application, error) {
-	diff, err := diffBetweenApplicationSpecs(&app.Spec, &newApp.Spec)
+	applicationPatch, err := diffBetweenApplicationSpecs(&app.Spec, &newApp.Spec)
 	if err != nil {
 		return nil, err
 	}
@@ -1008,7 +1008,9 @@ func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newAp
 
 		res, err := s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Update(ctx, app, metav1.UpdateOptions{})
 		if err == nil {
-			s.logAppEvent(ctx, app, argo.EventReasonResourceUpdated, "updated application spec: "+diff)
+			logFields := make(map[string]string)
+			logFields["patch"] = applicationPatch
+			s.logAppEvent(ctx, app, argo.EventReasonResourceUpdated, "updated application spec", logFields)
 			s.waitSync(res)
 			return res, nil
 		}
@@ -1210,7 +1212,7 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	if err != nil {
 		return nil, fmt.Errorf("error deleting application: %w", err)
 	}
-	s.logAppEvent(ctx, a, argo.EventReasonResourceDeleted, "deleted application")
+	s.logAppEvent(ctx, a, argo.EventReasonResourceDeleted, "deleted application", nil)
 	return &application.ApplicationResponse{}, nil
 }
 
@@ -1535,7 +1537,8 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 	if err != nil {
 		return nil, fmt.Errorf("erro marshaling manifest object: %w", err)
 	}
-	s.logAppEvent(ctx, a, argo.EventReasonResourceUpdated, fmt.Sprintf("patched resource %s/%s '%s'", q.GetGroup(), q.GetKind(), q.GetResourceName()))
+	message := fmt.Sprintf("patched resource %s/%s '%s'", q.GetGroup(), q.GetKind(), q.GetResourceName())
+	s.logAppEvent(ctx, a, argo.EventReasonResourceUpdated, message, nil)
 	m := string(data)
 	return &application.ApplicationResourceResponse{
 		Manifest: &m,
@@ -1575,7 +1578,8 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 	if err != nil {
 		return nil, fmt.Errorf("error deleting resource: %w", err)
 	}
-	s.logAppEvent(ctx, a, argo.EventReasonResourceDeleted, fmt.Sprintf("deleted resource %s/%s '%s'", q.GetGroup(), q.GetKind(), q.GetResourceName()))
+	message := fmt.Sprintf("deleted resource %s/%s '%s'", q.GetGroup(), q.GetKind(), q.GetResourceName())
+	s.logAppEvent(ctx, a, argo.EventReasonResourceDeleted, message, nil)
 	return &application.ApplicationResponse{}, nil
 }
 
@@ -2112,16 +2116,16 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if len(syncReq.Resources) > 0 {
 		partial = "partial "
 	}
-	var reason string
+	var action string
 	if a.Spec.HasMultipleSources() {
-		reason = fmt.Sprintf("initiated %ssync to %s", partial, strings.Join(displayRevisions, ","))
+		action = fmt.Sprintf("initiated %ssync to %s", partial, strings.Join(displayRevisions, ","))
 	} else {
-		reason = fmt.Sprintf("initiated %ssync to %s", partial, displayRevision)
+		action = fmt.Sprintf("initiated %ssync to %s", partial, displayRevision)
 	}
 	if syncReq.Manifests != nil {
-		reason = fmt.Sprintf("initiated %ssync locally", partial)
+		action = fmt.Sprintf("initiated %ssync locally", partial)
 	}
-	s.logAppEvent(ctx, a, argo.EventReasonOperationStarted, reason)
+	s.logAppEvent(ctx, a, argo.EventReasonOperationStarted, action, nil)
 	return a, nil
 }
 
@@ -2224,7 +2228,8 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	if err != nil {
 		return nil, fmt.Errorf("error setting app operation: %w", err)
 	}
-	s.logAppEvent(ctx, a, argo.EventReasonOperationStarted, fmt.Sprintf("initiated rollback to %d", rollbackReq.GetId()))
+	action := fmt.Sprintf("initiated rollback to %d", rollbackReq.GetId())
+	s.logAppEvent(ctx, a, argo.EventReasonOperationStarted, action, nil)
 	return a, nil
 }
 
@@ -2412,7 +2417,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		updated, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Update(ctx, a, metav1.UpdateOptions{})
 		if err == nil {
 			s.waitSync(updated)
-			s.logAppEvent(ctx, a, argo.EventReasonResourceUpdated, "terminated running operation")
+			s.logAppEvent(ctx, a, argo.EventReasonResourceUpdated, "terminated running operation", nil)
 			return &application.OperationTerminateResponse{}, nil
 		}
 		if !apierrors.IsConflict(err) {
@@ -2428,15 +2433,19 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 	return nil, status.Errorf(codes.Internal, "Failed to terminate app. Too many conflicts")
 }
 
-func (s *Server) logAppEvent(ctx context.Context, a *v1alpha1.Application, reason string, action string) {
+func (s *Server) logAppEvent(ctx context.Context, a *v1alpha1.Application, reason string, action string, logFields map[string]string) {
 	eventInfo := argo.EventInfo{Type: corev1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
+
+	if logFields == nil {
+		logFields = make(map[string]string)
+	}
 	eventLabels := argo.GetAppEventLabels(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db)
-	s.auditLogger.LogAppEvent(a, eventInfo, message, user, eventLabels)
+	s.auditLogger.LogAppEvent(a, eventInfo, message, user, eventLabels, logFields)
 }
 
 func (s *Server) logResourceEvent(ctx context.Context, res *v1alpha1.ResourceNode, reason string, action string) {
@@ -2626,9 +2635,11 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	}
 
 	if res == nil {
-		s.logAppEvent(ctx, a, argo.EventReasonResourceActionRan, "ran action "+q.GetAction())
+		action := "ran action " + q.GetAction()
+		s.logAppEvent(ctx, a, argo.EventReasonResourceActionRan, action, nil)
 	} else {
-		s.logAppEvent(ctx, a, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s on resource %s/%s/%s", q.GetAction(), res.Group, res.Kind, res.Name))
+		action := fmt.Sprintf("ran action %s on resource %s/%s/%s", q.GetAction(), res.Group, res.Kind, res.Name)
+		s.logAppEvent(ctx, a, argo.EventReasonResourceActionRan, action, nil)
 		s.logResourceEvent(ctx, res, argo.EventReasonResourceActionRan, "ran action "+q.GetAction())
 	}
 	return &application.ApplicationResponse{}, nil
