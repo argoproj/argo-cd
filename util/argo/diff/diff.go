@@ -368,11 +368,19 @@ func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unst
 		// Always calculate diff for custom resources to ensure field-level changes are detected
 		isCustomResource := config != nil && live != nil && config.GetAPIVersion() != live.GetAPIVersion()
 		var dr *diff.DiffResult
-		if !isCustomResource && cachedDiff, ok := diffByKey[key]; ok && cachedDiff.ResourceVersion == resourceVersion {
-			dr = &diff.DiffResult{
-				NormalizedLive: []byte(cachedDiff.NormalizedLiveState),
-				PredictedLive:  []byte(cachedDiff.PredictedLiveState),
-				Modified:       cachedDiff.Modified,
+		if !isCustomResource {
+			if cachedItem, ok := diffByKey[key]; ok && cachedItem.ResourceVersion == resourceVersion {
+				dr = &diff.DiffResult{
+					NormalizedLive: []byte(cachedItem.NormalizedLiveState),
+					PredictedLive:  []byte(cachedItem.PredictedLiveState),
+					Modified:       cachedItem.Modified,
+				}
+			} else {
+				res, err := diff.Diff(configArray[i], liveArray[i], opts...)
+				if err != nil {
+					return nil, err
+				}
+				dr = res
 			}
 		} else {
 			res, err := diff.Diff(configArray[i], liveArray[i], opts...)
