@@ -414,7 +414,7 @@ func TestGoogleCloudCreds_Environ_cleanup(t *testing.T) {
 func TestAzureWorkloadIdentityCreds_Environ(t *testing.T) {
 	store := &memoryCredsStore{creds: make(map[string]cred)}
 	workloadIdentityMock := new(mocks.TokenProvider)
-	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return("accessToken", nil)
+	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return(workloadidentity.Token{AccessToken: "accessToken"}, nil)
 	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
 	_, _, err := creds.Environ()
 	require.NoError(t, err)
@@ -429,7 +429,7 @@ func TestAzureWorkloadIdentityCreds_Environ(t *testing.T) {
 func TestAzureWorkloadIdentityCreds_Environ_cleanup(t *testing.T) {
 	store := &memoryCredsStore{creds: make(map[string]cred)}
 	workloadIdentityMock := new(mocks.TokenProvider)
-	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return("accessToken", nil)
+	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return(workloadidentity.Token{AccessToken: "accessToken"}, nil)
 	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
 	closer, _, err := creds.Environ()
 	require.NoError(t, err)
@@ -441,7 +441,7 @@ func TestAzureWorkloadIdentityCreds_Environ_cleanup(t *testing.T) {
 func TestAzureWorkloadIdentityCreds_GetUserInfo(t *testing.T) {
 	store := &memoryCredsStore{creds: make(map[string]cred)}
 	workloadIdentityMock := new(mocks.TokenProvider)
-	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return("accessToken", nil)
+	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return(workloadidentity.Token{AccessToken: "accessToken"}, nil)
 	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
 
 	user, email, err := creds.GetUserInfo(t.Context())

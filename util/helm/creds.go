@@ -146,6 +146,8 @@ func (creds AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
 		return "", fmt.Errorf("failed to get Azure access token after challenge: %w", err)
 	}
 
+	// Azure Container Registry does not provide expires_on in the response
+	// so we set a default expiration time of 10 minutes
 	storeAzureToken(key, token, 10*time.Minute)
 	return token, nil
 }
@@ -176,7 +178,7 @@ func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams
 	formValues := url.Values{}
 	formValues.Add("grant_type", "access_token")
 	formValues.Add("service", service)
-	formValues.Add("access_token", armAccessToken)
+	formValues.Add("access_token", armAccessToken.AccessToken)
 
 	resp, err := client.PostForm(refreshTokenURL, formValues)
 	if err != nil {

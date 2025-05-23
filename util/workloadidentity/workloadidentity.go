@@ -2,6 +2,7 @@ package workloadidentity
 
 import (
 	"context"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
@@ -12,8 +13,13 @@ const (
 	EmptyGuid = "00000000-0000-0000-0000-000000000000" //nolint:revive //FIXME(var-naming)
 )
 
+type Token struct {
+	AccessToken string
+	ExpiresOn   time.Time
+}
+
 type TokenProvider interface {
-	GetToken(scope string) (string, error)
+	GetToken(scope string) (Token, error)
 }
 
 type WorkloadIdentityTokenProvider struct {
@@ -29,17 +35,17 @@ func NewWorkloadIdentityTokenProvider() TokenProvider {
 	return WorkloadIdentityTokenProvider{tokenCredential: cred}
 }
 
-func (c WorkloadIdentityTokenProvider) GetToken(scope string) (string, error) {
+func (c WorkloadIdentityTokenProvider) GetToken(scope string) (Token, error) {
 	if initError != nil {
-		return "", initError
+		return Token{}, initError
 	}
 
 	token, err := c.tokenCredential.GetToken(context.Background(), policy.TokenRequestOptions{
 		Scopes: []string{scope},
 	})
 	if err != nil {
-		return "", err
+		return Token{}, err
 	}
 
-	return token.Token, nil
+	return Token{AccessToken: token.Token, ExpiresOn: token.ExpiresOn}, nil
 }
