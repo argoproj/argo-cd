@@ -106,7 +106,7 @@ func TestLogAppEvent(t *testing.T) {
 	}
 
 	output := captureLogEntries(func() {
-		logger.LogAppEvent(&app, ei, "This is a test message", "", nil)
+		logger.LogAppEvent(&app, ei, "This is a test message", "", nil, nil)
 	})
 
 	assert.Contains(t, output, "level=info")
@@ -121,7 +121,7 @@ func TestLogAppEvent(t *testing.T) {
 
 	// If K8s Event Disable Log
 	output = captureLogEntries(func() {
-		logger.LogAppEvent(&app, ei, "This is a test message", "", nil)
+		logger.LogAppEvent(&app, ei, "This is a test message", "", nil, nil)
 	})
 
 	assert.Empty(t, output)
