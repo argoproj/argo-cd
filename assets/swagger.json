@@ -6493,6 +6493,24 @@
         }
       }
     },
+    "v1alpha1AppHealthStatus": {
+      "type": "object",
+      "title": "AppHealthStatus contains information about the currently observed health state of an application",
+      "properties": {
+        "lastTransitionTime": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "message": {
+          "description": "Deprecated: this field is not used and will be removed in a future release.",
+          "type": "string",
+          "title": "Message is a human-readable informational message describing the health status"
+        },
+        "status": {
+          "type": "string",
+          "title": "Status holds the status code of the application"
+        }
+      }
+    },
     "v1alpha1AppProject": {
       "type": "object",
       "title": "AppProject provides a logical grouping of applications, providing controls for:\n* where the apps may deploy to (cluster whitelist)\n* what may be deployed (repository whitelist, resource whitelist/blacklist)\n* who can access these applications (roles, OIDC group claims bindings)\n* and what they can do (RBAC policies)\n* automation access to these roles (JWT tokens)\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=appprojects,shortName=appproj;appprojs",
@@ -7489,7 +7507,7 @@
           "title": "ControllerNamespace indicates the namespace in which the application controller is located"
         },
         "health": {
-          "$ref": "#/definitions/v1alpha1HealthStatus"
+          "$ref": "#/definitions/v1alpha1AppHealthStatus"
         },
         "history": {
           "type": "array",
@@ -8042,6 +8060,9 @@
     "v1alpha1GitFileGeneratorItem": {
       "type": "object",
       "properties": {
+        "exclude": {
+          "type": "boolean"
+        },
         "path": {
           "type": "string"
         }
@@ -8134,7 +8155,7 @@
     },
     "v1alpha1HealthStatus": {
       "type": "object",
-      "title": "HealthStatus contains information about the currently observed health state of an application or resource",
+      "title": "HealthStatus contains information about the currently observed health state of a resource",
       "properties": {
         "lastTransitionTime": {
           "$ref": "#/definitions/v1Time"
@@ -8145,7 +8166,7 @@
         },
         "status": {
           "type": "string",
-          "title": "Status holds the status code of the application or resource"
+          "title": "Status holds the status code of the resource"
         }
       }
     },
@@ -8891,8 +8912,8 @@
           "type": "string"
         },
         "pullRequestState": {
-          "type": "string",
-          "title": "PullRequestState is an additional MRs filter to get only those with a certain state. Default: \"\" (all states)"
+          "description": "PullRequestState is an additional MRs filter to get only those with a certain state. Default: \"\" (all states).\nValid values: opened, closed, merged, locked\".",
+          "type": "string"
         },
         "tokenRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"
