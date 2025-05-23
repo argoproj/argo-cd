@@ -23,17 +23,13 @@ func NewGithubService(token, url, owner, repo string, labels []string) (PullRequ
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
 	}
-	httpClient := &http.Client{}
-	var client *github.Client
-	if url == "" {
-		if token == "" {
-			client = github.NewClient(httpClient)
-		} else {
-			client = github.NewClient(httpClient).WithAuthToken(token)
-		}
-	} else {
+	client := github.NewClient(&http.Client{})
+	if token != "" {
+		client = client.WithAuthToken(token)
+	}
+	if url != "" {
 		var err error
-		client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)
+		client, err = client.WithEnterpriseURLs(url, url)
 		if err != nil {
 			return nil, err
 		}
