@@ -5,7 +5,7 @@ import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
-import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
+import {bufferTime, filter, map, mergeMap} from 'rxjs/operators';
 import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query, Spinner} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -26,7 +26,6 @@ import './applications-list.scss';
 import './flex-top-bar.scss';
 
 const EVENTS_BUFFER_TIMEOUT = 500;
-const WATCH_RETRY_TIMEOUT = 500;
 
 // The applications list/watch API supports only selected set of fields.
 // Make sure to register any new fields in the `appFields` map of `pkg/apiclient/application/forwarder_overwrite.go`.
@@ -59,30 +58,35 @@ function loadApplications(projects: string[], appNamespace: string): Observable<
                 from([applications]),
                 services.applications
                     .watch({projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
-                    .pipe(repeat())
-                    .pipe(retryWhen(errors => errors.pipe(delay(WATCH_RETRY_TIMEOUT))))
                     // batch events to avoid constant re-rendering and improve UI performance
                     .pipe(bufferTime(EVENTS_BUFFER_TIMEOUT))
                     .pipe(
                         map(appChanges => {
+                            if (appChanges.length === 0) {
+                                return {applications, updated: false};
+                            }
+
+                            // Create a copy of the applications array to avoid mutating the original
+                            const updatedApplications = [...applications];
+
                             appChanges.forEach(appChange => {
-                                const index = applications.findIndex(item => AppUtils.appInstanceName(item) === AppUtils.appInstanceName(appChange.application));
+                                const index = updatedApplications.findIndex(item => AppUtils.appInstanceName(item) === AppUtils.appInstanceName(appChange.application));
                                 switch (appChange.type) {
                                     case 'DELETED':
                                         if (index > -1) {
-                                            applications.splice(index, 1);
+                                            updatedApplications.splice(index, 1);
                                         }
                                         break;
                                     default:
                                         if (index > -1) {
-                                            applications[index] = appChange.application;
+                                            updatedApplications[index] = appChange.application;
                                         } else {
-                                            applications.unshift(appChange.application);
+                                            updatedApplications.unshift(appChange.application);
                                         }
                                         break;
                                 }
                             });
-                            return {applications, updated: appChanges.length > 0};
+                            return {applications: updatedApplications, updated: true};
                         })
                     )
                     .pipe(filter(item => item.updated))
