@@ -743,7 +743,7 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 		return "", fmt.Errorf("failed to get Azure access token: %w", err)
 	}
 
-	cacheExpiry := token.ExpiresOn.Sub(time.Now()) - time.Minute*5
+	cacheExpiry := time.Until(token.ExpiresOn) - time.Minute*5
 
 	// If token exires in negative time, cache will never expire
 	// If expiry is 0 then default cache expiry is used.

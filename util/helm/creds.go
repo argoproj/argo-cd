@@ -152,7 +152,7 @@ func (creds AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
 		tokenExpiry = time.Now()
 	}
 
-	cacheExpiry := tokenExpiry.Sub(time.Now()) - time.Minute*5
+	cacheExpiry := time.Until(tokenExpiry) - time.Minute*5
 
 	// If token exires in negative time, cache will never expire
 	// If expiry is 0 then default cache expiry is used.
