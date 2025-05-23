@@ -11,7 +11,7 @@
     "test": "jest"
   },
   "dependencies": {
-    "@fortawesome/fontawesome-free": "^6.5.2",
+    "@fortawesome/fontawesome-free": "^6.7.2",
     "@types/react-virtualized": "^9.21.21",
     "@types/superagent": "^8.1.6",
     "ansi-to-react": "^6.1.6",
@@ -116,7 +116,7 @@
     "sass": "^1.49.9",
     "sass-loader": "^14.2.1",
     "source-map-loader": "^0.2.3",
-    "style-loader": "^0.20.1",
+    "style-loader": "^1",
     "ts-jest": "^29.1.2",
     "ts-node": "10.9.2",
     "typescript": "^4.9.5",
