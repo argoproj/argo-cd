@@ -146,8 +146,7 @@ func (creds AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
 		return "", fmt.Errorf("failed to get Azure access token after challenge: %w", err)
 	}
 
-	// Access token has a lifetime of 3 hours
-	storeAzureToken(key, token, 2*time.Hour)
+	storeAzureToken(key, token, 10*time.Minute)
 	return token, nil
 }
 

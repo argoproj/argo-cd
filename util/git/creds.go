@@ -743,7 +743,7 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 		return "", fmt.Errorf("failed to get Azure access token: %w", err)
 	}
 
-	azureTokenCache.Set(key, token, 2*time.Hour)
+	azureTokenCache.Set(key, token, 10*time.Minute)
 	return token, nil
 }
 
