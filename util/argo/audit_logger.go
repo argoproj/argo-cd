@@ -45,7 +45,7 @@ const (
 	EventReasonOperationCompleted = "OperationCompleted"
 )
 
-func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, info EventInfo, message string, logFields map[string]string, eventLabels map[string]string) {
+func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, info EventInfo, message string, eventLabels, eventAnnotations, logFields map[string]string) {
 	logCtx := log.WithFields(log.Fields{
 		"type":   info.Type,
 		"reason": info.Reason,
@@ -67,7 +67,7 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        fmt.Sprintf("%v.%x", objMeta.Name, t.UnixNano()),
 			Labels:      eventLabels,
-			Annotations: logFields,
+			Annotations: eventAnnotations,
 		},
 		Source: corev1.EventSource{
 			Component: l.component,
@@ -99,7 +99,7 @@ func (l *AuditLogger) enableK8SEventLog(info EventInfo) bool {
 	return l.enableEventLog["all"] || l.enableEventLog[info.Reason]
 }
 
-func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info EventInfo, message, user string, eventLabels map[string]string) {
+func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info EventInfo, message, user string, eventLabels, logFields map[string]string) {
 	if !l.enableK8SEventLog(info) {
 		return
 	}
@@ -110,14 +110,19 @@ func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info EventInfo, mes
 		ResourceVersion: app.ResourceVersion,
 		UID:             app.UID,
 	}
-	fields := map[string]string{
-		"dest-server":    app.Spec.Destination.Server,
-		"dest-namespace": app.Spec.Destination.Namespace,
-	}
+	logFields["dest-server"] = app.Spec.Destination.Server
+	logFields["dest-namespace"] = app.Spec.Destination.Namespace
 	if user != "" {
-		fields["user"] = user
+		logFields["user"] = user
 	}
-	l.logEvent(objectMeta, v1alpha1.ApplicationSchemaGroupVersionKind, info, message, fields, eventLabels)
+
+	eventAnnotations := make(map[string]string)
+	eventAnnotations["dest-namespace"] = app.Spec.Destination.Server
+	eventAnnotations["dest-server"] = app.Spec.Destination.Server
+	if user != "" {
+		logFields["user"] = user
+	}
+	l.logEvent(objectMeta, v1alpha1.ApplicationSchemaGroupVersionKind, info, message, eventLabels, eventAnnotations, logFields)
 }
 
 func (l *AuditLogger) LogAppSetEvent(app *v1alpha1.ApplicationSet, info EventInfo, message, user string) {
@@ -131,11 +136,11 @@ func (l *AuditLogger) LogAppSetEvent(app *v1alpha1.ApplicationSet, info EventInf
 		ResourceVersion: app.ResourceVersion,
 		UID:             app.UID,
 	}
-	fields := map[string]string{}
+	eventLabels := map[string]string{}
 	if user != "" {
-		fields["user"] = user
+		eventLabels["user"] = user
 	}
-	l.logEvent(objectMeta, v1alpha1.ApplicationSetSchemaGroupVersionKind, info, message, fields, nil)
+	l.logEvent(objectMeta, v1alpha1.ApplicationSetSchemaGroupVersionKind, info, message, eventLabels, nil, nil)
 }
 
 func (l *AuditLogger) LogResourceEvent(res *v1alpha1.ResourceNode, info EventInfo, message, user string) {
@@ -149,15 +154,15 @@ func (l *AuditLogger) LogResourceEvent(res *v1alpha1.ResourceNode, info EventInf
 		ResourceVersion: res.Version,
 		UID:             types.UID(res.UID),
 	}
-	fields := map[string]string{}
+	eventLabels := map[string]string{}
 	if user != "" {
-		fields["user"] = user
+		eventLabels["user"] = user
 	}
 	l.logEvent(objectMeta, schema.GroupVersionKind{
 		Group:   res.Group,
 		Version: res.Version,
 		Kind:    res.Kind,
-	}, info, message, fields, nil)
+	}, info, message, eventLabels, nil, nil)
 }
 
 func (l *AuditLogger) LogAppProjEvent(proj *v1alpha1.AppProject, info EventInfo, message, user string) {
@@ -171,11 +176,11 @@ func (l *AuditLogger) LogAppProjEvent(proj *v1alpha1.AppProject, info EventInfo,
 		ResourceVersion: proj.ResourceVersion,
 		UID:             proj.UID,
 	}
-	fields := map[string]string{}
+	eventLabels := map[string]string{}
 	if user != "" {
-		fields["user"] = user
+		eventLabels["user"] = user
 	}
-	l.logEvent(objectMeta, v1alpha1.AppProjectSchemaGroupVersionKind, info, message, nil, nil)
+	l.logEvent(objectMeta, v1alpha1.AppProjectSchemaGroupVersionKind, info, message, eventLabels, nil, nil)
 }
 
 func NewAuditLogger(kIf kubernetes.Interface, component string, enableK8sEvent []string) *AuditLogger {
