@@ -364,8 +364,11 @@ func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unst
 		} else {
 			key = kube.GetResourceKey(config)
 		}
+
+		// Always calculate diff for custom resources to ensure field-level changes are detected
+		isCustomResource := config != nil && live != nil && config.GetAPIVersion() != live.GetAPIVersion()
 		var dr *diff.DiffResult
-		if cachedDiff, ok := diffByKey[key]; ok && cachedDiff.ResourceVersion == resourceVersion {
+		if !isCustomResource && cachedDiff, ok := diffByKey[key]; ok && cachedDiff.ResourceVersion == resourceVersion {
 			dr = &diff.DiffResult{
 				NormalizedLive: []byte(cachedDiff.NormalizedLiveState),
 				PredictedLive:  []byte(cachedDiff.PredictedLiveState),
@@ -378,6 +381,7 @@ func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unst
 			}
 			dr = res
 		}
+
 		if dr != nil {
 			diffResultList.Diffs[i] = *dr
 			if dr.Modified {
