@@ -65,7 +65,7 @@ func init() {
 	githubAppTokenCache = gocache.New(githubAppCredsExp, 1*time.Minute)
 	// oauth2.TokenSource handles fetching new Tokens once they are expired. The oauth2.TokenSource itself does not expire.
 	googleCloudTokenSource = gocache.New(gocache.NoExpiration, 0)
-	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
+	azureTokenCache = gocache.New(10*time.Minute, 0)
 }
 
 type NoopCredsStore struct{}
@@ -735,7 +735,7 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 
 	t, found := azureTokenCache.Get(key)
 	if found {
-		return t.(string), nil
+		return t.(workloadidentity.Token).AccessToken, nil
 	}
 
 	token, err := creds.tokenProvider.GetToken(scope)
@@ -743,11 +743,24 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 		return "", fmt.Errorf("failed to get Azure access token: %w", err)
 	}
 
-	azureTokenCache.Set(key, token, 2*time.Hour)
-	return token, nil
+	cacheExpiry := time.Until(token.ExpiresOn) - time.Minute*5
+
+	// If token exires in negative time, cache will never expire
+	// If expiry is 0 then default cache expiry is used.
+	if cacheExpiry <= 0 {
+		cacheExpiry = time.Second
+	}
+
+	// Cache the token for 5 minutes before it expires
+	azureTokenCache.Set(key, token, cacheExpiry)
+	return token.AccessToken, nil
 }
 
 func (creds AzureWorkloadIdentityCreds) GetAzureDevOpsAccessToken() (string, error) {
 	accessToken, err := creds.getAccessToken(azureDevopsEntraResourceId) // wellknown resourceid of Azure DevOps
 	return accessToken, err
+}
+
+func resetAzureTokenCache() {
+	azureTokenCache = gocache.New(10*time.Minute, 0)
 }
