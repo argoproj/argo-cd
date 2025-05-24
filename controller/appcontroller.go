@@ -1596,6 +1596,7 @@ func (ctrl *ApplicationController) PatchAppWithWriteBack(ctx context.Context, na
 func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext bool) {
 	patchDuration := time.Duration(0) // time spent in doing patch/update calls
 	setOpDuration := time.Duration(0) // time spent in doing Operation patch calls in autosync
+	var err error
 	appKey, shutdown := ctrl.appRefreshQueue.Get()
 	if shutdown {
 		processNext = false
@@ -1668,6 +1669,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 					}
 				}
 
+				if err == nil {
+					ctrl.updateRefreshStatus(app, refreshType)
+				}
 				patchDuration = ctrl.persistAppStatus(origApp, &app.Status)
 				return
 			}
@@ -1789,6 +1793,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	app.Status.SourceType = compareResult.appSourceType
 	app.Status.SourceTypes = compareResult.appSourceTypes
 	app.Status.ControllerNamespace = ctrl.namespace
+	if err == nil {
+		ctrl.updateRefreshStatus(app, refreshType)
+	}
 	ts.AddCheckpoint("app_status_update_ms")
 	patchDuration = ctrl.persistAppStatus(origApp, &app.Status)
 	// This is a partly a duplicate of patch_ms, but more descriptive and allows to have measurement for the next step.
@@ -1809,6 +1816,14 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 	ts.AddCheckpoint("process_finalizers_ms")
 	return
+}
+
+func (ctrl *ApplicationController) updateRefreshStatus(app *appv1.Application, refreshType appv1.RefreshType) {
+	now := metav1.Now()
+	app.Status.RefreshStatus = appv1.RefreshStatus{
+		LastTransitionTime: &now,
+		RefreshType:        refreshType,
+	}
 }
 
 func (ctrl *ApplicationController) processAppHydrateQueueItem() (processNext bool) {

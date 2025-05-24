@@ -4721,6 +4721,20 @@ spec:
                   reconciled using the latest git version
                 format: date-time
                 type: string
+              refreshStatus:
+                description: RefreshStatus contains information about the currently
+                  observed refresh state of an application
+                properties:
+                  lastTransitionTime:
+                    description: LastTransitionTime indicates the last time the application
+                      was refreshed from the source
+                    format: date-time
+                    type: string
+                  refreshType:
+                    description: RefreshType indicates the type of refresh that was
+                      performed
+                    type: string
+                type: object
               resourceHealthSource:
                 description: 'ResourceHealthSource indicates where the resource health
                   status is stored: inline if not set or appTree'

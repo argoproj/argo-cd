@@ -7525,6 +7525,9 @@
         "reconciledAt": {
           "$ref": "#/definitions/v1Time"
         },
+        "refreshStatus": {
+          "$ref": "#/definitions/v1alpha1RefreshStatus"
+        },
         "resourceHealthSource": {
           "type": "string",
           "title": "ResourceHealthSource indicates where the resource health status is stored: inline if not set or appTree"
@@ -8981,6 +8984,19 @@
         },
         "tokenRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"
+        }
+      }
+    },
+    "v1alpha1RefreshStatus": {
+      "type": "object",
+      "title": "RefreshStatus contains information about the currently observed refresh state of an application",
+      "properties": {
+        "lastTransitionTime": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "refreshType": {
+          "type": "string",
+          "title": "RefreshType indicates the type of refresh that was performed"
         }
       }
     },

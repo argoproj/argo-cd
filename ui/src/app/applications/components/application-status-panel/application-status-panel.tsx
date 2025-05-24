@@ -272,6 +272,16 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                         <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                             {appOperationState.phase} <Timestamp date={appOperationState.finishedAt || appOperationState.startedAt} />
                         </div>
+                        <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
+                            Last Refresh:{' '}
+                            {application.status.refreshStatus ? (
+                                <>
+                                    <Timestamp date={application.status.refreshStatus.lastTransitionTime} /> ({application.status.refreshStatus.refreshType})
+                                </>
+                            ) : (
+                                'Unknown'
+                            )}
+                        </div>
                         {(appOperationState.syncResult && operationStateRevision && (
                             <RevisionMetadataPanel
                                 appName={application.metadata.name}

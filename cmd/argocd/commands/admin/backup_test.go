@@ -221,6 +221,7 @@ spec:
     repoURL: ""
 status:
   health: {}
+  refreshStatus: {}
   sourceHydrator: {}
   summary: {}
   sync:
@@ -252,6 +253,7 @@ spec:
     repoURL: ""
 status:
   health: {}
+  refreshStatus: {}
   sourceHydrator: {}
   summary: {}
   sync:
