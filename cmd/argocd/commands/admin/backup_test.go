@@ -180,8 +180,8 @@ func Test_exportResources(t *testing.T) {
 			name:         "ConfigMap should be in the exported manifest",
 			object:       newConfigmapObject(),
 			expectExport: true,
-			expectedFileContent: `apiVersion: ""
-kind: ""
+			expectedFileContent: `apiVersion: v1
+kind: ConfigMap
 metadata:
   labels:
     app.kubernetes.io/part-of: argocd
@@ -193,11 +193,11 @@ metadata:
 			name:         "Secret should be in the exported manifest",
 			object:       newSecretsObject(),
 			expectExport: true,
-			expectedFileContent: `apiVersion: ""
+			expectedFileContent: `apiVersion: v1
 data:
   admin.password: null
   server.secretkey: null
-kind: ""
+kind: Secret
 metadata:
   labels:
     app.kubernetes.io/part-of: argocd
@@ -210,8 +210,8 @@ metadata:
 			name:         "App Project should be in the exported manifest",
 			object:       newAppProject(),
 			expectExport: true,
-			expectedFileContent: `apiVersion: ""
-kind: ""
+			expectedFileContent: `apiVersion: v1
+kind: AppProject
 metadata:
   name: default
 spec:
@@ -232,7 +232,7 @@ status: {}
 			object:       newApplication("argocd"),
 			namespace:    "argocd",
 			expectExport: true,
-			expectedFileContent: `apiVersion: ""
+			expectedFileContent: `apiVersion: v1
 kind: Application
 metadata:
   name: test
@@ -262,7 +262,7 @@ status:
 			namespace:         "dev",
 			enabledNamespaces: []string{"dev", "prod"},
 			expectExport:      true,
-			expectedFileContent: `apiVersion: ""
+			expectedFileContent: `apiVersion: v1
 kind: Application
 metadata:
   name: test
@@ -300,7 +300,7 @@ status:
 			object:       newApplicationSet("argocd"),
 			namespace:    "argocd",
 			expectExport: true,
-			expectedFileContent: `apiVersion: ""
+			expectedFileContent: `apiVersion: v1
 kind: ApplicationSet
 metadata:
   name: test-appset
@@ -329,7 +329,7 @@ status: {}
 			namespace:         "dev",
 			enabledNamespaces: []string{"dev", "prod"},
 			expectExport:      true,
-			expectedFileContent: `apiVersion: ""
+			expectedFileContent: `apiVersion: v1
 kind: ApplicationSet
 metadata:
   name: test-appset
