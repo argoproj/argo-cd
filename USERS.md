@@ -344,11 +344,13 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Sumo Logic](https://sumologic.com/)
 1. [Sutpc](http://www.sutpc.com/)
 1. [Swiss Post](https://github.com/swisspost)
+1. [Swissblock Technologies](https://swissblock.net/)
 1. [Swisscom](https://www.swisscom.ch)
 1. [Swissquote](https://github.com/swissquote)
 1. [Syncier](https://syncier.com/)
 1. [Synergy](https://synergy.net.au)
 1. [Syself](https://syself.com)
+1. [T-ROC Global](https://trocglobal.com/)
 1. [TableCheck](https://tablecheck.com/)
 1. [Tailor Brands](https://www.tailorbrands.com)
 1. [Tamkeen Technologies](https://tamkeentech.sa/)
@@ -411,5 +413,3 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Zimpler](https://www.zimpler.com/)
 1. [ZipRecruiter](https://www.ziprecruiter.com/)
 1. [ZOZO](https://corp.zozo.com/)
-
-
