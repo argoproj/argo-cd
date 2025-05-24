@@ -2254,7 +2254,7 @@ func (in *HostInfo) DeepCopyInto(out *HostInfo) {
 		*out = make([]HostResourceInfo, len(*in))
 		copy(*out, *in)
 	}
-	out.SystemInfo = in.SystemInfo
+	in.SystemInfo.DeepCopyInto(&out.SystemInfo)
 	return
 }
 
