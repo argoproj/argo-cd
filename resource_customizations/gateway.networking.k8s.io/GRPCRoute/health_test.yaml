@@ -15,3 +15,11 @@ tests:
     status: Progressing
     message: "Parent example-gateway: Route is still being programmed"
   inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: "Parent example-gateway: Failed condition: ResolvedRefs"
+  inputPath: testdata/degraded_no_message.yaml
+- healthStatus:
+    status: Degraded
+    message: "Parent : BackendRef service-does-not-exist not found"
+  inputPath: testdata/degraded_no_parent_name.yaml
