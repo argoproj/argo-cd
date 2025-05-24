@@ -31,6 +31,6 @@ status:
     - lastTransitionTime: '2025-02-17T21:37:41Z'
       message: ReplicaSet "simple-spinapp-c54f5bdb4" has successfully progressed.
       reason: NewReplicaSetAvailable
-      status: 'True'
+      status: 'False'
       type: Progressing
   readyReplicas: 2

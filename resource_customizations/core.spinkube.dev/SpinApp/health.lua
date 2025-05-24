@@ -2,8 +2,8 @@ hs = {}
 
 -- Check if status exists
 if not obj.status then
-  hs.status = "Degraded"
-  hs.message = "No status available"
+  hs.status = "Progressing"
+  hs.message = "Waiting for status to be available"
   return hs
 end
 
@@ -13,15 +13,30 @@ local progressing = false
 local availableMessage = ""
 local progressingMessage = ""
 
--- Check conditions
+-- Check conditions - prioritize failure conditions first
 if obj.status.conditions then
   for _, condition in ipairs(obj.status.conditions) do
-    if condition.type == "Available" then
-      available = condition.status == "True"
-      availableMessage = condition.message or "Application availability status"
-    elseif condition.type == "Progressing" then
-      progressing = condition.status == "True"
-      progressingMessage = condition.message or "Application progress status"
+    if condition.type == "Progressing" then
+      -- Check for timeout or failure in progressing condition first
+      if condition.status == "False" and (condition.reason == "ProgressDeadlineExceeded" or string.find(string.lower(condition.message or ""), "timeout") or string.find(string.lower(condition.message or ""), "failed")) then
+        hs.status = "Degraded"
+        hs.message = condition.message or "Application deployment has failed"
+        return hs
+      end
+      -- If progressing is true, mark it (any progressing=true condition wins)
+      if condition.status == "True" then
+        progressing = true
+        progressingMessage = condition.message or "Application progress status"
+      end
+    elseif condition.type == "Available" then
+      -- For available, we want all to be true, so any false condition wins
+      if condition.status == "True" then
+        available = true
+        availableMessage = condition.message or "Application availability status"
+      else
+        available = false
+        availableMessage = condition.message or "Application is not available"
+      end
     end
   end
 end
