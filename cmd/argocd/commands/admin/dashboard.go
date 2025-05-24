@@ -2,6 +2,9 @@ package admin
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
@@ -25,7 +28,10 @@ func NewDashboardCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 		Use:   "dashboard",
 		Short: "Starts Argo CD Web UI locally",
 		Run: func(cmd *cobra.Command, _ []string) {
-			ctx := cmd.Context()
+			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+			defer stop()
+
+			cmd.SetContext(ctx)
 
 			clientOpts.Core = true
 			errors.CheckError(headless.MaybeStartLocalServer(ctx, clientOpts, initialize.RetrieveContextIfChanged(cmd.Flag("context")), &port, &address, clientConfig))
