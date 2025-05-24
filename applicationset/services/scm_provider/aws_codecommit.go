@@ -4,22 +4,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	pathpkg "path"
 	"path/filepath"
+	"slices"
 	"strings"
-
-	"github.com/aws/aws-sdk-go/aws/request"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/codecommit"
 	"github.com/aws/aws-sdk-go/service/resourcegroupstaggingapi"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/exp/maps"
-	"k8s.io/utils/strings/slices"
 
 	application "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -299,7 +298,7 @@ func (p *AWSCodeCommitProvider) getTagFilters() []*resourcegroupstaggingapi.TagF
 			filter.Values = append(filter.Values, aws.String(tagFilter.Value))
 		}
 	}
-	return maps.Values(filters)
+	return slices.Collect(maps.Values(filters))
 }
 
 func getCodeCommitRepoName(repoArn string) (string, error) {
