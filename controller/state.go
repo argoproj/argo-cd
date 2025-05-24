@@ -126,7 +126,7 @@ type appStateManager struct {
 // GetRepoObjs will generate the manifests for the given application delegating the
 // task to the repo-server. It returns the list of generated manifests as unstructured
 // objects. It also returns the full response from all calls to the repo server as the
-// second argument.
+// second return value.
 func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, rollback, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error) {
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
@@ -517,8 +517,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	ts.AddCheckpoint("settings_ms")
 
-	// return unknown comparison result if basic comparison settings cannot be loaded
 	if err != nil {
+		log.Infof("Basic comparison settings cannot be loaded, using unknown comparison: %s", err.Error())
 		if hasMultipleSources {
 			return &comparisonResult{
 				syncStatus: &v1alpha1.SyncStatus{
