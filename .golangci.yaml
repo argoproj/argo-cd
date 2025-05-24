@@ -15,6 +15,7 @@ issues:
 
 linters:
   enable:
+    - exptostd
     - errorlint
     - gocritic
     - gomodguard
