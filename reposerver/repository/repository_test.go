@@ -4266,6 +4266,8 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 			require.NoError(t, err)
 			err = os.RemoveAll("testdata/helm-with-local-dependency/charts")
 			require.NoError(t, err)
+			err = os.Remove(path.Join("testdata/helm-with-local-dependency", helmDepUpMarkerFile))
+			require.NoError(t, err)
 		})
 
 		service := newService(t, "testdata/helm-with-local-dependency")
