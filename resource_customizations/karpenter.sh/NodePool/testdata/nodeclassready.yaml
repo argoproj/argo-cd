@@ -34,7 +34,3 @@ status:
       reason: NodeClassNotFound
       status: 'False'
       type: NodeClassReady
-    - message: NodePool is not ready
-      reason: UnhealthyDependents
-      status: 'False'
-      type: Ready

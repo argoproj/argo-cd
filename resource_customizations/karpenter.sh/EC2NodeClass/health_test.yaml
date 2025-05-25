@@ -5,6 +5,10 @@ tests:
     inputPath: testdata/progressing.yaml
   - healthStatus:
       status: Degraded
+      message: 'EC2NodeClass is not ready'
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Degraded
       message: 'SubnetSelector did not match any Subnets'
     inputPath: testdata/subnetsready.yaml
   - healthStatus:

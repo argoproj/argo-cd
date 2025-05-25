@@ -34,7 +34,7 @@ spec:
     karpenter.sh/discovery: cluster
 status:
   conditions:
-    - message: ValidationSucceeded=False, SecurityGroupsReady=False, SubnetsReady=False, InstanceProfileReady=Unknown
-      reason: UnhealthyDependents
-      status: "False"
+    - message: EC2NodeClass is not ready
+      reason: NotReady
+      status: 'False'
       type: Ready
