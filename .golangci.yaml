@@ -15,6 +15,7 @@ issues:
 
 linters:
   enable:
+    - exptostd
     - errorlint
     - gocritic
     - gomodguard
@@ -97,6 +98,9 @@ linters:
 
         - pkg: errors
           alias: stderrors
+
+        - pkg: github.com/argoproj/argo-cd/v3/util/io
+          alias: utilio
 
     nolintlint:
       require-specific: true
