@@ -32,5 +32,5 @@ status:
   conditions:
     - message: NodeClass not found on cluster
       reason: NodeClassNotFound
-      status: 'False'
+      status: "False"
       type: NodeClassReady

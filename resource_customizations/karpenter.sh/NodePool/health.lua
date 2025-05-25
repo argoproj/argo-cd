@@ -7,17 +7,12 @@ if obj.status ~= nil then
         hs.message = condition.message
         return hs
       end
-      if condition.type == "NodeClassNotFound" and condition.status == "True" then
+      if condition.type == "NodeClassReady" and condition.status == "False" then
         hs.status = "Degraded"
         hs.message = condition.message
         return hs
       end
       if condition.type == "Ready" and condition.status == "True" then
-        hs.status = "Healthy"
-        hs.message = condition.message
-        return hs
-      end
-      if condition.type == "NodeClassReady" and condition.status == "True" then
         hs.status = "Healthy"
         hs.message = condition.message
         return hs

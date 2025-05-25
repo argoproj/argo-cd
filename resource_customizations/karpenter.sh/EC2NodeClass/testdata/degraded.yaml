@@ -36,5 +36,5 @@ status:
   conditions:
     - message: EC2NodeClass is not ready
       reason: NotReady
-      status: 'False'
+      status: "False"
       type: Ready
