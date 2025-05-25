@@ -24,7 +24,7 @@ if obj.status ~= nil then
       end
       if condition.type == "Ready" and condition.status == "True" then
         hs.status = "Healthy"
-        hs.message = condition.message
+        hs.message = "EC2NodeClass is ready"
         return hs
       end
     end
