@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: NodeClassReady
+    message: "Underlying nodeClass is ready"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: ValidationSucceeded
+    message: "NodePool CRD validation succeeded"
+  inputPath: testdata/unknown.yaml
+- healthStatus:
+    status: Ready
+    message: "Top level condition that indicates if the nodePool is ready. This condition will not be true until all the other conditions on nodePool are true"
+  inputPath: testdata/healthy.yaml
