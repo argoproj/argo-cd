@@ -30,15 +30,7 @@ spec:
             - 2xlarge
 status:
   conditions:
-    - message: NodePool CRD validation succeeded
-      reason: ValidationSucceeded
-      status: 'True'
-      type: ValidationSucceeded
-    - message: Underlying nodeClass is ready
-      reason: NodeClassReady
-      status: 'True'
-      type: NodeClassReady
-    - message: Top level condition that indicates if the nodePool is ready. This condition will not be true until all the other conditions on nodePool are true
+    - message: NodeClass is ready
       reason: Ready
-      status: 'True'
+      status: "True"
       type: Ready

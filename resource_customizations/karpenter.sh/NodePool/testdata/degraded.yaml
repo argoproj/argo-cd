@@ -30,11 +30,7 @@ spec:
             - 2xlarge1
 status:
   conditions:
-    - message: NodeClass not found on cluster
-      reason: NodeClassNotFound
-      status: 'False'
-      type: NodeClassReady
     - message: NodePool is not ready
-      reason: UnhealthyDependents
-      status: 'False'
+      reason: NotReady
+      status: "False"
       type: Ready

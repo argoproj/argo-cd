@@ -34,7 +34,7 @@ spec:
     karpenter.sh/discovery: cluster
 status:
   conditions:
-    - message: 'EC2NodeClassReady is ready'
+    - message: EC2NodeClass is ready
       reason: Ready
-      status: 'True'
+      status: "True"
       type: Ready
