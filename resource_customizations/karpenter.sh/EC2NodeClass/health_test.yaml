@@ -1,12 +1,20 @@
 tests:
   - healthStatus:
       status: Progressing
-      message: 'Waiting for EC2NodeClass to be created'
+      message: 'Waiting for EC2NodeClass to be ready'
     inputPath: testdata/progressing.yaml
   - healthStatus:
       status: Degraded
-      message: 'EC2NodeClass is not ready'
-    inputPath: testdata/degraded.yaml
+      message: 'SubnetSelector did not match any Subnets'
+    inputPath: testdata/subnetsready.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'SecurityGroupSelector did not match any SecurityGroups'
+    inputPath: testdata/securitygroups-notfound.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'Awaiting AMI, Instance Profile, Security Group, and Subnet resolution'
+    inputPath: testdata/validationsucceeded.yaml
   - healthStatus:
       status: Healthy
       message: 'EC2NodeClassReady is ready'

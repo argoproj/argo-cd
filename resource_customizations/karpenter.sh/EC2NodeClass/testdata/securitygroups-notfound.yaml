@@ -34,7 +34,7 @@ spec:
     karpenter.sh/discovery: cluster
 status:
   conditions:
-    - message: ValidationSucceeded=False, SecurityGroupsReady=False, SubnetsReady=False, InstanceProfileReady=Unknown
-      reason: UnhealthyDependents
+    - message: SecurityGroupSelector did not match any SecurityGroups
+      reason: SecurityGroupsNotFound
       status: "False"
-      type: Ready
+      type: SecurityGroupsReady
