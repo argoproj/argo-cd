@@ -30,7 +30,7 @@ spec:
             - 2xlarge
 status:
   conditions:
-    - message: NodeClass is ready
+    - message: NodePool is ready
       reason: Ready
       status: "True"
       type: Ready
