@@ -1,13 +1,17 @@
 tests:
-- healthStatus:
-    status: NodeClassReady
-    message: "Underlying nodeClass is ready"
-  inputPath: testdata/degraded.yaml
-- healthStatus:
-    status: ValidationSucceeded
-    message: "NodePool CRD validation succeeded"
-  inputPath: testdata/unknown.yaml
-- healthStatus:
-    status: Ready
-    message: "Top level condition that indicates if the nodePool is ready. This condition will not be true until all the other conditions on nodePool are true"
-  inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Progressing
+      message: 'Waiting for NodePool to be created'
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'NodeClass not found on cluster'
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'NodeClassReady=False'
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Healthy
+      message: ''
+    inputPath: testdata/healthy.yaml

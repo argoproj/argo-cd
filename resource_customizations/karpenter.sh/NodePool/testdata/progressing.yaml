@@ -5,36 +5,26 @@ metadata:
 spec:
   disruption:
     budgets:
-      - nodes: 100%
+      - nodes: 10%
     consolidateAfter: 10m
     consolidationPolicy: WhenEmptyOrUnderutilized
   limits:
-    cpu: 10001
+    cpu: 1000
   template:
     spec:
       expireAfter: 720h
       nodeClassRef:
         group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: default1
+        name: default
       requirements:
         - key: karpenter.k8s.aws/instance-family
           operator: In
           values:
-            - m51
+            - m5
         - key: karpenter.k8s.aws/instance-size
           operator: In
           values:
-            - large1
-            - xlarge1
-            - 2xlarge1
-status:
-  conditions:
-    - message: NodeClass not found on cluster
-      reason: NodeClassNotFound
-      status: 'False'
-      type: NodeClassReady
-    - message: NodeClassReady=False
-      reason: UnhealthyDependents
-      status: 'False'
-      type: Ready
+            - large
+            - xlarge
+            - 2xlarge
