@@ -34,7 +34,7 @@ spec:
     karpenter.sh/discovery: cluster
 status:
   conditions:
-    - message: ValidationSucceeded=False, SecurityGroupsReady=False, SubnetsReady=False, InstanceProfileReady=Unknown
-      reason: UnhealthyDependents
+    - message: SubnetSelector did not match any Subnets
+      reason: SubnetsNotFound
       status: "False"
-      type: Ready
+      type: SubnetsReady
