@@ -32,29 +32,3 @@ spec:
   tags:
     Name: karpenter.sh/default
     karpenter.sh/discovery: cluster
-status:
-  conditions:
-    - message: 'AMIs are discovered'
-      reason: AMIsReady
-      status: 'True'
-      type: AMIsReady
-    - message: 'Subnets are discovered'
-      reason: SubnetsReady
-      status: 'True'
-      type: SubnetsReady
-    - message: 'Security Groups are discovered'
-      reason: SecurityGroupsReady
-      status: 'True'
-      type: SecurityGroupsReady
-    - message: 'Instance Profile is discovered'
-      reason: InstanceProfileReady
-      status: 'True'
-      type: InstanceProfileReady
-    - message: ''
-      reason: ValidationSucceeded
-      status: 'True'
-      type: ValidationSucceeded
-    - message: ''
-      reason: Ready
-      status: 'True'
-      type: Ready
