@@ -1,21 +1,13 @@
 tests:
-- healthStatus:
-    status: SubnetsReady
-    message: "Subnets are discovered"
-  inputPath: testdata/degraded.yaml
-- healthStatus:
-    status: SecurityGroupsReady
-    message: "Security Groups are discovered"
-  inputPath: testdata/unknown.yaml
-- healthStatus:
-    status: InstanceProfileReady
-    message: "Instance Profile is discovered"
-  inputPath: testdata/healthy.yaml
-- healthStatus:
-    status: AMIsReady
-    message: "AMIs are discovered"
-  inputPath: testdata/healthy.yaml
-- healthStatus:
-    status: Ready
-    message: "Top level condition that indicates if the nodeClass is ready. If any of the underlying conditions is False then this condition is set to False and Message on the condition indicates the dependency that was not resolved"
-  inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Progressing
+      message: 'Waiting for EC2NodeClass to be created'
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'EC2NodeClass is not ready'
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Healthy
+      message: 'EC2NodeClassReady is ready'
+    inputPath: testdata/healthy.yaml

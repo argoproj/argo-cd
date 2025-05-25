@@ -5,13 +5,9 @@ tests:
     inputPath: testdata/progressing.yaml
   - healthStatus:
       status: Degraded
-      message: 'NodeClass not found on cluster'
-    inputPath: testdata/degraded.yaml
-  - healthStatus:
-      status: Degraded
-      message: 'NodeClassReady=False'
+      message: 'NodePool is not ready'
     inputPath: testdata/degraded.yaml
   - healthStatus:
       status: Healthy
-      message: ''
+      message: 'NodePool is ready'
     inputPath: testdata/healthy.yaml
