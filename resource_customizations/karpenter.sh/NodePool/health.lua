@@ -7,7 +7,17 @@ if obj.status ~= nil then
         hs.message = condition.message
         return hs
       end
+      if condition.type == "NodeClassNotFound" and condition.status == "True" then
+        hs.status = "Degraded"
+        hs.message = condition.message
+        return hs
+      end
       if condition.type == "Ready" and condition.status == "True" then
+        hs.status = "Healthy"
+        hs.message = condition.message
+        return hs
+      end
+      if condition.type == "NodeClassReady" and condition.status == "True" then
         hs.status = "Healthy"
         hs.message = condition.message
         return hs
@@ -15,7 +25,6 @@ if obj.status ~= nil then
     end
   end
 end
-
 hs.status = "Progressing"
-hs.message = "Waiting for certificate"
+hs.message = "Waiting for NodePool to be ready"
 return hs
