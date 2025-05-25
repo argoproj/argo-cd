@@ -1,0 +1,128 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  kubelet:
+    podsPerCore: 2
+    maxPods: 20
+    systemReserved:
+      cpu: 100m
+      memory: 100Mi
+      ephemeral-storage: 1Gi
+    kubeReserved:
+      cpu: 200m
+      memory: 100Mi
+      ephemeral-storage: 3Gi
+    evictionHard:
+      memory.available: 5%
+      nodefs.available: 10%
+      nodefs.inodesFree: 10%
+    evictionSoft:
+      memory.available: 500Mi
+      nodefs.available: 15%
+      nodefs.inodesFree: 15%
+    evictionSoftGracePeriod:
+      memory.available: 1m
+      nodefs.available: 1m30s
+      nodefs.inodesFree: 2m
+    evictionMaxPodGracePeriod: 60
+    imageGCHighThresholdPercent: 85
+    imageGCLowThresholdPercent: 80
+    cpuCFSQuota: true
+    clusterDNS: ["10.0.1.100"]
+  amiFamily: AL2
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+        environment: test
+    - id: subnet-09fa4a0a8f233a921
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+        environment: test
+    - name: my-security-group
+    - id: sg-063d7acfb4b06c82c
+  role: "KarpenterNodeRole-${CLUSTER_NAME}"
+  instanceProfile: "KarpenterNodeInstanceProfile-${CLUSTER_NAME}"
+  amiSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+        environment: test
+    - name: my-ami
+    - id: ami-123
+  tags:
+    team: team-a
+    app: team-a-app
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 1
+    httpTokens: required
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 100Gi
+        volumeType: gp3
+        iops: 10000
+        encrypted: true
+        kmsKeyID: "1234abcd-12ab-34cd-56ef-1234567890ab"
+        deleteOnTermination: true
+        throughput: 125
+        snapshotID: snap-0123456789
+  instanceStorePolicy: RAID0
+  userData: |
+    echo "Hello world"
+  detailedMonitoring: true
+  associatePublicIPAddress: true
+status:
+  subnets:
+    - id: subnet-0a462d98193ff9fac
+      zone: us-east-2b
+    - id: subnet-0322dfafd76a609b6
+      zone: us-east-2c
+    - id: subnet-0727ef01daf4ac9fe
+      zone: us-east-2b
+    - id: subnet-00c99aeafe2a70304
+      zone: us-east-2a
+    - id: subnet-023b232fd5eb0028e
+      zone: us-east-2c
+    - id: subnet-03941e7ad6afeaa72
+      zone: us-east-2a
+  securityGroups:
+    - id: sg-041513b454818610b
+      name: ClusterSharedNodeSecurityGroup
+    - id: sg-0286715698b894bca
+      name: ControlPlaneSecurityGroup-1AQ073TSAAPW
+  amis:
+    - id: ami-01234567890123456
+      name: custom-ami-amd64
+      requirements:
+        - key: kubernetes.io/arch
+          operator: In
+          values:
+            - amd64
+    - id: ami-01234567890123456
+      name: custom-ami-arm64
+      requirements:
+        - key: kubernetes.io/arch
+          operator: In
+          values:
+            - arm64
+  instanceProfile: "${CLUSTER_NAME}-0123456778901234567789"
+  conditions:
+    - lastTransitionTime: "2024-02-02T19:54:34Z"
+      status: "True"
+      type: InstanceProfileReady
+    - lastTransitionTime: "2024-02-02T19:54:34Z"
+      status: "True"
+      type: SubnetsReady
+    - lastTransitionTime: "2024-02-02T19:54:34Z"
+      status: "True"
+      type: SecurityGroupsReady
+    - lastTransitionTime: "2024-02-02T19:54:34Z"
+      status: "True"
+      type: AMIsReady
+    - lastTransitionTime: "2024-02-02T19:54:34Z"
+      status: "True"
+      type: Ready
