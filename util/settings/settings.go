@@ -99,6 +99,8 @@ type ArgoCDSettings struct {
 	UiBannerPermanent bool `json:"uiBannerPermanent,omitempty"` //nolint:revive //FIXME(var-naming)
 	// Position of UI Banner
 	UiBannerPosition string `json:"uiBannerPosition,omitempty"` //nolint:revive //FIXME(var-naming)
+	// Indicate if the commit summary should be disabled in the UI (page application details)
+	UiCommitSummaryEnabled bool `json:"UiCommitSummaryEnabled,omitempty"` //nolint:revive //FIXME(var-naming)
 	// PasswordPattern for password regular expression
 	PasswordPattern string `json:"passwordPattern,omitempty"`
 	// BinaryUrls contains the URLs for downloading argocd binaries
@@ -495,6 +497,8 @@ const (
 	settingUIBannerPermanentKey = "ui.bannerpermanent"
 	// settingUIBannerPositionKey designates the key for the position of the banner
 	settingUIBannerPositionKey = "ui.bannerposition"
+	// settingUICommitSummaryDisabledKey designates the key for disabling commit summary in the UI
+	settingServerCommitSummaryEnabledKey = "server.commitsummary.enabled"
 	// settingsBinaryUrlsKey designates the key for the argocd binary URLs
 	settingsBinaryUrlsKey = "help.download"
 	// globalProjectsKey designates the key for global project settings
@@ -1410,6 +1414,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.UiBannerContent = argoCDCM.Data[settingUIBannerContentKey]
 	settings.UiBannerPermanent = argoCDCM.Data[settingUIBannerPermanentKey] == "true"
 	settings.UiBannerPosition = argoCDCM.Data[settingUIBannerPositionKey]
+	settings.UiCommitSummaryEnabled = argoCDCM.Data[settingServerCommitSummaryEnabledKey] != "false"
 	settings.BinaryUrls = getDownloadBinaryUrlsFromConfigMap(argoCDCM)
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
