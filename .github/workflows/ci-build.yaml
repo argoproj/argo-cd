@@ -368,12 +368,12 @@ jobs:
         run: |
           rm -rf ui/node_modules/argo-ui/node_modules
       - name: Get e2e code coverage
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: e2e-code-coverage
           path: e2e-code-coverage
       - name: Get unit test code coverage
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: test-results
           path: test-results
