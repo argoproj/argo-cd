@@ -65,7 +65,7 @@
     "rxjs": "6.6.7"
   },
   "devDependencies": {
-    "@babel/core": "^7.7.2",
+    "@babel/core": "^7.27.1",
     "@babel/preset-env": "^7.7.1",
     "@babel/preset-react": "^7.18.6",
     "@babel/preset-typescript": "^7.7.2",
