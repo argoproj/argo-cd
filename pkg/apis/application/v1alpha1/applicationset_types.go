@@ -863,6 +863,20 @@ const (
 	ApplicationSetReasonSyncApplicationError             = "SyncApplicationError"
 )
 
+// Represents resource health status
+type ProgressiveSyncStatusCode string
+
+const (
+	// Indicates that an Application sync is waiting to be trigerred
+	ProgressiveSyncWaiting ProgressiveSyncStatusCode = "Waiting"
+	// Indicates that a sync has been trigerred, but the application did not report any status
+	ProgressiveSyncPending ProgressiveSyncStatusCode = "Pending"
+	// Indicates that the application has not yet reached an Healthy state in regards to the requested sync
+	ProgressiveSyncProgressing ProgressiveSyncStatusCode = "Progressing"
+	// Indicates that the application has reached an Healthy state in regards to the requested sync
+	ProgressiveSyncHealthy ProgressiveSyncStatusCode = "Healthy"
+)
+
 // ApplicationSetApplicationStatus contains details about each Application managed by the ApplicationSet
 type ApplicationSetApplicationStatus struct {
 	// Application contains the name of the Application resource
@@ -871,8 +885,8 @@ type ApplicationSetApplicationStatus struct {
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,2,opt,name=lastTransitionTime"`
 	// Message contains human-readable message indicating details about the status
 	Message string `json:"message" protobuf:"bytes,3,opt,name=message"`
-	// Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)
-	Status string `json:"status" protobuf:"bytes,4,opt,name=status"`
+	// Status contains the AppSet's perceived status of the managed Application resource
+	Status ProgressiveSyncStatusCode `json:"status" protobuf:"bytes,4,opt,name=status"`
 	// Step tracks which step this Application should be updated in
 	Step string `json:"step" protobuf:"bytes,5,opt,name=step"`
 	// TargetRevision tracks the desired revisions the Application should be synced to.
@@ -917,50 +931,56 @@ func (a *ApplicationSet) RefreshRequired() bool {
 // If the applicationset has a pre-existing condition of a type that is not in the evaluated list,
 // it will be preserved. If the applicationset has a pre-existing condition of a type, status, reason that
 // is in the evaluated list, but not in the incoming conditions list, it will be removed.
-func (status *ApplicationSetStatus) SetConditions(conditions []ApplicationSetCondition, _ map[ApplicationSetConditionType]bool) {
-	applicationSetConditions := make([]ApplicationSetCondition, 0)
+func (status *ApplicationSetStatus) SetConditions(conditions []ApplicationSetCondition, evaluatedTypes map[ApplicationSetConditionType]bool) {
+	newConditions := make([]ApplicationSetCondition, 0)
 	now := metav1.Now()
+	// Keep the existing conditions when they are not evaluated
+	for i := range status.Conditions {
+		currentCondition := status.Conditions[i]
+		if isEvaluated, ok := evaluatedTypes[currentCondition.Type]; !ok || !isEvaluated {
+			if currentCondition.LastTransitionTime == nil {
+				currentCondition.LastTransitionTime = &now
+			}
+			newConditions = append(newConditions, currentCondition)
+		}
+	}
+
+	// Update the evaluated conditions
 	for i := range conditions {
 		condition := conditions[i]
+		if isEvaluated, ok := evaluatedTypes[condition.Type]; !ok || !isEvaluated {
+			// ignore an new condition when it is not evaluated
+			continue
+		}
+
 		if condition.LastTransitionTime == nil {
 			condition.LastTransitionTime = &now
 		}
-		eci := findConditionIndex(status.Conditions, condition.Type)
+		eci := condition.Type.findConditionIndex(status.Conditions)
 		if eci >= 0 && status.Conditions[eci].Message == condition.Message && status.Conditions[eci].Reason == condition.Reason && status.Conditions[eci].Status == condition.Status {
-			// If we already have a condition of this type, status and reason, only update the timestamp if something
-			// has changed.
-			applicationSetConditions = append(applicationSetConditions, status.Conditions[eci])
+			// If we already have a condition of this type and nothing has changed, do not update it
+			newConditions = append(newConditions, status.Conditions[eci])
 		} else {
-			// Otherwise we use the new incoming condition with an updated timestamp:
-			applicationSetConditions = append(applicationSetConditions, condition)
+			// Otherwise we use the new incoming condition with updated information
+			newConditions = append(newConditions, condition)
 		}
 	}
-	sort.Slice(applicationSetConditions, func(i, j int) bool {
-		left := applicationSetConditions[i]
-		right := applicationSetConditions[j]
+
+	sort.Slice(newConditions, func(i, j int) bool {
+		left := newConditions[i]
+		right := newConditions[j]
 		return fmt.Sprintf("%s/%s/%s/%s/%v", left.Type, left.Message, left.Status, left.Reason, left.LastTransitionTime) < fmt.Sprintf("%s/%s/%s/%s/%v", right.Type, right.Message, right.Status, right.Reason, right.LastTransitionTime)
 	})
-	status.Conditions = applicationSetConditions
+	status.Conditions = newConditions
 }
 
-func findConditionIndex(conditions []ApplicationSetCondition, t ApplicationSetConditionType) int {
+func (t ApplicationSetConditionType) findConditionIndex(conditions []ApplicationSetCondition) int {
 	for i := range conditions {
 		if conditions[i].Type == t {
 			return i
 		}
 	}
 	return -1
-}
-
-func (status *ApplicationSetStatus) SetApplicationStatus(newStatus ApplicationSetApplicationStatus) {
-	for i := range status.ApplicationStatus {
-		appStatus := status.ApplicationStatus[i]
-		if appStatus.Application == newStatus.Application {
-			status.ApplicationStatus[i] = newStatus
-			return
-		}
-	}
-	status.ApplicationStatus = append(status.ApplicationStatus, newStatus)
 }
 
 // QualifiedName returns the full qualified name of the applicationset, including

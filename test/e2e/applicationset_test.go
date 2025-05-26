@@ -32,7 +32,7 @@ var ExpectedConditions = []v1alpha1.ApplicationSetCondition{
 	{
 		Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
 		Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-		Message: "Successfully generated parameters for all Applications",
+		Message: "All applications have been generated successfully",
 		Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
 	},
 	{
@@ -44,7 +44,7 @@ var ExpectedConditions = []v1alpha1.ApplicationSetCondition{
 	{
 		Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
 		Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-		Message: "ApplicationSet up to date",
+		Message: "All applications have been generated successfully",
 		Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
 	},
 }
