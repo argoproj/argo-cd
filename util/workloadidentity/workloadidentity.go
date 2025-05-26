@@ -19,7 +19,7 @@ type Token struct {
 }
 
 type TokenProvider interface {
-	GetToken(scope string) (Token, error)
+	GetToken(scope string) (*Token, error)
 }
 
 type WorkloadIdentityTokenProvider struct {
@@ -35,17 +35,29 @@ func NewWorkloadIdentityTokenProvider() TokenProvider {
 	return WorkloadIdentityTokenProvider{tokenCredential: cred}
 }
 
-func (c WorkloadIdentityTokenProvider) GetToken(scope string) (Token, error) {
+func (c WorkloadIdentityTokenProvider) GetToken(scope string) (*Token, error) {
 	if initError != nil {
-		return Token{}, initError
+		return nil, initError
 	}
 
 	token, err := c.tokenCredential.GetToken(context.Background(), policy.TokenRequestOptions{
 		Scopes: []string{scope},
 	})
 	if err != nil {
-		return Token{}, err
+		return nil, err
 	}
 
-	return Token{AccessToken: token.Token, ExpiresOn: token.ExpiresOn}, nil
+	return &Token{AccessToken: token.Token, ExpiresOn: token.ExpiresOn}, nil
+}
+
+func CalclulateCacheExpiryBasedOnTokenExpiry(tokenExpiry time.Time) time.Duration {
+	// Calculate the cache expiry as 5 minutes before the token expires
+	cacheExpiry := time.Until(tokenExpiry) - time.Minute*5
+
+	// If token exires in negative time, cache will never expire
+	// If expiry is 0 then default cache expiry is used.
+	if cacheExpiry <= 0 {
+		cacheExpiry = time.Second
+	}
+	return cacheExpiry
 }

@@ -37,22 +37,24 @@ func (_m *TokenProvider) EXPECT() *TokenProvider_Expecter {
 }
 
 // GetToken provides a mock function for the type TokenProvider
-func (_mock *TokenProvider) GetToken(scope string) (workloadidentity.Token, error) {
+func (_mock *TokenProvider) GetToken(scope string) (*workloadidentity.Token, error) {
 	ret := _mock.Called(scope)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetToken")
 	}
 
-	var r0 workloadidentity.Token
+	var r0 *workloadidentity.Token
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string) (workloadidentity.Token, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(string) (*workloadidentity.Token, error)); ok {
 		return returnFunc(scope)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string) workloadidentity.Token); ok {
+	if returnFunc, ok := ret.Get(0).(func(string) *workloadidentity.Token); ok {
 		r0 = returnFunc(scope)
 	} else {
-		r0 = ret.Get(0).(workloadidentity.Token)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*workloadidentity.Token)
+		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
 		r1 = returnFunc(scope)
@@ -80,12 +82,12 @@ func (_c *TokenProvider_GetToken_Call) Run(run func(scope string)) *TokenProvide
 	return _c
 }
 
-func (_c *TokenProvider_GetToken_Call) Return(token workloadidentity.Token, err error) *TokenProvider_GetToken_Call {
+func (_c *TokenProvider_GetToken_Call) Return(token *workloadidentity.Token, err error) *TokenProvider_GetToken_Call {
 	_c.Call.Return(token, err)
 	return _c
 }
 
-func (_c *TokenProvider_GetToken_Call) RunAndReturn(run func(scope string) (workloadidentity.Token, error)) *TokenProvider_GetToken_Call {
+func (_c *TokenProvider_GetToken_Call) RunAndReturn(run func(scope string) (*workloadidentity.Token, error)) *TokenProvider_GetToken_Call {
 	_c.Call.Return(run)
 	return _c
 }

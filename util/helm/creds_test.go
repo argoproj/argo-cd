@@ -80,7 +80,7 @@ func TestGetPasswordShouldGenerateTokenIfNotPresentInCache(t *testing.T) {
 	defer mockServer.Close()
 
 	workloadIdentityMock := new(mocks.TokenProvider)
-	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return(workloadidentity.Token{AccessToken: "accessToken"}, nil)
+	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil)
 	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
 
 	// Retrieve the token from the cache
@@ -192,7 +192,7 @@ func TestGetAccessTokenAfterChallenge_Success(t *testing.T) {
 	defer mockServer.Close()
 
 	workloadIdentityMock := new(mocks.TokenProvider)
-	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return(workloadidentity.Token{AccessToken: "accessToken"}, nil)
+	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil)
 	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
 
 	tokenParams := map[string]string{
@@ -217,7 +217,7 @@ func TestGetAccessTokenAfterChallenge_Failure(t *testing.T) {
 
 	// Create an instance of AzureWorkloadIdentityCreds with the mock credential wrapper
 	workloadIdentityMock := new(mocks.TokenProvider)
-	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return(workloadidentity.Token{AccessToken: "accessToken"}, nil)
+	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil)
 	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
 
 	tokenParams := map[string]string{
@@ -242,7 +242,7 @@ func TestGetAccessTokenAfterChallenge_MalformedResponse(t *testing.T) {
 
 	// Create an instance of AzureWorkloadIdentityCreds with the mock credential wrapper
 	workloadIdentityMock := new(mocks.TokenProvider)
-	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return(workloadidentity.Token{AccessToken: "accessToken"}, nil)
+	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil)
 	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
 
 	tokenParams := map[string]string{
@@ -305,7 +305,7 @@ func TestGetAccessToken_FetchNewTokenIfExistingIsExpired(t *testing.T) {
 	mockServerURL = mockServer.URL
 
 	workloadIdentityMock := new(mocks.TokenProvider)
-	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return(workloadidentity.Token{AccessToken: "accessToken"}, nil)
+	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil)
 	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
 
 	refreshToken, err := creds.GetAccessToken()
@@ -359,7 +359,7 @@ func TestGetAccessToken_ReuseTokenIfExistingIsNotExpired(t *testing.T) {
 	mockServerURL = mockServer.URL
 
 	workloadIdentityMock := new(mocks.TokenProvider)
-	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return(workloadidentity.Token{AccessToken: "accessToken"}, nil)
+	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil)
 	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
 
 	refreshToken, err := creds.GetAccessToken()

@@ -23,7 +23,7 @@ import (
 var azureTokenCache *gocache.Cache
 
 func init() {
-	azureTokenCache = gocache.New(10*time.Minute, 0)
+	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
 }
 
 // StoreToken stores a token in the cache
@@ -152,14 +152,7 @@ func (creds AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
 		tokenExpiry = time.Now()
 	}
 
-	cacheExpiry := time.Until(tokenExpiry) - time.Minute*5
-
-	// If token exires in negative time, cache will never expire
-	// If expiry is 0 then default cache expiry is used.
-	if cacheExpiry <= 0 {
-		cacheExpiry = time.Second
-	}
-
+	cacheExpiry := workloadidentity.CalclulateCacheExpiryBasedOnTokenExpiry(tokenExpiry)
 	storeAzureToken(key, token, cacheExpiry)
 	return token, nil
 }
@@ -289,5 +282,5 @@ func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(azureCon
 }
 
 func resetAzureTokenCache() {
-	azureTokenCache = gocache.New(10*time.Minute, 0)
+	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
 }
