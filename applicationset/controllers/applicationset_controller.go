@@ -1399,17 +1399,16 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 	}
 
 	if needToUpdateStatus {
-		namespacedName := types.NamespacedName{Namespace: applicationSet.Namespace, Name: applicationSet.Name}
+		// sort to make sure the array is always in the same order
+		applicationSet.Status.ApplicationStatus = append(make([]argov1alpha1.ApplicationSetApplicationStatus, 0, len(applicationStatuses)), applicationStatuses...)
+		sort.Slice(applicationSet.Status.ApplicationStatus, func(i, j int) bool {
+			return applicationSet.Status.ApplicationStatus[i].Application < applicationSet.Status.ApplicationStatus[j].Application
+		})
 
-		// rebuild ApplicationStatus from scratch, we don't need any previous status history
-		applicationSet.Status.ApplicationStatus = []argov1alpha1.ApplicationSetApplicationStatus{}
-		for i := range applicationStatuses {
-			applicationSet.Status.SetApplicationStatus(applicationStatuses[i])
-		}
 		// DefaultRetry will retry 5 times with a backoff factor of 1, jitter of 0.1 and a duration of 10ms
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			updatedAppset := &argov1alpha1.ApplicationSet{}
-			if err := r.Get(ctx, namespacedName, updatedAppset); err != nil {
+			if err := r.Get(ctx, types.NamespacedName{Namespace: applicationSet.Namespace, Name: applicationSet.Name}, updatedAppset); err != nil {
 				if client.IgnoreNotFound(err) != nil {
 					return nil
 				}

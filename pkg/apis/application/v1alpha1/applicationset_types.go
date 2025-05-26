@@ -962,17 +962,6 @@ func findConditionIndex(conditions []ApplicationSetCondition, t ApplicationSetCo
 	return -1
 }
 
-func (status *ApplicationSetStatus) SetApplicationStatus(newStatus ApplicationSetApplicationStatus) {
-	for i := range status.ApplicationStatus {
-		appStatus := status.ApplicationStatus[i]
-		if appStatus.Application == newStatus.Application {
-			status.ApplicationStatus[i] = newStatus
-			return
-		}
-	}
-	status.ApplicationStatus = append(status.ApplicationStatus, newStatus)
-}
-
 // QualifiedName returns the full qualified name of the applicationset, including
 // the name of the namespace it is created in delimited by a forward slash,
 // i.e. <namespace>/<appname>
