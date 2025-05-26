@@ -47,7 +47,7 @@ func TestGetToken_Failure(t *testing.T) {
 
 	token, err := provider.GetToken(scope)
 	require.Error(t, err, "Expected error from GetToken")
-	assert.Empty(t, token.AccessToken, "Expected token to be empty on error")
+	assert.Nil(t, token, "Expected token to be empty on error")
 }
 
 func TestGetToken_InitError(t *testing.T) {
@@ -56,5 +56,5 @@ func TestGetToken_InitError(t *testing.T) {
 
 	token, err := provider.GetToken("https://management.core.windows.net/.default")
 	require.Error(t, err, "Expected error from GetToken due to initialization error")
-	assert.Empty(t, token.AccessToken, "Expected token to be empty on initialization error")
+	assert.Nil(t, token, "Expected token to be empty on initialization error")
 }
