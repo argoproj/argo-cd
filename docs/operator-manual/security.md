@@ -208,7 +208,7 @@ indicating the responsible actor when applicable. For example:
 
 ```bash
 kubectl get logs -n argocd argocd-server-pod
-2025-05-23T12:00:00Z level=info msg="user@argoproj.github.io updated application spec" application=argocd dest-namespace=argocd dest-server=https://kubernetes.default.svc reason=ResourceUpdated type=Normal user=user@argoproj.github.io patch="{\"metadata\": {}, \"spec\": {\"source\":{\"targetRevision\":\"BRANCH\"}}}"
+2025-05-23T12:00:00Z level=info msg="user@argoproj.github.io updated application spec" application=argocd dest-namespace=argocd dest-server=https://kubernetes.default.svc reason=ResourceUpdated type=Normal user=user@argoproj.github.io patch="map[metadata:map[] spec:map[source:map[targetRevision:BRANCH]]]"
 ```
 
 These logs can then be persisted and stored using tools such as
