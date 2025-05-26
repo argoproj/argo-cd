@@ -859,6 +859,20 @@ const (
 	ApplicationSetReasonSyncApplicationError             = "SyncApplicationError"
 )
 
+// Represents resource health status
+type ProgressiveSyncStatusCode string
+
+const (
+	// Indicates that an Application sync is waiting to be trigerred
+	ProgressiveSyncWaiting ProgressiveSyncStatusCode = "Waiting"
+	// Indicates that a sync has been trigerred, but the application did not report any status
+	ProgressiveSyncPending ProgressiveSyncStatusCode = "Pending"
+	// Indicates that the application has not yet reached an Healthy state in regards to the requested sync
+	ProgressiveSyncProgressing ProgressiveSyncStatusCode = "Progressing"
+	// Indicates that the application has reached an Healthy state in regards to the requested sync
+	ProgressiveSyncHealthy ProgressiveSyncStatusCode = "Healthy"
+)
+
 // ApplicationSetApplicationStatus contains details about each Application managed by the ApplicationSet
 type ApplicationSetApplicationStatus struct {
 	// Application contains the name of the Application resource
@@ -867,8 +881,8 @@ type ApplicationSetApplicationStatus struct {
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,2,opt,name=lastTransitionTime"`
 	// Message contains human-readable message indicating details about the status
 	Message string `json:"message" protobuf:"bytes,3,opt,name=message"`
-	// Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)
-	Status string `json:"status" protobuf:"bytes,4,opt,name=status"`
+	// Status contains the AppSet's perceived status of the managed Application resource
+	Status ProgressiveSyncStatusCode `json:"status" protobuf:"bytes,4,opt,name=status"`
 	// Step tracks which step this Application should be updated in
 	Step string `json:"step" protobuf:"bytes,5,opt,name=step"`
 	// TargetRevision tracks the desired revisions the Application should be synced to.
