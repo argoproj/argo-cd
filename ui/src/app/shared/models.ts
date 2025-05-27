@@ -463,6 +463,11 @@ export interface ApplicationSummary {
     images?: string[];
 }
 
+export interface RefreshStatus {
+    lastTransitionTime: models.Time;
+    refreshType: string;
+}
+
 export interface ApplicationStatus {
     observedAt: models.Time;
     resources: ResourceStatus[];
@@ -473,6 +478,7 @@ export interface ApplicationStatus {
     operationState?: OperationState;
     summary?: ApplicationSummary;
     sourceHydrator?: SourceHydratorStatus;
+    refreshStatus?: RefreshStatus;
 }
 
 export interface SourceHydratorStatus {

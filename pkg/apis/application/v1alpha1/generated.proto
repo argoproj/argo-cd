@@ -716,6 +716,9 @@ message ApplicationStatus {
 
   // SourceHydrator stores information about the current state of source hydration
   optional SourceHydratorStatus sourceHydrator = 14;
+
+  // RefreshStatus contains information about the currently observed refresh state of an application
+  optional RefreshStatus refreshStatus = 15;
 }
 
 // ApplicationSummary contains information about URLs and container images used by an application
@@ -1687,6 +1690,15 @@ message RefTarget {
   optional string targetRevision = 2;
 
   optional string chart = 3;
+}
+
+// RefreshStatus contains information about the currently observed refresh state of an application
+message RefreshStatus {
+  // LastTransitionTime indicates the last time the application was refreshed from the source
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 1;
+
+  // RefreshType indicates the type of refresh that was performed
+  optional string refreshType = 2;
 }
 
 // RepoCreds holds the definition for repository credentials

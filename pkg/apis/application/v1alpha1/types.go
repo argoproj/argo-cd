@@ -1163,6 +1163,8 @@ type ApplicationStatus struct {
 	ControllerNamespace string `json:"controllerNamespace,omitempty" protobuf:"bytes,13,opt,name=controllerNamespace"`
 	// SourceHydrator stores information about the current state of source hydration
 	SourceHydrator SourceHydratorStatus `json:"sourceHydrator,omitempty" protobuf:"bytes,14,opt,name=sourceHydrator"`
+	// RefreshStatus contains information about the currently observed refresh state of an application
+	RefreshStatus RefreshStatus `json:"refreshStatus,omitempty" protobuf:"bytes,15,opt,name=refreshStatus"`
 }
 
 // SourceHydratorStatus contains information about the current state of source hydration
@@ -1808,6 +1810,14 @@ type HealthStatus struct {
 	//
 	// Deprecated: this field is not used and will be removed in a future release.
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
+}
+
+// RefreshStatus contains information about the currently observed refresh state of an application
+type RefreshStatus struct {
+	// LastTransitionTime indicates the last time the application was refreshed from the source
+	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,1,opt,name=lastTransitionTime"`
+	// RefreshType indicates the type of refresh that was performed
+	RefreshType RefreshType `json:"refreshType,omitempty" protobuf:"bytes,2,opt,name=refreshType"`
 }
 
 // InfoItem contains arbitrary, human readable information about an application
