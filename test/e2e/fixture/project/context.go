@@ -2,6 +2,7 @@ package project
 
 import (
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v3/util/env"
@@ -68,5 +69,6 @@ func (c *Context) And(block func()) *Context {
 }
 
 func (c *Context) When() *Actions {
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Actions{context: c}
 }
