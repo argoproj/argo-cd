@@ -123,6 +123,15 @@ const config = {
     }
 };
 
+if (isProd) {
+    config.performance = {
+        hints: 'error',
+        // Max size is 6MB before gzip.
+        maxEntrypointSize: 6 * 1024 * 1024,
+        maxAssetSize: 6 * 1024 * 1024,
+    };
+}
+
 if (! isProd) {
     config.devtool = 'eval-source-map';
 }
