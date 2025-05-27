@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
@@ -243,12 +242,7 @@ func TestGithubListRepos(t *testing.T) {
 	defer ts.Close()
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			metricsCtx := &services.MetricsContext{
-				AppSetNamespace: "test-ns",
-				AppSetName:      "test-appset",
-			}
-			httpClient := services.NewGitHubMetricsClient(metricsCtx)
-			provider, _ := NewGithubProvider("argoproj", "", ts.URL, c.allBranches, httpClient)
+			provider, _ := NewGithubProvider("argoproj", "", ts.URL, c.allBranches)
 			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)
@@ -273,17 +267,21 @@ func TestGithubListRepos(t *testing.T) {
 	}
 }
 
+/*
+	metricsCtx := &services.MetricsContext{
+		AppSetNamespace: "test-ns",
+		AppSetName:      "test-appset",
+	}
+
+httpClient := services.NewGitHubMetricsClient(metricsCtx)
+*/
 func TestGithubHasPath(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	metricsCtx := &services.MetricsContext{
-		AppSetNamespace: "test-ns",
-		AppSetName:      "test-appset",
-	}
-	httpClient := services.NewGitHubMetricsClient(metricsCtx)
-	host, _ := NewGithubProvider("argoproj", "", ts.URL, false, httpClient)
+
+	host, _ := NewGithubProvider("argoproj", "", ts.URL, false)
 	repo := &Repository{
 		Organization: "argoproj",
 		Repository:   "argo-cd",
@@ -304,13 +302,7 @@ func TestGithubGetBranches(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	metricsCtx := &services.MetricsContext{
-		AppSetNamespace: "test-ns",
-		AppSetName:      "test-appset",
-	}
-	httpClient := services.NewGitHubMetricsClient(metricsCtx)
-
-	host, _ := NewGithubProvider("argoproj", "", ts.URL, false, httpClient)
+	host, _ := NewGithubProvider("argoproj", "", ts.URL, false)
 	repo := &Repository{
 		Organization: "argoproj",
 		Repository:   "argo-cd",
