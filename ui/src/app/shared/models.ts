@@ -44,6 +44,7 @@ export interface RetryBackoff {
 export interface RetryStrategy {
     limit: number;
     backoff: RetryBackoff;
+    refresh: boolean;
 }
 
 export interface RollbackOperation {
