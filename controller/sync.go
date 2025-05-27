@@ -142,21 +142,23 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		}
 	}
 
-	if state.SyncResult != nil {
-		syncRes = state.SyncResult
-		revision = state.SyncResult.Revision
-		revisions = append(revisions, state.SyncResult.Revisions...)
-	} else {
-		syncRes = &v1alpha1.SyncOperationResult{}
-		// status.operationState.syncResult.source. must be set properly since auto-sync relies
-		// on this information to decide if it should sync (if source is different than the last
-		// sync attempt)
-		if isMultiSourceRevision {
-			syncRes.Sources = sources
+	if !syncOp.DryRun {
+		if state.SyncResult != nil {
+			syncRes = state.SyncResult
+			revision = state.SyncResult.Revision
+			revisions = append(revisions, state.SyncResult.Revisions...)
 		} else {
-			syncRes.Source = source
+			syncRes = &v1alpha1.SyncOperationResult{}
+			// status.operationState.syncResult.source. must be set properly since auto-sync relies
+			// on this information to decide if it should sync (if source is different than the last
+			// sync attempt)
+			if isMultiSourceRevision {
+				syncRes.Sources = sources
+			} else {
+				syncRes.Source = source
+			}
+			state.SyncResult = syncRes
 		}
-		state.SyncResult = syncRes
 	}
 
 	// if we get here, it means we did not remember a commit SHA which we should be syncing to.
@@ -410,7 +412,10 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 	var resState []common.ResourceSyncResult
 	state.Phase, state.Message, resState = syncCtx.GetState()
-	state.SyncResult.Resources = nil
+
+	if !syncOp.DryRun {
+		state.SyncResult.Resources = nil
+	}
 
 	if app.Spec.SyncPolicy != nil {
 		state.SyncResult.ManagedNamespaceMetadata = app.Spec.SyncPolicy.ManagedNamespaceMetadata
@@ -434,18 +439,20 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			res.Message = augmentedMsg
 		}
 
-		state.SyncResult.Resources = append(state.SyncResult.Resources, &v1alpha1.ResourceResult{
-			HookType:  res.HookType,
-			Group:     res.ResourceKey.Group,
-			Kind:      res.ResourceKey.Kind,
-			Namespace: res.ResourceKey.Namespace,
-			Name:      res.ResourceKey.Name,
-			Version:   res.Version,
-			SyncPhase: res.SyncPhase,
-			HookPhase: res.HookPhase,
-			Status:    res.Status,
-			Message:   res.Message,
-		})
+		if !syncOp.DryRun {
+			state.SyncResult.Resources = append(state.SyncResult.Resources, &v1alpha1.ResourceResult{
+				HookType:  res.HookType,
+				Group:     res.ResourceKey.Group,
+				Kind:      res.ResourceKey.Kind,
+				Namespace: res.ResourceKey.Namespace,
+				Name:      res.ResourceKey.Name,
+				Version:   res.Version,
+				SyncPhase: res.SyncPhase,
+				HookPhase: res.HookPhase,
+				Status:    res.Status,
+				Message:   res.Message,
+			})
+		}
 	}
 
 	logEntry.WithField("duration", time.Since(start)).Info("sync/terminate complete")
