@@ -263,7 +263,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                         window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
                     }
                 } else {
-                    history.push(`/login?return_url=${encodeURIComponent(location.href)}`);
+                    window.location.href = `${basehref}/login?return_url=${encodeURIComponent(location.href)}`;
                 }
             }
         });
