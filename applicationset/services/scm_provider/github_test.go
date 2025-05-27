@@ -280,7 +280,6 @@ func TestGithubHasPath(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-
 	host, _ := NewGithubProvider("argoproj", "", ts.URL, false)
 	repo := &Repository{
 		Organization: "argoproj",
@@ -301,7 +300,6 @@ func TestGithubGetBranches(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-
 	host, _ := NewGithubProvider("argoproj", "", ts.URL, false)
 	repo := &Repository{
 		Organization: "argoproj",
