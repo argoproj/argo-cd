@@ -18,13 +18,22 @@ type GithubService struct {
 
 var _ PullRequestService = (*GithubService)(nil)
 
-func NewGithubService(token, url, owner, repo string, labels []string, httpClient *http.Client) (PullRequestService, error) {
+func getOptionalHttpClient(optionalHttpClient ...*http.Client) *http.Client {
+	if len(optionalHttpClient) > 0 && optionalHttpClient[0] != nil {
+		return optionalHttpClient[0]
+	}
+	return &http.Client{}
+}
+
+func NewGithubService(token, url, owner, repo string, labels []string, optionalHttpClient ...*http.Client) (PullRequestService, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
 	}
 
 	var client *github.Client
+	httpClient := getOptionalHttpClient(optionalHttpClient...)
+
 	if url == "" {
 		if token == "" {
 			client = github.NewClient(httpClient)

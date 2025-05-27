@@ -65,6 +65,7 @@ type Server struct {
 	ScmRootCAPath            string
 	AllowedScmProviders      []string
 	EnableScmProviders       bool
+	EnableGitHubAPIMetrics   bool
 }
 
 // NewServer returns a new instance of the ApplicationSet service
@@ -88,6 +89,7 @@ func NewServer(
 	scmRootCAPath string,
 	allowedScmProviders []string,
 	enableScmProviders bool,
+	enableGitHubAPIMetrics bool,
 	enableK8sEvent []string,
 ) applicationset.ApplicationSetServiceServer {
 	s := &Server{
@@ -111,6 +113,7 @@ func NewServer(
 		ScmRootCAPath:            scmRootCAPath,
 		AllowedScmProviders:      allowedScmProviders,
 		EnableScmProviders:       enableScmProviders,
+		EnableGitHubAPIMetrics:   enableGitHubAPIMetrics,
 	}
 	return s
 }
@@ -265,7 +268,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.Entry, appset v1alpha1.ApplicationSet, namespace string) ([]v1alpha1.Application, error) {
 	argoCDDB := s.db
 
-	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true)
+	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, s.EnableGitHubAPIMetrics, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true)
 	argoCDService := services.NewArgoCDService(s.db, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
 	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, namespace, argoCDService, s.dynamicClient, scmConfig)
 

@@ -215,18 +215,22 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 }
 
 func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alpha1.PullRequestGeneratorGithub, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
-	metricsCtx := &services.MetricsContext{
-		AppSetNamespace: applicationSetInfo.Namespace,
-		AppSetName:      applicationSetInfo.Name,
-	}
-	httpClient := services.NewGitHubMetricsClient(metricsCtx)
 	// use an app if it was configured
 	if cfg.AppSecretName != "" {
 		auth, err := g.GitHubApps.GetAuthSecret(ctx, cfg.AppSecretName)
 		if err != nil {
 			return nil, fmt.Errorf("error getting GitHub App secret: %w", err)
 		}
-		return pullrequest.NewGithubAppService(*auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, httpClient)
+
+		if g.enableGitHubAPIMetrics {
+			metricsCtx := &services.MetricsContext{
+				AppSetNamespace: applicationSetInfo.Namespace,
+				AppSetName:      applicationSetInfo.Name,
+			}
+			httpClient := services.NewGitHubMetricsClient(metricsCtx)
+			return pullrequest.NewGithubAppService(*auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, httpClient)
+		}
+		return pullrequest.NewGithubAppService(*auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
 	}
 
 	// always default to token, even if not set (public access)
@@ -234,5 +238,14 @@ func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alph
 	if err != nil {
 		return nil, fmt.Errorf("error fetching Secret token: %w", err)
 	}
-	return pullrequest.NewGithubService(token, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, httpClient)
+
+	if g.enableGitHubAPIMetrics {
+		metricsCtx := &services.MetricsContext{
+			AppSetNamespace: applicationSetInfo.Namespace,
+			AppSetName:      applicationSetInfo.Name,
+		}
+		httpClient := services.NewGitHubMetricsClient(metricsCtx)
+		return pullrequest.NewGithubService(token, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, httpClient)
+	}
+	return pullrequest.NewGithubService(token, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
 }

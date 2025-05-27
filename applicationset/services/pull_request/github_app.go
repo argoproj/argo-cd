@@ -7,8 +7,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/applicationset/services/internal/github_app"
 )
 
-func NewGithubAppService(g github_app_auth.Authentication, url, owner, repo string, labels []string, httpClient *http.Client) (PullRequestService, error) {
-	client, err := github_app.Client(g, url, *httpClient)
+func NewGithubAppService(g github_app_auth.Authentication, url, owner, repo string, labels []string, optionalHttpClient ...*http.Client) (PullRequestService, error) {
+	httpClient := getOptionalHttpClient(optionalHttpClient...)
+	client, err := github_app.Client(g, url, httpClient)
 	if err != nil {
 		return nil, err
 	}

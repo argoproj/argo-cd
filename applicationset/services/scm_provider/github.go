@@ -17,16 +17,15 @@ type GithubProvider struct {
 
 var _ SCMProviderService = &GithubProvider{}
 
-func NewGithubProvider(organization string, token string, url string, allBranches bool, httpClient *http.Client) (*GithubProvider, error) {
+func NewGithubProvider(organization string, token string, url string, allBranches bool, optionalHttpClient ...*http.Client) (*GithubProvider, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
 	}
 
 	var client *github.Client
-	if httpClient == nil {
-		httpClient = &http.Client{}
-	}
+	httpClient := getOptionalHttpClient(optionalHttpClient...)
+
 	if url == "" {
 		if token == "" {
 			client = github.NewClient(httpClient)
