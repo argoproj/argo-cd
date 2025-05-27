@@ -10,6 +10,15 @@ cmd_button(
     text='make codegen-local',
 )
 
+# add ui button in web ui to run make codegen-local (top nav)
+cmd_button(
+    'make cli-local',
+    argv=['sh', '-c', 'make cli-local'],
+    location=location.NAV,
+    icon_name='terminal',
+    text='make cli-local',
+)
+
 # build the argocd binary on code changes
 code_deps = [
     'applicationset',
