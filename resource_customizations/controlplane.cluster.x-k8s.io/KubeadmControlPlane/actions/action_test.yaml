@@ -1,0 +1,10 @@
+actionTests:
+- action: restart
+  inputPath: testdata/kcp.yaml
+  expectedOutputPath: testdata/kcp-restarted.yaml
+- action: pause
+  inputPath: testdata/kcp.yaml
+  expectedOutputPath: testdata/kcp-pause.yaml
+- action: resume
+  inputPath: testdata/kcp-pause.yaml
+  expectedOutputPath: testdata/kcp-resume.yaml
