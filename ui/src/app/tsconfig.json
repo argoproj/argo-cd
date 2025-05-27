@@ -13,11 +13,19 @@
         "declaration": false,
         "lib": [
             "es2017",
-            "dom"
-        ]
+            "dom",
+            "dom.iterable",
+            "es2018",
+            "esnext"
+        ],
+        "types": ["node", "jest", "react"]
     },
     "include": [
-        "./**/*"
+        "./**/*",
+        "./src/**/*",
+        "./test/**/*",
+        "globals.d.ts",
+        "embed.go"
     ],
     "exclude": [
         "node_modules",
