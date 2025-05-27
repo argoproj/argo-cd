@@ -1,0 +1,19 @@
+apiVersion: jetstream.nats.io/v1beta2
+kind: ObjectStore
+metadata:
+  name: object-store-name
+
+spec:
+  bucket: my-object-store
+  storage: file
+  replicas: 1
+  maxBytes: 536870912 # 512 MB
+  compression: true
+status:
+  conditions:
+    - lastTransitionTime: '2025-05-14T14:22:01.962295009Z'
+      message: ObjectStore successfully created
+      reason: Created
+      status: 'True'
+      type: Ready
+  observedGeneration: 1

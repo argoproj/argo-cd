@@ -1,0 +1,19 @@
+apiVersion: jetstream.nats.io/v1beta2
+kind: KeyValue
+metadata:
+  name: keyvalue-name
+spec:
+  bucket: my-key-value
+  history: 20
+  storage: file
+  maxBytes: 2048
+  compression: true
+status:
+  conditions:
+    - lastTransitionTime: '2025-05-14T14:25:20.89689315Z'
+      message: >-
+        failed to create keyvalue
+      reason: Errored
+      status: 'False'
+      type: Ready
+  observedGeneration: 0
