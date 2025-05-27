@@ -4671,6 +4671,11 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 							Status:   v1alpha1.SyncStatusCodeOutOfSync,
 							Revision: "Next",
 						},
+						Resources: []v1alpha1.ResourceStatus{
+							{
+								RequiresPruning: false,
+							},
+						},
 					},
 				},
 				{
@@ -4681,6 +4686,11 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						Sync: v1alpha1.SyncStatus{
 							Status:    v1alpha1.SyncStatusCodeOutOfSync,
 							Revisions: []string{"Next", "OtherNext"},
+						},
+						Resources: []v1alpha1.ResourceStatus{
+							{
+								RequiresPruning: false,
+							},
 						},
 					},
 				},
@@ -4703,6 +4713,118 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Status:          "Waiting",
 					Step:            "1",
 					TargetRevisions: []string{"Next", "OtherNext"},
+				},
+			},
+		},
+		{
+			name: "doesn't move an OutOfSync RollingSync application to waiting if only prune changes are needed and prune is disabled",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application:     "pruneOnlyApp",
+							Message:         "",
+							Status:          "Healthy",
+							Step:            "1",
+							TargetRevisions: []string{"Previous"},
+						},
+						{
+							Application:     "outOfSyncApp",
+							Message:         "",
+							Status:          "Healthy",
+							Step:            "1",
+							TargetRevisions: []string{"Previous"},
+						},
+					},
+				},
+			},
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "pruneOnlyApp",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status:   v1alpha1.SyncStatusCodeOutOfSync,
+							Revision: "Next",
+						},
+						Resources: []v1alpha1.ResourceStatus{
+							{
+								Status:          v1alpha1.SyncStatusCodeOutOfSync,
+								RequiresPruning: true,
+							},
+						},
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						SyncPolicy: &v1alpha1.SyncPolicy{
+							Automated: &v1alpha1.SyncPolicyAutomated{
+								Prune: false,
+							},
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "outOfSyncApp",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status:   v1alpha1.SyncStatusCodeOutOfSync,
+							Revision: "Next",
+						},
+						Resources: []v1alpha1.ResourceStatus{
+							{
+								Status:          v1alpha1.SyncStatusCodeOutOfSync,
+								RequiresPruning: false,
+							},
+						},
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						SyncPolicy: &v1alpha1.SyncPolicy{
+							Automated: &v1alpha1.SyncPolicyAutomated{
+								Prune: false,
+							},
+						},
+					},
+				},
+			},
+			appStepMap: map[string]int{
+				"pruneOnlyApp": 0,
+				"outOfSyncApp": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "pruneOnlyApp",
+					Message:         "",
+					Status:          "Healthy",
+					Step:            "1",
+					TargetRevisions: []string{"Previous"},
+				},
+				{
+					Application:     "outOfSyncApp",
+					Message:         "Application has pending changes, setting status to Waiting.",
+					Status:          "Waiting",
+					Step:            "1",
+					TargetRevisions: []string{"Next"},
 				},
 			},
 		},
