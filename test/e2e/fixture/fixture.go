@@ -35,7 +35,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	grpcutil "github.com/argoproj/argo-cd/v3/util/grpc"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/rand"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -247,7 +247,7 @@ func loginAs(username, password string) error {
 	if err != nil {
 		return err
 	}
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 
 	userInfoResponse, err := client.GetUserInfo(context.Background(), &sessionpkg.GetUserInfoRequest{})
 	if err != nil {
@@ -1006,6 +1006,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	}).Info("clean state")
 }
 
+// RunCliWithRetry executes an Argo CD CLI command with retry logic.
 func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
 	var out string
 	var err error
@@ -1019,10 +1020,12 @@ func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
 	return out, err
 }
 
+// RunCli executes an Argo CD CLI command with no stdin input and default server authentication.
 func RunCli(args ...string) (string, error) {
 	return RunCliWithStdin("", false, args...)
 }
 
+// RunCliWithStdin executes an Argo CD CLI command with optional stdin input and authentication.
 func RunCliWithStdin(stdin string, isKubeConextOnlyCli bool, args ...string) (string, error) {
 	if plainText {
 		args = append(args, "--plaintext")
@@ -1035,6 +1038,11 @@ func RunCliWithStdin(stdin string, isKubeConextOnlyCli bool, args ...string) (st
 
 	args = append(args, "--insecure")
 
+	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
+}
+
+// RunPluginCli executes an Argo CD CLI plugin with optional stdin input.
+func RunPluginCli(stdin string, args ...string) (string, error) {
 	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
 }
 

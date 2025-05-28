@@ -63,7 +63,7 @@ spec:
     # directory. If there is a match, this plugin may be used for the Application.
     fileName: "./subdir/s*.yaml"
     find:
-      # This does the same thing as fileName, but it supports double-start (nested directory) glob patterns.
+      # This does the same thing as fileName, but it supports double-star (nested directory) glob patterns.
       glob: "**/Chart.yaml"
       # The find command runs in the repository's root directory. To match, it must exit with status code 0 _and_ 
       # produce non-empty output to standard out.

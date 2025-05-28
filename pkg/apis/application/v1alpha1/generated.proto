@@ -27,6 +27,20 @@ message AWSAuthConfig {
   optional string profile = 3;
 }
 
+// AppHealthStatus contains information about the currently observed health state of an application
+message AppHealthStatus {
+  // Status holds the status code of the application
+  optional string status = 1;
+
+  // Message is a human-readable informational message describing the health status
+  //
+  // Deprecated: this field is not used and will be removed in a future release.
+  optional string message = 2;
+
+  // LastTransitionTime is the time the HealthStatus was set or updated
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
+}
+
 // AppProject provides a logical grouping of applications, providing controls for:
 // * where the apps may deploy to (cluster whitelist)
 // * what may be deployed (repository whitelist, resource whitelist/blacklist)
@@ -62,6 +76,7 @@ message AppProjectSpec {
   repeated ApplicationDestination destinations = 2;
 
   // Description contains optional project description
+  // +kubebuilder:validation:MaxLength=255
   optional string description = 3;
 
   // Roles are user defined RBAC roles associated with this project
@@ -669,7 +684,7 @@ message ApplicationStatus {
   optional SyncStatus sync = 2;
 
   // Health contains information about the application's current health status
-  optional HealthStatus health = 3;
+  optional AppHealthStatus health = 3;
 
   // History contains information about the application's sync history
   repeated RevisionHistory history = 4;
@@ -1048,6 +1063,8 @@ message GitDirectoryGeneratorItem {
 
 message GitFileGeneratorItem {
   optional string path = 1;
+
+  optional bool exclude = 2;
 }
 
 message GitGenerator {
@@ -1097,15 +1114,17 @@ message GnuPGPublicKeyList {
   repeated GnuPGPublicKey items = 2;
 }
 
-// HealthStatus contains information about the currently observed health state of an application or resource
+// HealthStatus contains information about the currently observed health state of a resource
 message HealthStatus {
-  // Status holds the status code of the application or resource
+  // Status holds the status code of the resource
   optional string status = 1;
 
   // Message is a human-readable informational message describing the health status
   optional string message = 2;
 
   // LastTransitionTime is the time the HealthStatus was set or updated
+  //
+  // Deprecated: this field is not used and will be removed in a future release.
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
 }
 
@@ -1612,7 +1631,8 @@ message PullRequestGeneratorGitLab {
   // Labels is used to filter the MRs that you want to target
   repeated string labels = 4;
 
-  // PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
+  // PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states).
+  // Valid values: opened, closed, merged, locked".
   optional string pullRequestState = 5;
 
   // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
@@ -1638,6 +1658,9 @@ message PullRequestGeneratorGitea {
 
   // Allow insecure tls, for self-signed certificates; default: false.
   optional bool insecure = 5;
+
+  // Labels is used to filter the PRs that you want to target
+  repeated string labels = 6;
 }
 
 // PullRequestGenerator defines connection info specific to GitHub.
@@ -2083,6 +2106,9 @@ message ResourceResult {
 
   // SyncPhase indicates the particular phase of the sync that this result was acquired in
   optional string syncPhase = 10;
+
+  // Images contains the images related to the ResourceResult
+  repeated string images = 11;
 }
 
 // ResourceStatus holds the current synchronization and health status of a Kubernetes resource.
@@ -2601,6 +2627,9 @@ message SyncWindow {
 
   // UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator
   optional bool andOperator = 9;
+
+  // Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example
+  optional string description = 10;
 }
 
 // TLSClientConfig contains settings to enable transport layer security

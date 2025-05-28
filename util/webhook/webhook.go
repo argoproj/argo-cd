@@ -424,7 +424,8 @@ func getURLRegex(originalURL string, regexpFormat string) (*regexp.Regexp, error
 	}
 
 	regexEscapedHostname := regexp.QuoteMeta(urlObj.Hostname())
-	regexEscapedPath := regexp.QuoteMeta(urlObj.EscapedPath()[1:])
+	const urlPathSeparator = "/"
+	regexEscapedPath := regexp.QuoteMeta(strings.TrimPrefix(urlObj.EscapedPath(), urlPathSeparator))
 	regexpStr := fmt.Sprintf(regexpFormat, usernameRegex, regexEscapedHostname, regexEscapedPath)
 	repoRegexp, err := regexp.Compile(regexpStr)
 	if err != nil {
