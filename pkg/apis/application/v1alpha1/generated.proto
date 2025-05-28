@@ -2126,6 +2126,9 @@ message ResourceResult {
 
   // SyncPhase indicates the particular phase of the sync that this result was acquired in
   optional string syncPhase = 10;
+
+  // Images contains the images related to the ResourceResult
+  repeated string images = 11;
 }
 
 // ResourceStatus holds the current synchronization and health status of a Kubernetes resource.
