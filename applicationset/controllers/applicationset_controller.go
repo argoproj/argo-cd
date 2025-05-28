@@ -45,6 +45,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+
 	"github.com/argoproj/argo-cd/v3/applicationset/controllers/template"
 	"github.com/argoproj/argo-cd/v3/applicationset/generators"
 	"github.com/argoproj/argo-cd/v3/applicationset/metrics"
@@ -52,7 +54,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/gitops-engine/pkg/health"
 
 	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	argoutil "github.com/argoproj/argo-cd/v3/util/argo"
@@ -1438,7 +1439,7 @@ func (r *ApplicationSetReconciler) syncDesiredApplications(logCtx *log.Entry, ap
 		pruneEnabled := false
 
 		// ensure that Applications generated with RollingSync do not have an automated sync policy, since the AppSet controller will handle triggering the sync operation instead
-		if desiredApplications[i].Spec.SyncPolicy != nil && desiredApplications[i].Spec.SyncPolicy.IsAutomatedSyncEnabled() {
+		if desiredApplications[i].Spec.SyncPolicy != nil && desiredApplications[i].Spec.SyncPolicy.Automated != nil {
 			pruneEnabled = desiredApplications[i].Spec.SyncPolicy.Automated.Prune
 			desiredApplications[i].Spec.SyncPolicy.Automated = nil
 		}
