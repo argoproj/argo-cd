@@ -261,10 +261,10 @@ chokidar@^4.0.1:
   dependencies:
     readdirp "^4.0.1"
 
-chromedriver@^136.0.2:
-  version "136.0.2"
-  resolved "https://registry.yarnpkg.com/chromedriver/-/chromedriver-136.0.2.tgz#736f81899ebff7569abc0f938fc5742bb446a39f"
-  integrity sha512-yJ52GN01edLYWYK/OspYBv3plzF08Ucdq4ukYigJGOX8dWr/tP5PXSZPWFPVarmbmcO57pNLP9Im8hsYljMEjw==
+chromedriver@^137.0.0:
+  version "137.0.0"
+  resolved "https://registry.yarnpkg.com/chromedriver/-/chromedriver-137.0.0.tgz#e850723305e4f04e17fdd91257e4eff7c47890e3"
+  integrity sha512-RyyIQOXaDfCc0IZrGx9EpNYCepvJca+fvreJqFgNaWBLIzLj5UInn85mWMecborYCBMtRhMZuxwNuzNXgoCIFg==
   dependencies:
     "@testim/chrome-version" "^1.1.4"
     axios "^1.7.4"
