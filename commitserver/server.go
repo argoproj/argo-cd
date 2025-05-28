@@ -25,7 +25,7 @@ func NewServer(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *Arg
 
 // CreateGRPC creates a new gRPC server.
 func (a *ArgoCDCommitServer) CreateGRPC() *grpc.Server {
-	server := grpc.NewServer()
+	server := grpc.NewServer(grpc.MaxRecvMsgSize(apiclient.MaxGRPCMessageSize))
 	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, func() (bool, error) {
 		return true, nil
 	}))
