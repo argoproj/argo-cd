@@ -29,7 +29,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/util/cache"
-	argoio "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
 
@@ -67,7 +67,7 @@ type Client interface {
 
 	// Extract retrieves and unpacks the contents of an OCI image identified by the specified revision.
 	// If successful, the extracted contents are extracted to a randomized tempdir.
-	Extract(ctx context.Context, revision string) (string, argoio.Closer, error)
+	Extract(ctx context.Context, revision string) (string, utilio.Closer, error)
 
 	// TestRepo verifies the connectivity and accessibility of the repository.
 	TestRepo(ctx context.Context) (bool, error)
@@ -94,7 +94,7 @@ func WithIndexCache(indexCache tagsCache) ClientOpts {
 	}
 }
 
-func WithImagePaths(repoCachePaths argoio.TempPaths) ClientOpts {
+func WithImagePaths(repoCachePaths utilio.TempPaths) ClientOpts {
 	return func(c *nativeOCIClient) {
 		c.repoCachePaths = repoCachePaths
 	}
@@ -201,7 +201,7 @@ type nativeOCIClient struct {
 	tagsFunc                        func(context.Context, string) ([]string, error)
 	repoLock                        sync.KeyLock
 	tagsCache                       tagsCache
-	repoCachePaths                  argoio.TempPaths
+	repoCachePaths                  utilio.TempPaths
 	allowedMediaTypes               []string
 	manifestMaxExtractedSize        int64
 	disableManifestMaxExtractedSize bool
@@ -214,7 +214,7 @@ func (c *nativeOCIClient) TestRepo(ctx context.Context) (bool, error) {
 	return err == nil, err
 }
 
-func (c *nativeOCIClient) Extract(ctx context.Context, digest string) (string, argoio.Closer, error) {
+func (c *nativeOCIClient) Extract(ctx context.Context, digest string) (string, utilio.Closer, error) {
 	cachedPath, err := c.getCachedPath(digest)
 	if err != nil {
 		return "", nil, fmt.Errorf("error getting oci path for digest %s: %w", digest, err)
@@ -258,7 +258,7 @@ func (c *nativeOCIClient) Extract(ctx context.Context, digest string) (string, a
 		return manifestsDir, nil, fmt.Errorf("cannot extract contents of oci image with revision %s: %w", digest, err)
 	}
 
-	return manifestsDir, argoio.NewCloser(func() error {
+	return manifestsDir, utilio.NewCloser(func() error {
 		return os.RemoveAll(manifestsDir)
 	}), nil
 }
