@@ -10,11 +10,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	applog "github.com/argoproj/argo-cd/v3/util/app/log"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	commitclient "github.com/argoproj/argo-cd/v2/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v2/controller/utils"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
 )
 
 // Dependencies is the interface for the dependencies of the Hydrator. It serves two purposes: 1) it prevents the
@@ -55,7 +55,7 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 		return
 	}
 
-	logCtx := log.WithFields(applog.GetAppLogFields(app))
+	logCtx := utils.GetAppLog(app)
 
 	logCtx.Debug("Processing app hydrate queue item")
 
@@ -130,7 +130,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey HydrationQueueKey) (pr
 			// in case we did.
 			app.Status.SourceHydrator.CurrentOperation.DrySHA = drySHA
 			h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
-			logCtx = logCtx.WithFields(applog.GetAppLogFields(app))
+			logCtx = logCtx.WithField("app", app.QualifiedName())
 			logCtx.Errorf("Failed to hydrate app: %v", err)
 		}
 		return
@@ -262,7 +262,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 		// TODO: enable signature verification
 		objs, resp, err := h.dependencies.GetRepoObjs(app, drySource, targetRevision, project)
 		if err != nil {
-			return "", "", fmt.Errorf("failed to get repo objects for app %q: %w", app.QualifiedName(), err)
+			return "", "", fmt.Errorf("failed to get repo objects: %w", err)
 		}
 
 		// This should be the DRY SHA. We set it here so that after processing the first app, all apps are hydrated
@@ -272,11 +272,11 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 		// Set up a ManifestsRequest
 		manifestDetails := make([]*commitclient.HydratedManifestDetails, len(objs))
 		for i, obj := range objs {
-			objJSON, err := json.Marshal(obj)
+			objJson, err := json.Marshal(obj)
 			if err != nil {
 				return "", "", fmt.Errorf("failed to marshal object: %w", err)
 			}
-			manifestDetails[i] = &commitclient.HydratedManifestDetails{ManifestJSON: string(objJSON)}
+			manifestDetails[i] = &commitclient.HydratedManifestDetails{ManifestJSON: string(objJson)}
 		}
 
 		paths = append(paths, &commitclient.PathDetails{
@@ -312,7 +312,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 		SyncBranch:    syncBranch,
 		TargetBranch:  targetBranch,
 		DrySha:        targetRevision,
-		CommitMessage: "[Argo CD Bot] hydrate " + targetRevision,
+		CommitMessage: fmt.Sprintf("[Argo CD Bot] hydrate %s", targetRevision),
 		Paths:         paths,
 	}
 
@@ -320,7 +320,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 	if err != nil {
 		return targetRevision, "", fmt.Errorf("failed to create commit service: %w", err)
 	}
-	defer utilio.Close(closer)
+	defer argoio.Close(closer)
 	resp, err := commitService.CommitHydratedManifests(context.Background(), &manifestsRequest)
 	if err != nil {
 		return targetRevision, "", fmt.Errorf("failed to commit hydrated manifests: %w", err)
@@ -339,16 +339,15 @@ func appNeedsHydration(app *appv1.Application, statusHydrateTimeout time.Duratio
 		hydratedAt = &app.Status.SourceHydrator.CurrentOperation.StartedAt
 	}
 
-	switch {
-	case app.IsHydrateRequested():
+	if app.IsHydrateRequested() {
 		return true, "hydrate requested"
-	case app.Status.SourceHydrator.CurrentOperation == nil:
+	} else if app.Status.SourceHydrator.CurrentOperation == nil {
 		return true, "no previous hydrate operation"
-	case !app.Spec.SourceHydrator.DeepEquals(app.Status.SourceHydrator.CurrentOperation.SourceHydrator):
+	} else if !app.Spec.SourceHydrator.DeepEquals(app.Status.SourceHydrator.CurrentOperation.SourceHydrator) {
 		return true, "spec.sourceHydrator differs"
-	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseFailed && metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.FinishedAt.Time) > 2*time.Minute:
+	} else if app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseFailed && metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.FinishedAt.Time) > 2*time.Minute {
 		return true, "previous hydrate operation failed more than 2 minutes ago"
-	case hydratedAt == nil || hydratedAt.Add(statusHydrateTimeout).Before(time.Now().UTC()):
+	} else if hydratedAt == nil || hydratedAt.Add(statusHydrateTimeout).Before(time.Now().UTC()) {
 		return true, "hydration expired"
 	}
 

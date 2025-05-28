@@ -7,20 +7,19 @@ import (
 	"text/tabwriter"
 	"time"
 
-	timeutil "github.com/argoproj/pkg/v2/time"
-	jwtgo "github.com/golang-jwt/jwt/v5"
+	timeutil "github.com/argoproj/pkg/time"
+	jwtgo "github.com/golang-jwt/jwt/v4"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
-	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
-	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/jwt"
-	"github.com/argoproj/argo-cd/v3/util/templates"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/jwt"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 const (
@@ -91,7 +90,7 @@ ID          ISSUED-AT                                EXPIRES-AT
 			projName := args[0]
 			roleName := args[1]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -150,7 +149,7 @@ ID          ISSUED-AT                                EXPIRES-AT
 			projName := args[0]
 			roleName := args[1]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -192,7 +191,7 @@ func NewProjectRoleCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	command := &cobra.Command{
 		Use:   "create PROJECT ROLE-NAME",
 		Short: "Create a project role",
-		Example: templates.Examples(`
+		Example: templates.Examples(`  
   # Create a project role in the "my-project" project with the name "my-role".
   argocd proj role create my-project my-role --description "My project role description"
   		`),
@@ -207,7 +206,7 @@ func NewProjectRoleCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			projName := args[0]
 			roleName := args[1]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -244,7 +243,7 @@ func NewProjectRoleDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			projName := args[0]
 			roleName := args[1]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 
 			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
 
@@ -308,7 +307,7 @@ Create token succeeded for proj:test-project:test-role.
 			projName := args[0]
 			roleName := args[1]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 			if expiresIn == "" {
 				expiresIn = "0s"
 			}
@@ -322,24 +321,18 @@ Create token succeeded for proj:test-project:test-role.
 			})
 			errors.CheckError(err)
 
-			var claims jwtgo.MapClaims
-			_, _, err = jwtgo.NewParser().ParseUnverified(tokenResponse.Token, &claims)
-			if err != nil {
+			token, err := jwtgo.Parse(tokenResponse.Token, nil)
+			if token == nil {
 				err = fmt.Errorf("received malformed token %w", err)
 				errors.CheckError(err)
 				return
 			}
 
-			argoClaims, err := claimsutil.MapClaimsToArgoClaims(claims)
-			if err != nil {
-				errors.CheckError(fmt.Errorf("invalid argo claims: %w", err))
-				return
-			}
-
+			claims := token.Claims.(jwtgo.MapClaims)
 			issuedAt, _ := jwt.IssuedAt(claims)
 			expiresAt := int64(jwt.Float64Field(claims, "exp"))
-			id := argoClaims.ID
-			subject := argoClaims.GetUserIdentifier()
+			id := jwt.StringField(claims, "jti")
+			subject := jwt.StringField(claims, "sub")
 
 			if !outputTokenOnly {
 				fmt.Printf("Create token succeeded for %s.\n", subject)
@@ -383,7 +376,7 @@ fa9d3517-c52d-434c-9bff-215b38508842    2023-10-08T11:08:18+01:00    Never
 			roleName := args[1]
 
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -466,7 +459,7 @@ $ argocd proj role delete-token test-project test-role 1696769937
 			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
 
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 
 			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to delete '%s' project token? [y/n]", tokenId))
 			if canDelete {
@@ -503,7 +496,7 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command := &cobra.Command{
 		Use:   "list PROJECT",
 		Short: "List all the roles in a project",
-		Example: templates.Examples(`
+		Example: templates.Examples(`  
   # This command will list all the roles in argocd-project in a default table format.
   argocd proj role list PROJECT
 
@@ -521,7 +514,7 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 			projName := args[0]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 
 			project, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -567,7 +560,7 @@ ID          ISSUED-AT                                  EXPIRES-AT
 			projName := args[0]
 			roleName := args[1]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -611,7 +604,7 @@ func NewProjectRoleAddGroupCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			}
 			projName, roleName, groupName := args[0], args[1], args[2]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 			updated, err := proj.AddGroupToRole(roleName, groupName)
@@ -642,7 +635,7 @@ func NewProjectRoleRemoveGroupCommand(clientOpts *argocdclient.ClientOptions) *c
 			}
 			projName, roleName, groupName := args[0], args[1], args[2]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 			updated, err := proj.RemoveGroupFromRole(roleName, groupName)
