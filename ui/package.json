@@ -65,7 +65,7 @@
     "rxjs": "6.6.7"
   },
   "devDependencies": {
-    "@babel/core": "^7.7.2",
+    "@babel/core": "^7.27.1",
     "@babel/preset-env": "^7.7.1",
     "@babel/preset-react": "^7.18.6",
     "@babel/preset-typescript": "^7.7.2",
@@ -76,7 +76,7 @@
     "@types/dagre": "^0.7.40",
     "@types/deepmerge": "^2.2.0",
     "@types/git-url-parse": "^9.0.1",
-    "@types/jest": "^29.5.12",
+    "@types/jest": "^29.5.14",
     "@types/js-yaml": "^4.0.9",
     "@types/lodash-es": "^4.17.6",
     "@types/minimatch": "^3.0.3",
