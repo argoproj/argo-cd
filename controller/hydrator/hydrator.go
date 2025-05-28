@@ -11,10 +11,10 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v3/controller/utils"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	applog "github.com/argoproj/argo-cd/v3/util/app/log"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	argoio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 // Dependencies is the interface for the dependencies of the Hydrator. It serves two purposes: 1) it prevents the
@@ -55,7 +55,7 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 		return
 	}
 
-	logCtx := log.WithFields(applog.GetAppLogFields(app))
+	logCtx := utils.GetAppLog(app)
 
 	logCtx.Debug("Processing app hydrate queue item")
 
@@ -130,7 +130,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey HydrationQueueKey) (pr
 			// in case we did.
 			app.Status.SourceHydrator.CurrentOperation.DrySHA = drySHA
 			h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
-			logCtx = logCtx.WithFields(applog.GetAppLogFields(app))
+			logCtx = logCtx.WithField("app", app.QualifiedName())
 			logCtx.Errorf("Failed to hydrate app: %v", err)
 		}
 		return
@@ -320,7 +320,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 	if err != nil {
 		return targetRevision, "", fmt.Errorf("failed to create commit service: %w", err)
 	}
-	defer utilio.Close(closer)
+	defer argoio.Close(closer)
 	resp, err := commitService.CommitHydratedManifests(context.Background(), &manifestsRequest)
 	if err != nil {
 		return targetRevision, "", fmt.Errorf("failed to commit hydrated manifests: %w", err)

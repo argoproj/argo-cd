@@ -28,7 +28,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/io"
 	utillog "github.com/argoproj/argo-cd/v3/util/log"
 )
 
@@ -204,7 +204,7 @@ func SetGLogLevel(glogLevel int) {
 func writeToTempFile(pattern string, data []byte) string {
 	f, err := os.CreateTemp("", pattern)
 	errors.CheckError(err)
-	defer utilio.Close(f)
+	defer io.Close(f)
 	_, err = f.Write(data)
 	errors.CheckError(err)
 	return f.Name()

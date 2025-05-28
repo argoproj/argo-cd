@@ -737,7 +737,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 		}
 		sortVersionsByName(want.Versions)
 		sortVersionsByName(got.Versions)
-		assert.Equal(t, want, got)
+		assert.EqualValues(t, want, got)
 	})
 
 	t.Run("Kustomize settings per-version with duplicate versions", func(t *testing.T) {
@@ -825,7 +825,7 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 	t.Run("DefaultBuildOptions", func(t *testing.T) {
 		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{})
 		require.NoError(t, err)
-		assert.Empty(t, ver.BinaryPath)
+		assert.Equal(t, "", ver.BinaryPath)
 		assert.Equal(t, "--opt1 val1", ver.BuildOptions)
 	})
 
@@ -835,7 +835,7 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "path_v2", ver.BinaryPath)
-		assert.Empty(t, ver.BuildOptions)
+		assert.Equal(t, "", ver.BuildOptions)
 	})
 
 	t.Run("VersionExistsWithBuildOption", func(t *testing.T) {
@@ -1651,7 +1651,7 @@ func TestReplaceStringSecret(t *testing.T) {
 	assert.Equal(t, "$invalid-secret-key", result)
 
 	result = ReplaceStringSecret("", secretValues)
-	assert.Empty(t, result)
+	assert.Equal(t, "", result)
 
 	result = ReplaceStringSecret("my-value", secretValues)
 	assert.Equal(t, "my-value", result)

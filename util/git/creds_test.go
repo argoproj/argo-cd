@@ -18,7 +18,7 @@ import (
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 
 	"github.com/argoproj/argo-cd/v3/util/cert"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
@@ -55,7 +55,7 @@ func TestHTTPSCreds_Environ_no_cert_cleanup(t *testing.T) {
 	closer, _, err := creds.Environ()
 	require.NoError(t, err)
 	credsLenBefore := len(store.creds)
-	utilio.Close(closer)
+	io.Close(closer)
 	assert.Len(t, store.creds, credsLenBefore-1)
 }
 
@@ -63,7 +63,7 @@ func TestHTTPSCreds_Environ_insecure_true(t *testing.T) {
 	creds := NewHTTPSCreds("", "", "", "", "", true, "", "", &NoopCredsStore{}, false)
 	closer, env, err := creds.Environ()
 	t.Cleanup(func() {
-		utilio.Close(closer)
+		io.Close(closer)
 	})
 	require.NoError(t, err)
 	found := false
@@ -80,7 +80,7 @@ func TestHTTPSCreds_Environ_insecure_false(t *testing.T) {
 	creds := NewHTTPSCreds("", "", "", "", "", false, "", "", &NoopCredsStore{}, false)
 	closer, env, err := creds.Environ()
 	t.Cleanup(func() {
-		utilio.Close(closer)
+		io.Close(closer)
 	})
 	require.NoError(t, err)
 	found := false
@@ -212,7 +212,7 @@ func TestHTTPSCreds_Environ_clientCert(t *testing.T) {
 	assert.Equal(t, "clientCertKey", string(keyBytes))
 	require.NoError(t, err)
 
-	utilio.Close(closer)
+	io.Close(closer)
 
 	_, err = os.Stat(cert)
 	require.ErrorIs(t, err, os.ErrNotExist)
@@ -248,7 +248,7 @@ func Test_SSHCreds_Environ(t *testing.T) {
 		assert.Regexp(t, envRegex, env[1])
 		privateKeyFile := envRegex.FindStringSubmatch(env[1])[1]
 		assert.FileExists(t, privateKeyFile)
-		utilio.Close(closer)
+		io.Close(closer)
 		assert.NoFileExists(t, privateKeyFile)
 	}
 }
@@ -282,7 +282,7 @@ func Test_SSHCreds_Environ_WithProxy(t *testing.T) {
 		assert.Regexp(t, envRegex, env[1])
 		privateKeyFile := envRegex.FindStringSubmatch(env[1])[1]
 		assert.FileExists(t, privateKeyFile)
-		utilio.Close(closer)
+		io.Close(closer)
 		assert.NoFileExists(t, privateKeyFile)
 	}
 }
@@ -318,7 +318,7 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 		assert.Regexp(t, envRegex, env[1])
 		privateKeyFile := envRegex.FindStringSubmatch(env[1])[1]
 		assert.FileExists(t, privateKeyFile)
-		utilio.Close(closer)
+		io.Close(closer)
 		assert.NoFileExists(t, privateKeyFile)
 	}
 }
@@ -326,7 +326,7 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 	// Previously, if the proxy URL was invalid, a temporary file would be left in /dev/shm. This ensures the file is cleaned up in this case.
 
-	// countDev returns the number of files in /dev/shm (argoutilio.TempDir)
+	// countDev returns the number of files in /dev/shm (argoio.TempDir)
 	countFilesInDevShm := func() int {
 		entries, err := os.ReadDir(argoio.TempDir)
 		require.NoError(t, err)
@@ -382,11 +382,11 @@ func TestNewGoogleCloudCreds_invalidJSON(t *testing.T) {
 	assert.Nil(t, googleCloudCreds.creds)
 
 	token, err := googleCloudCreds.getAccessToken()
-	assert.Empty(t, token)
+	assert.Equal(t, "", token)
 	require.Error(t, err)
 
 	username, err := googleCloudCreds.getUsername()
-	assert.Empty(t, username)
+	assert.Equal(t, "", username)
 	require.Error(t, err)
 
 	closer, envStringSlice, err := googleCloudCreds.Environ()
@@ -407,7 +407,7 @@ func TestGoogleCloudCreds_Environ_cleanup(t *testing.T) {
 	closer, _, err := googleCloudCreds.Environ()
 	require.NoError(t, err)
 	credsLenBefore := len(store.creds)
-	utilio.Close(closer)
+	io.Close(closer)
 	assert.Len(t, store.creds, credsLenBefore-1)
 }
 
@@ -421,7 +421,7 @@ func TestAzureWorkloadIdentityCreds_Environ(t *testing.T) {
 	assert.Len(t, store.creds, 1)
 
 	for _, value := range store.creds {
-		assert.Empty(t, value.username)
+		assert.Equal(t, "", value.username)
 		assert.Equal(t, "accessToken", value.password)
 	}
 }
@@ -434,7 +434,7 @@ func TestAzureWorkloadIdentityCreds_Environ_cleanup(t *testing.T) {
 	closer, _, err := creds.Environ()
 	require.NoError(t, err)
 	credsLenBefore := len(store.creds)
-	utilio.Close(closer)
+	io.Close(closer)
 	assert.Len(t, store.creds, credsLenBefore-1)
 }
 
@@ -447,7 +447,7 @@ func TestAzureWorkloadIdentityCreds_GetUserInfo(t *testing.T) {
 	user, email, err := creds.GetUserInfo(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, workloadidentity.EmptyGuid, user)
-	assert.Empty(t, email)
+	assert.Equal(t, "", email)
 }
 
 func TestGetHelmCredsShouldReturnHelmCredsIfAzureWorkloadIdentityNotSpecified(t *testing.T) {

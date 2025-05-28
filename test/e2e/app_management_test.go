@@ -37,7 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/test/e2e/testdata"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
@@ -733,7 +733,7 @@ func TestManipulateApplicationResources(t *testing.T) {
 
 			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
-			defer utilio.Close(closer)
+			defer io.Close(closer)
 
 			_, err = client.DeleteResource(t.Context(), &applicationpkg.ApplicationResourceDeleteRequest{
 				Name:         &app.Name,
@@ -776,7 +776,7 @@ func assetSecretDataHidden(t *testing.T, manifest string) {
 func TestAppWithSecrets(t *testing.T) {
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	require.NoError(t, err)
-	defer utilio.Close(closer)
+	defer io.Close(closer)
 
 	Given(t).
 		Path("secrets").
@@ -1073,7 +1073,7 @@ func TestOldStyleResourceAction(t *testing.T) {
 		And(func(app *Application) {
 			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
-			defer utilio.Close(closer)
+			defer io.Close(closer)
 
 			actions, err := client.ListResourceActions(t.Context(), &applicationpkg.ApplicationResourceRequest{
 				Name:         &app.Name,
@@ -1179,7 +1179,7 @@ func TestNewStyleResourceActionPermitted(t *testing.T) {
 		And(func(app *Application) {
 			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
-			defer utilio.Close(closer)
+			defer io.Close(closer)
 
 			actions, err := client.ListResourceActions(t.Context(), &applicationpkg.ApplicationResourceRequest{
 				Name:         &app.Name,
@@ -1291,7 +1291,7 @@ func TestNewStyleResourceActionMixedOk(t *testing.T) {
 		And(func(app *Application) {
 			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
-			defer utilio.Close(closer)
+			defer io.Close(closer)
 
 			actions, err := client.ListResourceActions(t.Context(), &applicationpkg.ApplicationResourceRequest{
 				Name:         &app.Name,
@@ -1468,7 +1468,7 @@ func assertResourceActions(t *testing.T, appName string, successful bool) {
 	}
 
 	closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie()
-	defer utilio.Close(closer)
+	defer io.Close(closer)
 
 	deploymentResource, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -1580,7 +1580,7 @@ func TestPermissions(t *testing.T) {
 		Expect(Condition(ApplicationConditionInvalidSpecError, sourceError)).
 		And(func(app *Application) {
 			closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie()
-			defer utilio.Close(closer)
+			defer io.Close(closer)
 			appName, appNs := argo.ParseFromQualifiedName(app.Name, "")
 			fmt.Printf("APP NAME: %s\n", appName)
 			tree, err := cdClient.ResourceTree(t.Context(), &applicationpkg.ResourcesQuery{ApplicationName: &appName, AppNamespace: &appNs})
@@ -2348,9 +2348,9 @@ spec:
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(NoConditions()).
 		And(func(app *Application) {
-			assert.Equal(t, map[string]string{"labels.local/from-file": "file", "labels.local/from-args": "args"}, app.Labels)
-			assert.Equal(t, map[string]string{"annotations.local/from-file": "file"}, app.Annotations)
-			assert.Equal(t, []string{"resources-finalizer.argocd.argoproj.io"}, app.Finalizers)
+			assert.Equal(t, map[string]string{"labels.local/from-file": "file", "labels.local/from-args": "args"}, app.ObjectMeta.Labels)
+			assert.Equal(t, map[string]string{"annotations.local/from-file": "file"}, app.ObjectMeta.Annotations)
+			assert.Equal(t, []string{"resources-finalizer.argocd.argoproj.io"}, app.ObjectMeta.Finalizers)
 			assert.Equal(t, path, app.Spec.GetSource().Path)
 			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.GetSource().Helm.Parameters)
 		})
@@ -2846,7 +2846,7 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 			// The extra configmap must be pruned now, because it's tracked
 			cm, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Get(t.Context(), "other-configmap", metav1.GetOptions{})
 			require.Error(t, err)
-			require.Empty(t, cm.Name)
+			require.Equal(t, "", cm.Name)
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -2898,7 +2898,7 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 			// The extra configmap must be pruned now, because it's tracked and does not exist in git
 			cr, err := fixture.KubeClientset.RbacV1().ClusterRoles().Get(t.Context(), "e2e-other-clusterrole", metav1.GetOptions{})
 			require.Error(t, err)
-			require.Empty(t, cr.Name)
+			require.Equal(t, "", cr.Name)
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).

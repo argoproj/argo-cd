@@ -17,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	luajson "layeh.com/gopher-json"
 
-	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/resource_customizations"
 	"github.com/argoproj/argo-cd/v3/util/glob"
@@ -71,10 +70,6 @@ type VM struct {
 }
 
 func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState, error) {
-	return vm.runLuaWithResourceActionParameters(obj, script, nil)
-}
-
-func (vm VM) runLuaWithResourceActionParameters(obj *unstructured.Unstructured, script string, resourceActionParameters []*applicationpkg.ResourceActionParameters) (*lua.LState, error) {
 	l := lua.NewState(lua.Options{
 		SkipOpenLibs: !vm.UseOpenLibs,
 	})
@@ -104,29 +99,9 @@ func (vm VM) runLuaWithResourceActionParameters(obj *unstructured.Unstructured, 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 	l.SetContext(ctx)
-
-	// Inject action parameters as a hash table global variable
-	actionParams := l.CreateTable(0, len(resourceActionParameters))
-	for _, resourceActionParameter := range resourceActionParameters {
-		value := decodeValue(l, resourceActionParameter.GetValue())
-		actionParams.RawSetH(lua.LString(resourceActionParameter.GetName()), value)
-	}
-	l.SetGlobal("actionParams", actionParams) // Set the actionParams table as a global variable
-
 	objectValue := decodeValue(l, obj.Object)
 	l.SetGlobal("obj", objectValue)
 	err := l.DoString(script)
-
-	// Remove the default lua stack trace from execution errors since these
-	// errors will make it back to the user
-	var apiErr *lua.ApiError
-	if errors.As(err, &apiErr) {
-		if apiErr.Type == lua.ApiErrorRun {
-			apiErr.StackTrace = ""
-			err = apiErr
-		}
-	}
-
 	return l, err
 }
 
@@ -198,8 +173,8 @@ func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (script string, use
 	return builtInScript, true, err
 }
 
-func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string, resourceActionParameters []*applicationpkg.ResourceActionParameters) ([]ImpactedResource, error) {
-	l, err := vm.runLuaWithResourceActionParameters(obj, script, resourceActionParameters)
+func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string) ([]ImpactedResource, error) {
+	l, err := vm.runLua(obj, script)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +188,6 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 		var impactedResources []ImpactedResource
 
 		jsonString := bytes.NewBuffer(jsonBytes).String()
-		// nolint:staticcheck // Lua is fine to be capitalized.
 		if len(jsonString) < 2 {
 			return nil, errors.New("Lua output was not a valid json object or array")
 		}
