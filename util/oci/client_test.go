@@ -20,7 +20,7 @@ import (
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/memory"
 
-	argoio "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 )
 
@@ -87,7 +87,7 @@ func addFileToDirectory(t *testing.T, dir, filename, content string) {
 }
 
 func Test_nativeOCIClient_Extract(t *testing.T) {
-	cacheDir := argoio.NewRandomizedTempPaths(t.TempDir())
+	cacheDir := utilio.NewRandomizedTempPaths(t.TempDir())
 
 	type fields struct {
 		creds             Creds
