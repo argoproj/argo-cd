@@ -10,18 +10,18 @@ import (
 	"github.com/argoproj/argo-cd/v3/applicationset/services/github_app_auth"
 )
 
-func getOptionalHttpClientAndTransport(optionalHttpClient ...*http.Client) (*http.Client, http.RoundTripper) {
-	if len(optionalHttpClient) > 0 && optionalHttpClient[0] != nil {
+func getOptionalHTTPClientAndTransport(optionalHTTPClient ...*http.Client) (*http.Client, http.RoundTripper) {
+	if len(optionalHTTPClient) > 0 && optionalHTTPClient[0] != nil {
 		// will either use the provided custom httpClient and it's transport
-		return optionalHttpClient[0], optionalHttpClient[0].Transport
+		return optionalHTTPClient[0], optionalHTTPClient[0].Transport
 	}
 	// or the default httpClient and transport
 	return &http.Client{}, http.DefaultTransport
 }
 
 // Client builds a github client for the given app authentication.
-func Client(g github_app_auth.Authentication, url string, optionalHttpClient ...*http.Client) (*github.Client, error) {
-	httpClient, transport := getOptionalHttpClientAndTransport(optionalHttpClient...)
+func Client(g github_app_auth.Authentication, url string, optionalHTTPClient ...*http.Client) (*github.Client, error) {
+	httpClient, transport := getOptionalHTTPClientAndTransport(optionalHTTPClient...)
 
 	rt, err := ghinstallation.New(transport, g.Id, g.InstallationId, []byte(g.PrivateKey))
 	if err != nil {

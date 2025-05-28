@@ -30,6 +30,7 @@ argocd-server [flags]
       --app-state-cache-expiration duration             Cache expiration for app state (default 1h0m0s)
       --application-namespaces strings                  List of additional namespaces where application resources can be managed in
       --appset-allowed-scm-providers strings            The list of allowed custom SCM provider API URLs. This restriction does not apply to SCM or PR generators which do not accept a custom API URL. (Default: Empty = all)
+      --appset-enable-github-api-metrics                Enable GitHub API metrics for generators that use the GitHub API
       --appset-enable-new-git-file-globbing             Enable new globbing in Git files generator.
       --appset-enable-scm-providers                     Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true) (default true)
       --appset-scm-root-ca-path string                  Provide Root CA Path for self-signed TLS Certificates
