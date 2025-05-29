@@ -341,14 +341,12 @@ func (e *Enforcer) EnforceErr(rvals ...any) error {
 			if s, ok := rvals[0].(jwt.Claims); ok {
 				claims, err := jwtutil.MapClaims(s)
 				if err == nil {
-					argoClaims, err := claimsutil.MapClaimsToArgoClaims(claims)
-					if err == nil {
-						if argoClaims.GetUserIdentifier() != "" {
-							rvalsStrs = append(rvalsStrs, "sub: "+argoClaims.GetUserIdentifier())
-						}
-						if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
-							rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
-						}
+					userId := claimsutil.GetUserIdentifier(claims)
+					if userId != "" {
+						rvalsStrs = append(rvalsStrs, "sub: "+userId)
+					}
+					if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
+						rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
 					}
 				}
 			}
