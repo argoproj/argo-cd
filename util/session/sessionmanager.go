@@ -25,7 +25,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
-	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	"github.com/argoproj/argo-cd/v3/util/dex"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
@@ -226,7 +225,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 		return nil, "", err
 	}
 
-	subject := claimsutil.GetUserIdentifier(claims)
+	subject := jwtutil.GetUserIdentifier(claims)
 	id := jwtutil.StringField(claims, "jti")
 
 	if projName, role, ok := rbacpolicy.GetProjectRoleFromSubject(subject); ok {
@@ -597,13 +596,13 @@ func Username(ctx context.Context) string {
 	}
 	switch jwtutil.StringField(mapClaims, "iss") {
 	case SessionManagerClaimsIssuer:
-		return claimsutil.GetUserIdentifier(mapClaims)
+		return jwtutil.GetUserIdentifier(mapClaims)
 	default:
 		e := jwtutil.StringField(mapClaims, "email")
 		if e != "" {
 			return e
 		}
-		return claimsutil.GetUserIdentifier(mapClaims)
+		return jwtutil.GetUserIdentifier(mapClaims)
 	}
 }
 
@@ -629,7 +628,7 @@ func GetUserIdentifier(ctx context.Context) string {
 	if !ok {
 		return ""
 	}
-	return claimsutil.GetUserIdentifier(mapClaims)
+	return jwtutil.GetUserIdentifier(mapClaims)
 }
 
 func Groups(ctx context.Context, scopes []string) []string {

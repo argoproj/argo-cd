@@ -7,8 +7,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
-
 	timeutil "github.com/argoproj/pkg/v2/time"
 	jwtgo "github.com/golang-jwt/jwt/v5"
 	"github.com/spf13/cobra"
@@ -335,7 +333,7 @@ Create token succeeded for proj:test-project:test-role.
 			issuedAt, _ := jwt.IssuedAt(claims)
 			expiresAt := int64(jwt.Float64Field(claims, "exp"))
 			id := jwt.StringField(claims, "jti")
-			subject := claimsutil.GetUserIdentifier(claims)
+			subject := jwt.GetUserIdentifier(claims)
 			if !outputTokenOnly {
 				fmt.Printf("Create token succeeded for %s.\n", subject)
 				fmt.Printf("  ID: %s\n  Issued At: %s\n  Expires At: %s\n",
