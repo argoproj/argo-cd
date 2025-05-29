@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
@@ -57,4 +58,57 @@ func TestGetToken_InitError(t *testing.T) {
 	token, err := provider.GetToken("https://management.core.windows.net/.default")
 	require.Error(t, err, "Expected error from GetToken due to initialization error")
 	assert.Nil(t, token, "Expected token to be empty on initialization error")
+}
+
+func TestCalclulateCacheExpiryBasedOnTokenExpiry(t *testing.T) {
+	now := time.Now()
+
+	tests := []struct {
+		name     string
+		expiry   time.Time
+		expected time.Duration
+		delta    float64
+	}{
+		{
+			name:     "Future expiry (10min ahead)",
+			expiry:   now.Add(10 * time.Minute),
+			expected: 5 * time.Minute,
+			delta:    10, // allow 10s difference
+		},
+		{
+			name:     "Expiring in 5 minutes",
+			expiry:   now.Add(5 * time.Second),
+			expected: time.Second,
+			delta:    0,
+		},
+		{
+			name:     "Expires soon (4min ahead)",
+			expiry:   now.Add(4 * time.Minute),
+			expected: time.Second,
+			delta:    0,
+		},
+		{
+			name:     "Just expired (1s ago)",
+			expiry:   now.Add(-1 * time.Second),
+			expected: time.Second,
+			delta:    0,
+		},
+		{
+			name:     "Already expired (1m ago)",
+			expiry:   now.Add(-1 * time.Minute),
+			expected: time.Second,
+			delta:    0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := CalclulateCacheExpiryBasedOnTokenExpiry(tt.expiry)
+			if tt.delta > 0 {
+				assert.InDelta(t, tt.expected.Seconds(), actual.Seconds(), tt.delta)
+			} else {
+				assert.Equal(t, tt.expected, actual)
+			}
+		})
+	}
 }
