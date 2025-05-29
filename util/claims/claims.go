@@ -2,6 +2,8 @@ package claims
 
 import (
 	"github.com/golang-jwt/jwt/v5"
+
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 )
 
 // GetUserIdentifier returns a consistent user identifier, checking federated_claims.user_id when Dex is in use
@@ -11,10 +13,7 @@ func GetUserIdentifier(c jwt.MapClaims) string {
 	}
 
 	// Fallback to sub if federated_claims.user_id is not set.
-	fallback, err := c.GetSubject()
-	if err != nil {
-		fallback = ""
-	}
+	fallback := jwtutil.StringField(c, "sub")
 
 	f := c["federated_claims"]
 	if f == nil {
