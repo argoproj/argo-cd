@@ -4,7 +4,7 @@ namespace: argocd
 resources:
   - namespace.yaml
   - ui-deployment.yaml
-  - ../cluster-install
+  - ../cluster-install-with-hydrator
 
 patches:
   - target:
