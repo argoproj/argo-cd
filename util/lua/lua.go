@@ -6,12 +6,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
+	glob "github.com/bmatcuk/doublestar/v4"
 	lua "github.com/yuin/gopher-lua"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -20,7 +25,7 @@ import (
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/resource_customizations"
-	"github.com/argoproj/argo-cd/v3/util/glob"
+	argoglob "github.com/argoproj/argo-cd/v3/util/glob"
 )
 
 const (
@@ -31,15 +36,8 @@ const (
 	actionDiscoveryScriptFile = "discovery.lua"
 )
 
-// ScriptDoesNotExistError is an error type for when a built-in script does not exist.
-type ScriptDoesNotExistError struct {
-	// ScriptName is the name of the script that does not exist.
-	ScriptName string
-}
-
-func (e ScriptDoesNotExistError) Error() string {
-	return fmt.Sprintf("built-in script %q does not exist", e.ScriptName)
-}
+// errScriptDoesNotExist is an error type for when a built-in script does not exist.
+var errScriptDoesNotExist = errors.New("built-in script does not exist")
 
 type ResourceHealthOverrides map[string]appv1.ResourceOverride
 
@@ -187,8 +185,16 @@ func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (script string, use
 	// (as built-in scripts are files in folders, named after the GVK, currently there is no wildcard support for them)
 	builtInScript, err := vm.getPredefinedLuaScripts(key, healthScriptFile)
 	if err != nil {
-		var doesNotExist *ScriptDoesNotExistError
-		if errors.As(err, &doesNotExist) {
+		if errors.Is(err, errScriptDoesNotExist) {
+			// Try to find a wildcard built-in health script
+			builtInScript, err = getWildcardBuiltInHealthOverrideLua(key)
+			if err != nil {
+				return "", false, fmt.Errorf("error while fetching built-in health script: %w", err)
+			}
+			if builtInScript != "" {
+				return builtInScript, true, nil
+			}
+
 			// It's okay if no built-in health script exists. Just return an empty string and let the caller handle it.
 			return "", false, nil
 		}
@@ -422,8 +428,7 @@ func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) ([]strin
 	discoveryKey := key + "/actions/"
 	discoveryScript, err := vm.getPredefinedLuaScripts(discoveryKey, actionDiscoveryScriptFile)
 	if err != nil {
-		var doesNotExistErr *ScriptDoesNotExistError
-		if errors.As(err, &doesNotExistErr) {
+		if errors.Is(err, errScriptDoesNotExist) {
 			// No worries, just return what we have.
 			return discoveryScripts, nil
 		}
@@ -477,7 +482,7 @@ func getWildcardHealthOverrideLua(overrides map[string]appv1.ResourceOverride, g
 	gvkKeyToMatch := GetConfigMapKey(gvk)
 
 	for key, override := range overrides {
-		if glob.Match(key, gvkKeyToMatch) && override.HealthLua != "" {
+		if argoglob.Match(key, gvkKeyToMatch) && override.HealthLua != "" {
 			return override.HealthLua, override.UseOpenLibs
 		}
 	}
@@ -488,11 +493,93 @@ func (vm VM) getPredefinedLuaScripts(objKey string, scriptFile string) (string, 
 	data, err := resource_customizations.Embedded.ReadFile(filepath.Join(objKey, scriptFile))
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "", &ScriptDoesNotExistError{ScriptName: objKey}
+			return "", errScriptDoesNotExist
 		}
 		return "", err
 	}
 	return string(data), nil
+}
+
+// globHealthScriptPathsOnce is a sync.Once instance to ensure that the globHealthScriptPaths are only initialized once.
+// The globs come from an embedded filesystem, so it won't change at runtime.
+var globHealthScriptPathsOnce sync.Once
+
+// globHealthScriptPaths is a cache for the glob patterns of directories containing health.lua files. Don't use this
+// directly, use getGlobHealthScriptPaths() instead.
+var globHealthScriptPaths []string
+
+// getGlobHealthScriptPaths returns the paths of the directories containing health.lua files where the path contains a
+// glob pattern. It uses a sync.Once to ensure that the paths are only initialized once.
+func getGlobHealthScriptPaths() ([]string, error) {
+	var err error
+	globHealthScriptPathsOnce.Do(func() {
+		// Walk through the embedded filesystem and get the directory names of all directories containing a health.lua.
+		var patterns []string
+		err = fs.WalkDir(resource_customizations.Embedded, ".", func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return fmt.Errorf("error walking path %q: %w", path, err)
+			}
+
+			// Skip non-directories at the top level
+			if d.IsDir() && filepath.Dir(path) == "." {
+				return nil
+			}
+
+			// Check if the directory contains a health.lua file
+			if filepath.Base(path) != healthScriptFile {
+				return nil
+			}
+
+			groupKindPath := filepath.Dir(path)
+			// Check if the path contains a wildcard. If it doesn't, skip it.
+			if !strings.Contains(groupKindPath, "_") {
+				return nil
+			}
+
+			pattern := strings.ReplaceAll(groupKindPath, "_", "*")
+			// Check that the pattern is valid.
+			if !glob.ValidatePattern(pattern) {
+				return fmt.Errorf("invalid glob pattern %q: %w", pattern, err)
+			}
+
+			patterns = append(patterns, groupKindPath)
+			return nil
+		})
+		if err != nil {
+			return
+		}
+
+		// Sort the patterns to ensure deterministic choice of wildcard directory for a given GK.
+		slices.Sort(patterns)
+
+		globHealthScriptPaths = patterns
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error getting health script glob directories: %w", err)
+	}
+	return globHealthScriptPaths, nil
+}
+
+func getWildcardBuiltInHealthOverrideLua(objKey string) (string, error) {
+	// Check if the GVK matches any of the wildcard directories
+	globs, err := getGlobHealthScriptPaths()
+	if err != nil {
+		return "", fmt.Errorf("error getting health script globs: %w", err)
+	}
+	for _, g := range globs {
+		pattern := strings.ReplaceAll(g, "_", "*")
+		if !glob.PathMatchUnvalidated(pattern, objKey) {
+			continue
+		}
+
+		var script []byte
+		script, err = resource_customizations.Embedded.ReadFile(filepath.Join(g, healthScriptFile))
+		if err != nil {
+			return "", fmt.Errorf("error reading %q file in embedded filesystem: %w", filepath.Join(objKey, healthScriptFile), err)
+		}
+		return string(script), nil
+	}
+	return "", nil
 }
 
 func isValidHealthStatusCode(statusCode health.HealthStatusCode) bool {

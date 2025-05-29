@@ -172,6 +172,7 @@ func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, 
 		time.Second,
 		time.Minute,
 		nil,
+		time.Minute,
 		0,
 		time.Second*10,
 		common.DefaultPortArgoCDMetrics,
@@ -517,7 +518,7 @@ func newFakeMultiSourceApp() *v1alpha1.Application {
 
 func createFakeAppWithHealthAndTime(testApp string, status health.HealthStatusCode, timestamp metav1.Time) *v1alpha1.Application {
 	app := createFakeApp(testApp)
-	app.Status.Health = v1alpha1.HealthStatus{
+	app.Status.Health = v1alpha1.AppHealthStatus{
 		Status:             status,
 		LastTransitionTime: &timestamp,
 	}
@@ -2642,10 +2643,18 @@ func TestSelfHealExponentialBackoff(t *testing.T) {
 		alreadyAttempted: false,
 		expectedAttempts: 0,
 		syncStatus:       v1alpha1.SyncStatusCodeOutOfSync,
-	}, {
+	}, { // backoff will not reset as finished tme isn't >= cooldown
 		attempts:         6,
-		finishedAt:       nil,
-		expectedDuration: 0,
+		finishedAt:       ptr.To(metav1.Now()),
+		expectedDuration: 120 * time.Second,
+		shouldSelfHeal:   false,
+		alreadyAttempted: true,
+		expectedAttempts: 6,
+		syncStatus:       v1alpha1.SyncStatusCodeSynced,
+	}, { // backoff will reset as finished time is >= cooldown
+		attempts:         40,
+		finishedAt:       &metav1.Time{Time: time.Now().Add(-(1 * time.Minute))},
+		expectedDuration: -60 * time.Second,
 		shouldSelfHeal:   true,
 		alreadyAttempted: true,
 		expectedAttempts: 0,

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
-	utils "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -27,7 +27,7 @@ func captureStdout(callback func()) (string, error) {
 	}()
 
 	callback()
-	utils.Close(w)
+	utilio.Close(w)
 
 	data, err := io.ReadAll(r)
 	if err != nil {

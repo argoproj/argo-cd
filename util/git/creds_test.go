@@ -18,7 +18,7 @@ import (
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 
 	"github.com/argoproj/argo-cd/v3/util/cert"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
@@ -55,7 +55,7 @@ func TestHTTPSCreds_Environ_no_cert_cleanup(t *testing.T) {
 	closer, _, err := creds.Environ()
 	require.NoError(t, err)
 	credsLenBefore := len(store.creds)
-	io.Close(closer)
+	utilio.Close(closer)
 	assert.Len(t, store.creds, credsLenBefore-1)
 }
 
@@ -63,7 +63,7 @@ func TestHTTPSCreds_Environ_insecure_true(t *testing.T) {
 	creds := NewHTTPSCreds("", "", "", "", "", true, "", "", &NoopCredsStore{}, false)
 	closer, env, err := creds.Environ()
 	t.Cleanup(func() {
-		io.Close(closer)
+		utilio.Close(closer)
 	})
 	require.NoError(t, err)
 	found := false
@@ -80,7 +80,7 @@ func TestHTTPSCreds_Environ_insecure_false(t *testing.T) {
 	creds := NewHTTPSCreds("", "", "", "", "", false, "", "", &NoopCredsStore{}, false)
 	closer, env, err := creds.Environ()
 	t.Cleanup(func() {
-		io.Close(closer)
+		utilio.Close(closer)
 	})
 	require.NoError(t, err)
 	found := false
@@ -212,7 +212,7 @@ func TestHTTPSCreds_Environ_clientCert(t *testing.T) {
 	assert.Equal(t, "clientCertKey", string(keyBytes))
 	require.NoError(t, err)
 
-	io.Close(closer)
+	utilio.Close(closer)
 
 	_, err = os.Stat(cert)
 	require.ErrorIs(t, err, os.ErrNotExist)
@@ -248,7 +248,7 @@ func Test_SSHCreds_Environ(t *testing.T) {
 		assert.Regexp(t, envRegex, env[1])
 		privateKeyFile := envRegex.FindStringSubmatch(env[1])[1]
 		assert.FileExists(t, privateKeyFile)
-		io.Close(closer)
+		utilio.Close(closer)
 		assert.NoFileExists(t, privateKeyFile)
 	}
 }
@@ -282,7 +282,7 @@ func Test_SSHCreds_Environ_WithProxy(t *testing.T) {
 		assert.Regexp(t, envRegex, env[1])
 		privateKeyFile := envRegex.FindStringSubmatch(env[1])[1]
 		assert.FileExists(t, privateKeyFile)
-		io.Close(closer)
+		utilio.Close(closer)
 		assert.NoFileExists(t, privateKeyFile)
 	}
 }
@@ -318,7 +318,7 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 		assert.Regexp(t, envRegex, env[1])
 		privateKeyFile := envRegex.FindStringSubmatch(env[1])[1]
 		assert.FileExists(t, privateKeyFile)
-		io.Close(closer)
+		utilio.Close(closer)
 		assert.NoFileExists(t, privateKeyFile)
 	}
 }
@@ -326,7 +326,7 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 	// Previously, if the proxy URL was invalid, a temporary file would be left in /dev/shm. This ensures the file is cleaned up in this case.
 
-	// countDev returns the number of files in /dev/shm (argoio.TempDir)
+	// countDev returns the number of files in /dev/shm (argoutilio.TempDir)
 	countFilesInDevShm := func() int {
 		entries, err := os.ReadDir(argoio.TempDir)
 		require.NoError(t, err)
@@ -407,7 +407,7 @@ func TestGoogleCloudCreds_Environ_cleanup(t *testing.T) {
 	closer, _, err := googleCloudCreds.Environ()
 	require.NoError(t, err)
 	credsLenBefore := len(store.creds)
-	io.Close(closer)
+	utilio.Close(closer)
 	assert.Len(t, store.creds, credsLenBefore-1)
 }
 
@@ -434,7 +434,7 @@ func TestAzureWorkloadIdentityCreds_Environ_cleanup(t *testing.T) {
 	closer, _, err := creds.Environ()
 	require.NoError(t, err)
 	credsLenBefore := len(store.creds)
-	io.Close(closer)
+	utilio.Close(closer)
 	assert.Len(t, store.creds, credsLenBefore-1)
 }
 

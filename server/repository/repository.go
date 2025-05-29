@@ -26,7 +26,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/git"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -252,7 +252,7 @@ func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*api
 	if err != nil {
 		return nil, err
 	}
-	defer io.Close(conn)
+	defer utilio.Close(conn)
 
 	return repoClient.ListRefs(ctx, &apiclient.ListRefsRequest{
 		Repo: repo,
@@ -290,7 +290,7 @@ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (
 	if err != nil {
 		return nil, err
 	}
-	defer io.Close(conn)
+	defer utilio.Close(conn)
 
 	apps, err := repoClient.ListApps(ctx, &apiclient.ListAppsRequest{
 		Repo:     repo,
@@ -353,7 +353,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err != nil {
 		return nil, err
 	}
-	defer io.Close(conn)
+	defer utilio.Close(conn)
 	helmRepos, err := s.db.ListHelmRepositories(ctx)
 	if err != nil {
 		return nil, err
@@ -404,7 +404,7 @@ func (s *Server) GetHelmCharts(ctx context.Context, q *repositorypkg.RepoQuery) 
 	if err != nil {
 		return nil, err
 	}
-	defer io.Close(conn)
+	defer utilio.Close(conn)
 	return repoClient.GetHelmCharts(ctx, &apiclient.HelmChartsRequest{Repo: repo})
 }
 
@@ -746,7 +746,7 @@ func (s *Server) testRepo(ctx context.Context, repo *v1alpha1.Repository) error 
 	if err != nil {
 		return fmt.Errorf("failed to connect to repo-server: %w", err)
 	}
-	defer io.Close(conn)
+	defer utilio.Close(conn)
 
 	_, err = repoClient.TestRepository(ctx, &apiclient.TestRepositoryRequest{
 		Repo: repo,

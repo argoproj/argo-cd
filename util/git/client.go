@@ -366,7 +366,7 @@ func (m *nativeGitClient) Init() error {
 	return err
 }
 
-// Returns true if the repository is LFS enabled
+// IsLFSEnabled returns true if the repository is LFS enabled
 func (m *nativeGitClient) IsLFSEnabled() bool {
 	return m.enableLfs
 }

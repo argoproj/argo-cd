@@ -744,6 +744,8 @@ func Test_GetWebURLRegex(t *testing.T) {
 		{true, "http://example.com/org/repo", "https://user@example.com/org/repo", "http should match https+username"},
 		{true, "https://example.com/org/repo", "https://user@example.com/org/repo", "https should match https+username"},
 		{true, "https://user@example.com/org/repo", "ssh://example.com/org/repo", "https+username should match ssh"},
+
+		{false, "", "", "empty URLs should not panic"},
 	}
 
 	for _, testCase := range tests {

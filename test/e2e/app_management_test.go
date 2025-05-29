@@ -37,7 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/test/e2e/testdata"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
@@ -733,7 +733,7 @@ func TestManipulateApplicationResources(t *testing.T) {
 
 			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
-			defer io.Close(closer)
+			defer utilio.Close(closer)
 
 			_, err = client.DeleteResource(t.Context(), &applicationpkg.ApplicationResourceDeleteRequest{
 				Name:         &app.Name,
@@ -776,7 +776,7 @@ func assetSecretDataHidden(t *testing.T, manifest string) {
 func TestAppWithSecrets(t *testing.T) {
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	require.NoError(t, err)
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 
 	Given(t).
 		Path("secrets").
@@ -1009,7 +1009,7 @@ func TestDuplicatedClusterResourcesAnnotationTracking(t *testing.T) {
 	// (i.e. resources where metadata.namespace is set). Before the bugfix, this test would fail with a diff in the
 	// tracking annotation.
 	Given(t).
-		SetTrackingMethod(string(argo.TrackingMethodAnnotation)).
+		SetTrackingMethod(string(TrackingMethodAnnotation)).
 		Path("duplicated-resources").
 		When().
 		CreateApp().
@@ -1073,7 +1073,7 @@ func TestOldStyleResourceAction(t *testing.T) {
 		And(func(app *Application) {
 			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
-			defer io.Close(closer)
+			defer utilio.Close(closer)
 
 			actions, err := client.ListResourceActions(t.Context(), &applicationpkg.ApplicationResourceRequest{
 				Name:         &app.Name,
@@ -1179,7 +1179,7 @@ func TestNewStyleResourceActionPermitted(t *testing.T) {
 		And(func(app *Application) {
 			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
-			defer io.Close(closer)
+			defer utilio.Close(closer)
 
 			actions, err := client.ListResourceActions(t.Context(), &applicationpkg.ApplicationResourceRequest{
 				Name:         &app.Name,
@@ -1291,7 +1291,7 @@ func TestNewStyleResourceActionMixedOk(t *testing.T) {
 		And(func(app *Application) {
 			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
-			defer io.Close(closer)
+			defer utilio.Close(closer)
 
 			actions, err := client.ListResourceActions(t.Context(), &applicationpkg.ApplicationResourceRequest{
 				Name:         &app.Name,
@@ -1468,7 +1468,7 @@ func assertResourceActions(t *testing.T, appName string, successful bool) {
 	}
 
 	closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie()
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 
 	deploymentResource, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -1580,7 +1580,7 @@ func TestPermissions(t *testing.T) {
 		Expect(Condition(ApplicationConditionInvalidSpecError, sourceError)).
 		And(func(app *Application) {
 			closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie()
-			defer io.Close(closer)
+			defer utilio.Close(closer)
 			appName, appNs := argo.ParseFromQualifiedName(app.Name, "")
 			fmt.Printf("APP NAME: %s\n", appName)
 			tree, err := cdClient.ResourceTree(t.Context(), &applicationpkg.ResourcesQuery{ApplicationName: &appName, AppNamespace: &appNs})
@@ -2600,7 +2600,7 @@ func TestSwitchTrackingMethod(t *testing.T) {
 	ctx := Given(t)
 
 	ctx.
-		SetTrackingMethod(string(argo.TrackingMethodAnnotation)).
+		SetTrackingMethod(string(TrackingMethodAnnotation)).
 		Path("deployment").
 		When().
 		CreateApp().
@@ -2637,7 +2637,7 @@ func TestSwitchTrackingMethod(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
-		SetTrackingMethod(string(argo.TrackingMethodLabel)).
+		SetTrackingMethod(string(TrackingMethodLabel)).
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -2692,7 +2692,7 @@ func TestSwitchTrackingMethod(t *testing.T) {
 func TestSwitchTrackingLabel(t *testing.T) {
 	ctx := Given(t)
 
-	require.NoError(t, fixture.SetTrackingMethod(string(argo.TrackingMethodLabel)))
+	require.NoError(t, fixture.SetTrackingMethod(string(TrackingMethodLabel)))
 	ctx.
 		Path("deployment").
 		When().
@@ -2786,7 +2786,7 @@ func TestSwitchTrackingLabel(t *testing.T) {
 func TestAnnotationTrackingExtraResources(t *testing.T) {
 	ctx := Given(t)
 
-	require.NoError(t, fixture.SetTrackingMethod(string(argo.TrackingMethodAnnotation)))
+	require.NoError(t, fixture.SetTrackingMethod(string(TrackingMethodAnnotation)))
 	ctx.
 		Path("deployment").
 		When().
@@ -2952,7 +2952,7 @@ data:
 func TestInstallationID(t *testing.T) {
 	ctx := Given(t)
 	ctx.
-		SetTrackingMethod(string(argo.TrackingMethodAnnotation)).
+		SetTrackingMethod(string(TrackingMethodAnnotation)).
 		And(func() {
 			_, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(
 				t.Context(), &corev1.ConfigMap{
@@ -3028,4 +3028,47 @@ func TestDeletionConfirmation(t *testing.T) {
 		}).
 		When().ConfirmDeletion().
 		Then().Expect(DoesNotExist())
+}
+
+func TestLastTransitionTimeUnchangedError(t *testing.T) {
+	// Ensure that, if the health status hasn't changed, the lastTransitionTime is not updated.
+
+	ctx := Given(t)
+	ctx.
+		Path(guestbookPath).
+		When().
+		And(func() {
+			// Manually create an application with an outdated reconciledAt field
+			manifest := fmt.Sprintf(`
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: %s
+spec:
+  project: default
+  source:
+    repoURL: %s
+    path: guestbook
+    targetRevision: HEAD
+  destination:
+    server: https://non-existent-cluster
+    namespace: default
+status:
+  reconciledAt: "2023-01-01T00:00:00Z"
+  health:
+    status: Unknown
+    lastTransitionTime: "2023-01-01T00:00:00Z"
+`, ctx.AppName(), fixture.RepoURL(fixture.RepoURLTypeFile))
+			_, err := fixture.RunWithStdin(manifest, "", "kubectl", "apply", "-n", fixture.ArgoCDNamespace, "-f", "-")
+			require.NoError(t, err)
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		And(func(app *Application) {
+			// Verify the health status is still Unknown
+			assert.Equal(t, health.HealthStatusUnknown, app.Status.Health.Status)
+
+			// Verify the lastTransitionTime has not been updated
+			assert.Equal(t, "2023-01-01T00:00:00Z", app.Status.Health.LastTransitionTime.UTC().Format(time.RFC3339))
+		})
 }

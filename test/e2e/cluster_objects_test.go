@@ -11,7 +11,6 @@ import (
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/v3/util/argo"
 )
 
 func TestClusterRoleBinding(t *testing.T) {
@@ -30,7 +29,7 @@ func TestClusterRoleBinding(t *testing.T) {
 			assert.Empty(t, diffOutput)
 		}).
 		When().
-		SetTrackingMethod(string(argo.TrackingMethodAnnotation)).
+		SetTrackingMethod(string(TrackingMethodAnnotation)).
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).

@@ -45,7 +45,7 @@ go_mod_install k8s.io/code-generator/cmd/lister-gen
 go_mod_install k8s.io/kube-openapi/cmd/openapi-gen
 
 # controller-gen is run by ./hack/gen-crd-spec to generate the CRDs
-go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0
+go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.18.0
 
 # swagger cli is used to generate swagger docs
 go install github.com/go-swagger/go-swagger/cmd/swagger@v0.28.0
@@ -54,4 +54,4 @@ go install github.com/go-swagger/go-swagger/cmd/swagger@v0.28.0
 go install golang.org/x/tools/cmd/goimports@v0.1.8
 
 # mockery is used to generate mock
-go install github.com/vektra/mockery/v2@v2.52.4
+go install github.com/vektra/mockery/v3@v3.2.5

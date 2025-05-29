@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -226,7 +227,7 @@ func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 	var info prGeneratorInfo
 	switch payload := payload.(type) {
 	case github.PullRequestPayload:
-		if !isAllowedGithubPullRequestAction(payload.Action) {
+		if !slices.Contains(githubAllowedPullRequestActions, payload.Action) {
 			return nil
 		}
 
@@ -242,7 +243,7 @@ func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 			APIRegexp: apiRegexp,
 		}
 	case gitlab.MergeRequestEventPayload:
-		if !isAllowedGitlabPullRequestAction(payload.ObjectAttributes.Action) {
+		if !slices.Contains(gitlabAllowedPullRequestActions, payload.ObjectAttributes.Action) {
 			return nil
 		}
 
@@ -258,7 +259,7 @@ func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 			APIHostname: urlObj.Hostname(),
 		}
 	case azuredevops.GitPullRequestEvent:
-		if !isAllowedAzureDevOpsPullRequestAction(string(payload.EventType)) {
+		if !slices.Contains(azuredevopsAllowedPullRequestActions, string(payload.EventType)) {
 			return nil
 		}
 
@@ -301,33 +302,6 @@ var azuredevopsAllowedPullRequestActions = []string{
 	"git.pullrequest.created",
 	"git.pullrequest.merged",
 	"git.pullrequest.updated",
-}
-
-func isAllowedGithubPullRequestAction(action string) bool {
-	for _, allow := range githubAllowedPullRequestActions {
-		if allow == action {
-			return true
-		}
-	}
-	return false
-}
-
-func isAllowedGitlabPullRequestAction(action string) bool {
-	for _, allow := range gitlabAllowedPullRequestActions {
-		if allow == action {
-			return true
-		}
-	}
-	return false
-}
-
-func isAllowedAzureDevOpsPullRequestAction(action string) bool {
-	for _, allow := range azuredevopsAllowedPullRequestActions {
-		if allow == action {
-			return true
-		}
-	}
-	return false
 }
 
 func shouldRefreshGitGenerator(gen *v1alpha1.GitGenerator, info *gitGeneratorInfo) bool {

@@ -515,6 +515,7 @@ func TestUpdateAppSet(t *testing.T) {
 			"label-key1": "label-value1",
 			"label-key2": "label-value2",
 		}
+		appset.Finalizers = []string{"finalizer"}
 	})
 
 	newAppSet := newTestAppSet(func(appset *appsv1.ApplicationSet) {
@@ -524,6 +525,7 @@ func TestUpdateAppSet(t *testing.T) {
 		appset.Labels = map[string]string{
 			"label-key1": "label-value1-updated",
 		}
+		appset.Finalizers = []string{"finalizer-updated"}
 	})
 
 	t.Run("Update merge", func(t *testing.T) {
@@ -540,6 +542,7 @@ func TestUpdateAppSet(t *testing.T) {
 			"label-key1": "label-value1-updated",
 			"label-key2": "label-value2",
 		}, updated.Labels)
+		assert.Equal(t, []string{"finalizer-updated"}, updated.Finalizers)
 	})
 
 	t.Run("Update no merge", func(t *testing.T) {

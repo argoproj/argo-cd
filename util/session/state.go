@@ -9,7 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 
-	util "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 const (
@@ -55,7 +55,7 @@ func (storage *userStateStorage) Init(ctx context.Context) {
 
 func (storage *userStateStorage) watchRevokedTokens(ctx context.Context) {
 	pubsub := storage.redis.Subscribe(ctx, newRevokedTokenKey)
-	defer util.Close(pubsub)
+	defer utilio.Close(pubsub)
 
 	ch := pubsub.Channel()
 	for {

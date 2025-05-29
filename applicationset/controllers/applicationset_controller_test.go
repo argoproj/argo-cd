@@ -36,6 +36,7 @@ import (
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -1210,7 +1211,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 			clusterList, err := utils.ListClusters(t.Context(), kubeclientset, "namespace")
 			require.NoError(t, err)
 
-			appLog := log.WithFields(log.Fields{"app": app.Name, "appSet": ""})
+			appLog := log.WithFields(applog.GetAppLogFields(&app)).WithField("appSet", "")
 
 			appInputParam := app.DeepCopy()
 
@@ -1366,7 +1367,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 			clusterList, err := utils.ListClusters(t.Context(), kubeclientset, "argocd")
 			require.NoError(t, err)
 
-			appLog := log.WithFields(log.Fields{"app": app.Name, "appSet": ""})
+			appLog := log.WithFields(applog.GetAppLogFields(&app)).WithField("appSet", "")
 
 			appInputParam := app.DeepCopy()
 
@@ -3887,7 +3888,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 						Name: "app1",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -3903,7 +3904,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 						Name: "app2",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -3965,7 +3966,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 						Name: "app1",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -3981,7 +3982,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 						Name: "app2",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -4043,7 +4044,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 						Name: "app1",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -4059,7 +4060,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 						Name: "app2",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -4121,7 +4122,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 						Name: "app1",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusDegraded,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -4137,7 +4138,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 						Name: "app2",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusDegraded,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -4203,7 +4204,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 						Name: "app1",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -4219,7 +4220,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 						Name: "app2",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -4293,7 +4294,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 						Name: "app1",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -4309,7 +4310,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 						Name: "app2",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -4325,7 +4326,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 						Name: "app3",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -4341,7 +4342,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 						Name: "app5",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -4357,7 +4358,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 						Name: "app6",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusDegraded,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -4475,7 +4476,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						Name: "app1",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -4530,7 +4531,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						Name: "app1",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -4594,7 +4595,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						Name: "app1",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -4745,7 +4746,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						Name: "app1",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusProgressing,
 						},
 						Sync: v1alpha1.SyncStatus{
@@ -4807,7 +4808,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						Name: "app1",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -4873,7 +4874,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						Name: "app1",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -4939,7 +4940,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						Name: "app1",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -4994,7 +4995,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						Name: "app1",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -5067,7 +5068,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						Name: "app1",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusDegraded,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -5148,7 +5149,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						Name: "app1",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusDegraded,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -5233,7 +5234,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						Name: "app1",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -5299,7 +5300,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						Name: "app1",
 					},
 					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
+						Health: v1alpha1.AppHealthStatus{
 							Status: health.HealthStatusHealthy,
 						},
 						OperationState: &v1alpha1.OperationState{
@@ -6155,9 +6156,8 @@ func TestUpdateResourceStatus(t *testing.T) {
 						Sync: v1alpha1.SyncStatus{
 							Status: v1alpha1.SyncStatusCodeSynced,
 						},
-						Health: v1alpha1.HealthStatus{
-							Status:  health.HealthStatusHealthy,
-							Message: "OK",
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
 						},
 					},
 				},
@@ -6167,8 +6167,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 					Name:   "app1",
 					Status: v1alpha1.SyncStatusCodeSynced,
 					Health: &v1alpha1.HealthStatus{
-						Status:  health.HealthStatusHealthy,
-						Message: "OK",
+						Status: health.HealthStatusHealthy,
 					},
 				},
 			},
@@ -6186,8 +6185,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 							Name:   "app1",
 							Status: v1alpha1.SyncStatusCodeSynced,
 							Health: &v1alpha1.HealthStatus{
-								Status:  health.HealthStatusHealthy,
-								Message: "OK",
+								Status: health.HealthStatusHealthy,
 							},
 						},
 					},
@@ -6202,9 +6200,8 @@ func TestUpdateResourceStatus(t *testing.T) {
 						Sync: v1alpha1.SyncStatus{
 							Status: v1alpha1.SyncStatusCodeSynced,
 						},
-						Health: v1alpha1.HealthStatus{
-							Status:  health.HealthStatusHealthy,
-							Message: "OK",
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
 						},
 					},
 				},
@@ -6214,8 +6211,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 					Name:   "app1",
 					Status: v1alpha1.SyncStatusCodeSynced,
 					Health: &v1alpha1.HealthStatus{
-						Status:  health.HealthStatusHealthy,
-						Message: "OK",
+						Status: health.HealthStatusHealthy,
 					},
 				},
 			},
@@ -6249,9 +6245,8 @@ func TestUpdateResourceStatus(t *testing.T) {
 						Sync: v1alpha1.SyncStatus{
 							Status: v1alpha1.SyncStatusCodeSynced,
 						},
-						Health: v1alpha1.HealthStatus{
-							Status:  health.HealthStatusHealthy,
-							Message: "OK",
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
 						},
 					},
 				},
@@ -6261,8 +6256,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 					Name:   "app1",
 					Status: v1alpha1.SyncStatusCodeSynced,
 					Health: &v1alpha1.HealthStatus{
-						Status:  health.HealthStatusHealthy,
-						Message: "OK",
+						Status: health.HealthStatusHealthy,
 					},
 				},
 			},
@@ -6324,8 +6318,7 @@ func generateNAppResourceStatuses(n int) []v1alpha1.ResourceStatus {
 			Name:   "app" + strconv.Itoa(i),
 			Status: v1alpha1.SyncStatusCodeSynced,
 			Health: &v1alpha1.HealthStatus{
-				Status:  health.HealthStatusHealthy,
-				Message: "OK",
+				Status: health.HealthStatusHealthy,
 			},
 		},
 		)
@@ -6344,9 +6337,8 @@ func generateNHealthyApps(n int) []v1alpha1.Application {
 				Sync: v1alpha1.SyncStatus{
 					Status: v1alpha1.SyncStatusCodeSynced,
 				},
-				Health: v1alpha1.HealthStatus{
-					Status:  health.HealthStatusHealthy,
-					Message: "OK",
+				Health: v1alpha1.AppHealthStatus{
+					Status: health.HealthStatusHealthy,
 				},
 			},
 		})
@@ -6450,12 +6442,12 @@ func TestApplicationOwnsHandler(t *testing.T) {
 		{name: "ApplicationHealthStatusDiff", args: args{
 			e: event.UpdateEvent{
 				ObjectOld: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
-					Health: v1alpha1.HealthStatus{
+					Health: v1alpha1.AppHealthStatus{
 						Status: "Unknown",
 					},
 				}},
 				ObjectNew: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
-					Health: v1alpha1.HealthStatus{
+					Health: v1alpha1.AppHealthStatus{
 						Status: "Healthy",
 					},
 				}},
@@ -6678,8 +6670,6 @@ func TestMigrateStatus(t *testing.T) {
 }
 
 func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
-	ownsHandler := getApplicationSetOwnsHandler()
-
 	buildAppSet := func(annotations map[string]string) *v1alpha1.ApplicationSet {
 		return &v1alpha1.ApplicationSet{
 			ObjectMeta: metav1.ObjectMeta{
@@ -6689,10 +6679,11 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 	}
 
 	tests := []struct {
-		name      string
-		appSetOld crtclient.Object
-		appSetNew crtclient.Object
-		want      bool
+		name                   string
+		appSetOld              crtclient.Object
+		appSetNew              crtclient.Object
+		enableProgressiveSyncs bool
+		want                   bool
 	}{
 		{
 			name: "Different Spec",
@@ -6710,13 +6701,15 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 					},
 				},
 			},
-			want: true,
+			enableProgressiveSyncs: false,
+			want:                   true,
 		},
 		{
-			name:      "Different Annotations",
-			appSetOld: buildAppSet(map[string]string{"key1": "value1"}),
-			appSetNew: buildAppSet(map[string]string{"key1": "value2"}),
-			want:      true,
+			name:                   "Different Annotations",
+			appSetOld:              buildAppSet(map[string]string{"key1": "value1"}),
+			appSetNew:              buildAppSet(map[string]string{"key1": "value2"}),
+			enableProgressiveSyncs: false,
+			want:                   true,
 		},
 		{
 			name: "Different Labels",
@@ -6730,7 +6723,8 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 					Labels: map[string]string{"key1": "value2"},
 				},
 			},
-			want: true,
+			enableProgressiveSyncs: false,
+			want:                   true,
 		},
 		{
 			name: "Different Finalizers",
@@ -6744,7 +6738,8 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 					Finalizers: []string{"finalizer2"},
 				},
 			},
-			want: true,
+			enableProgressiveSyncs: false,
+			want:                   true,
 		},
 		{
 			name: "No Changes",
@@ -6772,15 +6767,17 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 					Finalizers:  []string{"finalizer1"},
 				},
 			},
-			want: false,
+			enableProgressiveSyncs: false,
+			want:                   false,
 		},
 		{
 			name: "annotation removed",
 			appSetOld: buildAppSet(map[string]string{
 				argocommon.AnnotationApplicationSetRefresh: "true",
 			}),
-			appSetNew: buildAppSet(map[string]string{}),
-			want:      false,
+			appSetNew:              buildAppSet(map[string]string{}),
+			enableProgressiveSyncs: false,
+			want:                   false,
 		},
 		{
 			name: "annotation not removed",
@@ -6790,7 +6787,8 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 			appSetNew: buildAppSet(map[string]string{
 				argocommon.AnnotationApplicationSetRefresh: "true",
 			}),
-			want: false,
+			enableProgressiveSyncs: false,
+			want:                   false,
 		},
 		{
 			name:      "annotation added",
@@ -6798,35 +6796,39 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 			appSetNew: buildAppSet(map[string]string{
 				argocommon.AnnotationApplicationSetRefresh: "true",
 			}),
-			want: true,
+			enableProgressiveSyncs: false,
+			want:                   true,
 		},
 		{
-			name:      "old object is not an appset",
-			appSetOld: &v1alpha1.Application{},
-			appSetNew: buildAppSet(map[string]string{}),
-			want:      false,
+			name:                   "old object is not an appset",
+			appSetOld:              &v1alpha1.Application{},
+			appSetNew:              buildAppSet(map[string]string{}),
+			enableProgressiveSyncs: false,
+			want:                   false,
 		},
 		{
-			name:      "new object is not an appset",
-			appSetOld: buildAppSet(map[string]string{}),
-			appSetNew: &v1alpha1.Application{},
-			want:      false,
+			name:                   "new object is not an appset",
+			appSetOld:              buildAppSet(map[string]string{}),
+			appSetNew:              &v1alpha1.Application{},
+			enableProgressiveSyncs: false,
+			want:                   false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ownsHandler := getApplicationSetOwnsHandler(tt.enableProgressiveSyncs)
 			requeue := ownsHandler.UpdateFunc(event.UpdateEvent{
 				ObjectOld: tt.appSetOld,
 				ObjectNew: tt.appSetNew,
 			})
-			assert.Equalf(t, tt.want, requeue, "ownsHandler.UpdateFunc(%v, %v)", tt.appSetOld, tt.appSetNew)
+			assert.Equalf(t, tt.want, requeue, "ownsHandler.UpdateFunc(%v, %v, %t)", tt.appSetOld, tt.appSetNew, tt.enableProgressiveSyncs)
 		})
 	}
 }
 
 func TestApplicationSetOwnsHandlerGeneric(t *testing.T) {
-	ownsHandler := getApplicationSetOwnsHandler()
+	ownsHandler := getApplicationSetOwnsHandler(false)
 	tests := []struct {
 		name string
 		obj  crtclient.Object
@@ -6855,7 +6857,7 @@ func TestApplicationSetOwnsHandlerGeneric(t *testing.T) {
 }
 
 func TestApplicationSetOwnsHandlerCreate(t *testing.T) {
-	ownsHandler := getApplicationSetOwnsHandler()
+	ownsHandler := getApplicationSetOwnsHandler(false)
 	tests := []struct {
 		name string
 		obj  crtclient.Object
@@ -6884,7 +6886,7 @@ func TestApplicationSetOwnsHandlerCreate(t *testing.T) {
 }
 
 func TestApplicationSetOwnsHandlerDelete(t *testing.T) {
-	ownsHandler := getApplicationSetOwnsHandler()
+	ownsHandler := getApplicationSetOwnsHandler(false)
 	tests := []struct {
 		name string
 		obj  crtclient.Object
@@ -6914,19 +6916,55 @@ func TestApplicationSetOwnsHandlerDelete(t *testing.T) {
 
 func TestShouldRequeueForApplicationSet(t *testing.T) {
 	type args struct {
-		appSetOld *v1alpha1.ApplicationSet
-		appSetNew *v1alpha1.ApplicationSet
+		appSetOld              *v1alpha1.ApplicationSet
+		appSetNew              *v1alpha1.ApplicationSet
+		enableProgressiveSyncs bool
 	}
 	tests := []struct {
 		name string
 		args args
 		want bool
 	}{
-		{name: "NilAppSet", args: args{appSetNew: &v1alpha1.ApplicationSet{}, appSetOld: nil}, want: false},
+		{
+			name: "NilAppSet",
+			args: args{
+				appSetNew:              &v1alpha1.ApplicationSet{},
+				appSetOld:              nil,
+				enableProgressiveSyncs: false,
+			},
+			want: false,
+		},
+		{
+			name: "ApplicationSetApplicationStatusChanged",
+			args: args{
+				appSetOld: &v1alpha1.ApplicationSet{
+					Status: v1alpha1.ApplicationSetStatus{
+						ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+							{
+								Application: "app1",
+								Status:      "Healthy",
+							},
+						},
+					},
+				},
+				appSetNew: &v1alpha1.ApplicationSet{
+					Status: v1alpha1.ApplicationSetStatus{
+						ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+							{
+								Application: "app1",
+								Status:      "Waiting",
+							},
+						},
+					},
+				},
+				enableProgressiveSyncs: true,
+			},
+			want: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, shouldRequeueForApplicationSet(tt.args.appSetOld, tt.args.appSetNew), "shouldRequeueForApplicationSet(%v, %v)", tt.args.appSetOld, tt.args.appSetNew)
+			assert.Equalf(t, tt.want, shouldRequeueForApplicationSet(tt.args.appSetOld, tt.args.appSetNew, tt.args.enableProgressiveSyncs), "shouldRequeueForApplicationSet(%v, %v)", tt.args.appSetOld, tt.args.appSetNew)
 		})
 	}
 }
