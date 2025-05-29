@@ -114,7 +114,7 @@ import (
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
@@ -329,9 +329,18 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, projLister)
 	enf.SetClaimsEnforcerFunc(policyEnf.EnforceClaims)
 
-	var staticFS fs.FS = io.NewSubDirFS("dist/app", ui.Embedded)
-	if opts.StaticAssetsDir != "" {
-		staticFS = io.NewComposableFS(staticFS, os.DirFS(opts.StaticAssetsDir))
+	staticFS, err := fs.Sub(ui.Embedded, "dist/app")
+	errorsutil.CheckError(err)
+
+	root, err := os.OpenRoot(opts.StaticAssetsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			log.Warnf("Static assets directory %q does not exist, using only embedded assets", opts.StaticAssetsDir)
+		} else {
+			errorsutil.CheckError(err)
+		}
+	} else {
+		staticFS = utilio.NewComposableFS(staticFS, root.FS())
 	}
 
 	argocdService, err := service.NewArgoCDService(opts.KubeClientset, opts.Namespace, opts.RepoClientset)
@@ -500,7 +509,7 @@ func (server *ArgoCDServer) Listen() (*Listeners, error) {
 	}
 	metricsLn, err := startListener(server.ListenHost, server.MetricsPort)
 	if err != nil {
-		io.Close(mainLn)
+		utilio.Close(mainLn)
 		return nil, err
 	}
 	var dOpts []grpc.DialOption
@@ -526,8 +535,8 @@ func (server *ArgoCDServer) Listen() (*Listeners, error) {
 	//nolint:staticcheck
 	conn, err := grpc.Dial(fmt.Sprintf("localhost:%d", server.ListenPort), dOpts...)
 	if err != nil {
-		io.Close(mainLn)
-		io.Close(metricsLn)
+		utilio.Close(mainLn)
+		utilio.Close(metricsLn)
 		return nil, err
 	}
 	return &Listeners{Main: mainLn, Metrics: metricsLn, GatewayConn: conn}, nil
@@ -1004,7 +1013,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	clusterService := cluster.NewServer(a.db, a.enf, a.Cache, kubectl)
 	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr, a.HydratorEnabled)
 	repoCredsService := repocreds.NewServer(a.RepoClientset, a.db, a.enf, a.settingsMgr)
-	var loginRateLimiter func() (io.Closer, error)
+	var loginRateLimiter func() (utilio.Closer, error)
 	if maxConcurrentLoginRequestsCount > 0 {
 		loginRateLimiter = session.NewLoginRateLimiter(maxConcurrentLoginRequestsCount)
 	}
@@ -1309,7 +1318,7 @@ func (server *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.
 				if err != nil {
 					return fmt.Errorf("failed to open file '%s': %w", filePath, err)
 				}
-				defer io.Close(f)
+				defer utilio.Close(f)
 
 				if _, err := goio.Copy(w, f); err != nil {
 					return fmt.Errorf("failed to copy file '%s': %w", filePath, err)
@@ -1417,7 +1426,7 @@ func (server *ArgoCDServer) uiAssetExists(filename string) bool {
 	if err != nil {
 		return false
 	}
-	defer io.Close(f)
+	defer utilio.Close(f)
 	stat, err := f.Stat()
 	if err != nil {
 		return false
@@ -1463,7 +1472,7 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 			if err != nil {
 				modTime = time.Now()
 			}
-			http.ServeContent(w, r, "index.html", modTime, io.NewByteReadSeeker(data))
+			http.ServeContent(w, r, "index.html", modTime, utilio.NewByteReadSeeker(data))
 		} else {
 			if isMainJsBundle(r.URL) {
 				cacheControl := "public, max-age=31536000, immutable"

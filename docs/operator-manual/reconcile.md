@@ -87,7 +87,7 @@ one approach:
 kubectl get <resource> -o yaml > /tmp/before.yaml
 # Wait a minute or two.
 kubectl get <resource> -o yaml > /tmp/after.yaml
-diff /tmp/before.yaml /tmp/after
+diff /tmp/before.yaml /tmp/after.yaml
 ```
 
 The diff can give you a sense for which fields are changing and should perhaps be ignored.
