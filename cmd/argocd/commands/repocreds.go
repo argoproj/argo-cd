@@ -35,7 +35,7 @@ func NewRepoCredsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 			# List all the configured repository credentials
 			argocd repocreds list
 
-			# Remove credentials for the repositories with speficied URL
+			# Remove credentials for the repositories with specified URL
 			argocd repocreds rm URL
 		`),
 		Run: func(c *cobra.Command, args []string) {
