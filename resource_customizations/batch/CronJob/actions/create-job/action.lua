@@ -15,7 +15,7 @@ function deepCopy(object)
         elseif lookup_table[obj] then
             return lookup_table[obj]
         elseif next(obj) == nil then
-            return nil
+            return {}
         else
             local new_table = {}
             lookup_table[obj] = new_table
