@@ -8,13 +8,12 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/lua"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/lua"
 )
 
 // setApplicationHealth updates the health statuses of all resources performed in the comparison
@@ -22,7 +21,9 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 	var savedErr error
 	var errCount uint
 
-	appHealth := appv1.HealthStatus{Status: health.HealthStatusHealthy}
+	appHealth := app.Status.Health.DeepCopy()
+	appHealth.Status = health.HealthStatusHealthy
+
 	for i, res := range resources {
 		if res.Target != nil && hookutil.Skip(res.Target) {
 			continue
@@ -80,13 +81,6 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			appHealth.Status = healthStatus.Status
 		}
 	}
-	// if the status didn't change, don't update the timestamp
-	if app.Status.Health.Status == appHealth.Status && app.Status.Health.LastTransitionTime != nil {
-		appHealth.LastTransitionTime = app.Status.Health.LastTransitionTime
-	} else {
-		now := metav1.Now()
-		appHealth.LastTransitionTime = &now
-	}
 	if persistResourceHealth {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationInline
 	} else {
@@ -95,5 +89,5 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 	if savedErr != nil && errCount > 1 {
 		savedErr = fmt.Errorf("see application-controller logs for %d other errors; most recent error was: %w", errCount-1, savedErr)
 	}
-	return &appHealth, savedErr
+	return appHealth, savedErr
 }

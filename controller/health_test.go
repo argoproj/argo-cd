@@ -16,9 +16,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/lua"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/lua"
 )
 
 var (
@@ -73,7 +73,6 @@ func TestSetApplicationHealth(t *testing.T) {
 	assert.NotNil(t, healthStatus.LastTransitionTime)
 	assert.Nil(t, resourceStatuses[0].Health.LastTransitionTime)
 	assert.Nil(t, resourceStatuses[1].Health.LastTransitionTime)
-	previousLastTransitionTime := healthStatus.LastTransitionTime
 	app.Status.Health = *healthStatus
 
 	// now mark the job as a hook and retry. it should ignore the hook and consider the app healthy
@@ -81,9 +80,8 @@ func TestSetApplicationHealth(t *testing.T) {
 	healthStatus, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
-	// change in health, timestamp should change
-	assert.NotEqual(t, *previousLastTransitionTime, *healthStatus.LastTransitionTime)
-	previousLastTransitionTime = healthStatus.LastTransitionTime
+	// timestamp should be the same in case health did not change
+	assert.Equal(t, app.Status.Health.LastTransitionTime, healthStatus.LastTransitionTime)
 	app.Status.Health = *healthStatus
 
 	// now we set the `argocd.argoproj.io/ignore-healthcheck: "true"` annotation on the job's target.
@@ -94,8 +92,7 @@ func TestSetApplicationHealth(t *testing.T) {
 	healthStatus, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
-	// no change in health, timestamp shouldn't change
-	assert.Equal(t, *previousLastTransitionTime, *healthStatus.LastTransitionTime)
+	assert.Equal(t, app.Status.Health.LastTransitionTime, healthStatus.LastTransitionTime)
 }
 
 func TestSetApplicationHealth_ResourceHealthNotPersisted(t *testing.T) {
@@ -109,7 +106,6 @@ func TestSetApplicationHealth_ResourceHealthNotPersisted(t *testing.T) {
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, false)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
-	assert.NotNil(t, healthStatus.LastTransitionTime)
 
 	assert.Nil(t, resourceStatuses[0].Health)
 }
@@ -125,7 +121,7 @@ func TestSetApplicationHealth_MissingResource(t *testing.T) {
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusMissing, healthStatus.Status)
-	assert.False(t, healthStatus.LastTransitionTime.IsZero())
+	assert.Equal(t, app.Status.Health.LastTransitionTime, healthStatus.LastTransitionTime)
 }
 
 func TestSetApplicationHealth_HealthImproves(t *testing.T) {
@@ -157,7 +153,7 @@ func TestSetApplicationHealth_HealthImproves(t *testing.T) {
 			healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
 			require.NoError(t, err)
 			assert.Equal(t, tc.newStatus, healthStatus.Status)
-			assert.NotEqual(t, testTimestamp, *healthStatus.LastTransitionTime)
+			assert.Equal(t, app.Status.Health.LastTransitionTime, healthStatus.LastTransitionTime)
 		})
 	}
 }
@@ -174,6 +170,7 @@ func TestSetApplicationHealth_MissingResourceNoBuiltHealthCheck(t *testing.T) {
 		healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 		require.NoError(t, err)
 		assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
+		assert.Equal(t, app.Status.Health.LastTransitionTime, healthStatus.LastTransitionTime)
 		assert.Equal(t, health.HealthStatusMissing, resourceStatuses[0].Health.Status)
 	})
 
@@ -185,7 +182,7 @@ func TestSetApplicationHealth_MissingResourceNoBuiltHealthCheck(t *testing.T) {
 		}, app, true)
 		require.NoError(t, err)
 		assert.Equal(t, health.HealthStatusMissing, healthStatus.Status)
-		assert.False(t, healthStatus.LastTransitionTime.IsZero())
+		assert.Equal(t, app.Status.Health.LastTransitionTime, healthStatus.LastTransitionTime)
 	})
 }
 
