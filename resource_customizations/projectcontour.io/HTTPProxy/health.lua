@@ -5,15 +5,20 @@ hs = {
   message = "Waiting for status",
 }
 
-if obj.status ~= nil then
-  if obj.status.currentStatus ~= nil then
-    if obj.status.currentStatus == "valid" then
-      hs.status = "Healthy"
-    elseif obj.status.currentStatus == "invalid" then
-      hs.status = "Degraded"
-    end
+if obj.status == nil then
+  hs.status = "Unknown"
+  hs.message = "Cluster Status is unknown"
+  if obj.status.currentStatus == "valid" then
+    hs.status = "Healthy"
     hs.message = obj.status.description
+  elseif obj.status.currentStatus == "invalid" then
+    hs.status = "Degraded"
+    hs.message = obj.status.description
+  elseif obj.status.currentStatus == "error" then 
+    hs.status = "Degraded"
+    hs.message = "Error detected: " .. (obj.status.description or "No details")
   end
+  
 end
 
 return hs
