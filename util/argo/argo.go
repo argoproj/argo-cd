@@ -1087,6 +1087,8 @@ func mergeVirtualProject(proj *argoappv1.AppProject, globalProj *argoappv1.AppPr
 
 	proj.Spec.Destinations = append(proj.Spec.Destinations, globalProj.Spec.Destinations...)
 
+	proj.Spec.DestinationServiceAccounts = append(proj.Spec.DestinationServiceAccounts, globalProj.Spec.DestinationServiceAccounts...)
+
 	return proj
 }
 

@@ -54,6 +54,7 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
             merged.sourceRepos = merged.sourceRepos.concat(proj.spec.sourceRepos || []);
             merged.destinations = merged.destinations.concat(proj.spec.destinations || []);
             merged.sourceNamespaces = merged.sourceNamespaces.concat(proj.spec.sourceNamespaces || []);
+            merged.destinationServiceAccounts = merged.destinationServiceAccounts.concat(proj.spec.destinationServiceAccounts || []);
 
             merged.sourceRepos = merged.sourceRepos.filter((item, index) => {
                 return (
