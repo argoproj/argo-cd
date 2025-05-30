@@ -44,26 +44,27 @@ func NewCache(client CacheClient) *Cache {
 	return &Cache{client}
 }
 
-func buildRedisClient(redisAddress, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config) *redis.Client {
+func buildRedisClient(redisAddress, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config, connMaxIdleTime time.Duration) *redis.Client {
 	opts := &redis.Options{
-		Addr:       redisAddress,
-		Password:   password,
-		DB:         redisDB,
-		MaxRetries: maxRetries,
-		TLSConfig:  tlsConfig,
-		Username:   username,
+		Addr:            redisAddress,
+		Password:        password,
+		DB:              redisDB,
+		MaxRetries:      maxRetries,
+		TLSConfig:       tlsConfig,
+		Username:        username,
+		ConnMaxIdleTime: connMaxIdleTime,
 	}
 
 	client := redis.NewClient(opts)
 
 	client.AddHook(redis.Hook(NewArgoRedisHook(func() {
-		*client = *buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig)
+		*client = *buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig, connMaxIdleTime)
 	})))
 
 	return client
 }
 
-func buildFailoverRedisClient(sentinelMaster, sentinelUsername, sentinelPassword, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config, sentinelAddresses []string) *redis.Client {
+func buildFailoverRedisClient(sentinelMaster, sentinelUsername, sentinelPassword, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config, sentinelAddresses []string, connMaxIdleTime time.Duration) *redis.Client {
 	opts := &redis.FailoverOptions{
 		MasterName:       sentinelMaster,
 		SentinelAddrs:    sentinelAddresses,
@@ -74,12 +75,13 @@ func buildFailoverRedisClient(sentinelMaster, sentinelUsername, sentinelPassword
 		Username:         username,
 		SentinelUsername: sentinelUsername,
 		SentinelPassword: sentinelPassword,
+		ConnMaxIdleTime:  connMaxIdleTime,
 	}
 
 	client := redis.NewFailoverClient(opts)
 
 	client.AddHook(redis.Hook(NewArgoRedisHook(func() {
-		*client = *buildFailoverRedisClient(sentinelMaster, sentinelUsername, sentinelPassword, password, username, redisDB, maxRetries, tlsConfig, sentinelAddresses)
+		*client = *buildFailoverRedisClient(sentinelMaster, sentinelUsername, sentinelPassword, password, username, redisDB, maxRetries, tlsConfig, sentinelAddresses, connMaxIdleTime)
 	})))
 
 	return client
@@ -141,6 +143,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 	redisUseTLS := false
 	insecureRedis := false
 	compressionStr := ""
+	var connMaxIdleTime time.Duration
 	opt := mergeOptions(opts...)
 	var defaultCacheExpiration time.Duration
 
@@ -166,6 +169,8 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 	redisCACertificateSrc := getFlagVal(cmd, opt, "redis-ca-certificate", cmd.Flags().GetString)
 	cmd.Flags().StringVar(&compressionStr, opt.FlagPrefix+CLIFlagRedisCompress, env.StringFromEnv(opt.getEnvPrefix()+"REDIS_COMPRESSION", string(RedisCompressionGZip)), "Enable compression for data sent to Redis with the required compression algorithm. (possible values: gzip, none)")
 	compressionStrSrc := getFlagVal(cmd, opt, CLIFlagRedisCompress, cmd.Flags().GetString)
+	cmd.Flags().DurationVar(&connMaxIdleTime, opt.FlagPrefix+"redis-connection-max-idle-time", env.ParseDurationFromEnv(opt.getEnvPrefix()+"REDIS_CONN_MAX_IDLE_TIME", 30*time.Minute, 0, math.MaxInt64), "Redis client connection max idle time")
+	connMaxIdleTimeSrc := getFlagVal(cmd, opt, "redis-connection-max-idle-time", cmd.Flags().GetDuration)
 	return func() (*Cache, error) {
 		redisAddress := redisAddressSrc()
 		redisDB := redisDBSrc()
@@ -178,6 +183,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 		insecureRedis := insecureRedisSrc()
 		redisCACertificate := redisCACertificateSrc()
 		compressionStr := compressionStrSrc()
+		connMaxIdleTime := connMaxIdleTimeSrc()
 
 		var tlsConfig *tls.Config
 		if redisUseTLS {
@@ -231,7 +237,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 			return nil, err
 		}
 		if len(sentinelAddresses) > 0 {
-			client := buildFailoverRedisClient(sentinelMaster, sentinelUsername, sentinelPassword, password, username, redisDB, maxRetries, tlsConfig, sentinelAddresses)
+			client := buildFailoverRedisClient(sentinelMaster, sentinelUsername, sentinelPassword, password, username, redisDB, maxRetries, tlsConfig, sentinelAddresses, connMaxIdleTime)
 			opt.callOnClientCreated(client)
 			return NewCache(NewRedisCache(client, defaultCacheExpiration, compression)), nil
 		}
@@ -239,7 +245,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 			redisAddress = common.DefaultRedisAddr
 		}
 
-		client := buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig)
+		client := buildRedisClient(redisAddress, password, username, redisDB, maxRetries, tlsConfig, connMaxIdleTime)
 		opt.callOnClientCreated(client)
 		return NewCache(NewRedisCache(client, defaultCacheExpiration, compression)), nil
 	}
