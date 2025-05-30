@@ -1,9 +1,10 @@
-import {Checkbox, Select, Tooltip} from 'argo-ui';
+import {Checkbox, DataLoader, Select, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import * as ReactForm from 'react-form';
 
 import './application-sync-options.scss';
+import {services} from '../../../shared/services';
 
 export const REPLACE_WARNING = `The resources will be synced using 'kubectl replace/create' command that is a potentially destructive action and might cause resources recreation. For example, it might cause a number of pods to be reset to the minimum number of replicas and cause them to become overloaded.`;
 export const FORCE_WARNING = `The resources will be synced using '--force' that is a potentially destructive action and will immediately remove resources from the API and bypasses graceful deletion. Immediate deletion of some resources may result in inconsistency or data loss.`;
@@ -41,7 +42,7 @@ function selectOption(name: string, label: string, defaultVal: string, values: s
     );
 }
 
-function booleanOption(name: string, label: string, defaultVal: boolean, props: ApplicationSyncOptionProps, invert: boolean, warning: string = null) {
+function booleanOption(name: string, label: string, defaultVal: boolean, props: ApplicationSyncOptionProps, invert: boolean, warning: string = null, disabled: boolean = false) {
     const options = [...(props.options || [])];
     const prefix = `${name}=`;
     const index = options.findIndex(item => item.startsWith(prefix));
@@ -51,6 +52,7 @@ function booleanOption(name: string, label: string, defaultVal: boolean, props: 
             <Checkbox
                 id={`sync-option-${name}-${props.id}`}
                 checked={checked}
+                disabled={disabled}
                 onChange={(val: boolean) => {
                     if (index < 0) {
                         props.onChanged(options.concat(`${name}=${invert ? !val : val}`));
@@ -111,9 +113,17 @@ export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
                 {render(props)}
             </div>
         ))}
-        <div className='small-12' style={optionStyle}>
-            {booleanOption('Replace', 'Replace', false, props, false, REPLACE_WARNING)}
-        </div>
+        <DataLoader
+            load={async () => {
+                const settings = await services.authService.settings();
+                return settings.syncWithReplaceAllowed;
+            }}>
+            {syncWithReplaceAllowed => (
+                <div className='small-12' style={optionStyle}>
+                    {booleanOption('Replace', 'Replace', false, props, false, REPLACE_WARNING, !syncWithReplaceAllowed)}
+                </div>
+            )}
+        </DataLoader>
     </div>
 );
 
