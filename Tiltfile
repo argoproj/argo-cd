@@ -184,6 +184,15 @@ k8s_resource(
     ],
 )
 
+# track argocd-commit-server resources
+k8s_resource(
+    workload='argocd-commit-server',
+    objects=[
+        'argocd-commit-server:serviceaccount',
+        'argocd-commit-server-network-policy:networkpolicy',
+    ],
+)
+
 # docker for ui
 docker_build(
     'argocd-ui',
