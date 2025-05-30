@@ -1089,12 +1089,10 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 			// and may not require a sync if it does not have differences.
 			if appSyncStatus == argov1alpha1.SyncStatusCodeSynced {
 				if app.Status.Health.Status == health.HealthStatusHealthy {
-					logCtx.Infof("Application %v has already synced target revision, updating its ApplicationSet status to Healthy", app.Name)
 					newAppStatus.LastTransitionTime = &now
 					newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
 					newAppStatus.Message = "Application resource has synced, updating status to Healthy"
 				} else {
-					logCtx.Infof("Application %v is in %s status, updating its ApplicationSet status to Progressing", app.Name, appHealthStatus)
 					newAppStatus.LastTransitionTime = &now
 					newAppStatus.Status = argov1alpha1.ProgressiveSyncProgressing
 					newAppStatus.Message = "Application resource has synced, updating status to Progressing"
@@ -1113,20 +1111,16 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 
 						switch {
 						case app.Status.OperationState.Phase.Successful():
-							logCtx.Infof("Application %v has completed a sync successfully, updating its ApplicationSet status to Progressing", app.Name)
 							newAppStatus.Message = "Application resource completed a sync successfully, updating status from Pending to Progressing"
 						case app.Status.OperationState.Phase.Completed():
-							logCtx.Infof("Application %v has completed a sync, updating its ApplicationSet status to Progressing", app.Name)
 							newAppStatus.Message = "Application resource completed a sync, updating status from Pending to Progressing"
 						default:
 							// If a sync fails or has errors, the Application should be configured with retry. It is not the appset's job to retry failed syncs
-							logCtx.Infof("Application %v has entered Progressing status, updating its ApplicationSet status to Progressing", app.Name)
 							newAppStatus.Message = "Application resource became Progressing, updating status from Pending to Progressing"
 						}
 					} else if isApplicationWithError(app) {
 						// Validate if the application has errors preventing it to be reconciled and perform syncs
 						// If it does, we move it to progressing.
-						logCtx.Infof("Application %v has errors, updating its ApplicationSet status to Progressing", app.Name)
 						newAppStatus.LastTransitionTime = &now
 						newAppStatus.Status = argov1alpha1.ProgressiveSyncProgressing
 						newAppStatus.Message = "Application resource has error and cannot sync, updating status to Progressing"
@@ -1138,7 +1132,6 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 				// If the status has reached progressing, we know a sync has been triggered. No matter the result of that operation,
 				// we want an the app to reach the Healthy state for the current revision.
 				if appHealthStatus == health.HealthStatusHealthy && appSyncStatus == argov1alpha1.SyncStatusCodeSynced {
-					logCtx.Infof("Application %v has completed Progressing status, updating its ApplicationSet status to Healthy", app.Name)
 					newAppStatus.LastTransitionTime = &now
 					newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
 					newAppStatus.Message = "Application resource became Healthy, updating status from Progressing to Healthy"
@@ -1218,11 +1211,24 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 			}
 
 			if appStatus.Status == argov1alpha1.ProgressiveSyncWaiting && appsToSync[appStatus.Application] && maxUpdateAllowed {
-				logCtx.Infof("Application %v moved to Pending status, watching for the Application to start Progressing", appStatus.Application)
+				statusLogCtx := logCtx.WithFields(log.Fields{
+					"status.application":     appStatus.Application,
+					"status.status":          appStatus.Status,
+					"status.message":         appStatus.Message,
+					"status.step":            appStatus.Step,
+					"status.targetRevisions": strings.Join(appStatus.TargetRevisions, ","),
+				})
+
 				appStatus.LastTransitionTime = &now
 				appStatus.Status = argov1alpha1.ProgressiveSyncPending
 				appStatus.Message = "Application moved to Pending status, watching for the Application resource to start Progressing"
-				appStatus.Step = strconv.Itoa(getAppStep(appStatus.Application, appStepMap))
+
+				statusLogCtx.WithFields(log.Fields{
+					"new_status.status":          appStatus.Status,
+					"new_status.message":         appStatus.Message,
+					"new_status.step":            appStatus.Step,
+					"new_status.targetRevisions": strings.Join(appStatus.TargetRevisions, ","),
+				}).Info("Progressive sync application changed status")
 
 				updateCountMap[appStepMap[appStatus.Application]]++
 			}
