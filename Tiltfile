@@ -19,6 +19,11 @@ cmd_button(
     text='make cli-local',
 )
 
+# detect cluster architecture for build
+cluster_version = decode_yaml(local('kubectl version -o yaml'))
+platform = cluster_version['serverVersion']['platform']
+arch = platform.split('/')[1]
+
 # build the argocd binary on code changes
 code_deps = [
     'applicationset',
@@ -37,7 +42,7 @@ code_deps = [
 ]
 local_resource(
     'build',
-    'CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=readonly -o .tilt-bin/argocd_linux_amd64 cmd/main.go',
+    'CGO_ENABLED=0 GOOS=linux GOARCH=' + arch + ' go build -gcflags="all=-N -l" -mod=readonly -o .tilt-bin/argocd_linux cmd/main.go',
     deps = code_deps,
     allow_parallel=True,
 )
@@ -50,7 +55,20 @@ docker_build_with_restart(
     'argocd', 
     context='.',
     dockerfile='Dockerfile.tilt',
-    entrypoint=['/usr/bin/tini', '-s', '--'],
+    entrypoint=[
+        "/usr/bin/tini",
+        "-s",
+        "--",
+        "dlv",
+        "exec",
+        "--continue",
+        "--log",
+        "--accept-multiclient",
+        "--headless",
+        "--listen=:2345",
+        "--api-version=2"
+    ],
+    platform=platform,
     live_update=[
         sync('.tilt-bin/argocd_linux_amd64', '/usr/local/bin/argocd'),
     ],
@@ -67,6 +85,7 @@ docker_build(
     'argocd-job', 
     context='.',
     dockerfile='Dockerfile.tilt',
+    platform=platform,
     only=[
         '.tilt-bin',
         'hack',
@@ -94,6 +113,7 @@ k8s_resource(
     ],
     port_forwards=[
         '8080:8080',
+        '9345:2345',
     ],
 )
 
@@ -117,6 +137,7 @@ k8s_resource(
     ],
     port_forwards=[
         '8081:8081',
+        '9346:2345',
     ],
 )
 
@@ -145,6 +166,9 @@ k8s_resource(
         'argocd-applicationset-controller:clusterrolebinding',
         'argocd-applicationset-controller:clusterrole',
     ],
+    port_forwards=[
+        '9347:2345',
+    ],
 )
 
 # track argocd-application-controller resources
@@ -158,6 +182,9 @@ k8s_resource(
         'argocd-application-controller:clusterrolebinding',
         'argocd-application-controller:clusterrole',
     ],
+    port_forwards=[
+        '9348:2345',
+    ],
 )
 
 # track argocd-notifications-controller resources
@@ -170,6 +197,9 @@ k8s_resource(
         'argocd-notifications-controller:rolebinding',
         'argocd-notifications-cm:configmap',
         'argocd-notifications-secret:secret',
+    ],
+    port_forwards=[
+        '9349:2345',
     ],
 )
 
@@ -190,6 +220,9 @@ k8s_resource(
     objects=[
         'argocd-commit-server:serviceaccount',
         'argocd-commit-server-network-policy:networkpolicy',
+    ],
+    port_forwards=[
+        '9350:2345',
     ],
 )
 

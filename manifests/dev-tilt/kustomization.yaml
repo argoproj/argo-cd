@@ -18,6 +18,11 @@ patches:
         value: argocd
       - op: remove
         path: /spec/template/spec/containers/0/securityContext
+      - op: add
+        path: /spec/template/spec/containers/0/ports/0
+        value:
+          name: debug
+          containerPort: 2345
 
   - target:
       group: apps
@@ -28,8 +33,35 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/image
         value: argocd
+      - op: replace
+        path: /spec/template/spec/initContainers/0/image
+        value: argocd-job
       - op: remove
         path: /spec/template/spec/containers/0/securityContext
+      - op: remove
+        path: /spec/template/spec/initContainers/0/securityContext
+      - op: add
+        path: /spec/template/spec/containers/0/ports/0
+        value:
+          name: debug
+          containerPort: 2345
+
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-commit-server
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: argocd
+      - op: remove
+        path: /spec/template/spec/containers/0/securityContext
+      - op: add
+        path: /spec/template/spec/containers/0/ports/0
+        value:
+          name: debug
+          containerPort: 2345
 
   - target:
       group: apps
@@ -42,6 +74,11 @@ patches:
         value: argocd
       - op: remove
         path: /spec/template/spec/containers/0/securityContext
+      - op: add
+        path: /spec/template/spec/containers/0/ports/0
+        value:
+          name: debug
+          containerPort: 2345
   - target:
       group: apps
       version: v1
@@ -66,6 +103,12 @@ patches:
         path: /spec/template/spec/containers/0/securityContext
       - op: remove
         path: /spec/template/spec/securityContext
+      - op: add
+        path: /spec/template/spec/containers/0/ports
+        value:
+          - name: debug
+            containerPort: 2345
+
   - target:
       group: apps
       version: v1
@@ -77,3 +120,20 @@ patches:
         value: argocd
       - op: remove
         path: /spec/template/spec/containers/0/securityContext
+      - op: add
+        path: /spec/template/spec/containers/0/ports/0
+        value:
+          name: debug
+          containerPort: 2345
+
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-redis
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/initContainers/0/image
+        value: argocd-job
+      - op: remove
+        path: /spec/template/spec/initContainers/0/securityContext
