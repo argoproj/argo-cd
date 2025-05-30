@@ -1,0 +1,5 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "Resource is up-to-date."
+    inputPath: testdata/composition_healthy.yaml

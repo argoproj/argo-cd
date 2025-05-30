@@ -46,7 +46,7 @@ import (
 	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
 	"github.com/argoproj/argo-cd/v3/util/helm"
 	helmmocks "github.com/argoproj/argo-cd/v3/util/helm/mocks"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	iomocks "github.com/argoproj/argo-cd/v3/util/io/mocks"
 )
 
@@ -127,8 +127,8 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 			oobChart: {{Version: "1.0.0"}, {Version: version}},
 		}}, nil)
 		helmClient.On("GetTags", mock.Anything, mock.Anything).Return(nil, nil)
-		helmClient.On("ExtractChart", chart, version, false, int64(0), false).Return("./testdata/my-chart", io.NopCloser, nil)
-		helmClient.On("ExtractChart", oobChart, version, false, int64(0), false).Return("./testdata2/out-of-bounds-chart", io.NopCloser, nil)
+		helmClient.On("ExtractChart", chart, version, false, int64(0), false).Return("./testdata/my-chart", utilio.NopCloser, nil)
+		helmClient.On("ExtractChart", oobChart, version, false, int64(0), false).Return("./testdata2/out-of-bounds-chart", utilio.NopCloser, nil)
 		helmClient.On("CleanChartCache", chart, version).Return(nil)
 		helmClient.On("CleanChartCache", oobChart, version).Return(nil)
 		helmClient.On("DependencyBuild").Return(nil)
@@ -157,7 +157,7 @@ func newServiceWithOpt(t *testing.T, cf clientFunc, root string) (*Service, *git
 		return helmClient
 	}
 	service.gitRepoInitializer = func(_ string) goio.Closer {
-		return io.NopCloser
+		return utilio.NopCloser
 	}
 	service.gitRepoPaths = paths
 	return service, gitClient, cacheMocks
@@ -2918,7 +2918,7 @@ func TestDirectoryPermissionInitializer(t *testing.T) {
 
 	file, err := os.CreateTemp(dir, "")
 	require.NoError(t, err)
-	io.Close(file)
+	utilio.Close(file)
 
 	// remove read permissions
 	require.NoError(t, os.Chmod(dir, 0o000))
@@ -2935,7 +2935,7 @@ func TestDirectoryPermissionInitializer(t *testing.T) {
 	require.NoError(t, err)
 
 	// make sure permission are removed by closer
-	io.Close(closer)
+	utilio.Close(closer)
 	_, err = os.ReadFile(file.Name())
 	require.Error(t, err)
 }
@@ -3170,7 +3170,7 @@ func Test_walkHelmValueFilesInPath(t *testing.T) {
 }
 
 func Test_populateHelmAppDetails(t *testing.T) {
-	emptyTempPaths := io.NewRandomizedTempPaths(t.TempDir())
+	emptyTempPaths := utilio.NewRandomizedTempPaths(t.TempDir())
 	res := apiclient.RepoAppDetailsResponse{}
 	q := apiclient.RepoServerAppDetailsQuery{
 		Repo: &v1alpha1.Repository{},
@@ -3187,7 +3187,7 @@ func Test_populateHelmAppDetails(t *testing.T) {
 }
 
 func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
-	emptyTempPaths := io.NewRandomizedTempPaths(t.TempDir())
+	emptyTempPaths := utilio.NewRandomizedTempPaths(t.TempDir())
 	t.Run("inbound", func(t *testing.T) {
 		res := apiclient.RepoAppDetailsResponse{}
 		q := apiclient.RepoServerAppDetailsQuery{Repo: &v1alpha1.Repository{}, Source: &v1alpha1.ApplicationSource{}}
@@ -3269,7 +3269,7 @@ func TestGetHelmRepo_NamedReposAlias(t *testing.T) {
 
 func Test_getResolvedValueFiles(t *testing.T) {
 	tempDir := t.TempDir()
-	paths := io.NewRandomizedTempPaths(tempDir)
+	paths := utilio.NewRandomizedTempPaths(tempDir)
 
 	paths.Add(git.NormalizeGitURL("https://github.com/org/repo1"), path.Join(tempDir, "repo1"))
 
@@ -4265,6 +4265,8 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 			err := os.Remove("testdata/helm-with-local-dependency/Chart.lock")
 			require.NoError(t, err)
 			err = os.RemoveAll("testdata/helm-with-local-dependency/charts")
+			require.NoError(t, err)
+			err = os.Remove(path.Join("testdata/helm-with-local-dependency", helmDepUpMarkerFile))
 			require.NoError(t, err)
 		})
 

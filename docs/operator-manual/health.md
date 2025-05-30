@@ -168,7 +168,33 @@ To test the implemented custom health checks, run `go test -v ./util/lua/`.
 
 The [PR#1139](https://github.com/argoproj/argo-cd/pull/1139) is an example of Cert Manager CRDs custom health check.
 
-Please note that bundled health checks with wildcards are not supported.
+#### Wildcard Support for Built-in Health Checks
+
+You can use a single health check for multiple resources by using a wildcard in the group or kind directory names.
+
+The `_` character behaves like a `*` wildcard. For example, consider the following directory structure:
+
+```
+argo-cd
+|-- resource_customizations
+|    |-- _.group.io               # CRD group
+|    |    |-- _                   # Resource kind
+|    |    |    |-- health.lua     # Health check
+```
+
+Any resource with a group that ends with `.group.io` will use the health check in `health.lua`.
+
+Wildcard checks are only evaluated if there is no specific check for the resource.
+
+If multiple wildcard checks match, the first one in the directory structure is used.
+
+We use the [doublestar](https://github.com/bmatcuk/doublestar) glob library to match the wildcard checks. We currently
+only treat a path as a wildcard if it contains a `_` character, but this may change in the future.
+
+!!!important "Avoid Massive Scripts"
+
+    Avoid writing massive scripts to handle multiple resources. They'll get hard to read and maintain. Instead, just
+    duplicate the relevant parts in resource-specific scripts.
 
 ## Overriding Go-Based Health Checks
 

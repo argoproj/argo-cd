@@ -350,6 +350,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Syncier](https://syncier.com/)
 1. [Synergy](https://synergy.net.au)
 1. [Syself](https://syself.com)
+1. [T-ROC Global](https://trocglobal.com/)
 1. [TableCheck](https://tablecheck.com/)
 1. [Tailor Brands](https://www.tailorbrands.com)
 1. [Tamkeen Technologies](https://tamkeentech.sa/)
@@ -412,5 +413,3 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Zimpler](https://www.zimpler.com/)
 1. [ZipRecruiter](https://www.ziprecruiter.com/)
 1. [ZOZO](https://corp.zozo.com/)
-
-
