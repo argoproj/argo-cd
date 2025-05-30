@@ -24,7 +24,7 @@ spec:
         app: guestbook-canary
     spec:
       containers:
-        - image: 'gcr.io/heptio-images/ks-guestbook-demo:0.1'
+        - image: 'quay.io/argoprojlabs/argocd-e2e-container:0.1'
           name: guestbook-canary
           ports:
             - containerPort: 80
@@ -49,6 +49,6 @@ status:
   selector: app=guestbook-canary
   liveVersionDate: "2022-07-14T07:56:27.000Z"
   liveVersionImages:
-    rollouts-demo: gcr.io/heptio-images/ks-guestbook-demo:0.1
+    rollouts-demo: quay.io/argoprojlabs/argocd-e2e-container:0.1
   phase: Healthy
   revision: "9"
