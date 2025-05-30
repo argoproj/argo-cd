@@ -11,7 +11,7 @@ Authentication to Argo CD API server is performed exclusively using [JSON Web To
 in one of the following ways:
 
 1. For the local `admin` user, a username/password is exchanged for a JWT using the `/api/v1/session`
-   endpoint. This token is signed & issued by the Argo CD API server itself and it expires after 24 hours 
+   endpoint. This token is signed & issued by the Argo CD API server itself and it expires after 24 hours
    (this token used not to expire, see [CVE-2021-26921](https://github.com/argoproj/argo-cd/security/advisories/GHSA-9h6w-j7w4-jr52)).
    When the admin password is updated, all existing admin JWT tokens are immediately revoked.
    The password is stored as a bcrypt hash in the [`argocd-secret`](https://github.com/argoproj/argo-cd/blob/master/manifests/base/config/argocd-secret.yaml) Secret.
@@ -121,9 +121,9 @@ argocd cluster add CONTEXTNAME
 
 !!! note
     Kubernetes 1.24 [stopped automatically creating tokens for Service Accounts](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.24.md#no-really-you-must-read-this-before-you-upgrade).
-    [Starting in Argo CD 2.4](https://github.com/argoproj/argo-cd/pull/9546), `argocd cluster add` creates a 
-    ServiceAccount _and_ a non-expiring Service Account token Secret when adding 1.24 clusters. In the future, Argo CD 
-    will [add support for the Kubernetes TokenRequest API](https://github.com/argoproj/argo-cd/issues/9610) to avoid 
+    [Starting in Argo CD 2.4](https://github.com/argoproj/argo-cd/pull/9546), `argocd cluster add` creates a
+    ServiceAccount _and_ a non-expiring Service Account token Secret when adding 1.24 clusters. In the future, Argo CD
+    will [add support for the Kubernetes TokenRequest API](https://github.com/argoproj/argo-cd/issues/9610) to avoid
     using long-lived tokens.
 
 To revoke Argo CD's access to a managed cluster, delete the RBAC artifacts against the *_managed_*
@@ -199,9 +199,20 @@ LAST SEEN   FIRST SEEN   COUNT   NAME                         KIND          SUBO
 1m          1m           1       guestbook.157f7c651990e848   Application               Normal    ResourceUpdated      argocd-application-controller   Updated health status: Progressing -> Healthy
 ```
 
-These events can be then be persisted for longer periods of time using other tools as
+These kubernetes events can be then be persisted for longer periods of time using other tools as
 [Event Exporter](https://github.com/GoogleCloudPlatform/k8s-stackdriver/tree/master/event-exporter) or
 [Event Router](https://github.com/heptiolabs/eventrouter).
+
+Argo CD also outputs audit logging information of system activity,
+indicating the responsible actor when applicable. For example:
+
+```bash
+kubectl get logs -n argocd argocd-server-pod
+2025-05-23T12:00:00Z level=info msg="user@argoproj.github.io updated application spec" application=argocd dest-namespace=argocd dest-server=https://kubernetes.default.svc reason=ResourceUpdated type=Normal user=user@argoproj.github.io patch="map[metadata:map[] spec:map[source:map[targetRevision:BRANCH]]]"
+```
+
+These logs can then be persisted and stored using tools such as
+[Loki](https://grafana.com/oss/loki/) or [fluentbit](https://fluentbit.io/).
 
 ## WebHook Payloads
 
