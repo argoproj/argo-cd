@@ -5,3 +5,6 @@ actionTests:
 - action: unpause
   inputPath: testdata/pipeline-paused.yaml
   expectedOutputPath: testdata/pipeline.yaml
+- action: force-promote
+  inputPath: testdata/pipeline.yaml
+  expectedOutputPath: testdata/pipeline-force-promote.yaml
