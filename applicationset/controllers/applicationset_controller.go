@@ -1186,6 +1186,14 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 		}
 
 		for _, appStatus := range applicationSet.Status.ApplicationStatus {
+			statusLogCtx := logCtx.WithFields(log.Fields{
+				"status.application":     appStatus.Application,
+				"status.status":          appStatus.Status,
+				"status.message":         appStatus.Message,
+				"status.step":            appStatus.Step,
+				"status.targetRevisions": strings.Join(appStatus.TargetRevisions, ","),
+			})
+
 			maxUpdateAllowed := true
 			maxUpdate := &intstr.IntOrString{}
 			if progressiveSyncsRollingSyncStrategyEnabled(applicationSet) {
@@ -1196,7 +1204,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 			if maxUpdate != nil {
 				maxUpdateVal, err := intstr.GetScaledValueFromIntOrPercent(maxUpdate, totalCountMap[appStepMap[appStatus.Application]], false)
 				if err != nil {
-					logCtx.Warnf("AppSet '%v' has a invalid maxUpdate value '%+v', ignoring maxUpdate logic for this step: %v", applicationSet.Name, maxUpdate, err)
+					statusLogCtx.Warnf("AppSet has a invalid maxUpdate value '%+v', ignoring maxUpdate logic for this step: %v", maxUpdate, err)
 				}
 
 				// ensure that percentage values greater than 0% always result in at least 1 Application being selected
@@ -1206,19 +1214,11 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 
 				if updateCountMap[appStepMap[appStatus.Application]] >= maxUpdateVal {
 					maxUpdateAllowed = false
-					logCtx.Infof("Application %v is not allowed to update yet, %v/%v Applications already updating in step %v in AppSet %v", appStatus.Application, updateCountMap[appStepMap[appStatus.Application]], maxUpdateVal, getAppStep(appStatus.Application, appStepMap), applicationSet.Name)
+					statusLogCtx.Infof("Application is not allowed to update yet, %v/%v Applications already updating in step %v", updateCountMap[appStepMap[appStatus.Application]], maxUpdateVal, getAppStep(appStatus.Application, appStepMap))
 				}
 			}
 
 			if appStatus.Status == argov1alpha1.ProgressiveSyncWaiting && appsToSync[appStatus.Application] && maxUpdateAllowed {
-				statusLogCtx := logCtx.WithFields(log.Fields{
-					"status.application":     appStatus.Application,
-					"status.status":          appStatus.Status,
-					"status.message":         appStatus.Message,
-					"status.step":            appStatus.Step,
-					"status.targetRevisions": strings.Join(appStatus.TargetRevisions, ","),
-				})
-
 				appStatus.LastTransitionTime = &now
 				appStatus.Status = argov1alpha1.ProgressiveSyncPending
 				appStatus.Message = "Application moved to Pending status, watching for the Application resource to start Progressing"
