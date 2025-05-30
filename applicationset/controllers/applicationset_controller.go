@@ -1152,7 +1152,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 				"new_status.message":         newAppStatus.Message,
 				"new_status.step":            newAppStatus.Step,
 				"new_status.targetRevisions": strings.Join(newAppStatus.TargetRevisions, ","),
-			}).Debug("Progressive sync application changed status")
+			}).Info("Progressive sync application changed status")
 		}
 		appStatuses = append(appStatuses, *newAppStatus)
 	}
