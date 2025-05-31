@@ -17,7 +17,7 @@ argocd repocreds [flags]
   # List all the configured repository credentials
   argocd repocreds list
   
-  # Remove credentials for the repositories with speficied URL
+  # Remove credentials for the repositories with specified URL
   argocd repocreds rm URL
 ```
 
