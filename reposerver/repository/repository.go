@@ -58,7 +58,6 @@ import (
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
 	"github.com/argoproj/argo-cd/v3/util/kustomize"
 	"github.com/argoproj/argo-cd/v3/util/manifeststream"
-	"github.com/argoproj/argo-cd/v3/util/text"
 	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
@@ -1097,7 +1096,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	templateOpts := &helm.TemplateOpts{
 		Name:        appName,
 		Namespace:   q.ApplicationSource.GetNamespaceOrDefault(q.Namespace),
-		KubeVersion: text.SemVer(q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion)),
+		KubeVersion: q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion),
 		APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
 		Set:         map[string]string{},
 		SetString:   map[string]string{},
@@ -1420,7 +1419,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		}
 		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
 		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
-			KubeVersion: text.SemVer(q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion)),
+			KubeVersion: q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion),
 			APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
 		})
 	case v1alpha1.ApplicationSourceTypePlugin:
@@ -1914,7 +1913,7 @@ func makeJsonnetVM(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 
 func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]string, error) {
 	envVars := env.Environ()
-	envVars = append(envVars, "KUBE_VERSION="+text.SemVer(q.KubeVersion))
+	envVars = append(envVars, "KUBE_VERSION="+q.KubeVersion)
 	envVars = append(envVars, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
 
 	return getPluginParamEnvs(envVars, q.ApplicationSource.Plugin)
