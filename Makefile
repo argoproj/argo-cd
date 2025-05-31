@@ -4,8 +4,15 @@ DIST_DIR=${CURRENT_DIR}/dist
 CLI_NAME=argocd
 BIN_NAME=argocd
 
+UNAME_S:=$(shell uname)
+IS_DARWIN:=$(if $(filter Darwin, $(UNAME_S)),true,false)
+
 # When using OSX/Darwin, you might need to enable CGO for local builds
-CGO_FLAG?=0
+DEFAULT_CGO_FLAG:=0
+ifeq ($(IS_DARWIN),true)
+    DEFAULT_CGO_FLAG:=1
+endif
+CGO_FLAG?=${DEFAULT_CGO_FLAG}
 
 GEN_RESOURCES_CLI_NAME=argocd-resources-gen
 
@@ -149,7 +156,11 @@ PATH:=$(PATH):$(PWD)/hack
 DOCKER_PUSH?=false
 IMAGE_NAMESPACE?=
 # perform static compilation
-STATIC_BUILD?=true
+DEFAULT_STATIC_BUILD:=true
+ifeq ($(IS_DARWIN),true)
+    DEFAULT_STATIC_BUILD:=false
+endif
+STATIC_BUILD?=${DEFAULT_STATIC_BUILD}
 # build development images
 DEV_IMAGE?=false
 ARGOCD_GPG_ENABLED?=true
