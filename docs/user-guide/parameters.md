@@ -65,7 +65,7 @@ Example:
 ```yaml
 kustomize:
   images:
-    - gcr.io/heptio-images/ks-guestbook-demo:0.2
+    - quay.io/argoprojlabs/argocd-e2e-container:0.2
 ```
 
 The `.argocd-source` is trying to solve two following main use cases:
