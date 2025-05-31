@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	gocache "github.com/patrickmn/go-cache"
 
 	argoutils "github.com/argoproj/argo-cd/v3/util"
@@ -146,9 +147,28 @@ func (creds AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
 		return "", fmt.Errorf("failed to get Azure access token after challenge: %w", err)
 	}
 
-	// Access token has a lifetime of 3 hours
-	storeAzureToken(key, token, 2*time.Hour)
+	tokenExpiry, err := getJWTExpiry(token)
+	if err != nil {
+		tokenExpiry = time.Now()
+	}
+
+	cacheExpiry := workloadidentity.CalclulateCacheExpiryBasedOnTokenExpiry(tokenExpiry)
+	storeAzureToken(key, token, cacheExpiry)
 	return token, nil
+}
+
+func getJWTExpiry(token string) (time.Time, error) {
+	parser := jwt.NewParser()
+	claims := jwt.MapClaims{}
+	_, _, err := parser.ParseUnverified(token, claims)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to parse JWT: %w", err)
+	}
+	exp, ok := claims["exp"].(float64)
+	if !ok {
+		return time.Time{}, errors.New("'exp' claim not found or invalid in token")
+	}
+	return time.Unix(int64(exp), 0), nil
 }
 
 func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams map[string]string) (string, error) {
@@ -177,7 +197,7 @@ func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams
 	formValues := url.Values{}
 	formValues.Add("grant_type", "access_token")
 	formValues.Add("service", service)
-	formValues.Add("access_token", armAccessToken)
+	formValues.Add("access_token", armAccessToken.AccessToken)
 
 	resp, err := client.PostForm(refreshTokenURL, formValues)
 	if err != nil {
@@ -259,4 +279,8 @@ func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(azureCon
 	}
 
 	return tokenParams, nil
+}
+
+func resetAzureTokenCache() {
+	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
 }

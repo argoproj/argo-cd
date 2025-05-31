@@ -735,7 +735,7 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 
 	t, found := azureTokenCache.Get(key)
 	if found {
-		return t.(string), nil
+		return t.(*workloadidentity.Token).AccessToken, nil
 	}
 
 	token, err := creds.tokenProvider.GetToken(scope)
@@ -743,11 +743,16 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 		return "", fmt.Errorf("failed to get Azure access token: %w", err)
 	}
 
-	azureTokenCache.Set(key, token, 2*time.Hour)
-	return token, nil
+	cacheExpiry := workloadidentity.CalclulateCacheExpiryBasedOnTokenExpiry(token.ExpiresOn)
+	azureTokenCache.Set(key, token, cacheExpiry)
+	return token.AccessToken, nil
 }
 
 func (creds AzureWorkloadIdentityCreds) GetAzureDevOpsAccessToken() (string, error) {
 	accessToken, err := creds.getAccessToken(azureDevopsEntraResourceId) // wellknown resourceid of Azure DevOps
 	return accessToken, err
+}
+
+func resetAzureTokenCache() {
+	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
 }
