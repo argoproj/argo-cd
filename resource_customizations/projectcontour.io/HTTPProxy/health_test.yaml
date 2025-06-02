@@ -15,7 +15,3 @@ tests:
     status: Degraded
     message: 'At least one error present, see Errors for details'
   inputPath: testdata/degraded.yaml
-- healthStatus:
-    status: Unknown
-    message: 'Cluster Status is unknown'
-  inputPath: testdata/unknown.yaml
