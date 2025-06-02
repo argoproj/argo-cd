@@ -7,15 +7,24 @@ if obj.status ~= nil then
         hs.status = "Degraded"
         hs.message = condition.message
         return hs
-      elseif condition.type == "ResourcesUpToDate" and condition.status == "False" then
+      end
+    end
+    for i, condition in pairs(obj.status.conditions) do
+      if condition.type == "ResourcesUpToDate" and condition.status == "False" then
         hs.status = "Progressing"
         hs.message = condition.message
         return hs
-      elseif condition.type == "RolloutProgressing" and condition.status == "True" then
+      end
+    end
+    for i, condition in pairs(obj.status.conditions) do
+      if condition.type == "RolloutProgressing" and condition.status == "True" then
         hs.status = "Progressing"
         hs.message = condition.message
         return hs
-      elseif condition.type == "ResourcesUpToDate" and condition.status == "True" then
+      end
+    end
+    for i, condition in pairs(obj.status.conditions) do
+      if condition.type == "ResourcesUpToDate" and condition.status == "True" then
         hs.status = "Healthy"
         hs.message = condition.message
         return hs
