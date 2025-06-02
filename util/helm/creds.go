@@ -164,11 +164,11 @@ func getJWTExpiry(token string) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, fmt.Errorf("failed to parse JWT: %w", err)
 	}
-	exp, ok := claims["exp"].(float64)
-	if !ok {
-		return time.Time{}, errors.New("'exp' claim not found or invalid in token")
+	exp, err := claims.GetExpirationTime()
+	if err != nil {
+		return time.Time{}, fmt.Errorf("'exp' claim not found or invalid in token: %w", err)
 	}
-	return time.Unix(int64(exp), 0), nil
+	return time.UnixMilli(exp.UnixMilli()), nil
 }
 
 func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams map[string]string) (string, error) {
@@ -279,8 +279,4 @@ func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(azureCon
 	}
 
 	return tokenParams, nil
-}
-
-func resetAzureTokenCache() {
-	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
 }

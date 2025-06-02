@@ -54,8 +54,8 @@ func CalclulateCacheExpiryBasedOnTokenExpiry(tokenExpiry time.Time) time.Duratio
 	// Calculate the cache expiry as 5 minutes before the token expires
 	cacheExpiry := time.Until(tokenExpiry) - time.Minute*5
 
-	// If token exires in negative time, cache will never expire
-	// If expiry is 0 then default cache expiry is used.
+	// If the time until the token expiry (minus 5 minutes)
+	// is less than or equal to zero, set the expiry to one second.
 	if cacheExpiry <= 0 {
 		cacheExpiry = time.Second
 	}

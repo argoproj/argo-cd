@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	gocache "github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -371,4 +372,8 @@ func TestGetAccessToken_ReuseTokenIfExistingIsNotExpired(t *testing.T) {
 	refreshToken, err = creds.GetAccessToken()
 	require.NoError(t, err)
 	assert.Equal(t, accessToken1, refreshToken)
+}
+
+func resetAzureTokenCache() {
+	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
 }

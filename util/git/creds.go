@@ -752,7 +752,3 @@ func (creds AzureWorkloadIdentityCreds) GetAzureDevOpsAccessToken() (string, err
 	accessToken, err := creds.getAccessToken(azureDevopsEntraResourceId) // wellknown resourceid of Azure DevOps
 	return accessToken, err
 }
-
-func resetAzureTokenCache() {
-	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
-}

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	gocache "github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
@@ -497,4 +498,8 @@ func TestAzureWorkloadIdentityCreds_ReuseTokenIfExistingIsNotExpired(t *testing.
 	token, err = creds.GetAzureDevOpsAccessToken()
 	require.NoError(t, err)
 	assert.Equal(t, "firstToken", token)
+}
+
+func resetAzureTokenCache() {
+	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
 }
