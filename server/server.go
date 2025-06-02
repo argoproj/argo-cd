@@ -203,7 +203,7 @@ type ArgoCDServer struct {
 	configMapInformer  cache.SharedIndexInformer
 	serviceSet         *ArgoCDServiceSet
 	extensionManager   *extension.Manager
-	shutdown           func()
+	Shutdown           func()
 	terminateRequested atomic.Bool
 	available          atomic.Bool
 }
@@ -385,7 +385,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		secretInformer:     secretInformer,
 		configMapInformer:  configMapInformer,
 		extensionManager:   em,
-		shutdown:           noopShutdown,
+		Shutdown:           noopShutdown,
 		stopCh:             make(chan os.Signal, 1),
 	}
 
@@ -560,7 +560,7 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		if r := recover(); r != nil {
 			log.WithField("trace", string(debug.Stack())).Error("Recovered from panic: ", r)
 			server.terminateRequested.Store(true)
-			server.shutdown()
+			server.Shutdown()
 		}
 	}()
 
@@ -727,7 +727,7 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 			log.Warn("Graceful shutdown timeout. Exiting...")
 		}
 	}
-	server.shutdown = shutdownFunc
+	server.Shutdown = shutdownFunc
 	signal.Notify(server.stopCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	server.available.Store(true)
 
@@ -738,11 +738,11 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		if signal != gracefulRestartSignal {
 			server.terminateRequested.Store(true)
 		}
-		server.shutdown()
+		server.Shutdown()
 	case <-ctx.Done():
 		log.Infof("API Server: %s", ctx.Err())
 		server.terminateRequested.Store(true)
-		server.shutdown()
+		server.Shutdown()
 	}
 }
 

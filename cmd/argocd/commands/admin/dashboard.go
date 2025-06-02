@@ -1,7 +1,12 @@
 package admin
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
@@ -15,22 +20,70 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
+// DashboardConfig holds the configuration for starting the dashboard
+type DashboardConfig struct {
+	Port         int
+	Address      string
+	ClientOpts   *argocdclient.ClientOptions
+	ClientConfig clientcmd.ClientConfig
+	Context      string
+}
+
+type dashboard struct {
+	signalChan       chan os.Signal
+	startLocalServer func(ctx context.Context, clientOpts *argocdclient.ClientOptions, contextName string, port *int, address *string, clientConfig clientcmd.ClientConfig) (func(), error)
+}
+
+// NewDashboard initializes a new dashboard with default dependencies
+func NewDashboard() *dashboard {
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	return &dashboard{
+		signalChan:       sigCh,
+		startLocalServer: headless.MaybeStartLocalServer,
+	}
+}
+
+// Run runs the dashboard and blocks until context is done
+func (ds *dashboard) Run(ctx context.Context, config *DashboardConfig, cancel func()) error {
+	var shutDownFunc func()
+	config.ClientOpts.Core = true
+
+	println("starting dashboard")
+	// Graceful shutdown code adapted from https://gist.github.com/embano1/e0bf49d24f1cdd07cffad93097c04f0a
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		s := <-ds.signalChan
+		fmt.Printf("got signal %v, attempting graceful shutdown\n", s)
+		if shutDownFunc != nil {
+			shutDownFunc()
+		}
+		// This cancel func is here to account for the case where the k8s informers have not properly started (see
+		// settings.go). If they have not yet started we can't use the shutdown func returned by MaybeStartLocalServer,
+		// so we just cancel the context. This is not a "graceful" shutdown, but it is better than hanging forever.
+		cancel()
+		wg.Done()
+	}()
+	shutDownFunc, err := ds.startLocalServer(ctx, config.ClientOpts, config.Context, &config.Port, &config.Address, config.ClientConfig)
+	if err != nil {
+		return fmt.Errorf("could not start dashboard: %w", err)
+	}
+	fmt.Printf("Argo CD UI is available at http://%s:%d\n", config.Address, config.Port)
+	wg.Wait()
+	println("clean shutdown")
+	return nil
+}
+
 func NewDashboardCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		port         int
-		address      string
-		clientConfig clientcmd.ClientConfig
-	)
+	config := &DashboardConfig{ClientOpts: clientOpts}
 	cmd := &cobra.Command{
 		Use:   "dashboard",
 		Short: "Starts Argo CD Web UI locally",
 		Run: func(cmd *cobra.Command, _ []string) {
-			ctx := cmd.Context()
-
-			clientOpts.Core = true
-			errors.CheckError(headless.MaybeStartLocalServer(ctx, clientOpts, initialize.RetrieveContextIfChanged(cmd.Flag("context")), &port, &address, clientConfig))
-			println(fmt.Sprintf("Argo CD UI is available at http://%s:%d", address, port))
-			<-ctx.Done()
+			ctx, cancel := context.WithCancel(cmd.Context())
+			config.Context = initialize.RetrieveContextIfChanged(cmd.Flag("context"))
+			errors.CheckError(NewDashboard().Run(ctx, config, cancel))
 		},
 		Example: `# Start the Argo CD Web UI locally on the default port and address
 $ argocd admin dashboard
@@ -42,8 +95,8 @@ $ argocd admin dashboard --port 8080 --address 127.0.0.1
 $ argocd admin dashboard --redis-compress gzip
   `,
 	}
-	clientConfig = cli.AddKubectlFlagsToSet(cmd.Flags())
-	cmd.Flags().IntVar(&port, "port", common.DefaultPortAPIServer, "Listen on given port")
-	cmd.Flags().StringVar(&address, "address", common.DefaultAddressAdminDashboard, "Listen on given address")
+	config.ClientConfig = cli.AddKubectlFlagsToSet(cmd.Flags())
+	cmd.Flags().IntVar(&config.Port, "port", common.DefaultPortAPIServer, "Listen on given port")
+	cmd.Flags().StringVar(&config.Address, "address", common.DefaultAddressAdminDashboard, "Listen on given address")
 	return cmd
 }
