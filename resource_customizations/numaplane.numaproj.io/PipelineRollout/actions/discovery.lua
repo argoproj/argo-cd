@@ -1,15 +1,21 @@
 local actions = {}
-actions["pause"] = {["disabled"] = true}
-actions["unpause"] = {["disabled"] = true}
-actions["allow-data-loss"] = {["disabled"] = true}
-actions["disallow-data-loss"] = {["disabled"] = true}
-actions["enable-force-promote"] = {
+actions["pause"] = {
   ["disabled"] = true,
-  ["displayName"] = "Enable Force Promote"
+  ["iconClass"] = "fa-solid fa-fw fa-pause"
 }
-actions["disable-force-promote"] = {
+actions["unpause"] = {
   ["disabled"] = true,
-  ["displayName"] = "Disable Force Promote"
+  ["iconClass"] = "fa-solid fa-fw fa-play"
+}
+actions["allow-data-loss"] = {
+  ["disabled"] = true,
+  ["displayName"] = "Allow Data Loss",
+  ["iconClass"] = "fa-solid fa-fw fa-unlock"
+}
+actions["disallow-data-loss"] = {
+  ["disabled"] = true,
+  ["displayName"] = "Disallow Data Loss",
+  ["iconClass"] = "fa-solid fa-fw fa-lock"
 }
 
 -- pause/unpause
@@ -29,14 +35,6 @@ if obj.status ~= nil and obj.status.upgradeInProgress == "PipelinePauseAndDrain"
 end
 if obj.metadata.annotations ~= nil and obj.metadata.annotations["numaplane.numaproj.io/allow-data-loss"] == "true" then
   actions["disallow-data-loss"]["disabled"] = false
-end
-
--- force-promote
-if (obj.status ~= nil and obj.status.upgradeInProgress == "Progressive" and obj.status.phase == "Pending") then
-  actions["enable-force-promote"]["disabled"] = false
-end
-if (obj.spec ~= nil and obj.spec.strategy ~= nil and obj.spec.strategy.progressive ~= nil and obj.spec.strategy.progressive.forcePromote == true) then
-  actions["disable-force-promote"]["disabled"] = false
 end
 
 return actions

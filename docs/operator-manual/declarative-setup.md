@@ -394,6 +394,10 @@ stringData:
     does. In case you run in trouble with `noProxy` not being respected, you might want to try using the full domain
     instead of a wildcard pattern or IP range to find a common syntax that all tools support.
 
+#### Helm Chart repositories
+
+See the [Helm](#helm) section for the properties that apply to Helm repositories and charts sourced from OCI registries.
+
 ### Repositories using self-signed TLS certificates (or are signed by custom CA)
 
 You can manage the TLS certificates used to verify the authenticity of your repository servers in a ConfigMap object named `argocd-tls-certs-cm`. The data section should contain a map, with the repository server's hostname part (not the complete URL) as key, and the certificate(s) in PEM format as data. So, if you connect to a repository with the URL `https://server.example.com/repos/my-repo`, you should use `server.example.com` as key. The certificate data should be either the server's certificate (in case of self-signed certificate) or the certificate of the CA that was used to sign the server's certificate. You can configure multiple certificates for each server, e.g. if you are having a certificate roll-over planned.
@@ -1107,27 +1111,54 @@ stringData:
     }
 ```
 
-## Helm Chart Repositories
+## Helm
 
-Non standard Helm Chart repositories have to be registered explicitly.
-Each repository must have `url`, `type` and `name` fields. For private Helm repos you may need to configure access credentials and HTTPS settings using `username`, `password`,
-`tlsClientCertData` and `tlsClientCertKey` fields.
+Helm charts can be sourced from a Helm repository or OCI registry.
 
-Example:
+This is an example of a Helm chart being sourced from a Helm repository. The `releaseName` property is used to customize the name of the Helm _release_.
 
 ```yaml
-apiVersion: v1
-kind: Secret
+apiVersion: argoproj.io/v1alpha1
+kind: Application
 metadata:
-  name: istio
+  name: sealed-secrets
   namespace: argocd
-  labels:
-    argocd.argoproj.io/secret-type: repository
-stringData:
-  name: istio.io
-  url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
-  type: helm
----
+spec:
+  project: default
+  source:
+    chart: sealed-secrets
+    repoURL: https://bitnami-labs.github.io/sealed-secrets
+    targetRevision: 1.16.1
+    helm:
+      releaseName: sealed-secrets
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: kubeseal
+```
+
+Another example using a public OCI helm chart:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx
+spec:
+  project: default
+  source:
+    chart: nginx
+    repoURL: registry-1.docker.io/bitnamicharts  # note: the oci:// syntax is not included.
+    targetRevision: 15.9.0
+  destination:
+    name: "in-cluster"
+    namespace: nginx
+```
+
+Helm charts located in sources that require additional configuration, such as authentication or TLS connection details, are defined within a _repository_ Secret. Each Secret must specify the `url`, `type` and `name` fields. Additional fields including `username`, `password`, `tlsClientCertData` and `tlsClientCertKey` can be specified as desired.
+
+Helm Chart Repository:
+
+```yaml
 apiVersion: v1
 kind: Secret
 metadata:
@@ -1143,6 +1174,23 @@ stringData:
   password: my-password
   tlsClientCertData: ...
   tlsClientCertKey: ...
+```
+
+Helm charts sourced from OCI registries should utilize the fields described previously as well as set the `enableOCI` field as `true`.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: oci-helm-chart
+  namespace: oci-helm-chart
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  name: oci-helm-chart
+  url: myregistry.example.com
+  type: helm
+  enableOCI: "true"
 ```
 
 ## Resource Exclusion/Inclusion

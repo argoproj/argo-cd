@@ -42,7 +42,7 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/gpg"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/stats"
 )
@@ -192,7 +192,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to connect to repo server: %w", err)
 	}
-	defer io.Close(conn)
+	defer utilio.Close(conn)
 
 	manifestInfos := make([]*apiclient.ManifestResponse, 0)
 	targetObjs := make([]*unstructured.Unstructured, 0)
@@ -337,7 +337,7 @@ func (m *appStateManager) ResolveGitRevision(repoURL string, revision string) (s
 	if err != nil {
 		return "", fmt.Errorf("failed to connect to repo server: %w", err)
 	}
-	defer io.Close(conn)
+	defer utilio.Close(conn)
 
 	repo, err := m.db.GetRepository(context.Background(), repoURL, "")
 	if err != nil {

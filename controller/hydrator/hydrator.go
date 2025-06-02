@@ -14,7 +14,7 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
-	argoio "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 // Dependencies is the interface for the dependencies of the Hydrator. It serves two purposes: 1) it prevents the
@@ -320,7 +320,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 	if err != nil {
 		return targetRevision, "", fmt.Errorf("failed to create commit service: %w", err)
 	}
-	defer argoio.Close(closer)
+	defer utilio.Close(closer)
 	resp, err := commitService.CommitHydratedManifests(context.Background(), &manifestsRequest)
 	if err != nil {
 		return targetRevision, "", fmt.Errorf("failed to commit hydrated manifests: %w", err)

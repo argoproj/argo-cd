@@ -269,6 +269,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			HookType:    res.HookType,
 			SyncPhase:   res.SyncPhase,
 			Version:     res.Version,
+			Images:      res.Images,
 			Order:       i + 1,
 		}
 	}
@@ -445,6 +446,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			HookPhase: res.HookPhase,
 			Status:    res.Status,
 			Message:   res.Message,
+			Images:    res.Images,
 		})
 	}
 

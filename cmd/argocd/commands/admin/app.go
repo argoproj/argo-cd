@@ -41,7 +41,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/config"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -121,7 +121,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 			}
 			out, closer, err := getOutWriter(inline, fileURL)
 			errors.CheckError(err)
-			defer io.Close(closer)
+			defer utilio.Close(closer)
 
 			errors.CheckError(PrintResources(outputFormat, out, app))
 		},
