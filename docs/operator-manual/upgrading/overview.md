@@ -37,7 +37,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/<v
     introducing misconfiguration.
 
 <hr/>
-
+* [v3.0 to v3.1](./3.0-3.1.md)
 * [v2.14 to v3.0](./2.14-3.0.md)
 * [v2.13 to v2.14](./2.13-2.14.md)
 * [v2.12 to v2.13](./2.12-2.13.md)
