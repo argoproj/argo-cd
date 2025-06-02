@@ -743,8 +743,10 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 		return "", fmt.Errorf("failed to get Azure access token: %w", err)
 	}
 
-	cacheExpiry := workloadidentity.CalclulateCacheExpiryBasedOnTokenExpiry(token.ExpiresOn)
-	azureTokenCache.Set(key, token, cacheExpiry)
+	cacheExpiry := workloadidentity.CalculateCacheExpiryBasedOnTokenExpiry(token.ExpiresOn)
+	if cacheExpiry > 0 {
+		azureTokenCache.Set(key, token, cacheExpiry)
+	}
 	return token.AccessToken, nil
 }
 

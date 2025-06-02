@@ -60,7 +60,7 @@ func TestGetToken_InitError(t *testing.T) {
 	assert.Nil(t, token, "Expected token to be empty on initialization error")
 }
 
-func TestCalclulateCacheExpiryBasedOnTokenExpiry(t *testing.T) {
+func TestCalculateCacheExpiryBasedOnTokenExpiry(t *testing.T) {
 	now := time.Now()
 
 	tests := []struct {
@@ -103,7 +103,7 @@ func TestCalclulateCacheExpiryBasedOnTokenExpiry(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actual := CalclulateCacheExpiryBasedOnTokenExpiry(tt.expiry)
+			actual := CalculateCacheExpiryBasedOnTokenExpiry(tt.expiry)
 			if tt.delta > 0 {
 				assert.InDelta(t, tt.expected.Seconds(), actual.Seconds(), tt.delta)
 			} else {

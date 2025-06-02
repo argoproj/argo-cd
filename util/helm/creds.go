@@ -13,6 +13,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	gocache "github.com/patrickmn/go-cache"
+	log "github.com/sirupsen/logrus"
 
 	argoutils "github.com/argoproj/argo-cd/v3/util"
 	"github.com/argoproj/argo-cd/v3/util/env"
@@ -149,11 +150,14 @@ func (creds AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
 
 	tokenExpiry, err := getJWTExpiry(token)
 	if err != nil {
+		log.Warnf("failed to get token expiry from JWT: %v, using current time as fallback", err)
 		tokenExpiry = time.Now()
 	}
 
-	cacheExpiry := workloadidentity.CalclulateCacheExpiryBasedOnTokenExpiry(tokenExpiry)
-	storeAzureToken(key, token, cacheExpiry)
+	cacheExpiry := workloadidentity.CalculateCacheExpiryBasedOnTokenExpiry(tokenExpiry)
+	if cacheExpiry > 0 {
+		storeAzureToken(key, token, cacheExpiry)
+	}
 	return token, nil
 }
 

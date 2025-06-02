@@ -50,14 +50,8 @@ func (c WorkloadIdentityTokenProvider) GetToken(scope string) (*Token, error) {
 	return &Token{AccessToken: token.Token, ExpiresOn: token.ExpiresOn}, nil
 }
 
-func CalclulateCacheExpiryBasedOnTokenExpiry(tokenExpiry time.Time) time.Duration {
+func CalculateCacheExpiryBasedOnTokenExpiry(tokenExpiry time.Time) time.Duration {
 	// Calculate the cache expiry as 5 minutes before the token expires
 	cacheExpiry := time.Until(tokenExpiry) - time.Minute*5
-
-	// If the time until the token expiry (minus 5 minutes)
-	// is less than or equal to zero, set the expiry to one second.
-	if cacheExpiry <= 0 {
-		cacheExpiry = time.Second
-	}
 	return cacheExpiry
 }
