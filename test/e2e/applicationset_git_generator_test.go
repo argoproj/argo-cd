@@ -269,7 +269,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
 			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
 			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
 		},
 	}
 	generateExpectedApp := func(name string) v1alpha1.Application {
@@ -368,7 +368,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
 			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
 			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
 		},
 	}
 	generateExpectedApp := func(name string) v1alpha1.Application {
@@ -584,7 +584,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
 			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
 			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
 		},
 	}
 	project := "gpg"
@@ -683,7 +683,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
 			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
 			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
 		},
 	}
 	project := "gpg"
