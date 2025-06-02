@@ -1,0 +1,37 @@
+name: Set up fix branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Exact release tag to base off (e.g. v2.14.9)'
+        required: true
+        type: string
+      fix_suffix:
+        description: 'Short name for this fix branch (e.g. fix-issue-123)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout full repo (branches & tags)
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.18'
+
+      - name: Run setup-fix
+        run: |
+          go run tools/fork-cli/main.go setup-fix \
+            --release="${{ inputs.release_tag }}" \
+            --fix-suffix="${{ inputs.fix_suffix }}"

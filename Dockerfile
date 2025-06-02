@@ -36,7 +36,7 @@ RUN ./install.sh helm && \
 ####################################################################################################
 FROM $BASE_IMAGE AS argocd-base
 
-LABEL org.opencontainers.image.source="https://github.com/argoproj/argo-cd"
+LABEL org.opencontainers.image.source="https://github.com/Skyscanner/argo-cd"
 
 USER root
 
@@ -49,7 +49,8 @@ RUN groupadd -g $ARGOCD_USER_ID argocd && \
     chown argocd:0 /home/argocd && \
     chmod g=u /home/argocd && \
     apt-get update && \
-    apt-get dist-upgrade -y && \
+    # TODO: This breaks our GHEC and GHES runners for some reason
+    # apt-get dist-upgrade -y && \
     apt-get install -y \
     git git-lfs tini gpg tzdata connect-proxy && \
     apt-get clean && \
