@@ -1,7 +1,6 @@
 package text
 
 import (
-	"strings"
 	"unicode/utf8"
 )
 
@@ -11,8 +10,4 @@ func Trunc(message string, n int) string {
 		return string([]rune(message)[0:n-3]) + "..."
 	}
 	return message
-}
-
-func SemVer(s string) string {
-	return strings.ReplaceAll(s, "+", "")
 }
