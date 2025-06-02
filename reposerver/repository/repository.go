@@ -68,6 +68,7 @@ const (
 	repoSourceFile                 = ".argocd-source.yaml"
 	appSourceFile                  = ".argocd-source-%s.yaml"
 	ociPrefix                      = "oci://"
+	skipFileRenderingMarker        = "+argocd:skip-file-rendering"
 )
 
 var ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined manifest file size")
@@ -1715,7 +1716,10 @@ func getObjsFromYAMLOrJSON(logCtx *log.Entry, manifestPath string, filename stri
 				return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", filename, err)
 			}
 			// Read the whole file to check whether it looks like a manifest.
-			out, err := utfutil.ReadFile(manifestPath, utfutil.UTF8)
+			out, rerr := utfutil.ReadFile(manifestPath, utfutil.UTF8)
+			if rerr != nil {
+				return status.Errorf(codes.FailedPrecondition, "Failed to read %q: %v", filename, rerr)
+			}
 			// Otherwise, let's see if it looks like a resource, if yes, we return error
 			if bytes.Contains(out, []byte("apiVersion:")) &&
 				bytes.Contains(out, []byte("kind:")) &&
@@ -1814,6 +1818,15 @@ func getPotentiallyValidManifestFile(path string, f os.FileInfo, appPath, repoRo
 		return nil, "", nil
 	}
 
+	// Read the whole file to check whether it looks like a manifest.
+	out, rerr := utfutil.ReadFile(path, utfutil.UTF8)
+	if rerr != nil {
+		return nil, "", fmt.Errorf("failed to read %q: %w", relPath, rerr)
+	}
+	// skip file if it contains the skip-rendering marker
+	if bytes.Contains(out, []byte(skipFileRenderingMarker)) {
+		return nil, "", nil
+	}
 	return realFileInfo, "", nil
 }
 
