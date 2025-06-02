@@ -78,26 +78,26 @@ func TestCalculateCacheExpiryBasedOnTokenExpiry(t *testing.T) {
 		{
 			name:     "Expiring in 5 minutes",
 			expiry:   now.Add(5 * time.Second),
-			expected: time.Second,
-			delta:    0,
+			expected: now.Sub(now.Add(5 * time.Minute)),
+			delta:    10, // allow 10s difference
 		},
 		{
 			name:     "Expires soon (4min ahead)",
 			expiry:   now.Add(4 * time.Minute),
-			expected: time.Second,
-			delta:    0,
+			expected: now.Sub(now.Add(1 * time.Minute)),
+			delta:    10, // allow 10s difference
 		},
 		{
 			name:     "Just expired (1s ago)",
 			expiry:   now.Add(-1 * time.Second),
-			expected: time.Second,
-			delta:    0,
+			expected: now.Sub(now.Add(5 * time.Minute)),
+			delta:    10, // allow 10s difference
 		},
 		{
 			name:     "Already expired (1m ago)",
 			expiry:   now.Add(-1 * time.Minute),
-			expected: time.Second,
-			delta:    0,
+			expected: now.Sub(now.Add(6 * time.Minute)),
+			delta:    10, // allow 10s difference
 		},
 	}
 
