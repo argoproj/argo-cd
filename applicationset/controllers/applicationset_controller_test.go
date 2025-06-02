@@ -5280,6 +5280,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 							Application:     "app1",
 							Message:         "Application is out of date with the current AppSet generation, setting status to Waiting",
 							Status:          "Waiting",
+							Step:            "1",
 							TargetRevisions: []string{"next"},
 						},
 					},
