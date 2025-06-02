@@ -150,15 +150,16 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 	res := []map[string]any{}
 	for _, clusterDecision := range clusterDecisions {
 		cluster := findCluster(clustersFromArgoCD, clusterDecision, matchKey, statusListKey)
-                // if no cluster is found, move to the next cluster
+		// if no cluster is found, move to the next cluster
 		if cluster == nil {
 			continue
 		}
 
 		// generated instance of cluster params
-		var params map[string]any
-		params["name"] = cluster.Name
-		params["server"] = cluster.Server
+		params := map[string]any{
+			"name":   cluster.Name,
+			"server": cluster.Server,
+		}
 
 		for key, value := range clusterDecision.(map[string]any) {
 			params[key] = value.(string)
