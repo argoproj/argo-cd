@@ -5,6 +5,7 @@ hs = {
   message = "Waiting for status",
 }
 
+print("http obj.status:", obj.status)
 if obj.status ~= nil then
   if obj.status.currentStatus ~= nil then
     if obj.status.currentStatus == "valid" then
