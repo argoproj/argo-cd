@@ -19,6 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/jwt"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 )
 
@@ -98,7 +99,7 @@ ID          ISSUED-AT                                EXPIRES-AT
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
-			if len(args) != 2 {
+			if len(args) != 2 || !rbac.ProjectScoped[opts.resource] {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
@@ -165,7 +166,7 @@ $ argocd proj role get test-project test-role
 Role Name:     test-role
 Description:
 Policies:
-p, proj:test-project:test-role, projects, get, test-project, 
+p, proj:test-project:test-role, projects, get, test-project, allow
 JWT Tokens:
 ID          ISSUED-AT                                EXPIRES-AT
 1696759698  2023-10-08T11:08:18+01:00 (4 hours ago)  <none>
@@ -173,7 +174,7 @@ ID          ISSUED-AT                                EXPIRES-AT
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
-			if len(args) != 2 {
+			if len(args) != 2 || !rbac.ProjectScoped[opts.resource] {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}

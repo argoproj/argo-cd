@@ -92,7 +92,7 @@ func addPolicyFlags(command *cobra.Command, opts *policyOpts) {
 	command.Flags().StringVarP(&opts.action, "action", "a", "", "Action to grant/deny permission on (e.g. get, create, list, update, delete)")
 	command.Flags().StringVarP(&opts.permission, "permission", "p", "allow", "Whether to allow or deny access to object with the action.  This can only be 'allow' or 'deny'")
 	command.Flags().StringVarP(&opts.object, "object", "o", "", "Object within the project to grant/deny access.  Use '*' for a wildcard. Will want access to '<project>/<object>'")
-	command.Flags().StringVarP(&opts.resource, "resource", "r", "applications", "Resource e.g. 'applications', 'applicationsets', 'logs', 'exec'.")
+	command.Flags().StringVarP(&opts.resource, "resource", "r", "applications", "Resource e.g. 'applications', 'applicationsets', 'logs', 'exec', etc.")
 }
 
 func humanizeTimestamp(epoch int64) string {
