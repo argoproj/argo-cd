@@ -1023,24 +1023,22 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                   },
             {
                 iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
-                title: (
-                    <React.Fragment>
-                        <ActionMenuItem actionLabel='Refresh' />{' '}
-                        <DropDownMenu
-                            items={[
-                                {
-                                    title: 'Hard Refresh',
-                                    action: () => !refreshing && services.applications.get(app.metadata.name, app.metadata.namespace, 'hard')
-                                }
-                            ]}
-                            anchor={() => <i className='fa fa-caret-down' />}
-                        />
-                    </React.Fragment>
-                ),
+                title: <ActionMenuItem actionLabel='Refresh Repo' />,
                 disabled: !!refreshing,
                 action: () => {
                     if (!refreshing) {
                         services.applications.get(app.metadata.name, app.metadata.namespace, 'normal');
+                        AppUtils.setAppRefreshing(app);
+                        this.appChanged.next(app);
+                    }
+                }
+            },
+            {
+                iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
+                title: <ActionMenuItem actionLabel='Invalidate Cache' />,
+                action: () => {
+                    if (!refreshing) {
+                        services.applications.get(app.metadata.name, app.metadata.namespace, 'hard');
                         AppUtils.setAppRefreshing(app);
                         this.appChanged.next(app);
                     }

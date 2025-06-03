@@ -260,7 +260,7 @@ spec:
             image.tag: "0.1"
 ```
 
-When Argo CD generates manifests (for example, when the user clicks "Hard Refresh" in the UI), Argo CD will send these
+When Argo CD generates manifests (for example, when the user clicks "Invalidate Cache" in the UI), Argo CD will send these
 parameters to the CMP as JSON (using the equivalent structure to what's shown above) on an environment variable called
 `ARGOCD_APP_PARAMETERS`.
 
