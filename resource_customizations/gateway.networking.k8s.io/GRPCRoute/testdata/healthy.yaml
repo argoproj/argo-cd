@@ -1,0 +1,21 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: grpcroute-example
+spec:
+  hostnames:
+  - my.example.com
+status:
+  parents:
+  - parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: gw-example
+      namespace: gw-example-ns
+    conditions:
+    - lastTransitionTime: '2025-05-19T03:00:00Z'
+      message: 'Route accepted by controller: gw-example'
+      observedGeneration: 2
+      reason: Accepted
+      type: Accepted
+      status: "True"

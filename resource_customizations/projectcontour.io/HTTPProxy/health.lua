@@ -5,13 +5,15 @@ hs = {
   message = "Waiting for status",
 }
 
-if obj.status != nil then
-  if obj.status.currentStatus == "valid" then
-    hs.status = "Healthy"
-  elseif obj.status.currentStatus == "invalid" then
-    hs.status = "Degraded"
+if obj.status ~= nil then
+  if obj.status.currentStatus ~= nil then
+    if obj.status.currentStatus == "valid" then
+      hs.status = "Healthy"
+    elseif obj.status.currentStatus == "invalid" then
+      hs.status = "Degraded"
+    end
+    hs.message = obj.status.description
   end
-  hs.message = obj.status.description
 end
 
 return hs
