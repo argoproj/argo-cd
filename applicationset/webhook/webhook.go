@@ -32,7 +32,6 @@ const payloadQueueSize = 50000
 
 type WebhookHandler struct {
 	sync.WaitGroup // for testing
-	namespace      string
 	github         *github.Webhook
 	gitlab         *gitlab.Webhook
 	azuredevops    *azuredevops.Webhook
@@ -69,7 +68,7 @@ type prGeneratorGitlabInfo struct {
 	APIHostname string
 }
 
-func NewWebhookHandler(namespace string, webhookParallelism int, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
+func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
 	// register the webhook secrets stored under "argocd-secret" for verifying incoming payloads
 	argocdSettings, err := argocdSettingsMgr.GetSettings()
 	if err != nil {
@@ -89,7 +88,6 @@ func NewWebhookHandler(namespace string, webhookParallelism int, argocdSettingsM
 	}
 
 	webhookHandler := &WebhookHandler{
-		namespace:   namespace,
 		github:      githubHandler,
 		gitlab:      gitlabHandler,
 		azuredevops: azuredevopsHandler,

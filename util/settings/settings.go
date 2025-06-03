@@ -567,8 +567,6 @@ type SettingsManager struct {
 	// mutex protects concurrency sensitive parts of settings manager: access to subscribers list and initialization flag
 	mutex                 *sync.Mutex
 	initContextCancel     func()
-	reposCache            []Repository
-	repoCredsCache        []RepositoryCredentials
 	reposOrClusterChanged func()
 }
 
@@ -1276,9 +1274,6 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 func (mgr *SettingsManager) invalidateCache() {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
-
-	mgr.reposCache = nil
-	mgr.repoCredsCache = nil
 }
 
 func (mgr *SettingsManager) initialize(ctx context.Context) error {

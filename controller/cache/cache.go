@@ -186,22 +186,12 @@ type ResourceInfo struct {
 	manifestHash string
 }
 
-func NewLiveStateCache(
-	db db.ArgoDB,
-	appInformer cache.SharedIndexInformer,
-	settingsMgr *settings.SettingsManager,
-	kubectl kube.Kubectl,
-	metricsServer *metrics.MetricsServer,
-	onObjectUpdated ObjectUpdatedHandler,
-	clusterSharding sharding.ClusterShardingCache,
-	resourceTracking argo.ResourceTracking,
-) LiveStateCache {
+func NewLiveStateCache(db db.ArgoDB, appInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, metricsServer *metrics.MetricsServer, onObjectUpdated ObjectUpdatedHandler, clusterSharding sharding.ClusterShardingCache, resourceTracking argo.ResourceTracking) LiveStateCache {
 	return &liveStateCache{
 		appInformer:      appInformer,
 		db:               db,
 		clusters:         make(map[string]clustercache.ClusterCache),
 		onObjectUpdated:  onObjectUpdated,
-		kubectl:          kubectl,
 		settingsMgr:      settingsMgr,
 		metricsServer:    metricsServer,
 		clusterSharding:  clusterSharding,
@@ -225,7 +215,6 @@ type liveStateCache struct {
 	db                   db.ArgoDB
 	appInformer          cache.SharedIndexInformer
 	onObjectUpdated      ObjectUpdatedHandler
-	kubectl              kube.Kubectl
 	settingsMgr          *settings.SettingsManager
 	metricsServer        *metrics.MetricsServer
 	clusterSharding      sharding.ClusterShardingCache

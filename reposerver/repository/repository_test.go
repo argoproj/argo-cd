@@ -65,8 +65,7 @@ type repoCacheMocks struct {
 }
 
 type newGitRepoHelmChartOptions struct {
-	chartName    string
-	chartVersion string
+	chartName string
 	// valuesFiles is a map of the values file name to the key/value pairs to be written to the file
 	valuesFiles map[string]map[string]string
 }
@@ -148,7 +147,7 @@ func newServiceWithOpt(t *testing.T, cf clientFunc, root string) (*Service, *git
 	cf(gitClient, helmClient, paths)
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
-	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, root)
+	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, root)
 
 	service.newGitClient = func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
@@ -367,7 +366,7 @@ func TestGenerateManifest_RefOnlyShortCircuit(t *testing.T) {
 	repoRemote := "file://" + repopath
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
-	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, repopath)
+	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, repopath)
 	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		opts = append(opts, git.WithEventHandlers(git.EventHandlers{
 			// Primary check, we want to make sure ls-remote is not called when the item is in cache
@@ -431,7 +430,7 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 			})
 		require.NoError(t, err)
 	})
-	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, repopath)
+	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, repopath)
 	var gitClient git.Client
 	var err error
 	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
@@ -452,9 +451,8 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 		createPath: true,
 		remote:     repoRemote,
 		helmChartOptions: newGitRepoHelmChartOptions{
-			chartName:    "my-chart",
-			chartVersion: "v1.0.0",
-			valuesFiles:  map[string]map[string]string{"test.yaml": {"testval": "test"}},
+			chartName:   "my-chart",
+			valuesFiles: map[string]map[string]string{"test.yaml": {"testval": "test"}},
 		},
 	})
 	src := v1alpha1.ApplicationSource{RepoURL: repoRemote, Path: ".", TargetRevision: "HEAD", Helm: &v1alpha1.ApplicationSourceHelm{
