@@ -59,4 +59,4 @@ RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server && \
 RUN mkdir -p /tilt
 
 # overridden by Tiltfile
-ENTRYPOINT ["/usr/bin/tini", "-s", "--", "dlv", "exec", "--continue", "--log", "--accept-multiclient", "--headless", "--listen=:2345", "--api-version=2"]
+ENTRYPOINT ["/usr/bin/tini", "-s", "--", "dlv", "exec", "--continue", "--accept-multiclient", "--headless", "--listen=:2345", "--api-version=2"]

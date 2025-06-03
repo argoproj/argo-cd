@@ -62,7 +62,6 @@ docker_build_with_restart(
         "dlv",
         "exec",
         "--continue",
-        "--log",
         "--accept-multiclient",
         "--headless",
         "--listen=:2345",
