@@ -41,6 +41,7 @@ type Context struct {
 	revision                 string
 	force                    bool
 	applyOutOfSyncOnly       bool
+	skipDryRun               bool
 	directoryRecurse         bool
 	replace                  bool
 	helmPassCredentials      bool
@@ -404,6 +405,11 @@ func (c *Context) HelmSkipSchemaValidation() *Context {
 
 func (c *Context) HelmSkipTests() *Context {
 	c.helmSkipTests = true
+	return c
+}
+
+func (c *Context) SkipDryRun() *Context {
+	c.skipDryRun = true
 	return c
 }
 

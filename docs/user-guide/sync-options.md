@@ -79,6 +79,36 @@ spec:
     - SkipDryRunOnMissingResource=true
 ```
 
+
+## Skip Dry Run for all resources
+
+When syncing has a dependency on certain external operators to successfully sync some of the resources you can set this flag.
+An example is when you create an app and its namespace and the namespace creation triggers a permission operator (like capsule) that grants permissions for actions inside the namespace.
+Without this flag the sync will fail because of permission denied warnings resulting in no resource to be created (inclusing the namespace).
+By setting this flag you ignore this validation and create the namespace resource anyway, expecting that a folowing sync of sync wave would fix the resources created (eventualy consistent)
+This only ignores sync issues with resources that aren't created.
+
+To skip the dry run for missing resource types, use the following annotation:
+
+1) Add `SkipDryRun=true` in manifest
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - SkipDryRun=true
+```
+
+2) Set sync option via argocd cli
+
+Example:
+
+```bash
+$ argocd app set guestbook --sync-option SkipDryRun=true
+```
+
 ## No Resource Deletion
 
 For certain resources you might want to retain them even after your application is deleted, for eg. Persistent Volume Claims.

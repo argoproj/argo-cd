@@ -1994,6 +1994,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		selector                string
 		prune                   bool
 		dryRun                  bool
+		skipDryRun              bool
 		timeout                 uint
 		strategy                string
 		force                   bool
@@ -2240,6 +2241,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					if applyOutOfSyncOnly {
 						items = append(items, common.SyncOptionApplyOutOfSyncOnly)
 					}
+					if skipDryRun {
+						items = append(items, common.SyncOptionSkipDryRun)
+					}
 
 					if len(items) == 0 {
 						// for prevent send even empty array if not need
@@ -2348,6 +2352,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&replace, "replace", false, "Use a kubectl create/replace instead apply")
 	command.Flags().BoolVar(&serverSideApply, "server-side", false, "Use server-side apply while syncing the application")
 	command.Flags().BoolVar(&applyOutOfSyncOnly, "apply-out-of-sync-only", false, "Sync only out-of-sync resources")
+	command.Flags().BoolVar(&skipDryRun, "skip-dryrun", false, "Skip the dryrun step when syncing the application")
 	command.Flags().BoolVar(&async, "async", false, "Do not wait for application to sync before continuing")
 	command.Flags().StringVar(&local, "local", "", "Path to a local directory. When this flag is present no git queries will be made")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
