@@ -5,22 +5,20 @@ hs = {
   message = "Waiting for status",
 }
 
-print("obj.status:", obj.status)
-if obj.status ~= nil then
-  print("obj.status.parents:", obj.status.parents)
-  if obj.status.parents ~= nil then
-    print("obj.status.parents.conditions:", obj.status.parents.conditions)
-    print("obj.status.parents.parentref:", obj.status.parents.parentRef)
-  end
-end
-
-if obj.status ~= nil and obj.status.parents ~= nil and obj.status.parents.conditions ~=nil then
-    if obj.status.parents.conditions.type == "Accepted" and obj.status.parents.conditions.status == "True" then
-        hs.status = "Healthy"
-        hs.message = obj.status.parents.conditions.message
-    elseif obj.status.parents.conditions.type == "Accepted" and obj.status.parents.conditions.status == "False" then
-        hs.status = "Degraded"
-        hs.message = obj.status.parents.conditions.message
+if obj.status and obj.status.parents then
+    for _, parent in ipairs(obj.status.parents) do
+        if parent.conditions then
+            for _, cond in ipairs(parent.conditions) do
+                print("Condition type:", cond.type, "status:", cond.status, "message:", cond.message)
+                if cond.type == "Accepted" and cond.status == "True" then
+                    hs.status = "Healthy"
+                    hs.message = cond.message
+                elseif cond.type == "Accepted" and cond.status == "False" then
+                    hs.status = "Degraded"
+                    hs.message = cond.message
+                end
+            end
+        end
     end
 end
 
