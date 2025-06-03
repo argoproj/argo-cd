@@ -87,7 +87,7 @@ spec:
 - `round-robin` uses an equal distribution across all shards.
 - `consistent-hashing` uses the consistent hashing with bounded loads algorithm which tends to equal distribution and also reduces cluster or application reshuffling in case of additions or removals of shards or clusters. 
 
-The `--sharding-method` parameter can also be overridden by setting the key `controller.sharding.algorithm` in the `argocd-cmd-params-cm` `configMap` (preferably) or by setting the `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` environment variable and by specifying the same possible values.
+The `--sharding-method` parameter can also be overridden by setting the key `controller.sharding.algorithm` in the `argocd-cmd-params-cm` `configMap` (preferably) or by setting the `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` environment variable and by specifiying the same possible values.
 
 !!! warning "Alpha Features"
     The `round-robin` shard distribution algorithm is an experimental feature. Reshuffling is known to occur in certain scenarios with cluster removal. If the cluster at rank-0 is removed, reshuffling all clusters across shards will occur and may temporarily have negative performance impacts.

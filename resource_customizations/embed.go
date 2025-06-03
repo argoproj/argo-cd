@@ -6,5 +6,5 @@ import (
 
 // Embedded contains embedded resource customization
 //
-//go:embed all:*
+//go:embed *
 var Embedded embed.FS

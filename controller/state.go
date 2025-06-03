@@ -34,7 +34,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
@@ -42,12 +41,12 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/gpg"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/stats"
 )
 
-var ErrCompareStateRepo = errors.New("failed to get repo objects")
+var CompareStateRepoError = errors.New("failed to get repo objects")
 
 type resourceInfoProviderStub struct{}
 
@@ -78,7 +77,7 @@ type AppStateManager interface {
 // comparisonResult holds the state of an application after the reconciliation
 type comparisonResult struct {
 	syncStatus           *v1alpha1.SyncStatus
-	healthStatus         health.HealthStatusCode
+	healthStatus         *v1alpha1.HealthStatus
 	resources            []v1alpha1.ResourceStatus
 	managedResources     []managedResource
 	reconciliationResult sync.ReconciliationResult
@@ -97,7 +96,7 @@ func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
 	return res.syncStatus
 }
 
-func (res *comparisonResult) GetHealthStatus() health.HealthStatusCode {
+func (res *comparisonResult) GetHealthStatus() *v1alpha1.HealthStatus {
 	return res.healthStatus
 }
 
@@ -192,7 +191,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to connect to repo server: %w", err)
 	}
-	defer utilio.Close(conn)
+	defer io.Close(conn)
 
 	manifestInfos := make([]*apiclient.ManifestResponse, 0)
 	targetObjs := make([]*unstructured.Unstructured, 0)
@@ -315,7 +314,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 
 	ts.AddCheckpoint("manifests_ms")
-	logCtx := log.WithFields(applog.GetAppLogFields(app))
+	logCtx := log.WithField("application", app.QualifiedName())
 	for k, v := range ts.Timings() {
 		logCtx = logCtx.WithField(k, v.Milliseconds())
 	}
@@ -337,7 +336,7 @@ func (m *appStateManager) ResolveGitRevision(repoURL string, revision string) (s
 	if err != nil {
 		return "", fmt.Errorf("failed to connect to repo server: %w", err)
 	}
-	defer utilio.Close(conn)
+	defer io.Close(conn)
 
 	repo, err := m.db.GetRepository(context.Background(), repoURL, "")
 	if err != nil {
@@ -526,7 +525,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					Status:     v1alpha1.SyncStatusCodeUnknown,
 					Revisions:  revisions,
 				},
-				healthStatus: health.HealthStatusUnknown,
+				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown},
 			}, nil
 		}
 		return &comparisonResult{
@@ -535,12 +534,15 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				Status:     v1alpha1.SyncStatusCodeUnknown,
 				Revision:   revisions[0],
 			},
-			healthStatus: health.HealthStatusUnknown,
+			healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown},
 		}, nil
 	}
 
 	// When signature keys are defined in the project spec, we need to verify the signature on the Git revision
-	verifySignature := len(project.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled()
+	verifySignature := false
+	if len(project.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled() {
+		verifySignature = true
+	}
 
 	// do best effort loading live and target state to present as much information about app state as possible
 	failedToLoadObjs := false
@@ -551,8 +553,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		return nil, err
 	}
 
-	logCtx := log.WithFields(applog.GetAppLogFields(app))
-	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
+	logCtx := log.WithField("application", app.QualifiedName())
+	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", destCluster.Server, app.Spec.Destination.Namespace)
 
 	var targetObjs []*unstructured.Unstructured
 	now := metav1.Now()
@@ -582,12 +584,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					// if first seen is less than grace period and it's not a Level 3 comparison,
 					// ignore error and short circuit
 					logCtx.Debugf("Ignoring repo error %v, already encountered error in grace period", err.Error())
-					return nil, ErrCompareStateRepo
+					return nil, CompareStateRepoError
 				}
 			} else if !noRevisionCache {
 				logCtx.Debugf("Ignoring repo error %v, new occurrence", err.Error())
 				m.repoErrorCache.Store(app.Name, time.Now())
-				return nil, ErrCompareStateRepo
+				return nil, CompareStateRepoError
 			}
 			failedToLoadObjs = true
 		} else {
@@ -875,7 +877,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			resState.Status = v1alpha1.SyncStatusCodeOutOfSync
 			// we ignore the status if the obj needs pruning AND we have the annotation
 			needsPruning := targetObj == nil && liveObj != nil
-			if !needsPruning || !resourceutil.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreExtraneous") {
+			if !(needsPruning && resourceutil.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreExtraneous")) {
 				syncCode = v1alpha1.SyncStatusCodeOutOfSync
 			}
 		default:

@@ -1,13 +1,14 @@
 package admin
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"os"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/common"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	utils "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	"github.com/stretchr/testify/assert"
@@ -31,7 +32,7 @@ func captureStdout(callback func()) (string, error) {
 	}()
 
 	callback()
-	utilio.Close(w)
+	utils.Close(w)
 
 	data, err := io.ReadAll(r)
 	if err != nil {
@@ -67,6 +68,8 @@ func newSettingsManager(data map[string]string) *settings.SettingsManager {
 
 type fakeCmdContext struct {
 	mgr *settings.SettingsManager
+	//nolint:unused,structcheck
+	out bytes.Buffer
 }
 
 func newCmdContext(data map[string]string) *fakeCmdContext {
@@ -94,7 +97,7 @@ metadata:
 data:
   url: https://myargocd.com`)
 	require.NoError(t, err)
-	defer utilio.Close(closer)
+	defer utils.Close(closer)
 
 	opts := settingsOpts{argocdCMPath: f}
 	settingsManager, err := opts.createSettingsManager(ctx)
@@ -243,7 +246,7 @@ func tempFile(content string) (string, io.Closer, error) {
 			panic(err)
 		}
 	}()
-	return f.Name(), utilio.NewCloser(func() error {
+	return f.Name(), utils.NewCloser(func() error {
 		return os.Remove(f.Name())
 	}), nil
 }
@@ -264,7 +267,7 @@ func TestValidateSettingsCommand_NoErrors(t *testing.T) {
 func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 	f, closer, err := tempFile(testDeploymentYAML)
 	require.NoError(t, err)
-	defer utilio.Close(closer)
+	defer utils.Close(closer)
 
 	t.Run("NoOverridesConfigured", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{}))
@@ -297,7 +300,7 @@ func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 func TestResourceOverrideHealth(t *testing.T) {
 	f, closer, err := tempFile(testCustomResourceYAML)
 	require.NoError(t, err)
-	defer utilio.Close(closer)
+	defer utils.Close(closer)
 
 	t.Run("NoHealthAssessment", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
@@ -348,11 +351,11 @@ func TestResourceOverrideHealth(t *testing.T) {
 func TestResourceOverrideAction(t *testing.T) {
 	f, closer, err := tempFile(testDeploymentYAML)
 	require.NoError(t, err)
-	defer utilio.Close(closer)
+	defer utils.Close(closer)
 
 	cronJobFile, closer, err := tempFile(testCronJobYAML)
 	require.NoError(t, err)
-	defer utilio.Close(closer)
+	defer utils.Close(closer)
 
 	t.Run("NoActions", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{

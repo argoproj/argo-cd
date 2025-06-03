@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/pkg/v2/sync"
+	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -298,7 +298,7 @@ func (s *Server) updateAppSet(ctx context.Context, appset *v1alpha1.ApplicationS
 			appset.Labels = newAppset.Labels
 			appset.Annotations = newAppset.Annotations
 		}
-		appset.Finalizers = newAppset.Finalizers
+
 		res, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(s.ns).Update(ctx, appset, metav1.UpdateOptions{})
 		if err == nil {
 			s.logAppSetEvent(ctx, appset, argo.EventReasonResourceUpdated, "updated ApplicationSets spec")
