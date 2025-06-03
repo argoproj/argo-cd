@@ -1,7 +1,7 @@
 tests:
 - healthStatus:
     status: Healthy
-    message: "Valid GRPCRoute"
+    message: "Route accepted by controller"
   inputPath: testdata/healthy.yaml
 - healthStatus:
     status: Progressing
@@ -9,5 +9,5 @@ tests:
   inputPath: testdata/progressing.yaml
 - healthStatus:
     status: Degraded
-    message: 'At least one error present, see Errors for details'
+    message: 'Route not accepted by controller'
   inputPath: testdata/degraded.yaml

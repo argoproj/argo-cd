@@ -14,3 +14,5 @@ if obj.status ~= nil and obj.status.parents ~= nil and obj.status.parents.condit
         hs.message = obj.status.parents.conditions.message
     end
 end
+
+return hs

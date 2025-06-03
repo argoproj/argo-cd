@@ -14,7 +14,7 @@ status:
       namespace: gw-example-ns
     conditions:
     - lastTransitionTime: '2025-05-19T03:00:00Z'
-      message: 'Route accepted by controller: gw-example'
+      message: 'Route not accepted by controller'
       observedGeneration: 2
       reason: Accepted
       type: Accepted
