@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	"github.com/google/go-github/v69/github"
+
+	appsetutils "github.com/argoproj/argo-cd/v3/applicationset/utils"
 )
 
 type GithubService struct {
@@ -26,7 +27,7 @@ func NewGithubService(token, url, owner, repo string, labels []string, optionalH
 	}
 
 	var client *github.Client
-	httpClient := utils.GetOptionalHTTPClient(optionalHTTPClient...)
+	httpClient := appsetutils.GetOptionalHTTPClient(optionalHTTPClient...)
 
 	if url == "" {
 		if token == "" {

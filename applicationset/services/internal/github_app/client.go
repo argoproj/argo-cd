@@ -8,11 +8,11 @@ import (
 	"github.com/google/go-github/v69/github"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/services/github_app_auth"
-	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	appsetutils "github.com/argoproj/argo-cd/v3/applicationset/utils"
 )
 
 func getOptionalHTTPClientAndTransport(optionalHTTPClient ...*http.Client) (*http.Client, http.RoundTripper) {
-	httpClient := utils.GetOptionalHTTPClient(optionalHTTPClient...)
+	httpClient := appsetutils.GetOptionalHTTPClient(optionalHTTPClient...)
 	if len(optionalHTTPClient) > 0 && optionalHTTPClient[0] != nil && optionalHTTPClient[0].Transport != nil {
 		// will either use the provided custom httpClient and it's transport
 		return httpClient, optionalHTTPClient[0].Transport
