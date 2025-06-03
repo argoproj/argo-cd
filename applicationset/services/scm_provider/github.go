@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	"github.com/google/go-github/v69/github"
 )
 
@@ -24,7 +25,7 @@ func NewGithubProvider(organization string, token string, url string, allBranche
 	}
 
 	var client *github.Client
-	httpClient := getOptionalHTTPClient(optionalHTTPClient...)
+	httpClient := utils.GetOptionalHTTPClient(optionalHTTPClient...)
 
 	if url == "" {
 		if token == "" {
