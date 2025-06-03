@@ -6,6 +6,7 @@ import {Helmet} from 'react-helmet';
 import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router';
 import {Subscription} from 'rxjs';
 import applications from './applications';
+import resources from './resources';
 import help from './help';
 import login from './login';
 import settings from './settings';
@@ -34,6 +35,7 @@ type Routes = {[path: string]: {component: React.ComponentType<RouteComponentPro
 const routes: Routes = {
     '/login': {component: login.component as any, noLayout: true},
     '/applications': {component: applications.component},
+    '/resources': {component: resources.component},
     '/settings': {component: settings.component},
     '/user-info': {component: userInfo.component},
     '/help': {component: help.component},
@@ -53,6 +55,12 @@ const navItems: NavItem[] = [
         tooltip: 'Manage your applications, and diagnose health problems.',
         path: '/applications',
         iconClassName: 'argo-icon argo-icon-application'
+    },
+    {
+        title: 'Resources',
+        tooltip: 'Display all resource argocd managed.',
+        path: '/resources',
+        iconClassName: 'argo-icon argo-icon-catalog'
     },
     {
         title: 'Settings',
