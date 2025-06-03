@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -50,9 +49,7 @@ func (ds *dashboard) Run(ctx context.Context, config *DashboardConfig, cancel fu
 	config.ClientOpts.Core = true
 
 	println("starting dashboard")
-	// Graceful shutdown code adapted from https://gist.github.com/embano1/e0bf49d24f1cdd07cffad93097c04f0a
-	wg := sync.WaitGroup{}
-	wg.Add(1)
+	done := make(chan struct{})
 	go func() {
 		s := <-ds.signalChan
 		fmt.Printf("got signal %v, attempting graceful shutdown\n", s)
@@ -63,14 +60,14 @@ func (ds *dashboard) Run(ctx context.Context, config *DashboardConfig, cancel fu
 		// settings.go). If they have not yet started we can't use the shutdown func returned by MaybeStartLocalServer,
 		// so we just cancel the context. This is not a "graceful" shutdown, but it is better than hanging forever.
 		cancel()
-		wg.Done()
+		close(done)
 	}()
 	shutDownFunc, err := ds.startLocalServer(ctx, config.ClientOpts, config.Context, &config.Port, &config.Address, config.ClientConfig)
 	if err != nil {
 		return fmt.Errorf("could not start dashboard: %w", err)
 	}
 	fmt.Printf("Argo CD UI is available at http://%s:%d\n", config.Address, config.Port)
-	wg.Wait()
+	<-done
 	println("clean shutdown")
 	return nil
 }
