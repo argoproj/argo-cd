@@ -5,13 +5,16 @@ metadata:
 spec:
   hostnames:
   - my.example.com
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: portaltransporter
 status:
   parents:
   - parentRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
-      name: gw-example
-      namespace: gw-example-ns
+      name: portaltransporter
     conditions:
     - lastTransitionTime: '2025-05-19T03:00:00Z'
       message: 'Route not accepted by controller'
