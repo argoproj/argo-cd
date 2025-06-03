@@ -10,6 +10,7 @@ if obj.status ~= nil then
   print("obj.status.parents:", obj.status.parents)
   if obj.status.parents ~= nil then
     print("obj.status.parents.conditions:", obj.status.parents.conditions)
+    print("obj.status.parents.parentref:", obj.status.parents.parentRef)
   end
 end
 
