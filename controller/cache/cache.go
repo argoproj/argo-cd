@@ -186,7 +186,15 @@ type ResourceInfo struct {
 	manifestHash string
 }
 
-func NewLiveStateCache(db db.ArgoDB, appInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, metricsServer *metrics.MetricsServer, onObjectUpdated ObjectUpdatedHandler, clusterSharding sharding.ClusterShardingCache, resourceTracking argo.ResourceTracking) LiveStateCache {
+func NewLiveStateCache(
+	db db.ArgoDB,
+	appInformer cache.SharedIndexInformer,
+	settingsMgr *settings.SettingsManager,
+	metricsServer *metrics.MetricsServer,
+	onObjectUpdated ObjectUpdatedHandler,
+	clusterSharding sharding.ClusterShardingCache,
+	resourceTracking argo.ResourceTracking,
+) LiveStateCache {
 	return &liveStateCache{
 		appInformer:      appInformer,
 		db:               db,
