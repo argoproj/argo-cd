@@ -1672,6 +1672,7 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	assert.NotNil(t, res.Helm)
 
 	assert.Equal(t, "Helm", res.Type)
+	assert.Equal(t, "foobar", res.Helm.Name)
 	assert.Equal(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
 }
 
