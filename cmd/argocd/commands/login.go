@@ -140,11 +140,17 @@ argocd login cd.argoproj.io --core`,
 					errors.CheckError(err)
 					tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser)
 				}
-				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 				claims := jwt.MapClaims{}
-				_, _, err := parser.ParseUnverified(tokenString, &claims)
+				DecodedToken, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+					// Replace with the actual key or validation logic
+					return []byte("your-signing-key"), nil
+				})
 				errors.CheckError(err)
-				fmt.Printf("'%s' logged in successfully\n", userDisplayName(claims))
+				if DecodedToken.Valid {
+					fmt.Printf("'%s' logged in successfully\n", userDisplayName(claims))
+				} else {
+					errors.CheckError(fmt.Errorf("invalid token"))
+				}
 			}
 
 			// login successful. Persist the config
