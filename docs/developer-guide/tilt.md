@@ -1,6 +1,6 @@
 # Tilt Development
 
-> Tilt provides a real-time web UI that offers better visibility into logs, health status, and dependencies, making debugging easier compared to relying solely on terminal outputs. With a single `tilt up` command, developers can spin up all required services without managing multiple processes manually, simplifying the local development workflow. Tilt also integrates seamlessly with Docker and Kubernetes, allowing for efficient container-based development. Unlike goreman, which lacks dynamic config reloading, Tilt can detect and apply changes to Kubernetes YAML and Helm charts without full restarts, making it more efficient for iterative development.
+Tilt provides a real-time web UI that offers better visibility into logs, health status, and dependencies, making debugging easier compared to relying solely on terminal outputs. With a single `tilt up` command, developers can spin up all required services without managing multiple processes manually, simplifying the local development workflow. Tilt also integrates seamlessly with Docker and Kubernetes, allowing for efficient container-based development. Unlike goreman, which lacks dynamic config reloading, Tilt can detect and apply changes to Kubernetes YAML and Helm charts without full restarts, making it more efficient for iterative development.
 
 ### Prerequisites
 * kubernetes environment (kind, minikube, k3d, etc.)
@@ -20,7 +20,7 @@ To remove all deployed resources in your local cluster including CRDs, run `tilt
 ### Debugging ArgoCD
 Each deployed pod running ArgoCD components uses delve to expose a debug port. Tilt is configured to forward each of those ports locally to `localhost`. IDEs can attach to the corresponding application to set break points and debug code running inside the cluster. 
 
-| Deployment | Host Port |
+| Deployment | Debug Host Port |
 |-----------|------------|
 | argocd-server | localhost:9345 |
 | argocd-repo-server | localhost:9346 |
