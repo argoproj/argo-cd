@@ -12,9 +12,23 @@
 1. Spin up environment by running `tilt up` in the root directory of the repo
     * Resources will be deployed into the `argocd` namespace in the cluster that your `kubeconfig` is currently pointed to. 
 
-2. Spin down and remove deployment manifests: `tilt down`
+2. Use `ctrl+c` to close tilt which stops watching files for changes and closes port-forwards. Everything deployed to the local cluster will be left in tact and continue to run. Run `tilt up` again to start up another session and pick up where you left off.   
 
-### Debugging
+### Cleanup
+To remove all deployed resources in your local cluster including CRDs, run `tilt down` from the root of the repo. 
+
+### Debugging ArgoCD
+Each deployed pod running ArgoCD components uses delve to expose a debug port. Tilt is configured to forward each of those ports locally to `localhost`. IDEs can attach to the corresponding application to set break points and debug code running inside the cluster. 
+
+| Deployment | Host Port |
+|-----------|------------|
+| argocd-server | localhost:9345 |
+| argocd-repo-server | localhost:9346 |
+| argocd-applicationset-controller | localhost:9347 |
+| argocd-application-controller | localhost:9348 |
+| argocd-notifications-controller | localhost:9349 |
+| argocd-commit-server | localhost:9350 |
+
 
 #### VS Code
 Add a `.vscode/launch.json` file with these configurations to support attaching to running pods corresponding to the service. 
