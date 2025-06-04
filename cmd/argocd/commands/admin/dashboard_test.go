@@ -16,8 +16,11 @@ import (
 func TestRun_SignalHandling_GracefulShutdown(t *testing.T) {
 	stopCalled := false
 	d := &dashboard{
-		startLocalServer: func(context.Context, *apiclient.ClientOptions, string, *int, *string, clientcmd.ClientConfig) (func(), error) {
-			return func() { stopCalled = true }, nil
+		startLocalServer: func(_ context.Context, opts *apiclient.ClientOptions, _ string, _ *int, _ *string, _ clientcmd.ClientConfig) (func(), error) {
+			return func() {
+				stopCalled = true
+				require.Equal(t, opts.Core, true, "Core client option should be set to true")
+			}, nil
 		},
 	}
 

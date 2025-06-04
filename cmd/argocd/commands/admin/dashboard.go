@@ -40,8 +40,8 @@ func NewDashboard() *dashboard {
 
 // Run runs the dashboard and blocks until context is done
 func (ds *dashboard) Run(ctx context.Context, config *DashboardConfig) error {
-	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
+	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 	config.ClientOpts.Core = true
 	println("starting dashboard")
 	shutDownFunc, err := ds.startLocalServer(ctx, config.ClientOpts, config.Context, &config.Port, &config.Address, config.ClientConfig)
@@ -51,7 +51,7 @@ func (ds *dashboard) Run(ctx context.Context, config *DashboardConfig) error {
 	fmt.Printf("Argo CD UI is available at http://%s:%d\n", config.Address, config.Port)
 	<-ctx.Done()
 	println("signal received, shutting down dashboard")
-	cancel()
+	stop()
 	if shutDownFunc != nil {
 		shutDownFunc()
 	}
