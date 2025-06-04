@@ -2260,7 +2260,18 @@ func (s *Server) ListLinks(ctx context.Context, req *application.ListAppLinksReq
 		return nil, err
 	}
 
+	// Create deep links object with managed-by URL
 	deepLinksObject := deeplinks.CreateDeepLinksObject(nil, obj, clstObj, nil)
+
+	// If no managed-by URL is set, use the current instance's URL
+	if deepLinksObject[deeplinks.ManagedByURLKey] == nil {
+		settings, err := s.settingsMgr.GetSettings()
+		if err != nil {
+			log.Warnf("Failed to get settings: %v", err)
+		} else if settings.URL != "" {
+			deepLinksObject[deeplinks.ManagedByURLKey] = settings.URL
+		}
+	}
 
 	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(deepLinksObject, obj.GetName(), deepLinks)
 	if len(errorList) > 0 {

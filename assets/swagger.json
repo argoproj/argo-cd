@@ -2718,6 +2718,54 @@
         }
       }
     },
+    "/api/v1/clusters/{name}/links": {
+      "get": {
+        "tags": [
+          "ClusterService"
+        ],
+        "summary": "ListLinks returns list of links for a cluster",
+        "operationId": "ClusterService_ListLinks",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "server",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" ).",
+            "name": "id.type",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "value holds the cluster server URL or cluster name.",
+            "name": "id.value",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationLinksResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/gpgkeys": {
       "get": {
         "tags": [
