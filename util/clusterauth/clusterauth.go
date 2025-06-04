@@ -332,7 +332,7 @@ func ParseServiceAccountToken(token string) (*ServiceAccountClaims, error) {
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 	var claims ServiceAccountClaims
 	// Ok not to verify here, auth client extracting the claims
-	_, _, err := parser.ParseUnverified(token, &claims) //NOSONAR
+	_, _, err := parser.ParseUnverified(token, &claims) //nolint //NOSONAR
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse service account token: %w", err)
 	}

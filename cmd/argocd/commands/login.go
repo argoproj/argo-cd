@@ -144,7 +144,7 @@ argocd login cd.argoproj.io --core`,
 				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 				claims := jwt.MapClaims{}
 				// Ok not to verify here, auth client extracting the name
-				_, _, err := parser.ParseUnverified(tokenString, &claims) //NOSONAR
+				_, _, err := parser.ParseUnverified(tokenString, &claims) //nolint //NOSONAR
 				errors.CheckError(err)
 				fmt.Printf("'%s' logged in successfully\n", userDisplayName(claims))
 			}

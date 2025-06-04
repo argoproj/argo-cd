@@ -589,7 +589,7 @@ func tokenIssuer(tokenString string) (string, error) {
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 	claims := jwt.MapClaims{}
 	// Ok not to verify now, we extract the issuer in VerifyToken to choose how to verify
-	_, _, err := parser.ParseUnverified(tokenString, &claims) //NOSONAR
+	_, _, err := parser.ParseUnverified(tokenString, &claims) //nolint //NOSONAR
 	if err != nil {
 		return "", err
 	}

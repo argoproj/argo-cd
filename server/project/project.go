@@ -128,7 +128,7 @@ func (s *Server) createToken(ctx context.Context, q *project.ProjectTokenCreateR
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 	claims := jwt.RegisteredClaims{}
 	// Ok not to verify here, auth client extracting the claims
-	_, _, err = parser.ParseUnverified(jwtToken, &claims) //NOSONAR
+	_, _, err = parser.ParseUnverified(jwtToken, &claims) //nolint //NOSONAR
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}

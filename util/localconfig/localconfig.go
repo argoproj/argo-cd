@@ -70,7 +70,7 @@ func (u *User) Claims() (*jwt.RegisteredClaims, error) {
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 	claims := jwt.RegisteredClaims{}
 	// Ok not to verify here, auth client extracting the claims
-	_, _, err := parser.ParseUnverified(u.AuthToken, &claims) //NOSONAR
+	_, _, err := parser.ParseUnverified(u.AuthToken, &claims) //nolint //NOSONAR
 	if err != nil {
 		return nil, err
 	}

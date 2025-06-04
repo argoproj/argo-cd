@@ -40,7 +40,7 @@ func TLSConfig(tlsConfig *DexTLSConfig) *tls.Config {
 	if !tlsConfig.StrictValidation {
 		return &tls.Config{
 			// Silencing Sonar - user explicitly asked for insecure
-			InsecureSkipVerify: true, //NOSONAR
+			InsecureSkipVerify: true, //nolint //NOSONAR
 		}
 	}
 	return &tls.Config{

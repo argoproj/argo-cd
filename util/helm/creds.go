@@ -167,7 +167,7 @@ func getJWTExpiry(token string) (time.Time, error) {
 	parser := jwt.NewParser()
 	claims := jwt.MapClaims{}
 	// Ok not to verify here, auth client extracting the expiry
-	_, _, err := parser.ParseUnverified(token, claims) //NOSONAR
+	_, _, err := parser.ParseUnverified(token, claims) //nolint //NOSONAR
 	if err != nil {
 		return time.Time{}, fmt.Errorf("failed to parse JWT: %w", err)
 	}

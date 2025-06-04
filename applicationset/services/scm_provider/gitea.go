@@ -30,7 +30,7 @@ func NewGiteaProvider(owner, token, url string, allBranches, insecure bool) (*Gi
 		tr := http.DefaultTransport.(*http.Transport).Clone()
 		tr.TLSClientConfig = &tls.Config{
 			// Silencing Sonar - user explicitly asked for insecure
-			InsecureSkipVerify: true, //NOSONAR
+			InsecureSkipVerify: true, //nolint //NOSONAR
 		}
 
 		httpClient = &http.Client{
