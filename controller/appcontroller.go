@@ -775,9 +775,9 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 			return resourcesInfo[i].ResourceName < resourcesInfo[j].ResourceName
 		})
 
-		alloweNodeLabels := ctrl.settingsMgr.GetAllowedNodeLabels()
+		allowedNodeLabels := ctrl.settingsMgr.GetAllowedNodeLabels()
 		nodeLabels := make(map[string]string)
-		for _, label := range alloweNodeLabels {
+		for _, label := range allowedNodeLabels {
 			if val, ok := node.Labels[label]; ok {
 				nodeLabels[label] = val
 			}

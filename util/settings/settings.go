@@ -2294,7 +2294,7 @@ func (mgr *SettingsManager) GetAllowedNodeLabels() []string {
 	labelKeys := []string{}
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		log.Error(fmt.Errorf("failed getting configmap: %w", err))
+		log.Error(fmt.Errorf("failed getting allowedNodeLabels from configmap: %w", err))
 		return labelKeys
 	}
 	value, ok := argoCDCM.Data[allowedNodeLabelsKey]
