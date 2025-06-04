@@ -27,6 +27,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
@@ -3070,5 +3071,86 @@ status:
 
 			// Verify the lastTransitionTime has not been updated
 			assert.Equal(t, "2023-01-01T00:00:00Z", app.Status.Health.LastTransitionTime.UTC().Format(time.RFC3339))
+		})
+}
+
+func TestManagedByURLAnnotation(t *testing.T) {
+	// Step 1: Start an ArgoCD instance in namespace A
+	ctx := Given(t)
+	ctx.
+		And(func() {
+			// Create namespace A for the first ArgoCD instance if it doesn't exist
+			_, err := fixture.KubeClientset.CoreV1().Namespaces().Get(t.Context(), "argocd-a", metav1.GetOptions{})
+			if err != nil {
+				_, err = fixture.KubeClientset.CoreV1().Namespaces().Create(
+					t.Context(),
+					&corev1.Namespace{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "argocd-a",
+						},
+					},
+					metav1.CreateOptions{},
+				)
+				require.NoError(t, err)
+			}
+
+			// Configure the first ArgoCD instance's URL
+			err = fixture.SetParamInSettingConfigMap("url", "https://argocd-a.example.com")
+			require.NoError(t, err)
+		}).
+		// Step 2: Create an App-of-Apps application that will be managed by the first ArgoCD instance
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Then().
+		And(func(app *Application) {
+			// Verify the managed-by-url annotation is set to the first instance's URL
+			assert.Contains(t, app.Annotations, "argocd.argoproj.io/managed-by-url")
+			assert.Equal(t, "https://argocd-a.example.com", app.Annotations["argocd.argoproj.io/managed-by-url"])
+		}).
+		When().
+		And(func() {
+			// Step 3: Deploy the App-of-Apps application using the default ArgoCD instance
+			// This simulates the default openshift-gitops instance deploying the application
+			err := fixture.SetParamInSettingConfigMap("url", "https://default-argocd.example.com")
+			require.NoError(t, err)
+
+			// Create the application in the default instance
+			_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Create(
+				t.Context(),
+				&v1alpha1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-of-apps",
+						Annotations: map[string]string{
+							"argocd.argoproj.io/managed-by-url": "https://argocd-a.example.com",
+						},
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL: "https://github.com/argoproj/argocd-example-apps",
+							Path:    "guestbook",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "argocd-a",
+						},
+					},
+				},
+				metav1.CreateOptions{},
+			)
+			require.NoError(t, err)
+		}).
+		Then().
+		And(func(app *Application) {
+			// Step 4: Verify that when viewing the application from the default instance,
+			// the URL points to the first instance (argocd-a)
+			output, err := fixture.RunCli("app", "get", "app-of-apps")
+			require.NoError(t, err)
+
+			// Verify the URL in the output points to the correct instance
+			assert.Contains(t, output, "https://argocd-a.example.com/applications/app-of-apps")
+
+			// Verify the application is properly linked to the first instance
+			assert.Equal(t, "https://argocd-a.example.com", app.Annotations["argocd.argoproj.io/managed-by-url"])
 		})
 }
