@@ -146,7 +146,8 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 
 			for _, appset := range appsets {
 				if appset.Name == "" {
-					errors.Fatal(errors.ErrorGeneric, fmt.Sprintf("Error creating ApplicationSet %s. ApplicationSet does not have Name field set", appset))
+					err := fmt.Errorf("Error creating ApplicationSet %s. ApplicationSet does not have Name field set", appset)
+					errors.CheckError(err)
 				}
 
 				conn, appIf := argocdClient.NewApplicationSetClientOrDie()
@@ -181,7 +182,7 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 					action = "updated"
 				}
 
-				c.PrintErrf("ApplicationSet '%s' %s%s\n", created.Name, action, dryRunMsg)
+				c.PrintErrf("ApplicationSet '%s' %s%s\n", created.ObjectMeta.Name, action, dryRunMsg)
 
 				switch output {
 				case "yaml", "json":
@@ -237,7 +238,8 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 			}
 			appset := appsets[0]
 			if appset.Name == "" {
-				errors.Fatal(errors.ErrorGeneric, fmt.Sprintf("Error generating apps for ApplicationSet %s. ApplicationSet does not have Name field set", appset))
+				err := fmt.Errorf("Error generating apps for ApplicationSet %s. ApplicationSet does not have Name field set", appset)
+				errors.CheckError(err)
 			}
 
 			conn, appIf := argocdClient.NewApplicationSetClientOrDie()
@@ -342,7 +344,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 			}
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie()
 			defer argoio.Close(conn)
-			isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
+			var isTerminal bool = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 			numOfApps := len(args)
 			promptFlag := c.Flag("yes")
 			if promptFlag.Changed && promptFlag.Value.String() == "true" {
@@ -458,7 +460,7 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 		syncPolicyStr string
 		syncPolicy    = appSet.Spec.Template.Spec.SyncPolicy
 	)
-	if syncPolicy != nil && syncPolicy.IsAutomatedSyncEnabled() {
+	if syncPolicy != nil && syncPolicy.Automated != nil {
 		syncPolicyStr = "Automated"
 		if syncPolicy.Automated.Prune {
 			syncPolicyStr += " (Prune)"
@@ -495,7 +497,7 @@ func hasAppSetChanged(appReq, appRes *arogappsetv1.ApplicationSet, upsert bool) 
 
 	if reflect.DeepEqual(appRes.Spec, appReq.Spec) &&
 		reflect.DeepEqual(appRes.Labels, appReq.Labels) &&
-		reflect.DeepEqual(appRes.Annotations, appReq.Annotations) &&
+		reflect.DeepEqual(appRes.ObjectMeta.Annotations, appReq.Annotations) &&
 		reflect.DeepEqual(appRes.Finalizers, appReq.Finalizers) {
 		return false
 	}

@@ -188,7 +188,6 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 		var impactedResources []ImpactedResource
 
 		jsonString := bytes.NewBuffer(jsonBytes).String()
-		// nolint:staticcheck // Lua is fine to be capitalized.
 		if len(jsonString) < 2 {
 			return nil, errors.New("Lua output was not a valid json object or array")
 		}

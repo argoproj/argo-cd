@@ -1492,7 +1492,7 @@ func TestApplicationSourceHelm_AddFileParameter(t *testing.T) {
 func TestNewHelmParameter(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
 		_, err := NewHelmParameter("garbage", false)
-		require.EqualError(t, err, "expected helm parameter of the form param=value but received: garbage")
+		require.EqualError(t, err, "Expected helm parameter of the form: param=value. Received: garbage")
 	})
 	t.Run("NonString", func(t *testing.T) {
 		p, err := NewHelmParameter("foo=bar", false)
@@ -1729,12 +1729,12 @@ func TestEnv_IsZero(t *testing.T) {
 
 func TestEnv_Envsubst(t *testing.T) {
 	env := Env{&EnvEntry{"FOO", "bar"}}
-	assert.Empty(t, env.Envsubst(""))
+	assert.Equal(t, "", env.Envsubst(""))
 	assert.Equal(t, "bar", env.Envsubst("$FOO"))
 	assert.Equal(t, "bar", env.Envsubst("${FOO}"))
 	assert.Equal(t, "FOO", env.Envsubst("${FOO"))
-	assert.Empty(t, env.Envsubst("$BAR"))
-	assert.Empty(t, env.Envsubst("${BAR}"))
+	assert.Equal(t, "", env.Envsubst("$BAR"))
+	assert.Equal(t, "", env.Envsubst("${BAR}"))
 	assert.Equal(t,
 		"echo bar; echo ; echo bar; echo ; echo FOO",
 		env.Envsubst("echo $FOO; echo $BAR; echo ${FOO}; echo ${BAR}; echo ${FOO"),
@@ -3045,7 +3045,7 @@ func TestApplicationStatus_GetConditions(t *testing.T) {
 	conditions := status.GetConditions(map[ApplicationConditionType]bool{
 		ApplicationConditionInvalidSpecError: true,
 	})
-	assert.Equal(t, []ApplicationCondition{{Type: ApplicationConditionInvalidSpecError}}, conditions)
+	assert.EqualValues(t, []ApplicationCondition{{Type: ApplicationConditionInvalidSpecError}}, conditions)
 }
 
 type projectBuilder struct {
@@ -3206,8 +3206,8 @@ func TestSetConditions(t *testing.T) {
 			validate: func(t *testing.T, a *Application) {
 				t.Helper()
 				// SetConditions should add timestamps for new conditions.
-				assert.True(t, a.Status.Conditions[0].LastTransitionTime.After(fiveMinsAgo.Time))
-				assert.True(t, a.Status.Conditions[1].LastTransitionTime.After(fiveMinsAgo.Time))
+				assert.True(t, a.Status.Conditions[0].LastTransitionTime.Time.After(fiveMinsAgo.Time))
+				assert.True(t, a.Status.Conditions[1].LastTransitionTime.Time.After(fiveMinsAgo.Time))
 			},
 		},
 		{
@@ -4487,7 +4487,7 @@ func TestCluster_ParseProxyUrl(t *testing.T) {
 		},
 		{
 			url:            "test://!abc",
-			expectedErrMsg: "failed to parse proxy url, unsupported scheme \"test\", must be http, https, or socks5",
+			expectedErrMsg: "Failed to parse proxy url, unsupported scheme \"test\", must be http, https, or socks5",
 		},
 		{
 			url:            "http://192.168.99.100:8443",

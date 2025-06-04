@@ -132,7 +132,7 @@ func TestEnforceProjectToken(t *testing.T) {
 		cancel := test.StartInformer(s.projInformer)
 		defer cancel()
 		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
-		assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.Name))
+		assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
 		assert.True(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	})
 
@@ -189,7 +189,7 @@ func TestEnforceProjectToken(t *testing.T) {
 		cancel := test.StartInformer(s.projInformer)
 		defer cancel()
 		claims := jwt.MapClaims{"sub": defaultSub, "jti": defaultId}
-		assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.Name))
+		assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
 		assert.True(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	})
 
@@ -350,7 +350,7 @@ func TestEnforceProjectGroups(t *testing.T) {
 		"iat":    defaultIssuedAt,
 		"groups": []string{groupName},
 	}
-	assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.Name))
+	assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
 	assert.True(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	assert.False(t, s.enf.Enforce(claims, "clusters", "get", "test"))
 
@@ -360,7 +360,7 @@ func TestEnforceProjectGroups(t *testing.T) {
 	log.Println(existingProj.ProjectPoliciesString())
 	_, _ = s.AppClientset.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Update(t.Context(), &existingProj, metav1.UpdateOptions{})
 	time.Sleep(100 * time.Millisecond) // this lets the informer get synced
-	assert.False(t, s.enf.Enforce(claims, "projects", "get", existingProj.Name))
+	assert.False(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
 	assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	assert.False(t, s.enf.Enforce(claims, "clusters", "get", "test"))
 }
@@ -409,7 +409,7 @@ func TestRevokedToken(t *testing.T) {
 	cancel := test.StartInformer(s.projInformer)
 	defer cancel()
 	claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
-	assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.Name))
+	assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
 	assert.True(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 }
 
@@ -722,6 +722,22 @@ func TestGetClaims(t *testing.T) {
 				EnableUserInfoGroups:    true,
 				UserInfoPath:            "/userinfo",
 				UserInfoCacheExpiration: "5m",
+			},
+		},
+		{
+			test: "GetClaimsWithGroupsString",
+			claims: jwt.MapClaims{
+				"aud":    common.ArgoCDClientAppID,
+				"exp":    defaultExpiry,
+				"sub":    "randomUser",
+				"groups": "group1",
+			},
+			expectedErrorContains: "",
+			expectedClaims: jwt.MapClaims{
+				"aud":    common.ArgoCDClientAppID,
+				"exp":    defaultExpiryUnix,
+				"sub":    "randomUser",
+				"groups": "group1",
 			},
 		},
 	}
@@ -1177,7 +1193,7 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 			Token: "",
 		})
 		require.NoError(t, err)
-		assert.Empty(t, recorder.Result().Header.Get("Set-Cookie"))
+		assert.Equal(t, "", recorder.Result().Header.Get("Set-Cookie"))
 	})
 }
 

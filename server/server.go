@@ -396,10 +396,10 @@ const (
 
 func (server *ArgoCDServer) healthCheck(r *http.Request) error {
 	if server.terminateRequested.Load() {
-		return errors.New("API Server is terminating and unable to serve requests")
+		return errors.New("API Server is terminating and unable to serve requests.")
 	}
 	if !server.available.Load() {
-		return errors.New("API Server is not available: it either hasn't started or is restarting")
+		return errors.New("API Server is not available. It either hasn't started or is restarting.")
 	}
 	if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
 		argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
@@ -790,7 +790,7 @@ func (server *ArgoCDServer) watchSettings() {
 	prevGogsSecret := server.settings.WebhookGogsSecret
 	prevExtConfig := server.settings.ExtensionConfig
 	var prevCert, prevCertKey string
-	if server.settings.Certificate != nil && !server.Insecure {
+	if server.settings.Certificate != nil && !server.ArgoCDServerOpts.Insecure {
 		prevCert, prevCertKey = tlsutil.EncodeX509KeyPairString(*server.settings.Certificate)
 	}
 
@@ -845,7 +845,7 @@ func (server *ArgoCDServer) watchSettings() {
 				log.Info("extensions configs updated successfully")
 			}
 		}
-		if !server.Insecure {
+		if !server.ArgoCDServerOpts.Insecure {
 			var newCert, newCertKey string
 			if server.settings.Certificate != nil {
 				newCert, newCertKey = tlsutil.EncodeX509KeyPairString(*server.settings.Certificate)
@@ -1054,7 +1054,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	)
 
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db, a.EnableK8sEvent)
-	appsInAnyNamespaceEnabled := len(a.ApplicationNamespaces) > 0
+	appsInAnyNamespaceEnabled := len(a.ArgoCDServerOpts.ApplicationNamespaces) > 0
 	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.DisableAuth, appsInAnyNamespaceEnabled, a.HydratorEnabled)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
 
@@ -1109,7 +1109,7 @@ func (server *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w htt
 }
 
 func (server *ArgoCDServer) setTokenCookie(token string, w http.ResponseWriter) error {
-	cookiePath := "path=/" + strings.TrimRight(strings.TrimLeft(server.BaseHRef, "/"), "/")
+	cookiePath := "path=/" + strings.TrimRight(strings.TrimLeft(server.ArgoCDServerOpts.BaseHRef, "/"), "/")
 	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
 	if !server.Insecure {
 		flags = append(flags, "Secure")
@@ -1158,7 +1158,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 			handler: mux,
 			urlToHandler: map[string]http.Handler{
 				"/api/badge":          badge.NewHandler(server.AppClientset, server.settingsMgr, server.Namespace, server.ApplicationNamespaces),
-				common.LogoutEndpoint: logout.NewHandler(server.AppClientset, server.settingsMgr, server.sessionMgr, server.RootPath, server.BaseHRef, server.Namespace),
+				common.LogoutEndpoint: logout.NewHandler(server.AppClientset, server.settingsMgr, server.sessionMgr, server.ArgoCDServerOpts.RootPath, server.ArgoCDServerOpts.BaseHRef, server.Namespace),
 			},
 			contentTypeToHandler: map[string]http.Handler{
 				"application/grpc-web+proto": grpcWebHandler,
@@ -1187,7 +1187,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	}
 	mux.Handle("/api/", handler)
 
-	terminalOpts := application.TerminalOptions{DisableAuth: server.DisableAuth, Enf: server.enf}
+	terminalOpts := application.TerminalOptions{DisableAuth: server.ArgoCDServerOpts.DisableAuth, Enf: server.enf}
 
 	terminal := application.NewHandler(server.appLister, server.Namespace, server.ApplicationNamespaces, server.db, server.Cache, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
 		WithFeatureFlagMiddleware(server.settingsMgr.GetSettings)
@@ -1226,7 +1226,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
+	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ArgoCDServerOpts.ApplicationNamespaces, server.ArgoCDServerOpts.WebhookParallelism, server.AppClientset, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
 
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
@@ -1239,14 +1239,14 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	var extensionsHandler http.Handler = http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		server.serveExtensions(extensionsSharedPath, writer)
 	})
-	if server.EnableGZip {
+	if server.ArgoCDServerOpts.EnableGZip {
 		extensionsHandler = compressHandler(extensionsHandler)
 	}
 	mux.Handle("/extensions.js", extensionsHandler)
 
 	// Serve UI static assets
 	var assetsHandler http.Handler = http.HandlerFunc(server.newStaticAssetsHandler())
-	if server.EnableGZip {
+	if server.ArgoCDServerOpts.EnableGZip {
 		assetsHandler = compressHandler(assetsHandler)
 	}
 	mux.Handle("/", assetsHandler)
@@ -1296,7 +1296,7 @@ func (server *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.
 		}
 		if !files.IsSymlink(info) && !info.IsDir() && extensionsPattern.MatchString(info.Name()) {
 			processFile := func() error {
-				if _, err = fmt.Fprintf(w, "// source: %s/%s \n", filePath, info.Name()); err != nil {
+				if _, err = w.Write([]byte(fmt.Sprintf("// source: %s/%s \n", filePath, info.Name()))); err != nil {
 					return fmt.Errorf("failed to write to response: %w", err)
 				}
 
@@ -1697,9 +1697,9 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req any, _ *grpc.UnarySe
 // of allowed application namespaces
 func (server *ArgoCDServer) allowedApplicationNamespacesAsString() string {
 	ns := server.Namespace
-	if len(server.ApplicationNamespaces) > 0 {
+	if len(server.ArgoCDServerOpts.ApplicationNamespaces) > 0 {
 		ns += ", "
-		ns += strings.Join(server.ApplicationNamespaces, ", ")
+		ns += strings.Join(server.ArgoCDServerOpts.ApplicationNamespaces, ", ")
 	}
 	return ns
 }

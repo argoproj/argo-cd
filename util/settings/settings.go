@@ -827,7 +827,11 @@ func (mgr *SettingsManager) GetTrackingMethod() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return argoCDCM.Data[settingsResourceTrackingMethodKey], nil
+	tm := argoCDCM.Data[settingsResourceTrackingMethodKey]
+	if tm == "" {
+		return string(v1alpha1.TrackingMethodAnnotation), nil
+	}
+	return tm, nil
 }
 
 func (mgr *SettingsManager) GetInstallationID() (string, error) {
@@ -983,7 +987,6 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 	}
 
 	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
-	crdPrsvUnkn := "/spec/preserveUnknownFields"
 
 	switch diffOptions.IgnoreResourceStatusField {
 	case "", IgnoreResourceStatusInAll:
@@ -991,7 +994,6 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 		log.Info("Ignore status for all objects")
 	case IgnoreResourceStatusInCRD:
 		addStatusOverrideToGK(resourceOverrides, crdGK)
-		addIgnoreDiffItemOverrideToGK(resourceOverrides, crdGK, crdPrsvUnkn)
 	case IgnoreResourceStatusInNone, "off", "false":
 		// Yaml 'off' non-string value can be converted to 'false'
 		// Support these cases because compareoptions is a yaml string in the config
@@ -1328,7 +1330,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}()
 
 	if !cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced, secretsInformer.HasSynced) {
-		return errors.New("timed out waiting for settings cache to sync")
+		return errors.New("Timed out waiting for settings cache to sync")
 	}
 	log.Info("Configmap/secret informer synced")
 
@@ -1479,7 +1481,7 @@ func validateExternalURL(u string) error {
 	}
 	URL, err := url.Parse(u)
 	if err != nil {
-		return fmt.Errorf("failed to parse URL: %w", err)
+		return fmt.Errorf("Failed to parse URL: %w", err)
 	}
 	if URL.Scheme != "http" && URL.Scheme != "https" {
 		return errors.New("URL must include http or https protocol")

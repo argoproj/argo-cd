@@ -53,11 +53,11 @@ func (g *GitGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Appli
 
 func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
-		return nil, ErrEmptyAppSetGenerator
+		return nil, EmptyAppSetGeneratorError
 	}
 
 	if appSetGenerator.Git == nil {
-		return nil, ErrEmptyAppSetGenerator
+		return nil, EmptyAppSetGeneratorError
 	}
 
 	noRevisionCache := appSet.RefreshRequired()
@@ -93,7 +93,7 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 	case len(appSetGenerator.Git.Files) != 0:
 		res, err = g.generateParamsForGitFiles(appSetGenerator, noRevisionCache, verifyCommit, appSet.Spec.GoTemplate, project, appSet.Spec.GoTemplateOptions)
 	default:
-		return nil, ErrEmptyAppSetGenerator
+		return nil, EmptyAppSetGeneratorError
 	}
 	if err != nil {
 		return nil, fmt.Errorf("error generating params from git: %w", err)

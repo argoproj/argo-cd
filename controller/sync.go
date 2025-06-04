@@ -197,7 +197,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 	// ignore error if CompareStateRepoError, this shouldn't happen as noRevisionCache is true
 	compareResult, err := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, isMultiSourceRevision, rollback)
-	if err != nil && !stderrors.Is(err, ErrCompareStateRepo) {
+	if err != nil && !stderrors.Is(err, CompareStateRepoError) {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
 		return
@@ -309,7 +309,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		log.Errorf("Could not get installation ID: %v", err)
 		return
 	}
-	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
+	trackingMethod, err := m.settingsMgr.GetTrackingMethod()
+	if err != nil {
+		log.Errorf("Could not get trackingMethod: %v", err)
+		return
+	}
 
 	impersonationEnabled, err := m.settingsMgr.IsImpersonationEnabled()
 	if err != nil {
@@ -360,7 +364,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			return (len(syncOp.Resources) == 0 ||
 				isPostDeleteHook(target) ||
 				argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)) &&
-				m.isSelfReferencedObj(live, target, app.GetName(), trackingMethod, installationID)
+				m.isSelfReferencedObj(live, target, app.GetName(), v1alpha1.TrackingMethod(trackingMethod), installationID)
 		}),
 		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
 		sync.WithSyncWaveHook(delayBetweenSyncWaves),
