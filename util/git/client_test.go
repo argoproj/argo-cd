@@ -1241,7 +1241,8 @@ func Test_nativeGitClient_garbageCollection(t *testing.T) {
 	err = os.MkdirAll(tmpObjDir, 0o755)
 	require.NoError(t, err)
 
-	gitClient.garbageCollection()
+	err = gitClient.garbageCollection()
+	require.NoError(t, err)
 
 	// Verify old pack file was removed
 	_, err = os.Stat(oldPackFile)

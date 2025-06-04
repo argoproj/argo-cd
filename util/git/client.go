@@ -176,6 +176,16 @@ var (
 	factor           int64
 )
 
+// Git cleanup configuration constants
+const (
+	// cleanupGracePeriodMultiplier is the multiplier applied to base grace period for network delays and cleanup overhead
+	cleanupGracePeriodMultiplier = 1.2
+	// cleanupMinGracePeriod is the minimum grace period to handle edge cases
+	cleanupMinGracePeriod = 3 * time.Minute
+	// cleanupTimeoutBufferMultiplier is the multiplier applied to exec timeout to account for normal operations
+	cleanupTimeoutBufferMultiplier = 2
+)
+
 func init() {
 	if countStr := os.Getenv(common.EnvGitAttemptsCount); countStr != "" {
 		cnt, err := strconv.Atoi(countStr)
@@ -474,29 +484,28 @@ func (m *nativeGitClient) getCleanupGracePeriod() time.Duration {
 	execTimeout := env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", 90*time.Second, 0, math.MaxInt64)
 
 	// Calculate grace period based on:
-	// 1. Base timeout multiplier (2x) for normal operations
+	// 1. Base timeout multiplier for normal operations
 	// 2. Additional buffer for retries (maxAttemptsCount)
 	// 3. Network and process cleanup overhead
 
-	// Base grace period: timeout * 2 * maxAttempts
+	// Base grace period: timeout * buffer * maxAttempts
 	// This accounts for worst-case scenario with retries
-	baseGracePeriod := execTimeout * time.Duration(2*maxAttemptsCount)
+	baseGracePeriod := execTimeout * time.Duration(cleanupTimeoutBufferMultiplier*maxAttemptsCount)
 
-	// Add 20% buffer for network delays and cleanup
-	gracePeriod := time.Duration(float64(baseGracePeriod) * 1.2)
+	// Add configured buffer for network delays and cleanup
+	gracePeriod := time.Duration(float64(baseGracePeriod) * cleanupGracePeriodMultiplier)
 
 	// Ensure minimum grace period to handle edge cases
-	minGracePeriod := 3 * time.Minute
-	if gracePeriod < minGracePeriod {
-		gracePeriod = minGracePeriod
+	if gracePeriod < cleanupMinGracePeriod {
+		gracePeriod = cleanupMinGracePeriod
 	}
 
 	return gracePeriod
 }
 
 // garbageCollection cleans up temporary objects and files from git repository to prevent disk usage buildup
-func (m *nativeGitClient) garbageCollection() {
-	log.Infof("Running git cleanup for repository %s", m.repoURL)
+func (m *nativeGitClient) garbageCollection() error {
+	log.Debugf("Running git cleanup for repository %s", m.repoURL)
 
 	gracePeriod := m.getCleanupGracePeriod()
 	log.Debugf("Using cleanup grace period of %v", gracePeriod)
@@ -515,7 +524,7 @@ func (m *nativeGitClient) garbageCollection() {
 					age := time.Since(info.ModTime())
 					// Only remove files older than the grace period
 					if age > gracePeriod {
-						log.Infof("Removing stale temporary pack file: %s (age: %v, size: %d bytes)", name, age, info.Size())
+						log.Debugf("Removing stale temporary pack file: %s (age: %v, size: %d bytes)", name, age, info.Size())
 						if err := os.Remove(filePath); err != nil {
 							log.Warnf("Failed to remove temporary pack file %s: %v", name, err)
 						}
@@ -530,11 +539,14 @@ func (m *nativeGitClient) garbageCollection() {
 	// Clean up temporary object directories
 	tmpObjDir := filepath.Join(m.root, ".git", "objects", "tmp")
 	if _, err := os.Stat(tmpObjDir); err == nil {
-		log.Infof("Removing temporary objects directory: %s", tmpObjDir)
+		log.Debugf("Removing temporary objects directory: %s", tmpObjDir)
 		if err := os.RemoveAll(tmpObjDir); err != nil {
 			log.Warnf("Failed to remove temporary objects directory %s: %v", tmpObjDir, err)
+			return fmt.Errorf("failed to remove temporary objects directory: %w", err)
 		}
 	}
+
+	return nil
 }
 
 // Fetch fetches latest updates from origin
@@ -549,7 +561,9 @@ func (m *nativeGitClient) Fetch(revision string) error {
 		// Run garbage collection only when an error occurs and cleanup is enabled
 		if m.isCleanupEnabled() {
 			log.Warnf("Fetch failed for %s, running cleanup to prevent disk space issues", m.repoURL)
-			m.garbageCollection()
+			if cleanupErr := m.garbageCollection(); cleanupErr != nil {
+				log.Warnf("Cleanup failed for %s: %v", m.repoURL, cleanupErr)
+			}
 		}
 		return err
 	}
