@@ -320,7 +320,7 @@ export class PodView extends React.Component<PodViewProps> {
                         {name: 'OS/Arch', value: `${infraNode.systemInfo.operatingSystem}/${infraNode.systemInfo.architecture}`}
                     ],
                     hostResourcesInfo: infraNode.resourcesInfo,
-                    hostLabels: infraNode.labels,
+                    hostLabels: infraNode.labels
                 };
             });
         }
@@ -391,7 +391,7 @@ export class PodView extends React.Component<PodViewProps> {
                                 {name: 'OS/Arch', value: 'N/A'}
                             ],
                             hostResourcesInfo: [],
-                            hostLabels: {},
+                            hostLabels: {}
                         };
                     }
                 }
