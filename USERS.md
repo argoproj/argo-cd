@@ -30,7 +30,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Ant Group](https://www.antgroup.com/)
 1. [AppDirect](https://www.appdirect.com)
 1. [Arctiq Inc.](https://www.arctiq.ca)
-1. [Artemis Health by Nomi Health] (https://www.artemishealth.com/)
+1. [Artemis Health by Nomi Health](https://www.artemishealth.com/)
 1. [Arturia](https://www.arturia.com)
 1. [ARZ Allgemeines Rechenzentrum GmbH](https://www.arz.at/)
 1. [Augury](https://www.augury.com/)
