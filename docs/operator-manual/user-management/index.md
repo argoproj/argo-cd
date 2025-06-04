@@ -210,7 +210,7 @@ data:
           - name: your-github-org
 ```
 
-After saving, the changes should take affect automatically.
+After saving, the changes should take effect automatically.
 
 NOTES:
 
