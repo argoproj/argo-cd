@@ -371,7 +371,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
 		sync.WithSyncWaveHook(delayBetweenSyncWaves),
 		sync.WithPruneLast(syncOp.SyncOptions.HasOption(common.SyncOptionPruneLast)),
-		sync.WithResourceModificationChecker(syncOp.SyncOptions.HasOption("ApplyOutOfSyncOnly=true"), compareResult.diffResultList),
+		sync.WithResourceModificationChecker(syncOp.SyncOptions.HasOption(common.SyncOptionApplyOutOfSyncOnly), compareResult.diffResultList),
 		sync.WithPrunePropagationPolicy(&prunePropagationPolicy),
 		sync.WithReplace(syncOp.SyncOptions.HasOption(common.SyncOptionReplace)),
 		sync.WithServerSideApply(syncOp.SyncOptions.HasOption(common.SyncOptionServerSideApply)),
