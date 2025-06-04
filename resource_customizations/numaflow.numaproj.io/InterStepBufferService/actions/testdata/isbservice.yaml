@@ -1,0 +1,85 @@
+apiVersion: numaflow.numaproj.io/v1alpha1
+kind: InterStepBufferService
+metadata:
+  creationTimestamp: '2025-04-28T22:39:27Z'
+  finalizers:
+    - numaflow.numaproj.io/isbsvc-controller
+  generation: 1
+  labels:
+    numaplane.numaproj.io/parent-rollout-name: my-isbsvc
+    numaplane.numaproj.io/upgrade-state: "in-progress"
+  name: my-isbsvc-0
+  namespace: demo
+  ownerReferences:
+    - apiVersion: numaplane.numaproj.io/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: ISBServiceRollout
+      name: my-isbsvc
+      uid: b38035d8-546a-4f24-b1fa-7bb5b0a3a565
+  resourceVersion: '1687384'
+  uid: 889839c6-2982-4b70-b2a5-84afb4272ab6
+spec:
+  jetstream:
+    persistence:
+      volumeSize: 1Gi
+    replicas: 1
+    version: 2.10.3
+status:
+  conditions:
+    - lastTransitionTime: '2025-04-28T22:39:57Z'
+      message: |
+        partitioned roll out complete: 1 new pods have been updated...
+      reason: Healthy
+      status: 'True'
+      type: ChildrenResourcesHealthy
+    - lastTransitionTime: '2025-04-28T22:39:57Z'
+      message: Successful
+      reason: Successful
+      status: 'True'
+      type: Configured
+    - lastTransitionTime: '2025-04-28T22:39:57Z'
+      message: Successful
+      reason: Successful
+      status: 'True'
+      type: Deployed
+  config:
+    jetstream:
+      auth:
+        basic:
+          password:
+            key: client-auth-password
+            name: isbsvc-my-isbsvc-0-js-client-auth
+          user:
+            key: client-auth-user
+            name: isbsvc-my-isbsvc-0-js-client-auth
+      streamConfig: |
+        consumer:
+          ackwait: 60s
+          maxackpending: 25000
+        otbucket:
+          history: 1
+          maxbytes: 0
+          maxvaluesize: 0
+          replicas: 1
+          storage: 0
+          ttl: 3h
+        procbucket:
+          history: 1
+          maxbytes: 0
+          maxvaluesize: 0
+          replicas: 1
+          storage: 0
+          ttl: 72h
+        stream:
+          duplicates: 60s
+          maxage: 72h
+          maxbytes: -1
+          maxmsgs: 100000
+          replicas: 1
+          retention: 0
+          storage: 0
+      url: nats://isbsvc-my-isbsvc-0-js-svc.demo.svc:4222
+  observedGeneration: 1
+  phase: Running
+  type: jetstream

@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "Application is healthy with 2/2 replicas ready"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "ReplicaSet \"simple-spinapp-5b8d8bc656\" has timed out progressing."
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: "ReplicaSet \"simple-spinapp-c54f5bdb4\" has successfully progressed."
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for status to be available"
+  inputPath: testdata/no-status.yaml 
