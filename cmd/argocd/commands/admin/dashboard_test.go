@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 
 func TestRun_SignalHandling_GracefulShutdown(t *testing.T) {
 	stopCalled := false
-	cancelCalled := false
 	sigCh := make(chan os.Signal, 1)
 	d := &dashboard{
 		signalChan: sigCh,
@@ -22,23 +22,28 @@ func TestRun_SignalHandling_GracefulShutdown(t *testing.T) {
 			return func() { stopCalled = true }, nil
 		},
 	}
-	errCh := make(chan error, 1)
+
+	var err error
+	doneCh := make(chan struct{})
 	go func() {
-		errCh <- d.Run(t.Context(), &DashboardConfig{ClientOpts: &apiclient.ClientOptions{}}, func() { cancelCalled = true })
+		err = d.Run(t.Context(), &DashboardConfig{ClientOpts: &apiclient.ClientOptions{}})
+		close(doneCh)
 	}()
 
+	// Allow some time for the dashboard to register the signal handler
 	time.Sleep(50 * time.Millisecond)
 
-	// emulate sending SIGINT signal into the signal channel
-	sigCh <- os.Interrupt
+	proc, err := os.FindProcess(os.Getpid())
+	require.NoErrorf(t, err, "failed to find process: %v", err)
+	err = proc.Signal(syscall.SIGINT)
+	require.NoErrorf(t, err, "failed to send SIGINT: %v", err)
 
 	select {
-	case err := <-errCh:
+	case <-doneCh:
 		require.NoError(t, err)
 	case <-time.After(500 * time.Millisecond):
 		t.Fatal("timeout: dashboard.Run did not exit after SIGINT")
 	}
 
 	require.True(t, stopCalled)
-	require.True(t, cancelCalled)
 }

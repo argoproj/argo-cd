@@ -44,30 +44,23 @@ func NewDashboard() *dashboard {
 }
 
 // Run runs the dashboard and blocks until context is done
-func (ds *dashboard) Run(ctx context.Context, config *DashboardConfig, cancel func()) error {
-	var shutDownFunc func()
+func (ds *dashboard) Run(ctx context.Context, config *DashboardConfig) error {
+	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
 	config.ClientOpts.Core = true
-
 	println("starting dashboard")
-	done := make(chan struct{})
-	go func() {
-		s := <-ds.signalChan
-		fmt.Printf("got signal %v, attempting graceful shutdown\n", s)
-		if shutDownFunc != nil {
-			shutDownFunc()
-		}
-		// This cancel func is here to account for the case where the k8s informers have not properly started (see
-		// settings.go). If they have not yet started we can't use the shutdown func returned by MaybeStartLocalServer,
-		// so we just cancel the context. This is not a "graceful" shutdown, but it is better than hanging forever.
-		cancel()
-		close(done)
-	}()
 	shutDownFunc, err := ds.startLocalServer(ctx, config.ClientOpts, config.Context, &config.Port, &config.Address, config.ClientConfig)
 	if err != nil {
 		return fmt.Errorf("could not start dashboard: %w", err)
 	}
 	fmt.Printf("Argo CD UI is available at http://%s:%d\n", config.Address, config.Port)
-	<-done
+	<-ctx.Done()
+	println("signal received, shutting down dashboard")
+	cancel()
+	if shutDownFunc != nil {
+		shutDownFunc()
+
+	}
 	println("clean shutdown")
 	return nil
 }
@@ -78,9 +71,8 @@ func NewDashboardCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 		Use:   "dashboard",
 		Short: "Starts Argo CD Web UI locally",
 		Run: func(cmd *cobra.Command, _ []string) {
-			ctx, cancel := context.WithCancel(cmd.Context())
 			config.Context = initialize.RetrieveContextIfChanged(cmd.Flag("context"))
-			errors.CheckError(NewDashboard().Run(ctx, config, cancel))
+			errors.CheckError(NewDashboard().Run(cmd.Context(), config))
 		},
 		Example: `# Start the Argo CD Web UI locally on the default port and address
 $ argocd admin dashboard
