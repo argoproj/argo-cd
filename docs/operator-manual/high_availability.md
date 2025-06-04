@@ -301,7 +301,7 @@ The jitter is the maximum duration that can be added to the sync timeout, so if 
 
 To configure the jitter you can set the following environment variables:
 
-* `ARGOCD_RECONCILIATION_JITTER` - The jitter to apply to the sync timeout. Disabled when value is 0. Defaults to 0.
+* `ARGOCD_RECONCILIATION_JITTER` - The jitter to apply to the sync timeout. Disabled when value is 0. Defaults to 60.
 
 ## Rate Limiting Application Reconciliations
 
