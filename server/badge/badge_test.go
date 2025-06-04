@@ -194,8 +194,8 @@ func TestHandlerFeatureProjectIsEnabled(t *testing.T) {
 	for _, tt := range projectTests {
 		argoCDCm := argoCDCm()
 		argoCDSecret := argoCDSecret()
-		argoCDCm.Namespace = tt.namespace
-		argoCDSecret.Namespace = tt.namespace
+		argoCDCm.ObjectMeta.Namespace = tt.namespace
+		argoCDSecret.ObjectMeta.Namespace = tt.namespace
 
 		settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm, argoCDSecret), tt.namespace)
 		objects := []runtime.Object{testProject()}
@@ -258,7 +258,7 @@ func TestHandlerNamespacesIsEnabled(t *testing.T) {
 		assert.Equal(t, toRGBString(Purple), leftRectColorPattern.FindStringSubmatch(response)[1])
 		assert.Equal(t, toRGBString(Purple), rightRectColorPattern.FindStringSubmatch(response)[1])
 		assert.Equal(t, "Not Found", leftTextPattern.FindStringSubmatch(response)[1])
-		assert.Empty(t, rightTextPattern.FindStringSubmatch(response)[1])
+		assert.Equal(t, "", rightTextPattern.FindStringSubmatch(response)[1])
 	})
 
 	t.Run("Request with illegal namespace", func(t *testing.T) {

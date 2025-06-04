@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"os"
@@ -67,6 +68,8 @@ func newSettingsManager(data map[string]string) *settings.SettingsManager {
 
 type fakeCmdContext struct {
 	mgr *settings.SettingsManager
+	//nolint:unused,structcheck
+	out bytes.Buffer
 }
 
 func newCmdContext(data map[string]string) *fakeCmdContext {

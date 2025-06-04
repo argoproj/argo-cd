@@ -2348,9 +2348,9 @@ spec:
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(NoConditions()).
 		And(func(app *Application) {
-			assert.Equal(t, map[string]string{"labels.local/from-file": "file", "labels.local/from-args": "args"}, app.Labels)
-			assert.Equal(t, map[string]string{"annotations.local/from-file": "file"}, app.Annotations)
-			assert.Equal(t, []string{"resources-finalizer.argocd.argoproj.io"}, app.Finalizers)
+			assert.Equal(t, map[string]string{"labels.local/from-file": "file", "labels.local/from-args": "args"}, app.ObjectMeta.Labels)
+			assert.Equal(t, map[string]string{"annotations.local/from-file": "file"}, app.ObjectMeta.Annotations)
+			assert.Equal(t, []string{"resources-finalizer.argocd.argoproj.io"}, app.ObjectMeta.Finalizers)
 			assert.Equal(t, path, app.Spec.GetSource().Path)
 			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.GetSource().Helm.Parameters)
 		})
@@ -2846,7 +2846,7 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 			// The extra configmap must be pruned now, because it's tracked
 			cm, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Get(t.Context(), "other-configmap", metav1.GetOptions{})
 			require.Error(t, err)
-			require.Empty(t, cm.Name)
+			require.Equal(t, "", cm.Name)
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -2898,7 +2898,7 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 			// The extra configmap must be pruned now, because it's tracked and does not exist in git
 			cr, err := fixture.KubeClientset.RbacV1().ClusterRoles().Get(t.Context(), "e2e-other-clusterrole", metav1.GetOptions{})
 			require.Error(t, err)
-			require.Empty(t, cr.Name)
+			require.Equal(t, "", cr.Name)
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -3028,4 +3028,47 @@ func TestDeletionConfirmation(t *testing.T) {
 		}).
 		When().ConfirmDeletion().
 		Then().Expect(DoesNotExist())
+}
+
+func TestLastTransitionTimeUnchangedError(t *testing.T) {
+	// Ensure that, if the health status hasn't changed, the lastTransitionTime is not updated.
+
+	ctx := Given(t)
+	ctx.
+		Path(guestbookPath).
+		When().
+		And(func() {
+			// Manually create an application with an outdated reconciledAt field
+			manifest := fmt.Sprintf(`
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: %s
+spec:
+  project: default
+  source:
+    repoURL: %s
+    path: guestbook
+    targetRevision: HEAD
+  destination:
+    server: https://non-existent-cluster
+    namespace: default
+status:
+  reconciledAt: "2023-01-01T00:00:00Z"
+  health:
+    status: Unknown
+    lastTransitionTime: "2023-01-01T00:00:00Z"
+`, ctx.AppName(), fixture.RepoURL(fixture.RepoURLTypeFile))
+			_, err := fixture.RunWithStdin(manifest, "", "kubectl", "apply", "-n", fixture.ArgoCDNamespace, "-f", "-")
+			require.NoError(t, err)
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		And(func(app *Application) {
+			// Verify the health status is still Unknown
+			assert.Equal(t, health.HealthStatusUnknown, app.Status.Health.Status)
+
+			// Verify the lastTransitionTime has not been updated
+			assert.Equal(t, "2023-01-01T00:00:00Z", app.Status.Health.LastTransitionTime.UTC().Format(time.RFC3339))
+		})
 }

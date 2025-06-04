@@ -25,10 +25,6 @@ type fakeIndexCache struct {
 	data []byte
 }
 
-type fakeTagsList struct {
-	Tags []string `json:"tags"`
-}
-
 func (f *fakeIndexCache) SetHelmIndex(_ string, indexData []byte) error {
 	f.data = indexData
 	return nil
@@ -165,7 +161,7 @@ func TestGetIndexURL(t *testing.T) {
 	t.Run("URL with invalid escaped characters", func(t *testing.T) {
 		rawURL := fmt.Sprintf(urlTemplate, "mygroup%**myproject")
 		got, err := getIndexURL(rawURL)
-		assert.Empty(t, got)
+		assert.Equal(t, "", got)
 		require.Error(t, err)
 	})
 }
@@ -174,23 +170,19 @@ func TestGetTagsFromUrl(t *testing.T) {
 	t.Run("should return tags correctly while following the link header", func(t *testing.T) {
 		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			t.Logf("called %s", r.URL.Path)
-			var responseTags fakeTagsList
+			responseTags := TagsList{}
 			w.Header().Set("Content-Type", "application/json")
 			if !strings.Contains(r.URL.String(), "token") {
 				w.Header().Set("Link", fmt.Sprintf("<https://%s%s?token=next-token>; rel=next", r.Host, r.URL.Path))
-				responseTags = fakeTagsList{
-					Tags: []string{"first"},
-				}
+				responseTags.Tags = []string{"first"}
 			} else {
-				responseTags = fakeTagsList{
-					Tags: []string{
-						"second",
-						"2.8.0",
-						"2.8.0-prerelease",
-						"2.8.0_build",
-						"2.8.0-prerelease_build",
-						"2.8.0-prerelease.1_build.1234",
-					},
+				responseTags.Tags = []string{
+					"second",
+					"2.8.0",
+					"2.8.0-prerelease",
+					"2.8.0_build",
+					"2.8.0-prerelease_build",
+					"2.8.0-prerelease.1_build.1234",
 				}
 			}
 			w.WriteHeader(http.StatusOK)
@@ -201,7 +193,7 @@ func TestGetTagsFromUrl(t *testing.T) {
 
 		tags, err := client.GetTags("mychart", true)
 		require.NoError(t, err)
-		assert.ElementsMatch(t, tags, []string{
+		assert.ElementsMatch(t, tags.Tags, []string{
 			"first",
 			"second",
 			"2.8.0",
@@ -216,7 +208,7 @@ func TestGetTagsFromUrl(t *testing.T) {
 		client := NewClient("example.com", HelmCreds{}, false, "", "")
 
 		_, err := client.GetTags("my-chart", true)
-		assert.ErrorIs(t, ErrOCINotEnabled, err)
+		assert.ErrorIs(t, OCINotEnabledErr, err)
 	})
 }
 
@@ -237,7 +229,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 
 		assert.Equal(t, expectedAuthorization, authorization)
 
-		responseTags := fakeTagsList{
+		responseTags := TagsList{
 			Tags: []string{
 				"2.8.0",
 				"2.8.0-prerelease",
@@ -289,7 +281,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 			tags, err := client.GetTags("mychart", true)
 
 			require.NoError(t, err)
-			assert.ElementsMatch(t, tags, []string{
+			assert.ElementsMatch(t, tags.Tags, []string{
 				"2.8.0",
 				"2.8.0-prerelease",
 				"2.8.0+build",
@@ -334,7 +326,7 @@ func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *tes
 
 			assert.Equal(t, expectedAuthorization, authorization)
 
-			responseTags := fakeTagsList{
+			responseTags := TagsList{
 				Tags: []string{
 					"2.8.0",
 					"2.8.0-prerelease",
@@ -387,7 +379,7 @@ func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *tes
 			tags, err := client.GetTags("mychart", true)
 
 			require.NoError(t, err)
-			assert.ElementsMatch(t, tags, []string{
+			assert.ElementsMatch(t, tags.Tags, []string{
 				"2.8.0",
 				"2.8.0-prerelease",
 				"2.8.0+build",
@@ -413,7 +405,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 
 		assert.Equal(t, expectedAuthorization, authorization)
 
-		responseTags := fakeTagsList{
+		responseTags := TagsList{
 			Tags: []string{
 				"2.8.0",
 				"2.8.0-prerelease",
@@ -470,7 +462,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 			tags, err := client.GetTags("mychart", true)
 
 			require.NoError(t, err)
-			assert.ElementsMatch(t, tags, []string{
+			assert.ElementsMatch(t, tags.Tags, []string{
 				"2.8.0",
 				"2.8.0-prerelease",
 				"2.8.0+build",

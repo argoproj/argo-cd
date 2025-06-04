@@ -1828,11 +1828,11 @@ func TestService_newHelmClientResolveRevision(t *testing.T) {
 
 	t.Run("EmptyRevision", func(t *testing.T) {
 		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "", "my-chart", true)
-		assert.EqualError(t, err, "invalid revision: failed to determine semver constraint: improper constraint: ")
+		assert.EqualError(t, err, "invalid revision '': improper constraint: ")
 	})
 	t.Run("InvalidRevision", func(t *testing.T) {
 		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "???", "my-chart", true)
-		assert.EqualError(t, err, "invalid revision: failed to determine semver constraint: improper constraint: ???")
+		assert.EqualError(t, err, "invalid revision '???': improper constraint: ???")
 	})
 }
 
@@ -1848,7 +1848,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				},
 			})
 			require.NoError(t, err)
-			assert.Equal(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.2"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("No app specific override", func(t *testing.T) {
@@ -1863,7 +1863,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				AppName: "testapp",
 			})
 			require.NoError(t, err)
-			assert.Equal(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.2"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("Only app specific override", func(t *testing.T) {
@@ -1878,7 +1878,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				AppName: "testapp",
 			})
 			require.NoError(t, err)
-			assert.Equal(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.3"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.3"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("App specific override", func(t *testing.T) {
@@ -1893,7 +1893,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				AppName: "testapp",
 			})
 			require.NoError(t, err)
-			assert.Equal(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.3"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.3"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("App specific overrides containing non-mergeable field", func(t *testing.T) {
@@ -1908,7 +1908,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				AppName: "unmergeable",
 			})
 			require.NoError(t, err)
-			assert.Equal(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.3"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.3"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("Broken app-specific overrides", func(t *testing.T) {
@@ -1980,7 +1980,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			require.True(t, ok)
 			image, ok, _ := unstructured.NestedString(containers[0].(map[string]any), "image")
 			require.True(t, ok)
-			assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.2", image)
+			assert.Equal(t, "quay.io/argoprojlabs/argocd-e2e-container:0.2", image)
 		})
 	})
 
@@ -2010,7 +2010,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			require.True(t, ok)
 			image, ok, _ := unstructured.NestedString(containers[0].(map[string]any), "image")
 			require.True(t, ok)
-			assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.2", image)
+			assert.Equal(t, "quay.io/argoprojlabs/argocd-e2e-container:0.2", image)
 		})
 	})
 
@@ -2041,7 +2041,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			require.True(t, ok)
 			image, ok, _ := unstructured.NestedString(containers[0].(map[string]any), "image")
 			require.True(t, ok)
-			assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.3", image)
+			assert.Equal(t, "quay.io/argoprojlabs/argocd-e2e-container:0.3", image)
 		})
 	})
 
@@ -2094,7 +2094,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			require.True(t, ok)
 			image, ok, _ := unstructured.NestedString(containers[0].(map[string]any), "image")
 			require.True(t, ok)
-			assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.1", image)
+			assert.Equal(t, "quay.io/argoprojlabs/argocd-e2e-container:0.1", image)
 		})
 	})
 

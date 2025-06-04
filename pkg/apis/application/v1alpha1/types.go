@@ -138,7 +138,7 @@ func (a *EnvEntry) IsZero() bool {
 func NewEnvEntry(text string) (*EnvEntry, error) {
 	parts := strings.SplitN(text, "=", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("expected env entry of the form: param=value but received: %s", text)
+		return nil, fmt.Errorf("Expected env entry of the form: param=value. Received: %s", text)
 	}
 	return &EnvEntry{
 		Name:  parts[0],
@@ -548,7 +548,7 @@ var helmParameterRx = regexp.MustCompile(`([^\\]),`)
 func NewHelmParameter(text string, forceString bool) (*HelmParameter, error) {
 	parts := strings.SplitN(text, "=", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("expected helm parameter of the form param=value but received: %s", text)
+		return nil, fmt.Errorf("Expected helm parameter of the form: param=value. Received: %s", text)
 	}
 	return &HelmParameter{
 		Name:        parts[0],
@@ -561,7 +561,7 @@ func NewHelmParameter(text string, forceString bool) (*HelmParameter, error) {
 func NewHelmFileParameter(text string) (*HelmFileParameter, error) {
 	parts := strings.SplitN(text, "=", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("expected helm file parameter of the form param=path but received: %s", text)
+		return nil, fmt.Errorf("Expected helm file parameter of the form: param=path. Received: %s", text)
 	}
 	return &HelmFileParameter{
 		Name: parts[0],
@@ -974,21 +974,21 @@ func (p ApplicationSourcePluginParameter) MarshalJSON() ([]byte, error) {
 		out["string"] = p.String_
 	}
 	if p.OptionalMap != nil {
-		if p.Map == nil {
+		if p.OptionalMap.Map == nil {
 			// Nil is not the same as a nil map. Nil means the field was not set, while a nil map means the field was set to an empty map.
 			// Either way, we want to marshal it as "{}".
 			out["map"] = map[string]string{}
 		} else {
-			out["map"] = p.Map
+			out["map"] = p.OptionalMap.Map
 		}
 	}
 	if p.OptionalArray != nil {
-		if p.Array == nil {
+		if p.OptionalArray.Array == nil {
 			// Nil is not the same as a nil array. Nil means the field was not set, while a nil array means the field was set to an empty array.
 			// Either way, we want to marshal it as "[]".
 			out["array"] = []string{}
 		} else {
-			out["array"] = p.Array
+			out["array"] = p.OptionalArray.Array
 		}
 	}
 	bytes, err := json.Marshal(out)
@@ -1035,12 +1035,12 @@ func (p ApplicationSourcePluginParameters) Environ() ([]string, error) {
 			env = append(env, fmt.Sprintf("%s=%s", envBaseName, *param.String_))
 		}
 		if param.OptionalMap != nil {
-			for key, value := range param.Map {
+			for key, value := range param.OptionalMap.Map {
 				env = append(env, fmt.Sprintf("%s_%s=%s", envBaseName, escaped(key), value))
 			}
 		}
 		if param.OptionalArray != nil {
-			for i, value := range param.Array {
+			for i, value := range param.OptionalArray.Array {
 				env = append(env, fmt.Sprintf("%s_%d=%s", envBaseName, i, value))
 			}
 		}
@@ -1302,9 +1302,6 @@ func (in RevisionHistories) LastRevisionHistory() RevisionHistory {
 
 // Trunc truncates the list of history items to size n
 func (in RevisionHistories) Trunc(n int) RevisionHistories {
-	if n < 0 {
-		n = 0
-	}
 	i := len(in) - n
 	if i > 0 {
 		in = in[i:]
@@ -1441,14 +1438,6 @@ type SyncPolicy struct {
 	// If you add a field here, be sure to update IsZero.
 }
 
-// IsAutomatedSyncEnabled checks if the automated sync is enabled or disabled
-func (p *SyncPolicy) IsAutomatedSyncEnabled() bool {
-	if p.Automated != nil && (p.Automated.Enabled == nil || *p.Automated.Enabled) {
-		return true
-	}
-	return false
-}
-
 // IsZero returns true if the sync policy is empty
 func (p *SyncPolicy) IsZero() bool {
 	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil && p.ManagedNamespaceMetadata == nil)
@@ -1524,8 +1513,6 @@ type SyncPolicyAutomated struct {
 	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
 	// AllowEmpty allows apps have zero live resources (default: false)
 	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
-	// Enable allows apps to explicitly control automated sync
-	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,4,opt,name=enable"`
 }
 
 // SyncStrategy controls the manner in which a sync is performed
@@ -2603,7 +2590,6 @@ type AppProjectSpec struct {
 	// Destinations contains list of destinations available for deployment
 	Destinations []ApplicationDestination `json:"destinations,omitempty" protobuf:"bytes,2,name=destination"`
 	// Description contains optional project description
-	// +kubebuilder:validation:MaxLength=255
 	Description string `json:"description,omitempty" protobuf:"bytes,3,opt,name=description"`
 	// Roles are user defined RBAC roles associated with this project
 	Roles []ProjectRole `json:"roles,omitempty" protobuf:"bytes,4,rep,name=roles"`
@@ -2652,8 +2638,6 @@ type SyncWindow struct {
 	TimeZone string `json:"timeZone,omitempty" protobuf:"bytes,8,opt,name=timeZone"`
 	// UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator
 	UseAndOperator bool `json:"andOperator,omitempty" protobuf:"bytes,9,opt,name=andOperator"`
-	// Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example
-	Description string `json:"description,omitempty" protobuf:"bytes,10,opt,name=description"`
 }
 
 // HasWindows returns true if SyncWindows has one or more SyncWindow
@@ -2750,7 +2734,7 @@ func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
 }
 
 // AddWindow adds a sync window with the given parameters to the AppProject
-func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string, andOperator bool, description string) error {
+func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string, andOperator bool) error {
 	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {
 		return errors.New("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 	}
@@ -2762,7 +2746,6 @@ func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []
 		ManualSync:     ms,
 		TimeZone:       timeZone,
 		UseAndOperator: andOperator,
-		Description:    description,
 	}
 
 	if len(app) > 0 {
@@ -2993,9 +2976,9 @@ func (w SyncWindow) active(currentTime time.Time) (bool, error) {
 }
 
 // Update updates a sync window's settings with the given parameter
-func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string, description string) error {
-	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 && len(description) == 0 {
-		return errors.New("cannot update: require one or more of schedule, duration, application, namespace, cluster or description")
+func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string) error {
+	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 {
+		return errors.New("cannot update: require one or more of schedule, duration, application, namespace, or cluster")
 	}
 
 	if len(s) > 0 {
@@ -3009,19 +2992,12 @@ func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []stri
 	if len(a) > 0 {
 		w.Applications = a
 	}
-
 	if len(n) > 0 {
 		w.Namespaces = n
 	}
-
 	if len(c) > 0 {
 		w.Clusters = c
 	}
-
-	if len(description) > 0 {
-		w.Description = description
-	}
-
 	if tz == "" {
 		tz = "UTC"
 	}
@@ -3052,11 +3028,6 @@ func (w *SyncWindow) Validate() error {
 	if err != nil {
 		return fmt.Errorf("cannot parse duration '%s': %w", w.Duration, err)
 	}
-
-	if len(w.Description) > 255 {
-		return errors.New("description must not exceed 255 characters")
-	}
-
 	return nil
 }
 
@@ -3131,7 +3102,7 @@ type ApplicationDestinationServiceAccount struct {
 
 // CascadedDeletion indicates if the deletion finalizer is set and controller should delete the application and it's cascaded resources
 func (app *Application) CascadedDeletion() bool {
-	for _, finalizer := range app.Finalizers {
+	for _, finalizer := range app.ObjectMeta.Finalizers {
 		if isPropagationPolicyFinalizer(finalizer) {
 			return true
 		}
@@ -3219,7 +3190,7 @@ func isPropagationPolicyFinalizer(finalizer string) bool {
 
 // GetPropagationPolicy returns the value of propagation policy finalizer
 func (app *Application) GetPropagationPolicy() string {
-	for _, finalizer := range app.Finalizers {
+	for _, finalizer := range app.ObjectMeta.Finalizers {
 		if isPropagationPolicyFinalizer(finalizer) {
 			return finalizer
 		}
@@ -3464,7 +3435,7 @@ func ParseProxyUrl(proxyUrl string) (*url.URL, error) { //nolint:revive //FIXME(
 	switch u.Scheme {
 	case "http", "https", "socks5":
 	default:
-		return nil, fmt.Errorf("failed to parse proxy url, unsupported scheme %q, must be http, https, or socks5", u.Scheme)
+		return nil, fmt.Errorf("Failed to parse proxy url, unsupported scheme %q, must be http, https, or socks5", u.Scheme)
 	}
 	return u, nil
 }
@@ -3499,11 +3470,11 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 		}
 	default:
 		tlsClientConfig := rest.TLSClientConfig{
-			Insecure:   c.Config.Insecure,
-			ServerName: c.Config.ServerName,
-			CertData:   c.Config.CertData,
-			KeyData:    c.Config.KeyData,
-			CAData:     c.Config.CAData,
+			Insecure:   c.Config.TLSClientConfig.Insecure,
+			ServerName: c.Config.TLSClientConfig.ServerName,
+			CertData:   c.Config.TLSClientConfig.CertData,
+			KeyData:    c.Config.TLSClientConfig.KeyData,
+			CAData:     c.Config.TLSClientConfig.CAData,
 		}
 		switch {
 		case c.Config.AWSAuthConfig != nil:
@@ -3557,12 +3528,12 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 		}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("unable to create K8s REST config: %w", err)
+		return nil, fmt.Errorf("Unable to create K8s REST config: %w", err)
 	}
 	if c.Config.ProxyUrl != "" {
 		u, err := ParseProxyUrl(c.Config.ProxyUrl)
 		if err != nil {
-			return nil, fmt.Errorf("unable to create K8s REST config, can`t parse proxy url: %w", err)
+			return nil, fmt.Errorf("Unable to create K8s REST config, can`t parse proxy url: %w", err)
 		}
 		config.Proxy = http.ProxyURL(u)
 	}
@@ -3577,11 +3548,11 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 func (c *Cluster) RESTConfig() (*rest.Config, error) {
 	config, err := c.RawRestConfig()
 	if err != nil {
-		return nil, fmt.Errorf("unable to get K8s RAW REST config: %w", err)
+		return nil, fmt.Errorf("Unable to get K8s RAW REST config: %w", err)
 	}
 	err = SetK8SConfigDefaults(config)
 	if err != nil {
-		return nil, fmt.Errorf("unable to apply K8s REST config defaults: %w", err)
+		return nil, fmt.Errorf("Unable to apply K8s REST config defaults: %w", err)
 	}
 	return config, nil
 }

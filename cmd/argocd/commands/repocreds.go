@@ -109,14 +109,16 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 					}
 					repo.SSHPrivateKey = string(keyData)
 				} else {
-					errors.Fatal(errors.ErrorGeneric, "--ssh-private-key-path is only supported for SSH repositories.")
+					err := stderrors.New("--ssh-private-key-path is only supported for SSH repositories.")
+					errors.CheckError(err)
 				}
 			}
 
 			// tls-client-cert-path and tls-client-cert-key-key-path must always be
 			// specified together
 			if (tlsClientCertPath != "" && tlsClientCertKeyPath == "") || (tlsClientCertPath == "" && tlsClientCertKeyPath != "") {
-				errors.Fatal(errors.ErrorGeneric, "--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
+				err := stderrors.New("--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
+				errors.CheckError(err)
 			}
 
 			// Specifying tls-client-cert-path is only valid for HTTPS repositories

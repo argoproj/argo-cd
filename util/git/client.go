@@ -17,6 +17,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
+
+	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -36,7 +39,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/env"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
-	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
 var ErrInvalidRepoURL = errors.New("repo URL is invalid")
@@ -366,7 +368,7 @@ func (m *nativeGitClient) Init() error {
 	return err
 }
 
-// IsLFSEnabled returns true if the repository is LFS enabled
+// Returns true if the repository is LFS enabled
 func (m *nativeGitClient) IsLFSEnabled() bool {
 	return m.enableLfs
 }
@@ -643,16 +645,6 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 	return
 }
 
-func getGitTags(refs []*plumbing.Reference) []string {
-	var tags []string
-	for _, ref := range refs {
-		if ref.Name().IsTag() {
-			tags = append(tags, ref.Name().Short())
-		}
-	}
-	return tags
-}
-
 func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	if IsCommitSHA(revision) {
 		return revision, nil
@@ -667,9 +659,9 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 		revision = "HEAD"
 	}
 
-	maxV, err := versions.MaxVersion(revision, getGitTags(refs))
-	if err == nil {
-		revision = maxV
+	semverSha := m.resolveSemverRevision(revision, refs)
+	if semverSha != "" {
+		return semverSha, nil
 	}
 
 	// refToHash keeps a maps of remote refs to their hash
@@ -716,6 +708,59 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	// If we get here, revision string had non hexadecimal characters (indicating its a branch, tag,
 	// or symbolic ref) and we were unable to resolve it to a commit SHA.
 	return "", fmt.Errorf("unable to resolve '%s' to a commit SHA", revision)
+}
+
+// resolveSemverRevision is a part of the lsRemote method workflow.
+// When the user correctly configures the Git repository revision, and that revision is a valid semver constraint, we
+// use this logic path rather than the standard lsRemote revision resolution loop.
+// Some examples to illustrate the actual behavior - if the revision is:
+// * "v0.1.2"/"0.1.2" or "v0.1"/"0.1", then this is not a constraint, it's a pinned version - so we fall back to the standard tag matching in the lsRemote loop.
+// * "v0.1.*"/"0.1.*", and there's a tag matching that constraint, then we find the latest matching version and return its commit hash.
+// * "v0.1.*"/"0.1.*", and there is *no* tag matching that constraint, then we fall back to the standard tag matching in the lsRemote loop.
+// * "custom-tag", only the lsRemote loop will run - because that revision is an invalid semver;
+// * "master-branch", only the lsRemote loop will run because that revision is an invalid semver;
+func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbing.Reference) string {
+	if _, err := semver.NewVersion(revision); err == nil {
+		// If the revision is a valid version, then we know it isn't a constraint; it's just a pin.
+		// In which case, we should use standard tag resolution mechanisms.
+		return ""
+	}
+
+	constraint, err := semver.NewConstraint(revision)
+	if err != nil {
+		log.Debugf("Revision '%s' is not a valid semver constraint, skipping semver resolution.", revision)
+		return ""
+	}
+
+	maxVersion := semver.New(0, 0, 0, "", "")
+	maxVersionHash := plumbing.ZeroHash
+	for _, ref := range refs {
+		if !ref.Name().IsTag() {
+			continue
+		}
+
+		tag := ref.Name().Short()
+		version, err := semver.NewVersion(tag)
+		if err != nil {
+			log.Debugf("Error parsing version for tag: '%s': %v", tag, err)
+			// Skip this tag and continue to the next one
+			continue
+		}
+
+		if constraint.Check(version) {
+			if version.GreaterThan(maxVersion) {
+				maxVersion = version
+				maxVersionHash = ref.Hash()
+			}
+		}
+	}
+
+	if maxVersionHash.IsZero() {
+		return ""
+	}
+
+	log.Debugf("Semver constraint '%s' resolved to tag '%s', at reference '%s'", revision, maxVersion.Original(), maxVersionHash.String())
+	return maxVersionHash.String()
 }
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
@@ -978,7 +1023,7 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 	}
 	cmd.Env = proxy.UpsertEnv(cmd, m.proxy, m.noProxy)
 	opts := executil.ExecRunOpts{
-		TimeoutBehavior: executil.TimeoutBehavior{
+		TimeoutBehavior: argoexec.TimeoutBehavior{
 			Signal:     syscall.SIGTERM,
 			ShouldWait: true,
 		},

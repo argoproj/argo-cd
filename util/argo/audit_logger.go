@@ -106,10 +106,10 @@ func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info EventInfo, mes
 	}
 
 	objectMeta := ObjectRef{
-		Name:            app.Name,
-		Namespace:       app.Namespace,
-		ResourceVersion: app.ResourceVersion,
-		UID:             app.UID,
+		Name:            app.ObjectMeta.Name,
+		Namespace:       app.ObjectMeta.Namespace,
+		ResourceVersion: app.ObjectMeta.ResourceVersion,
+		UID:             app.ObjectMeta.UID,
 	}
 	fields := map[string]string{
 		"dest-server":    app.Spec.Destination.Server,
@@ -127,10 +127,10 @@ func (l *AuditLogger) LogAppSetEvent(app *v1alpha1.ApplicationSet, info EventInf
 	}
 
 	objectMeta := ObjectRef{
-		Name:            app.Name,
-		Namespace:       app.Namespace,
-		ResourceVersion: app.ResourceVersion,
-		UID:             app.UID,
+		Name:            app.ObjectMeta.Name,
+		Namespace:       app.ObjectMeta.Namespace,
+		ResourceVersion: app.ObjectMeta.ResourceVersion,
+		UID:             app.ObjectMeta.UID,
 	}
 	fields := map[string]string{}
 	if user != "" {
@@ -145,10 +145,10 @@ func (l *AuditLogger) LogResourceEvent(res *v1alpha1.ResourceNode, info EventInf
 	}
 
 	objectMeta := ObjectRef{
-		Name:            res.Name,
-		Namespace:       res.Namespace,
-		ResourceVersion: res.Version,
-		UID:             types.UID(res.UID),
+		Name:            res.ResourceRef.Name,
+		Namespace:       res.ResourceRef.Namespace,
+		ResourceVersion: res.ResourceRef.Version,
+		UID:             types.UID(res.ResourceRef.UID),
 	}
 	fields := map[string]string{}
 	if user != "" {
@@ -167,10 +167,10 @@ func (l *AuditLogger) LogAppProjEvent(proj *v1alpha1.AppProject, info EventInfo,
 	}
 
 	objectMeta := ObjectRef{
-		Name:            proj.Name,
-		Namespace:       proj.Namespace,
-		ResourceVersion: proj.ResourceVersion,
-		UID:             proj.UID,
+		Name:            proj.ObjectMeta.Name,
+		Namespace:       proj.ObjectMeta.Namespace,
+		ResourceVersion: proj.ObjectMeta.ResourceVersion,
+		UID:             proj.ObjectMeta.UID,
 	}
 	fields := map[string]string{}
 	if user != "" {
@@ -192,13 +192,12 @@ func setK8sEventList(enableK8sEvent []string) map[string]bool {
 	enableK8sEventList := make(map[string]bool)
 
 	for _, event := range enableK8sEvent {
-		switch event {
-		case "all":
+		if event == "all" {
 			enableK8sEventList = map[string]bool{
 				"all": true,
 			}
 			return enableK8sEventList
-		case "none":
+		} else if event == "none" {
 			enableK8sEventList = map[string]bool{}
 			return enableK8sEventList
 		}
