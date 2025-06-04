@@ -438,6 +438,105 @@ func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 	return false
 }
 
+// isCleanupEnabled checks if cleanup is enabled for this repository
+func (m *nativeGitClient) isCleanupEnabled() bool {
+	// Check if cleanup is globally enabled
+	if os.Getenv(common.EnvGitCleanupEnabled) != "true" {
+		return false
+	}
+
+	// Check if specific repositories are configured
+	cleanupRepos := os.Getenv(common.EnvGitCleanupRepos)
+	if cleanupRepos == "" {
+		// If no specific repos configured, cleanup is disabled
+		return false
+	}
+
+	// Check if this repository URL contains any of the configured repository names
+	// Example: for URL "https://github.com/argoproj/argo-cd.git",
+	// it matches if cleanupRepos contains "argo-cd"
+	repos := strings.Split(cleanupRepos, ",")
+	for _, repoName := range repos {
+		repoName = strings.TrimSpace(repoName)
+		if repoName != "" && strings.Contains(m.repoURL, repoName) {
+			log.Debugf("Cleanup enabled for repository %s (matched: %s)", m.repoURL, repoName)
+			return true
+		}
+	}
+
+	return false
+}
+
+// getCleanupGracePeriod returns the grace period before cleaning up temporary files
+// It dynamically calculates based on git operation timeouts to avoid interrupting active operations
+func (m *nativeGitClient) getCleanupGracePeriod() time.Duration {
+	// Get the exec timeout used for git operations
+	execTimeout := env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", 90*time.Second, 0, math.MaxInt64)
+
+	// Calculate grace period based on:
+	// 1. Base timeout multiplier (2x) for normal operations
+	// 2. Additional buffer for retries (maxAttemptsCount)
+	// 3. Network and process cleanup overhead
+
+	// Base grace period: timeout * 2 * maxAttempts
+	// This accounts for worst-case scenario with retries
+	baseGracePeriod := execTimeout * time.Duration(2*maxAttemptsCount)
+
+	// Add 20% buffer for network delays and cleanup
+	gracePeriod := time.Duration(float64(baseGracePeriod) * 1.2)
+
+	// Ensure minimum grace period to handle edge cases
+	minGracePeriod := 3 * time.Minute
+	if gracePeriod < minGracePeriod {
+		gracePeriod = minGracePeriod
+	}
+
+	return gracePeriod
+}
+
+// garbageCollection cleans up temporary objects and files from git repository to prevent disk usage buildup
+func (m *nativeGitClient) garbageCollection() {
+	log.Infof("Running git cleanup for repository %s", m.repoURL)
+
+	gracePeriod := m.getCleanupGracePeriod()
+	log.Debugf("Using cleanup grace period of %v", gracePeriod)
+
+	// Clean up temporary pack files left by interrupted git operations
+	// These files are not cleaned by git gc and can accumulate to significant sizes
+	// Reference: GitLab Gitaly issue #1656, Gitea issue #21578
+	packDir := filepath.Join(m.root, ".git", "objects", "pack")
+	if entries, err := os.ReadDir(packDir); err == nil {
+		for _, entry := range entries {
+			name := entry.Name()
+			// Match tmp_pack_* and *.pack.temp patterns used by git during fetch/gc
+			if strings.HasPrefix(name, "tmp_pack_") || strings.HasSuffix(name, ".pack.temp") {
+				filePath := filepath.Join(packDir, name)
+				if info, err := entry.Info(); err == nil {
+					age := time.Since(info.ModTime())
+					// Only remove files older than the grace period
+					if age > gracePeriod {
+						log.Infof("Removing stale temporary pack file: %s (age: %v, size: %d bytes)", name, age, info.Size())
+						if err := os.Remove(filePath); err != nil {
+							log.Warnf("Failed to remove temporary pack file %s: %v", name, err)
+						}
+					} else {
+						log.Debugf("Keeping recent temporary pack file: %s (age: %v)", name, age)
+					}
+				}
+			}
+		}
+	}
+
+	// Clean up temporary object directories
+	tmpObjDir := filepath.Join(m.root, ".git", "objects", "tmp")
+	if _, err := os.Stat(tmpObjDir); err == nil {
+		log.Infof("Removing temporary objects directory: %s", tmpObjDir)
+		if err := os.RemoveAll(tmpObjDir); err != nil {
+			log.Warnf("Failed to remove temporary objects directory %s: %v", tmpObjDir, err)
+		}
+	}
+}
+
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch(revision string) error {
 	if m.OnFetch != nil {
@@ -446,9 +545,17 @@ func (m *nativeGitClient) Fetch(revision string) error {
 	}
 
 	err := m.fetch(revision)
+	if err != nil {
+		// Run garbage collection only when an error occurs and cleanup is enabled
+		if m.isCleanupEnabled() {
+			log.Warnf("Fetch failed for %s, running cleanup to prevent disk space issues", m.repoURL)
+			m.garbageCollection()
+		}
+		return err
+	}
 
 	// When we have LFS support enabled, check for large files and fetch them too.
-	if err == nil && m.IsLFSEnabled() {
+	if m.IsLFSEnabled() {
 		largeFiles, err := m.LsLargeFiles()
 		if err == nil && len(largeFiles) > 0 {
 			err = m.runCredentialedCmd("lfs", "fetch", "--all")
@@ -557,8 +664,8 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (stri
 		}
 	}
 	// NOTE
-	// The double “f” in the arguments is not a typo: the first “f” tells
-	// `git clean` to delete untracked files and directories, and the second “f”
+	// The double "f" in the arguments is not a typo: the first "f" tells
+	// `git clean` to delete untracked files and directories, and the second "f"
 	// tells it to clean untracked nested Git repositories (for example a
 	// submodule which has since been removed).
 	if out, err := m.runCmd("clean", "-ffdx"); err != nil {
