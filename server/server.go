@@ -106,7 +106,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/ui"
 	"github.com/argoproj/argo-cd/v3/util/assets"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
-	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	dexutil "github.com/argoproj/argo-cd/v3/util/dex"
 	"github.com/argoproj/argo-cd/v3/util/env"
@@ -114,7 +113,7 @@ import (
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
@@ -329,9 +328,18 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, projLister)
 	enf.SetClaimsEnforcerFunc(policyEnf.EnforceClaims)
 
-	var staticFS fs.FS = io.NewSubDirFS("dist/app", ui.Embedded)
-	if opts.StaticAssetsDir != "" {
-		staticFS = io.NewComposableFS(staticFS, os.DirFS(opts.StaticAssetsDir))
+	staticFS, err := fs.Sub(ui.Embedded, "dist/app")
+	errorsutil.CheckError(err)
+
+	root, err := os.OpenRoot(opts.StaticAssetsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			log.Warnf("Static assets directory %q does not exist, using only embedded assets", opts.StaticAssetsDir)
+		} else {
+			errorsutil.CheckError(err)
+		}
+	} else {
+		staticFS = utilio.NewComposableFS(staticFS, root.FS())
 	}
 
 	argocdService, err := service.NewArgoCDService(opts.KubeClientset, opts.Namespace, opts.RepoClientset)
@@ -500,7 +508,7 @@ func (server *ArgoCDServer) Listen() (*Listeners, error) {
 	}
 	metricsLn, err := startListener(server.ListenHost, server.MetricsPort)
 	if err != nil {
-		io.Close(mainLn)
+		utilio.Close(mainLn)
 		return nil, err
 	}
 	var dOpts []grpc.DialOption
@@ -526,8 +534,8 @@ func (server *ArgoCDServer) Listen() (*Listeners, error) {
 	//nolint:staticcheck
 	conn, err := grpc.Dial(fmt.Sprintf("localhost:%d", server.ListenPort), dOpts...)
 	if err != nil {
-		io.Close(mainLn)
-		io.Close(metricsLn)
+		utilio.Close(mainLn)
+		utilio.Close(metricsLn)
 		return nil, err
 	}
 	return &Listeners{Main: mainLn, Metrics: metricsLn, GatewayConn: conn}, nil
@@ -1004,7 +1012,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	clusterService := cluster.NewServer(a.db, a.enf, a.Cache, kubectl)
 	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr, a.HydratorEnabled)
 	repoCredsService := repocreds.NewServer(a.RepoClientset, a.db, a.enf, a.settingsMgr)
-	var loginRateLimiter func() (io.Closer, error)
+	var loginRateLimiter func() (utilio.Closer, error)
 	if maxConcurrentLoginRequestsCount > 0 {
 		loginRateLimiter = session.NewLoginRateLimiter(maxConcurrentLoginRequestsCount)
 	}
@@ -1309,7 +1317,7 @@ func (server *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.
 				if err != nil {
 					return fmt.Errorf("failed to open file '%s': %w", filePath, err)
 				}
-				defer io.Close(f)
+				defer utilio.Close(f)
 
 				if _, err := goio.Copy(w, f); err != nil {
 					return fmt.Errorf("failed to copy file '%s': %w", filePath, err)
@@ -1417,7 +1425,7 @@ func (server *ArgoCDServer) uiAssetExists(filename string) bool {
 	if err != nil {
 		return false
 	}
-	defer io.Close(f)
+	defer utilio.Close(f)
 	stat, err := f.Stat()
 	if err != nil {
 		return false
@@ -1463,7 +1471,7 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 			if err != nil {
 				modTime = time.Now()
 			}
-			http.ServeContent(w, r, "index.html", modTime, io.NewByteReadSeeker(data))
+			http.ServeContent(w, r, "index.html", modTime, utilio.NewByteReadSeeker(data))
 		} else {
 			if isMainJsBundle(r.URL) {
 				cacheControl := "public, max-age=31536000, immutable"
@@ -1551,19 +1559,19 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
 
-	mapClaims, err := jwtutil.MapClaims(claims)
-	if err != nil {
-		return claims, "", status.Errorf(codes.Internal, "invalid claims")
+	// Some SSO implementations (Okta) require a call to
+	// the OIDC user info path to get attributes like groups
+	// we assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
+	// otherwise this would cause a panic
+	var groupClaims jwt.MapClaims
+	if groupClaims, ok = claims.(jwt.MapClaims); !ok {
+		if tmpClaims, ok := claims.(*jwt.MapClaims); ok {
+			groupClaims = *tmpClaims
+		}
 	}
-	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
-	if err != nil {
-		return claims, "", status.Errorf(codes.Internal, "invalid argo claims")
-	}
-
-	// Some SSO implementations (Okta) require a call to the OIDC user info path to get attributes like groups
-	iss := jwtutil.StringField(mapClaims, "iss")
+	iss := jwtutil.StringField(groupClaims, "iss")
 	if iss != util_session.SessionManagerClaimsIssuer && server.settings.UserInfoGroupsEnabled() && server.settings.UserInfoPath() != "" {
-		userInfo, unauthorized, err := server.ssoClientApp.GetUserInfo(mapClaims, server.settings.IssuerURL(), server.settings.UserInfoPath())
+		userInfo, unauthorized, err := server.ssoClientApp.GetUserInfo(groupClaims, server.settings.IssuerURL(), server.settings.UserInfoPath())
 		if unauthorized {
 			log.Errorf("error while quering userinfo endpoint: %v", err)
 			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session")
@@ -1572,17 +1580,13 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 			log.Errorf("error fetching user info endpoint: %v", err)
 			return claims, "", status.Errorf(codes.Internal, "invalid userinfo response")
 		}
-		userInfoClaims, err := claimsutil.MapClaimsToArgoClaims(userInfo)
-		if err != nil {
-			return claims, "", status.Errorf(codes.Internal, "invalid userinfo claims")
-		}
-		if argoClaims.Subject != userInfoClaims.Subject {
+		if groupClaims["sub"] != userInfo["sub"] {
 			return claims, "", status.Error(codes.Unknown, "subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
 		}
-		mapClaims["groups"] = userInfo["groups"]
+		groupClaims["groups"] = userInfo["groups"]
 	}
 
-	return mapClaims, newToken, nil
+	return groupClaims, newToken, nil
 }
 
 // getToken extracts the token from gRPC metadata or cookie headers

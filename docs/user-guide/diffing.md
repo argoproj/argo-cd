@@ -130,7 +130,7 @@ data:
 If you rely on the status field being part of your desired state, although this is not recommended, the `ignoreResourceStatusField` setting can be used to configure this behavior.
 
 !!! note
-    Since it is common for `CustomResourceDefinitions` to have their `status` commited to Git, consider using `crd` over `none`.
+    Since it is common for `CustomResourceDefinitions` to have their `status` committed to Git, consider using `crd` over `none`.
 
 ### Ignoring RBAC changes made by AggregateRoles
 
