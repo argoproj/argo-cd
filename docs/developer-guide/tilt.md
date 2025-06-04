@@ -33,14 +33,13 @@ Each deployed pod running ArgoCD components uses delve to expose a debug port. T
 #### VS Code
 Add a `.vscode/launch.json` file with these configurations to support attaching to running pods corresponding to the service. 
 
-NOTE: VS Code supports attaching to multiple sessions at the same time
 
 ```json
 {
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Connect to argocd-server",
+            "name": "Connect to server",
             "type": "go",
             "request": "attach",
             "mode": "remote",
@@ -49,7 +48,7 @@ NOTE: VS Code supports attaching to multiple sessions at the same time
             "host": "127.0.0.1"
         },
         {
-            "name": "Connect to argocd-repo-server",
+            "name": "Connect to repo-server",
             "type": "go",
             "request": "attach",
             "mode": "remote",
@@ -58,7 +57,7 @@ NOTE: VS Code supports attaching to multiple sessions at the same time
             "host": "127.0.0.1"
         },
         {
-            "name": "Connect to argocd-applicationset-controller",
+            "name": "Connect to applicationset-controller",
             "type": "go",
             "request": "attach",
             "mode": "remote",
@@ -67,7 +66,7 @@ NOTE: VS Code supports attaching to multiple sessions at the same time
             "host": "127.0.0.1"
         },
         {
-            "name": "Connect to argocd-application-controller",
+            "name": "Connect to application-controller",
             "type": "go",
             "request": "attach",
             "mode": "remote",
@@ -76,7 +75,7 @@ NOTE: VS Code supports attaching to multiple sessions at the same time
             "host": "127.0.0.1"
         },
         {
-            "name": "Connect to argocd-notifications-controller",
+            "name": "Connect to notifications-controller",
             "type": "go",
             "request": "attach",
             "mode": "remote",
@@ -85,7 +84,7 @@ NOTE: VS Code supports attaching to multiple sessions at the same time
             "host": "127.0.0.1"
         },
         {
-            "name": "Connect to argocd-commit-server",
+            "name": "Connect to commit-server",
             "type": "go",
             "request": "attach",
             "mode": "remote",
@@ -95,4 +94,42 @@ NOTE: VS Code supports attaching to multiple sessions at the same time
         }
     ]
 }
+```
+
+#### Goland
+Add a `.run/remote-debugging.run.xml` file with these configurations to support attaching to running pods corresponding to the service. 
+
+```xml
+<component name="ProjectRunConfigurationManager">
+    <configuration default="false" name="Connect to server" type="GoRemoteDebugConfigurationType" factoryName="Go Remote" focusToolWindowBeforeRun="true" port="9345">
+        <option name="disconnectOption" value="LEAVE" />
+        <disconnect value="LEAVE" />
+        <method v="2" />
+    </configuration>
+    <configuration default="false" name="Connect to repo-server" type="GoRemoteDebugConfigurationType" factoryName="Go Remote" focusToolWindowBeforeRun="true" port="9346">
+        <option name="disconnectOption" value="LEAVE" />
+        <disconnect value="LEAVE" />
+        <method v="2" />
+    </configuration>
+    <configuration default="false" name="Connect to applicationset-controller" type="GoRemoteDebugConfigurationType" factoryName="Go Remote" focusToolWindowBeforeRun="true" port="9347">
+        <option name="disconnectOption" value="LEAVE" />
+        <disconnect value="LEAVE" />
+        <method v="2" />
+    </configuration>
+    <configuration default="false" name="Connect to application-controller" type="GoRemoteDebugConfigurationType" factoryName="Go Remote" focusToolWindowBeforeRun="true" port="9348">
+        <option name="disconnectOption" value="LEAVE" />
+        <disconnect value="LEAVE" />
+        <method v="2" />
+    </configuration>
+    <configuration default="false" name="Connect to notifications-controller" type="GoRemoteDebugConfigurationType" factoryName="Go Remote" focusToolWindowBeforeRun="true" port="9349">
+        <option name="disconnectOption" value="LEAVE" />
+        <disconnect value="LEAVE" />
+        <method v="2" />
+    </configuration>
+    <configuration default="false" name="Connect to commit-server" type="GoRemoteDebugConfigurationType" factoryName="Go Remote" focusToolWindowBeforeRun="true" port="9350">
+        <option name="disconnectOption" value="LEAVE" />
+        <disconnect value="LEAVE" />
+        <method v="2" />
+    </configuration>
+</component>
 ```
