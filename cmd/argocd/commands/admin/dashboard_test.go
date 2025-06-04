@@ -15,9 +15,7 @@ import (
 
 func TestRun_SignalHandling_GracefulShutdown(t *testing.T) {
 	stopCalled := false
-	sigCh := make(chan os.Signal, 1)
 	d := &dashboard{
-		signalChan: sigCh,
 		startLocalServer: func(context.Context, *apiclient.ClientOptions, string, *int, *string, clientcmd.ClientConfig) (func(), error) {
 			return func() { stopCalled = true }, nil
 		},

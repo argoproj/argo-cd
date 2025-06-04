@@ -3,7 +3,6 @@ package admin
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/signal"
 	"syscall"
 
@@ -29,16 +28,12 @@ type DashboardConfig struct {
 }
 
 type dashboard struct {
-	signalChan       chan os.Signal
 	startLocalServer func(ctx context.Context, clientOpts *argocdclient.ClientOptions, contextName string, port *int, address *string, clientConfig clientcmd.ClientConfig) (func(), error)
 }
 
 // NewDashboard initializes a new dashboard with default dependencies
 func NewDashboard() *dashboard {
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	return &dashboard{
-		signalChan:       sigCh,
 		startLocalServer: headless.MaybeStartLocalServer,
 	}
 }
@@ -59,7 +54,6 @@ func (ds *dashboard) Run(ctx context.Context, config *DashboardConfig) error {
 	cancel()
 	if shutDownFunc != nil {
 		shutDownFunc()
-
 	}
 	println("clean shutdown")
 	return nil
