@@ -1687,6 +1687,15 @@ export const userMsgsList: {[key: string]: string} = {
 };
 
 export function getAppUrl(app: appModels.Application): string {
+    // If the app is managed by a different ArgoCD instance, use that URL
+    if (app.metadata.annotations && app.metadata.annotations[appModels.AnnotationManagedByURL]) {
+        const managedByUrl = app.metadata.annotations[appModels.AnnotationManagedByURL];
+        // Remove trailing slash if present
+        const baseUrl = managedByUrl.endsWith('/') ? managedByUrl.slice(0, -1) : managedByUrl;
+        return `${baseUrl}/applications/${app.metadata.namespace}/${app.metadata.name}`;
+    }
+
+    // Otherwise use the default URL format
     if (typeof app.metadata.namespace === 'undefined') {
         return `applications/${app.metadata.name}`;
     }
