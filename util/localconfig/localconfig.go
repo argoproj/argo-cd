@@ -69,7 +69,8 @@ type User struct {
 func (u *User) Claims() (*jwt.RegisteredClaims, error) {
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 	claims := jwt.RegisteredClaims{}
-	_, _, err := parser.ParseUnverified(u.AuthToken, &claims)
+	// Ok not to verify here, auth client extracting the claims
+	_, _, err := parser.ParseUnverified(u.AuthToken, &claims) //NOSONAR
 	if err != nil {
 		return nil, err
 	}
@@ -301,7 +302,7 @@ func DefaultLocalConfigPath() (string, error) {
 	return path.Join(dir, "config"), nil
 }
 
-// Get username from subject in a claim
+// GetUsername extracts subject from a claim
 func GetUsername(subject string) string {
 	parts := strings.Split(subject, ":")
 	if len(parts) > 0 {

@@ -537,14 +537,10 @@ func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcu
 // VerifyToken verifies if a token is correct. Tokens can be issued either from us or by an IDP.
 // We choose how to verify based on the issuer.
 func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, error) {
-	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
-	claims := jwt.MapClaims{}
-	_, _, err := parser.ParseUnverified(tokenString, &claims)
+	issuer, err := tokenIssuer(tokenString)
 	if err != nil {
 		return nil, "", err
 	}
-	// Get issuer from MapClaims
-	issuer, _ := claims["iss"].(string)
 	switch issuer {
 	case SessionManagerClaimsIssuer:
 		// Argo CD signed token
@@ -572,7 +568,7 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 			log.Warnf("Failed to verify token: %s", err)
 			tokenExpiredError := &oidc.TokenExpiredError{}
 			if errors.As(err, &tokenExpiredError) {
-				claims = jwt.MapClaims{
+				claims := jwt.MapClaims{
 					"iss": "sso",
 				}
 				return claims, "", common.ErrTokenVerification
@@ -587,6 +583,19 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 		}
 		return claims, "", nil
 	}
+}
+
+func tokenIssuer(tokenString string) (string, error) {
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	claims := jwt.MapClaims{}
+	// Ok not to verify now, we extract the issuer in VerifyToken to choose how to verify
+	_, _, err := parser.ParseUnverified(tokenString, &claims) //NOSONAR
+	if err != nil {
+		return "", err
+	}
+	// Get issuer from MapClaims
+	issuer, _ := claims["iss"].(string)
+	return issuer, nil
 }
 
 func (mgr *SessionManager) provider() (oidcutil.Provider, error) {

@@ -26,7 +26,7 @@ const (
 	SATokenSecretSuffix             = "-long-lived-token"
 )
 
-// ArgoCDManagerPolicyRules are the policies to give argocd-manager
+// ArgoCDManagerClusterPolicyRules are the policies to give argocd-manager
 var ArgoCDManagerClusterPolicyRules = []rbacv1.PolicyRule{
 	{
 		APIGroups: []string{"*"},
@@ -327,11 +327,12 @@ type ServiceAccountClaims struct {
 	jwt.RegisteredClaims
 }
 
-// ParseServiceAccountToken parses a Kubernetes service account token
+// ParseServiceAccountToken parses a Kubernetes service account token, without verifying its integrity
 func ParseServiceAccountToken(token string) (*ServiceAccountClaims, error) {
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 	var claims ServiceAccountClaims
-	_, _, err := parser.ParseUnverified(token, &claims)
+	// Ok not to verify here, auth client extracting the claims
+	_, _, err := parser.ParseUnverified(token, &claims) //NOSONAR
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse service account token: %w", err)
 	}
