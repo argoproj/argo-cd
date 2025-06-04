@@ -34,3 +34,7 @@ status:
       reason: Ready
       status: "True"
       type: Ready
+    - message: ""
+      reason: NodeClassReady
+      status: "True"
+      type: NodeClassReady

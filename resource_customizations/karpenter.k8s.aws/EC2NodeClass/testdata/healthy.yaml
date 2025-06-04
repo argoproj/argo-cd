@@ -38,3 +38,15 @@ status:
       reason: Ready
       status: "True"
       type: Ready
+    - message: ""
+      reason: SubnetsReady
+      status: "True"
+      type: SubnetsReady
+    - message: ""
+      reason: SecurityGroupsReady
+      status: "True"
+      type: SecurityGroupsReady
+    - message: ""
+      reason: ValidationSucceeded
+      status: "True"
+      type: ValidationSucceeded
