@@ -32,7 +32,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.4
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gfleury/go-bitbucket-v1 v0.0.0-20240917142304-df385efaac68
-	github.com/go-git/go-git/v5 v5.16.0
+	github.com/go-git/go-git/v5 v5.16.1
 	github.com/go-jose/go-jose/v4 v4.1.0
 	github.com/go-logr/logr v1.4.3
 	github.com/go-openapi/loads v0.22.0
