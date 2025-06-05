@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"golang.org/x/oauth2"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -13,7 +12,6 @@ import (
 
 	sessionmgr "github.com/argoproj/argo-cd/v3/util/session"
 
-	oidcconfig "github.com/argoproj/argo-cd/v2/util/settings"
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -149,10 +147,7 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		if len(argoCDSettings.OIDCConfig().RequestedIDTokenClaims) > 0 {
 			set.OIDCConfig.IDTokenClaims = argoCDSettings.OIDCConfig().RequestedIDTokenClaims
 		}
-		if oidcConfig.DomainHint != "" {
-			var oidcConfig oidcconfig.OIDCConfig
-			opts = append(opts, oauth2.SetAuthURLParam("domain_hint", oidcConfig.DomainHint))
-		}
+
 	}
 	return &set, nil
 }
