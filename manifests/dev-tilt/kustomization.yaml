@@ -108,6 +108,8 @@ patches:
         value:
           - name: debug
             containerPort: 2345
+          - name: metrics
+            containerPort: 9001
 
   - target:
       group: apps

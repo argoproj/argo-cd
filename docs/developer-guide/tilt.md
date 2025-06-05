@@ -17,6 +17,19 @@
 ### Cleanup
 To remove all deployed resources in your local cluster including CRDs, run `tilt down` from the root of the repo. 
 
+### Port Forwarding
+Port forwarding is automatically setup from the cluster to localhost host for the folling ports:
+
+| Deployment | API | Metrics | Webhook | Debug |
+|------------|-----|---------|---------|-------|
+| argocd-server | 8080 | 8083 | | 9345 |
+| argocd-repo-server | 8081 | 8084 | | 9346 |
+| argocd-redis | 6379 | | | |
+| argocd-applicationset-controller | | 8085 | 7000 | 9347 |
+| argocd-application-controller | | 8086 | | 9348 |
+| argocd-notifications-controller | | 8087 | | 9349 |
+| argocd-commit-server | 8089 | 8088 | | 9350 |
+
 ### Debugging ArgoCD
 Each deployed pod running ArgoCD components uses delve to expose a debug port. Tilt is configured to forward each of those ports locally to `localhost`. IDEs can attach to the corresponding application to set break points and debug code running inside the cluster. 
 
