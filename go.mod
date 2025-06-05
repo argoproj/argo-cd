@@ -298,6 +298,9 @@ require (
 )
 
 replace (
+	// TODO: Remove before merging
+	github.com/argoproj/gitops-engine => github.com/andrii-korotkov/gitops-engine v0.0.0-20250511223444-d6d89f4f7a74
+
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
 
