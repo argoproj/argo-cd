@@ -10,7 +10,7 @@ For the Pods view, the default grouping mechanism can be configured using the `p
 
 ## Node Labels in Pod View
 
-It's possible to propagate node labels to node information in the pod view by configuring `applications.allowedNodeLabels` in the [argocd-cm](argocd-cm-yaml.md) ConfigMap.
+It's possible to propagate node labels to node information in the pod view by configuring `application.allowedNodeLabels` in the [argocd-cm](argocd-cm-yaml.md) ConfigMap.
 
 The following configuration:
 ```yaml
