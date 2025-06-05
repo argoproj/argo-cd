@@ -14,7 +14,7 @@ So you can just use them instead of reinventing new ones.
     kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/notifications_catalog/install.yaml
     ```
 
-* Add Email username and password token to `argocd-notifications-secret` secret
+* Add email username and password token to the `argocd-notifications-secret` secret
 
     ```bash
     EMAIL_USER=<your-username>
