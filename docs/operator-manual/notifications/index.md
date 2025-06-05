@@ -32,7 +32,7 @@ So you can just use them instead of reinventing new ones.
     EOF
     ```
 
-* Register Email notification service
+* Register email notification service
 
     ```bash
     kubectl patch cm argocd-notifications-cm -n argocd --type merge -p '{"data": {"service.email.gmail": "{ username: $email-username, password: $email-password, host: smtp.gmail.com, port: 465, from: $email-username }" }}'
