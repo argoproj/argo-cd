@@ -20,6 +20,7 @@ type MetricsServer struct {
 	redisRequestHistogram    *prometheus.HistogramVec
 	extensionRequestCounter  *prometheus.CounterVec
 	extensionRequestDuration *prometheus.HistogramVec
+	loginRequestCounter      *prometheus.CounterVec
 	argoVersion              *prometheus.GaugeVec
 }
 
@@ -54,6 +55,14 @@ var (
 		},
 		[]string{"extension"},
 	)
+	loginRequestCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_login_request_total",
+			Help: "Number of login requests to the Argo CD API server.",
+		},
+		//todo: why is it status
+		[]string{"status"},
+	)
 	argoVersion = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "argocd_info",
@@ -79,6 +88,7 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 	registry.MustRegister(redisRequestHistogram)
 	registry.MustRegister(extensionRequestCounter)
 	registry.MustRegister(extensionRequestDuration)
+	registry.MustRegister(loginRequestCounter)
 	registry.MustRegister(argoVersion)
 
 	kubectlMetricsServer := kubectl.NewKubectlMetrics()
@@ -94,6 +104,7 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 		redisRequestHistogram:    redisRequestHistogram,
 		extensionRequestCounter:  extensionRequestCounter,
 		extensionRequestDuration: extensionRequestDuration,
+		loginRequestCounter:      loginRequestCounter,
 		argoVersion:              argoVersion,
 	}
 }
@@ -113,4 +124,10 @@ func (m *MetricsServer) IncExtensionRequestCounter(extension string, status int)
 
 func (m *MetricsServer) ObserveExtensionRequestDuration(extension string, duration time.Duration) {
 	m.extensionRequestDuration.WithLabelValues(extension).Observe(duration.Seconds())
+}
+
+// IncLoginRequestCounter increments the login request counter with the given status
+// status can be "success" or "failure"
+func (m *MetricsServer) IncLoginRequestCounter(status string) {
+	m.loginRequestCounter.WithLabelValues(status).Inc()
 }
