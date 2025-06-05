@@ -111,7 +111,6 @@ func newServerInMemoryCache() *servercache.Cache {
 		),
 		1*time.Minute,
 		1*time.Minute,
-		1*time.Minute,
 	)
 }
 
