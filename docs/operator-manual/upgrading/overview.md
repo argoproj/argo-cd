@@ -13,9 +13,9 @@ Argo CD uses semver-like versioning that ensures the following rules:
   please make sure to check upgrading details in both [v1.3 to v1.4](./1.3-1.4.md)  and  [v1.4 to v1.5](./1.4-1.5.md)
   upgrading instructions.
 * The major release introduces backward incompatible behavior changes. It is recommended to take a backup of
-  Argo CD settings using disaster recovery [guide](../disaster_recovery.md).
+  Argo CD settings using the [disaster recovery guide](../disaster_recovery.md).
 
-After reading the relevant notes about possible breaking changes introduced in Argo CD version use the following
+After reading the relevant notes about possible breaking changes introduced in a newArgo CD version, use the following
 command to upgrade Argo CD. Make sure to replace `<version>` with the required version number:
 
 **Non-HA**:
