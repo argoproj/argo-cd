@@ -50,8 +50,8 @@ func (ds *dashboard) Run(ctx context.Context, config *DashboardConfig) error {
 	}
 	fmt.Printf("Argo CD UI is available at http://%s:%d\n", config.Address, config.Port)
 	<-ctx.Done()
+	stop() // unregister the signal handler as soon as we receive a signal
 	println("signal received, shutting down dashboard")
-	stop()
 	if shutDownFunc != nil {
 		shutDownFunc()
 	}
