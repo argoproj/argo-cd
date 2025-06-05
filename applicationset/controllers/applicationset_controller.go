@@ -17,7 +17,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"reflect"
 	"runtime/debug"
 	"sort"
@@ -141,13 +140,16 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			logCtx.Debugf("ownerReferences referring %s is deleted from generated applications", appsetName)
 		}
 		if isRollingSyncDeletionReversed(&applicationSetInfo) {
+			logCtx.Debugf("DeletionOrder is set as Reverse on %s", appsetName)
 			currentApplications, err := r.getCurrentApplications(ctx, applicationSetInfo)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			err = r.performReverseDeletion(ctx, logCtx, applicationSetInfo, currentApplications)
+			requeueTime, err := r.performReverseDeletion(ctx, logCtx, applicationSetInfo, currentApplications)
 			if err != nil {
 				return ctrl.Result{}, err
+			} else if requeueTime > 0 {
+				return ctrl.Result{RequeueAfter: requeueTime}, err
 			}
 		}
 		controllerutil.RemoveFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
@@ -368,7 +370,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}, nil
 }
 
-func (r *ApplicationSetReconciler) performReverseDeletion(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, currentApps []argov1alpha1.Application) error {
+func (r *ApplicationSetReconciler) performReverseDeletion(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, currentApps []argov1alpha1.Application) (time.Duration, error) {
+	requeueTime := 10 * time.Second
 	// get deletionOrder using current Apps
 	stepLength := len(appset.Spec.Strategy.RollingSync.Steps)
 	if stepLength == 0 {
@@ -396,59 +399,36 @@ func (r *ApplicationSetReconciler) performReverseDeletion(ctx context.Context, l
 		return reverseDeleteAppSteps[i].Step < reverseDeleteAppSteps[j].Step
 	})
 
-	logCtx.Infof("reverse deletion steps of Appset %v", appset.Name)
+	// TODO delete this block from logs after testing
+	logCtx.Debugf("reverse deletion steps of Appset %v", appset.Name)
+	for _, step := range reverseDeleteAppSteps {
+		logCtx.Debugf("step %v : app %v", step.Step, step.AppName)
+	}
 	for _, step := range reverseDeleteAppSteps {
 		logCtx.Infof("step %v : app %v", step.Step, step.AppName)
 		app := appMap[step.AppName]
-		updated := controllerutil.RemoveFinalizer(app, argov1alpha1.ProgressiveSyncDeletionOrderFinalizerName)
-		if !updated {
-			logCtx.Infof("Removing finalizer app did not update the finalizer list, either the finalizer does not exist or was unable to remove finalizer.")
-		} else {
-			// Update the application to persist finalizer removal
-			if err := r.Client.Update(ctx, app); err != nil {
-				return fmt.Errorf("failed to update application %s after finalizer removal: %w", step.AppName, err)
+		retrievedApp := argov1alpha1.Application{}
+		if err := r.Client.Get(ctx, types.NamespacedName{Name: app.Name, Namespace: app.Namespace}, &retrievedApp); err != nil {
+			if apierrors.IsNotFound(err) {
+				logCtx.Infof("application %s successfully deleted", step.AppName)
+				continue
 			}
-			logCtx.Infof("successfully removed finalizer from application %s", step.AppName)
 		}
-		// Wait for the application to be deleted
-		if err := r.waitForAppDeletion(ctx, step.AppName, appset.Namespace); err != nil {
-			return fmt.Errorf("failed waiting for application %s deletion: %w", step.AppName, err)
+		// Check if the application is already being deleted - remove finalizer
+		if retrievedApp.DeletionTimestamp != nil {
+			logCtx.Infof("Deletion of the application %v has been triggered, has a deletion timestamp but not completed deletion")
+			if time.Since(retrievedApp.DeletionTimestamp.Time) > 2*time.Minute {
+				return 0, fmt.Errorf("Application has not been deleted in over 2 minutes")
+			}
 		}
-
-		logCtx.Infof("application %s successfully deleted", step.AppName)
-
+		// The application has not been deleted yet, trigger its deletion
+		if err := r.Client.Delete(ctx, &retrievedApp); err != nil {
+			return 0, err
+		}
+		return requeueTime, nil
 	}
 	logCtx.Infof("completed reverse deletion for ApplicationSet %v", appset.Name)
-	return nil
-}
-
-func (r *ApplicationSetReconciler) waitForAppDeletion(ctx context.Context, appName string, namespace string) error {
-	// Create a polling interval and timeout
-	pollInterval := time.Second * 5
-	timeout := time.Minute * 5
-
-	// Create a context with timeout
-	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	// Keep checking until the app is gone or we time out
-	return wait.PollUntilContextCancel(timeoutCtx, pollInterval, true, func(ctx context.Context) (bool, error) {
-		app := &argov1alpha1.Application{}
-		err := r.Client.Get(ctx, types.NamespacedName{
-			Name:      appName,
-			Namespace: namespace,
-		}, app)
-
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				return true, nil
-			}
-			return false, fmt.Errorf("error getting application : %w", err)
-		}
-
-		// Application still exists, continue polling
-		return false, nil
-	})
+	return 0, nil
 }
 
 func getParametersGeneratedCondition(parametersGenerated bool, message string) argov1alpha1.ApplicationSetCondition {
