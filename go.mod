@@ -19,7 +19,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.16.0
-	github.com/casbin/casbin/v2 v2.105.0
+	github.com/casbin/casbin/v2 v2.106.0
 	github.com/casbin/govaluate v1.7.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/chainguard-dev/git-urls v1.0.2
@@ -28,7 +28,7 @@ require (
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/dustin/go-humanize v1.0.1
 	github.com/evanphx/json-patch v5.9.11+incompatible
-	github.com/expr-lang/expr v1.17.4
+	github.com/expr-lang/expr v1.17.5
 	github.com/felixge/httpsnoop v1.0.4
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gfleury/go-bitbucket-v1 v0.0.0-20240917142304-df385efaac68
