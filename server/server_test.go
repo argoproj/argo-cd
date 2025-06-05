@@ -84,7 +84,6 @@ func fakeServer(t *testing.T) (*FakeArgoCDServer, func()) {
 			),
 			1*time.Minute,
 			1*time.Minute,
-			1*time.Minute,
 		),
 		RedisClient:             redis,
 		RepoClientset:           mockRepoClient,
@@ -722,6 +721,22 @@ func TestGetClaims(t *testing.T) {
 				EnableUserInfoGroups:    true,
 				UserInfoPath:            "/userinfo",
 				UserInfoCacheExpiration: "5m",
+			},
+		},
+		{
+			test: "GetClaimsWithGroupsString",
+			claims: jwt.MapClaims{
+				"aud":    common.ArgoCDClientAppID,
+				"exp":    defaultExpiry,
+				"sub":    "randomUser",
+				"groups": "group1",
+			},
+			expectedErrorContains: "",
+			expectedClaims: jwt.MapClaims{
+				"aud":    common.ArgoCDClientAppID,
+				"exp":    defaultExpiryUnix,
+				"sub":    "randomUser",
+				"groups": "group1",
 			},
 		},
 	}

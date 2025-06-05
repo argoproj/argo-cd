@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -187,11 +188,46 @@ func TestGetScopes_CustomScopes(t *testing.T) {
 }
 
 func Test_getProjectFromRequest(t *testing.T) {
-	fp := newFakeProj()
-	projLister := test.NewFakeProjLister(fp)
+	tests := []struct {
+		name     string
+		resource string
+		action   string
+		arg      string
+	}{
+		{
+			name:     "valid project/repo string",
+			resource: "repositories",
+			action:   "create",
+			arg:      newFakeProj().Name + "/https://github.com/argoproj/argocd-example-apps",
+		},
+		{
+			name:     "applicationsets with project/repo string",
+			resource: "applicationsets",
+			action:   "create",
+			arg:      newFakeProj().Name + "/https://github.com/argoproj/argocd-example-apps",
+		},
+		{
+			name:     "applicationsets with project/repo string",
+			resource: "applicationsets",
+			action:   "*",
+			arg:      newFakeProj().Name + "/https://github.com/argoproj/argocd-example-apps",
+		},
+		{
+			name:     "applicationsets with project/repo string",
+			resource: "applicationsets",
+			action:   "get",
+			arg:      newFakeProj().Name + "/https://github.com/argoproj/argocd-example-apps",
+		},
+	}
 
-	rbacEnforcer := NewRBACPolicyEnforcer(nil, projLister)
-	project := rbacEnforcer.getProjectFromRequest("", "repositories", "create", fp.Name+"/https://github.com/argoproj/argocd-example-apps")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fp := newFakeProj()
+			projLister := test.NewFakeProjLister(fp)
+			rbacEnforcer := NewRBACPolicyEnforcer(nil, projLister)
 
-	assert.Equal(t, project.Name, fp.Name)
+			project := rbacEnforcer.getProjectFromRequest("", tt.resource, tt.action, tt.arg)
+			require.Equal(t, fp.Name, project.Name)
+		})
+	}
 }
