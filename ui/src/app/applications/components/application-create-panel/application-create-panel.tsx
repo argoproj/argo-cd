@@ -113,7 +113,7 @@ export const ApplicationCreatePanel = (props: {
     const [yamlMode, setYamlMode] = React.useState(false);
     const [explicitPathType, setExplicitPathType] = React.useState<{path: string; type: models.AppSourceType}>(null);
     const [retry, setRetry] = React.useState(false);
-    const app = deepMerge(DEFAULT_APP, props.app || {});
+    const [app, setApp] = React.useState<models.Application>(deepMerge(DEFAULT_APP, props.app || {}));
     const debouncedOnAppChanged = debounce(props.onAppChanged, 800);
     const [destinationFieldChanges, setDestinationFieldChanges] = React.useState({destFormat: 'URL', destFormatChanged: null});
     const comboSwitchedFromPanel = React.useRef(false);
@@ -210,7 +210,9 @@ export const ApplicationCreatePanel = (props: {
                                     input={app}
                                     onCancel={() => setYamlMode(false)}
                                     onSave={async patch => {
-                                        props.onAppChanged(jsonMergePatch.apply(app, JSON.parse(patch)));
+                                        const newApp = jsonMergePatch.apply(app, JSON.parse(patch));
+                                        setApp(newApp);
+                                        props.onAppChanged(newApp);
                                         setYamlMode(false);
                                         return true;
                                     }}
@@ -255,7 +257,11 @@ export const ApplicationCreatePanel = (props: {
                                                     <button
                                                         type='button'
                                                         className='argo-button argo-button--base application-create-panel__yaml-button'
-                                                        onClick={() => setYamlMode(true)}>
+                                                        onClick={() => {
+                                                            const values = api.getFormState().values as models.Application;
+                                                            setApp(values);
+                                                            setYamlMode(true);
+                                                        }}>
                                                         Edit as YAML
                                                     </button>
                                                 )}
