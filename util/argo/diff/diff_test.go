@@ -21,10 +21,7 @@ func TestStateDiff(t *testing.T) {
 		overrides      map[string]v1alpha1.ResourceOverride
 		label          string
 		trackingMethod string
-		noCache        bool
 		ignoreRoles    bool
-		appName        string
-		stateCache     *appstatecache.Cache
 	}
 	defaultDiffConfigParams := func() *diffConfigParams {
 		return &diffConfigParams{
@@ -32,10 +29,7 @@ func TestStateDiff(t *testing.T) {
 			overrides:      map[string]v1alpha1.ResourceOverride{},
 			label:          "",
 			trackingMethod: "",
-			noCache:        true,
 			ignoreRoles:    true,
-			appName:        "",
-			stateCache:     &appstatecache.Cache{},
 		}
 	}
 	diffConfig := func(t *testing.T, params *diffConfigParams) argo.DiffConfig {
@@ -166,7 +160,6 @@ func TestDiffConfigBuilder(t *testing.T) {
 		noCache        bool
 		ignoreRoles    bool
 		appName        string
-		stateCache     *appstatecache.Cache
 	}
 	setup := func() *fixture {
 		return &fixture{
@@ -177,7 +170,6 @@ func TestDiffConfigBuilder(t *testing.T) {
 			noCache:        true,
 			ignoreRoles:    false,
 			appName:        "application-name",
-			stateCache:     &appstatecache.Cache{},
 		}
 	}
 	t.Run("will build diff config successfully", func(t *testing.T) {

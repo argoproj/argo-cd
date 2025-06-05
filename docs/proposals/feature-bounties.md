@@ -20,7 +20,7 @@ We'd like to have the ability to offer monetary rewards for significant features
 ## Motivation
 The Argo Project is driven by community contributions and in shared trust with maintainer companies. Sometimes there are important features worth investing in that represent substantial work and are tougher, or take longer to implement. 
 
-By providing a financial incentive, we can spur additional development from the community and indepdent contributors. 
+By providing a financial incentive, we can spur additional development from the community and independent contributors. 
 
 ## Proposal
 Add the ability to mark a proposal with a bounty and a specific amount. When a PR is successfully merged, release payment to the PR author(s). 

@@ -26169,12 +26169,6 @@ spec:
               key: server.oidc.cache.expiration
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_SERVER_LOGIN_ATTEMPTS_EXPIRATION
-          valueFrom:
-            configMapKeyRef:
-              key: server.login.attempts.expiration
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_SERVER_STATIC_ASSETS
           valueFrom:
             configMapKeyRef:

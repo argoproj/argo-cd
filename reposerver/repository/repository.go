@@ -62,7 +62,6 @@ import (
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
 	"github.com/argoproj/argo-cd/v3/util/kustomize"
 	"github.com/argoproj/argo-cd/v3/util/manifeststream"
-	"github.com/argoproj/argo-cd/v3/util/text"
 	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
@@ -88,7 +87,6 @@ type Service struct {
 	cache                     *cache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
 	metricsServer             *metrics.MetricsServer
-	resourceTracking          argo.ResourceTracking
 	newOCIClient              func(repoURL string, creds oci.Creds, proxy string, noProxy string, mediaTypes []string, opts ...oci.ClientOpts) (oci.Client, error)
 	newGitClient              func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (git.Client, error)
 	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client
@@ -121,7 +119,7 @@ type RepoServerInitConstants struct {
 var manifestGenerateLock = sync.NewKeyLock()
 
 // NewService returns a new instance of the Manifest service
-func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initConstants RepoServerInitConstants, resourceTracking argo.ResourceTracking, gitCredsStore git.CredsStore, rootDir string) *Service {
+func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initConstants RepoServerInitConstants, gitCredsStore git.CredsStore, rootDir string) *Service {
 	var parallelismLimitSemaphore *semaphore.Weighted
 	if initConstants.ParallelismLimit > 0 {
 		parallelismLimitSemaphore = semaphore.NewWeighted(initConstants.ParallelismLimit)
@@ -136,7 +134,6 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 		cache:                     cache,
 		metricsServer:             metricsServer,
 		newGitClient:              git.NewClientExt,
-		resourceTracking:          resourceTracking,
 		newOCIClient:              oci.NewClient,
 		newHelmClient: func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client {
 			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock(), enableOci, proxy, noProxy, opts...)
@@ -1174,7 +1171,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	templateOpts := &helm.TemplateOpts{
 		Name:        appName,
 		Namespace:   q.ApplicationSource.GetNamespaceOrDefault(q.Namespace),
-		KubeVersion: text.SemVer(q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion)),
+		KubeVersion: q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion),
 		APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
 		Set:         map[string]string{},
 		SetString:   map[string]string{},
@@ -1501,7 +1498,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		}
 		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
 		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
-			KubeVersion: text.SemVer(q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion)),
+			KubeVersion: q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion),
 			APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
 		})
 	case v1alpha1.ApplicationSourceTypePlugin:
@@ -2009,7 +2006,7 @@ func makeJsonnetVM(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 
 func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]string, error) {
 	envVars := env.Environ()
-	envVars = append(envVars, "KUBE_VERSION="+text.SemVer(q.KubeVersion))
+	envVars = append(envVars, "KUBE_VERSION="+q.KubeVersion)
 	envVars = append(envVars, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
 
 	return getPluginParamEnvs(envVars, q.ApplicationSource.Plugin)
