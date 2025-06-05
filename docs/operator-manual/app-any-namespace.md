@@ -134,7 +134,7 @@ For backwards compatibility, if the namespace of the Application is the control 
 
 The RBAC syntax for Application objects has been changed from `<project>/<application>` to `<project>/<namespace>/<application>` to accommodate the need to restrict access based on the source namespace of the Application to be managed.
 
-For backwards compatibility, Applications in the `argocd` namespace can still be refered to as `<project>/<application>` in the RBAC policy rules.
+For backwards compatibility, Applications in the `argocd` namespace can still be referred to as `<project>/<application>` in the RBAC policy rules.
 
 Wildcards do not make any distinction between project and application namespaces yet. For example, the following RBAC rule would match any application belonging to project `foo`, regardless of the namespace it is created in:
 

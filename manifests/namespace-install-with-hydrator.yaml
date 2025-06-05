@@ -1415,7 +1415,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: redis:7.2.7-alpine
+        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -1970,12 +1970,6 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: server.oidc.cache.expiration
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_SERVER_LOGIN_ATTEMPTS_EXPIRATION
-          valueFrom:
-            configMapKeyRef:
-              key: server.login.attempts.expiration
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_SERVER_STATIC_ASSETS
