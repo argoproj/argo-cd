@@ -13,13 +13,6 @@ if obj.status ~= nil and obj.status.conditions ~= nil then
       end
     end
   end
-  for i, condition in ipairs(obj.status.conditions) do
-    if condition.type == "NodeClassReady" and condition.status == "False" then
-      hs.status = "Degraded"
-      hs.message = condition.message
-      return hs
-    end
-  end
 end
 hs.status = "Progressing"
 hs.message = "Waiting for NodePool to be ready"

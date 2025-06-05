@@ -4,10 +4,6 @@ tests:
       message: 'NodePool is not ready'
     inputPath: testdata/degraded.yaml
   - healthStatus:
-      status: Degraded
-      message: 'NodeClass not found on cluster'
-    inputPath: testdata/nodeclassready.yaml
-  - healthStatus:
       status: Healthy
       message: 'NodePool is ready'
     inputPath: testdata/healthy.yaml
