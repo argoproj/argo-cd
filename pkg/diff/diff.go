@@ -421,7 +421,7 @@ func apply(tvConfig, tvLive *typed.TypedValue, p *SMDParams) (*typed.TypedValue,
 	if err != nil {
 		return nil, fmt.Errorf("error while running updater.Apply: %w", err)
 	}
-	return mergedLive, err
+	return mergedLive, nil
 }
 
 func buildManagerInfoForApply(manager string) (string, error) {
@@ -429,6 +429,7 @@ func buildManagerInfoForApply(manager string) (string, error) {
 		Manager:   manager,
 		Operation: metav1.ManagedFieldsOperationApply,
 	}
+	//nolint:wrapcheck // trivial function, wrapped nicely by the caller
 	return fieldmanager.BuildManagerIdentifier(&managerInfo)
 }
 
@@ -489,13 +490,13 @@ func handleResourceCreateOrDeleteDiff(config, live *unstructured.Unstructured) (
 	if live != nil {
 		liveData, err := json.Marshal(live)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error marshaling live resource: %w", err)
 		}
 		return &DiffResult{Modified: false, NormalizedLive: liveData, PredictedLive: []byte("null")}, nil
 	} else if config != nil {
 		predictedLiveData, err := json.Marshal(config.Object)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error marshaling config resource: %w", err)
 		}
 		return &DiffResult{Modified: true, NormalizedLive: []byte("null"), PredictedLive: predictedLiveData}, nil
 	}
@@ -539,7 +540,7 @@ func applyPatch(liveBytes []byte, patchBytes []byte, newVersionedObject func() (
 	// Apply the patchBytes patch against liveBytes, using predictedLive to indicate the k8s data type
 	predictedLiveBytes, err := strategicpatch.StrategicMergePatch(liveBytes, patchBytes, predictedLive)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to construct strategic merge patch: %w", err)
 	}
 
 	// Unmarshal predictedLiveBytes into predictedLive; note that this will discard JSON fields in predictedLiveBytes
@@ -562,7 +563,7 @@ func applyPatch(liveBytes []byte, patchBytes []byte, newVersionedObject func() (
 		// to its k8s resource type (eg the JSON may contain those invalid fields that we do not wish to discard).
 		predictedLiveBytes, err = strategicpatch.StrategicMergePatch(predictedLiveBytes, patch, predictedLive.DeepCopyObject())
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("failed to construct strategic merge patch for predicted state: %w", err)
 		}
 
 		// 3) Unmarshall into a map[string]any, then back into byte[], to ensure the fields
@@ -571,11 +572,11 @@ func applyPatch(liveBytes []byte, patchBytes []byte, newVersionedObject func() (
 		var result map[string]any
 		err = json.Unmarshal([]byte(predictedLiveBytes), &result)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("failed to unmarshal strategic merge patch for predicted state: %w", err)
 		}
 		predictedLiveBytes, err = json.Marshal(result)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("failed to marshal strategic merge patch for predicted state: %w", err)
 		}
 	}
 
@@ -595,18 +596,18 @@ func applyPatch(liveBytes []byte, patchBytes []byte, newVersionedObject func() (
 		}
 		liveBytes, err = strategicpatch.StrategicMergePatch(liveBytes, patch, live.DeepCopyObject())
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("failed to construct strategic merge patch for live state: %w", err)
 		}
 
 		// Ensure the fields are sorted in a consistent order (as above)
 		var result map[string]any
 		err = json.Unmarshal([]byte(liveBytes), &result)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("failed to unmarshal strategic merge patch for live state: %w", err)
 		}
 		liveBytes, err = json.Marshal(result)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("failed to marshal strategic merge patch for live state: %w", err)
 		}
 	}
 
@@ -662,7 +663,7 @@ func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, e
 	// 2. get expected live object by applying the patch against the live object
 	liveBytes, err := json.Marshal(live)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal live state: %w", err)
 	}
 
 	var predictedLiveBytes []byte
@@ -677,7 +678,7 @@ func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, e
 		// Otherwise, merge patch directly as JSON
 		predictedLiveBytes, err = jsonpatch.MergePatch(liveBytes, patchBytes)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to construct merge patch for predicted state: %w", err)
 		}
 	}
 
@@ -733,11 +734,11 @@ func statefulSetWorkaround(orig, live *unstructured.Unstructured) *unstructured.
 func threeWayMergePatch(orig, config, live *unstructured.Unstructured) ([]byte, func() (runtime.Object, error), error) {
 	origBytes, err := json.Marshal(orig.Object)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to marshal original object: %w", err)
 	}
 	configBytes, err := json.Marshal(config.Object)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to marshal config object: %w", err)
 	}
 
 	if versionedObject, err := scheme.Scheme.New(orig.GroupVersionKind()); err == nil {
@@ -748,16 +749,16 @@ func threeWayMergePatch(orig, config, live *unstructured.Unstructured) ([]byte, 
 
 		liveBytes, err := json.Marshal(live.Object)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("failed to marshal live object: %w", err)
 		}
 
 		lookupPatchMeta, err := strategicpatch.NewPatchMetaFromStruct(versionedObject)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("failed to construct lookup patch: %w", err)
 		}
 		patch, err := strategicpatch.CreateThreeWayMergePatch(origBytes, configBytes, liveBytes, lookupPatchMeta, true)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("failed to construct thre way merge patch: %w", err)
 		}
 		newVersionedObject := func() (runtime.Object, error) {
 			return scheme.Scheme.New(orig.GroupVersionKind())
@@ -770,12 +771,12 @@ func threeWayMergePatch(orig, config, live *unstructured.Unstructured) ([]byte, 
 
 	liveBytes, err := json.Marshal(live.Object)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to marshal live object: %w", err)
 	}
 
 	patch, err := jsonmergepatch.CreateThreeWayJSONMergePatch(origBytes, configBytes, liveBytes)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to construct thre way merge patch: %w", err)
 	}
 	return patch, nil, nil
 }
@@ -989,15 +990,15 @@ func normalizeRole(un *unstructured.Unstructured, o options) {
 func CreateTwoWayMergePatch(orig, new, dataStruct any) ([]byte, bool, error) {
 	origBytes, err := json.Marshal(orig)
 	if err != nil {
-		return nil, false, err
+		return nil, false, fmt.Errorf("failed to marshal orig object: %w", err)
 	}
 	newBytes, err := json.Marshal(new)
 	if err != nil {
-		return nil, false, err
+		return nil, false, fmt.Errorf("failed to marshal new object: %w", err)
 	}
 	patch, err := strategicpatch.CreateTwoWayMergePatch(origBytes, newBytes, dataStruct)
 	if err != nil {
-		return nil, false, err
+		return nil, false, fmt.Errorf("failed to create two way merge patch: %w", err)
 	}
 	return patch, string(patch) != "{}", nil
 }

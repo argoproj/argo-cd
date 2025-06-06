@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -1237,7 +1238,10 @@ func createNamespaceTask(namespace string) (*syncTask, error) {
 	unstructuredObj, err := kube.ToUnstructured(nsSpec)
 
 	task := &syncTask{phase: synccommon.SyncPhasePreSync, targetObj: unstructuredObj}
-	return task, err
+	if err != nil {
+		return task, fmt.Errorf("failed to convert namespace spec to unstructured: %w", err)
+	}
+	return task, nil
 }
 
 func TestSyncFailureHookWithSuccessfulSync(t *testing.T) {

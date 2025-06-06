@@ -1,6 +1,8 @@
 package health
 
 import (
+	"fmt"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -80,7 +82,7 @@ func GetResourceHealth(obj *unstructured.Unstructured, healthOverride HealthOver
 				Status:  HealthStatusUnknown,
 				Message: err.Error(),
 			}
-			return health, err
+			return health, fmt.Errorf("failed to get resource health for %s/%s: %w", obj.GetNamespace(), obj.GetName(), err)
 		}
 		if health != nil {
 			return health, nil

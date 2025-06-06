@@ -3,6 +3,7 @@ package kube
 import (
 	_ "embed"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	openapi_v2 "github.com/google/gnostic-models/openapiv2"
@@ -103,7 +104,7 @@ func (f *fakeOpenAPIClient) OpenAPISchema() (*openapi_v2.Document, error) {
 	document := &openapi_v2.Document{}
 	err := json.Unmarshal(openAPIDoc, document)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal OpenAPI document: %w", err)
 	}
 	return document, nil
 }

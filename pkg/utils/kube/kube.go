@@ -116,6 +116,7 @@ func TestConfig(config *rest.Config) error {
 func ToUnstructured(obj any) (*unstructured.Unstructured, error) {
 	uObj, err := runtime.NewTestUnstructuredConverter(equality.Semantic).ToUnstructured(obj)
 	if err != nil {
+		//nolint:wrapcheck // wrap outside this function
 		return nil, err
 	}
 	return &unstructured.Unstructured{Object: uObj}, nil
@@ -184,7 +185,7 @@ func ServerResourceForGroupVersionKind(disco discovery.DiscoveryInterface, gvk s
 	retErr := apierrors.NewNotFound(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, "")
 	resources, err := disco.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to discover server resources for group version %s: %w", gvk.GroupVersion().String(), err)
 	}
 	for _, r := range resources.APIResources {
 		if r.Kind == gvk.Kind {
@@ -222,6 +223,7 @@ func cleanKubectlOutput(s string) string {
 // WriteKubeConfig takes a rest.Config and writes it as a kubeconfig at the specified path
 func WriteKubeConfig(restConfig *rest.Config, namespace, filename string) error {
 	kubeConfig := NewKubeConfig(restConfig, namespace)
+	// nolint:wrapcheck // wrapped error message would be the same as caller's wrapped message
 	return clientcmd.WriteToFile(*kubeConfig, filename)
 }
 

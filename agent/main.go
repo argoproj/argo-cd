@@ -64,7 +64,7 @@ func (s *settings) parseManifests() ([]*unstructured.Unstructured, string, error
 	cmd.Dir = s.repoPath
 	revision, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("failed to determine git revision: %w", err)
 	}
 	var res []*unstructured.Unstructured
 	for i := range s.paths {
@@ -80,7 +80,7 @@ func (s *settings) parseManifests() ([]*unstructured.Unstructured, string, error
 			}
 			data, err := os.ReadFile(path)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to read file %s: %w", path, err)
 			}
 			items, err := kube.SplitYAML(data)
 			if err != nil {
@@ -89,7 +89,7 @@ func (s *settings) parseManifests() ([]*unstructured.Unstructured, string, error
 			res = append(res, items...)
 			return nil
 		}); err != nil {
-			return nil, "", err
+			return nil, "", fmt.Errorf("failed to parse %s: %w", s.paths[i], err)
 		}
 	}
 	for i := range res {

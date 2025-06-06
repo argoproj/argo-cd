@@ -34,11 +34,11 @@ import (
 func printDiff(result *DiffResult) (string, error) {
 	var live unstructured.Unstructured
 	if err := json.Unmarshal(result.NormalizedLive, &live); err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to unmarshal live object: %w", err)
 	}
 	var target unstructured.Unstructured
 	if err := json.Unmarshal(result.PredictedLive, &target); err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to unmarshal target object: %w", err)
 	}
 	out, _ := printDiffInternal("diff", &live, &target)
 	return string(out), nil
@@ -48,39 +48,45 @@ func printDiff(result *DiffResult) (string, error) {
 func printDiffInternal(name string, live *unstructured.Unstructured, target *unstructured.Unstructured) ([]byte, error) {
 	tempDir, err := os.MkdirTemp("", "argocd-diff")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create temp directory: %w", err)
 	}
 	targetFile := filepath.Join(tempDir, name)
 	var targetData []byte
 	if target != nil {
 		targetData, err = yaml.Marshal(target)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to marshal target object: %w", err)
 		}
 	}
 	err = os.WriteFile(targetFile, targetData, 0o644)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to write target object: %w", err)
 	}
 	liveFile := filepath.Join(tempDir, name+"-live.yaml")
 	liveData := []byte("")
 	if live != nil {
 		liveData, err = yaml.Marshal(live)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to marshal live object: %w", err)
 		}
 	}
 	err = os.WriteFile(liveFile, liveData, 0o644)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to write live object: %w", err)
 	}
 	cmd := exec.Command("diff", liveFile, targetFile)
-	return cmd.Output()
+	out, err := cmd.Output()
+	if err != nil {
+		// return output even if there's an error
+		return out, fmt.Errorf("failed to diff live object: %w", err)
+	}
+	return out, nil
 }
 
 func toUnstructured(obj any) (*unstructured.Unstructured, error) {
 	uObj, err := runtime.NewTestUnstructuredConverter(equality.Semantic).ToUnstructured(obj)
 	if err != nil {
+		//nolint:wrapcheck // don't wrap, trivial function
 		return nil, err
 	}
 	return &unstructured.Unstructured{Object: uObj}, nil

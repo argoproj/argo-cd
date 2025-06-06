@@ -1,6 +1,8 @@
 package health
 
 import (
+	"fmt"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -30,7 +32,7 @@ func getArgoWorkflowHealth(obj *unstructured.Unstructured) (*HealthStatus, error
 	var wf argoWorkflow
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &wf)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to convert unstructured to argoworkflow: %w", err)
 	}
 	switch wf.Status.Phase {
 	case "", nodePending, nodeRunning:

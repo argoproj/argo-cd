@@ -66,6 +66,7 @@ func NewK8sServerSideDryRunner(kubeApplier KubeApplier) *K8sServerSideDryRunner 
 // obj and the given manager in dryrun mode. Will return the predicted live state
 // json as string.
 func (kdr *K8sServerSideDryRunner) Run(ctx context.Context, obj *unstructured.Unstructured, manager string) (string, error) {
+	//nolint:wrapcheck // trivial function, don't bother wrapping
 	return kdr.dryrunApplier.ApplyResource(ctx, obj, cmdutil.DryRunServer, false, false, true, manager)
 }
 

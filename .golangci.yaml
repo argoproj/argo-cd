@@ -13,6 +13,7 @@ linters:
     - unparam
     - usestdlibvars
     - whitespace
+    - wrapcheck
   settings:
     gocritic:
       disabled-checks:

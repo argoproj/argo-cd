@@ -63,11 +63,11 @@ func isStatefulSetChild(un *unstructured.Unstructured) (func(kube.ResourceKey) b
 	sts := appsv1.StatefulSet{}
 	data, err := json.Marshal(un)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal unstructured object: %w", err)
 	}
 	err = json.Unmarshal(data, &sts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal statefulset: %w", err)
 	}
 
 	templates := sts.Spec.VolumeClaimTemplates
