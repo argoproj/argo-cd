@@ -160,7 +160,7 @@ func TestGetIndexURL(t *testing.T) {
 	t.Run("URL with invalid escaped characters", func(t *testing.T) {
 		rawURL := fmt.Sprintf(urlTemplate, "mygroup%**myproject")
 		got, err := getIndexURL(rawURL)
-		assert.Empty(t, got)
+		assert.Equal(t, "", got)
 		require.Error(t, err)
 	})
 }

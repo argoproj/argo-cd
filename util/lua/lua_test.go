@@ -107,7 +107,7 @@ func TestFailExternalLibCall(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	_, err := vm.ExecuteHealthLua(testObj, osLuaScript)
-	require.Error(t, err)
+	require.Error(t, err, "")
 	assert.IsType(t, &lua.ApiError{}, err)
 }
 
@@ -267,7 +267,7 @@ func TestGetHealthScriptNoPredefined(t *testing.T) {
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
 	require.NoError(t, err)
 	assert.False(t, useOpenLibs)
-	assert.Empty(t, script)
+	assert.Equal(t, "", script)
 }
 
 func TestGetResourceActionPredefined(t *testing.T) {

@@ -128,7 +128,7 @@ func TestSetAppInstanceAnnotationNotFound(t *testing.T) {
 	resourceTracking := NewResourceTracking()
 
 	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotation, "")
-	assert.Empty(t, app)
+	assert.Equal(t, "", app)
 }
 
 func TestParseAppInstanceValue(t *testing.T) {

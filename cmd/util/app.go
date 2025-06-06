@@ -566,7 +566,7 @@ func readAppsFromStdin(apps *[]*argoappv1.Application) error {
 func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
 	readFilePayload := func() ([]byte, error) {
 		parsedURL, err := url.ParseRequestURI(fileURL)
-		if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+		if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
 			return os.ReadFile(fileURL)
 		}
 		return config.ReadRemoteFile(fileURL)
@@ -682,7 +682,7 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			var data []byte
 			// read uri
 			parsedURL, err := url.ParseRequestURI(appOpts.values)
-			if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+			if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
 				data, err = os.ReadFile(appOpts.values)
 			} else {
 				data, err = config.ReadRemoteFile(appOpts.values)

@@ -360,11 +360,11 @@ func TestNewGoogleCloudCreds_invalidJSON(t *testing.T) {
 	assert.Nil(t, googleCloudCreds.creds)
 
 	token, err := googleCloudCreds.getAccessToken()
-	assert.Empty(t, token)
+	assert.Equal(t, "", token)
 	require.Error(t, err)
 
 	username, err := googleCloudCreds.getUsername()
-	assert.Empty(t, username)
+	assert.Equal(t, "", username)
 	require.Error(t, err)
 
 	closer, envStringSlice, err := googleCloudCreds.Environ()

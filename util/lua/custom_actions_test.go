@@ -177,9 +177,9 @@ func TestLuaResourceActionsScript(t *testing.T) {
 					// No default case since a not supported operation would have failed upon unmarshaling earlier
 					case PatchOperation:
 						// Patching is only allowed for the source resource, so the GVK + name + ns must be the same as the impacted resource
-						assert.Equal(t, sourceObj.GroupVersionKind(), result.GroupVersionKind())
-						assert.Equal(t, sourceObj.GetName(), result.GetName())
-						assert.Equal(t, sourceObj.GetNamespace(), result.GetNamespace())
+						assert.EqualValues(t, sourceObj.GroupVersionKind(), result.GroupVersionKind())
+						assert.EqualValues(t, sourceObj.GetName(), result.GetName())
+						assert.EqualValues(t, sourceObj.GetNamespace(), result.GetNamespace())
 					case CreateOperation:
 						switch result.GetKind() {
 						case "Job":

@@ -503,7 +503,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 
 	// When signature keys are defined in the project spec, we need to verify the signature on the Git revision
-	verifySignature := len(project.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled()
+	verifySignature := false
+	if len(project.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled() {
+		verifySignature = true
+	}
 
 	// do best effort loading live and target state to present as much information about app state as possible
 	failedToLoadObjs := false
@@ -825,7 +828,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			resState.Status = v1alpha1.SyncStatusCodeOutOfSync
 			// we ignore the status if the obj needs pruning AND we have the annotation
 			needsPruning := targetObj == nil && liveObj != nil
-			if !needsPruning || !resourceutil.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreExtraneous") {
+			if !(needsPruning && resourceutil.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreExtraneous")) {
 				syncCode = v1alpha1.SyncStatusCodeOutOfSync
 			}
 		} else {

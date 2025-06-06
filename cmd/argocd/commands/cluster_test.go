@@ -15,14 +15,14 @@ import (
 func Test_getQueryBySelector(t *testing.T) {
 	query := getQueryBySelector("my-cluster")
 	assert.Equal(t, "my-cluster", query.Name)
-	assert.Empty(t, query.Server)
+	assert.Equal(t, "", query.Server)
 
 	query = getQueryBySelector("http://my-server")
-	assert.Empty(t, query.Name)
+	assert.Equal(t, "", query.Name)
 	assert.Equal(t, "http://my-server", query.Server)
 
 	query = getQueryBySelector("https://my-server")
-	assert.Empty(t, query.Name)
+	assert.Equal(t, "", query.Name)
 	assert.Equal(t, "https://my-server", query.Server)
 }
 

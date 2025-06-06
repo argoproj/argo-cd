@@ -2181,12 +2181,12 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	var app v1alpha1.Application
 
 	// make sure good app got created
-	err = r.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-project"}, &app)
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-project"}, &app)
 	require.NoError(t, err)
 	assert.Equal(t, "good-project", app.Name)
 
 	// make sure bad app was not created
-	err = r.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "bad-project"}, &app)
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "bad-project"}, &app)
 	require.Error(t, err)
 }
 
@@ -2466,13 +2466,13 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	var app v1alpha1.Application
 
 	// make sure good app got created
-	err = r.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
 	require.NoError(t, err)
 	assert.Equal(t, "good-cluster", app.Name)
 
 	// Update resource
 	var retrievedApplicationSet v1alpha1.ApplicationSet
-	err = r.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &retrievedApplicationSet)
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &retrievedApplicationSet)
 	require.NoError(t, err)
 
 	retrievedApplicationSet.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
@@ -2482,13 +2482,13 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		Values: "global.test: test",
 	}
 
-	err = r.Update(context.TODO(), &retrievedApplicationSet)
+	err = r.Client.Update(context.TODO(), &retrievedApplicationSet)
 	require.NoError(t, err)
 
 	resUpdate, err := r.Reconcile(context.Background(), req)
 	require.NoError(t, err)
 
-	err = r.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
 	require.NoError(t, err)
 	assert.Equal(t, time.Duration(0), resUpdate.RequeueAfter)
 	assert.Equal(t, "good-cluster", app.Name)
@@ -2502,7 +2502,7 @@ func TestUpdateNotPerformedWithSyncPolicyCreateOnly(t *testing.T) {
 	app := applicationsUpdateSyncPolicyTest(t, applicationsSyncPolicy, 1, true)
 
 	assert.Nil(t, app.Spec.Source.Helm)
-	assert.Nil(t, app.Annotations)
+	assert.Nil(t, app.ObjectMeta.Annotations)
 }
 
 func TestUpdateNotPerformedWithSyncPolicyCreateDelete(t *testing.T) {
@@ -2511,7 +2511,7 @@ func TestUpdateNotPerformedWithSyncPolicyCreateDelete(t *testing.T) {
 	app := applicationsUpdateSyncPolicyTest(t, applicationsSyncPolicy, 1, true)
 
 	assert.Nil(t, app.Spec.Source.Helm)
-	assert.Nil(t, app.Annotations)
+	assert.Nil(t, app.ObjectMeta.Annotations)
 }
 
 func TestUpdatePerformedWithSyncPolicyCreateUpdate(t *testing.T) {
@@ -2520,8 +2520,8 @@ func TestUpdatePerformedWithSyncPolicyCreateUpdate(t *testing.T) {
 	app := applicationsUpdateSyncPolicyTest(t, applicationsSyncPolicy, 2, true)
 
 	assert.Equal(t, "global.test: test", app.Spec.Source.Helm.Values)
-	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.Annotations)
-	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.Labels)
+	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.ObjectMeta.Annotations)
+	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.ObjectMeta.Labels)
 }
 
 func TestUpdatePerformedWithSyncPolicySync(t *testing.T) {
@@ -2530,8 +2530,8 @@ func TestUpdatePerformedWithSyncPolicySync(t *testing.T) {
 	app := applicationsUpdateSyncPolicyTest(t, applicationsSyncPolicy, 2, true)
 
 	assert.Equal(t, "global.test: test", app.Spec.Source.Helm.Values)
-	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.Annotations)
-	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.Labels)
+	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.ObjectMeta.Annotations)
+	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.ObjectMeta.Labels)
 }
 
 func TestUpdatePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *testing.T) {
@@ -2540,8 +2540,8 @@ func TestUpdatePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *t
 	app := applicationsUpdateSyncPolicyTest(t, applicationsSyncPolicy, 2, false)
 
 	assert.Equal(t, "global.test: test", app.Spec.Source.Helm.Values)
-	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.Annotations)
-	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.Labels)
+	assert.Equal(t, map[string]string{"annotation-key": "annotation-value"}, app.ObjectMeta.Annotations)
+	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.ObjectMeta.Labels)
 }
 
 func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alpha1.ApplicationsSyncPolicy, recordBuffer int, allowPolicyOverride bool) v1alpha1.ApplicationList {
@@ -2640,13 +2640,13 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	var app v1alpha1.Application
 
 	// make sure good app got created
-	err = r.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "good-cluster"}, &app)
 	require.NoError(t, err)
 	assert.Equal(t, "good-cluster", app.Name)
 
 	// Update resource
 	var retrievedApplicationSet v1alpha1.ApplicationSet
-	err = r.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &retrievedApplicationSet)
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &retrievedApplicationSet)
 	require.NoError(t, err)
 	retrievedApplicationSet.Spec.Generators = []v1alpha1.ApplicationSetGenerator{
 		{
@@ -2656,7 +2656,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		},
 	}
 
-	err = r.Update(context.TODO(), &retrievedApplicationSet)
+	err = r.Client.Update(context.TODO(), &retrievedApplicationSet)
 	require.NoError(t, err)
 
 	resUpdate, err := r.Reconcile(context.Background(), req)
@@ -2664,7 +2664,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 
 	var apps v1alpha1.ApplicationList
 
-	err = r.List(context.TODO(), &apps)
+	err = r.Client.List(context.TODO(), &apps)
 	require.NoError(t, err)
 	assert.Equal(t, time.Duration(0), resUpdate.RequeueAfter)
 
@@ -2824,20 +2824,20 @@ func TestPolicies(t *testing.T) {
 			assert.Equal(t, time.Duration(0), res.RequeueAfter)
 
 			var app v1alpha1.Application
-			err = r.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
+			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
 			require.NoError(t, err)
 			assert.Equal(t, "value", app.Annotations["key"])
 
 			// Check if Application is updated
 			app.Annotations["key"] = "edited"
-			err = r.Update(context.TODO(), &app)
+			err = r.Client.Update(context.TODO(), &app)
 			require.NoError(t, err)
 
 			res, err = r.Reconcile(context.Background(), req)
 			require.NoError(t, err)
 			assert.Equal(t, time.Duration(0), res.RequeueAfter)
 
-			err = r.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
+			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
 			require.NoError(t, err)
 
 			if c.allowedUpdate {
@@ -2847,21 +2847,21 @@ func TestPolicies(t *testing.T) {
 			}
 
 			// Check if Application is deleted
-			err = r.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &appSet)
+			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &appSet)
 			require.NoError(t, err)
 			appSet.Spec.Generators[0] = v1alpha1.ApplicationSetGenerator{
 				List: &v1alpha1.ListGenerator{
 					Elements: []apiextensionsv1.JSON{},
 				},
 			}
-			err = r.Update(context.TODO(), &appSet)
+			err = r.Client.Update(context.TODO(), &appSet)
 			require.NoError(t, err)
 
 			res, err = r.Reconcile(context.Background(), req)
 			require.NoError(t, err)
 			assert.Equal(t, time.Duration(0), res.RequeueAfter)
 
-			err = r.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
+			err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "my-app"}, &app)
 			require.NoError(t, err)
 			if c.allowedDelete {
 				assert.NotNil(t, app.DeletionTimestamp)

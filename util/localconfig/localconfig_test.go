@@ -19,7 +19,7 @@ import (
 func TestGetUsername(t *testing.T) {
 	assert.Equal(t, "admin", GetUsername("admin:login"))
 	assert.Equal(t, "admin", GetUsername("admin"))
-	assert.Empty(t, GetUsername(""))
+	assert.Equal(t, "", GetUsername(""))
 }
 
 func TestFilePermission(t *testing.T) {

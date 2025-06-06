@@ -1181,10 +1181,9 @@ func CreateSubmoduleRepos(repoType string) {
 			CheckError(os.Unsetenv("GIT_ALLOW_PROTOCOL"))
 		}
 	}
-	switch repoType {
-	case "ssh":
+	if repoType == "ssh" {
 		FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeSSHSubmodule)))
-	case "https":
+	} else if repoType == "https" {
 		FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeHTTPSSubmodule)))
 	}
 	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "--all"))
@@ -1294,7 +1293,7 @@ func RecordTestRun(t *testing.T) {
 			t.Fatalf("could not close record file %s: %v", rf, err)
 		}
 	}()
-	if _, err := fmt.Fprintf(f, "%s\n", t.Name()); err != nil {
+	if _, err := f.WriteString(fmt.Sprintf("%s\n", t.Name())); err != nil {
 		t.Fatalf("could not write to %s: %v", rf, err)
 	}
 }

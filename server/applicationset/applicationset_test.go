@@ -276,15 +276,15 @@ func TestListAppSetsInNamespaceWithLabels(t *testing.T) {
 	testNamespace := "test-namespace"
 	appSetServer := newTestAppSetServer(newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet1"
-		appset.Namespace = testNamespace
+		appset.ObjectMeta.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
 	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet2"
-		appset.Namespace = testNamespace
+		appset.ObjectMeta.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value2"})
 	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet3"
-		appset.Namespace = testNamespace
+		appset.ObjectMeta.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value3"})
 	}))
 	appSetServer.enabledNamespaces = []string{testNamespace}
@@ -316,15 +316,15 @@ func TestListAppSetsWithoutNamespace(t *testing.T) {
 	testNamespace := "test-namespace"
 	appSetServer := newTestNamespacedAppSetServer(newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet1"
-		appset.Namespace = testNamespace
+		appset.ObjectMeta.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
 	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet2"
-		appset.Namespace = testNamespace
+		appset.ObjectMeta.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value2"})
 	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet3"
-		appset.Namespace = testNamespace
+		appset.ObjectMeta.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value3"})
 	}))
 	appSetServer.enabledNamespaces = []string{testNamespace}
@@ -364,7 +364,7 @@ func TestCreateAppSetTemplatedProject(t *testing.T) {
 func TestCreateAppSetWrongNamespace(t *testing.T) {
 	testAppSet := newTestAppSet()
 	appServer := newTestAppSetServer()
-	testAppSet.Namespace = "NOT-ALLOWED"
+	testAppSet.ObjectMeta.Namespace = "NOT-ALLOWED"
 	createReq := applicationset.ApplicationSetCreateRequest{
 		Applicationset: testAppSet,
 	}
@@ -506,21 +506,21 @@ func TestDeleteAppSet(t *testing.T) {
 
 func TestUpdateAppSet(t *testing.T) {
 	appSet := newTestAppSet(func(appset *appsv1.ApplicationSet) {
-		appset.Annotations = map[string]string{
+		appset.ObjectMeta.Annotations = map[string]string{
 			"annotation-key1": "annotation-value1",
 			"annotation-key2": "annotation-value2",
 		}
-		appset.Labels = map[string]string{
+		appset.ObjectMeta.Labels = map[string]string{
 			"label-key1": "label-value1",
 			"label-key2": "label-value2",
 		}
 	})
 
 	newAppSet := newTestAppSet(func(appset *appsv1.ApplicationSet) {
-		appset.Annotations = map[string]string{
+		appset.ObjectMeta.Annotations = map[string]string{
 			"annotation-key1": "annotation-value1-updated",
 		}
-		appset.Labels = map[string]string{
+		appset.ObjectMeta.Labels = map[string]string{
 			"label-key1": "label-value1-updated",
 		}
 	})

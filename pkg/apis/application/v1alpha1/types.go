@@ -964,21 +964,21 @@ func (p ApplicationSourcePluginParameter) MarshalJSON() ([]byte, error) {
 		out["string"] = p.String_
 	}
 	if p.OptionalMap != nil {
-		if p.Map == nil {
+		if p.OptionalMap.Map == nil {
 			// Nil is not the same as a nil map. Nil means the field was not set, while a nil map means the field was set to an empty map.
 			// Either way, we want to marshal it as "{}".
 			out["map"] = map[string]string{}
 		} else {
-			out["map"] = p.Map
+			out["map"] = p.OptionalMap.Map
 		}
 	}
 	if p.OptionalArray != nil {
-		if p.Array == nil {
+		if p.OptionalArray.Array == nil {
 			// Nil is not the same as a nil array. Nil means the field was not set, while a nil array means the field was set to an empty array.
 			// Either way, we want to marshal it as "[]".
 			out["array"] = []string{}
 		} else {
-			out["array"] = p.Array
+			out["array"] = p.OptionalArray.Array
 		}
 	}
 	bytes, err := json.Marshal(out)
@@ -1025,12 +1025,12 @@ func (p ApplicationSourcePluginParameters) Environ() ([]string, error) {
 			env = append(env, fmt.Sprintf("%s=%s", envBaseName, *param.String_))
 		}
 		if param.OptionalMap != nil {
-			for key, value := range param.Map {
+			for key, value := range param.OptionalMap.Map {
 				env = append(env, fmt.Sprintf("%s_%s=%s", envBaseName, escaped(key), value))
 			}
 		}
 		if param.OptionalArray != nil {
-			for i, value := range param.Array {
+			for i, value := range param.OptionalArray.Array {
 				env = append(env, fmt.Sprintf("%s_%d=%s", envBaseName, i, value))
 			}
 		}
@@ -2984,7 +2984,7 @@ type ApplicationDestinationServiceAccount struct {
 
 // CascadedDeletion indicates if the deletion finalizer is set and controller should delete the application and it's cascaded resources
 func (app *Application) CascadedDeletion() bool {
-	for _, finalizer := range app.Finalizers {
+	for _, finalizer := range app.ObjectMeta.Finalizers {
 		if isPropagationPolicyFinalizer(finalizer) {
 			return true
 		}
@@ -3072,7 +3072,7 @@ func isPropagationPolicyFinalizer(finalizer string) bool {
 
 // GetPropagationPolicy returns the value of propagation policy finalizer
 func (app *Application) GetPropagationPolicy() string {
-	for _, finalizer := range app.Finalizers {
+	for _, finalizer := range app.ObjectMeta.Finalizers {
 		if isPropagationPolicyFinalizer(finalizer) {
 			return finalizer
 		}
@@ -3379,11 +3379,11 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 		}
 	default:
 		tlsClientConfig := rest.TLSClientConfig{
-			Insecure:   c.Config.Insecure,
-			ServerName: c.Config.ServerName,
-			CertData:   c.Config.CertData,
-			KeyData:    c.Config.KeyData,
-			CAData:     c.Config.CAData,
+			Insecure:   c.Config.TLSClientConfig.Insecure,
+			ServerName: c.Config.TLSClientConfig.ServerName,
+			CertData:   c.Config.TLSClientConfig.CertData,
+			KeyData:    c.Config.TLSClientConfig.KeyData,
+			CAData:     c.Config.TLSClientConfig.CAData,
 		}
 		switch {
 		case c.Config.AWSAuthConfig != nil:

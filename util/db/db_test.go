@@ -332,7 +332,7 @@ func TestDeleteRepositoryManagedSecrets(t *testing.T) {
 
 	cm, err := clientset.CoreV1().ConfigMaps(testNamespace).Get(context.Background(), "argocd-cm", metav1.GetOptions{})
 	require.NoError(t, err)
-	assert.Empty(t, cm.Data["repositories"])
+	assert.Equal(t, "", cm.Data["repositories"])
 }
 
 func TestDeleteRepositoryUnmanagedSecrets(t *testing.T) {
@@ -369,7 +369,7 @@ func TestDeleteRepositoryUnmanagedSecrets(t *testing.T) {
 
 	cm, err := clientset.CoreV1().ConfigMaps(testNamespace).Get(context.Background(), "argocd-cm", metav1.GetOptions{})
 	require.NoError(t, err)
-	assert.Empty(t, cm.Data["repositories"])
+	assert.Equal(t, "", cm.Data["repositories"])
 }
 
 func TestUpdateRepositoryWithManagedSecrets(t *testing.T) {

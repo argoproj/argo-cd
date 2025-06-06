@@ -211,8 +211,7 @@ func printTreeViewAppResourcesOrphaned(nodeMapping map[string]v1alpha1.ResourceN
 
 func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.ApplicationTree, output string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	switch output {
-	case "tree=detailed":
+	if output == "tree=detailed" {
 		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\tAGE\tHEALTH\tREASON\n")
 
 		if !orphaned || listAll {
@@ -224,7 +223,7 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 			mapUidToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.OrphanedNodes)
 			printDetailedTreeViewAppResourcesOrphaned(mapUidToNode, mapParentToChild, parentNode, w)
 		}
-	case "tree":
+	} else if output == "tree" {
 		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\n")
 
 		if !orphaned || listAll {
@@ -236,7 +235,7 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 			mapUidToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.OrphanedNodes)
 			printTreeViewAppResourcesOrphaned(mapUidToNode, mapParentToChild, parentNode, w)
 		}
-	default:
+	} else {
 		headers := []interface{}{"GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED"}
 		fmtStr := "%s\t%s\t%s\t%s\t%s\n"
 		_, _ = fmt.Fprintf(w, fmtStr, headers...)

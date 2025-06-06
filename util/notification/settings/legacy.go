@@ -88,13 +88,13 @@ func (legacy legacyConfig) merge(cfg *api.Config, context map[string]string) err
 			}
 		}
 		if template.Title != "" {
-			if template.Email == nil {
-				template.Email = &services.EmailNotification{}
+			if template.Notification.Email == nil {
+				template.Notification.Email = &services.EmailNotification{}
 			}
-			template.Email.Subject = template.Title
+			template.Notification.Email.Subject = template.Title
 		}
 		if template.Body != "" {
-			template.Message = template.Body
+			template.Notification.Message = template.Body
 		}
 		cfg.Templates[template.Name] = template.Notification
 	}
