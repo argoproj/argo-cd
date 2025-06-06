@@ -2,6 +2,8 @@ module github.com/argoproj/argo-cd/v3
 
 go 1.24.3
 
+replace github.com/argoproj/gitops-engine => github.com/agaudreault/gitops-engine v0.7.1-0.20250606141133-32f56cd438c3
+
 require (
 	code.gitea.io/sdk/gitea v0.21.0
 	dario.cat/mergo v1.0.2
@@ -12,7 +14,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/TomOnTime/utfutil v1.0.0
 	github.com/alicebob/miniredis/v2 v2.34.0
-	github.com/argoproj/gitops-engine v0.7.1-0.20250420064138-d65e9d92277d
+	github.com/argoproj/gitops-engine v0.0.0-00010101000000-000000000000
 	github.com/argoproj/notifications-engine v0.4.1-0.20250309174002-87bf0576a872
 	github.com/argoproj/pkg/v2 v2.0.1
 	github.com/aws/aws-sdk-go v1.55.7
