@@ -26,6 +26,7 @@ argocd-applicationset-controller [flags]
       --debug                                   Print debug logs. Takes precedence over loglevel
       --disable-compression                     If true, opt-out of response compression for all requests to the server
       --dry-run                                 Enable dry run mode
+      --enable-github-api-metrics               Enable GitHub API metrics for generators that use the GitHub API
       --enable-leader-election                  Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.
       --enable-new-git-file-globbing            Enable new globbing in Git files generator.
       --enable-policy-override                  For security reason if 'policy' is set, it is not possible to override it at applicationSet level. 'allow-policy-override' allows user to define their own policy (default true)
