@@ -2,7 +2,7 @@ module github.com/argoproj/argo-cd/v3
 
 go 1.24.4
 
-replace github.com/argoproj/gitops-engine => github.com/agaudreault/gitops-engine v0.7.1-0.20250606141133-32f56cd438c3
+replace github.com/argoproj/gitops-engine => github.com/agaudreault/gitops-engine v0.7.1-0.20250606175117-1fac77f9a2f3
 
 require (
 	code.gitea.io/sdk/gitea v0.21.0
@@ -100,7 +100,7 @@ require (
 	golang.org/x/term v0.32.0
 	golang.org/x/time v0.12.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250519155744-55703ea1f237
-	google.golang.org/grpc v1.72.2
+	google.golang.org/grpc v1.73.0
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
