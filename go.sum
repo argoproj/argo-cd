@@ -111,6 +111,8 @@ github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be h1:9AeTilPcZAjCFI
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be/go.mod h1:ySMOLuWl6zY27l47sB3qLNK6tF2fkHG55UZxx8oIVo4=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/appscode/go v0.0.0-20191119085241-0887d8ec2ecc/go.mod h1:OawnOmAL4ZX3YaPdN+8HTNwBveT1jMsqP74moa9XUbE=
+github.com/argoproj/gitops-engine v0.7.1-0.20250606144909-cebed7e704a5 h1:6cBSMCMwqAIusUHhNOdTCa2YInGwz2v/v0uDB3ey2C4=
+github.com/argoproj/gitops-engine v0.7.1-0.20250606144909-cebed7e704a5/go.mod h1:duVhxDW7M7M7+19IBCVth2REOS11gmqzTWwj4u8N7aQ=
 github.com/argoproj/notifications-engine v0.4.1-0.20250309174002-87bf0576a872 h1:ADGAdyN9ty0+RmTT/yn+xV9vwkqvLn9O1ccqeP0Zeas=
 github.com/argoproj/notifications-engine v0.4.1-0.20250309174002-87bf0576a872/go.mod h1:d1RazGXWvKRFv9//rg4MRRR7rbvbE7XLgTSMT5fITTE=
 github.com/argoproj/pkg/v2 v2.0.1 h1:O/gCETzB/3+/hyFL/7d/VM/6pSOIRWIiBOTb2xqAHvc=
@@ -205,8 +207,6 @@ github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6N
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/creack/pty v1.1.18 h1:n56/Zwd5o6whRC5PMGretI4IdRLlmBXYNjScPaBgsbY=
 github.com/creack/pty v1.1.18/go.mod h1:MOBLtS5ELjhRRrroQr9kyvTxUAFNvYEK993ew/Vr4O4=
-github.com/crenshaw-dev/gitops-engine v0.6.1-0.20250606031248-b33a03c33000 h1:Sy/gF7uztD2Y9es41eAh08dR4WJDrhvglPrMbv1IGgE=
-github.com/crenshaw-dev/gitops-engine v0.6.1-0.20250606031248-b33a03c33000/go.mod h1:duVhxDW7M7M7+19IBCVth2REOS11gmqzTWwj4u8N7aQ=
 github.com/cyphar/filepath-securejoin v0.4.1 h1:JyxxyPEaktOD+GAnqIqTf9A8tHyAG22rowi7HkoSU1s=
 github.com/cyphar/filepath-securejoin v0.4.1/go.mod h1:Sdj7gXlvMcPZsbhwhQ33GguGLDGQL7h7bg04C/+u9jI=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
