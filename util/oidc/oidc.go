@@ -68,8 +68,6 @@ type ClientApp struct {
 	redirectURI string
 	// URL of the issuer (e.g. https://argocd.example.com/api/dex)
 	issuerURL string
-	// the path where the issuer providers user information (e.g /user-info for okta)
-	userInfoPath string
 	// The URL endpoint at which the ArgoCD server is accessed.
 	baseHRef string
 	// client is the HTTP client which is used to query the IDp
@@ -122,7 +120,6 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 		useAzureWorkloadIdentity: settings.UseAzureWorkloadIdentity(),
 		redirectURI:              redirectURL,
 		issuerURL:                settings.IssuerURL(),
-		userInfoPath:             settings.UserInfoPath(),
 		baseHRef:                 baseHRef,
 		encryptionKey:            encryptionKey,
 		clientCache:              cacheClient,

@@ -161,6 +161,7 @@ nav:
   - user-guide/application_sources.md
   - user-guide/kustomize.md
   - user-guide/helm.md
+  - user-guide/oci.md
   - user-guide/import.md
   - user-guide/jsonnet.md
   - user-guide/directory.md
