@@ -120,19 +120,19 @@ func TestSameURL(t *testing.T) {
 func TestCustomHTTPClient(t *testing.T) {
 	certFile, err := filepath.Abs("../../test/fixture/certs/argocd-test-client.crt")
 	require.NoError(t, err)
-	assert.NotEqual(t, "", certFile)
+	assert.NotEmpty(t, certFile)
 
 	keyFile, err := filepath.Abs("../../test/fixture/certs/argocd-test-client.key")
 	require.NoError(t, err)
-	assert.NotEqual(t, "", keyFile)
+	assert.NotEmpty(t, keyFile)
 
 	certData, err := os.ReadFile(certFile)
 	require.NoError(t, err)
-	assert.NotEqual(t, "", string(certData))
+	assert.NotEmpty(t, string(certData))
 
 	keyData, err := os.ReadFile(keyFile)
 	require.NoError(t, err)
-	assert.NotEqual(t, "", string(keyData))
+	assert.NotEmpty(t, string(keyData))
 
 	// Get HTTPSCreds with client cert creds specified, and insecure connection
 	creds := NewHTTPSCreds("test", "test", string(certData), string(keyData), false, "http://proxy:5000", "", &NoopCredsStore{}, false)
@@ -312,7 +312,7 @@ func TestLFSClient(t *testing.T) {
 
 	commitSHA, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
-	assert.NotEqual(t, "", commitSHA)
+	assert.NotEmpty(t, commitSHA)
 
 	err = client.Init()
 	require.NoError(t, err)

@@ -318,11 +318,12 @@ func printCertTable(certs []appsv1.RepositoryCertificate, sortOrder string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(w, "HOSTNAME\tTYPE\tSUBTYPE\tINFO\n")
 
-	if sortOrder == "hostname" || sortOrder == "" {
+	switch sortOrder {
+	case "hostname", "":
 		sort.Slice(certs, func(i, j int) bool {
 			return certs[i].ServerName < certs[j].ServerName
 		})
-	} else if sortOrder == "type" {
+	case "type":
 		sort.Slice(certs, func(i, j int) bool {
 			return certs[i].CertType < certs[j].CertType
 		})

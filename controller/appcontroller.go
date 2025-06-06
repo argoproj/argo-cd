@@ -594,7 +594,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 		}
 	}
 	err = ctrl.stateCache.IterateHierarchyV2(a.Spec.Destination.Server, managedResourcesKeys, func(child appv1.ResourceNode, appName string) bool {
-		permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
+		permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.Group, Kind: child.Kind}, child.Namespace, a.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
 			clusters, err := ctrl.db.GetProjectClusters(context.TODO(), project)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get project clusters: %w", err)
@@ -631,7 +631,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 			return false
 		}
 
-		permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
+		permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.Group, Kind: child.Kind}, child.Namespace, a.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
 			return ctrl.db.GetProjectClusters(context.TODO(), project)
 		})
 
@@ -1012,7 +1012,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		// If we get here, we are about to process an operation, but we cannot rely on informer since it might have stale data.
 		// So always retrieve the latest version to ensure it is not stale to avoid unnecessary syncing.
 		// We cannot rely on informer since applications might be updated by both application controller and api server.
-		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.ObjectMeta.Name, metav1.GetOptions{})
+		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 		if err != nil {
 			logCtx.Errorf("Failed to retrieve latest application state: %v", err)
 			return
@@ -1447,10 +1447,11 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		state.Message = err.Error()
 	}
 
-	if state.Phase == synccommon.OperationRunning {
+	switch state.Phase {
+	case synccommon.OperationRunning:
 		// It's possible for an app to be terminated while we were operating on it. We do not want
 		// to clobber the Terminated state with Running. Get the latest app state to check for this.
-		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.ObjectMeta.Name, metav1.GetOptions{})
+		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 		if err == nil {
 			// App may have lost permissions to use the project meanwhile.
 			_, err = ctrl.getAppProj(freshApp)
@@ -1466,7 +1467,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				// cleanup (e.g. delete jobs, workflows, etc...)
 			}
 		}
-	} else if state.Phase == synccommon.OperationFailed || state.Phase == synccommon.OperationError {
+	case synccommon.OperationFailed, synccommon.OperationError:
 		if !terminating && (state.RetryCount < state.Operation.Retry.Limit || state.Operation.Retry.Limit < 0) {
 			now := metav1.Now()
 			state.FinishedAt = &now

@@ -45,7 +45,7 @@ func TestUpdateProjects_FindMatchingProject(t *testing.T) {
 
 	barProj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "bar", v1.GetOptions{})
 	require.NoError(t, err)
-	assert.EqualValues(t, []string{"p, proj:bar:test, *, set, bar/*, allow"}, barProj.Spec.Roles[0].Policies)
+	assert.Equal(t, []string{"p, proj:bar:test, *, set, bar/*, allow"}, barProj.Spec.Roles[0].Policies)
 }
 
 func TestUpdateProjects_FindMatchingRole(t *testing.T) {
@@ -60,7 +60,7 @@ func TestUpdateProjects_FindMatchingRole(t *testing.T) {
 
 	proj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "proj", v1.GetOptions{})
 	require.NoError(t, err)
-	assert.EqualValues(t, []string{"p, proj:proj:foo, *, set, proj/*, allow"}, proj.Spec.Roles[0].Policies)
+	assert.Equal(t, []string{"p, proj:proj:foo, *, set, proj/*, allow"}, proj.Spec.Roles[0].Policies)
 	assert.Empty(t, proj.Spec.Roles[1].Policies)
 }
 
@@ -75,7 +75,7 @@ func TestGetModification_RemovePolicy(t *testing.T) {
 	modification, err := getModification("remove", "*", "*", "allow")
 	require.NoError(t, err)
 	policy := modification("proj", "myaction")
-	assert.Equal(t, "", policy)
+	assert.Empty(t, policy)
 }
 
 func TestGetModification_NotSupported(t *testing.T) {

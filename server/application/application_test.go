@@ -1112,15 +1112,15 @@ func unsetSyncRunningOperationState(t *testing.T, appServer *Server) {
 func TestListAppsInNamespaceWithLabels(t *testing.T) {
 	appServer := newTestAppServer(t, newTestApp(func(app *appsv1.Application) {
 		app.Name = "App1"
-		app.ObjectMeta.Namespace = "test-namespace"
+		app.Namespace = "test-namespace"
 		app.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
 	}), newTestApp(func(app *appsv1.Application) {
 		app.Name = "App2"
-		app.ObjectMeta.Namespace = "test-namespace"
+		app.Namespace = "test-namespace"
 		app.SetLabels(map[string]string{"key1": "value2"})
 	}), newTestApp(func(app *appsv1.Application) {
 		app.Name = "App3"
-		app.ObjectMeta.Namespace = "test-namespace"
+		app.Namespace = "test-namespace"
 		app.SetLabels(map[string]string{"key1": "value3"})
 	}))
 	appServer.ns = "test-namespace"
@@ -2068,7 +2068,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 
 func TestGetCachedAppState(t *testing.T) {
 	testApp := newTestApp()
-	testApp.ObjectMeta.ResourceVersion = "1"
+	testApp.ResourceVersion = "1"
 	testApp.Spec.Project = "test-proj"
 	testProj := &appsv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -2356,7 +2356,7 @@ func TestGetAppRefresh_NormalRefresh(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	testApp := newTestApp()
-	testApp.ObjectMeta.ResourceVersion = "1"
+	testApp.ResourceVersion = "1"
 	appServer := newTestAppServer(t, testApp)
 
 	var patched int32
@@ -2383,7 +2383,7 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	testApp := newTestApp()
-	testApp.ObjectMeta.ResourceVersion = "1"
+	testApp.ResourceVersion = "1"
 	appServer := newTestAppServer(t, testApp)
 
 	var getAppDetailsQuery *apiclient.RepoServerAppDetailsQuery
@@ -3062,8 +3062,8 @@ func TestServer_ResolveSourceRevisions_MultiSource(t *testing.T) {
 	revision, displayRevision, sourceRevisions, displayRevisions, err := s.resolveSourceRevisions(ctx, a, syncReq)
 
 	require.NoError(t, err)
-	assert.Equal(t, "", revision)
-	assert.Equal(t, "", displayRevision)
+	assert.Empty(t, revision)
+	assert.Empty(t, displayRevision)
 	assert.Equal(t, []string{fakeResolveRevisionResponse().Revision}, sourceRevisions)
 	assert.Equal(t, []string{fakeResolveRevisionResponse().AmbiguousRevision}, displayRevisions)
 }
@@ -3366,17 +3366,17 @@ func Test_DeepCopyInformers(t *testing.T) {
 	var ro []runtime.Object
 	appOne := newTestApp(func(app *appsv1.Application) {
 		app.Name = "appOne"
-		app.ObjectMeta.Namespace = namespace
+		app.Namespace = namespace
 		app.Spec = appsv1.ApplicationSpec{}
 	})
 	appTwo := newTestApp(func(app *appsv1.Application) {
 		app.Name = "appTwo"
-		app.ObjectMeta.Namespace = namespace
+		app.Namespace = namespace
 		app.Spec = appsv1.ApplicationSpec{}
 	})
 	appThree := newTestApp(func(app *appsv1.Application) {
 		app.Name = "appThree"
-		app.ObjectMeta.Namespace = namespace
+		app.Namespace = namespace
 		app.Spec = appsv1.ApplicationSpec{}
 	})
 	ro = append(ro, appOne, appTwo, appThree)
@@ -3476,7 +3476,7 @@ func Test_RunResourceActionDestinationInference(t *testing.T) {
 	}
 
 	testServer := newTestApp(func(app *appsv1.Application) {
-		app.ObjectMeta.Namespace = "default"
+		app.Namespace = "default"
 		app.Name = "test-server"
 		app.Status.Resources = []appsv1.ResourceStatus{
 			{
@@ -3503,7 +3503,7 @@ func Test_RunResourceActionDestinationInference(t *testing.T) {
 		}
 	})
 	testName := newTestApp(func(app *appsv1.Application) {
-		app.ObjectMeta.Namespace = "default"
+		app.Namespace = "default"
 		app.Name = "test-name"
 		app.Status.Resources = []appsv1.ResourceStatus{
 			{
@@ -3530,7 +3530,7 @@ func Test_RunResourceActionDestinationInference(t *testing.T) {
 		}
 	})
 	testBoth := newTestApp(func(app *appsv1.Application) {
-		app.ObjectMeta.Namespace = "default"
+		app.Namespace = "default"
 		app.Name = "test-both"
 		app.Status.Resources = []appsv1.ResourceStatus{
 			{
@@ -3621,7 +3621,7 @@ func Test_RunResourceActionDestinationInference(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.fields.Server.RunResourceAction(adminCtx, tt.args.q)
+			got, err := tt.fields.RunResourceAction(adminCtx, tt.args.q)
 			if !tt.wantErr(t, err, fmt.Sprintf("RunResourceAction(%v)", tt.args.q)) {
 				return
 			}

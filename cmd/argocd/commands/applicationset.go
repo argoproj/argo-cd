@@ -181,7 +181,7 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 					action = "updated"
 				}
 
-				c.PrintErrf("ApplicationSet '%s' %s%s\n", created.ObjectMeta.Name, action, dryRunMsg)
+				c.PrintErrf("ApplicationSet '%s' %s%s\n", created.Name, action, dryRunMsg)
 
 				switch output {
 				case "yaml", "json":
@@ -343,7 +343,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 			}
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie()
 			defer argoio.Close(conn)
-			var isTerminal bool = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
+			isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 			numOfApps := len(args)
 			promptFlag := c.Flag("yes")
 			if promptFlag.Changed && promptFlag.Value.String() == "true" {
@@ -496,7 +496,7 @@ func hasAppSetChanged(appReq, appRes *arogappsetv1.ApplicationSet, upsert bool) 
 
 	if reflect.DeepEqual(appRes.Spec, appReq.Spec) &&
 		reflect.DeepEqual(appRes.Labels, appReq.Labels) &&
-		reflect.DeepEqual(appRes.ObjectMeta.Annotations, appReq.Annotations) &&
+		reflect.DeepEqual(appRes.Annotations, appReq.Annotations) &&
 		reflect.DeepEqual(appRes.Finalizers, appReq.Finalizers) {
 		return false
 	}

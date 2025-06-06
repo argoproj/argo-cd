@@ -2352,7 +2352,7 @@ func TestAddControllerNamespace(t *testing.T) {
 		appNamespace := "app-namespace"
 
 		app := newFakeApp()
-		app.ObjectMeta.Namespace = appNamespace
+		app.Namespace = appNamespace
 		proj := defaultProj
 		proj.Spec.SourceNamespaces = []string{appNamespace}
 		ctrl := newFakeController(&fakeData{
@@ -2694,7 +2694,7 @@ func TestSyncTimeout(t *testing.T) {
 			}
 			ctrl.processRequestedAppOperation(app)
 
-			app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.ObjectMeta.Name, metav1.GetOptions{})
+			app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedPhase, app.Status.OperationState.Phase)
 			require.Equal(t, tc.expectedMessage, app.Status.OperationState.Message)

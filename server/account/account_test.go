@@ -315,7 +315,7 @@ func TestCanI_GetLogsAllowNoSwitch(t *testing.T) {
 	ctx := projTokenContext(context.Background())
 	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: ""})
 	require.NoError(t, err)
-	assert.EqualValues(t, "yes", resp.Value)
+	assert.Equal(t, "yes", resp.Value)
 }
 
 func TestCanI_GetLogsDenySwitchOn(t *testing.T) {
@@ -330,7 +330,7 @@ func TestCanI_GetLogsDenySwitchOn(t *testing.T) {
 	ctx := projTokenContext(context.Background())
 	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: "*/*"})
 	require.NoError(t, err)
-	assert.EqualValues(t, "no", resp.Value)
+	assert.Equal(t, "no", resp.Value)
 }
 
 func TestCanI_GetLogsAllowSwitchOn(t *testing.T) {
@@ -341,7 +341,7 @@ func TestCanI_GetLogsAllowSwitchOn(t *testing.T) {
 	ctx := projTokenContext(context.Background())
 	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: ""})
 	require.NoError(t, err)
-	assert.EqualValues(t, "yes", resp.Value)
+	assert.Equal(t, "yes", resp.Value)
 }
 
 func TestCanI_GetLogsAllowSwitchOff(t *testing.T) {
@@ -352,5 +352,5 @@ func TestCanI_GetLogsAllowSwitchOff(t *testing.T) {
 	ctx := projTokenContext(context.Background())
 	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: ""})
 	require.NoError(t, err)
-	assert.EqualValues(t, "yes", resp.Value)
+	assert.Equal(t, "yes", resp.Value)
 }

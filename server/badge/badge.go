@@ -206,7 +206,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		adjustWidth = true
 		displayedRevision = revision
-		if keepFullRevisionParam, ok := r.URL.Query()["keepFullRevision"]; !(ok && strings.EqualFold(keepFullRevisionParam[0], "true")) && len(revision) > 7 {
+		if keepFullRevisionParam, ok := r.URL.Query()["keepFullRevision"]; (!ok || !strings.EqualFold(keepFullRevisionParam[0], "true")) && len(revision) > 7 {
 			displayedRevision = revision[:7]
 			svgWidth = svgWidthWithRevision
 		} else {
@@ -242,7 +242,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if displayAppName && applicationName != "" {
 		titleRectWidth := len(applicationName) * widthPerChar
-		var longerWidth int = max(titleRectWidth, svgWidth)
+		longerWidth := max(titleRectWidth, svgWidth)
 		rightRectWidth := longerWidth - leftRectWidth
 		badge = titleRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, longerWidth))
 		badge = rightRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, rightRectWidth))
