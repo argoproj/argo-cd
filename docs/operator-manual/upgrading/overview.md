@@ -15,7 +15,7 @@ Argo CD uses semver-like versioning that ensures the following rules:
 * The major release introduces backward incompatible behavior changes. It is recommended to take a backup of
   Argo CD settings using the [disaster recovery guide](../disaster_recovery.md).
 
-After reading the relevant notes about possible breaking changes introduced in a newArgo CD version, use the following
+After reading the relevant notes about possible breaking changes introduced in a new Argo CD version, use the following
 command to upgrade Argo CD. Make sure to replace `<version>` with the required version number:
 
 **Non-HA**:
