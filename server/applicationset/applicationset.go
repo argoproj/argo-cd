@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/argoproj/argo-cd/v3/server/application"
+	"k8s.io/apimachinery/pkg/watch"
 	"reflect"
 	"sort"
 	"strconv"
@@ -54,6 +56,7 @@ type Server struct {
 	appclientset             appclientset.Interface
 	appsetInformer           cache.SharedIndexInformer
 	appsetLister             applisters.ApplicationSetLister
+	appsetBroadcaster        Brodcaster
 	auditLogger              *argo.AuditLogger
 	projectLock              sync.KeyLock
 	enabledNamespaces        []string
@@ -76,6 +79,7 @@ func NewServer(
 	appclientset appclientset.Interface,
 	appsetInformer cache.SharedIndexInformer,
 	appsetLister applisters.ApplicationSetLister,
+	appsetBroadcaster Brodcaster,
 	namespace string,
 	projectLock sync.KeyLock,
 	enabledNamespaces []string,
@@ -87,6 +91,13 @@ func NewServer(
 	enableGitHubAPIMetrics bool,
 	enableK8sEvent []string,
 ) applicationset.ApplicationSetServiceServer {
+	if appsetBroadcaster == nil {
+		appsetBroadcaster = &broadcasterHandler{}
+	}
+	_, err := appsetInformer.AddEventHandler(appsetBroadcaster)
+	if err != nil {
+		log.Error(err)
+	}
 	s := &Server{
 		ns:                       namespace,
 		db:                       db,
@@ -98,6 +109,7 @@ func NewServer(
 		appclientset:             appclientset,
 		appsetInformer:           appsetInformer,
 		appsetLister:             appsetLister,
+		appsetBroadcaster:        appsetBroadcaster,
 		projectLock:              projectLock,
 		auditLogger:              argo.NewAuditLogger(kubeclientset, "argocd-server", enableK8sEvent),
 		enabledNamespaces:        enabledNamespaces,
@@ -258,6 +270,55 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 		return nil, fmt.Errorf("error updating ApplicationSets: %w", err)
 	}
 	return updated, nil
+}
+
+func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicationset.ApplicationSetService_WatchServer) error {
+	appsetName := q.GetName()
+	appsetNs := q.GetAppsetNamespace()
+	logCtx := log.NewEntry(log.New())
+	if q.Name != "" {
+		logCtx = logCtx.WithField("applicationset", q.Name)
+	}
+	claims := ws.Context().Value("claims")
+
+	sendIfPermitted := func(appset v1alpha1.ApplicationSet, eventType watch.EventType) {
+		perimitted := s.isApplicationSetPermitted(claims, appsetName, appsetNs, appset)
+		if !perimitted {
+			return
+		}
+		err := ws.Send(&v1alpha1.ApplicationSetWatchEvent{
+			Type:           eventType,
+			ApplicationSet: appset,
+		})
+		if err != nil {
+			logCtx.Warnf("Unable to send stream message: %v", err)
+			return
+		}
+	}
+
+	events := make(chan *v1alpha1.ApplicationSetWatchEvent, application.WatchAPIBufferSize)
+	unsubscribe := s.appsetBroadcaster.Subscribe(events)
+	defer unsubscribe()
+	for {
+		select {
+		case event := <-events:
+			sendIfPermitted(event.ApplicationSet, event.Type)
+		case <-ws.Context().Done():
+			return nil
+		}
+	}
+}
+
+func (s *Server) isApplicationSetPermitted(claims any, appsetName, appsetNs string, appset v1alpha1.ApplicationSet) bool {
+	if !s.isNamespaceEnabled(appset.Namespace) {
+		return false
+	}
+
+	if !s.enf.Enforce(claims, rbac.ResourceApplicationSets, rbac.ActionGet, appset.RBACName(s.ns)) {
+		return false
+	}
+
+	return true
 }
 
 func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.Entry, appset v1alpha1.ApplicationSet, namespace string) ([]v1alpha1.Application, error) {
