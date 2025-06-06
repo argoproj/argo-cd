@@ -1,20 +1,10 @@
-issues:
-  exclude:
-    - SA5011
-  max-issues-per-linter: 0
-  max-same-issues: 0
-  exclude-rules:
-    - path: '(.+)_test\.go'
-      linters:
-        - unparam
+version: "2"
 linters:
+  default: none
   enable:
     - errcheck
     - errorlint
     - gocritic
-    - gofumpt
-    - goimports
-    - gosimple
     - govet
     - ineffassign
     - misspell
@@ -25,35 +15,70 @@ linters:
     - unparam
     - unused
     - usestdlibvars
-    - whitespace 
-linters-settings:
-  gocritic:
-    disabled-checks:
-      - appendAssign
-      - assignOp  # Keep it disabled for readability
-      - badCond
-      - commentFormatting
-      - exitAfterDefer
-      - ifElseChain
-      - mapKey
-      - singleCaseSwitch
-      - typeSwitchVar
-  goimports:
-    local-prefixes: github.com/argoproj/argo-cd/v2
-  perfsprint:
-    # Optimizes even if it requires an int or uint type cast.
-    int-conversion: true
-    # Optimizes into `err.Error()` even if it is only equivalent for non-nil errors.
-    err-error: false
-    # Optimizes `fmt.Errorf`.
-    errorf: false
-    # Optimizes `fmt.Sprintf` with only one argument.
-    sprintf1: true
-    # Optimizes into strings concatenation.
-    strconcat: false
-  testifylint:
-    enable-all: true
-    disable:
-      - go-require
-run:
-  timeout: 50m
+    - whitespace
+  settings:
+    gocritic:
+      disabled-checks:
+        - appendAssign
+        - assignOp
+        - badCond
+        - commentFormatting
+        - exitAfterDefer
+        - ifElseChain
+        - mapKey
+        - singleCaseSwitch
+        - typeSwitchVar
+    perfsprint:
+      int-conversion: true
+      err-error: false
+      errorf: false
+      sprintf1: true
+      strconcat: false
+    staticcheck:
+      checks:
+        - "all"
+        - "-ST1001" # dot imports are discouraged
+        - "-ST1003" # poorly chosen identifier
+        - "-ST1005" # incorrectly formatted error string
+        - "-ST1011" # poorly chosen name for variable of type time.Duration
+        - "-ST1012" # poorly chosen name for an error variable
+        - "-ST1016" # use consistent method receiver names
+        - "-ST1019" # importing the same package multiple times
+    testifylint:
+      enable-all: true
+      disable:
+        - go-require
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - unparam
+        path: (.+)_test\.go
+      - path: (.+)\.go$
+        text: SA5011
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/argoproj/argo-cd/v2
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
