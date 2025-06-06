@@ -416,7 +416,7 @@ func (r *ApplicationSetReconciler) performReverseDeletion(ctx context.Context, l
 		}
 		// Check if the application is already being deleted - remove finalizer
 		if retrievedApp.DeletionTimestamp != nil {
-			logCtx.Infof("Deletion of the application %v has been triggered, has a deletion timestamp but not completed deletion")
+			logCtx.Infof("Deletion of the application %v has been triggered, has a deletion timestamp but not completed deletion", step.AppName)
 			if time.Since(retrievedApp.DeletionTimestamp.Time) > 2*time.Minute {
 				return 0, fmt.Errorf("Application has not been deleted in over 2 minutes")
 			}
@@ -1677,8 +1677,12 @@ func shouldRequeueForApplicationSet(appSetOld, appSetNew *argov1alpha1.Applicati
 	}
 
 	// Requeue if any ApplicationStatus.Status changed for Progressive sync strategy
+	// Requeue if deletionTimestamp added
 	if enableProgressiveSyncs {
 		if !cmp.Equal(appSetOld.Status.ApplicationStatus, appSetNew.Status.ApplicationStatus, cmpopts.EquateEmpty()) {
+			return true
+		}
+		if !cmp.Equal(appSetOld.DeletionTimestamp, appSetNew.DeletionTimestamp, cmpopts.EquateEmpty()) {
 			return true
 		}
 	}
