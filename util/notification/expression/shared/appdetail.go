@@ -31,7 +31,7 @@ type AppDetail struct {
 }
 
 type CustomHelmAppSpec struct {
-	HelmAppSpec            apiclient.HelmAppSpec
+	apiclient.HelmAppSpec
 	HelmParameterOverrides []v1alpha1.HelmParameter
 }
 
