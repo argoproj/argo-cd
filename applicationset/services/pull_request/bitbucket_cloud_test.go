@@ -349,11 +349,6 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 						},
 						"author": {
 							"nickname": "testName"
-						},
-						"destination": {
-							"branch": {
-								"name": "master"
-							}
 						}
 					},
 					{
@@ -370,11 +365,6 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 						},
 						"author": {
 							"nickname": "testName"
-						},
-						"destination": {
-							"branch": {
-								"name": "branch-200"
-							}
 						}
 					}
 				]
@@ -400,11 +390,6 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 						},
 						"author": {
 							"nickname": "testName"
-						},
-						"destination": {
-							"branch": {
-								"name": "master"
-							}
 						}
 					}
 				]
@@ -428,20 +413,18 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 2)
 	assert.Equal(t, PullRequest{
-		Number:       101,
-		Title:        "feat(101)",
-		Branch:       "feature-101",
-		HeadSHA:      "1a8dd249c04a",
-		Author:       "testName",
-		TargetBranch: "master",
+		Number:  101,
+		Title:   "feat(101)",
+		Branch:  "feature-101",
+		HeadSHA: "1a8dd249c04a",
+		Author:  "testName",
 	}, *pullRequests[0])
 	assert.Equal(t, PullRequest{
-		Number:       102,
-		Title:        "feat(102)",
-		Branch:       "feature-102",
-		HeadSHA:      "6344d9623e3b",
-		Author:       "testName",
-		TargetBranch: "master",
+		Number:  102,
+		Title:   "feat(102)",
+		Branch:  "feature-102",
+		HeadSHA: "6344d9623e3b",
+		Author:  "testName",
 	}, *pullRequests[1])
 
 	regexp = `.*2$`
@@ -455,12 +438,11 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, PullRequest{
-		Number:       102,
-		Title:        "feat(102)",
-		Branch:       "feature-102",
-		HeadSHA:      "6344d9623e3b",
-		Author:       "testName",
-		TargetBranch: "master",
+		Number:  102,
+		Title:   "feat(102)",
+		Branch:  "feature-102",
+		HeadSHA: "6344d9623e3b",
+		Author:  "testName",
 	}, *pullRequests[0])
 
 	regexp = `[\d{2}`
@@ -472,23 +454,4 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 		},
 	})
 	require.Error(t, err)
-
-	regexp = `feature-2[\d]{2}`
-	targetRegexp := `branch.*`
-	pullRequests, err = ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{
-		{
-			BranchMatch:       &regexp,
-			TargetBranchMatch: &targetRegexp,
-		},
-	})
-	require.NoError(t, err)
-	assert.Len(t, pullRequests, 1)
-	assert.Equal(t, PullRequest{
-		Number:       200,
-		Title:        "feat(200)",
-		Branch:       "feature-200",
-		HeadSHA:      "4cf807e67a6d",
-		Author:       "testName",
-		TargetBranch: "branch-200",
-	}, *pullRequests[0])
 }

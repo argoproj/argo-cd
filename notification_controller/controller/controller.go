@@ -91,6 +91,7 @@ func NewController(
 		configMapInformer: configMapInformer,
 		appInformer:       appInformer,
 		appProjInformer:   appProjInformer,
+		apiFactory:        apiFactory,
 	}
 	skipProcessingOpt := controller.WithSkipProcessing(func(obj metav1.Object) (bool, string) {
 		app, ok := (obj).(*unstructured.Unstructured)
@@ -172,6 +173,7 @@ func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string
 }
 
 type notificationController struct {
+	apiFactory        api.Factory
 	ctrl              controller.NotificationController
 	appInformer       cache.SharedIndexInformer
 	appProjInformer   cache.SharedIndexInformer
@@ -189,7 +191,7 @@ func (c *notificationController) Init(ctx context.Context) error {
 	go c.configMapInformer.Run(ctx.Done())
 
 	if !cache.WaitForCacheSync(ctx.Done(), c.appInformer.HasSynced, c.appProjInformer.HasSynced, c.secretInformer.HasSynced, c.configMapInformer.HasSynced) {
-		return errors.New("timed out waiting for caches to sync")
+		return errors.New("Timed out waiting for caches to sync")
 	}
 	return nil
 }

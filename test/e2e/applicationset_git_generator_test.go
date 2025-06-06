@@ -304,6 +304,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 	project := "gpg"
 
 	Given(t).
+		Project(project).
 		When().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
@@ -403,6 +404,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 	project := "gpg"
 
 	Given(t).
+		Project(project).
 		Path(guestbookPath).
 		When().
 		AddSignedFile("test.yaml", randStr(t)).IgnoreErrors().
@@ -618,6 +620,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 	}
 
 	Given(t).
+		Project(project).
 		When().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
@@ -716,6 +719,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 	}
 
 	Given(t).
+		Project(project).
 		Path(guestbookPath).
 		When().
 		AddSignedFile("test.yaml", randStr(t)).IgnoreErrors().

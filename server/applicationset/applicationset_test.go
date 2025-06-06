@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/pkg/v2/sync"
+	"github.com/argoproj/pkg/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -123,6 +123,8 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 	f(enforcer)
 	enforcer.SetClaimsEnforcerFunc(rbacpolicy.NewRBACPolicyEnforcer(enforcer, fakeProjLister).EnforceClaims)
 
+	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
+
 	// populate the app informer with the fake objects
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	// TODO(jessesuen): probably should return cancel function so tests can stop background informer
@@ -154,6 +156,8 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		fakeAppsClientset,
 		appInformer,
 		factory.Argoproj().V1alpha1().ApplicationSets().Lister(),
+		fakeProjLister,
+		settingsMgr,
 		testNamespace,
 		sync.NewKeyLock(),
 		[]string{testNamespace, "external-namespace"},
@@ -273,15 +277,15 @@ func TestListAppSetsInNamespaceWithLabels(t *testing.T) {
 	testNamespace := "test-namespace"
 	appSetServer := newTestAppSetServer(t, newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet1"
-		appset.Namespace = testNamespace
+		appset.ObjectMeta.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
 	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet2"
-		appset.Namespace = testNamespace
+		appset.ObjectMeta.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value2"})
 	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet3"
-		appset.Namespace = testNamespace
+		appset.ObjectMeta.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value3"})
 	}))
 	appSetServer.enabledNamespaces = []string{testNamespace}
@@ -313,15 +317,15 @@ func TestListAppSetsWithoutNamespace(t *testing.T) {
 	testNamespace := "test-namespace"
 	appSetServer := newTestNamespacedAppSetServer(t, newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet1"
-		appset.Namespace = testNamespace
+		appset.ObjectMeta.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
 	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet2"
-		appset.Namespace = testNamespace
+		appset.ObjectMeta.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value2"})
 	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet3"
-		appset.Namespace = testNamespace
+		appset.ObjectMeta.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value3"})
 	}))
 	appSetServer.enabledNamespaces = []string{testNamespace}
@@ -361,7 +365,7 @@ func TestCreateAppSetTemplatedProject(t *testing.T) {
 func TestCreateAppSetWrongNamespace(t *testing.T) {
 	testAppSet := newTestAppSet()
 	appServer := newTestAppSetServer(t)
-	testAppSet.Namespace = "NOT-ALLOWED"
+	testAppSet.ObjectMeta.Namespace = "NOT-ALLOWED"
 	createReq := applicationset.ApplicationSetCreateRequest{
 		Applicationset: testAppSet,
 	}
@@ -503,25 +507,23 @@ func TestDeleteAppSet(t *testing.T) {
 
 func TestUpdateAppSet(t *testing.T) {
 	appSet := newTestAppSet(func(appset *appsv1.ApplicationSet) {
-		appset.Annotations = map[string]string{
+		appset.ObjectMeta.Annotations = map[string]string{
 			"annotation-key1": "annotation-value1",
 			"annotation-key2": "annotation-value2",
 		}
-		appset.Labels = map[string]string{
+		appset.ObjectMeta.Labels = map[string]string{
 			"label-key1": "label-value1",
 			"label-key2": "label-value2",
 		}
-		appset.Finalizers = []string{"finalizer"}
 	})
 
 	newAppSet := newTestAppSet(func(appset *appsv1.ApplicationSet) {
-		appset.Annotations = map[string]string{
+		appset.ObjectMeta.Annotations = map[string]string{
 			"annotation-key1": "annotation-value1-updated",
 		}
-		appset.Labels = map[string]string{
+		appset.ObjectMeta.Labels = map[string]string{
 			"label-key1": "label-value1-updated",
 		}
-		appset.Finalizers = []string{"finalizer-updated"}
 	})
 
 	t.Run("Update merge", func(t *testing.T) {
@@ -538,7 +540,6 @@ func TestUpdateAppSet(t *testing.T) {
 			"label-key1": "label-value1-updated",
 			"label-key2": "label-value2",
 		}, updated.Labels)
-		assert.Equal(t, []string{"finalizer-updated"}, updated.Finalizers)
 	})
 
 	t.Run("Update no merge", func(t *testing.T) {

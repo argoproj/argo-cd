@@ -12,21 +12,15 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// parseSemVerConstraint returns a semVer Constraint instance or panic if there is a parsing error with the provided constraint.
-func parseSemVerConstraint(constraintStr string) *semver.Constraints {
+// UserAgentUnaryServerInterceptor returns a UnaryServerInterceptor which enforces a minimum client
+// version in the user agent
+func UserAgentUnaryServerInterceptor(clientName, constraintStr string) grpc.UnaryServerInterceptor {
 	semVerConstraint, err := semver.NewConstraint(constraintStr)
 	if err != nil {
 		panic(err)
 	}
-	return semVerConstraint
-}
-
-// UserAgentUnaryServerInterceptor returns a UnaryServerInterceptor which enforces a minimum client
-// version in the user agent
-func UserAgentUnaryServerInterceptor(clientName, constraintStr string) grpc.UnaryServerInterceptor {
-	semVerConstraint := parseSemVerConstraint(constraintStr)
 	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-		if err := userAgentEnforcer(ctx, clientName, semVerConstraint); err != nil {
+		if err := userAgentEnforcer(ctx, clientName, constraintStr, semVerConstraint); err != nil {
 			return nil, err
 		}
 		return handler(ctx, req)
@@ -36,16 +30,19 @@ func UserAgentUnaryServerInterceptor(clientName, constraintStr string) grpc.Unar
 // UserAgentStreamServerInterceptor returns a StreamServerInterceptor which enforces a minimum client
 // version in the user agent
 func UserAgentStreamServerInterceptor(clientName, constraintStr string) grpc.StreamServerInterceptor {
-	semVerConstraint := parseSemVerConstraint(constraintStr)
+	semVerConstraint, err := semver.NewConstraint(constraintStr)
+	if err != nil {
+		panic(err)
+	}
 	return func(srv any, stream grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		if err := userAgentEnforcer(stream.Context(), clientName, semVerConstraint); err != nil {
+		if err := userAgentEnforcer(stream.Context(), clientName, constraintStr, semVerConstraint); err != nil {
 			return err
 		}
 		return handler(srv, stream)
 	}
 }
 
-func userAgentEnforcer(ctx context.Context, clientName string, semVerConstraint *semver.Constraints) error {
+func userAgentEnforcer(ctx context.Context, clientName, constraintStr string, semVerConstraint *semver.Constraints) error {
 	var userAgents []string
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
 		for _, ua := range md["user-agent"] {
@@ -55,7 +52,7 @@ func userAgentEnforcer(ctx context.Context, clientName string, semVerConstraint 
 		}
 	}
 	if isLegacyClient(userAgents) {
-		return status.Errorf(codes.FailedPrecondition, "unsatisfied client version constraint: %s", semVerConstraint)
+		return status.Errorf(codes.FailedPrecondition, "unsatisfied client version constraint: %s", constraintStr)
 	}
 
 	for _, userAgent := range userAgents {

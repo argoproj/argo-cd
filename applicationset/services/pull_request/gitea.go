@@ -14,12 +14,11 @@ type GiteaService struct {
 	client *gitea.Client
 	owner  string
 	repo   string
-	labels []string
 }
 
 var _ PullRequestService = (*GiteaService)(nil)
 
-func NewGiteaService(token, url, owner, repo string, labels []string, insecure bool) (PullRequestService, error) {
+func NewGiteaService(token, url, owner, repo string, insecure bool) (PullRequestService, error) {
 	if token == "" {
 		token = os.Getenv("GITEA_TOKEN")
 	}
@@ -43,7 +42,6 @@ func NewGiteaService(token, url, owner, repo string, labels []string, insecure b
 		client: client,
 		owner:  owner,
 		repo:   repo,
-		labels: labels,
 	}, nil
 }
 
@@ -58,9 +56,6 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 	}
 	list := []*PullRequest{}
 	for _, pr := range prs {
-		if !giteaContainLabels(g.labels, pr.Labels) {
-			continue
-		}
 		list = append(list, &PullRequest{
 			Number:       int(pr.Index),
 			Title:        pr.Title,
@@ -72,21 +67,6 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 		})
 	}
 	return list, nil
-}
-
-// containLabels returns true if gotLabels contains expectedLabels
-func giteaContainLabels(expectedLabels []string, gotLabels []*gitea.Label) bool {
-	gotLabelNamesMap := make(map[string]bool)
-	for i := 0; i < len(gotLabels); i++ {
-		gotLabelNamesMap[gotLabels[i].Name] = true
-	}
-	for _, expected := range expectedLabels {
-		v, ok := gotLabelNamesMap[expected]
-		if !v || !ok {
-			return false
-		}
-	}
-	return true
 }
 
 // Get the Gitea pull request label names.

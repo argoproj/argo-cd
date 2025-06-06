@@ -7,6 +7,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/argoproj/argo-cd/v3/util/settings"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -25,17 +27,21 @@ type ClusterGenerator struct {
 	ctx       context.Context
 	clientset kubernetes.Interface
 	// namespace is the Argo CD namespace
-	namespace string
+	namespace       string
+	settingsManager *settings.SettingsManager
 }
 
 var render = &utils.Render{}
 
 func NewClusterGenerator(ctx context.Context, c client.Client, clientset kubernetes.Interface, namespace string) Generator {
+	settingsManager := settings.NewSettingsManager(ctx, clientset, namespace)
+
 	g := &ClusterGenerator{
-		Client:    c,
-		ctx:       ctx,
-		clientset: clientset,
-		namespace: namespace,
+		Client:          c,
+		ctx:             ctx,
+		clientset:       clientset,
+		namespace:       namespace,
+		settingsManager: settingsManager,
 	}
 	return g
 }
@@ -53,11 +59,11 @@ func (g *ClusterGenerator) GetTemplate(appSetGenerator *argoappsetv1alpha1.Appli
 func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator, appSet *argoappsetv1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	logCtx := log.WithField("applicationset", appSet.GetName()).WithField("namespace", appSet.GetNamespace())
 	if appSetGenerator == nil {
-		return nil, ErrEmptyAppSetGenerator
+		return nil, EmptyAppSetGeneratorError
 	}
 
 	if appSetGenerator.Clusters == nil {
-		return nil, ErrEmptyAppSetGenerator
+		return nil, EmptyAppSetGeneratorError
 	}
 
 	// Do not include the local cluster in the cluster parameters IF there is a non-empty selector
@@ -133,20 +139,20 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 		if appSet.Spec.GoTemplate {
 			meta := map[string]any{}
 
-			if len(cluster.Annotations) > 0 {
-				meta["annotations"] = cluster.Annotations
+			if len(cluster.ObjectMeta.Annotations) > 0 {
+				meta["annotations"] = cluster.ObjectMeta.Annotations
 			}
-			if len(cluster.Labels) > 0 {
-				meta["labels"] = cluster.Labels
+			if len(cluster.ObjectMeta.Labels) > 0 {
+				meta["labels"] = cluster.ObjectMeta.Labels
 			}
 
 			params["metadata"] = meta
 		} else {
-			for key, value := range cluster.Annotations {
+			for key, value := range cluster.ObjectMeta.Annotations {
 				params["metadata.annotations."+key] = value
 			}
 
-			for key, value := range cluster.Labels {
+			for key, value := range cluster.ObjectMeta.Labels {
 				params["metadata.labels."+key] = value
 			}
 		}
@@ -182,7 +188,7 @@ func (g *ClusterGenerator) getSecretsByClusterName(log *log.Entry, appSetGenerat
 		return nil, fmt.Errorf("error converting label selector: %w", err)
 	}
 
-	if err := g.List(context.Background(), clusterSecretList, client.MatchingLabelsSelector{Selector: secretSelector}); err != nil {
+	if err := g.Client.List(context.Background(), clusterSecretList, client.MatchingLabelsSelector{Selector: secretSelector}); err != nil {
 		return nil, err
 	}
 	log.Debugf("clusters matching labels: %d", len(clusterSecretList.Items))

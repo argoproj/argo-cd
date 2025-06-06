@@ -10,6 +10,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/argoproj/argo-cd/v3/util/settings"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -24,18 +26,22 @@ var _ Generator = (*DuckTypeGenerator)(nil)
 
 // DuckTypeGenerator generates Applications for some or all clusters registered with ArgoCD.
 type DuckTypeGenerator struct {
-	ctx       context.Context
-	dynClient dynamic.Interface
-	clientset kubernetes.Interface
-	namespace string // namespace is the Argo CD namespace
+	ctx             context.Context
+	dynClient       dynamic.Interface
+	clientset       kubernetes.Interface
+	namespace       string // namespace is the Argo CD namespace
+	settingsManager *settings.SettingsManager
 }
 
 func NewDuckTypeGenerator(ctx context.Context, dynClient dynamic.Interface, clientset kubernetes.Interface, namespace string) Generator {
+	settingsManager := settings.NewSettingsManager(ctx, clientset, namespace)
+
 	g := &DuckTypeGenerator{
-		ctx:       ctx,
-		dynClient: dynClient,
-		clientset: clientset,
-		namespace: namespace,
+		ctx:             ctx,
+		dynClient:       dynClient,
+		clientset:       clientset,
+		namespace:       namespace,
+		settingsManager: settingsManager,
 	}
 	return g
 }
@@ -56,12 +62,12 @@ func (g *DuckTypeGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Appl
 
 func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
-		return nil, ErrEmptyAppSetGenerator
+		return nil, EmptyAppSetGeneratorError
 	}
 
 	// Not likely to happen
 	if appSetGenerator.ClusterDecisionResource == nil {
-		return nil, ErrEmptyAppSetGenerator
+		return nil, EmptyAppSetGeneratorError
 	}
 
 	// ListCluster from Argo CD's util/db package will include the local cluster in the list of clusters
@@ -91,13 +97,13 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 	// Validate the fields
 	if kind == "" || versionIdx < 1 {
 		log.Warningf("kind=%v, resourceName=%v, versionIdx=%v", kind, resourceName, versionIdx)
-		return nil, errors.New("there is a problem with the apiVersion, kind or resourceName provided")
+		return nil, errors.New("There is a problem with the apiVersion, kind or resourceName provided")
 	}
 
 	if (resourceName == "" && labelSelector.MatchLabels == nil && labelSelector.MatchExpressions == nil) ||
 		(resourceName != "" && (labelSelector.MatchExpressions != nil || labelSelector.MatchLabels != nil)) {
 		log.Warningf("You must choose either resourceName=%v, labelSelector.matchLabels=%v or labelSelect.matchExpressions=%v", resourceName, labelSelector.MatchLabels, labelSelector.MatchExpressions)
-		return nil, errors.New("there is a problem with the definition of the ClusterDecisionResource generator")
+		return nil, errors.New("There is a problem with the definition of the ClusterDecisionResource generator")
 	}
 
 	// Split up the apiVersion

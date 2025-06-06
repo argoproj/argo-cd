@@ -31,7 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/glob"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -303,7 +303,7 @@ func ValidateRepo(
 	if err != nil {
 		return nil, fmt.Errorf("error instantiating new repo server client: %w", err)
 	}
-	defer utilio.Close(conn)
+	defer io.Close(conn)
 
 	helmOptions, err := settingsMgr.GetHelmSettings()
 	if err != nil {
@@ -1013,7 +1013,6 @@ func GetDestinationCluster(ctx context.Context, destination argoappv1.Applicatio
 		}
 		return cluster, nil
 	}
-	// nolint:staticcheck // Error constant is very old, shouldn't lowercase the first letter.
 	return nil, errors.New(ErrDestinationMissing)
 }
 

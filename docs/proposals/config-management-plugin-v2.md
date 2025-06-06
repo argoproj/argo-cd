@@ -3,7 +3,7 @@ title: Config-Management-Plugin-Enhancement
 authors:
   - "@kshamajain99" # Authors' github accounts here.
 sponsors:
-  - TBD        # List all interested parties here.
+  - TBD        # List all intereste parties here.
 reviewers:
   - TBD
 approvers:
