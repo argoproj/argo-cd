@@ -39,8 +39,7 @@ annotation to the application.
 
 ## Disable Kubectl Validation
 
-For a certain class of objects, it is necessary to `kubectl apply` them using the `--validate=false` flag. Examples of this are Kubernetes types which uses `RawExtension`, such as [ServiceCatalog](https://github.com/kubernetes-incubator/service-catalog/blob/master/pkg/apis/servicecatalog/v1beta1/types.go#L497). You can do using this annotation:
-
+For a certain class of objects, it is necessary to `kubectl apply` them using the `--validate=false` flag. Examples of this are Kubernetes types which uses `RawExtension`, such as [ServiceCatalog](https://github.com/kubernetes-incubator/service-catalog/blob/master/pkg/apis/servicecatalog/v1beta1/types.go#L497). You can do that using this annotation:
 
 ```yaml
 metadata:
@@ -82,9 +81,8 @@ spec:
 
 ## No Resource Deletion
 
-For certain resources you might want to retain them even after your application is deleted, for eg. Persistent Volume Claims.
+For certain resources you might want to retain them even after your application is deleted, e.g. for Persistent Volume Claims.
 In such situations you can stop those resources from being cleaned up during app deletion by using the following annotation:
-
 
 ```yaml
 metadata:
@@ -110,9 +108,9 @@ annotation to the application.
 
 Currently, when syncing using auto sync Argo CD applies every object in the application.
 For applications containing thousands of objects this takes quite a long time and puts undue pressure on the api server.
-Turning on selective sync option which will sync only out-of-sync resources.
+Turning on the selective sync option will sync only out-of-sync resources.
 
-You can add this option by following ways
+You can add this option in the following ways:
 
 1) Add `ApplyOutOfSyncOnly=true` in manifest
 
@@ -137,9 +135,9 @@ $ argocd app set guestbook --sync-option ApplyOutOfSyncOnly=true
 
 ## Resources Prune Deletion Propagation Policy
 
-By default, extraneous resources get pruned using foreground deletion policy. The propagation policy can be controlled
-using `PrunePropagationPolicy` sync option. Supported policies are background, foreground and orphan.
-More information about those policies could be found [here](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#controlling-how-the-garbage-collector-deletes-dependents).
+By default, extraneous resources get pruned using the foreground deletion policy. The propagation policy can be controlled
+using the `PrunePropagationPolicy` sync option. Supported policies are background, foreground, and orphan.
+More information about those policies can be found [here](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#controlling-how-the-garbage-collector-deletes-dependents).
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -173,8 +171,8 @@ metadata:
 
 ## Replace Resource Instead Of Applying Changes
 
-By default, Argo CD executes `kubectl apply` operation to apply the configuration stored in Git. In some cases
-`kubectl apply` is not suitable. For example, resource spec might be too big and won't fit into
+By default, Argo CD executes the `kubectl apply` operation to apply the configuration stored in Git. In some cases
+`kubectl apply` is not suitable. For example, a resource spec might be too large and won't fit into the
 `kubectl.kubernetes.io/last-applied-configuration` annotation that is added by `kubectl apply`. In such cases you
 might use `Replace=true` sync option:
 
@@ -188,7 +186,7 @@ spec:
     - Replace=true
 ```
 
-If the `Replace=true` sync option is set the Argo CD will use `kubectl replace` or `kubectl create` command to apply changes.
+If the `Replace=true` sync option is set, Argo CD will use `kubectl replace` or `kubectl create` command to apply changes.
 
 !!! warning
       During the sync process, the resources will be synchronized using the 'kubectl replace/create' command.
@@ -203,7 +201,7 @@ metadata:
 
 ## Force Sync
 
-For certain resources you might want to delete and recreate. e.g. job resources that should run every time when syncing.
+For certain resources you might want to delete and recreate, e.g. job resources that should run every time when syncing.
 
 !!! warning
       During the sync process, the resources will be synchronized using the 'kubectl delete/create' command.
@@ -221,8 +219,8 @@ metadata:
 This option enables Kubernetes
 [Server-Side Apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/).
 
-By default, Argo CD executes `kubectl apply` operation to apply the configuration stored in Git.
-This is a client side operation that relies on `kubectl.kubernetes.io/last-applied-configuration`
+By default, Argo CD executes the `kubectl apply` operation to apply the configuration stored in Git.
+This is a client side operation that relies on the `kubectl.kubernetes.io/last-applied-configuration`
 annotation to store the previous resource state.
 
 However, there are some cases where you want to use `kubectl apply --server-side` over `kubectl apply`:
@@ -233,7 +231,7 @@ However, there are some cases where you want to use `kubectl apply --server-side
 - Use a more declarative approach, which tracks a user's field management, rather than a user's last
   applied state.
 
-If `ServerSideApply=true` sync option is set, Argo CD will use `kubectl apply --server-side`
+If the `ServerSideApply=true` sync option is set, Argo CD will use the `kubectl apply --server-side`
 command to apply changes.
 
 It can be enabled at the application level like in the example below:
@@ -293,7 +291,7 @@ spec:
     - Validate=false
 ```
 
-In this case, Argo CD will use `kubectl apply --server-side --validate=false` command
+In this case, Argo CD will use the `kubectl apply --server-side --validate=false` command
 to apply changes.
 
 Note: [`Replace=true`](#replace-resource-instead-of-applying-changes) takes precedence over `ServerSideApply=true`.
@@ -311,7 +309,7 @@ spec:
     - FailOnSharedResource=true
 ```
 
-## Respect ignore difference configs
+## Respect ignore differences configs
 
 This sync option is used to enable Argo CD to consider the configurations made in the `spec.ignoreDifferences` attribute also during the sync stage. By default, Argo CD uses the `ignoreDifferences` config just for computing the diff between the live and desired state which defines if the application is synced or not. However during the sync stage, the desired state is applied as-is. The patch is calculated using a 3-way-merge between the live state the desired state and the `last-applied-configuration` annotation. This sometimes leads to an undesired results. This behavior can be changed by setting the `RespectIgnoreDifferences=true` sync option like in the example below:
 
