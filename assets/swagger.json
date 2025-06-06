@@ -6800,7 +6800,7 @@
         },
         "status": {
           "type": "string",
-          "title": "Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)"
+          "title": "Status contains the AppSet's perceived status of the managed Application resource"
         },
         "step": {
           "type": "string",
