@@ -6,9 +6,6 @@ Below you can find details about each available Sync Option:
 
 ## No Prune Resources
 
-!!! note
-    available in Argo CD starting from version 1.1
-
 You may wish to prevent an object from being pruned:
 
 ```yaml
