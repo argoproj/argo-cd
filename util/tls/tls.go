@@ -192,6 +192,11 @@ func publicKey(priv any) any {
 func pemBlockForKey(priv any) *pem.Block {
 	switch k := priv.(type) {
 	case *rsa.PrivateKey:
+		// In Go 1.24+, MarshalPKCS1PrivateKey calls Precompute() which can panic
+		// if the key is invalid. Validate the key first.
+		if k == nil || k.Validate() != nil {
+			return nil
+		}
 		return &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(k)}
 	case *ecdsa.PrivateKey:
 		b, err := x509.MarshalECPrivateKey(k)
@@ -297,7 +302,11 @@ func generatePEM(opts CertOptions) ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 	certpem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
-	keypem := pem.EncodeToMemory(pemBlockForKey(privateKey))
+	keyBlock := pemBlockForKey(privateKey)
+	if keyBlock == nil {
+		return nil, nil, errors.New("failed to encode private key")
+	}
+	keypem := pem.EncodeToMemory(keyBlock)
 	return certpem, keypem, nil
 }
 
@@ -320,7 +329,11 @@ func EncodeX509KeyPair(cert tls.Certificate) ([]byte, []byte) {
 	for _, certtmp := range cert.Certificate {
 		certpem = append(certpem, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certtmp})...)
 	}
-	keypem := pem.EncodeToMemory(pemBlockForKey(cert.PrivateKey))
+	keyBlock := pemBlockForKey(cert.PrivateKey)
+	if keyBlock == nil {
+		return certpem, []byte{}
+	}
+	keypem := pem.EncodeToMemory(keyBlock)
 	return certpem, keypem
 }
 
