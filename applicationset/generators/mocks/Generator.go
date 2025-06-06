@@ -73,32 +73,16 @@ type Generator_GenerateParams_Call struct {
 }
 
 // GenerateParams is a helper method to define mock.On call
-//   - appSetGenerator *v1alpha1.ApplicationSetGenerator
-//   - applicationSetInfo *v1alpha1.ApplicationSet
-//   - client1 client.Client
+//   - appSetGenerator
+//   - applicationSetInfo
+//   - client1
 func (_e *Generator_Expecter) GenerateParams(appSetGenerator interface{}, applicationSetInfo interface{}, client1 interface{}) *Generator_GenerateParams_Call {
 	return &Generator_GenerateParams_Call{Call: _e.mock.On("GenerateParams", appSetGenerator, applicationSetInfo, client1)}
 }
 
 func (_c *Generator_GenerateParams_Call) Run(run func(appSetGenerator *v1alpha1.ApplicationSetGenerator, applicationSetInfo *v1alpha1.ApplicationSet, client1 client.Client)) *Generator_GenerateParams_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 *v1alpha1.ApplicationSetGenerator
-		if args[0] != nil {
-			arg0 = args[0].(*v1alpha1.ApplicationSetGenerator)
-		}
-		var arg1 *v1alpha1.ApplicationSet
-		if args[1] != nil {
-			arg1 = args[1].(*v1alpha1.ApplicationSet)
-		}
-		var arg2 client.Client
-		if args[2] != nil {
-			arg2 = args[2].(client.Client)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
+		run(args[0].(*v1alpha1.ApplicationSetGenerator), args[1].(*v1alpha1.ApplicationSet), args[2].(client.Client))
 	})
 	return _c
 }
@@ -136,20 +120,14 @@ type Generator_GetRequeueAfter_Call struct {
 }
 
 // GetRequeueAfter is a helper method to define mock.On call
-//   - appSetGenerator *v1alpha1.ApplicationSetGenerator
+//   - appSetGenerator
 func (_e *Generator_Expecter) GetRequeueAfter(appSetGenerator interface{}) *Generator_GetRequeueAfter_Call {
 	return &Generator_GetRequeueAfter_Call{Call: _e.mock.On("GetRequeueAfter", appSetGenerator)}
 }
 
 func (_c *Generator_GetRequeueAfter_Call) Run(run func(appSetGenerator *v1alpha1.ApplicationSetGenerator)) *Generator_GetRequeueAfter_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 *v1alpha1.ApplicationSetGenerator
-		if args[0] != nil {
-			arg0 = args[0].(*v1alpha1.ApplicationSetGenerator)
-		}
-		run(
-			arg0,
-		)
+		run(args[0].(*v1alpha1.ApplicationSetGenerator))
 	})
 	return _c
 }
@@ -189,20 +167,14 @@ type Generator_GetTemplate_Call struct {
 }
 
 // GetTemplate is a helper method to define mock.On call
-//   - appSetGenerator *v1alpha1.ApplicationSetGenerator
+//   - appSetGenerator
 func (_e *Generator_Expecter) GetTemplate(appSetGenerator interface{}) *Generator_GetTemplate_Call {
 	return &Generator_GetTemplate_Call{Call: _e.mock.On("GetTemplate", appSetGenerator)}
 }
 
 func (_c *Generator_GetTemplate_Call) Run(run func(appSetGenerator *v1alpha1.ApplicationSetGenerator)) *Generator_GetTemplate_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 *v1alpha1.ApplicationSetGenerator
-		if args[0] != nil {
-			arg0 = args[0].(*v1alpha1.ApplicationSetGenerator)
-		}
-		run(
-			arg0,
-		)
+		run(args[0].(*v1alpha1.ApplicationSetGenerator))
 	})
 	return _c
 }

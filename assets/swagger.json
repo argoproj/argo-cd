@@ -4217,6 +4217,51 @@
         }
       }
     },
+    "/api/v1/stream/applicationsets": {
+      "get": {
+        "tags": [
+          "ApplicationSetService"
+        ],
+        "operationId": "ApplicationSetService_Watch",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "The name of the ApplicationSet.",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "The application set namespace. Default empty is argocd control plane namespace.",
+            "name": "appsetNamespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "title": "Stream result of v1alpha1ApplicationSetWatchEvent",
+              "properties": {
+                "error": {
+                  "$ref": "#/definitions/runtimeStreamError"
+                },
+                "result": {
+                  "$ref": "#/definitions/v1alpha1ApplicationSetWatchEvent"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/write-repocreds": {
       "get": {
         "tags": [
@@ -7259,6 +7304,18 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceNode"
           }
+        }
+      }
+    },
+    "v1alpha1ApplicationSetWatchEvent": {
+      "description": "ApplicationSetWatchEvent contains information about applicationset change.",
+      "type": "object",
+      "properties": {
+        "applicationset": {
+          "$ref": "#/definitions/v1alpha1ApplicationSet"
+        },
+        "type": {
+          "type": "string"
         }
       }
     },
