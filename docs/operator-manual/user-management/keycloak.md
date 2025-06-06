@@ -221,6 +221,6 @@ If ArgoCD auth returns 401 or when the login attempt leads to the loop, then res
 kubectl rollout restart deployment argocd-server -n argocd
 ```
 
-If you migrate from Client authentication to PKCE, you can have the following error `invalid_request: Missing parameter: code_challenge_method`.
+If you migrate from Client authentification to PKCE, you can have the following error `invalid_request: Missing parameter: code_challenge_method`.
 
 It could be a redirect issue, try in private browsing or clean browser cookies.

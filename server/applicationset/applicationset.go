@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/pkg/v2/sync"
+	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -41,6 +41,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/argo-cd/v3/util/session"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 type Server struct {
@@ -54,7 +55,9 @@ type Server struct {
 	appclientset             appclientset.Interface
 	appsetInformer           cache.SharedIndexInformer
 	appsetLister             applisters.ApplicationSetLister
+	projLister               applisters.AppProjectNamespaceLister
 	auditLogger              *argo.AuditLogger
+	settings                 *settings.SettingsManager
 	projectLock              sync.KeyLock
 	enabledNamespaces        []string
 	GitSubmoduleEnabled      bool
@@ -75,6 +78,8 @@ func NewServer(
 	appclientset appclientset.Interface,
 	appsetInformer cache.SharedIndexInformer,
 	appsetLister applisters.ApplicationSetLister,
+	projLister applisters.AppProjectNamespaceLister,
+	settings *settings.SettingsManager,
 	namespace string,
 	projectLock sync.KeyLock,
 	enabledNamespaces []string,
@@ -96,8 +101,10 @@ func NewServer(
 		appclientset:             appclientset,
 		appsetInformer:           appsetInformer,
 		appsetLister:             appsetLister,
+		projLister:               projLister,
+		settings:                 settings,
 		projectLock:              projectLock,
-		auditLogger:              argo.NewAuditLogger(kubeclientset, "argocd-server", enableK8sEvent),
+		auditLogger:              argo.NewAuditLogger(namespace, kubeclientset, "argocd-server", enableK8sEvent),
 		enabledNamespaces:        enabledNamespaces,
 		GitSubmoduleEnabled:      gitSubmoduleEnabled,
 		EnableNewGitFileGlobbing: enableNewGitFileGlobbing,
@@ -291,7 +298,7 @@ func (s *Server) updateAppSet(ctx context.Context, appset *v1alpha1.ApplicationS
 			appset.Labels = newAppset.Labels
 			appset.Annotations = newAppset.Annotations
 		}
-		appset.Finalizers = newAppset.Finalizers
+
 		res, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(s.ns).Update(ctx, appset, metav1.UpdateOptions{})
 		if err == nil {
 			s.logAppSetEvent(ctx, appset, argo.EventReasonResourceUpdated, "updated ApplicationSets spec")

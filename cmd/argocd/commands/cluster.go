@@ -27,7 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/clusterauth"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/text/label"
 )
 
@@ -162,7 +162,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			errors.CheckError(err)
 
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 			if clusterOpts.Name != "" {
 				contextName = clusterOpts.Name
 			}
@@ -177,7 +177,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 					endpoint = clst.Server
 				}
 				clst.Server = endpoint
-				clst.Config.CAData = caData
+				clst.Config.TLSClientConfig.CAData = caData
 			}
 
 			if clusterOpts.Shard >= 0 {
@@ -215,7 +215,7 @@ func getRestConfig(pathOpts *clientcmd.PathOptions, ctxName string) (*rest.Confi
 
 	clstContext := config.Contexts[ctxName]
 	if clstContext == nil {
-		return nil, fmt.Errorf("context %s does not exist in kubeconfig", ctxName)
+		return nil, fmt.Errorf("Context %s does not exist in kubeconfig", ctxName)
 	}
 
 	overrides := clientcmd.ConfigOverrides{
@@ -254,7 +254,7 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			// name of the cluster whose fields have to be updated.
 			clusterName = args[0]
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 			// checks the fields that needs to be updated
 			updatedFields := checkFieldsToUpdate(clusterOptions, labels, annotations)
 			namespaces := clusterOptions.Namespaces
@@ -336,7 +336,7 @@ argocd cluster get in-cluster`,
 				os.Exit(1)
 			}
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 			clusters := make([]argoappv1.Cluster, 0)
 			for _, clusterSelector := range args {
 				clst, err := clusterIf.Get(ctx, getQueryBySelector(clusterSelector))
@@ -384,8 +384,8 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 		fmt.Printf("  Server Version:        %s\n", cluster.ServerVersion)
 		fmt.Printf("  Namespaces:        	 %s\n", formatNamespaces(cluster))
 		fmt.Printf("\nTLS configuration\n\n")
-		fmt.Printf("  Client cert:           %v\n", string(cluster.Config.CertData) != "")
-		fmt.Printf("  Cert validation:       %v\n", !cluster.Config.Insecure)
+		fmt.Printf("  Client cert:           %v\n", string(cluster.Config.TLSClientConfig.CertData) != "")
+		fmt.Printf("  Cert validation:       %v\n", !cluster.Config.TLSClientConfig.Insecure)
 		fmt.Printf("\nAuthentication\n\n")
 		fmt.Printf("  Basic authentication:  %v\n", cluster.Config.Username != "")
 		fmt.Printf("  oAuth authentication:  %v\n", cluster.Config.BearerToken != "")
@@ -412,7 +412,7 @@ argocd cluster rm cluster-name`,
 				os.Exit(1)
 			}
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 			numOfClusters := len(args)
 			var isConfirmAll bool
 
@@ -510,7 +510,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			ctx := c.Context()
 
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 			clusters, err := clusterIf.List(ctx, &clusterpkg.ClusterQuery{})
 			errors.CheckError(err)
 			switch output {
@@ -562,7 +562,7 @@ argocd cluster rotate-auth cluster-name`,
 				os.Exit(1)
 			}
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 
 			cluster := args[0]
 			clusterQuery := getQueryBySelector(cluster)

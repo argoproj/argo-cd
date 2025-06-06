@@ -17,6 +17,7 @@ import (
 
 // Service is the service that handles commit requests.
 type Service struct {
+	gitCredsStore     git.CredsStore
 	metricsServer     *metrics.Server
 	repoClientFactory RepoClientFactory
 }
@@ -24,6 +25,7 @@ type Service struct {
 // NewService returns a new instance of the commit service.
 func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *Service {
 	return &Service{
+		gitCredsStore:     gitCredsStore,
 		metricsServer:     metricsServer,
 		repoClientFactory: NewRepoClientFactory(gitCredsStore, metricsServer),
 	}

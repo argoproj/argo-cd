@@ -35,7 +35,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
-var ErrInvalidRedirectURL = errors.New("invalid return URL")
+var InvalidRedirectURLError = errors.New("invalid return URL")
 
 const (
 	GrantTypeAuthorizationCode  = "authorization_code"
@@ -68,6 +68,8 @@ type ClientApp struct {
 	redirectURI string
 	// URL of the issuer (e.g. https://argocd.example.com/api/dex)
 	issuerURL string
+	// the path where the issuer providers user information (e.g /user-info for okta)
+	userInfoPath string
 	// The URL endpoint at which the ArgoCD server is accessed.
 	baseHRef string
 	// client is the HTTP client which is used to query the IDp
@@ -120,6 +122,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 		useAzureWorkloadIdentity: settings.UseAzureWorkloadIdentity(),
 		redirectURI:              redirectURL,
 		issuerURL:                settings.IssuerURL(),
+		userInfoPath:             settings.UserInfoPath(),
 		baseHRef:                 baseHRef,
 		encryptionKey:            encryptionKey,
 		clientCache:              cacheClient,
@@ -235,7 +238,7 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 				sanitizedURL = sanitizedURL[:100]
 			}
 			log.Warnf("Failed to verify app state - got invalid redirectURL %q", sanitizedURL)
-			return "", fmt.Errorf("failed to verify app state: %w", ErrInvalidRedirectURL)
+			return "", fmt.Errorf("failed to verify app state: %w", InvalidRedirectURLError)
 		}
 		redirectURL = parts[1]
 	}

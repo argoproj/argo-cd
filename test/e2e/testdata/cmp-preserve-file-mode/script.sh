@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 cat << EOF
 apiVersion: v1
 kind: ConfigMap

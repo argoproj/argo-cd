@@ -5,11 +5,14 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
 // this implements the "given" part of given/when/then
 type Context struct {
-	t           *testing.T
+	t *testing.T
+	// seconds
+	timeout     int
 	name        string
 	project     string
 	server      string
@@ -26,7 +29,10 @@ func Given(t *testing.T) *Context {
 
 func GivenWithSameState(t *testing.T) *Context {
 	t.Helper()
-	return &Context{t: t, name: fixture.Name(), project: "default"}
+	// ARGOCE_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
+	// for any context.
+	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 10, 0, 180)
+	return &Context{t: t, name: fixture.Name(), timeout: timeout, project: "default"}
 }
 
 func (c *Context) GetName() string {

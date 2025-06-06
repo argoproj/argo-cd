@@ -33,22 +33,19 @@ exports[`ComparisonStatusIcon.Synced 1`] = `
 `;
 
 exports[`ComparisonStatusIcon.Unknown 1`] = `
-<svg
-  className="icon spin"
-  qe-id="utils-sync-status-title"
-  style={
-    {
-      "color": "#CCD6DD",
+[
+  <i
+    className="fa fa-circle-notch fa-spin"
+    qe-id="utils-sync-status-title"
+    style={
+      {
+        "color": "#CCD6DD",
+      }
     }
-  }
-  viewBox="0 0 512 512"
-  xmlns="http://www.w3.org/2000/svg"
->
-  <path
-    d="M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z"
-    fill="#CCD6DD"
-  />
-</svg>
+    title="Unknown"
+  />,
+  " ",
+]
 `;
 
 exports[`HealthStatusIcon.Degraded 1`] = `
@@ -91,22 +88,16 @@ exports[`HealthStatusIcon.Missing 1`] = `
 `;
 
 exports[`HealthStatusIcon.Progressing 1`] = `
-<svg
-  className="icon spin"
+<i
+  className="fa fa fa-circle-notch fa-spin utils-health-status-icon"
   qe-id="utils-health-status-title"
   style={
     {
       "color": "#0DADEA",
     }
   }
-  viewBox="0 0 512 512"
-  xmlns="http://www.w3.org/2000/svg"
->
-  <path
-    d="M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z"
-    fill="#0DADEA"
-  />
-</svg>
+  title="Progressing"
+/>
 `;
 
 exports[`HealthStatusIcon.Suspended 1`] = `
@@ -137,22 +128,16 @@ exports[`HealthStatusIcon.Unknown 1`] = `
 
 exports[`OperationState.Deleting 1`] = `
 [
-  <svg
-    className="icon spin"
+  <i
+    className="fa fa-circle-notch fa-spin"
     qe-id="utils-operations-status-title"
     style={
       {
         "color": "#0DADEA",
       }
     }
-    viewBox="0 0 512 512"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z"
-      fill="#0DADEA"
-    />
-  </svg>,
+    title="Deleting"
+  />,
   " ",
   "Deleting",
 ]
@@ -211,22 +196,16 @@ exports[`OperationState.Sync failed 1`] = `
 
 exports[`OperationState.Syncing 1`] = `
 [
-  <svg
-    className="icon spin"
+  <i
+    className="fa fa-circle-notch fa-spin"
     qe-id="utils-operations-status-title"
     style={
       {
         "color": "#0DADEA",
       }
     }
-    viewBox="0 0 512 512"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z"
-      fill="#0DADEA"
-    />
-  </svg>,
+    title="Syncing"
+  />,
   " ",
   "Syncing",
 ]
@@ -234,22 +213,16 @@ exports[`OperationState.Syncing 1`] = `
 
 exports[`OperationState.Unknown 1`] = `
 [
-  <svg
-    className="icon spin"
+  <i
+    className="fa fa-circle-notch fa-spin"
     qe-id="utils-operations-status-title"
     style={
       {
         "color": "#0DADEA",
       }
     }
-    viewBox="0 0 512 512"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z"
-      fill="#0DADEA"
-    />
-  </svg>,
+    title="Unknown"
+  />,
   " ",
   "Unknown",
 ]
@@ -282,22 +255,15 @@ exports[`ResourceResultIcon.Hook.Failed 1`] = `
 `;
 
 exports[`ResourceResultIcon.Hook.Running 1`] = `
-<svg
-  className="icon spin"
-  qe-id="utils-resource-result-icon"
+<i
+  className="fa fa-circle-notch fa-spin"
   style={
     {
       "color": "#0DADEA",
     }
   }
-  viewBox="0 0 512 512"
-  xmlns="http://www.w3.org/2000/svg"
->
-  <path
-    d="M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z"
-    fill="#0DADEA"
-  />
-</svg>
+  title="Running: my-message"
+/>
 `;
 
 exports[`ResourceResultIcon.Hook.Succeeded 1`] = `
@@ -312,22 +278,14 @@ exports[`ResourceResultIcon.Hook.Succeeded 1`] = `
 `;
 
 exports[`ResourceResultIcon.Hook.Terminating 1`] = `
-<svg
-  className="icon spin"
-  qe-id="utils-resource-result-icon"
+<i
+  className="fa fa-circle-notch fa-spin"
   style={
     {
       "color": "#DE303D",
     }
   }
-  viewBox="0 0 512 512"
-  xmlns="http://www.w3.org/2000/svg"
->
-  <path
-    d="M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z"
-    fill="#DE303D"
-  />
-</svg>
+/>
 `;
 
 exports[`ResourceResultIcon.Pruned 1`] = `

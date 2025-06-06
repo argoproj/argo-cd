@@ -411,10 +411,8 @@ func TestValidateRepo(t *testing.T) {
 
 	db.On("GetRepository", t.Context(), app.Spec.Source.RepoURL, "").Return(repo, nil)
 	db.On("ListHelmRepositories", t.Context()).Return(helmRepos, nil)
-	db.On("ListOCIRepositories", t.Context()).Return([]*argoappv1.Repository{}, nil)
 	db.On("GetCluster", t.Context(), app.Spec.Destination.Server).Return(cluster, nil)
 	db.On("GetAllHelmRepositoryCredentials", t.Context()).Return(nil, nil)
-	db.On("GetAllOCIRepositoryCredentials", t.Context()).Return([]*argoappv1.RepoCreds{}, nil)
 
 	var receivedRequest *apiclient.ManifestRequest
 

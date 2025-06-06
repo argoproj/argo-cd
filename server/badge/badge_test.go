@@ -51,7 +51,7 @@ func testApp() *v1alpha1.Application {
 		ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "default"},
 		Status: v1alpha1.ApplicationStatus{
 			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
-			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+			Health: v1alpha1.HealthStatus{Status: health.HealthStatusHealthy},
 			OperationState: &v1alpha1.OperationState{
 				SyncResult: &v1alpha1.SyncOperationResult{
 					Revision: "aa29b85",
@@ -66,7 +66,7 @@ func testApp2() *v1alpha1.Application {
 		ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "argocd-test"},
 		Status: v1alpha1.ApplicationStatus{
 			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
-			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+			Health: v1alpha1.HealthStatus{Status: health.HealthStatusHealthy},
 			OperationState: &v1alpha1.OperationState{
 				SyncResult: &v1alpha1.SyncOperationResult{
 					Revision: "aa29b85",
@@ -81,7 +81,7 @@ func testApp3() *v1alpha1.Application {
 		ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "argocd-test"},
 		Status: v1alpha1.ApplicationStatus{
 			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
-			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+			Health: v1alpha1.HealthStatus{Status: health.HealthStatusHealthy},
 			OperationState: &v1alpha1.OperationState{
 				SyncResult: &v1alpha1.SyncOperationResult{
 					Revision: "aa29b85ababababababab",
@@ -194,8 +194,8 @@ func TestHandlerFeatureProjectIsEnabled(t *testing.T) {
 	for _, tt := range projectTests {
 		argoCDCm := argoCDCm()
 		argoCDSecret := argoCDSecret()
-		argoCDCm.Namespace = tt.namespace
-		argoCDSecret.Namespace = tt.namespace
+		argoCDCm.ObjectMeta.Namespace = tt.namespace
+		argoCDSecret.ObjectMeta.Namespace = tt.namespace
 
 		settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm, argoCDSecret), tt.namespace)
 		objects := []runtime.Object{testProject()}
@@ -258,7 +258,7 @@ func TestHandlerNamespacesIsEnabled(t *testing.T) {
 		assert.Equal(t, toRGBString(Purple), leftRectColorPattern.FindStringSubmatch(response)[1])
 		assert.Equal(t, toRGBString(Purple), rightRectColorPattern.FindStringSubmatch(response)[1])
 		assert.Equal(t, "Not Found", leftTextPattern.FindStringSubmatch(response)[1])
-		assert.Empty(t, rightTextPattern.FindStringSubmatch(response)[1])
+		assert.Equal(t, "", rightTextPattern.FindStringSubmatch(response)[1])
 	})
 
 	t.Run("Request with illegal namespace", func(t *testing.T) {
@@ -343,7 +343,7 @@ func createApplicationFeatureProjectIsEnabled(healthStatus health.HealthStatusCo
 		ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: namespace},
 		Status: v1alpha1.ApplicationStatus{
 			Sync:   v1alpha1.SyncStatus{Status: syncStatus},
-			Health: v1alpha1.AppHealthStatus{Status: healthStatus},
+			Health: v1alpha1.HealthStatus{Status: healthStatus},
 			OperationState: &v1alpha1.OperationState{
 				SyncResult: &v1alpha1.SyncOperationResult{},
 			},
