@@ -90,7 +90,6 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 	cacheDir := utilio.NewRandomizedTempPaths(t.TempDir())
 
 	type fields struct {
-		creds             Creds
 		repoURL           string
 		tagsFunc          func(context.Context, string) (tags []string, err error)
 		allowedMediaTypes []string
@@ -255,7 +254,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				disableManifestMaxExtractedSize: false,
 				postValidationFunc: func(sha string, _ string, _ Client, fields fields, args args) {
 					store := memory.New()
-					c := newClientWithLock(fields.repoURL, fields.creds, globalLock, store, fields.tagsFunc, func(_ context.Context) error {
+					c := newClientWithLock(fields.repoURL, globalLock, store, fields.tagsFunc, func(_ context.Context) error {
 						return nil
 					}, fields.allowedMediaTypes, WithImagePaths(cacheDir), WithManifestMaxExtractedSize(args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(args.disableManifestMaxExtractedSize))
 					_, gotCloser, err := c.Extract(t.Context(), sha)
@@ -271,7 +270,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 			store := memory.New()
 			sha := tt.args.digestFunc(store)
 
-			c := newClientWithLock(tt.fields.repoURL, tt.fields.creds, globalLock, store, tt.fields.tagsFunc, func(_ context.Context) error {
+			c := newClientWithLock(tt.fields.repoURL, globalLock, store, tt.fields.tagsFunc, func(_ context.Context) error {
 				return nil
 			}, tt.fields.allowedMediaTypes, WithImagePaths(cacheDir), WithManifestMaxExtractedSize(tt.args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(tt.args.disableManifestMaxExtractedSize))
 			path, gotCloser, err := c.Extract(t.Context(), sha)
@@ -316,7 +315,6 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 	require.NoError(t, store.Tag(t.Context(), descriptor, descriptor.Digest.String()))
 
 	type fields struct {
-		creds             Creds
 		repoURL           string
 		repo              oras.ReadOnlyTarget
 		tagsFunc          func(context.Context, string) (tags []string, err error)
@@ -422,7 +420,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := newClientWithLock(tt.fields.repoURL, tt.fields.creds, globalLock, tt.fields.repo, tt.fields.tagsFunc, func(_ context.Context) error {
+			c := newClientWithLock(tt.fields.repoURL, globalLock, tt.fields.repo, tt.fields.tagsFunc, func(_ context.Context) error {
 				return nil
 			}, tt.fields.allowedMediaTypes)
 			got, err := c.ResolveRevision(t.Context(), tt.revision, tt.noCache)

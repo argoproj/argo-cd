@@ -165,7 +165,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 	}
 	reg.PlainHTTP = repo.PlainHTTP
 	reg.Client = repo.Client
-	return newClientWithLock(ociRepo, creds, repoLock, repo, func(ctx context.Context, last string) ([]string, error) {
+	return newClientWithLock(ociRepo, repoLock, repo, func(ctx context.Context, last string) ([]string, error) {
 		var t []string
 
 		err := repo.Tags(ctx, last, func(tags []string) error {
@@ -177,9 +177,8 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 	}, reg.Ping, layerMediaTypes, opts...), nil
 }
 
-func newClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, repo oras.ReadOnlyTarget, tagsFunc func(context.Context, string) ([]string, error), pingFunc func(ctx context.Context) error, layerMediaTypes []string, opts ...ClientOpts) Client {
+func newClientWithLock(repoURL string, repoLock sync.KeyLock, repo oras.ReadOnlyTarget, tagsFunc func(context.Context, string) ([]string, error), pingFunc func(ctx context.Context) error, layerMediaTypes []string, opts ...ClientOpts) Client {
 	c := &nativeOCIClient{
-		creds:             creds,
 		repoURL:           repoURL,
 		repoLock:          repoLock,
 		repo:              repo,
@@ -195,7 +194,6 @@ func newClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, repo 
 
 // nativeOCIClient implements Client interface using oras-go
 type nativeOCIClient struct {
-	creds                           Creds
 	repoURL                         string
 	repo                            oras.ReadOnlyTarget
 	tagsFunc                        func(context.Context, string) ([]string, error)
@@ -253,7 +251,7 @@ func (c *nativeOCIClient) Extract(ctx context.Context, digest string) (string, u
 		maxSize = math.MaxInt64
 	}
 
-	manifestsDir, err := extractContentToManifestsDir(ctx, cachedPath, digest, maxSize, c.allowedMediaTypes)
+	manifestsDir, err := extractContentToManifestsDir(ctx, cachedPath, digest, maxSize)
 	if err != nil {
 		return manifestsDir, nil, fmt.Errorf("cannot extract contents of oci image with revision %s: %w", digest, err)
 	}
@@ -446,7 +444,7 @@ func saveCompressedImageToPath(ctx context.Context, digest string, repo oras.Rea
 
 // extractContentToManifestsDir looks up a locally stored OCI image, and extracts the embedded compressed layer which contains
 // K8s manifests to a temporary directory
-func extractContentToManifestsDir(ctx context.Context, cachedPath, digest string, maxSize int64, allowedMediaTypes []string) (string, error) {
+func extractContentToManifestsDir(ctx context.Context, cachedPath, digest string, maxSize int64) (string, error) {
 	manifestsDir, err := files.CreateTempDir(os.TempDir())
 	if err != nil {
 		return manifestsDir, err
@@ -463,7 +461,7 @@ func extractContentToManifestsDir(ctx context.Context, cachedPath, digest string
 	}
 	defer os.RemoveAll(tempDir)
 
-	fs, err := newCompressedLayerFileStore(manifestsDir, tempDir, maxSize, allowedMediaTypes)
+	fs, err := newCompressedLayerFileStore(manifestsDir, tempDir, maxSize)
 	if err != nil {
 		return manifestsDir, err
 	}
@@ -476,19 +474,17 @@ func extractContentToManifestsDir(ctx context.Context, cachedPath, digest string
 
 type compressedLayerExtracterStore struct {
 	*file.Store
-	tempDir           string
-	dest              string
-	maxSize           int64
-	allowedMediaTypes []string
+	dest    string
+	maxSize int64
 }
 
-func newCompressedLayerFileStore(dest, tempDir string, maxSize int64, allowedMediaTypes []string) (*compressedLayerExtracterStore, error) {
+func newCompressedLayerFileStore(dest, tempDir string, maxSize int64) (*compressedLayerExtracterStore, error) {
 	f, err := file.New(tempDir)
 	if err != nil {
 		return nil, err
 	}
 
-	return &compressedLayerExtracterStore{f, tempDir, dest, maxSize, allowedMediaTypes}, nil
+	return &compressedLayerExtracterStore{f, dest, maxSize}, nil
 }
 
 func isHelmOCI(mediaType string) bool {
