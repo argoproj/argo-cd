@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/v3/util/errors"
@@ -25,7 +24,7 @@ func TestSyncWithCreateNamespace(t *testing.T) {
 	newNamespace := getNewNamespace(t)
 	defer func() {
 		if !t.Skipped() {
-			errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "delete", "namespace", newNamespace))
+			errors.NewHandler(t).FailOnErr(Run("", "kubectl", "delete", "namespace", newNamespace))
 		}
 	}()
 
@@ -59,7 +58,7 @@ func TestSyncWithCreateNamespaceAndDryRunError(t *testing.T) {
 	newNamespace := getNewNamespace(t)
 	defer func() {
 		if !t.Skipped() {
-			errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "delete", "namespace", newNamespace))
+			errors.NewHandler(t).FailOnErr(Run("", "kubectl", "delete", "namespace", newNamespace))
 		}
 	}()
 
