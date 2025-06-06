@@ -74,7 +74,6 @@ nav:
     - operator-manual/notifications/troubleshooting.md
     - operator-manual/notifications/troubleshooting-commands.md
     - operator-manual/notifications/troubleshooting-errors.md
-    - operator-manual/notifications/examples.md
     - Notification Services:
       - operator-manual/notifications/services/alertmanager.md
       - operator-manual/notifications/services/awssqs.md
@@ -167,7 +166,6 @@ nav:
   - user-guide/tool_detection.md
   - user-guide/projects.md
   - user-guide/private-repositories.md
-  - user-guide/plugins.md
   - user-guide/multiple_sources.md
   - GnuPG verification: user-guide/gpg-verification.md
   - user-guide/auto_sync.md

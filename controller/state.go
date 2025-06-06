@@ -46,7 +46,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/stats"
 )
 
-var ErrCompareStateRepo = errors.New("failed to get repo objects")
+var CompareStateRepoError = errors.New("failed to get repo objects")
 
 type resourceInfoProviderStub struct{}
 
@@ -163,6 +163,11 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		return nil, nil, false, fmt.Errorf("failed to get Helm settings: %w", err)
 	}
 
+	trackingMethod, err := m.settingsMgr.GetTrackingMethod()
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("failed to get trackingMethod: %w", err)
+	}
+
 	installationID, err := m.settingsMgr.GetInstallationID()
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get installation ID: %w", err)
@@ -249,7 +254,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 				ApplicationSource:  &source,
 				KubeVersion:        serverVersion,
 				ApiVersions:        apiVersions,
-				TrackingMethod:     string(argo.GetTrackingMethod(m.settingsMgr)),
+				TrackingMethod:     trackingMethod,
 				RefSources:         refSources,
 				HasMultipleSources: app.Spec.HasMultipleSources(),
 				InstallationID:     installationID,
@@ -286,7 +291,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			ApiVersions:                     apiVersions,
 			VerifySignature:                 verifySignature,
 			HelmRepoCreds:                   permittedHelmCredentials,
-			TrackingMethod:                  string(argo.GetTrackingMethod(m.settingsMgr)),
+			TrackingMethod:                  trackingMethod,
 			EnabledSourceTypes:              enabledSourceTypes,
 			HelmOptions:                     helmOptions,
 			HasMultipleSources:              app.Spec.HasMultipleSources(),
@@ -435,24 +440,28 @@ func normalizeClusterScopeTracking(targetObjs []*unstructured.Unstructured, info
 
 // getComparisonSettings will return the system level settings related to the
 // diff/normalization process.
-func (m *appStateManager) getComparisonSettings() (string, map[string]v1alpha1.ResourceOverride, *settings.ResourcesFilter, string, error) {
+func (m *appStateManager) getComparisonSettings() (string, map[string]v1alpha1.ResourceOverride, *settings.ResourcesFilter, string, string, error) {
 	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
 	if err != nil {
-		return "", nil, nil, "", err
+		return "", nil, nil, "", "", err
 	}
 	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
-		return "", nil, nil, "", err
+		return "", nil, nil, "", "", err
 	}
 	resFilter, err := m.settingsMgr.GetResourcesFilter()
 	if err != nil {
-		return "", nil, nil, "", err
+		return "", nil, nil, "", "", err
 	}
 	installationID, err := m.settingsMgr.GetInstallationID()
 	if err != nil {
-		return "", nil, nil, "", err
+		return "", nil, nil, "", "", err
 	}
-	return appLabelKey, resourceOverrides, resFilter, installationID, nil
+	trackingMethod, err := m.settingsMgr.GetTrackingMethod()
+	if err != nil {
+		return "", nil, nil, "", "", err
+	}
+	return appLabelKey, resourceOverrides, resFilter, installationID, trackingMethod, nil
 }
 
 // verifyGnuPGSignature verifies the result of a GnuPG operation for a given git
@@ -503,13 +512,12 @@ func isManagedNamespace(ns *unstructured.Unstructured, app *v1alpha1.Application
 // revision and overrides in the app spec.
 func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool, rollback bool) (*comparisonResult, error) {
 	ts := stats.NewTimingStats()
-	appLabelKey, resourceOverrides, resFilter, installationID, err := m.getComparisonSettings()
+	appLabelKey, resourceOverrides, resFilter, installationID, trackingMethod, err := m.getComparisonSettings()
 
 	ts.AddCheckpoint("settings_ms")
 
 	// return unknown comparison result if basic comparison settings cannot be loaded
 	if err != nil {
-		now := metav1.Now()
 		if hasMultipleSources {
 			return &comparisonResult{
 				syncStatus: &v1alpha1.SyncStatus{
@@ -517,7 +525,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					Status:     v1alpha1.SyncStatusCodeUnknown,
 					Revisions:  revisions,
 				},
-				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, LastTransitionTime: &now},
+				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown},
 			}, nil
 		}
 		return &comparisonResult{
@@ -526,12 +534,15 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				Status:     v1alpha1.SyncStatusCodeUnknown,
 				Revision:   revisions[0],
 			},
-			healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, LastTransitionTime: &now},
+			healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown},
 		}, nil
 	}
 
 	// When signature keys are defined in the project spec, we need to verify the signature on the Git revision
-	verifySignature := len(project.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled()
+	verifySignature := false
+	if len(project.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled() {
+		verifySignature = true
+	}
 
 	// do best effort loading live and target state to present as much information about app state as possible
 	failedToLoadObjs := false
@@ -573,12 +584,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					// if first seen is less than grace period and it's not a Level 3 comparison,
 					// ignore error and short circuit
 					logCtx.Debugf("Ignoring repo error %v, already encountered error in grace period", err.Error())
-					return nil, ErrCompareStateRepo
+					return nil, CompareStateRepoError
 				}
 			} else if !noRevisionCache {
 				logCtx.Debugf("Ignoring repo error %v, new occurrence", err.Error())
 				m.repoErrorCache.Store(app.Name, time.Now())
-				return nil, ErrCompareStateRepo
+				return nil, CompareStateRepoError
 			}
 			failedToLoadObjs = true
 		} else {
@@ -612,10 +623,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		infoProvider = &resourceInfoProviderStub{}
 	}
 
-	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
-
 	err = normalizeClusterScopeTracking(targetObjs, infoProvider, func(u *unstructured.Unstructured) error {
-		return m.resourceTracking.SetAppInstance(u, appLabelKey, app.InstanceName(m.namespace), app.Spec.Destination.Namespace, trackingMethod, installationID)
+		return m.resourceTracking.SetAppInstance(u, appLabelKey, app.InstanceName(m.namespace), app.Spec.Destination.Namespace, v1alpha1.TrackingMethod(trackingMethod), installationID)
 	})
 	if err != nil {
 		msg := "Failed to normalize cluster-scoped resource tracking: " + err.Error()
@@ -682,7 +691,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	for _, liveObj := range liveObjByKey {
 		if liveObj != nil {
-			appInstanceName := m.resourceTracking.GetAppName(liveObj, appLabelKey, trackingMethod, installationID)
+			appInstanceName := m.resourceTracking.GetAppName(liveObj, appLabelKey, v1alpha1.TrackingMethod(trackingMethod), installationID)
 			if appInstanceName != "" && appInstanceName != app.InstanceName(m.namespace) {
 				fqInstanceName := strings.ReplaceAll(appInstanceName, "_", "/")
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
@@ -821,7 +830,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		}
 		gvk := obj.GroupVersionKind()
 
-		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.GetName(), trackingMethod, installationID)
+		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.GetName(), v1alpha1.TrackingMethod(trackingMethod), installationID)
 
 		resState := v1alpha1.ResourceStatus{
 			Namespace:       obj.GetNamespace(),
@@ -868,7 +877,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			resState.Status = v1alpha1.SyncStatusCodeOutOfSync
 			// we ignore the status if the obj needs pruning AND we have the annotation
 			needsPruning := targetObj == nil && liveObj != nil
-			if !needsPruning || !resourceutil.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreExtraneous") {
+			if !(needsPruning && resourceutil.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreExtraneous")) {
 				syncCode = v1alpha1.SyncStatusCodeOutOfSync
 			}
 		default:
@@ -1145,7 +1154,7 @@ func (m *appStateManager) isSelfReferencedObj(live, config *unstructured.Unstruc
 
 	// If tracking method doesn't contain required metadata for this check,
 	// we are not able to determine and just assume the object to be managed.
-	if trackingMethod == argo.TrackingMethodLabel {
+	if trackingMethod == v1alpha1.TrackingMethodLabel {
 		return true
 	}
 

@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v69/github"
+	"github.com/google/go-github/v66/github"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -534,7 +534,7 @@ func (g GitHubAppCreds) getAppTransport() (*ghinstallation.AppsTransport, error)
 func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, error) {
 	// Compute hash of creds for lookup in cache
 	h := sha256.New()
-	_, err := fmt.Fprintf(h, "%s %d %d %s", g.privateKey, g.appID, g.appInstallId, g.baseURL)
+	_, err := h.Write([]byte(fmt.Sprintf("%s %d %d %s", g.privateKey, g.appID, g.appInstallId, g.baseURL)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get get SHA256 hash for GitHub app credentials: %w", err)
 	}
@@ -735,7 +735,7 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 
 	t, found := azureTokenCache.Get(key)
 	if found {
-		return t.(string), nil
+		return t.(*workloadidentity.Token).AccessToken, nil
 	}
 
 	token, err := creds.tokenProvider.GetToken(scope)
@@ -743,8 +743,11 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 		return "", fmt.Errorf("failed to get Azure access token: %w", err)
 	}
 
-	azureTokenCache.Set(key, token, 2*time.Hour)
-	return token, nil
+	cacheExpiry := workloadidentity.CalculateCacheExpiryBasedOnTokenExpiry(token.ExpiresOn)
+	if cacheExpiry > 0 {
+		azureTokenCache.Set(key, token, cacheExpiry)
+	}
+	return token.AccessToken, nil
 }
 
 func (creds AzureWorkloadIdentityCreds) GetAzureDevOpsAccessToken() (string, error) {

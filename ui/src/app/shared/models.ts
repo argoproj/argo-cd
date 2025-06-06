@@ -290,7 +290,6 @@ export interface ApplicationSourceDirectory {
 export interface Automated {
     prune: boolean;
     selfHeal: boolean;
-    enabled: boolean;
 }
 
 export interface SyncPolicy {
@@ -816,7 +815,6 @@ export interface SyncWindow {
     manualSync: boolean;
     timeZone: string;
     andOperator: boolean;
-    description: string;
 }
 
 export interface Project {

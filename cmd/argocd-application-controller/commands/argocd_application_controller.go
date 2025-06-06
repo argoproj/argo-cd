@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/argoproj/pkg/v2/stats"
+	"github.com/argoproj/pkg/stats"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -68,6 +68,7 @@ func NewCommand() *cobra.Command {
 		selfHealBackoffTimeoutSeconds    int
 		selfHealBackoffFactor            int
 		selfHealBackoffCapSeconds        int
+		selfHealBackoffCooldownSeconds   int
 		syncTimeout                      int
 		statusProcessors                 int
 		operationProcessors              int
@@ -201,6 +202,7 @@ func NewCommand() *cobra.Command {
 				time.Duration(appResyncJitter)*time.Second,
 				time.Duration(selfHealTimeoutSeconds)*time.Second,
 				selfHealBackoff,
+				time.Duration(selfHealBackoffCooldownSeconds)*time.Second,
 				time.Duration(syncTimeout)*time.Second,
 				time.Duration(repoErrorGracePeriod)*time.Second,
 				metricsPort,
@@ -272,6 +274,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&selfHealBackoffTimeoutSeconds, "self-heal-backoff-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_TIMEOUT_SECONDS", 2, 0, math.MaxInt32), "Specifies initial timeout of exponential backoff between self heal attempts")
 	command.Flags().IntVar(&selfHealBackoffFactor, "self-heal-backoff-factor", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_FACTOR", 3, 0, math.MaxInt32), "Specifies factor of exponential timeout between application self heal attempts")
 	command.Flags().IntVar(&selfHealBackoffCapSeconds, "self-heal-backoff-cap-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_CAP_SECONDS", 300, 0, math.MaxInt32), "Specifies max timeout of exponential backoff between application self heal attempts")
+	command.Flags().IntVar(&selfHealBackoffCooldownSeconds, "self-heal-backoff-cooldown-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_COOLDOWN_SECONDS", 330, 0, math.MaxInt32), "Specifies period of time the app needs to stay synced before the self heal backoff can reset")
 	command.Flags().IntVar(&syncTimeout, "sync-timeout", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT", 0, 0, math.MaxInt32), "Specifies the timeout after which a sync would be terminated. 0 means no timeout (default 0).")
 	command.Flags().Int64Var(&kubectlParallelismLimit, "kubectl-parallelism-limit", env.ParseInt64FromEnv("ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT", 20, 0, math.MaxInt64), "Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit.")
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Disable TLS on connections to repo server")

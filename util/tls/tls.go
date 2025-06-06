@@ -127,7 +127,7 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) 
 		return nil, fmt.Errorf("error retrieving TLS version by max version %q: %w", maxVersionStr, err)
 	}
 	if minVersion > maxVersion {
-		return nil, fmt.Errorf("minimum TLS version %s must not be higher than maximum TLS version %s", minVersionStr, maxVersionStr)
+		return nil, fmt.Errorf("Minimum TLS version %s must not be higher than maximum TLS version %s", minVersionStr, maxVersionStr)
 	}
 
 	// Cipher suites for TLSv1.3 are not configurable
@@ -192,6 +192,11 @@ func publicKey(priv any) any {
 func pemBlockForKey(priv any) *pem.Block {
 	switch k := priv.(type) {
 	case *rsa.PrivateKey:
+		// In Go 1.24+, MarshalPKCS1PrivateKey calls Precompute() which can panic
+		// if the key is invalid. Validate the key first.
+		if k == nil || k.Validate() != nil {
+			return nil
+		}
 		return &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(k)}
 	case *ecdsa.PrivateKey:
 		b, err := x509.MarshalECPrivateKey(k)
@@ -228,7 +233,7 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 	case "P521":
 		privateKey, err = ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	default:
-		return nil, nil, fmt.Errorf("unrecognized elliptic curve: %q", opts.ECDSACurve)
+		return nil, nil, fmt.Errorf("Unrecognized elliptic curve: %q", opts.ECDSACurve)
 	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate private key: %w", err)
@@ -285,7 +290,7 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 
 	certBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, publicKey(privateKey), privateKey)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create certificate: %w", err)
+		return nil, nil, fmt.Errorf("Failed to create certificate: %w", err)
 	}
 	return certBytes, privateKey, nil
 }
@@ -297,7 +302,11 @@ func generatePEM(opts CertOptions) ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 	certpem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
-	keypem := pem.EncodeToMemory(pemBlockForKey(privateKey))
+	keyBlock := pemBlockForKey(privateKey)
+	if keyBlock == nil {
+		return nil, nil, errors.New("failed to encode private key")
+	}
+	keypem := pem.EncodeToMemory(keyBlock)
 	return certpem, keypem, nil
 }
 
@@ -320,7 +329,11 @@ func EncodeX509KeyPair(cert tls.Certificate) ([]byte, []byte) {
 	for _, certtmp := range cert.Certificate {
 		certpem = append(certpem, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certtmp})...)
 	}
-	keypem := pem.EncodeToMemory(pemBlockForKey(cert.PrivateKey))
+	keyBlock := pemBlockForKey(cert.PrivateKey)
+	if keyBlock == nil {
+		return certpem, []byte{}
+	}
+	keypem := pem.EncodeToMemory(keyBlock)
 	return certpem, keypem
 }
 
@@ -421,7 +434,7 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string) (*tls
 		log.Infof("Loading TLS configuration from cert=%s and key=%s", tlsCertPath, tlsKeyPath)
 		c, err := tls.LoadX509KeyPair(tlsCertPath, tlsKeyPath)
 		if err != nil {
-			return nil, fmt.Errorf("unable to initialize TLS configuration with cert=%s and key=%s: %w", tlsCertPath, tlsKeyPath, err)
+			return nil, fmt.Errorf("Unable to initialize TLS configuration with cert=%s and key=%s: %w", tlsCertPath, tlsKeyPath, err)
 		}
 		cert = &c
 	}

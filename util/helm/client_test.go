@@ -18,6 +18,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
 
@@ -161,7 +162,7 @@ func TestGetIndexURL(t *testing.T) {
 	t.Run("URL with invalid escaped characters", func(t *testing.T) {
 		rawURL := fmt.Sprintf(urlTemplate, "mygroup%**myproject")
 		got, err := getIndexURL(rawURL)
-		assert.Empty(t, got)
+		assert.Equal(t, "", got)
 		require.Error(t, err)
 	})
 }
@@ -208,7 +209,7 @@ func TestGetTagsFromUrl(t *testing.T) {
 		client := NewClient("example.com", HelmCreds{}, false, "", "")
 
 		_, err := client.GetTags("my-chart", true)
-		assert.ErrorIs(t, ErrOCINotEnabled, err)
+		assert.ErrorIs(t, OCINotEnabledErr, err)
 	})
 }
 
@@ -300,7 +301,7 @@ func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *tes
 	}
 
 	workloadIdentityMock := new(mocks.TokenProvider)
-	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return("accessToken", nil)
+	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil)
 
 	mockServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("called %s", r.URL.Path)

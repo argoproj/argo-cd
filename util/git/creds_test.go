@@ -8,8 +8,10 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
+	gocache "github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
@@ -382,11 +384,11 @@ func TestNewGoogleCloudCreds_invalidJSON(t *testing.T) {
 	assert.Nil(t, googleCloudCreds.creds)
 
 	token, err := googleCloudCreds.getAccessToken()
-	assert.Empty(t, token)
+	assert.Equal(t, "", token)
 	require.Error(t, err)
 
 	username, err := googleCloudCreds.getUsername()
-	assert.Empty(t, username)
+	assert.Equal(t, "", username)
 	require.Error(t, err)
 
 	closer, envStringSlice, err := googleCloudCreds.Environ()
@@ -412,24 +414,26 @@ func TestGoogleCloudCreds_Environ_cleanup(t *testing.T) {
 }
 
 func TestAzureWorkloadIdentityCreds_Environ(t *testing.T) {
+	resetAzureTokenCache()
 	store := &memoryCredsStore{creds: make(map[string]cred)}
 	workloadIdentityMock := new(mocks.TokenProvider)
-	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return("accessToken", nil)
+	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return(&workloadidentity.Token{AccessToken: "accessToken", ExpiresOn: time.Now().Add(time.Minute)}, nil)
 	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
 	_, _, err := creds.Environ()
 	require.NoError(t, err)
 	assert.Len(t, store.creds, 1)
 
 	for _, value := range store.creds {
-		assert.Empty(t, value.username)
+		assert.Equal(t, "", value.username)
 		assert.Equal(t, "accessToken", value.password)
 	}
 }
 
 func TestAzureWorkloadIdentityCreds_Environ_cleanup(t *testing.T) {
+	resetAzureTokenCache()
 	store := &memoryCredsStore{creds: make(map[string]cred)}
 	workloadIdentityMock := new(mocks.TokenProvider)
-	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return("accessToken", nil)
+	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return(&workloadidentity.Token{AccessToken: "accessToken", ExpiresOn: time.Now().Add(time.Minute)}, nil)
 	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
 	closer, _, err := creds.Environ()
 	require.NoError(t, err)
@@ -439,15 +443,16 @@ func TestAzureWorkloadIdentityCreds_Environ_cleanup(t *testing.T) {
 }
 
 func TestAzureWorkloadIdentityCreds_GetUserInfo(t *testing.T) {
+	resetAzureTokenCache()
 	store := &memoryCredsStore{creds: make(map[string]cred)}
 	workloadIdentityMock := new(mocks.TokenProvider)
-	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return("accessToken", nil)
+	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return(&workloadidentity.Token{AccessToken: "accessToken", ExpiresOn: time.Now().Add(time.Minute)}, nil)
 	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
 
 	user, email, err := creds.GetUserInfo(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, workloadidentity.EmptyGuid, user)
-	assert.Empty(t, email)
+	assert.Equal(t, "", email)
 }
 
 func TestGetHelmCredsShouldReturnHelmCredsIfAzureWorkloadIdentityNotSpecified(t *testing.T) {
@@ -455,4 +460,46 @@ func TestGetHelmCredsShouldReturnHelmCredsIfAzureWorkloadIdentityNotSpecified(t 
 
 	_, ok := creds.(AzureWorkloadIdentityCreds)
 	require.Truef(t, ok, "expected HelmCreds but got %T", creds)
+}
+
+func TestAzureWorkloadIdentityCreds_FetchNewTokenIfExistingIsExpired(t *testing.T) {
+	resetAzureTokenCache()
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	workloadIdentityMock := new(mocks.TokenProvider)
+	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).
+		Return(&workloadidentity.Token{AccessToken: "firstToken", ExpiresOn: time.Now().Add(time.Minute)}, nil).Once()
+	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).
+		Return(&workloadidentity.Token{AccessToken: "secondToken"}, nil).Once()
+	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
+	token, err := creds.GetAzureDevOpsAccessToken()
+	require.NoError(t, err)
+
+	assert.Equal(t, "firstToken", token)
+	time.Sleep(5 * time.Second)
+	token, err = creds.GetAzureDevOpsAccessToken()
+	require.NoError(t, err)
+	assert.Equal(t, "secondToken", token)
+}
+
+func TestAzureWorkloadIdentityCreds_ReuseTokenIfExistingIsNotExpired(t *testing.T) {
+	resetAzureTokenCache()
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	workloadIdentityMock := new(mocks.TokenProvider)
+	firstToken := &workloadidentity.Token{AccessToken: "firstToken", ExpiresOn: time.Now().Add(6 * time.Minute)}
+	secondToken := &workloadidentity.Token{AccessToken: "secondToken"}
+	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return(firstToken, nil).Once()
+	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return(secondToken, nil).Once()
+	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
+	token, err := creds.GetAzureDevOpsAccessToken()
+	require.NoError(t, err)
+
+	assert.Equal(t, "firstToken", token)
+	time.Sleep(5 * time.Second)
+	token, err = creds.GetAzureDevOpsAccessToken()
+	require.NoError(t, err)
+	assert.Equal(t, "firstToken", token)
+}
+
+func resetAzureTokenCache() {
+	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
 }

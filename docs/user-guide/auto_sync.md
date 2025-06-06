@@ -18,16 +18,6 @@ spec:
   syncPolicy:
     automated: {}
 ```
-Application CRD now also support explicitly setting automated sync to be turned on or off by using `spec.syncPolicy.automated.enabled` flag to true or false. When `enable` field is set to true, Automated Sync is active and when set to false controller will skip automated sync even if `prune`, `self-heal` and `allowEmpty` are set.
-```yaml
-spec:
-  syncPolicy:
-    automated:
-      enabled: true
-```
-
-!!!note 
-    Setting the `spec.syncPolicy.automated.enabled` flag to null will be treated as if automated sync is enabled. When the `enabled` field is set to false, fields like `prune`, `selfHeal` and `allowEmpty` can be set without enabling them.
 
 ## Temporarily toggling auto-sync for applications managed by ApplicationSets
 
@@ -82,7 +72,7 @@ when the live cluster's state deviates from the state defined in Git, run:
 argocd app set <APPNAME> --self-heal
 ```
 
-Or by setting the self-heal option to true in the automated sync policy:
+Or by setting the self heal option to true in the automated sync policy:
 
 ```yaml
 spec:
@@ -100,7 +90,7 @@ Disabling self-heal does not guarantee that live cluster changes won't be revert
 * Automated sync will only attempt one synchronization per unique combination of commit SHA1 and
   application parameters. If the most recent successful sync in the history was already performed
   against the same commit-SHA and parameters, a second sync will not be attempted, unless `selfHeal` flag is set to true.
-* If the `selfHeal` flag is set to true, then the sync will be attempted again after self-heal timeout (5 seconds by default)
+* If `selfHeal` flag is set to true then sync will be attempted again after self heal timeout (5 seconds by default)
 which is controlled by `--self-heal-timeout-seconds` flag of `argocd-application-controller` deployment.
 * Automatic sync will not reattempt a sync if the previous sync attempt against the same commit-SHA
   and parameters had failed.

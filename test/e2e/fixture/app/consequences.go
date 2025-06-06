@@ -11,7 +11,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	util "github.com/argoproj/argo-cd/v3/util/io"
 )
@@ -84,7 +84,7 @@ func (c *Consequences) ExpectConsistently(e Expectation, waitDuration time.Durat
 	return c
 }
 
-func (c *Consequences) And(block func(app *v1alpha1.Application)) *Consequences {
+func (c *Consequences) And(block func(app *Application)) *Consequences {
 	c.context.t.Helper()
 	block(c.app())
 	return c
@@ -105,18 +105,18 @@ func (c *Consequences) When() *Actions {
 	return c.actions
 }
 
-func (c *Consequences) app() *v1alpha1.Application {
+func (c *Consequences) app() *Application {
 	c.context.t.Helper()
 	app, err := c.get()
 	require.NoError(c.context.t, err)
 	return app
 }
 
-func (c *Consequences) get() (*v1alpha1.Application, error) {
+func (c *Consequences) get() (*Application, error) {
 	return fixture.AppClientset.ArgoprojV1alpha1().Applications(c.context.AppNamespace()).Get(context.Background(), c.context.AppName(), metav1.GetOptions{})
 }
 
-func (c *Consequences) resource(kind, name, namespace string) v1alpha1.ResourceStatus {
+func (c *Consequences) resource(kind, name, namespace string) ResourceStatus {
 	c.context.t.Helper()
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	require.NoError(c.context.t, err)
@@ -132,8 +132,8 @@ func (c *Consequences) resource(kind, name, namespace string) v1alpha1.ResourceS
 			return r
 		}
 	}
-	return v1alpha1.ResourceStatus{
-		Health: &v1alpha1.HealthStatus{
+	return ResourceStatus{
+		Health: &HealthStatus{
 			Status:  health.HealthStatusMissing,
 			Message: "not found",
 		},

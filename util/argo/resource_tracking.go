@@ -12,19 +12,12 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/kube"
-	"github.com/argoproj/argo-cd/v3/util/settings"
-)
-
-const (
-	TrackingMethodAnnotation         v1alpha1.TrackingMethod = "annotation"
-	TrackingMethodLabel              v1alpha1.TrackingMethod = "label"
-	TrackingMethodAnnotationAndLabel v1alpha1.TrackingMethod = "annotation+label"
 )
 
 var (
-	ErrWrongResourceTrackingFormat = errors.New("wrong resource tracking format, should be <application-name>:<group>/<kind>:<namespace>/<name>")
-	LabelMaxLength                 = 63
-	OkEndPattern                   = regexp.MustCompile("[a-zA-Z0-9]$")
+	WrongResourceTrackingFormat = errors.New("wrong resource tracking format, should be <application-name>:<group>/<kind>:<namespace>/<name>")
+	LabelMaxLength              = 63
+	OkEndPattern                = regexp.MustCompile("[a-zA-Z0-9]$")
 )
 
 // ResourceTracking defines methods which allow setup and retrieve tracking information to resource
@@ -52,17 +45,8 @@ func NewResourceTracking() ResourceTracking {
 	return &resourceTracking{}
 }
 
-// GetTrackingMethod retrieve tracking method from settings
-func GetTrackingMethod(settingsMgr *settings.SettingsManager) v1alpha1.TrackingMethod {
-	tm, err := settingsMgr.GetTrackingMethod()
-	if err != nil || tm == "" {
-		return TrackingMethodAnnotation
-	}
-	return v1alpha1.TrackingMethod(tm)
-}
-
 func IsOldTrackingMethod(trackingMethod string) bool {
-	return trackingMethod == "" || trackingMethod == string(TrackingMethodLabel)
+	return trackingMethod == "" || trackingMethod == string(v1alpha1.TrackingMethodLabel)
 }
 
 func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, installationID string) *AppInstanceValue {
@@ -90,15 +74,15 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 		return ""
 	}
 	switch trackingMethod {
-	case TrackingMethodLabel:
+	case v1alpha1.TrackingMethodLabel:
 		label, err := kube.GetAppInstanceLabel(un, key)
 		if err != nil {
 			return ""
 		}
 		return label
-	case TrackingMethodAnnotationAndLabel:
+	case v1alpha1.TrackingMethodAnnotationAndLabel:
 		return retrieveAppInstanceValue()
-	case TrackingMethodAnnotation:
+	case v1alpha1.TrackingMethodAnnotation:
 		return retrieveAppInstanceValue()
 	default:
 		return retrieveAppInstanceValue()
@@ -110,7 +94,7 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 // not be parsed, it returns nil.
 func (rt *resourceTracking) GetAppInstance(un *unstructured.Unstructured, trackingMethod v1alpha1.TrackingMethod, instanceID string) *AppInstanceValue {
 	switch trackingMethod {
-	case TrackingMethodAnnotation, TrackingMethodAnnotationAndLabel:
+	case v1alpha1.TrackingMethodAnnotation, v1alpha1.TrackingMethodAnnotationAndLabel:
 		return rt.getAppInstanceValue(un, instanceID)
 	default:
 		return nil
@@ -152,15 +136,15 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		return kube.SetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance, rt.BuildAppInstanceValue(appInstanceValue))
 	}
 	switch trackingMethod {
-	case TrackingMethodLabel:
+	case v1alpha1.TrackingMethodLabel:
 		err := kube.SetAppInstanceLabel(un, key, val)
 		if err != nil {
 			return fmt.Errorf("failed to set app instance label: %w", err)
 		}
 		return nil
-	case TrackingMethodAnnotation:
+	case v1alpha1.TrackingMethodAnnotation:
 		return setAppInstanceAnnotation()
-	case TrackingMethodAnnotationAndLabel:
+	case v1alpha1.TrackingMethodAnnotationAndLabel:
 		err := setAppInstanceAnnotation()
 		if err != nil {
 			return err
@@ -197,15 +181,15 @@ func (rt *resourceTracking) ParseAppInstanceValue(value string) (*AppInstanceVal
 	parts := strings.SplitN(value, ":", 3)
 	appInstanceValue.ApplicationName = parts[0]
 	if len(parts) != 3 {
-		return nil, ErrWrongResourceTrackingFormat
+		return nil, WrongResourceTrackingFormat
 	}
 	groupParts := strings.Split(parts[1], "/")
 	if len(groupParts) != 2 {
-		return nil, ErrWrongResourceTrackingFormat
+		return nil, WrongResourceTrackingFormat
 	}
 	nsParts := strings.Split(parts[2], "/")
 	if len(nsParts) != 2 {
-		return nil, ErrWrongResourceTrackingFormat
+		return nil, WrongResourceTrackingFormat
 	}
 	appInstanceValue.Group = groupParts[0]
 	appInstanceValue.Kind = groupParts[1]

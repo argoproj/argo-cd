@@ -18,7 +18,6 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/hash"
@@ -305,7 +304,7 @@ func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs 
 
 func trackingKey(appLabelKey string, trackingMethod string) string {
 	trackingKey := appLabelKey
-	if text.FirstNonEmpty(trackingMethod, string(argo.TrackingMethodLabel)) != string(argo.TrackingMethodLabel) {
+	if text.FirstNonEmpty(trackingMethod, string(appv1.TrackingMethodLabel)) != string(appv1.TrackingMethodLabel) {
 		trackingKey = trackingMethod + ":" + trackingKey
 	}
 	return trackingKey
@@ -341,7 +340,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, s
 
 	hash, err := res.generateCacheEntryHash()
 	if err != nil {
-		return fmt.Errorf("unable to generate hash value: %w", err)
+		return fmt.Errorf("Unable to generate hash value: %w", err)
 	}
 
 	// If cached result does not have manifests or the expected hash of the cache entry does not match the actual hash value...
@@ -352,7 +351,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, s
 
 		err = c.DeleteManifests(revision, appSrc, srcRefs, clusterInfo, namespace, trackingMethod, appLabelKey, appName, refSourceCommitSHAs, installationID)
 		if err != nil {
-			return fmt.Errorf("unable to delete manifest after hash mismatch: %w", err)
+			return fmt.Errorf("Unable to delete manifest after hash mismatch, %w", err)
 		}
 
 		// Treat hash mismatches as cache misses, so that the underlying resource is reacquired
@@ -376,7 +375,7 @@ func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, s
 		res = res.shallowCopy()
 		hash, err := res.generateCacheEntryHash()
 		if err != nil {
-			return fmt.Errorf("unable to generate hash value: %w", err)
+			return fmt.Errorf("Unable to generate hash value: %w", err)
 		}
 		res.CacheEntryHash = hash
 	}
@@ -399,7 +398,7 @@ func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource
 
 func appDetailsCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, trackingMethod appv1.TrackingMethod, refSourceCommitSHAs ResolvedRevisions) string {
 	if trackingMethod == "" {
-		trackingMethod = argo.TrackingMethodLabel
+		trackingMethod = appv1.TrackingMethodLabel
 	}
 	return fmt.Sprintf("appdetails|%s|%d|%s", revision, appSourceKey(appSrc, srcRefs, refSourceCommitSHAs), trackingMethod)
 }

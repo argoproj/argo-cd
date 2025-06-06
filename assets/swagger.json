@@ -6529,7 +6529,7 @@
         },
         "description": {
           "type": "string",
-          "title": "Description contains optional project description\n+kubebuilder:validation:MaxLength=255"
+          "title": "Description contains optional project description"
         },
         "destinationServiceAccounts": {
           "description": "DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.",
@@ -10106,10 +10106,6 @@
           "type": "boolean",
           "title": "AllowEmpty allows apps have zero live resources (default: false)"
         },
-        "enable": {
-          "type": "boolean",
-          "title": "Enable allows apps to explicitly control automated sync"
-        },
         "prune": {
           "type": "boolean",
           "title": "Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)"
@@ -10210,10 +10206,6 @@
           "items": {
             "type": "string"
           }
-        },
-        "description": {
-          "type": "string",
-          "title": "Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example"
         },
         "duration": {
           "type": "string",
