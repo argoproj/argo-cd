@@ -325,7 +325,7 @@ func NewApplicationController(
 
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
 
-	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessApp, readinessHealthCheck, metricsApplicationLabels, metricsApplicationConditions)
+	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessApp, readinessHealthCheck, metricsApplicationLabels, metricsApplicationConditions, ctrl.db)
 	if err != nil {
 		return nil, err
 	}
@@ -1575,7 +1575,16 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			messages = append(messages, "failed:", state.Message)
 		}
 		ctrl.logAppEvent(context.TODO(), app, eventInfo, strings.Join(messages, " "))
-		ctrl.metricsServer.IncSync(app, state)
+
+		destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
+		if err != nil {
+			logCtx.Warnf("Unable to get destination cluster, setting dest_server label to empty string in sync metric: %v", err)
+		}
+		destServer := ""
+		if destCluster != nil {
+			destServer = destCluster.Server
+		}
+		ctrl.metricsServer.IncSync(app, destServer, state)
 	}
 }
 
@@ -1648,9 +1657,17 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	startTime := time.Now()
 	ts := stats.NewTimingStats()
+	var destCluster *appv1.Cluster
 	defer func() {
 		reconcileDuration := time.Since(startTime)
-		ctrl.metricsServer.IncReconcile(origApp, reconcileDuration)
+
+		// We may or may not get to the point in the code where destCluster is set. Populate the dest_server label on a
+		// best-effort basis.
+		destServer := ""
+		if destCluster != nil {
+			destServer = destCluster.Server
+		}
+		ctrl.metricsServer.IncReconcile(origApp, destServer, reconcileDuration)
 		for k, v := range ts.Timings() {
 			logCtx = logCtx.WithField(k, v.Milliseconds())
 		}
@@ -1663,7 +1680,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	if comparisonLevel == ComparisonWithNothing {
 		// If the destination cluster is invalid, fallback to the normal reconciliation flow
-		if destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db); err == nil {
+		if destCluster, err = argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db); err == nil {
 			managedResources := make([]*appv1.ResourceDiff, 0)
 			if err := ctrl.cache.GetAppManagedResources(app.InstanceName(ctrl.namespace), &managedResources); err == nil {
 				var tree *appv1.ApplicationTree
@@ -1700,7 +1717,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		return
 	}
 
-	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
+	destCluster, err = argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
 	if err != nil {
 		logCtx.Errorf("Failed to get destination cluster: %v", err)
 		// exit the reconciliation. ctrl.refreshAppConditions should have caught the error
