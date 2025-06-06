@@ -561,12 +561,14 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		}
 	}()
 
-	server.userStateStorage.Init(ctx)
-
 	metricsServ := metrics.NewMetricsServer(server.MetricsHost, server.MetricsPort)
 	if server.RedisClient != nil {
 		cacheutil.CollectMetrics(server.RedisClient, metricsServ, server.userStateStorage.GetLockObject())
 	}
+
+	// Don't init storage until after CollectMetrics. CollectMetrics adds hooks to the Redis client, and Init
+	// reads those hooks. If this is called first, there may be a data race.
+	server.userStateStorage.Init(ctx)
 
 	svcSet := newArgoCDServiceSet(server)
 	server.serviceSet = svcSet
