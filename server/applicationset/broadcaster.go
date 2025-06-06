@@ -54,7 +54,7 @@ func (s *subscriber) matches(event *appsetv1.ApplicationSetWatchEvent) bool {
 	return true
 }
 
-// Subscribe forward application informer watch events to the provided channel.
+// Subscribe forward applicationset informer watch events to the provided channel.
 // The watch events are dropped if no receives are reading events from the channel so the channel must have
 // buffer if dropping events is not acceptable.
 func (b *broadcasterHandler) Subscribe(ch chan *appsetv1.ApplicationSetWatchEvent, filters ...func(event *appsetv1.ApplicationSetWatchEvent) bool) func() {
