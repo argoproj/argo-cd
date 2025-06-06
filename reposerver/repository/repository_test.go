@@ -2848,7 +2848,7 @@ func Test_findManifests(t *testing.T) {
 	})
 }
 
-func TestTestRepoOCI(t *testing.T) {
+func TestTestRepoHelmOCI(t *testing.T) {
 	service := newService(t, ".")
 	_, err := service.TestRepository(t.Context(), &apiclient.TestRepositoryRequest{
 		Repo: &v1alpha1.Repository{
@@ -3205,7 +3205,7 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	})
 }
 
-func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
+func TestGetHelmRepos_OCIHelmDependenciesWithHelmRepo(t *testing.T) {
 	src := v1alpha1.ApplicationSource{Path: "."}
 	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{}, ApplicationSource: &src, HelmRepoCreds: []*v1alpha1.RepoCreds{
 		{URL: "example.com", Username: "test", Password: "test", EnableOCI: true},
@@ -3220,9 +3220,37 @@ func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
 	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
 }
 
-func TestGetHelmRepos_OCIDependenciesWithRepo(t *testing.T) {
+func TestGetHelmRepos_OCIHelmDependenciesWithRepo(t *testing.T) {
 	src := v1alpha1.ApplicationSource{Path: "."}
 	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{{Repo: "example.com", Username: "test", Password: "test", EnableOCI: true}}, ApplicationSource: &src, HelmRepoCreds: []*v1alpha1.RepoCreds{}}
+
+	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
+	require.NoError(t, err)
+
+	assert.Len(t, helmRepos, 1)
+	assert.Equal(t, "test", helmRepos[0].GetUsername())
+	assert.True(t, helmRepos[0].EnableOci)
+	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
+}
+
+func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
+	src := v1alpha1.ApplicationSource{Path: "."}
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{}, ApplicationSource: &src, HelmRepoCreds: []*v1alpha1.RepoCreds{
+		{URL: "oci://example.com", Username: "test", Password: "test", Type: "oci"},
+	}}
+
+	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
+	require.NoError(t, err)
+
+	assert.Len(t, helmRepos, 1)
+	assert.Equal(t, "test", helmRepos[0].GetUsername())
+	assert.True(t, helmRepos[0].EnableOci)
+	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
+}
+
+func TestGetHelmRepos_OCIDependenciesWithRepo(t *testing.T) {
+	src := v1alpha1.ApplicationSource{Path: "."}
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{{Repo: "oci://example.com", Username: "test", Password: "test", Type: "oci"}}, ApplicationSource: &src, HelmRepoCreds: []*v1alpha1.RepoCreds{}}
 
 	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
 	require.NoError(t, err)
