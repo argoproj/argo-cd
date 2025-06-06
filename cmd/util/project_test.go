@@ -18,11 +18,13 @@ func TestProjectOpts_ResourceLists(t *testing.T) {
 	}
 
 	assert.ElementsMatch(t,
-		[]v1.GroupKind{{Kind: "ConfigMap"}}, opts.GetAllowedNamespacedResources(),
-		[]v1.GroupKind{{Group: "apps", Kind: "DaemonSet"}}, opts.GetDeniedNamespacedResources(),
-		[]v1.GroupKind{{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition"}}, opts.GetAllowedClusterResources(),
-		[]v1.GroupKind{{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}}, opts.GetDeniedClusterResources(),
-	)
+		[]v1.GroupKind{{Kind: "ConfigMap"}}, opts.GetAllowedNamespacedResources())
+	assert.ElementsMatch(t,
+		[]v1.GroupKind{{Group: "apps", Kind: "DaemonSet"}}, opts.GetDeniedNamespacedResources())
+	assert.ElementsMatch(t,
+		[]v1.GroupKind{{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition"}}, opts.GetAllowedClusterResources())
+	assert.ElementsMatch(t,
+		[]v1.GroupKind{{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}}, opts.GetDeniedClusterResources())
 }
 
 func TestProjectOpts_GetDestinationServiceAccounts(t *testing.T) {
