@@ -1990,12 +1990,13 @@ spec:
                     format: date-time
                     type: string
                   message:
-                    description: Message is a human-readable informational message
-                      describing the health status
+                    description: |-
+                      Message is a human-readable informational message describing the health status
+
+                      Deprecated: this field is not used and will be removed in a future release.
                     type: string
                   status:
-                    description: Status holds the status code of the application or
-                      resource
+                    description: Status holds the status code of the application
                     type: string
                 type: object
               history:
@@ -3864,6 +3865,12 @@ spec:
                               description: HookType specifies the type of the hook.
                                 Empty for non-hook resources
                               type: string
+                            images:
+                              description: Images contains the images related to the
+                                ResourceResult
+                              items:
+                                type: string
+                              type: array
                             kind:
                               description: Kind specifies the API kind of the resource
                               type: string
@@ -4741,8 +4748,10 @@ spec:
                         (e.g., Healthy, Degraded, Progressing).
                       properties:
                         lastTransitionTime:
-                          description: LastTransitionTime is the time the HealthStatus
-                            was set or updated
+                          description: |-
+                            LastTransitionTime is the time the HealthStatus was set or updated
+
+                            Deprecated: this field is not used and will be removed in a future release.
                           format: date-time
                           type: string
                         message:
@@ -4750,8 +4759,7 @@ spec:
                             describing the health status
                           type: string
                         status:
-                          description: Status holds the status code of the application
-                            or resource
+                          description: Status holds the status code of the resource
                           type: string
                       type: object
                     hook:
@@ -7301,6 +7309,8 @@ spec:
                         files:
                           items:
                             properties:
+                              exclude:
+                                type: boolean
                               path:
                                 type: string
                             required:
@@ -10011,6 +10021,8 @@ spec:
                                   files:
                                     items:
                                       properties:
+                                        exclude:
+                                          type: boolean
                                         path:
                                           type: string
                                       required:
@@ -12157,6 +12169,10 @@ spec:
                                         type: string
                                       insecure:
                                         type: boolean
+                                      labels:
+                                        items:
+                                          type: string
+                                        type: array
                                       owner:
                                         type: string
                                       repo:
@@ -15845,6 +15861,8 @@ spec:
                                   files:
                                     items:
                                       properties:
+                                        exclude:
+                                          type: boolean
                                         path:
                                           type: string
                                       required:
@@ -17991,6 +18009,10 @@ spec:
                                         type: string
                                       insecure:
                                         type: boolean
+                                      labels:
+                                        items:
+                                          type: string
+                                        type: array
                                       owner:
                                         type: string
                                       repo:
@@ -21116,6 +21138,10 @@ spec:
                               type: string
                             insecure:
                               type: boolean
+                            labels:
+                              items:
+                                type: string
+                              type: array
                             owner:
                               type: string
                             repo:
@@ -23675,6 +23701,7 @@ spec:
                 type: array
               description:
                 description: Description contains optional project description
+                maxLength: 255
                 type: string
               destinationServiceAccounts:
                 description: DestinationServiceAccounts holds information about the
@@ -23885,6 +23912,11 @@ spec:
                       items:
                         type: string
                       type: array
+                    description:
+                      description: Description of the sync that will be applied to
+                        the schedule, can be used to add any information such as a
+                        ticket number for example
+                      type: string
                     duration:
                       description: Duration is the amount of time the sync window
                         will be open
@@ -25287,26 +25319,6 @@ spec:
           name: gpg-keyring
         - mountPath: /tmp
           name: tmp
-      initContainers:
-      - command:
-        - /bin/cp
-        - -n
-        - /usr/local/bin/argocd
-        - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:latest
-        name: copyutil
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
-        volumeMounts:
-        - mountPath: /var/run/argocd
-          name: var-files
       serviceAccountName: argocd-commit-server
       volumes:
       - configMap:
@@ -25333,8 +25345,6 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-commit-server-tls
-      - emptyDir: {}
-        name: var-files
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -25391,7 +25401,7 @@ spec:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.41.1
+        image: ghcr.io/dexidp/dex:v2.43.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -25602,7 +25612,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: redis:7.2.7-alpine
+        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -26159,12 +26169,6 @@ spec:
               key: server.oidc.cache.expiration
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_SERVER_LOGIN_ATTEMPTS_EXPIRATION
-          valueFrom:
-            configMapKeyRef:
-              key: server.login.attempts.expiration
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_SERVER_STATIC_ASSETS
           valueFrom:
             configMapKeyRef:
@@ -26539,6 +26543,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.self.heal.backoff.cap.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_COOLDOWN_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.self.heal.backoff.cooldown.seconds
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT

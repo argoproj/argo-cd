@@ -25,7 +25,7 @@ import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters, FiltersProps} from './application-resource-filter';
 import {getAppDefaultSource, getAppCurrentVersion, urlPattern} from '../utils';
-import {ChartDetails, ResourceStatus} from '../../../shared/models';
+import {ChartDetails, OCIMetadata, ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
@@ -40,6 +40,7 @@ interface ApplicationDetailsState {
     slidingPanelPage?: number;
     filteredGraph?: any[];
     truncateNameOnRight?: boolean;
+    showFullNodeName?: boolean;
     collapsedNodes?: string[];
     extensions?: AppViewExtension[];
     extensionsMap?: {[key: string]: AppViewExtension};
@@ -92,6 +93,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             slidingPanelPage: 0,
             filteredGraph: [],
             truncateNameOnRight: false,
+            showFullNodeName: false,
             collapsedNodes: [],
             ...this.getExtensionsState()
         };
@@ -223,6 +225,82 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                     part + ' '
                 )
             );
+
+        const getContentForOci = (
+            aRevision: string,
+            aSourceIndex: number | null,
+            aVersionId: number | null,
+            indx: number,
+            aSource: models.ApplicationSource,
+            sourceHeader?: JSX.Element
+        ) => {
+            const showChartNonMetadataInfo = (aRevision: string, aRepoUrl: string) => {
+                return (
+                    <>
+                        <div className='row white-box__details-row'>
+                            <div className='columns small-3'>Revision:</div>
+                            <div className='columns small-9'>{aRevision}</div>
+                        </div>
+                        <div className='row white-box__details-row'>
+                            <div className='columns small-3'>OCI Image:</div>
+                            <div className='columns small-9'>{aRepoUrl}</div>
+                        </div>
+                    </>
+                );
+            };
+            return (
+                <DataLoader
+                    key={indx}
+                    input={application}
+                    load={input => services.applications.ociMetadata(input.metadata.name, input.metadata.namespace, aRevision, aSourceIndex, aVersionId)}>
+                    {(m: OCIMetadata) => {
+                        return m ? (
+                            <div className='white-box' style={{marginTop: '1.5em'}}>
+                                {sourceHeader && sourceHeader}
+                                <div className='white-box__details'>
+                                    {showChartNonMetadataInfo(aRevision, aSource.repoURL)}
+                                    {m.description && (
+                                        <div className='row white-box__details-row'>
+                                            <div className='columns small-3'>Description:</div>
+                                            <div className='columns small-9'>{m.description}</div>
+                                        </div>
+                                    )}
+                                    {m.authors && m.authors.length > 0 && (
+                                        <div className='row white-box__details-row'>
+                                            <div className='columns small-3'>Maintainers:</div>
+                                            <div className='columns small-9'>{m.authors}</div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div key={indx} className='white-box' style={{marginTop: '1.5em'}}>
+                                <div>Source {indx + 1}</div>
+                                <div className='white-box__details'>
+                                    {showChartNonMetadataInfo(aRevision, aSource.repoURL)}
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-3'>Helm Chart:</div>
+                                        <div className='columns small-9'>
+                                            {aSource.chart}&nbsp;
+                                            {
+                                                <a
+                                                    title={sources[indx].chart}
+                                                    onClick={e => {
+                                                        e.stopPropagation();
+                                                        window.open(aSource.repoURL);
+                                                    }}>
+                                                    <i className='fa fa-external-link-alt' />
+                                                </a>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    }}
+                </DataLoader>
+            );
+        };
 
         const getContentForChart = (
             aRevision: string,
@@ -396,7 +474,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         const sources: models.ApplicationSource[] = application.spec.sources;
         if (sources?.length > 0 && revisions) {
             revisions.forEach((rev, indx) => {
-                if (sources[indx].chart) {
+                if (sources[indx].repoURL.startsWith('oci://')) {
+                    cont.push(getContentForOci(rev, indx, getAppCurrentVersion(application), indx, sources[indx], <div>Source {indx + 1}</div>));
+                } else if (sources[indx].chart) {
                     cont.push(getContentForChart(rev, indx, getAppCurrentVersion(application), indx, sources[indx], <div>Source {indx + 1}</div>));
                 } else {
                     cont.push(getContentForNonChart(rev, indx, getAppCurrentVersion(application), indx, sources[indx], <div>Source {indx + 1}</div>));
@@ -404,7 +484,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             });
             return <>{cont}</>;
         } else if (application.spec.source) {
-            if (source.chart) {
+            if (source.repoURL.startsWith('oci://')) {
+                cont.push(getContentForOci(revision, null, getAppCurrentVersion(application), 0, source));
+            } else if (source.chart) {
                 cont.push(getContentForChart(revision, null, null, 0, source));
             } else {
                 cont.push(getContentForNonChart(revision, null, getAppCurrentVersion(application), 0, source));
@@ -551,6 +633,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                 } else {
                                     (pref.userHelpTipMsgs || []).push(usrHelpTip);
                                 }
+                            };
+                            const toggleNodeName = () => {
+                                this.setState({showFullNodeName: !this.state.showFullNodeName});
                             };
                             const toggleNameDirection = () => {
                                 this.setState({truncateNameOnRight: !this.state.truncateNameOnRight});
@@ -715,6 +800,19 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                     })}
                                                                 />
                                                             </a>
+                                                            <a
+                                                                className={`group-nodes-button`}
+                                                                onClick={() => {
+                                                                    toggleNodeName();
+                                                                }}
+                                                                title={this.state.showFullNodeName ? 'Show wrapped resource name' : 'Show full resource name'}>
+                                                                <i
+                                                                    className={classNames({
+                                                                        'fa fa-expand': this.state.showFullNodeName,
+                                                                        'fa fa-compress': !this.state.showFullNodeName
+                                                                    })}
+                                                                />
+                                                            </a>
                                                             {(pref.view === 'tree' || pref.view === 'network') && (
                                                                 <Tooltip
                                                                     content={AppUtils.userMsgsList[showToolTip?.msgKey] || 'Group Nodes'}
@@ -729,7 +827,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                     </a>
                                                                 </Tooltip>
                                                             )}
-
                                                             <span className={`separator`} />
                                                             <a className={`group-nodes-button`} onClick={() => expandAll()} title='Expand all child nodes of all parent nodes'>
                                                                 <i className='fa fa-plus fa-fw' />
@@ -769,6 +866,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                             podGroupCount={pref.podGroupCount}
                                                             appContext={this.appContext}
                                                             nameDirection={this.state.truncateNameOnRight}
+                                                            nameWrap={this.state.showFullNodeName}
                                                             filters={pref.resourceFilter}
                                                             setTreeFilterGraph={setFilterGraph}
                                                             updateUsrHelpTipMsgs={updateHelpTipState}
@@ -1205,7 +1303,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                 if (needDisableRollback) {
                     const update = JSON.parse(JSON.stringify(application)) as appModels.Application;
                     update.spec.syncPolicy.automated = null;
-                    await services.applications.update(update);
+                    await services.applications.update(update, {validate: false});
                 }
                 await services.applications.rollback(this.props.match.params.name, this.getAppNamespace(), revisionHistory.id);
                 this.appChanged.next(await services.applications.get(this.props.match.params.name, this.getAppNamespace()));

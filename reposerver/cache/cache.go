@@ -18,7 +18,6 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/hash"
@@ -165,6 +164,10 @@ func helmIndexRefsKey(repo string) string {
 	return "helm-index|" + repo
 }
 
+func ociTagsKey(repo string) string {
+	return "oci-tags|" + repo
+}
+
 // SetHelmIndex stores helm repository index.yaml content to cache
 func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
 	if indexData == nil {
@@ -180,6 +183,23 @@ func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
 // GetHelmIndex retrieves helm repository index.yaml content from cache
 func (c *Cache) GetHelmIndex(repo string, indexData *[]byte) error {
 	return c.cache.GetItem(helmIndexRefsKey(repo), indexData)
+}
+
+// SetOCITags stores oci image tags to cache
+func (c *Cache) SetOCITags(repo string, indexData []byte) error {
+	if indexData == nil {
+		// Logged as warning upstream
+		return errors.New("oci index data is nil, skipping cache")
+	}
+	return c.cache.SetItem(
+		ociTagsKey(repo),
+		indexData,
+		&cacheutil.CacheActionOpts{Expiration: c.revisionCacheExpiration})
+}
+
+// GetOCITags retrieves oci image tags from cache
+func (c *Cache) GetOCITags(repo string, indexData *[]byte) error {
+	return c.cache.GetItem(ociTagsKey(repo), indexData)
 }
 
 func gitRefsKey(repo string) string {
@@ -305,7 +325,7 @@ func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs 
 
 func trackingKey(appLabelKey string, trackingMethod string) string {
 	trackingKey := appLabelKey
-	if text.FirstNonEmpty(trackingMethod, string(argo.TrackingMethodLabel)) != string(argo.TrackingMethodLabel) {
+	if text.FirstNonEmpty(trackingMethod, string(appv1.TrackingMethodLabel)) != string(appv1.TrackingMethodLabel) {
 		trackingKey = trackingMethod + ":" + trackingKey
 	}
 	return trackingKey
@@ -399,7 +419,7 @@ func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource
 
 func appDetailsCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, trackingMethod appv1.TrackingMethod, refSourceCommitSHAs ResolvedRevisions) string {
 	if trackingMethod == "" {
-		trackingMethod = argo.TrackingMethodLabel
+		trackingMethod = appv1.TrackingMethodLabel
 	}
 	return fmt.Sprintf("appdetails|%s|%d|%s", revision, appSourceKey(appSrc, srcRefs, refSourceCommitSHAs), trackingMethod)
 }

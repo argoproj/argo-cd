@@ -73,7 +73,6 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 		appInformer: nil,
 		onObjectUpdated: func(_ map[string]bool, _ corev1.ObjectReference) {
 		},
-		kubectl:       nil,
 		settingsMgr:   &argosettings.SettingsManager{},
 		metricsServer: &metrics.MetricsServer{},
 		// returns a shard that never process any cluster
@@ -303,14 +302,16 @@ func Test_asResourceNode_owner_refs(t *testing.T) {
 		},
 		ParentRefs: []appv1.ResourceRef{
 			{
-				Group: "",
-				Kind:  "ConfigMap",
-				Name:  "cm-1",
+				Group:   "",
+				Kind:    "ConfigMap",
+				Version: "v1",
+				Name:    "cm-1",
 			},
 			{
-				Group: "",
-				Kind:  "ConfigMap",
-				Name:  "cm-2",
+				Group:   "",
+				Kind:    "ConfigMap",
+				Version: "v1",
+				Name:    "cm-2",
 			},
 		},
 		Info:            nil,

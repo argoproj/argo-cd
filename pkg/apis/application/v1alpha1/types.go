@@ -102,6 +102,12 @@ func (id IgnoreDifferences) Equals(other IgnoreDifferences) bool {
 
 type TrackingMethod string
 
+const (
+	TrackingMethodAnnotation         TrackingMethod = "annotation"
+	TrackingMethodLabel              TrackingMethod = "label"
+	TrackingMethodAnnotationAndLabel TrackingMethod = "annotation+label"
+)
+
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
 type ResourceIgnoreDifferences struct {
 	Group             string   `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
@@ -294,6 +300,10 @@ func (source *ApplicationSource) AllowsConcurrentProcessing() bool {
 		return source.Kustomize.AllowsConcurrentProcessing()
 	}
 	return true
+}
+
+func (source *ApplicationSource) IsOCI() bool {
+	return strings.HasPrefix(source.RepoURL, "oci://")
 }
 
 // IsRef returns true when the application source is of type Ref
@@ -1133,7 +1143,7 @@ type ApplicationStatus struct {
 	// Sync contains information about the application's current sync status
 	Sync SyncStatus `json:"sync,omitempty" protobuf:"bytes,2,opt,name=sync"`
 	// Health contains information about the application's current health status
-	Health HealthStatus `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
+	Health AppHealthStatus `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
 	// History contains information about the application's sync history
 	History RevisionHistories `json:"history,omitempty" protobuf:"bytes,4,opt,name=history"`
 	// Conditions is a list of currently observed application conditions
@@ -1296,6 +1306,9 @@ func (in RevisionHistories) LastRevisionHistory() RevisionHistory {
 
 // Trunc truncates the list of history items to size n
 func (in RevisionHistories) Trunc(n int) RevisionHistories {
+	if n < 0 {
+		n = 0
+	}
 	i := len(in) - n
 	if i > 0 {
 		in = in[i:]
@@ -1573,6 +1586,17 @@ type RevisionMetadata struct {
 	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
 }
 
+// OCIMetadata contains metadata for a specific revision in an OCI repository
+type OCIMetadata struct {
+	CreatedAt   string `json:"createdAt,omitempty" protobuf:"bytes,1,opt,name=createdAt"`
+	Authors     string `json:"authors,omitempty" protobuf:"bytes,2,opt,name=authors"`
+	ImageURL    string `json:"imageUrl,omitempty" protobuf:"bytes,3,opt,name=imageUrl"`
+	DocsURL     string `json:"docsUrl,omitempty" protobuf:"bytes,4,opt,name=docsUrl"`
+	SourceURL   string `json:"sourceUrl,omitempty" protobuf:"bytes,5,opt,name=sourceUrl"`
+	Version     string `json:"version,omitempty" protobuf:"bytes,6,opt,name=version"`
+	Description string `json:"description,omitempty" protobuf:"bytes,7,opt,name=description"`
+}
+
 // ChartDetails contains helm chart metadata for a specific version
 type ChartDetails struct {
 	Description string `json:"description,omitempty" protobuf:"bytes,1,opt,name=description"`
@@ -1621,6 +1645,8 @@ type ResourceResult struct {
 	HookPhase synccommon.OperationPhase `json:"hookPhase,omitempty" protobuf:"bytes,9,opt,name=hookPhase"`
 	// SyncPhase indicates the particular phase of the sync that this result was acquired in
 	SyncPhase synccommon.SyncPhase `json:"syncPhase,omitempty" protobuf:"bytes,10,opt,name=syncPhase"`
+	// Images contains the images related to the ResourceResult
+	Images []string `json:"images,omitempty" protobuf:"bytes,11,opt,name=images"`
 }
 
 // GroupVersionKind returns the GVK schema information for a given resource within a sync result
@@ -1777,13 +1803,27 @@ type SyncStatus struct {
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,4,opt,name=revisions"`
 }
 
-// HealthStatus contains information about the currently observed health state of an application or resource
+// AppHealthStatus contains information about the currently observed health state of an application
+type AppHealthStatus struct {
+	// Status holds the status code of the application
+	Status health.HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
+	// Message is a human-readable informational message describing the health status
+	//
+	// Deprecated: this field is not used and will be removed in a future release.
+	Message string `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
+	// LastTransitionTime is the time the HealthStatus was set or updated
+	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
+}
+
+// HealthStatus contains information about the currently observed health state of a resource
 type HealthStatus struct {
-	// Status holds the status code of the application or resource
+	// Status holds the status code of the resource
 	Status health.HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
 	// Message is a human-readable informational message describing the health status
 	Message string `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
 	// LastTransitionTime is the time the HealthStatus was set or updated
+	//
+	// Deprecated: this field is not used and will be removed in a future release.
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
 }
 
@@ -2594,6 +2634,7 @@ type AppProjectSpec struct {
 	// Destinations contains list of destinations available for deployment
 	Destinations []ApplicationDestination `json:"destinations,omitempty" protobuf:"bytes,2,name=destination"`
 	// Description contains optional project description
+	// +kubebuilder:validation:MaxLength=255
 	Description string `json:"description,omitempty" protobuf:"bytes,3,opt,name=description"`
 	// Roles are user defined RBAC roles associated with this project
 	Roles []ProjectRole `json:"roles,omitempty" protobuf:"bytes,4,rep,name=roles"`
@@ -2642,6 +2683,8 @@ type SyncWindow struct {
 	TimeZone string `json:"timeZone,omitempty" protobuf:"bytes,8,opt,name=timeZone"`
 	// UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator
 	UseAndOperator bool `json:"andOperator,omitempty" protobuf:"bytes,9,opt,name=andOperator"`
+	// Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example
+	Description string `json:"description,omitempty" protobuf:"bytes,10,opt,name=description"`
 }
 
 // HasWindows returns true if SyncWindows has one or more SyncWindow
@@ -2738,7 +2781,7 @@ func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
 }
 
 // AddWindow adds a sync window with the given parameters to the AppProject
-func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string, andOperator bool) error {
+func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string, andOperator bool, description string) error {
 	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {
 		return errors.New("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 	}
@@ -2750,6 +2793,7 @@ func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []
 		ManualSync:     ms,
 		TimeZone:       timeZone,
 		UseAndOperator: andOperator,
+		Description:    description,
 	}
 
 	if len(app) > 0 {
@@ -2980,9 +3024,9 @@ func (w SyncWindow) active(currentTime time.Time) (bool, error) {
 }
 
 // Update updates a sync window's settings with the given parameter
-func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string) error {
-	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 {
-		return errors.New("cannot update: require one or more of schedule, duration, application, namespace, or cluster")
+func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string, description string) error {
+	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 && len(description) == 0 {
+		return errors.New("cannot update: require one or more of schedule, duration, application, namespace, cluster or description")
 	}
 
 	if len(s) > 0 {
@@ -2996,12 +3040,19 @@ func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []stri
 	if len(a) > 0 {
 		w.Applications = a
 	}
+
 	if len(n) > 0 {
 		w.Namespaces = n
 	}
+
 	if len(c) > 0 {
 		w.Clusters = c
 	}
+
+	if len(description) > 0 {
+		w.Description = description
+	}
+
 	if tz == "" {
 		tz = "UTC"
 	}
@@ -3032,6 +3083,11 @@ func (w *SyncWindow) Validate() error {
 	if err != nil {
 		return fmt.Errorf("cannot parse duration '%s': %w", w.Duration, err)
 	}
+
+	if len(w.Description) > 255 {
+		return errors.New("description must not exceed 255 characters")
+	}
+
 	return nil
 }
 

@@ -190,7 +190,6 @@ func NewLiveStateCache(
 	db db.ArgoDB,
 	appInformer cache.SharedIndexInformer,
 	settingsMgr *settings.SettingsManager,
-	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
 	clusterSharding sharding.ClusterShardingCache,
@@ -201,7 +200,6 @@ func NewLiveStateCache(
 		db:               db,
 		clusters:         make(map[string]clustercache.ClusterCache),
 		onObjectUpdated:  onObjectUpdated,
-		kubectl:          kubectl,
 		settingsMgr:      settingsMgr,
 		metricsServer:    metricsServer,
 		clusterSharding:  clusterSharding,
@@ -225,7 +223,6 @@ type liveStateCache struct {
 	db                   db.ArgoDB
 	appInformer          cache.SharedIndexInformer
 	onObjectUpdated      ObjectUpdatedHandler
-	kubectl              kube.Kubectl
 	settingsMgr          *settings.SettingsManager
 	metricsServer        *metrics.MetricsServer
 	clusterSharding      sharding.ClusterShardingCache
@@ -239,6 +236,10 @@ type liveStateCache struct {
 
 func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	appInstanceLabelKey, err := c.settingsMgr.GetAppInstanceLabelKey()
+	if err != nil {
+		return nil, err
+	}
+	trackingMethod, err := c.settingsMgr.GetTrackingMethod()
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +268,7 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 		ResourcesFilter:        resourcesFilter,
 	}
 
-	return &cacheSettings{clusterSettings, appInstanceLabelKey, argo.GetTrackingMethod(c.settingsMgr), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
+	return &cacheSettings{clusterSettings, appInstanceLabelKey, appv1.TrackingMethod(trackingMethod), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
 }
 
 func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
@@ -278,8 +279,14 @@ func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
 	parentRefs := make([]appv1.ResourceRef, len(r.OwnerRefs))
 	for i, ownerRef := range r.OwnerRefs {
 		ownerGvk := schema.FromAPIVersionAndKind(ownerRef.APIVersion, ownerRef.Kind)
-		ownerKey := kube.NewResourceKey(ownerGvk.Group, ownerRef.Kind, r.Ref.Namespace, ownerRef.Name)
-		parentRefs[i] = appv1.ResourceRef{Name: ownerRef.Name, Kind: ownerKey.Kind, Namespace: r.Ref.Namespace, Group: ownerKey.Group, UID: string(ownerRef.UID)}
+		parentRefs[i] = appv1.ResourceRef{
+			Group:     ownerGvk.Group,
+			Kind:      ownerGvk.Kind,
+			Version:   ownerGvk.Version,
+			Namespace: r.Ref.Namespace,
+			Name:      ownerRef.Name,
+			UID:       string(ownerRef.UID),
+		}
 	}
 	var resHealth *appv1.HealthStatus
 	resourceInfo := resInfo(r)

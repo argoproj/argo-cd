@@ -173,7 +173,7 @@ Argo CD will use the policies defined in the AppProject roles while authorizing 
 
 _Note 1_: It is very important that policy roles follow the pattern `proj:<project-name>:<role-name>` or they won't be effective during the Argo CD authorization process.
 
-_Note 2_: The example above used `applications` as the resource for the policy definition. However other types of resources can also be used: `repositories`, `clusters`, `logs`, `exec` and `projects`. See the [RBAC documentation](../operator-manual/rbac.md) for more details about those resources.
+_Note 2_: The example above used `applications` as the resource for the policy definition. However other types of resources can also be used: `repositories`, `clusters`, `logs` and `exec`. See the [RBAC documentation](../operator-manual/rbac.md) for more details about those resources.
 
 In order to create roles in a project and add policies to a role, a user will need permission to update a project.  The following commands can be used to manage a role.
 
@@ -232,7 +232,7 @@ argocd app get $APP --auth-token $JWT
 
 ## Configuring RBAC With Projects
 
-The project Roles allows configuring RBAC rules scoped to the project. The following sample project provides read-only permissions on project applications to any member of `my-oidc-group` group.
+Project roles allow configuring RBAC rules scoped to the project. The following sample project provides read-only permissions on project applications to any member of `my-oidc-group` group.
 
 *AppProject example:*
 

@@ -7,8 +7,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v3/util/settings"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -27,21 +25,17 @@ type ClusterGenerator struct {
 	ctx       context.Context
 	clientset kubernetes.Interface
 	// namespace is the Argo CD namespace
-	namespace       string
-	settingsManager *settings.SettingsManager
+	namespace string
 }
 
 var render = &utils.Render{}
 
 func NewClusterGenerator(ctx context.Context, c client.Client, clientset kubernetes.Interface, namespace string) Generator {
-	settingsManager := settings.NewSettingsManager(ctx, clientset, namespace)
-
 	g := &ClusterGenerator{
-		Client:          c,
-		ctx:             ctx,
-		clientset:       clientset,
-		namespace:       namespace,
-		settingsManager: settingsManager,
+		Client:    c,
+		ctx:       ctx,
+		clientset: clientset,
+		namespace: namespace,
 	}
 	return g
 }

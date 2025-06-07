@@ -21,6 +21,8 @@ function optionsToSearch(options?: QueryOptions) {
 }
 
 export class ApplicationsService {
+    constructor() {}
+
     public list(projects: string[], options?: QueryOptions): Promise<models.ApplicationList> {
         return requests
             .get('/applications')
@@ -51,6 +53,17 @@ export class ApplicationsService {
             .get(`/applications/${name}/syncwindows`)
             .query({name, appNamespace})
             .then(res => res.body as models.ApplicationSyncWindowState);
+    }
+
+    public ociMetadata(name: string, appNamespace: string, revision: string, sourceIndex: number, versionId: number): Promise<models.OCIMetadata> {
+        let r = requests.get(`/applications/${name}/revisions/${revision || 'HEAD'}/ocimetadata`).query({appNamespace});
+        if (sourceIndex !== null) {
+            r = r.query({sourceIndex});
+        }
+        if (versionId !== null) {
+            r = r.query({versionId});
+        }
+        return r.then(res => res.body as models.OCIMetadata);
     }
 
     public revisionMetadata(name: string, appNamespace: string, revision: string, sourceIndex: number | null, versionId: number | null): Promise<models.RevisionMetadata> {
@@ -326,18 +339,27 @@ export class ApplicationsService {
             });
     }
 
-    public runResourceAction(name: string, appNamespace: string, resource: models.ResourceNode, action: string): Promise<models.ResourceAction[]> {
+    public runResourceAction(
+        name: string,
+        appNamespace: string,
+        resource: models.ResourceNode,
+        action: string,
+        resourceActionParameters: models.ResourceActionParam[]
+    ): Promise<models.ResourceAction[]> {
         return requests
             .post(`/applications/${name}/resource/actions`)
-            .query({
-                appNamespace,
-                namespace: resource.namespace,
-                resourceName: resource.name,
-                version: resource.version,
-                kind: resource.kind,
-                group: resource.group
-            })
-            .send(JSON.stringify(action))
+            .send(
+                JSON.stringify({
+                    appNamespace,
+                    namespace: resource.namespace,
+                    resourceName: resource.name,
+                    version: resource.version,
+                    kind: resource.kind,
+                    group: resource.group,
+                    resourceActionParameters: resourceActionParameters,
+                    action
+                })
+            )
             .then(res => (res.body.actions as models.ResourceAction[]) || []);
     }
 
@@ -520,5 +542,12 @@ export class ApplicationsService {
         );
 
         return data as models.Application;
+    }
+
+    public async getApplicationSet(name: string, namespace: string): Promise<models.ApplicationSet> {
+        return requests
+            .get(`/applicationsets/${name}`)
+            .query({namespace})
+            .then(res => res.body as models.ApplicationSet);
     }
 }

@@ -84,7 +84,6 @@ func fakeServer(t *testing.T) (*FakeArgoCDServer, func()) {
 			),
 			1*time.Minute,
 			1*time.Minute,
-			1*time.Minute,
 		),
 		RedisClient:             redis,
 		RepoClientset:           mockRepoClient,
@@ -722,6 +721,22 @@ func TestGetClaims(t *testing.T) {
 				EnableUserInfoGroups:    true,
 				UserInfoPath:            "/userinfo",
 				UserInfoCacheExpiration: "5m",
+			},
+		},
+		{
+			test: "GetClaimsWithGroupsString",
+			claims: jwt.MapClaims{
+				"aud":    common.ArgoCDClientAppID,
+				"exp":    defaultExpiry,
+				"sub":    "randomUser",
+				"groups": "group1",
+			},
+			expectedErrorContains: "",
+			expectedClaims: jwt.MapClaims{
+				"aud":    common.ArgoCDClientAppID,
+				"exp":    defaultExpiryUnix,
+				"sub":    "randomUser",
+				"groups": "group1",
 			},
 		},
 	}
@@ -1642,4 +1657,41 @@ func Test_enforceContentTypes(t *testing.T) {
 		resp = w.Result()
 		assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode, "should not have passed, since a disallowed content type was provided")
 	})
+}
+
+func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
+	tmpDir := t.TempDir()
+	assetsDir := filepath.Join(tmpDir, "assets")
+	err := os.MkdirAll(assetsDir, os.ModePerm)
+	require.NoError(t, err)
+
+	// Create a file in temp dir
+	filePath := filepath.Join(tmpDir, "test.txt")
+	err = os.WriteFile(filePath, []byte("test"), 0o644)
+	require.NoError(t, err)
+
+	argocd, closer := fakeServer(t)
+	defer closer()
+
+	// Create a symlink to the file
+	symlinkPath := filepath.Join(argocd.StaticAssetsDir, "link.txt")
+	err = os.Symlink(filePath, symlinkPath)
+	require.NoError(t, err)
+
+	// Make a request to get the file from the /assets endpoint
+	req := httptest.NewRequest(http.MethodGet, "/link.txt", nil)
+	w := httptest.NewRecorder()
+	argocd.newStaticAssetsHandler()(w, req)
+	resp := w.Result()
+	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode, "should not have been able to access the symlinked file")
+
+	// Make sure a normal file works
+	normalFilePath := filepath.Join(argocd.StaticAssetsDir, "normal.txt")
+	err = os.WriteFile(normalFilePath, []byte("normal"), 0o644)
+	require.NoError(t, err)
+	req = httptest.NewRequest(http.MethodGet, "/normal.txt", nil)
+	w = httptest.NewRecorder()
+	argocd.newStaticAssetsHandler()(w, req)
+	resp = w.Result()
+	assert.Equal(t, http.StatusOK, resp.StatusCode, "should have been able to access the normal file")
 }

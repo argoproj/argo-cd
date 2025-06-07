@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
 
@@ -327,7 +329,7 @@ func Test_SemverTags(t *testing.T) {
 		// However, if one specifies the minor/patch versions, semver constraints can be used to match non-semver tags.
 		// 2024-banana is considered as "2024.0.0-banana" in semver-ish, and banana > apple, so it's a match.
 		// Note: this is more for documentation and future reference than real testing, as it seems like quite odd behaviour.
-		name:     "semver constraints on non-semver tags",
+		name:     "semver constraints on semver tags",
 		ref:      "> 2024.0.0-apple",
 		expected: mapTagRefs["2024-banana"],
 	}} {
@@ -860,7 +862,7 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 
 func Test_newAuth_AzureWorkloadIdentity(t *testing.T) {
 	tokenprovider := new(mocks.TokenProvider)
-	tokenprovider.On("GetToken", azureDevopsEntraResourceId).Return("accessToken", nil)
+	tokenprovider.On("GetToken", azureDevopsEntraResourceId).Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil)
 
 	creds := AzureWorkloadIdentityCreds{store: NoopCredsStore{}, tokenProvider: tokenprovider}
 
@@ -991,6 +993,65 @@ func Test_nativeGitClient_runCredentialedCmd(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_LsFiles_RaceCondition(t *testing.T) {
+	// Create two temporary directories and initialize them as git repositories
+	tempDir1 := t.TempDir()
+	tempDir2 := t.TempDir()
+
+	client1, err := NewClient("file://"+tempDir1, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	client2, err := NewClient("file://"+tempDir2, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	err = client1.Init()
+	require.NoError(t, err)
+	err = client2.Init()
+	require.NoError(t, err)
+
+	// Add different files to each repository
+	file1 := filepath.Join(client1.Root(), "file1.txt")
+	err = os.WriteFile(file1, []byte("content1"), 0o644)
+	require.NoError(t, err)
+	err = runCmd(client1.Root(), "git", "add", "file1.txt")
+	require.NoError(t, err)
+	err = runCmd(client1.Root(), "git", "commit", "-m", "Add file1")
+	require.NoError(t, err)
+
+	file2 := filepath.Join(client2.Root(), "file2.txt")
+	err = os.WriteFile(file2, []byte("content2"), 0o644)
+	require.NoError(t, err)
+	err = runCmd(client2.Root(), "git", "add", "file2.txt")
+	require.NoError(t, err)
+	err = runCmd(client2.Root(), "git", "commit", "-m", "Add file2")
+	require.NoError(t, err)
+
+	// Assert that LsFiles returns the correct files when called sequentially
+	files1, err := client1.LsFiles("*", true)
+	require.NoError(t, err)
+	require.Contains(t, files1, "file1.txt")
+
+	files2, err := client2.LsFiles("*", true)
+	require.NoError(t, err)
+	require.Contains(t, files2, "file2.txt")
+
+	// Define a function to call LsFiles multiple times in parallel
+	var wg sync.WaitGroup
+	callLsFiles := func(client Client, expectedFile string) {
+		defer wg.Done()
+		for i := 0; i < 100; i++ {
+			files, err := client.LsFiles("*", true)
+			require.NoError(t, err)
+			require.Contains(t, files, expectedFile)
+		}
+	}
+
+	// Call LsFiles in parallel for both clients
+	wg.Add(2)
+	go callLsFiles(client1, "file1.txt")
+	go callLsFiles(client2, "file2.txt")
+	wg.Wait()
 }
 
 type mockCreds struct {
