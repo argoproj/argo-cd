@@ -25,7 +25,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
-	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	"github.com/argoproj/argo-cd/v3/util/dex"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
@@ -159,14 +158,12 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 // The id parameter holds an optional unique JWT token identifier and stored as a standard claim "jti" in the JWT token.
 func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id string) (string, error) {
 	now := time.Now().UTC()
-	claims := claimsutil.ArgoClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			IssuedAt:  jwt.NewNumericDate(now),
-			Issuer:    SessionManagerClaimsIssuer,
-			NotBefore: jwt.NewNumericDate(now),
-			Subject:   subject,
-			ID:        id,
-		},
+	claims := jwt.RegisteredClaims{
+		IssuedAt:  jwt.NewNumericDate(now),
+		Issuer:    SessionManagerClaimsIssuer,
+		NotBefore: jwt.NewNumericDate(now),
+		Subject:   subject,
+		ID:        id,
 	}
 	if secondsBeforeExpiry > 0 {
 		expires := now.Add(time.Duration(secondsBeforeExpiry) * time.Second)
@@ -222,17 +219,13 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	if err != nil {
 		return nil, "", err
 	}
-	argoClaims, err := claimsutil.MapClaimsToArgoClaims(claims)
-	if err != nil {
-		return nil, "", err
-	}
 
 	issuedAt, err := jwtutil.IssuedAtTime(claims)
 	if err != nil {
 		return nil, "", err
 	}
 
-	subject := argoClaims.GetUserIdentifier()
+	subject := jwtutil.GetUserIdentifier(claims)
 	id := jwtutil.StringField(claims, "jti")
 
 	if projName, role, ok := rbacpolicy.GetProjectRoleFromSubject(subject); ok {
@@ -597,18 +590,19 @@ func LoggedIn(ctx context.Context) bool {
 
 // Username is a helper to extract a human readable username from a context
 func Username(ctx context.Context) string {
-	argoClaims, ok := argoClaims(ctx)
+	mapClaims, ok := mapClaims(ctx)
 	if !ok {
 		return ""
 	}
-	switch argoClaims.Issuer {
+	switch jwtutil.StringField(mapClaims, "iss") {
 	case SessionManagerClaimsIssuer:
-		return argoClaims.GetUserIdentifier()
+		return jwtutil.GetUserIdentifier(mapClaims)
 	default:
-		if argoClaims.Email != "" {
-			return argoClaims.Email
+		e := jwtutil.StringField(mapClaims, "email")
+		if e != "" {
+			return e
 		}
-		return argoClaims.GetUserIdentifier()
+		return jwtutil.GetUserIdentifier(mapClaims)
 	}
 }
 
@@ -634,11 +628,7 @@ func GetUserIdentifier(ctx context.Context) string {
 	if !ok {
 		return ""
 	}
-	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
-	if err != nil {
-		return ""
-	}
-	return argoClaims.GetUserIdentifier()
+	return jwtutil.GetUserIdentifier(mapClaims)
 }
 
 func Groups(ctx context.Context, scopes []string) []string {
@@ -659,16 +649,4 @@ func mapClaims(ctx context.Context) (jwt.MapClaims, bool) {
 		return nil, false
 	}
 	return mapClaims, true
-}
-
-func argoClaims(ctx context.Context) (*claimsutil.ArgoClaims, bool) {
-	mapClaims, ok := mapClaims(ctx)
-	if !ok {
-		return nil, false
-	}
-	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
-	if err != nil {
-		return nil, false
-	}
-	return argoClaims, true
 }

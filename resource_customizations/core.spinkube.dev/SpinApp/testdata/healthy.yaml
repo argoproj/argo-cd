@@ -1,0 +1,36 @@
+apiVersion: core.spinkube.dev/v1alpha1
+kind: SpinApp
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: >
+      {"apiVersion":"core.spinkube.dev/v1alpha1","kind":"SpinApp","metadata":{"annotations":{},"labels":{"argocd.argoproj.io/instance":"spin-apps"},"name":"simple-spinapp","namespace":"spin-apps"},"spec":{"executor":"containerd-shim-spin","image":"ghcr.io/spinkube/containerd-shim-spin/examples/spin-rust-hello:v0.13.0","replicas":2}}
+  creationTimestamp: '2025-02-17T20:30:09Z'
+  generation: 9
+  labels:
+    argocd.argoproj.io/instance: spin-apps
+  name: simple-spinapp
+  namespace: spin-apps
+  resourceVersion: '38985'
+  uid: ef4b3af3-ae67-4c49-8cbb-0cc4fb7b83ba
+spec:
+  checks: {}
+  enableAutoscaling: false
+  executor: containerd-shim-spin
+  image: ghcr.io/spinkube/containerd-shim-spin/examples/spin-rust-hello:v0.13.0
+  replicas: 2
+  resources: {}
+  runtimeConfig: {}
+status:
+  activeScheduler: containerd-shim-spin
+  conditions:
+    - lastTransitionTime: '2025-02-17T20:55:37Z'
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: 'True'
+      type: Available
+    - lastTransitionTime: '2025-02-17T21:37:41Z'
+      message: ReplicaSet "simple-spinapp-c54f5bdb4" has successfully progressed.
+      reason: NewReplicaSetAvailable
+      status: 'False'
+      type: Progressing
+  readyReplicas: 2

@@ -1362,7 +1362,6 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 				diffOption.res = res
 				diffOption.revisions = revisions
-				diffOption.sourcePositions = sourcePositions
 			case revision != "":
 				q := application.ApplicationManifestQuery{
 					Name:         &appName,
@@ -1423,14 +1422,13 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 // DifferenceOption struct to store diff options
 type DifferenceOption struct {
-	local           string
-	localRepoRoot   string
-	revision        string
-	cluster         *argoappv1.Cluster
-	res             *repoapiclient.ManifestResponse
-	serversideRes   *repoapiclient.ManifestResponse
-	revisions       []string
-	sourcePositions []int64
+	local         string
+	localRepoRoot string
+	revision      string
+	cluster       *argoappv1.Cluster
+	res           *repoapiclient.ManifestResponse
+	serversideRes *repoapiclient.ManifestResponse
+	revisions     []string
 }
 
 // findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false

@@ -54,21 +54,21 @@ func TestGetGitCreds(t *testing.T) {
 				Username: "user",
 				Password: "pass",
 			},
-			expected: git.NewHTTPSCreds("user", "pass", "", "", "", false, "", "", nil, false),
+			expected: git.NewHTTPSCreds("user", "pass", "", "", "", false, nil, false),
 		},
 		{
 			name: "Bearer token credentials",
 			repo: &Repository{
 				BearerToken: "token",
 			},
-			expected: git.NewHTTPSCreds("", "", "token", "", "", false, "", "", nil, false),
+			expected: git.NewHTTPSCreds("", "", "token", "", "", false, nil, false),
 		},
 		{
 			name: "SSH credentials",
 			repo: &Repository{
 				SSHPrivateKey: "ssh-key",
 			},
-			expected: git.NewSSHCreds("ssh-key", "", false, nil, "", ""),
+			expected: git.NewSSHCreds("ssh-key", "", false, ""),
 		},
 		{
 			name: "GitHub App credentials",
@@ -77,7 +77,7 @@ func TestGetGitCreds(t *testing.T) {
 				GithubAppId:             123,
 				GithubAppInstallationId: 456,
 			},
-			expected: git.NewGitHubAppCreds(123, 456, "github-key", "", "", "", "", false, "", "", nil),
+			expected: git.NewGitHubAppCreds(123, 456, "github-key", "", "", "", false, "", "", nil),
 		},
 		{
 			name: "Google Cloud credentials",

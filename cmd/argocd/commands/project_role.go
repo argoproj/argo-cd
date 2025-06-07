@@ -16,7 +16,6 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/jwt"
@@ -322,25 +321,19 @@ Create token succeeded for proj:test-project:test-role.
 			})
 			errors.CheckError(err)
 
-			var claims jwtgo.MapClaims
-			_, _, err = jwtgo.NewParser().ParseUnverified(tokenResponse.Token, &claims)
-			if err != nil {
+			token, err := jwtgo.Parse(tokenResponse.Token, nil)
+			if token == nil {
 				err = fmt.Errorf("received malformed token %w", err)
 				errors.CheckError(err)
 				return
 			}
 
-			argoClaims, err := claimsutil.MapClaimsToArgoClaims(claims)
-			if err != nil {
-				errors.CheckError(fmt.Errorf("invalid argo claims: %w", err))
-				return
-			}
+			claims := token.Claims.(jwtgo.MapClaims)
 
 			issuedAt, _ := jwt.IssuedAt(claims)
 			expiresAt := int64(jwt.Float64Field(claims, "exp"))
-			id := argoClaims.ID
-			subject := argoClaims.GetUserIdentifier()
-
+			id := jwt.StringField(claims, "jti")
+			subject := jwt.GetUserIdentifier(claims)
 			if !outputTokenOnly {
 				fmt.Printf("Create token succeeded for %s.\n", subject)
 				fmt.Printf("  ID: %s\n  Issued At: %s\n  Expires At: %s\n",
