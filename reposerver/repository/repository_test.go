@@ -679,6 +679,17 @@ func TestInvalidManifestsInDir(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestSkippedInvalidManifestsInDir(t *testing.T) {
+	service := newService(t, ".")
+
+	src := v1alpha1.ApplicationSource{Path: "./testdata/invalid-manifests-skipped", Directory: &v1alpha1.ApplicationSourceDirectory{Recurse: true}}
+
+	q := apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &src}
+
+	_, err := service.GenerateManifest(t.Context(), &q)
+	require.NoError(t, err)
+}
+
 func TestInvalidMetadata(t *testing.T) {
 	service := newService(t, ".")
 
@@ -2813,6 +2824,13 @@ func Test_findManifests(t *testing.T) {
 		manifests, err := findManifests(logCtx, "./testdata/invalid-manifests", "./testdata/invalid-manifests", nil, noRecurse, nil, resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		require.Error(t, err)
+	})
+
+	t.Run("invalid manifest containing '+argocd:skip-file-rendering' doesn't throw an error", func(t *testing.T) {
+		require.DirExists(t, "./testdata/invalid-manifests-skipped")
+		manifests, err := findManifests(logCtx, "./testdata/invalid-manifests-skipped", "./testdata/invalid-manifests-skipped", nil, noRecurse, nil, resource.MustParse("0"))
+		assert.Empty(t, manifests)
+		require.NoError(t, err)
 	})
 
 	t.Run("irrelevant YAML gets skipped, relevant YAML gets parsed", func(t *testing.T) {
