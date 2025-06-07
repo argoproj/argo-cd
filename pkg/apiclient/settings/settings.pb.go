@@ -670,6 +670,7 @@ type OIDCConfig struct {
 	XXX_NoUnkeyedLiteral     struct{}               `json:"-"`
 	XXX_unrecognized         []byte                 `json:"-"`
 	XXX_sizecache            int32                  `json:"-"`
+	DomainHint               string                 `json:"domainHint,omitempty"`
 }
 
 func (m *OIDCConfig) Reset()         { *m = OIDCConfig{} }
