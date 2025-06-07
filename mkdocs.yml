@@ -222,6 +222,7 @@ nav:
     - developer-guide/extensions/ui-extensions.md
     - developer-guide/extensions/proxy-extensions.md
   - developer-guide/faq.md
+  - developer-guide/tilt.md
 - faq.md
 - security_considerations.md
 - Support: SUPPORT.md
