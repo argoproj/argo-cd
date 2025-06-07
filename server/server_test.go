@@ -84,7 +84,6 @@ func fakeServer(t *testing.T) (*FakeArgoCDServer, func()) {
 			),
 			1*time.Minute,
 			1*time.Minute,
-			1*time.Minute,
 		),
 		RedisClient:             redis,
 		RepoClientset:           mockRepoClient,
