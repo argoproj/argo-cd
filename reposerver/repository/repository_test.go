@@ -228,6 +228,8 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 }
 
 func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name                    string
 		outOfBoundsFilename     string
@@ -3312,6 +3314,8 @@ func TestGetHelmRepo_NamedReposAlias(t *testing.T) {
 }
 
 func Test_getResolvedValueFiles(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 	paths := utilio.NewRandomizedTempPaths(tempDir)
 
