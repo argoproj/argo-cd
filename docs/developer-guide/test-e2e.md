@@ -19,8 +19,15 @@ Git repository via file url: `file:///tmp/argo-e2e***`.
 
 ## Running Tests Locally
 
+### With virtualized chain
 1. Start the e2e version `make start-e2e`
 2. Run the tests: `make test-e2e`
+
+### With local chain
+1. Start the e2e version `make start-e2e-local`
+2. Run the tests: `make test-e2e-local`
+
+## Observing tests results
 
 You can observe the tests by using the UI [http://localhost:4000/applications](http://localhost:4000/applications) with username `"admin"` and password `"password"`.
 
