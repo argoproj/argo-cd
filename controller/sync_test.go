@@ -189,6 +189,8 @@ func TestSyncComparisonError(t *testing.T) {
 }
 
 func TestAppStateManager_SyncAppState(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
 		application *v1alpha1.Application
 		controller  *ApplicationController
@@ -255,6 +257,8 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 }
 
 func TestSyncWindowDeniesSync(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
 		application *v1alpha1.Application
 		controller  *ApplicationController
@@ -642,6 +646,8 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 }
 
 func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
 		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
@@ -988,6 +994,8 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 }
 
 func TestDeriveServiceAccountMatchingServers(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
 		project     *v1alpha1.AppProject
 		application *v1alpha1.Application

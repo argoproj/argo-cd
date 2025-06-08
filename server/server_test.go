@@ -672,6 +672,8 @@ connectors:
 }
 
 func TestGetClaims(t *testing.T) {
+	t.Parallel()
+
 	defaultExpiry := jwt.NewNumericDate(time.Now().Add(time.Hour * 24))
 	defaultExpiryUnix := float64(defaultExpiry.Unix())
 
@@ -784,6 +786,8 @@ func TestGetClaims(t *testing.T) {
 }
 
 func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
+	t.Parallel()
+
 	// Marshaling single strings to strings is typical, so we test for this relatively common behavior.
 	jwt.MarshalSingleStringAsArray = false
 
@@ -943,6 +947,8 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 }
 
 func TestAuthenticate_no_request_metadata(t *testing.T) {
+	t.Parallel()
+
 	type testData struct {
 		test                  string
 		anonymousEnabled      bool
@@ -986,6 +992,8 @@ func TestAuthenticate_no_request_metadata(t *testing.T) {
 }
 
 func TestAuthenticate_no_SSO(t *testing.T) {
+	t.Parallel()
+
 	type testData struct {
 		test                 string
 		anonymousEnabled     bool
@@ -1035,6 +1043,8 @@ func TestAuthenticate_no_SSO(t *testing.T) {
 }
 
 func TestAuthenticate_bad_request_metadata(t *testing.T) {
+	t.Parallel()
+
 	type testData struct {
 		test                 string
 		anonymousEnabled     bool
@@ -1381,6 +1391,8 @@ func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
 }
 
 func TestIsMainJsBundle(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name           string
 		url            string
@@ -1616,6 +1628,8 @@ func TestReplaceBaseHRef(t *testing.T) {
 }
 
 func Test_enforceContentTypes(t *testing.T) {
+	t.Parallel()
+
 	getBaseHandler := func(t *testing.T, allow bool) http.Handler {
 		t.Helper()
 		return http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
@@ -1624,9 +1638,9 @@ func Test_enforceContentTypes(t *testing.T) {
 		})
 	}
 
-	t.Parallel()
-
 	t.Run("GET - not providing a content type, should still succeed", func(t *testing.T) {
+		t.Parallel()
+
 		handler := enforceContentTypes(getBaseHandler(t, true), []string{"application/json"}).(http.HandlerFunc)
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		w := httptest.NewRecorder()
@@ -1636,6 +1650,8 @@ func Test_enforceContentTypes(t *testing.T) {
 	})
 
 	t.Run("POST", func(t *testing.T) {
+		t.Parallel()
+
 		handler := enforceContentTypes(getBaseHandler(t, true), []string{"application/json"}).(http.HandlerFunc)
 		req := httptest.NewRequest(http.MethodPost, "/", nil)
 		w := httptest.NewRecorder()
