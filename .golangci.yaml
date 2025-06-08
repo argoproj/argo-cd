@@ -26,6 +26,7 @@ linters:
     - staticcheck
     - testifylint
     - thelper
+    - tparallel
     - unparam
     - usestdlibvars
     - usetesting

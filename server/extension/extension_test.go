@@ -127,6 +127,8 @@ func TestValidateHeaders(t *testing.T) {
 }
 
 func TestRegisterExtensions(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
 		settingsGetterMock *mocks.SettingsGetter
 		manager            *extension.Manager
@@ -231,6 +233,8 @@ func TestRegisterExtensions(t *testing.T) {
 }
 
 func TestCallExtension(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
 		mux                *http.ServeMux
 		appGetterMock      *mocks.ApplicationGetter

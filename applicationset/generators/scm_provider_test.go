@@ -12,6 +12,8 @@ import (
 )
 
 func TestSCMProviderGenerateParams(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name          string
 		repos         []*scm_provider.Repository
@@ -185,6 +187,8 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 }
 
 func TestAllowedSCMProvider(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name           string
 		providerConfig *argoprojiov1alpha1.SCMProviderGenerator
