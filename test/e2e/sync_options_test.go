@@ -233,13 +233,11 @@ func TestNamespaceCreationWithSSA(t *testing.T) {
 		}
 	}()
 
-	ctx := Given(t)
-	ctx.
-		SetAppNamespace(AppNamespace()).
-		Timeout(30).
+	Given(t).
 		Path("guestbook").
 		When().
 		CreateFromFile(func(app *Application) {
+			app.Spec.Destination.Namespace = namespace
 			app.Spec.SyncPolicy = &SyncPolicy{
 				SyncOptions: SyncOptions{"CreateNamespace=true", "ServerSideApply=true"},
 			}
@@ -247,7 +245,6 @@ func TestNamespaceCreationWithSSA(t *testing.T) {
 		Then().
 		Expect(NoNamespace(namespace)).
 		When().
-		AppSet("--dest-namespace", namespace).
 		Sync().
 		Then().
 		Expect(Success("")).
