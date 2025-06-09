@@ -383,7 +383,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		sync.WithServerSideApply(syncOp.SyncOptions.HasOption(common.SyncOptionServerSideApply)),
 		sync.WithServerSideApplyManager(cdcommon.ArgoCDSSAManager),
 		sync.WithClientSideApplyMigration(
-			!syncOp.SyncOptions.HasOption(syncOp.SyncOptions.HasOption(common.SyncOptionDisableClientSideApplyMigration)),
+			!syncOp.SyncOptions.HasOption(common.SyncOptionDisableClientSideApplyMigration),
 			clientSideApplyManager,
 		),
 		sync.WithPruneConfirmed(app.IsDeletionConfirmed(state.StartedAt.Time)),
