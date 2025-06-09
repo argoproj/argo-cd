@@ -947,6 +947,8 @@ func TestAppSourceEquality(t *testing.T) {
 }
 
 func TestAppSource_GetKubeVersionOrDefault(t *testing.T) {
+	t.Parallel()
+
 	defaultKV := "999.999.999"
 	cases := []struct {
 		name   string
@@ -996,6 +998,8 @@ func TestAppSource_GetKubeVersionOrDefault(t *testing.T) {
 }
 
 func TestAppSource_GetAPIVersionsOrDefault(t *testing.T) {
+	t.Parallel()
+
 	defaultAPIVersions := []string{"v1", "v2"}
 	cases := []struct {
 		name   string
@@ -1045,6 +1049,8 @@ func TestAppSource_GetAPIVersionsOrDefault(t *testing.T) {
 }
 
 func TestAppSource_GetNamespaceOrDefault(t *testing.T) {
+	t.Parallel()
+
 	defaultNS := "default"
 	cases := []struct {
 		name   string
@@ -2465,6 +2471,8 @@ func TestSyncWindows_Matches_AND_Operator(t *testing.T) {
 }
 
 func TestSyncWindows_CanSync(t *testing.T) {
+	t.Parallel()
+
 	t.Run("will allow manual sync if inactive-deny-window set with manual true", func(t *testing.T) {
 		// given
 		t.Parallel()
@@ -4073,6 +4081,8 @@ func getApplicationSpec() *ApplicationSpec {
 }
 
 func TestGetSource(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		hasSources     bool
@@ -4102,6 +4112,8 @@ func TestGetSource(t *testing.T) {
 }
 
 func TestGetSources(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name            string
 		hasSources      bool
@@ -4139,6 +4151,8 @@ func TestGetSources(t *testing.T) {
 }
 
 func TestOptionalArrayEquality(t *testing.T) {
+	t.Parallel()
+
 	// Demonstrate that the JSON unmarshalling of an empty array parameter is an OptionalArray with the array field set
 	// to an empty array.
 	presentButEmpty := `{"array":[]}`
@@ -4182,6 +4196,8 @@ func TestOptionalArrayEquality(t *testing.T) {
 }
 
 func TestOptionalMapEquality(t *testing.T) {
+	t.Parallel()
+
 	// Demonstrate that the JSON unmarshalling of an empty map parameter is an OptionalMap with the map field set
 	// to an empty map.
 	presentButEmpty := `{"map":{}}`

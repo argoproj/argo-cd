@@ -101,10 +101,14 @@ type HydrationQueueKey struct {
 
 // uniqueHydrationDestination is used to detect duplicate hydrate destinations.
 type uniqueHydrationDestination struct {
-	sourceRepoURL        string
+	//nolint:unused // used as part of a map key
+	sourceRepoURL string
+	//nolint:unused // used as part of a map key
 	sourceTargetRevision string
-	destinationBranch    string
-	destinationPath      string
+	//nolint:unused // used as part of a map key
+	destinationBranch string
+	//nolint:unused // used as part of a map key
+	destinationPath string
 }
 
 func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey HydrationQueueKey) (processNext bool) {

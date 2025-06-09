@@ -8,15 +8,17 @@ function get_latest_minor_version_tags() {
 
     git tag -l \
         | sed -E 's/(v[0-9]\.[0-9]+).*/\1/' \
-        | sort -Vu \
-        | tail -n "$count"
+        | sort --version-sort --reverse --unique \
+        | head -n "$count"
 }
 
 function get_latest_patch_versions() {
     count=$1
 
+    echo "master"
     while read -r minor; do
-        git tag -l | grep "^$minor" | sort -V | tail -n 1
+        # For each minor release, find latest patch release tag
+        git tag -l | grep "^$minor" | sort --version-sort | tail -n 1
     done < <(get_latest_minor_version_tags "$count")
 }
 

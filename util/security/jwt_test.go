@@ -12,6 +12,8 @@ import (
 )
 
 func Test_UnverifiedHasAudClaim(t *testing.T) {
+	t.Parallel()
+
 	tokenForAud := func(t *testing.T, aud jwt.ClaimStrings) string {
 		t.Helper()
 		claims := jwt.RegisteredClaims{Audience: aud, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}

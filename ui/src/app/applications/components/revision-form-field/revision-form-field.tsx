@@ -11,6 +11,7 @@ interface RevisionFormFieldProps {
     hideLabel?: boolean;
     repoURL: string;
     fieldValue?: string;
+    repoType?: string;
 }
 
 export class RevisionFormField extends React.PureComponent<RevisionFormFieldProps, {filterType: string}> {
@@ -34,7 +35,12 @@ export class RevisionFormField extends React.PureComponent<RevisionFormFieldProp
                         <DataLoader
                             input={{repoURL: this.props.repoURL, filterType: selectedFilter}}
                             load={async (src: any): Promise<string[]> => {
-                                if (src.repoURL) {
+                                if (this.props.repoType === 'oci' && src.repoURL) {
+                                    return services.repos
+                                        .ociTags(src.repoURL)
+                                        .then(revisionsRes => ['HEAD'].concat(revisionsRes.tags || []))
+                                        .catch(() => []);
+                                } else if (src.repoURL) {
                                     return services.repos
                                         .revisions(src.repoURL)
                                         .then(revisionsRes =>
@@ -63,20 +69,22 @@ export class RevisionFormField extends React.PureComponent<RevisionFormFieldProp
                     </React.Fragment>
                 </div>
                 <div style={{paddingTop: extraPadding}} className='columns small-2'>
-                    <DropDownMenu
-                        anchor={() => (
-                            <p>
-                                {this.state.filterType} <i className='fa fa-caret-down' />
-                            </p>
-                        )}
-                        qeId='application-create-dropdown-revision'
-                        items={['Branches', 'Tags'].map((type: 'Branches' | 'Tags') => ({
-                            title: type,
-                            action: () => {
-                                this.setFilter(type);
-                            }
-                        }))}
-                    />
+                    {this.props.repoType !== 'oci' && (
+                        <DropDownMenu
+                            anchor={() => (
+                                <p>
+                                    {this.state.filterType} <i className='fa fa-caret-down' />
+                                </p>
+                            )}
+                            qeId='application-create-dropdown-revision'
+                            items={['Branches', 'Tags'].map((type: 'Branches' | 'Tags') => ({
+                                title: type,
+                                action: () => {
+                                    this.setFilter(type);
+                                }
+                            }))}
+                        />
+                    )}
                 </div>
             </div>
         );

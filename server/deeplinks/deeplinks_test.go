@@ -30,6 +30,8 @@ type deepLinkTC struct {
 }
 
 func TestDeepLinks(t *testing.T) {
+	t.Parallel()
+
 	appObj, err := kube.ToUnstructured(&v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
