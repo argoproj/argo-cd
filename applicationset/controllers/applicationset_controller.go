@@ -1441,6 +1441,11 @@ func syncApplication(application argov1alpha1.Application, prune bool) argov1alp
 			},
 		},
 		Sync: &argov1alpha1.SyncOperation{},
+		// Set a retry limit of 5, aligning with the default in Argo CD's appcontroller auto-sync behavior.
+		// This provides consistency for retry behavior across controllers.
+		// See: https://github.com/argoproj/argo-cd/blob/v3.0.5/controller/appcontroller.go#L2126
+		// In the future, consider making this configurable via the ApplicationSet spec.
+		Retry: argov1alpha1.RetryStrategy{Limit: 5},
 	}
 
 	if application.Spec.SyncPolicy != nil {
