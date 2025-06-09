@@ -64,6 +64,7 @@ linters:
         - filepathJoin
         - httpNoBody
         - hugeParam
+        - importShadow
         - mapKey
         - nestingReduce
         - paramTypeCombine
