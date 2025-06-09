@@ -2,6 +2,7 @@ package kustomize
 
 import (
 	"fmt"
+	argocdcommon "github.com/argoproj/argo-cd/v3/common"
 	"os"
 	"path"
 	"path/filepath"
@@ -20,7 +21,7 @@ import (
 const (
 	kustomization1 = "kustomization_yaml"
 	kustomization3 = "force_common"
-	kustomization4 = "custom_version"
+	printEnv       = "print_env"
 	kustomization5 = "kustomization_yaml_patches"
 	kustomization6 = "kustomization_yaml_components"
 	kustomization7 = "label_without_selector"
@@ -138,6 +139,49 @@ func TestFailKustomizeBuild(t *testing.T) {
 	}
 	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil)
 	assert.EqualError(t, err, "expected integer value for count. Received: garbage")
+}
+
+func TestHttpsKustomizeUrlWithCert(t *testing.T) {
+	temppath := t.TempDir()
+	cert, err := os.ReadFile("../../test/fixture/certs/argocd-test-server.crt")
+	if err != nil {
+		panic(err)
+	}
+	err = os.WriteFile(path.Join(temppath, "made.up"), cert, 0o666)
+	if err != nil {
+		panic(err)
+	}
+	t.Setenv(argocdcommon.EnvVarTLSDataPath, temppath)
+
+	appPath, err := testDataDir(t, kustomization1)
+	require.NoError(t, err)
+	printEnv, err := testDataDir(t, printEnv)
+	require.NoError(t, err)
+	envOutputFile := printEnv + "/env_output"
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "https://made.up/FAKE/FAKE.git", printEnv+"/kustomize.special", "", "")
+	env := &v1alpha1.Env{
+		&v1alpha1.EnvEntry{Name: "TEST_VAR_NAME", Value: "GIT_SSL_CAINFO"},
+	}
+
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{}
+	_, _, _, err = kustomize.Build(&kustomizeSource, nil, env, nil)
+
+	content, err := os.ReadFile(envOutputFile)
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "GIT_SSL_CAINFO=/tmp/")
+}
+
+func TestKustomizeOpts(t *testing.T) {
+	appPath, err := testDataDir(t, kustomization1)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{}
+	kustomizeOptions := v1alpha1.KustomizeOptions{
+		BuildOptions: "--env FOO=BAR",
+	}
+	_, _, commands, err := kustomize.Build(&kustomizeSource, &kustomizeOptions, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "kustomize build . --env FOO=BAR", commands[0])
 }
 
 func TestIsKustomization(t *testing.T) {
@@ -461,7 +505,7 @@ func TestKustomizeLabelWithoutSelector(t *testing.T) {
 func TestKustomizeCustomVersion(t *testing.T) {
 	appPath, err := testDataDir(t, kustomization1)
 	require.NoError(t, err)
-	kustomizePath, err := testDataDir(t, kustomization4)
+	kustomizePath, err := testDataDir(t, printEnv)
 	require.NoError(t, err)
 	envOutputFile := kustomizePath + "/env_output"
 	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", kustomizePath+"/kustomize.special", "", "")
@@ -469,6 +513,7 @@ func TestKustomizeCustomVersion(t *testing.T) {
 		Version: "special",
 	}
 	env := &v1alpha1.Env{
+		&v1alpha1.EnvEntry{Name: "TEST_VAR_NAME", Value: "ARGOCD_APP_NAME"},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: "argo-cd-tests"},
 	}
 	objs, images, _, err := kustomize.Build(&kustomizeSource, nil, env, nil)
@@ -520,7 +565,7 @@ func TestKustomizeBuildPatches(t *testing.T) {
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		Patches: []v1alpha1.KustomizePatch{
 			{
-				Patch: `[ { "op": "replace", "path": "/spec/template/spec/containers/0/ports/0/containerPort", "value": 443 },  { "op": "replace", "path": "/spec/template/spec/containers/0/name", "value": "test" }]`,
+				Patch: `[ { "op": "replace", "path": "/spec/template/spec/containers/0/name", "value": "test" }]`,
 				Target: &v1alpha1.KustomizeSelector{
 					KustomizeResId: v1alpha1.KustomizeResId{
 						KustomizeGvk: v1alpha1.KustomizeGvk{
