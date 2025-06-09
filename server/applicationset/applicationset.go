@@ -124,11 +124,18 @@ func NewServer(
 }
 
 func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*v1alpha1.ApplicationSet, error) {
+	appSetName := q.GetName()
 	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
 
 	if !s.isNamespaceEnabled(namespace) {
 		return nil, security.NamespaceNotPermittedError(namespace)
 	}
+
+	events := make(chan *v1alpha1.ApplicationSetWatchEvent, application.WatchAPIBufferSize)
+	unsubscribe := s.appsetBroadcaster.Subscribe(events, func(event *v1alpha1.ApplicationSetWatchEvent) bool {
+		return event.ApplicationSet.Name == appSetName && event.ApplicationSet.Namespace == appSetName
+	})
+	defer unsubscribe()
 
 	a, err := s.appsetLister.ApplicationSets(namespace).Get(q.Name)
 	if err != nil {
@@ -139,7 +146,14 @@ func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetGetQue
 		return nil, err
 	}
 
-	return a, nil
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, errors.New("applicationset deadline exceeded")
+		case event := <-events:
+			return event.ApplicationSet.DeepCopy(), nil
+		}
+	}
 }
 
 // List returns list of ApplicationSets
