@@ -32,7 +32,7 @@ kustomize edit set image mycompany/guestbook:v2.0
 # plain yaml
 kubectl patch --local -f config-deployment.yaml -p '{"spec":{"template":{"spec":{"containers":[{"name":"guestbook","image":"mycompany/guestbook:v2.0"}]}}}}' -o yaml > config-deployment.yaml
 
-git add . -m "Update guestbook to v2.0"
+git commit -am "Update guestbook to v2.0"
 git push
 ```
 
