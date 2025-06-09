@@ -3,6 +3,7 @@ package kustomize
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"os/exec"
@@ -124,27 +125,51 @@ func mapToEditAddArgs(val map[string]string) []string {
 	return args
 }
 
-func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, buildOpts *BuildOpts) ([]*unstructured.Unstructured, []Image, []string, error) {
-	// commands stores all the commands that were run as part of this build.
-	var commands []string
+// buildContext holds common parameters and state for the build process.
+type buildContext struct {
+	kustomize     *kustomize
+	opts          *v1alpha1.ApplicationSourceKustomize
+	kustomizeOpts *v1alpha1.KustomizeOptions
+	buildOpts     *BuildOpts
+	commands      []string
+	userEnv       *v1alpha1.Env
+	invocationEnv []string
+}
 
-	env := os.Environ()
-	if envVars != nil {
-		env = append(env, envVars.Environ()...)
+// newBuildContext initializes a new buildContext.
+func newBuildContext(k *kustomize, opts *v1alpha1.ApplicationSourceKustomize, kustomizeOpts *v1alpha1.KustomizeOptions, userEnv *v1alpha1.Env, buildOpts *BuildOpts) *buildContext {
+	invocationEnv := os.Environ() // Start with system environment
+
+	if userEnv != nil {
+		invocationEnv = append(invocationEnv, userEnv.Environ()...)
 	}
 
-	closer, environ, err := k.creds.Environ()
+	return &buildContext{
+		kustomize:     k,
+		opts:          opts,
+		kustomizeOpts: kustomizeOpts,
+		userEnv:       userEnv,
+		buildOpts:     buildOpts,
+		commands:      []string{},
+		invocationEnv: invocationEnv,
+	}
+}
+
+// setupEnvironment prepares the environment variables for Kustomize execution.
+func (ctx *buildContext) setupEnvironment() (io.Closer, error) {
+	// Defer closer.Close() will be handled by the caller
+	closer, credsEnviron, err := ctx.kustomize.creds.Environ()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
-	defer func() { _ = closer.Close() }()
+	ctx.invocationEnv = append(ctx.invocationEnv, credsEnviron...)
 
-	// If we were passed a HTTPS URL, make sure that we also check whether there
+	// If we were passed an HTTPS URL, make sure that we also check whether there
 	// is a custom CA bundle configured for connecting to the server.
-	if k.repo != "" && git.IsHTTPSURL(k.repo) {
-		parsedURL, err := url.Parse(k.repo)
+	if ctx.kustomize.repo != "" && git.IsHTTPSURL(ctx.kustomize.repo) {
+		parsedURL, err := url.Parse(ctx.kustomize.repo)
 		if err != nil {
-			log.Warnf("Could not parse URL %s: %v", k.repo, err)
+			log.Warnf("Could not parse URL %s: %v", ctx.kustomize.repo, err)
 		} else {
 			caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
 			switch {
@@ -156,249 +181,304 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				log.Debugf("No caCert found for repo %s", parsedURL.Host)
 			default:
 				// Make Git use CA bundle
-				environ = append(environ, "GIT_SSL_CAINFO="+caPath)
+				ctx.invocationEnv = append(ctx.invocationEnv, "GIT_SSL_CAINFO="+caPath)
 			}
 		}
 	}
+	return closer, nil
+}
 
-	env = append(env, environ...)
+// runKustomizeEditCommand runs a kustomize edit command and appends it to the commands list.
+func (ctx *buildContext) runKustomizeEditCommand(args ...string) error {
+	args = append([]string{"edit"}, args...)
+	cmd := exec.Command(ctx.kustomize.getBinaryPath(), args...)
+	cmd.Dir = ctx.kustomize.path
+	ctx.commands = append(ctx.commands, executil.GetCommandArgsToLog(cmd))
+	_, err := executil.Run(cmd)
+	return err
+}
 
-	if opts != nil {
-		if opts.NamePrefix != "" {
-			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "nameprefix", "--", opts.NamePrefix)
-			cmd.Dir = k.path
-			commands = append(commands, executil.GetCommandArgsToLog(cmd))
-			_, err := executil.Run(cmd)
-			if err != nil {
-				return nil, nil, nil, err
-			}
+// applyNamePrefix applies the name prefix if specified.
+func (ctx *buildContext) applyNamePrefix() error {
+	if ctx.opts.NamePrefix != "" {
+		return ctx.runKustomizeEditCommand("set", "nameprefix", "--", ctx.opts.NamePrefix)
+	}
+	return nil
+}
+
+// applyNameSuffix applies the name suffix if specified.
+func (ctx *buildContext) applyNameSuffix() error {
+	if ctx.opts.NameSuffix != "" {
+		return ctx.runKustomizeEditCommand("set", "namesuffix", "--", ctx.opts.NameSuffix)
+	}
+	return nil
+}
+
+// applyImages applies image overrides if specified.
+func (ctx *buildContext) applyImages() error {
+	// set image postgres=eu.gcr.io/my-project/postgres:latest my-app=my-registry/my-app@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d3
+	// set image node:8.15.0 mysql=mariadb alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d3
+	if len(ctx.opts.Images) > 0 {
+		args := []string{"set", "image"}
+		for _, image := range ctx.opts.Images {
+			// this allows using ${ARGOCD_APP_REVISION}
+			envSubstitutedImage := ctx.userEnv.Envsubst(string(image))
+			args = append(args, envSubstitutedImage)
 		}
-		if opts.NameSuffix != "" {
-			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namesuffix", "--", opts.NameSuffix)
-			cmd.Dir = k.path
-			commands = append(commands, executil.GetCommandArgsToLog(cmd))
-			_, err := executil.Run(cmd)
-			if err != nil {
-				return nil, nil, nil, err
-			}
-		}
-		if len(opts.Images) > 0 {
-			// set image postgres=eu.gcr.io/my-project/postgres:latest my-app=my-registry/my-app@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d3
-			// set image node:8.15.0 mysql=mariadb alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d3
-			args := []string{"edit", "set", "image"}
-			for _, image := range opts.Images {
-				// this allows using ${ARGOCD_APP_REVISION}
-				envSubstitutedImage := envVars.Envsubst(string(image))
-				args = append(args, envSubstitutedImage)
-			}
-			cmd := exec.Command(k.getBinaryPath(), args...)
-			cmd.Dir = k.path
-			commands = append(commands, executil.GetCommandArgsToLog(cmd))
-			_, err := executil.Run(cmd)
-			if err != nil {
-				return nil, nil, nil, err
-			}
-		}
+		return ctx.runKustomizeEditCommand(args...)
+	}
+	return nil
+}
 
-		if len(opts.Replicas) > 0 {
-			// set replicas my-development=2 my-statefulset=4
-			args := []string{"edit", "set", "replicas"}
-			for _, replica := range opts.Replicas {
-				count, err := replica.GetIntCount()
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				arg := fmt.Sprintf("%s=%d", replica.Name, count)
-				args = append(args, arg)
-			}
-
-			cmd := exec.Command(k.getBinaryPath(), args...)
-			cmd.Dir = k.path
-			commands = append(commands, executil.GetCommandArgsToLog(cmd))
-			_, err := executil.Run(cmd)
+// applyReplicas applies replica overrides if specified.
+func (ctx *buildContext) applyReplicas() error {
+	// set replicas my-development=2 my-statefulset=4
+	if len(ctx.opts.Replicas) > 0 {
+		args := []string{"set", "replicas"}
+		for _, replica := range ctx.opts.Replicas {
+			count, err := replica.GetIntCount()
 			if err != nil {
-				return nil, nil, nil, err
+				return err
 			}
+			arg := fmt.Sprintf("%s=%d", replica.Name, count)
+			args = append(args, arg)
 		}
+		return ctx.runKustomizeEditCommand(args...)
+	}
+	return nil
+}
 
-		if len(opts.CommonLabels) > 0 {
-			//  edit add label foo:bar
-			args := []string{"edit", "add", "label"}
-			if opts.ForceCommonLabels {
-				args = append(args, "--force")
-			}
-			if opts.LabelWithoutSelector {
-				args = append(args, "--without-selector")
-			}
-			if opts.LabelIncludeTemplates {
-				args = append(args, "--include-templates")
-			}
-			commonLabels := map[string]string{}
-			for name, value := range opts.CommonLabels {
-				commonLabels[name] = envVars.Envsubst(value)
-			}
-			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(commonLabels)...)...)
-			cmd.Dir = k.path
-			commands = append(commands, executil.GetCommandArgsToLog(cmd))
-			_, err := executil.Run(cmd)
-			if err != nil {
-				return nil, nil, nil, err
-			}
+// applyCommonLabels applies common labels if specified.
+func (ctx *buildContext) applyCommonLabels() error {
+	//  edit add label foo:bar
+	if len(ctx.opts.CommonLabels) > 0 {
+		args := []string{"add", "label"}
+		if ctx.opts.ForceCommonLabels {
+			args = append(args, "--force")
 		}
-
-		if len(opts.CommonAnnotations) > 0 {
-			//  edit add annotation foo:bar
-			args := []string{"edit", "add", "annotation"}
-			if opts.ForceCommonAnnotations {
-				args = append(args, "--force")
-			}
-			var commonAnnotations map[string]string
-			if opts.CommonAnnotationsEnvsubst {
-				commonAnnotations = map[string]string{}
-				for name, value := range opts.CommonAnnotations {
-					commonAnnotations[name] = envVars.Envsubst(value)
-				}
-			} else {
-				commonAnnotations = opts.CommonAnnotations
-			}
-			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(commonAnnotations)...)...)
-			cmd.Dir = k.path
-			commands = append(commands, executil.GetCommandArgsToLog(cmd))
-			_, err := executil.Run(cmd)
-			if err != nil {
-				return nil, nil, nil, err
-			}
+		if ctx.opts.LabelWithoutSelector {
+			args = append(args, "--without-selector")
 		}
+		if ctx.opts.LabelIncludeTemplates {
+			args = append(args, "--include-templates")
+		}
+		commonLabels := map[string]string{}
+		for name, value := range ctx.opts.CommonLabels {
+			commonLabels[name] = ctx.userEnv.Envsubst(value)
+		}
+		return ctx.runKustomizeEditCommand(append(args, mapToEditAddArgs(commonLabels)...)...)
+	}
+	return nil
+}
 
-		if opts.Namespace != "" {
-			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namespace", "--", opts.Namespace)
-			cmd.Dir = k.path
-			commands = append(commands, executil.GetCommandArgsToLog(cmd))
-			_, err := executil.Run(cmd)
-			if err != nil {
-				return nil, nil, nil, err
+// applyCommonAnnotations applies common annotations if specified.
+func (ctx *buildContext) applyCommonAnnotations() error {
+	//  edit add annotation foo:bar
+	if len(ctx.opts.CommonAnnotations) > 0 {
+		args := []string{"add", "annotation"}
+		if ctx.opts.ForceCommonAnnotations {
+			args = append(args, "--force")
+		}
+		var commonAnnotations map[string]string
+		if ctx.opts.CommonAnnotationsEnvsubst {
+			commonAnnotations = map[string]string{}
+			for name, value := range ctx.opts.CommonAnnotations {
+				commonAnnotations[name] = ctx.userEnv.Envsubst(value)
 			}
+		} else {
+			commonAnnotations = ctx.opts.CommonAnnotations
+		}
+		return ctx.runKustomizeEditCommand(append(args, mapToEditAddArgs(commonAnnotations)...)...)
+	}
+	return nil
+}
+
+// applyNamespace applies the namespace if specified.
+func (ctx *buildContext) applyNamespace() error {
+	if ctx.opts.Namespace != "" {
+		return ctx.runKustomizeEditCommand("set", "namespace", "--", ctx.opts.Namespace)
+	}
+	return nil
+}
+
+// applyPatches modifies the kustomization.yaml to add patches.
+func (ctx *buildContext) applyPatches() error {
+	if len(ctx.opts.Patches) > 0 {
+		kustFile := findKustomizeFile(ctx.kustomize.path)
+		// If the kustomization file is not found, return early.
+		// There is no point reading the kustomization path if it doesn't exist.
+		if kustFile == "" {
+			return errors.New("kustomization file not found in the path")
+		}
+		kustomizationPath := filepath.Join(ctx.kustomize.path, kustFile)
+		b, err := os.ReadFile(kustomizationPath)
+		if err != nil {
+			return fmt.Errorf("failed to load kustomization.yaml: %w", err)
+		}
+		var kustomization any
+		err = yaml.Unmarshal(b, &kustomization)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal kustomization.yaml: %w", err)
+		}
+		kMap, ok := kustomization.(map[string]any)
+		if !ok {
+			return fmt.Errorf("expected kustomization.yaml to be type map[string]any, but got %T", kMap)
 		}
 
-		if len(opts.Patches) > 0 {
-			kustFile := findKustomizeFile(k.path)
-			// If the kustomization file is not found, return early.
-			// There is no point reading the kustomization path if it doesn't exist.
-			if kustFile == "" {
-				return nil, nil, nil, errors.New("kustomization file not found in the path")
-			}
-			kustomizationPath := filepath.Join(k.path, kustFile)
-			b, err := os.ReadFile(kustomizationPath)
-			if err != nil {
-				return nil, nil, nil, fmt.Errorf("failed to load kustomization.yaml: %w", err)
-			}
-			var kustomization any
-			err = yaml.Unmarshal(b, &kustomization)
-			if err != nil {
-				return nil, nil, nil, fmt.Errorf("failed to unmarshal kustomization.yaml: %w", err)
-			}
-			kMap, ok := kustomization.(map[string]any)
+		patches, ok := kMap["patches"]
+		if ok {
+			// The kustomization.yaml already had a patches field, so we need to append to it.
+			patchesList, ok := patches.([]any)
 			if !ok {
-				return nil, nil, nil, fmt.Errorf("expected kustomization.yaml to be type map[string]any, but got %T", kMap)
+				return fmt.Errorf("expected 'patches' field in kustomization.yaml to be []any, but got %T", patches)
 			}
-			patches, ok := kMap["patches"]
-			if ok {
-				// The kustomization.yaml already had a patches field, so we need to append to it.
-				patchesList, ok := patches.([]any)
-				if !ok {
-					return nil, nil, nil, fmt.Errorf("expected 'patches' field in kustomization.yaml to be []any, but got %T", patches)
-				}
-				// Since the patches from the Application manifest are typed, we need to convert them to a type which
-				// can be appended to the existing list.
-				untypedPatches := make([]any, len(opts.Patches))
-				for i := range opts.Patches {
-					untypedPatches[i] = opts.Patches[i]
-				}
-				patchesList = append(patchesList, untypedPatches...)
-				// Update the kustomization.yaml with the appended patches list.
-				kMap["patches"] = patchesList
-			} else {
-				kMap["patches"] = opts.Patches
+			// Since the patches from the Application manifest are typed, we need to convert them to a type which
+			// can be appended to the existing list.
+			untypedPatches := make([]any, len(ctx.opts.Patches))
+			for i := range ctx.opts.Patches {
+				untypedPatches[i] = ctx.opts.Patches[i]
 			}
-			updatedKustomization, err := yaml.Marshal(kMap)
-			if err != nil {
-				return nil, nil, nil, fmt.Errorf("failed to marshal kustomization.yaml after adding patches: %w", err)
-			}
-			kustomizationFileInfo, err := os.Stat(kustomizationPath)
-			if err != nil {
-				return nil, nil, nil, fmt.Errorf("failed to stat kustomization.yaml: %w", err)
-			}
-			err = os.WriteFile(kustomizationPath, updatedKustomization, kustomizationFileInfo.Mode())
-			if err != nil {
-				return nil, nil, nil, fmt.Errorf("failed to write kustomization.yaml with updated 'patches' field: %w", err)
-			}
-			commands = append(commands, "# kustomization.yaml updated with patches. There is no `kustomize edit` command for adding patches. In order to generate the manifests in your local environment, you will need to copy the patches into kustomization.yaml manually.")
+			// Update the kustomization.yaml with the appended patches list.
+			patchesList = append(patchesList, untypedPatches...)
+			kMap["patches"] = patchesList
+		} else {
+			kMap["patches"] = ctx.opts.Patches
 		}
 
-		if len(opts.Components) > 0 {
-			// components only supported in kustomize >= v3.7.0
-			// https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md
-			if getSemverSafe(k).LessThan(semver.MustParse("v3.7.0")) {
-				return nil, nil, nil, errors.New("kustomize components require kustomize v3.7.0 and above")
-			}
-
-			// add components
-			foundComponents := opts.Components
-			if opts.IgnoreMissingComponents {
-				foundComponents = make([]string, 0)
-				for _, c := range opts.Components {
-					resolvedPath, err := securejoin.SecureJoin(k.path, c)
-					if err != nil {
-						return nil, nil, nil, fmt.Errorf("Kustomize components path failed: %w", err)
-					}
-					_, err = os.Stat(resolvedPath)
-					if err != nil {
-						log.Debugf("%s component directory does not exist", resolvedPath)
-						continue
-					}
-					foundComponents = append(foundComponents, c)
-				}
-			}
-			args := []string{"edit", "add", "component"}
-			args = append(args, foundComponents...)
-			cmd := exec.Command(k.getBinaryPath(), args...)
-			cmd.Dir = k.path
-			cmd.Env = env
-			commands = append(commands, executil.GetCommandArgsToLog(cmd))
-			_, err := executil.Run(cmd)
-			if err != nil {
-				return nil, nil, nil, err
-			}
+		updatedKustomization, err := yaml.Marshal(kMap)
+		if err != nil {
+			return fmt.Errorf("failed to marshal kustomization.yaml after adding patches: %w", err)
 		}
+		kustomizationFileInfo, err := os.Stat(kustomizationPath)
+		if err != nil {
+			return fmt.Errorf("failed to stat kustomization.yaml: %w", err)
+		}
+		err = os.WriteFile(kustomizationPath, updatedKustomization, kustomizationFileInfo.Mode())
+		if err != nil {
+			return fmt.Errorf("failed to write kustomization.yaml with updated 'patches' field: %w", err)
+		}
+		ctx.commands = append(ctx.commands, "# kustomization.yaml updated with patches. There is no `kustomize edit` command for adding patches. In order to generate the manifests in your local environment, you will need to copy the patches into kustomization.yaml manually.")
 	}
+	return nil
+}
 
+// applyComponents adds components if specified.
+func (ctx *buildContext) applyComponents() error {
+	// components only supported in kustomize >= v3.7.0
+	// https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md
+	if len(ctx.opts.Components) > 0 {
+		if getSemverSafe(ctx.kustomize).LessThan(semver.MustParse("v3.7.0")) {
+			return errors.New("kustomize components require kustomize v3.7.0 and above")
+		}
+
+		foundComponents := ctx.opts.Components
+		if ctx.opts.IgnoreMissingComponents {
+			foundComponents = make([]string, 0)
+			for _, c := range ctx.opts.Components {
+				resolvedPath, err := securejoin.SecureJoin(ctx.kustomize.path, c)
+				if err != nil {
+					return fmt.Errorf("kustomize components path failed: %w", err)
+				}
+				_, err = os.Stat(resolvedPath)
+				if err != nil {
+					log.Debugf("%s component directory does not exist", resolvedPath)
+					continue
+				}
+				foundComponents = append(foundComponents, c)
+			}
+		}
+		args := []string{"edit", "add", "component"}
+		args = append(args, foundComponents...)
+		cmd := exec.Command(ctx.kustomize.getBinaryPath(), args...)
+		cmd.Dir = ctx.kustomize.path
+		cmd.Env = ctx.invocationEnv
+		ctx.commands = append(ctx.commands, executil.GetCommandArgsToLog(cmd))
+		_, err := executil.Run(cmd)
+		return err
+	}
+	return nil
+}
+
+// executeKustomizeBuild runs the final kustomize build command.
+func (ctx *buildContext) executeKustomizeBuild() (string, error) {
 	var cmd *exec.Cmd
-	if kustomizeOptions != nil && kustomizeOptions.BuildOptions != "" {
-		params := parseKustomizeBuildOptions(k, kustomizeOptions.BuildOptions, buildOpts)
-		cmd = exec.Command(k.getBinaryPath(), params...)
+	if ctx.kustomizeOpts != nil && ctx.kustomizeOpts.BuildOptions != "" {
+		params := parseKustomizeBuildOptions(ctx.kustomize, ctx.kustomizeOpts.BuildOptions, ctx.buildOpts)
+		cmd = exec.Command(ctx.kustomize.getBinaryPath(), params...)
 	} else {
-		cmd = exec.Command(k.getBinaryPath(), "build", k.path)
+		cmd = exec.Command(ctx.kustomize.getBinaryPath(), "build", ctx.kustomize.path)
 	}
-	cmd.Env = env
-	cmd.Env = proxy.UpsertEnv(cmd, k.proxy, k.noProxy)
-	cmd.Dir = k.repoRoot
-	commands = append(commands, executil.GetCommandArgsToLog(cmd))
+	cmd.Env = ctx.invocationEnv
+	cmd.Env = proxy.UpsertEnv(cmd, ctx.kustomize.proxy, ctx.kustomize.noProxy)
+	cmd.Dir = ctx.kustomize.repoRoot
+	ctx.commands = append(ctx.commands, executil.GetCommandArgsToLog(cmd))
 	out, err := executil.Run(cmd)
 	if err != nil {
-		return nil, nil, nil, err
+		return "", err
 	}
+	return out, nil
+}
 
-	objs, err := kube.SplitYAML([]byte(out))
+// processBuildOutput parses the YAML output and redacts commands.
+func (ctx *buildContext) processBuildOutput(output string) ([]*unstructured.Unstructured, []Image, []string, error) {
+	objs, err := kube.SplitYAML([]byte(output))
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	redactedCommands := make([]string, len(commands))
-	for i, c := range commands {
-		redactedCommands[i] = strings.ReplaceAll(c, k.repoRoot, ".")
+	redactedCommands := make([]string, len(ctx.commands))
+	for i, c := range ctx.commands {
+		redactedCommands[i] = strings.ReplaceAll(c, ctx.kustomize.repoRoot, ".")
 	}
 
 	return objs, getImageParameters(objs), redactedCommands, nil
+}
+
+func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOpts *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, buildOpts *BuildOpts) ([]*unstructured.Unstructured, []Image, []string, error) {
+	ctx := newBuildContext(k, opts, kustomizeOpts, envVars, buildOpts)
+
+	closer, err := ctx.setupEnvironment()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	defer func() { _ = closer.Close() }()
+
+	if ctx.opts != nil {
+		if err := ctx.applyNamePrefix(); err != nil {
+			return nil, nil, nil, err
+		}
+		if err := ctx.applyNameSuffix(); err != nil {
+			return nil, nil, nil, err
+		}
+		if err := ctx.applyImages(); err != nil {
+			return nil, nil, nil, err
+		}
+		if err := ctx.applyReplicas(); err != nil {
+			return nil, nil, nil, err
+		}
+		if err := ctx.applyCommonLabels(); err != nil {
+			return nil, nil, nil, err
+		}
+		if err := ctx.applyCommonAnnotations(); err != nil {
+			return nil, nil, nil, err
+		}
+		if err := ctx.applyNamespace(); err != nil {
+			return nil, nil, nil, err
+		}
+		if err := ctx.applyPatches(); err != nil {
+			return nil, nil, nil, err
+		}
+		if err := ctx.applyComponents(); err != nil {
+			return nil, nil, nil, err
+		}
+	}
+
+	output, err := ctx.executeKustomizeBuild()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return ctx.processBuildOutput(output)
 }
 
 func parseKustomizeBuildOptions(k *kustomize, buildOptions string, buildOpts *BuildOpts) []string {

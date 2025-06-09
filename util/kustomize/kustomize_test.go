@@ -2,7 +2,6 @@ package kustomize
 
 import (
 	"fmt"
-	argocdcommon "github.com/argoproj/argo-cd/v3/common"
 	"os"
 	"path"
 	"path/filepath"
@@ -13,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/git"
@@ -151,7 +151,7 @@ func TestHttpsKustomizeUrlWithCert(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	t.Setenv(argocdcommon.EnvVarTLSDataPath, temppath)
+	t.Setenv(common.EnvVarTLSDataPath, temppath)
 
 	appPath, err := testDataDir(t, kustomization1)
 	require.NoError(t, err)
@@ -165,6 +165,7 @@ func TestHttpsKustomizeUrlWithCert(t *testing.T) {
 
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{}
 	_, _, _, err = kustomize.Build(&kustomizeSource, nil, env, nil)
+	require.NoError(t, err)
 
 	content, err := os.ReadFile(envOutputFile)
 	require.NoError(t, err)
