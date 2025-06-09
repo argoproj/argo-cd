@@ -1086,7 +1086,7 @@ func progressiveSyncsRollingSyncStrategyEnabled(appset *argov1alpha1.Application
 }
 
 func isRollingSyncDeletionReversed(appset *argov1alpha1.ApplicationSet) bool {
-	return isRollingSyncStrategy(appset) && appset.Spec.Strategy.DeletionOrder == "Reverse"
+	return progressiveSyncsRollingSyncStrategyEnabled(appset) && appset.Spec.Strategy.DeletionOrder == "Reverse"
 }
 
 func isApplicationHealthy(app argov1alpha1.Application) bool {
