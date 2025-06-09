@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -44,7 +45,6 @@ func TestSyncWithCreateNamespace(t *testing.T) {
 		When().
 		Sync().
 		Then().
-		// Only one resource should be in sync result
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -79,11 +79,10 @@ func TestSyncWithCreateNamespaceAndDryRunError(t *testing.T) {
 		IgnoreErrors().
 		Sync().
 		Then().
-		// Only one resource should be in sync result
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(ResourceSyncStatusIs("Namespace", newNamespace, SyncStatusCodeSynced)).
-		Expect(ResourceSyncStatusWithNamespaceIs("ServiceAccount", newNamespace, "failure-during-sync", ""))
+		Expect(ResourceResultMatches(ResourceResult{Version: "v1", Kind: "Namespace", Name: newNamespace, Status: ResultCodeSynced, Message: fmt.Sprintf("namespace/%s created", newNamespace), HookPhase: OperationRunning, SyncPhase: SyncPhasePreSync})).
+		Expect(ResourceResultMatches(ResourceResult{Version: "v1", Kind: "ServiceAccount", Namespace: newNamespace, Name: "failure-during-sync", Status: ResultCodeSyncFailed, Message: `ServiceAccount "failure-during-sync" is invalid: metadata.labels: Invalid value`, HookPhase: OperationFailed, SyncPhase: SyncPhaseSync}))
 }
 
 // TestSyncOptionsValidateFalse verifies we can disable validation during kubectl apply, using the
@@ -227,11 +226,10 @@ func TestSyncWithForceReplace(t *testing.T) {
 //		  	application resources created with server side apply in the newly created namespace.
 func TestNamespaceCreationWithSSA(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
-	namespace := "guestbook-ui-with-ssa"
+	namespace := getNewNamespace(t)
 	defer func() {
 		if !t.Skipped() {
-			_, err := Run("", "kubectl", "delete", "namespace", namespace)
-			assert.NoError(t, err)
+			errors.NewHandler(t).FailOnErr(Run("", "kubectl", "delete", "namespace", namespace))
 		}
 	}()
 

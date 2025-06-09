@@ -102,8 +102,8 @@ github.com/RocketChat/Rocket.Chat.Go.SDK v0.0.0-20240116134246-a8cbe886bab0 h1:z
 github.com/RocketChat/Rocket.Chat.Go.SDK v0.0.0-20240116134246-a8cbe886bab0/go.mod h1:rjP7sIipbZcagro/6TCk6X0ZeFT2eyudH5+fve/cbBA=
 github.com/TomOnTime/utfutil v1.0.0 h1:/0Ivgo2OjXJxo8i7zgvs7ewSFZMLwCRGm3P5Umowb90=
 github.com/TomOnTime/utfutil v1.0.0/go.mod h1:l9lZmOniizVSuIliSkEf87qivMRlSNzbdBFKjuLRg1c=
-github.com/agaudreault/gitops-engine v0.7.1-0.20250606175117-1fac77f9a2f3 h1:BLF3CmlmWulHD33fn+pp+jwkZnJWkV5Oq0K6NsMtRPE=
-github.com/agaudreault/gitops-engine v0.7.1-0.20250606175117-1fac77f9a2f3/go.mod h1:duVhxDW7M7M7+19IBCVth2REOS11gmqzTWwj4u8N7aQ=
+github.com/agaudreault/gitops-engine v0.7.1-0.20250606181227-a3a3fb407d3b h1:Qr0dEy2awSYsskzM7EpRF118rU0UV5WMy+9L/4X/EqI=
+github.com/agaudreault/gitops-engine v0.7.1-0.20250606181227-a3a3fb407d3b/go.mod h1:duVhxDW7M7M7+19IBCVth2REOS11gmqzTWwj4u8N7aQ=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=

@@ -2,7 +2,7 @@ module github.com/argoproj/argo-cd/v3
 
 go 1.24.4
 
-replace github.com/argoproj/gitops-engine => github.com/agaudreault/gitops-engine v0.7.1-0.20250606175117-1fac77f9a2f3
+replace github.com/argoproj/gitops-engine => github.com/agaudreault/gitops-engine v0.7.1-0.20250606181227-a3a3fb407d3b
 
 require (
 	code.gitea.io/sdk/gitea v0.21.0
