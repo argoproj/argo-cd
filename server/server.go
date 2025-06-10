@@ -571,6 +571,9 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	server.userStateStorage.Init(ctx)
 
 	svcSet := newArgoCDServiceSet(server)
+	if server.sessionMgr != nil {Add commentMore actions
+		server.sessionMgr.CollectMetrics(metricsServ)
+	}
 	server.serviceSet = svcSet
 	grpcS, appResourceTreeFn := server.newGRPCServer()
 	grpcWebS := grpcweb.WrapServer(grpcS)
