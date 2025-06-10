@@ -47,7 +47,6 @@ func (factory *devopsFactoryImpl) GetClient(ctx context.Context) (azureGit.Clien
 type AzureDevOpsProvider struct {
 	organization  string
 	teamProject   string
-	accessToken   string
 	clientFactory AzureDevOpsClientFactory
 	allBranches   bool
 }
@@ -69,7 +68,7 @@ func NewAzureDevOpsProvider(accessToken string, org string, url string, project 
 
 	connection := azuredevops.NewPatConnection(devOpsURL, accessToken)
 
-	return &AzureDevOpsProvider{organization: org, teamProject: project, accessToken: accessToken, clientFactory: &devopsFactoryImpl{connection: connection}, allBranches: allBranches}, nil
+	return &AzureDevOpsProvider{organization: org, teamProject: project, clientFactory: &devopsFactoryImpl{connection: connection}, allBranches: allBranches}, nil
 }
 
 func (g *AzureDevOpsProvider) ListRepos(ctx context.Context, _ string) ([]*Repository, error) {
