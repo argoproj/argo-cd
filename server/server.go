@@ -26,50 +26,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/argoproj/notifications-engine/pkg/api"
-	"github.com/argoproj/pkg/v2/sync"
-	"github.com/golang-jwt/jwt/v5"
-	golang_proto "github.com/golang/protobuf/proto" //nolint:staticcheck
-	"github.com/gorilla/handlers"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
-	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
-	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
-	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	"github.com/improbable-eng/grpc-web/go/grpcweb"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/redis/go-redis/v9"
-	log "github.com/sirupsen/logrus"
-	"github.com/soheilhy/cmux"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/keepalive"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/reflection"
-	"google.golang.org/grpc/status"
-	"gopkg.in/yaml.v2"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	runtimepkg "k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/selection"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clientcmd"
-	ctrl "sigs.k8s.io/controller-runtime"
-	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
-	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-
 	"github.com/argoproj/argo-cd/v3/applicationset/generators"
 	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	appsetwebhook "github.com/argoproj/argo-cd/v3/applicationset/webhook"
@@ -89,7 +45,6 @@ import (
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
 	versionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	appv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	appinformer "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
@@ -140,6 +95,43 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 	argocdwebhook "github.com/argoproj/argo-cd/v3/util/webhook"
+	"github.com/argoproj/notifications-engine/pkg/api"
+	"github.com/argoproj/pkg/v2/sync"
+	"github.com/golang-jwt/jwt/v5"
+	golang_proto "github.com/golang/protobuf/proto" //nolint:staticcheck
+	"github.com/gorilla/handlers"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"
+	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/redis/go-redis/v9"
+	log "github.com/sirupsen/logrus"
+	"github.com/soheilhy/cmux"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
+	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -255,16 +247,11 @@ type ArgoCDServerOpts struct {
 }
 
 type ApplicationSetOpts struct {
-	MetricsAddr              string
-	ProbeBindAddr            string
-	DryRun                   bool
-	EnableLeaderElection     bool
+	TokenRefStrictMode       bool
 	GitSubmoduleEnabled      bool
 	EnableNewGitFileGlobbing bool
-	TokenRefStrictMode       bool
 	ScmRootCAPath            string
 	AllowedScmProviders      []string
-	ApplicationSetNamespaces []string
 	EnableScmProviders       bool
 }
 
@@ -1255,69 +1242,9 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	// Dex reverse proxy and client app and OAuth2 login/callback
 	server.registerDexHandlers(mux)
 
-	namespace, _, err := server.ArgoCDServerOpts.ClientConfig.Namespace()
-	if err != nil {
-		log.Error(err, "error while getting namespace from client config")
-		os.Exit(1)
-	}
-	server.ArgoCDServerOpts.ApplicationNamespaces = append(server.ArgoCDServerOpts.ApplicationNamespaces, namespace)
-
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
 	acdWebhookHandler := argocdwebhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
-
-	cfg := ctrl.GetConfigOrDie()
-	err = appv1alpha1.SetK8SConfigDefaults(cfg)
-	if err != nil {
-		log.Error(err, "Unable to apply K8s REST config defaults")
-		os.Exit(1)
-	}
-
-	scheme := runtimepkg.NewScheme()
-	_ = clientgoscheme.AddToScheme(scheme)
-	_ = appv1alpha1.AddToScheme(scheme)
-
-	// By default, watch all namespaces
-	var watchedNamespace string
-	// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
-	if len(server.ApplicationSetOpts.ApplicationSetNamespaces) == 1 {
-		watchedNamespace = (server.ApplicationSetOpts.ApplicationSetNamespaces)[0]
-	} else if server.ApplicationSetOpts.EnableScmProviders && len(server.ApplicationSetOpts.AllowedScmProviders) == 0 {
-		log.Error("When enabling applicationset in any namespace using applicationset-namespaces, you must either set --enable-scm-providers=false or specify --allowed-scm-providers")
-		os.Exit(1)
-	}
-
-	var cacheOpt ctrlcache.Options
-	if watchedNamespace != "" {
-		cacheOpt = ctrlcache.Options{
-			DefaultNamespaces: map[string]ctrlcache.Config{
-				watchedNamespace: {},
-			},
-		}
-	}
-
-	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme: scheme,
-		Metrics: metricsserver.Options{
-			BindAddress: server.ApplicationSetOpts.MetricsAddr,
-		},
-		Cache:                  cacheOpt,
-		HealthProbeBindAddress: server.ApplicationSetOpts.ProbeBindAddr,
-		LeaderElection:         server.ApplicationSetOpts.EnableLeaderElection,
-		LeaderElectionID:       "58ac56fa.applicationsets.argoproj.io",
-		Client: ctrlclient.Options{
-			DryRun: &server.ApplicationSetOpts.DryRun,
-		},
-	})
-	if err != nil {
-		log.Error(err, "unable to start manager")
-		os.Exit(1)
-	}
-	dynamicClient, err := dynamic.NewForConfig(mgr.GetConfig())
-	if err != nil {
-		log.Error(err, "failed to create dynamic client")
-		os.Exit(1)
-	}
 
 	argoCDService := services.NewArgoCDService(
 		argoDB,
@@ -1336,17 +1263,16 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	topLevelGenerators := generators.GetGenerators(
 		ctx,
-		mgr.GetClient(),
+		nil,
 		server.KubeClientset,
 		server.Namespace,
 		argoCDService,
-		dynamicClient,
+		nil,
 		scmConfig,
 	)
 
 	// start a webhook server that listens to incoming webhook payloads
 	appSetWebhookHandler, err := appsetwebhook.NewWebhookHandler(
-		server.Namespace,
 		server.WebhookParallelism,
 		server.settingsMgr,
 		server.KubeControllerClientset,
