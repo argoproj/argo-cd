@@ -549,6 +549,8 @@ func TestUnknownEvent(t *testing.T) {
 }
 
 func TestAppRevisionHasChanged(t *testing.T) {
+	t.Parallel()
+
 	getSource := func(targetRevision string) v1alpha1.ApplicationSource {
 		return v1alpha1.ApplicationSource{TargetRevision: targetRevision}
 	}
@@ -588,6 +590,8 @@ func TestAppRevisionHasChanged(t *testing.T) {
 }
 
 func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
+	t.Parallel()
+
 	sourceWithRevision := func(targetRevision string) v1alpha1.ApplicationSource {
 		return v1alpha1.ApplicationSource{TargetRevision: targetRevision}
 	}
@@ -713,6 +717,8 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 }
 
 func Test_GetWebURLRegex(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		shouldMatch bool
 		webURL      string
@@ -767,6 +773,8 @@ func Test_GetWebURLRegex(t *testing.T) {
 }
 
 func Test_GetAPIURLRegex(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		shouldMatch bool
 		apiURL      string
