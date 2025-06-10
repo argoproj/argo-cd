@@ -59,7 +59,6 @@ var (
 			Name: "argocd_login_request_total",
 			Help: "Number of login requests to the Argo CD API server.",
 		},
-		//todo: why is it status
 		[]string{"status"},
 	)
 	argoVersion = prometheus.NewGaugeVec(
