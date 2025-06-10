@@ -59,7 +59,7 @@ func (rf *ResourcesFilter) isExcludedResource(apiGroup, kind, cluster string) bo
 // +-------------+-------------+-------------+
 // | Not Present | Not Present | Not Allowed |
 // +-------------+-------------+-------------+
-// |   Present   |   Present   | Not Allowed |
+// |   Present   |   Present   |   Allowed   |
 // +-------------+-------------+-------------+
 func (rf *ResourcesFilter) IsExcludedResource(apiGroup, kind, cluster string) bool {
 	// if excluded, do not allow
