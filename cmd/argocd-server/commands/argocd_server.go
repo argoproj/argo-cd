@@ -91,15 +91,10 @@ func NewCommand() *cobra.Command {
 		syncWithReplaceAllowed   bool
 
 		// ApplicationSet
-		metricsAddr              string
-		probeBindAddr            string
-		dryRun                   bool
 		tokenRefStrictMode       bool
-		enableLeaderElection     bool
 		enableNewGitFileGlobbing bool
 		scmRootCAPath            string
 		allowedScmProviders      []string
-		applicationSetNamespaces []string
 		enableScmProviders       bool
 
 		// argocd k8s event logging flag
@@ -257,16 +252,11 @@ func NewCommand() *cobra.Command {
 			}
 
 			appsetOpts := server.ApplicationSetOpts{
-				DryRun:                   dryRun,
-				MetricsAddr:              metricsAddr,
-				ProbeBindAddr:            probeBindAddr,
 				TokenRefStrictMode:       tokenRefStrictMode,
-				EnableLeaderElection:     enableLeaderElection,
 				GitSubmoduleEnabled:      gitSubmoduleEnabled,
 				EnableNewGitFileGlobbing: enableNewGitFileGlobbing,
 				ScmRootCAPath:            scmRootCAPath,
 				AllowedScmProviders:      allowedScmProviders,
-				ApplicationSetNamespaces: applicationSetNamespaces,
 				EnableScmProviders:       enableScmProviders,
 			}
 
@@ -342,18 +332,11 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&syncWithReplaceAllowed, "sync-with-replace-allowed", env.ParseBoolFromEnv("ARGOCD_SYNC_WITH_REPLACE_ALLOWED", true), "Whether to allow users to select replace for syncs from UI/CLI")
 
 	// Flags related to the applicationSet component.
-	command.Flags().StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
-	command.Flags().StringVar(&probeBindAddr, "probe-addr", ":8081", "The address the probe endpoint binds to.")
 	command.Flags().StringVar(&scmRootCAPath, "appset-scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")
 	command.Flags().BoolVar(&enableScmProviders, "appset-enable-scm-providers", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS", true), "Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true)")
 	command.Flags().StringSliceVar(&allowedScmProviders, "appset-allowed-scm-providers", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS", []string{}, ","), "The list of allowed custom SCM provider API URLs. This restriction does not apply to SCM or PR generators which do not accept a custom API URL. (Default: Empty = all)")
-	command.Flags().BoolVar(&dryRun, "dry-run", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN", false), "Enable dry run mode")
 	command.Flags().BoolVar(&enableNewGitFileGlobbing, "appset-enable-new-git-file-globbing", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING", false), "Enable new globbing in Git files generator.")
-	command.Flags().BoolVar(&enableLeaderElection, "enable-leader-election", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_LEADER_ELECTION", false),
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
 	command.Flags().BoolVar(&tokenRefStrictMode, "token-ref-strict-mode", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE", false), fmt.Sprintf("Set to true to require secrets referenced by SCM providers to have the %s=%s label set (Default: false)", common.LabelKeySecretType, common.LabelValueSecretTypeSCMCreds))
-	command.Flags().StringSliceVar(&applicationSetNamespaces, "applicationset-namespaces", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES", []string{}, ","), "Argo CD applicationset namespaces")
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, cacheutil.Options{

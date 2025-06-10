@@ -3,6 +3,7 @@ package webhook
 import (
 	"context"
 	"fmt"
+	"html"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -151,6 +152,41 @@ func (h *WebhookHandler) HandleEvent(payload any) {
 			}
 			log.Infof("refresh ApplicationSet %v/%v from webhook", appSet.Namespace, appSet.Name)
 		}
+	}
+}
+
+func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
+	var payload any
+	var err error
+
+	switch {
+	case r.Header.Get("X-GitHub-Event") != "":
+		payload, err = h.github.Parse(r, github.PushEvent, github.PullRequestEvent, github.PingEvent)
+	case r.Header.Get("X-Gitlab-Event") != "":
+		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents)
+	case r.Header.Get("X-Vss-Activityid") != "":
+		payload, err = h.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
+	default:
+		log.Debug("Ignoring unknown webhook event")
+		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
+		return
+	}
+
+	if err != nil {
+		log.Infof("Webhook processing failed: %s", err)
+		status := http.StatusBadRequest
+		if r.Method != http.MethodPost {
+			status = http.StatusMethodNotAllowed
+		}
+		http.Error(w, "Webhook processing failed: "+html.EscapeString(err.Error()), status)
+		return
+	}
+
+	select {
+	case h.queue <- payload:
+	default:
+		log.Info("Queue is full, discarding webhook payload")
+		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
 	}
 }
 
