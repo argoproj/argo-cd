@@ -99,6 +99,9 @@ func (vm VM) runLuaWithResourceActionParameters(obj *unstructured.Unstructured, 
 	// preload our 'safe' version of the OS library. Allows the 'local os = require("os")' to work
 	l.PreloadModule(lua.OsLibName, SafeOsLoader)
 
+	// preload our 'safe' version of the Math library. Allows the 'local os = require("math")' to work
+	l.PreloadModule(lua.MathLibName, SafeMathLoader)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 	l.SetContext(ctx)
