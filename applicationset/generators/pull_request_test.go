@@ -275,6 +275,8 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 }
 
 func TestAllowedSCMProviderPullRequest(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name           string
 		providerConfig *argoprojiov1alpha1.PullRequestGenerator
