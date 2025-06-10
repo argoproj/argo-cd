@@ -32,10 +32,10 @@ func (m *WebhookMerger) Handler(w http.ResponseWriter, r *http.Request) {
 			req, err := copyRequest(r)
 			if err == nil {
 				if err = h(w, req); err != nil {
-					log.Error("error handling %s webhook: %+v. maybe not suitable?", name, err)
+					log.Printf("error handling %s webhook: %+v. maybe not suitable?", name, err)
 				}
 			} else {
-				log.Error("error copying request: %+v", err)
+				log.Printf("error copying request: %+v", err)
 			}
 		}()
 	}

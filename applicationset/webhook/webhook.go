@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html"
 	"net/http"
@@ -202,7 +203,7 @@ func (h *WebhookHandler) HandleRequest(_ http.ResponseWriter, r *http.Request) e
 	case r.Header.Get("X-Vss-Activityid") != "":
 		payload, err = h.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
 	default:
-		return fmt.Errorf("unknown webhook event")
+		return errors.New("unknown webhook event")
 	}
 
 	if err != nil {
@@ -212,7 +213,7 @@ func (h *WebhookHandler) HandleRequest(_ http.ResponseWriter, r *http.Request) e
 	select {
 	case h.queue <- payload:
 	default:
-		return fmt.Errorf("webhook processing failed: queue is full")
+		return errors.New("webhook processing failed: queue is full")
 	}
 
 	return nil

@@ -657,7 +657,7 @@ func (a *ArgoCDWebhookHandler) HandleRequest(w http.ResponseWriter, r *http.Requ
 	select {
 	case a.queue <- payload:
 	default:
-		return fmt.Errorf("webhook processing failed: queue is full")
+		return errors.New("webhook processing failed: queue is full")
 	}
 
 	return nil
