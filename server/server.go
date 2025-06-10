@@ -571,7 +571,7 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	server.userStateStorage.Init(ctx)
 
 	svcSet := newArgoCDServiceSet(server)
-	if server.sessionMgr != nil {Add commentMore actions
+	if server.sessionMgr != nil {
 		server.sessionMgr.CollectMetrics(metricsServ)
 	}
 	server.serviceSet = svcSet
