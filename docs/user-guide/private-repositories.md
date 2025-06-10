@@ -435,6 +435,51 @@ It is possible to add and remove SSH known hosts entries using the ArgoCD web UI
 
 You can also manage SSH known hosts entries in a declarative, self-managed ArgoCD setup. All SSH public host keys are stored in the ConfigMap object `argocd-ssh-known-hosts-cm`. For more details, please refer to the [Operator Manual](../operator-manual/declarative-setup.md#ssh-known-host-public-keys).
 
+## Helm
+
+Helm charts can be sourced from protected Helm repositories or OCI registries. You can configure access to protected Helm charts by using either the CLI or the UI by speciying `helm` as the _type_ of HTTPS based repository.
+
+Using the CLI:
+
+Specify the `--type` flag of the `argocd repo add` command:
+
+```bash
+argocd repo add https://argoproj.github.io/argo-helm --type=helm <additional-flags>
+```
+
+Using the UI:
+
+1. Navigate to `Settings/Repositories`
+
+    ![connect repo overview](../assets/repo-add-overview.png)
+
+2. Click the `Connect Repo` button
+
+3. Select `VIA HTTPS` as the Connection Method
+
+4. Select `helm` as the Type.
+
+    ![helm repository type](../assets/repo-type-helm.png)
+
+5. Click `Connect` to test the connection and have the repository added
+
+Helm charts stored in protected OCI registries should use the steps described previously as well as explicitly specifying that the source is an Helm chart stored in an OCI registry.
+
+Using CLI:
+
+Specify the `--enable-oci` flag of the `argocd repo add` command:
+
+```bash
+argocd repo add registry-1.docker.io/bitnamicharts --type=helm --enable-oci=true <additional-flags>
+```
+
+!!! note
+    The protocol, such as `oci://` should be omitted when referencing an OCI registry
+
+Using the UI:
+
+Select the _Enable OCI_ checkbox when adding a HTTPS based _helm_ repository.
+
 ## Git Submodules
 
 Submodules are supported and will be picked up automatically. If the submodule repository requires authentication then the credentials will need to match the credentials of the parent repository. Set ARGOCD_GIT_MODULES_ENABLED=false to disable submodule support

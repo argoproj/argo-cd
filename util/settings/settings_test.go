@@ -1578,6 +1578,8 @@ rootCA: "invalid"`},
 }
 
 func Test_OAuth2AllowedAudiences(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name     string
 		settings *ArgoCDSettings

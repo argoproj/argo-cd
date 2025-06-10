@@ -278,7 +278,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		AppClientset:            appClientset,
 		DisableAuth:             true,
 		RedisClient:             redis.NewClient(redisOptions),
-		Cache:                   servercache.NewCache(appstateCache, 0, 0, 0),
+		Cache:                   servercache.NewCache(appstateCache, 0, 0),
 		KubeClientset:           kubeClientset,
 		DynamicClientset:        dynamicClientset,
 		KubeControllerClientset: controllerClientset,

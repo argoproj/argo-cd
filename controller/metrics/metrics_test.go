@@ -9,6 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/mock"
+
+	"github.com/argoproj/argo-cd/v3/util/db/mocks"
+
 	gitopsCache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
@@ -40,7 +44,7 @@ metadata:
 spec:
   destination:
     namespace: dummy-namespace
-    server: https://localhost:6443
+    name: cluster1
   project: important-project
   source:
     path: some/path
@@ -65,7 +69,7 @@ metadata:
 spec:
   destination:
     namespace: dummy-namespace
-    server: https://localhost:6443
+    name: cluster1
   project: important-project
   source:
     path: some/path
@@ -101,7 +105,7 @@ metadata:
 spec:
   destination:
     namespace: dummy-namespace
-    server: https://localhost:6443
+    name: cluster1
   project: important-project
   source:
     path: some/path
@@ -130,7 +134,7 @@ metadata:
 spec:
   destination:
     namespace: dummy-namespace
-    server: https://localhost:6443
+    name: cluster1
   project: important-project
   source:
     path: some/path
@@ -161,7 +165,7 @@ metadata:
 spec:
   destination:
     namespace: dummy-namespace
-    server: https://localhost:6443
+    name: cluster1
   source:
     path: some/path
     repoURL: https://github.com/argoproj/argocd-example-apps.git
@@ -253,7 +257,10 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 	t.Helper()
 	cancel, appLister := newFakeLister(cfg.FakeAppYAMLs...)
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels, cfg.AppConditions)
+	mockDB := mocks.NewArgoDB(t)
+	mockDB.On("GetClusterServersByName", mock.Anything, "cluster1").Return([]string{"https://localhost:6443"}, nil)
+	mockDB.On("GetCluster", mock.Anything, "https://localhost:6443").Return(&argoappv1.Cluster{Name: "cluster1", Server: "https://localhost:6443"}, nil)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels, cfg.AppConditions, mockDB)
 	require.NoError(t, err)
 
 	if len(cfg.ClustersInfo) > 0 {
@@ -403,7 +410,8 @@ argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespa
 func TestMetricsSyncCounter(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	mockDB := mocks.NewArgoDB(t)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
 	require.NoError(t, err)
 
 	appSyncTotal := `
@@ -415,11 +423,11 @@ argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name=
 `
 
 	fakeApp := newFakeApp(fakeApp)
-	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationRunning})
-	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationFailed})
-	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationError})
-	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationSucceeded})
-	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationSucceeded})
+	metricsServ.IncSync(fakeApp, "https://localhost:6443", &argoappv1.OperationState{Phase: common.OperationRunning})
+	metricsServ.IncSync(fakeApp, "https://localhost:6443", &argoappv1.OperationState{Phase: common.OperationFailed})
+	metricsServ.IncSync(fakeApp, "https://localhost:6443", &argoappv1.OperationState{Phase: common.OperationError})
+	metricsServ.IncSync(fakeApp, "https://localhost:6443", &argoappv1.OperationState{Phase: common.OperationSucceeded})
+	metricsServ.IncSync(fakeApp, "https://localhost:6443", &argoappv1.OperationState{Phase: common.OperationSucceeded})
 
 	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
 	require.NoError(t, err)
@@ -456,7 +464,8 @@ func assertMetricsNotPrinted(t *testing.T, expectedLines, body string) {
 func TestReconcileMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	mockDB := mocks.NewArgoDB(t)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
 	require.NoError(t, err)
 
 	appReconcileMetrics := `
@@ -474,7 +483,7 @@ argocd_app_reconcile_sum{dest_server="https://localhost:6443",namespace="argocd"
 argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argocd"} 1
 `
 	fakeApp := newFakeApp(fakeApp)
-	metricsServ.IncReconcile(fakeApp, 5*time.Second)
+	metricsServ.IncReconcile(fakeApp, "https://localhost:6443", 5*time.Second)
 
 	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
 	require.NoError(t, err)
@@ -489,7 +498,8 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 func TestOrphanedResourcesMetric(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	mockDB := mocks.NewArgoDB(t)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
 	require.NoError(t, err)
 
 	expectedMetrics := `
@@ -514,7 +524,8 @@ argocd_app_orphaned_resources_count{name="my-app-4",namespace="argocd",project="
 func TestMetricsReset(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	mockDB := mocks.NewArgoDB(t)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
 	require.NoError(t, err)
 
 	appSyncTotal := `
@@ -551,7 +562,8 @@ argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name=
 func TestWorkqueueMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	mockDB := mocks.NewArgoDB(t)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
 	require.NoError(t, err)
 
 	expectedMetrics := `
@@ -586,7 +598,8 @@ workqueue_unfinished_work_seconds{controller="test",name="test"}
 func TestGoMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	mockDB := mocks.NewArgoDB(t)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
 	require.NoError(t, err)
 
 	expectedMetrics := `

@@ -1218,6 +1218,8 @@ func Test_unset(t *testing.T) {
 }
 
 func Test_unset_nothingToUnset(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name   string
 		source v1alpha1.ApplicationSource
@@ -2151,6 +2153,10 @@ func (c *fakeAppServiceClient) Create(_ context.Context, _ *applicationpkg.Appli
 }
 
 func (c *fakeAppServiceClient) GetApplicationSyncWindows(_ context.Context, _ *applicationpkg.ApplicationSyncWindowsQuery, _ ...grpc.CallOption) (*applicationpkg.ApplicationSyncWindowsResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetOCIMetadata(_ context.Context, _ *applicationpkg.RevisionMetadataQuery, _ ...grpc.CallOption) (*v1alpha1.OCIMetadata, error) {
 	return nil, nil
 }
 

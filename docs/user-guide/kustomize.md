@@ -35,7 +35,7 @@ The following configuration options are available for Kustomize:
 * `commonAnnotations` is a string map of additional annotations
 * `namespace` is a Kubernetes resources namespace
 * `forceCommonAnnotations` is a boolean value which defines if it's allowed to override existing annotations
-* `commonAnnotationsEnvsubst` is a boolean value which enables env variables substition in annotation  values
+* `commonAnnotationsEnvsubst` is a boolean value which enables env variables substitution in annotation  values
 * `patches` is a list of Kustomize patches that supports inline updates
 * `components` is a list of Kustomize components
 * `ignoreMissingComponents` prevents kustomize from failing when components do not exist locally by not appending them to kustomization file
