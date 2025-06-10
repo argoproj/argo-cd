@@ -119,7 +119,8 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 					}
 					repoOpts.Repo.SSHPrivateKey = string(keyData)
 				} else {
-					errors.Fatal(errors.ErrorGeneric, "--ssh-private-key-path is only supported for SSH repositories.")
+					err := stderrors.New("--ssh-private-key-path is only supported for SSH repositories.")
+					errors.CheckError(err)
 				}
 			}
 
@@ -184,7 +185,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repoOpts.Repo.UseAzureWorkloadIdentity = repoOpts.UseAzureWorkloadIdentity
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {
-				errors.Fatal(errors.ErrorGeneric, "Must specify --name for repos of type 'helm'")
+				errors.CheckError(stderrors.New("Must specify --name for repos of type 'helm'"))
 			}
 
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()

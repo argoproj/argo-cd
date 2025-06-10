@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -366,7 +367,7 @@ func (m *nativeGitClient) Init() error {
 	return err
 }
 
-// IsLFSEnabled returns true if the repository is LFS enabled
+// Returns true if the repository is LFS enabled
 func (m *nativeGitClient) IsLFSEnabled() bool {
 	return m.enableLfs
 }
@@ -978,7 +979,7 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 	}
 	cmd.Env = proxy.UpsertEnv(cmd, m.proxy, m.noProxy)
 	opts := executil.ExecRunOpts{
-		TimeoutBehavior: executil.TimeoutBehavior{
+		TimeoutBehavior: argoexec.TimeoutBehavior{
 			Signal:     syscall.SIGTERM,
 			ShouldWait: true,
 		},

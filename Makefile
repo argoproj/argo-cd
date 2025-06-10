@@ -3,9 +3,7 @@ CURRENT_DIR=$(shell pwd)
 DIST_DIR=${CURRENT_DIR}/dist
 CLI_NAME=argocd
 BIN_NAME=argocd
-
-# When using OSX/Darwin, you might need to enable CGO for local builds
-CGO_FLAG?=0
+CGO_FLAG=0
 
 GEN_RESOURCES_CLI_NAME=argocd-resources-gen
 

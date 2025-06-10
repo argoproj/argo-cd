@@ -67,7 +67,6 @@ export interface ApplicationResourceTreeProps {
     filters?: string[];
     setTreeFilterGraph?: (filterGraph: any[]) => void;
     nameDirection: boolean;
-    nameWrap: boolean;
     setNodeExpansion: (node: string, isExpanded: boolean) => any;
     getNodeExpansion: (node: string) => boolean;
 }
@@ -465,11 +464,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                     <br />
                     {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
                 </div>
-                <div
-                    className={classNames('application-resource-tree__node-content', {
-                        'application-resource-tree__fullname': props.nameWrap,
-                        'application-resource-tree__wrappedname': !props.nameWrap
-                    })}>
+                <div className='application-resource-tree__node-content'>
                     <span
                         className={classNames('application-resource-tree__node-title', {
                             'application-resource-tree__direction-right': props.nameDirection,
@@ -749,11 +744,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 <br />
                 {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
             </div>
-            <div
-                className={classNames('application-resource-tree__node-content', {
-                    'application-resource-tree__fullname': props.nameWrap,
-                    'application-resource-tree__wrappedname': !props.nameWrap
-                })}>
+            <div className='application-resource-tree__node-content'>
                 <div
                     className={classNames('application-resource-tree__node-title', {
                         'application-resource-tree__direction-right': props.nameDirection,

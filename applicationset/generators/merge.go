@@ -52,7 +52,7 @@ func (m *MergeGenerator) getParamSetsForAllGenerators(generators []argoprojiov1a
 // GenerateParams gets the params produced by the MergeGenerator.
 func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]any, error) {
 	if appSetGenerator.Merge == nil {
-		return nil, ErrEmptyAppSetGenerator
+		return nil, EmptyAppSetGeneratorError
 	}
 
 	if len(appSetGenerator.Merge.Generators) < 2 {

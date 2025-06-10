@@ -14,19 +14,19 @@
   "dependencies": {
     "@types/selenium-webdriver": "^4.1.28",
     "assert": "^2.1.0",
-    "chromedriver": "^136.0.2",
-    "selenium-webdriver": "^4.32.0"
+    "chromedriver": "^134.0.2",
+    "selenium-webdriver": "^4.29.0"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
-    "@types/node": "^22.15.19",
-    "dotenv": "^16.5.0",
-    "mocha": "^11.3.0",
+    "@types/node": "^22.13.10",
+    "dotenv": "^16.4.7",
+    "mocha": "^11.0.1",
     "prettier": "^2.8.8",
     "tslint": "^6.1.3",
     "tslint-config-prettier": "^1.18.0",
     "tslint-plugin-prettier": "^2.0.1",
-    "typescript": "^5.8.3",
+    "typescript": "^5.8.2",
     "yarn": "^1.22.22"
   }
 }

@@ -21,8 +21,6 @@ function optionsToSearch(options?: QueryOptions) {
 }
 
 export class ApplicationsService {
-    constructor() {}
-
     public list(projects: string[], options?: QueryOptions): Promise<models.ApplicationList> {
         return requests
             .get('/applications')
@@ -328,27 +326,18 @@ export class ApplicationsService {
             });
     }
 
-    public runResourceAction(
-        name: string,
-        appNamespace: string,
-        resource: models.ResourceNode,
-        action: string,
-        resourceActionParameters: models.ResourceActionParam[]
-    ): Promise<models.ResourceAction[]> {
+    public runResourceAction(name: string, appNamespace: string, resource: models.ResourceNode, action: string): Promise<models.ResourceAction[]> {
         return requests
             .post(`/applications/${name}/resource/actions`)
-            .send(
-                JSON.stringify({
-                    appNamespace,
-                    namespace: resource.namespace,
-                    resourceName: resource.name,
-                    version: resource.version,
-                    kind: resource.kind,
-                    group: resource.group,
-                    resourceActionParameters: resourceActionParameters,
-                    action
-                })
-            )
+            .query({
+                appNamespace,
+                namespace: resource.namespace,
+                resourceName: resource.name,
+                version: resource.version,
+                kind: resource.kind,
+                group: resource.group
+            })
+            .send(JSON.stringify(action))
             .then(res => (res.body.actions as models.ResourceAction[]) || []);
     }
 
@@ -493,6 +482,9 @@ export class ApplicationsService {
         if (tail) {
             search.set('tailLines', tail.toString());
         }
+        if (sinceSeconds) {
+            search.set('sinceSeconds', sinceSeconds.toString());
+        }
         if (untilTime) {
             search.set('untilTime', untilTime);
         }
@@ -506,11 +498,7 @@ export class ApplicationsService {
             search.set('matchCase', matchCase.toString());
         }
         // The API requires that this field be set to a non-empty string.
-        if (sinceSeconds) {
-            search.set('sinceSeconds', sinceSeconds.toString());
-        } else {
-            search.set('sinceSeconds', '0');
-        }
+        search.set('sinceSeconds', '0');
         return search;
     }
 
@@ -531,12 +519,5 @@ export class ApplicationsService {
         );
 
         return data as models.Application;
-    }
-
-    public async getApplicationSet(name: string, namespace: string): Promise<models.ApplicationSet> {
-        return requests
-            .get(`/applicationsets/${name}`)
-            .query({namespace})
-            .then(res => res.body as models.ApplicationSet);
     }
 }

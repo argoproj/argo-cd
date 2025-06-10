@@ -72,19 +72,19 @@ func NewWebhookHandler(namespace string, webhookParallelism int, argocdSettingsM
 	// register the webhook secrets stored under "argocd-secret" for verifying incoming payloads
 	argocdSettings, err := argocdSettingsMgr.GetSettings()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get argocd settings: %w", err)
+		return nil, fmt.Errorf("Failed to get argocd settings: %w", err)
 	}
 	githubHandler, err := github.New(github.Options.Secret(argocdSettings.WebhookGitHubSecret))
 	if err != nil {
-		return nil, fmt.Errorf("unable to init GitHub webhook: %w", err)
+		return nil, fmt.Errorf("Unable to init GitHub webhook: %w", err)
 	}
 	gitlabHandler, err := gitlab.New(gitlab.Options.Secret(argocdSettings.WebhookGitLabSecret))
 	if err != nil {
-		return nil, fmt.Errorf("unable to init GitLab webhook: %w", err)
+		return nil, fmt.Errorf("Unable to init GitLab webhook: %w", err)
 	}
 	azuredevopsHandler, err := azuredevops.New(azuredevops.Options.BasicAuth(argocdSettings.WebhookAzureDevOpsUsername, argocdSettings.WebhookAzureDevOpsPassword))
 	if err != nil {
-		return nil, fmt.Errorf("unable to init Azure DevOps webhook: %w", err)
+		return nil, fmt.Errorf("Unable to init Azure DevOps webhook: %w", err)
 	}
 
 	webhookHandler := &WebhookHandler{
