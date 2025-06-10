@@ -196,6 +196,7 @@ Scraped at the `argocd-server-metrics:8083/metrics` endpoint.
 
 | Metric                                            |   Type    | Description                                                                                 |
 |---------------------------------------------------|:---------:|---------------------------------------------------------------------------------------------|
+| `login_request`  | counter  | Number of active users 
 | `argocd_redis_request_duration`                   | histogram | Redis requests duration.                                                                    |
 | `argocd_redis_request_total`                      |  counter  | Number of Kubernetes requests executed during application reconciliation.                   |
 | `grpc_server_handled_total`                       |  counter  | Total number of RPCs completed on the server, regardless of success or failure.             |
