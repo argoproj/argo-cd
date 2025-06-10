@@ -1246,19 +1246,20 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
 	acdWebhookHandler := argocdwebhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
 
+	applicationSetOpts := server.ApplicationSetOpts
 	argoCDService := services.NewArgoCDService(
 		argoDB,
-		server.ApplicationSetOpts.GitSubmoduleEnabled,
+		applicationSetOpts.GitSubmoduleEnabled,
 		server.RepoClientset,
-		server.ApplicationSetOpts.EnableNewGitFileGlobbing,
+		applicationSetOpts.EnableNewGitFileGlobbing,
 	)
 
 	scmConfig := generators.NewSCMConfig(
-		server.ApplicationSetOpts.ScmRootCAPath,
+		applicationSetOpts.ScmRootCAPath,
 		server.AllowedScmProviders,
 		server.EnableNewGitFileGlobbing,
 		github_app.NewAuthCredentials(argoDB.(db.RepoCredsDB)),
-		server.ApplicationSetOpts.TokenRefStrictMode,
+		applicationSetOpts.TokenRefStrictMode,
 	)
 
 	topLevelGenerators := generators.GetGenerators(
