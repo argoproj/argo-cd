@@ -111,6 +111,7 @@ argocd-server [flags]
       --tlsmaxversion string                            The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")
       --tlsminversion string                            The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")
       --token string                                    Bearer token for authentication to the API server
+      --token-ref-strict-mode                           Set to true to require secrets referenced by SCM providers to have the argocd.argoproj.io/secret-type=scm-creds label set (Default: false)
       --user string                                     The name of the kubeconfig user to use
       --username string                                 Username for basic authentication to the API server
       --webhook-parallelism-limit int                   Number of webhook requests processed concurrently (default 50)
