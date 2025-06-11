@@ -22,12 +22,12 @@ func (m *MockWebhookHandler) HandleRequest(w http.ResponseWriter, r *http.Reques
 
 func TestWebhookMerger_OK(t *testing.T) {
 	acdHandler := &MockWebhookHandler{
-		handleFunc: func(w http.ResponseWriter, r *http.Request) error {
+		handleFunc: func(_ http.ResponseWriter, _ *http.Request) error {
 			return nil
 		},
 	}
 	appSetHandler := &MockWebhookHandler{
-		handleFunc: func(w http.ResponseWriter, r *http.Request) error {
+		handleFunc: func(_ http.ResponseWriter, _ *http.Request) error {
 			return nil
 		},
 	}
@@ -73,12 +73,12 @@ func TestWebhookMerger_Error(t *testing.T) {
 			hook := test.NewGlobal()
 
 			acdHandler := &MockWebhookHandler{
-				handleFunc: func(w http.ResponseWriter, r *http.Request) error {
+				handleFunc: func(_ http.ResponseWriter, _ *http.Request) error {
 					return tt.acdError
 				},
 			}
 			appSetHandler := &MockWebhookHandler{
-				handleFunc: func(w http.ResponseWriter, r *http.Request) error {
+				handleFunc: func(_ http.ResponseWriter, _ *http.Request) error {
 					return tt.appSetError
 				},
 			}
