@@ -122,7 +122,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
-	"github.com/argoproj/argo-cd/v3/util/merger"
 	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
 	"github.com/argoproj/argo-cd/v3/util/notification/k8s"
 	settings_notif "github.com/argoproj/argo-cd/v3/util/notification/settings"
@@ -133,6 +132,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 	argocdwebhook "github.com/argoproj/argo-cd/v3/util/webhook"
+	"github.com/argoproj/argo-cd/v3/util/webhookmerger"
 )
 
 const (
@@ -1285,10 +1285,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 		os.Exit(1)
 	}
 
-	mux.HandleFunc("/api/webhook", merger.NewWebhookMerger(
-		acdWebhookHandler,
-		appSetWebhookHandler,
-	).Handler)
+	mux.HandleFunc("/api/webhook", webhookmerger.NewWebhookMerger(acdWebhookHandler, appSetWebhookHandler).Handler)
 
 	// Serve cli binaries directly from API server
 	registerDownloadHandlers(mux, "/download")
