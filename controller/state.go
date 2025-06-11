@@ -71,9 +71,9 @@ type managedResource struct {
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool, rollback bool) (*comparisonResult, error)
+	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) (*comparisonResult, error)
 	SyncAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState)
-	GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, rollback, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error)
+	GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error)
 }
 
 // comparisonResult holds the state of an application after the reconciliation
@@ -988,15 +988,15 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 
 	compRes := comparisonResult{
-		syncStatus:           &syncStatus,
-		healthStatus:         healthStatus,
-		resources:            resourceSummaries,
-		managedResources:     managedResources,
-		reconciliationResult: reconciliation,
-		diffConfig:           diffConfig,
-		diffResultList:       diffResults,
-		hasPostDeleteHooks:   hasPostDeleteHooks,
-		revisionUpdated:      revisionsMayHaveChanges,
+		syncStatus:              &syncStatus,
+		healthStatus:            healthStatus,
+		resources:               resourceSummaries,
+		managedResources:        managedResources,
+		reconciliationResult:    reconciliation,
+		diffConfig:              diffConfig,
+		diffResultList:          diffResults,
+		hasPostDeleteHooks:      hasPostDeleteHooks,
+		revisionsMayHaveChanges: revisionsMayHaveChanges,
 	}
 
 	if hasMultipleSources {
