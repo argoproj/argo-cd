@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
@@ -124,7 +126,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 
 	logCtx.Debug("Writing manifests")
-	err = WriteForPaths(root, r.Repo.Repo, r.DrySha, r.Paths)
+	err = WriteForPaths(root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata.Author, r.DryCommitMetadata.Message, r.DryCommitMetadata.Date.Time, r.DryCommitMetadata.RelatedRevisions, r.Paths)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}
@@ -211,9 +213,13 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 }
 
 type hydratorMetadataFile struct {
-	RepoURL  string   `json:"repoURL"`
-	DrySHA   string   `json:"drySha"`
-	Commands []string `json:"commands"`
+	RepoURL        string                             `json:"repoURL"`
+	DrySHA         string                             `json:"drySha"`
+	Commands       []string                           `json:"commands"`
+	Author         string                             `json:"author"`
+	Date           string                             `json:"date"`
+	Message        string                             `json:"message"`
+	RelatedCommits []v1alpha1.RelatedRevisionMetadata `json:"relatedCommits,omitempty"`
 }
 
 // TODO: make this configurable via ConfigMap.

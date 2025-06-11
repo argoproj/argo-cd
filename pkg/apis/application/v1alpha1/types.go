@@ -1569,7 +1569,29 @@ type SyncStrategyHook struct {
 	SyncStrategyApply `json:",inline" protobuf:"bytes,1,opt,name=syncStrategyApply"`
 }
 
-// RevisionMetadata contains metadata for a specific revision in a Git repository
+// RelatedRevisionMetadata contains metadata about a commit that is related in some way to another commit.
+type RelatedRevisionMetadata struct {
+	// Author is the author of the commit.
+	// Comes from the Argocd-related-commit-author trailer.
+	Author string `json:"author,omitempty" protobuf:"bytes,1,opt,name=author"`
+	// Date is the date of the commit, formatted as by `git show -s --format=%aI`.
+	// Comes from the Argocd-related-commit-date trailer.
+	Date string `json:"date,omitempty" protobuf:"bytes,2,opt,name=date"`
+	// Subject is the commit message subject.
+	// Comes from the Argocd-related-commit-subject trailer.
+	Subject string `json:"subject,omitempty" protobuf:"bytes,3,opt,name=subject"`
+	// SHA is the commit hash.
+	// Comes from the Argocd-related-commit-sha trailer.
+	SHA string `json:"sha,omitempty" protobuf:"bytes,4,opt,name=sha"`
+	// RepoURL is the URL of the repository where the commit is located.
+	// Comes from the Argocd-related-commit-repourl trailer.
+	// This value is not validated and should not be used to construct UI links unless it is properly
+	// validated and/or sanitized first.
+	RepoURL string `json:"repoUrl,omitempty" protobuf:"bytes,5,opt,name=repoUrl"`
+}
+
+// RevisionMetadata contains metadata for a specific revision in a Git repository. This field is used by the
+// Source Hydrator feature which may be removed in the future.
 type RevisionMetadata struct {
 	// who authored this revision,
 	// typically their name and email, e.g. "John Doe <john_doe@my-company.com>",
@@ -1584,6 +1606,8 @@ type RevisionMetadata struct {
 	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
 	// SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
 	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
+	// RelatedRevisions contains metadata about commits that are related to this commit in some way.
+	RelatedRevisions []RelatedRevisionMetadata `json:"relatedRevisions,omitempty" protobuf:"bytes,6,opt,name=relatedRevisions"`
 }
 
 // OCIMetadata contains metadata for a specific revision in an OCI repository

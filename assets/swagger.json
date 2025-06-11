@@ -9130,6 +9130,32 @@
         }
       }
     },
+    "v1alpha1RelatedRevisionMetadata": {
+      "description": "RelatedRevisionMetadata contains metadata about a commit that is related in some way to another commit.",
+      "type": "object",
+      "properties": {
+        "author": {
+          "description": "Author is the author of the commit.\nComes from the Argocd-related-commit-author trailer.",
+          "type": "string"
+        },
+        "date": {
+          "description": "Date is the date of the commit, formatted as by `git show -s --format=%aI`.\nComes from the Argocd-related-commit-date trailer.",
+          "type": "string"
+        },
+        "repoUrl": {
+          "description": "RepoURL is the URL of the repository where the commit is located.\nComes from the Argocd-related-commit-repourl trailer.\nThis value is not validated and should not be used to construct UI links unless it is properly\nvalidated and/or sanitized first.",
+          "type": "string"
+        },
+        "sha": {
+          "description": "SHA is the commit hash.\nComes from the Argocd-related-commit-sha trailer.",
+          "type": "string"
+        },
+        "subject": {
+          "description": "Subject is the commit message subject.\nComes from the Argocd-related-commit-subject trailer.",
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1RepoCreds": {
       "type": "object",
       "title": "RepoCreds holds the definition for repository credentials",
@@ -9790,8 +9816,8 @@
       }
     },
     "v1alpha1RevisionMetadata": {
+      "description": "RevisionMetadata contains metadata for a specific revision in a Git repository. This field is used by the\nSource Hydrator feature which may be removed in the future.",
       "type": "object",
-      "title": "RevisionMetadata contains metadata for a specific revision in a Git repository",
       "properties": {
         "author": {
           "type": "string",
@@ -9803,6 +9829,13 @@
         "message": {
           "description": "Message contains the message associated with the revision, most likely the commit message.",
           "type": "string"
+        },
+        "relatedRevisions": {
+          "description": "RelatedRevisions contains metadata about commits that are related to this commit in some way.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1RelatedRevisionMetadata"
+          }
         },
         "signatureInfo": {
           "description": "SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.",
