@@ -154,15 +154,14 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 	revisions := state.SyncResult.Revisions
 	sources := state.SyncResult.Sources
-	rollback := len(syncOp.Sources) > 0 || syncOp.Source != nil
-	isMultiSourceSync := len(state.SyncResult.Sources) > 0
+	isMultiSourceSync := len(sources) > 0
 	if !isMultiSourceSync {
 		sources = []v1alpha1.ApplicationSource{state.SyncResult.Source}
 		revisions = []string{state.SyncResult.Revision}
 	}
 
 	// ignore error if CompareStateRepoError, this shouldn't happen as noRevisionCache is true
-	compareResult, err := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, isMultiSourceSync, rollback)
+	compareResult, err := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, isMultiSourceSync)
 	if err != nil && !stderrors.Is(err, ErrCompareStateRepo) {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
