@@ -1402,12 +1402,11 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
 				return
 			}
-			// retrying operation. remove previous failure time in app since it is used as a trigger
-			// that previous failed and operation should be retried
-			state.FinishedAt = nil
-			ctrl.setOperationState(app, state)
 			// Get rid of sync results and null out previous operation completion time
+			// This will start the retry attempt
+			state.FinishedAt = nil
 			state.SyncResult = nil
+			ctrl.setOperationState(app, state)
 		case ctrl.syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.syncTimeout)) && !terminating:
 			state.Phase = synccommon.OperationTerminating
 			state.Message = "operation is terminating due to timeout"
@@ -2129,35 +2128,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	alreadyAttempted, lastAttemptedRevisions, lastAttemptedPhase := alreadyAttemptedSync(app, desiredRevisions, shouldCompareRevisions)
 	ts.AddCheckpoint("already_attempted_sync_ms")
 	if alreadyAttempted {
-		if app.Spec.SyncPolicy.Automated.SelfHeal && lastAttemptedPhase.Successful() {
-			// Self heal will trigger a new sync operation when the desired state changes and cause the application to
-			// be OutOfSync when it was previously synced Successfully. This means SelfHeal should only ever be attempted
-			// when the revisions have not changed, and where the previous sync to these revision was successful
-			if !ctrl.selfHealBackoffCooldownElapsed(app) {
-				remainingTime := ctrl.selfHealRemainingBackoff(app)
-				if remainingTime > 0 {
-					logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", desiredRevisions, ctrl.selfHealTimeout, remainingTime)
-					ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &remainingTime)
-					return nil, 0
-				}
-
-				// Only carry SelfHealAttemptsCount when the selfHealBackoffCooldown has not elapsed
-				if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
-					op.Sync.SelfHealAttemptsCount = app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount
-				}
-			}
-
-			op.Sync.SelfHealAttemptsCount++
-			for _, resource := range resources {
-				if resource.Status != appv1.SyncStatusCodeSynced {
-					op.Sync.Resources = append(op.Sync.Resources, appv1.SyncOperationResource{
-						Kind:  resource.Kind,
-						Group: resource.Group,
-						Name:  resource.Name,
-					})
-				}
-			}
-		} else {
+		if !app.Spec.SyncPolicy.Automated.SelfHeal || !lastAttemptedPhase.Successful() {
 			if !lastAttemptedPhase.Successful() {
 				logCtx.Warnf("Skipping auto-sync: failed previous sync attempt to %s and will not retry for %s", lastAttemptedRevisions, desiredRevisions)
 				message := fmt.Sprintf("Failed last sync attempt to %s: %s", lastAttemptedRevisions, app.Status.OperationState.Message)
@@ -2165,6 +2136,34 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 			}
 			logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredRevisions)
 			return nil, 0
+		}
+
+		// Self heal will trigger a new sync operation when the desired state changes and cause the application to
+		// be OutOfSync when it was previously synced Successfully. This means SelfHeal should only ever be attempted
+		// when the revisions have not changed, and where the previous sync to these revision was successful
+		if !ctrl.selfHealBackoffCooldownElapsed(app) {
+			remainingTime := ctrl.selfHealRemainingBackoff(app)
+			if remainingTime > 0 {
+				logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", desiredRevisions, ctrl.selfHealTimeout, remainingTime)
+				ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &remainingTime)
+				return nil, 0
+			}
+
+			// Only carry SelfHealAttemptsCount when the selfHealBackoffCooldown has not elapsed
+			if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
+				op.Sync.SelfHealAttemptsCount = app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount
+			}
+		}
+
+		op.Sync.SelfHealAttemptsCount++
+		for _, resource := range resources {
+			if resource.Status != appv1.SyncStatusCodeSynced {
+				op.Sync.Resources = append(op.Sync.Resources, appv1.SyncOperationResource{
+					Kind:  resource.Kind,
+					Group: resource.Group,
+					Name:  resource.Name,
+				})
+			}
 		}
 	}
 	ts.AddCheckpoint("already_attempted_check_ms")

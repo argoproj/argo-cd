@@ -344,10 +344,13 @@ status:
       - cccccccccccccccccccccccccccccccccccccccc
       sources:
       - path: some/path
+        helm:
+          valueFiles:
+          - $values_test/values.yaml
         repoURL: https://github.com/argoproj/argocd-example-apps.git
       - path: some/other/path
         repoURL: https://github.com/argoproj/argocd-example-apps-fake.git
-      - path: some/other/path
+      - ref: values_test
         repoURL: https://github.com/argoproj/argocd-example-apps-fake-ref.git
 `
 
@@ -621,13 +624,13 @@ func TestAutoSyncEnabledSetToTrue(t *testing.T) {
 	assert.False(t, app.Operation.Sync.Prune)
 }
 
-func TestMultiSourceSelfHeal(t *testing.T) {
+func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 	// Simulate OutOfSync caused by object change in cluster
 	// So our Sync Revisions and SyncStatus Revisions should deep equal
 	t.Run("ClusterObjectChangeShouldNotTriggerAutoSync", func(t *testing.T) {
 		app := newFakeMultiSourceApp()
 		app.Spec.SyncPolicy.Automated.SelfHeal = false
-		app.Status.Sync.Revisions = []string{"z", "x", "v"}
+		app.Status.OperationState.SyncResult.Revisions = []string{"z", "x", "v"}
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
 		syncStatus := v1alpha1.SyncStatus{
 			Status:    v1alpha1.SyncStatusCodeOutOfSync,
@@ -643,11 +646,11 @@ func TestMultiSourceSelfHeal(t *testing.T) {
 	t.Run("NewRevisionChangeShouldTriggerAutoSync", func(t *testing.T) {
 		app := newFakeMultiSourceApp()
 		app.Spec.SyncPolicy.Automated.SelfHeal = false
-		app.Status.Sync.Revisions = []string{"a", "b", "c"}
+		app.Status.OperationState.SyncResult.Revisions = []string{"z", "x", "v"}
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
 		syncStatus := v1alpha1.SyncStatus{
 			Status:    v1alpha1.SyncStatusCodeOutOfSync,
-			Revisions: []string{"z", "x", "v"},
+			Revisions: []string{"a", "b", "c"},
 		}
 		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 		assert.Nil(t, cond)
@@ -773,6 +776,30 @@ func TestSkipAutoSync(t *testing.T) {
 				Sync: &v1alpha1.SyncOperation{},
 			},
 			Phase: synccommon.OperationFailed,
+			SyncResult: &v1alpha1.SyncOperationResult{
+				Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+				Source:   *app.Spec.Source.DeepCopy(),
+			},
+		}
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
+		syncStatus := v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeOutOfSync,
+			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		}
+		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		assert.NotNil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Nil(t, app.Operation)
+	})
+
+	t.Run("PreviousSyncAttemptError", func(t *testing.T) {
+		app := newFakeApp()
+		app.Status.OperationState = &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{},
+			},
+			Phase: synccommon.OperationError,
 			SyncResult: &v1alpha1.SyncOperationResult{
 				Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 				Source:   *app.Spec.Source.DeepCopy(),
@@ -2059,7 +2086,7 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 	ctrl.processRequestedAppOperation(app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
-	assert.Equal(t, string(synccommon.OperationFailed), phase)
+	assert.Equal(t, string(synccommon.OperationError), phase)
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
 	assert.Contains(t, message, "application destination can't have both name and server defined: another-cluster https://localhost:6443")
 }
