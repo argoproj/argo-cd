@@ -1239,8 +1239,8 @@ data:
 kind: ConfigMap
 ```
 
-The `resource.inclusions` and `resource.exclusions` might be used together. The final list of resources includes group/kinds specified in `resource.inclusions` minus group/kinds
-specified in `resource.exclusions` setting.
+The `resource.inclusions` and `resource.exclusions` might be used together. The final list of resources excludes group/kinds specified in `resource.exclusions` and includes group/kinds
+specified in `resource.inclusions` setting. If a resource matches both inclusion and exclusion rules, then the inclusion rule takes priority.
 
 Notes:
 
