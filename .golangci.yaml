@@ -26,6 +26,7 @@ linters:
     - staticcheck
     - testifylint
     - thelper
+    - tparallel
     - unparam
     - usestdlibvars
     - usetesting
@@ -220,6 +221,10 @@ linters:
 
       disable:
         - go-require
+
+    unused:
+      field-writes-are-uses: false
+      exported-fields-are-used: false
 
     usetesting:
       os-mkdir-temp: false

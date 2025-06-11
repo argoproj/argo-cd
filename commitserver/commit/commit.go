@@ -12,12 +12,12 @@ import (
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
 	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 )
 
 // Service is the service that handles commit requests.
 type Service struct {
-	gitCredsStore     git.CredsStore
 	metricsServer     *metrics.Server
 	repoClientFactory RepoClientFactory
 }
@@ -25,7 +25,6 @@ type Service struct {
 // NewService returns a new instance of the commit service.
 func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *Service {
 	return &Service{
-		gitCredsStore:     gitCredsStore,
 		metricsServer:     metricsServer,
 		repoClientFactory: NewRepoClientFactory(gitCredsStore, metricsServer),
 	}
@@ -99,6 +98,12 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 	defer cleanup()
 
+	root, err := os.OpenRoot(dirPath)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to open root dir: %w", err)
+	}
+	defer io.Close(root)
+
 	logCtx.Debugf("Checking out sync branch %s", r.SyncBranch)
 	var out string
 	out, err = gitClient.CheckoutOrOrphan(r.SyncBranch, false)
@@ -119,7 +124,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 
 	logCtx.Debug("Writing manifests")
-	err = WriteForPaths(dirPath, r.Repo.Repo, r.DrySha, r.Paths)
+	err = WriteForPaths(root, r.Repo.Repo, r.DrySha, r.Paths)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}
