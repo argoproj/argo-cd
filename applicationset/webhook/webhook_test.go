@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -342,7 +343,7 @@ func TestWebhook_HandleRequest(t *testing.T) {
 			effectedAppSets:    []string{"git-gitlab", "git-gitlab-ssh", "git-gitlab-alt-ssh", "plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    false,
-			expectedError:      fmt.Errorf("unknown webhook event"),
+			expectedError:      errors.New("unknown webhook event"),
 		},
 		{
 			desc:               "WebHook with an invalid event",
@@ -352,7 +353,7 @@ func TestWebhook_HandleRequest(t *testing.T) {
 			effectedAppSets:    []string{"git-gitlab", "git-gitlab-ssh", "git-gitlab-alt-ssh", "plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    false,
-			expectedError:      fmt.Errorf("unknown webhook event"),
+			expectedError:      errors.New("unknown webhook event"),
 		},
 		{
 			desc:               "WebHook from a GitHub repository via pull_request opened event",
