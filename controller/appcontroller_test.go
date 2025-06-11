@@ -1862,7 +1862,7 @@ apps/Deployment:
     hs = {}
     hs.status = ""
     hs.message = ""
-    
+
     if obj.metadata ~= nil then
       if obj.metadata.labels ~= nil then
         current_status = obj.metadata.labels["status"]
@@ -2555,7 +2555,7 @@ func assertDurationAround(t *testing.T, expected time.Duration, actual time.Dura
 
 func TestSelfHealExponentialBackoff(t *testing.T) {
 	ctrl := newFakeController(&fakeData{}, nil)
-	ctrl.selfHealBackOff = &wait.Backoff{
+	ctrl.selfHealBackoff = &wait.Backoff{
 		Factor:   3,
 		Duration: 2 * time.Second,
 		Cap:      2 * time.Minute,
