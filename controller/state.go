@@ -536,30 +536,27 @@ func isManagedNamespace(ns *unstructured.Unstructured, app *v1alpha1.Application
 // revision and overrides in the app spec.
 func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) (*comparisonResult, error) {
 	ts := stats.NewTimingStats()
+	// Build initial sync status
+	syncStatus := &v1alpha1.SyncStatus{
+		ComparedTo: v1alpha1.ComparedTo{
+			Destination:       app.Spec.Destination,
+			IgnoreDifferences: app.Spec.IgnoreDifferences,
+		},
+		Status: v1alpha1.SyncStatusCodeUnknown,
+	}
+	if hasMultipleSources {
+		syncStatus.ComparedTo.Sources = sources
+		syncStatus.Revisions = revisions
+	} else {
+		syncStatus.ComparedTo.Source = sources[0]
+		syncStatus.Revision = revisions[0]
+	}
+
 	appLabelKey, resourceOverrides, resFilter, installationID, trackingMethod, err := m.getComparisonSettings()
-
 	ts.AddCheckpoint("settings_ms")
-
-	// return unknown comparison result if basic comparison settings cannot be loaded
 	if err != nil {
-		if hasMultipleSources {
-			return &comparisonResult{
-				syncStatus: &v1alpha1.SyncStatus{
-					ComparedTo: app.Spec.BuildComparedToStatus(),
-					Status:     v1alpha1.SyncStatusCodeUnknown,
-					Revisions:  revisions,
-				},
-				healthStatus: health.HealthStatusUnknown,
-			}, nil
-		}
-		return &comparisonResult{
-			syncStatus: &v1alpha1.SyncStatus{
-				ComparedTo: app.Spec.BuildComparedToStatus(),
-				Status:     v1alpha1.SyncStatusCodeUnknown,
-				Revision:   revisions[0],
-			},
-			healthStatus: health.HealthStatusUnknown,
-		}, nil
+		// return unknown comparison result if basic comparison settings cannot be loaded
+		return &comparisonResult{syncStatus: syncStatus, healthStatus: health.HealthStatusUnknown}, nil
 	}
 
 	// When signature keys are defined in the project spec, we need to verify the signature on the Git revision
@@ -943,31 +940,15 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	} else if app.HasChangedManagedNamespaceMetadata() {
 		syncCode = v1alpha1.SyncStatusCodeOutOfSync
 	}
-	var revision string
 
-	if !hasMultipleSources && len(manifestRevisions) > 0 {
-		revision = manifestRevisions[0]
-	}
-	var syncStatus v1alpha1.SyncStatus
+	syncStatus.Status = syncCode
+
+	// Update the initial revision to the resolved manifest SHA
 	if hasMultipleSources {
-		syncStatus = v1alpha1.SyncStatus{
-			ComparedTo: v1alpha1.ComparedTo{
-				Destination:       app.Spec.Destination,
-				Sources:           sources,
-				IgnoreDifferences: app.Spec.IgnoreDifferences,
-			},
-			Status:    syncCode,
-			Revisions: manifestRevisions,
-		}
+		syncStatus.Revisions = manifestRevisions
 	} else {
-		syncStatus = v1alpha1.SyncStatus{
-			ComparedTo: v1alpha1.ComparedTo{
-				Destination:       app.Spec.Destination,
-				Source:            app.Spec.GetSource(),
-				IgnoreDifferences: app.Spec.IgnoreDifferences,
-			},
-			Status:   syncCode,
-			Revision: revision,
+		if len(manifestRevisions) > 0 {
+			syncStatus.Revision = manifestRevisions[0]
 		}
 	}
 
@@ -988,7 +969,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 
 	compRes := comparisonResult{
-		syncStatus:              &syncStatus,
+		syncStatus:              syncStatus,
 		healthStatus:            healthStatus,
 		resources:               resourceSummaries,
 		managedResources:        managedResources,
@@ -1054,7 +1035,7 @@ func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sou
 		return false
 	}
 
-	if !specEqualsCompareTo(app.Spec, app.Status.Sync.ComparedTo) {
+	if !specEqualsCompareTo(app.Spec, sources, app.Status.Sync.ComparedTo) {
 		log.WithField("useDiffCache", "false").Debug("specChanged")
 		return false
 	}
@@ -1065,11 +1046,11 @@ func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sou
 
 // specEqualsCompareTo compares the application spec to the comparedTo status. It normalizes the destination to match
 // the comparedTo destination before comparing. It does not mutate the original spec or comparedTo.
-func specEqualsCompareTo(spec v1alpha1.ApplicationSpec, comparedTo v1alpha1.ComparedTo) bool {
+func specEqualsCompareTo(spec v1alpha1.ApplicationSpec, sources []v1alpha1.ApplicationSource, comparedTo v1alpha1.ComparedTo) bool {
 	// Make a copy to be sure we don't mutate the original.
 	specCopy := spec.DeepCopy()
-	currentSpec := specCopy.BuildComparedToStatus()
-	return reflect.DeepEqual(comparedTo, currentSpec)
+	compareToSpec := specCopy.BuildComparedToStatus(sources)
+	return reflect.DeepEqual(comparedTo, compareToSpec)
 }
 
 func (m *appStateManager) persistRevisionHistory(
