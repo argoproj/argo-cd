@@ -1386,12 +1386,12 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	if isOperationInProgress(app) {
 		state = app.Status.OperationState.DeepCopy()
 		terminating = state.Phase == synccommon.OperationTerminating
-		// Failed  operation with retry strategy might have be in-progress and has completion time
 		switch {
 		case state.FinishedAt != nil && !terminating:
+			// Failed operation with retry strategy might have be in-progress and has completion time
 			retryAt, err := app.Status.OperationState.Operation.Retry.NextRetryAt(state.FinishedAt.Time, state.RetryCount)
 			if err != nil {
-				state.Phase = synccommon.OperationFailed
+				state.Phase = synccommon.OperationError
 				state.Message = err.Error()
 				ctrl.setOperationState(app, state)
 				return
@@ -1428,17 +1428,15 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
 
-	ctrl.appStateManager.SyncAppState(app, state)
-
-	ts.AddCheckpoint("validate_and_sync_app_state_ms")
-
-	// Check whether application is allowed to use project
-	_, err := ctrl.getAppProj(app)
-	ts.AddCheckpoint("get_app_proj_ms")
-	if err != nil {
+	project, err := ctrl.getAppProj(app)
+	if err == nil {
+		// Start or resume the sync
+		ctrl.appStateManager.SyncAppState(app, project, state)
+	} else {
 		state.Phase = synccommon.OperationError
-		state.Message = err.Error()
+		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
 	}
+	ts.AddCheckpoint("validate_and_sync_app_state_ms")
 
 	switch state.Phase {
 	case synccommon.OperationRunning:
@@ -1446,12 +1444,6 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		// to clobber the Terminated state with Running. Get the latest app state to check for this.
 		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 		if err == nil {
-			// App may have lost permissions to use the project meanwhile.
-			_, err = ctrl.getAppProj(freshApp)
-			if err != nil {
-				state.Phase = synccommon.OperationFailed
-				state.Message = fmt.Sprintf("operation not allowed: %v", err)
-			}
 			if freshApp.Status.OperationState != nil && freshApp.Status.OperationState.Phase == synccommon.OperationTerminating {
 				state.Phase = synccommon.OperationTerminating
 				state.Message = "operation is terminating"
@@ -1465,7 +1457,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			now := metav1.Now()
 			state.FinishedAt = &now
 			if retryAt, err := state.Operation.Retry.NextRetryAt(now.Time, state.RetryCount); err != nil {
-				state.Phase = synccommon.OperationFailed
+				state.Phase = synccommon.OperationError
 				state.Message = fmt.Sprintf("%s (failed to retry: %v)", state.Message, err)
 			} else {
 				state.Phase = synccommon.OperationRunning
