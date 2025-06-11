@@ -2132,7 +2132,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		if app.Spec.SyncPolicy.Automated.SelfHeal && lastAttemptedPhase.Successful() {
 			// Self heal will trigger a new sync operation when the desired state changes and cause the application to
 			// be OutOfSync when it was previously synced Successfully. This means SelfHeal should only ever be attempted
-			// when the revisions have not changed, and where the previous sync to these revision was succesful
+			// when the revisions have not changed, and where the previous sync to these revision was successful
 			if !ctrl.selfHealBackoffCooldownElapsed(app) {
 				remainingTime := ctrl.selfHealRemainingBackoff(app)
 				if remainingTime > 0 {
@@ -2219,7 +2219,7 @@ func alreadyAttemptedSync(app *appv1.Application, desiredRevisions []string, new
 	}
 	if app.Status.OperationState.SyncResult == nil {
 		// If the sync has completed without result, it is very likely that an error happened
-		// We don't want to resync with auto-sync indefinitly. We should have retried the configured amount of time already
+		// We don't want to resync with auto-sync indefinitely. We should have retried the configured amount of time already
 		// In this case, a manual action to restore the app may be required
 		log.WithFields(applog.GetAppLogFields(app)).Warn("Already attempted sync: sync does not have any results")
 		return app.Status.OperationState.Phase.Completed(), []string{}, app.Status.OperationState.Phase
@@ -2282,7 +2282,7 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 	return retryAfter
 }
 
-// selfHealBackoffCooldownElapsed returns true when the last successful sync has occured since longer
+// selfHealBackoffCooldownElapsed returns true when the last successful sync has occurred since longer
 // than then self heal cooldown. This means that the application has been in sync for long enough to
 // reset the self healing backoff to its initial state
 func (ctrl *ApplicationController) selfHealBackoffCooldownElapsed(app *appv1.Application) bool {
