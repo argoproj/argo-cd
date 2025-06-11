@@ -415,7 +415,6 @@ func reconcileApplications(
 		},
 		settingsMgr,
 		stateCache,
-		projInformer,
 		server,
 		cache,
 		time.Second,
