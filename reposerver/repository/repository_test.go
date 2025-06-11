@@ -523,7 +523,7 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 		return &v1alpha1.Repository{
 			Repo: "https://git.example.com/test/repo",
 		}, nil
-	}, []string{}, false)
+	}, []string{})
 	require.NoError(t, err)
 	request := &apiclient.ManifestRequest{
 		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
@@ -561,7 +561,7 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 		}, nil
 	}
 
-	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, getRepository, []string{}, false)
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, getRepository, []string{})
 	require.NoError(t, err)
 
 	request := &apiclient.ManifestRequest{
@@ -576,7 +576,7 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 	service = newService(t, ".")
 
 	spec.Sources[1].Ref = "Invalid"
-	refSources, err = argo.GetRefSources(t.Context(), spec.Sources, spec.Project, getRepository, []string{}, false)
+	refSources, err = argo.GetRefSources(t.Context(), spec.Sources, spec.Project, getRepository, []string{})
 	require.NoError(t, err)
 
 	request = &apiclient.ManifestRequest{
@@ -592,7 +592,7 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 
 	spec.Sources[1].Ref = "ref"
 	spec.Sources[1].Chart = "helm-chart"
-	refSources, err = argo.GetRefSources(t.Context(), spec.Sources, spec.Project, getRepository, []string{}, false)
+	refSources, err = argo.GetRefSources(t.Context(), spec.Sources, spec.Project, getRepository, []string{})
 	require.NoError(t, err)
 
 	request = &apiclient.ManifestRequest{
@@ -632,7 +632,7 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 		return &v1alpha1.Repository{
 			Repo: "https://git.example.com/test/repo",
 		}, nil
-	}, []string{}, false)
+	}, []string{})
 	require.NoError(t, err)
 	request := &apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true}
 	_, err = service.GenerateManifest(t.Context(), request)

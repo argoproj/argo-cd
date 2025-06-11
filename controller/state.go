@@ -536,6 +536,8 @@ func isManagedNamespace(ns *unstructured.Unstructured, app *v1alpha1.Application
 // revision and overrides in the app spec.
 func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) (*comparisonResult, error) {
 	ts := stats.NewTimingStats()
+	logCtx := log.WithFields(applog.GetAppLogFields(app))
+
 	// Build initial sync status
 	syncStatus := &v1alpha1.SyncStatus{
 		ComparedTo: v1alpha1.ComparedTo{
@@ -548,8 +550,14 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		syncStatus.ComparedTo.Sources = sources
 		syncStatus.Revisions = revisions
 	} else {
-		syncStatus.ComparedTo.Source = sources[0]
-		syncStatus.Revision = revisions[0]
+		if len(sources) > 0 {
+			syncStatus.ComparedTo.Source = sources[0]
+		} else {
+			logCtx.Warn("CompareAppState: sources should not be empty")
+		}
+		if len(revisions) > 0 {
+			syncStatus.Revision = revisions[0]
+		}
 	}
 
 	appLabelKey, resourceOverrides, resFilter, installationID, trackingMethod, err := m.getComparisonSettings()
@@ -571,7 +579,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		return nil, err
 	}
 
-	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
 
 	var targetObjs []*unstructured.Unstructured
@@ -946,10 +953,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	// Update the initial revision to the resolved manifest SHA
 	if hasMultipleSources {
 		syncStatus.Revisions = manifestRevisions
-	} else {
-		if len(manifestRevisions) > 0 {
-			syncStatus.Revision = manifestRevisions[0]
-		}
+	} else if len(manifestRevisions) > 0 {
+		syncStatus.Revision = manifestRevisions[0]
 	}
 
 	ts.AddCheckpoint("sync_ms")
