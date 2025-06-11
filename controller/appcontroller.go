@@ -41,6 +41,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/utils/ptr"
 
 	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/common"
@@ -133,6 +134,7 @@ type ApplicationController struct {
 	statusRefreshJitter           time.Duration
 	selfHealTimeout               time.Duration
 	selfHealBackOff               *wait.Backoff
+	selfHealBackoffCooldown       time.Duration
 	syncTimeout                   time.Duration
 	db                            db.ArgoDB
 	settingsMgr                   *settings_util.SettingsManager
@@ -168,6 +170,7 @@ func NewApplicationController(
 	appResyncJitter time.Duration,
 	selfHealTimeout time.Duration,
 	selfHealBackoff *wait.Backoff,
+	selfHealBackoffCooldown time.Duration,
 	syncTimeout time.Duration,
 	repoErrorGracePeriod time.Duration,
 	metricsPort int,
@@ -214,6 +217,7 @@ func NewApplicationController(
 		settingsMgr:                       settingsMgr,
 		selfHealTimeout:                   selfHealTimeout,
 		selfHealBackOff:                   selfHealBackoff,
+		selfHealBackoffCooldown:           selfHealBackoffCooldown,
 		syncTimeout:                       syncTimeout,
 		clusterSharding:                   clusterSharding,
 		projByNameCache:                   sync.Map{},
@@ -321,7 +325,7 @@ func NewApplicationController(
 
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
 
-	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessApp, readinessHealthCheck, metricsApplicationLabels, metricsApplicationConditions)
+	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessApp, readinessHealthCheck, metricsApplicationLabels, metricsApplicationConditions, ctrl.db)
 	if err != nil {
 		return nil, err
 	}
@@ -1571,7 +1575,16 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			messages = append(messages, "failed:", state.Message)
 		}
 		ctrl.logAppEvent(context.TODO(), app, eventInfo, strings.Join(messages, " "))
-		ctrl.metricsServer.IncSync(app, state)
+
+		destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
+		if err != nil {
+			logCtx.Warnf("Unable to get destination cluster, setting dest_server label to empty string in sync metric: %v", err)
+		}
+		destServer := ""
+		if destCluster != nil {
+			destServer = destCluster.Server
+		}
+		ctrl.metricsServer.IncSync(app, destServer, state)
 	}
 }
 
@@ -1644,9 +1657,17 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	startTime := time.Now()
 	ts := stats.NewTimingStats()
+	var destCluster *appv1.Cluster
 	defer func() {
 		reconcileDuration := time.Since(startTime)
-		ctrl.metricsServer.IncReconcile(origApp, reconcileDuration)
+
+		// We may or may not get to the point in the code where destCluster is set. Populate the dest_server label on a
+		// best-effort basis.
+		destServer := ""
+		if destCluster != nil {
+			destServer = destCluster.Server
+		}
+		ctrl.metricsServer.IncReconcile(origApp, destServer, reconcileDuration)
 		for k, v := range ts.Timings() {
 			logCtx = logCtx.WithField(k, v.Milliseconds())
 		}
@@ -1659,7 +1680,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	if comparisonLevel == ComparisonWithNothing {
 		// If the destination cluster is invalid, fallback to the normal reconciliation flow
-		if destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db); err == nil {
+		if destCluster, err = argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db); err == nil {
 			managedResources := make([]*appv1.ResourceDiff, 0)
 			if err := ctrl.cache.GetAppManagedResources(app.InstanceName(ctrl.namespace), &managedResources); err == nil {
 				var tree *appv1.ApplicationTree
@@ -1696,7 +1717,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		return
 	}
 
-	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
+	destCluster, err = argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
 	if err != nil {
 		logCtx.Errorf("Failed to get destination cluster: %v", err)
 		// exit the reconciliation. ctrl.refreshAppConditions should have caught the error
@@ -2245,17 +2266,22 @@ func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application, alread
 		return true, time.Duration(0)
 	}
 
-	// Reset counter if the prior sync was successful OR if the revision has changed
-	if !alreadyAttempted || app.Status.Sync.Status == appv1.SyncStatusCodeSynced {
+	var timeSinceOperation *time.Duration
+	if app.Status.OperationState.FinishedAt != nil {
+		timeSinceOperation = ptr.To(time.Since(app.Status.OperationState.FinishedAt.Time))
+	}
+
+	// Reset counter if the prior sync was successful and the cooldown period is over OR if the revision has changed
+	if !alreadyAttempted || (timeSinceOperation != nil && *timeSinceOperation >= ctrl.selfHealBackoffCooldown && app.Status.Sync.Status == appv1.SyncStatusCodeSynced) {
 		app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount = 0
 	}
 
 	var retryAfter time.Duration
 	if ctrl.selfHealBackOff == nil {
-		if app.Status.OperationState.FinishedAt == nil {
+		if timeSinceOperation == nil {
 			retryAfter = ctrl.selfHealTimeout
 		} else {
-			retryAfter = ctrl.selfHealTimeout - time.Since(app.Status.OperationState.FinishedAt.Time)
+			retryAfter = ctrl.selfHealTimeout - *timeSinceOperation
 		}
 	} else {
 		backOff := *ctrl.selfHealBackOff
@@ -2265,10 +2291,11 @@ func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application, alread
 		for i := 0; i < steps; i++ {
 			delay = backOff.Step()
 		}
-		if app.Status.OperationState.FinishedAt == nil {
+
+		if timeSinceOperation == nil {
 			retryAfter = delay
 		} else {
-			retryAfter = delay - time.Since(app.Status.OperationState.FinishedAt.Time)
+			retryAfter = delay - *timeSinceOperation
 		}
 	}
 	return retryAfter <= 0, retryAfter

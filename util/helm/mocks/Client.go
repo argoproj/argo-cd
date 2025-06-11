@@ -100,23 +100,23 @@ func (_m *Client) GetIndex(noCache bool, maxIndexSize int64) (*helm.Index, error
 }
 
 // GetTags provides a mock function with given fields: chart, noCache
-func (_m *Client) GetTags(chart string, noCache bool) (*helm.TagsList, error) {
+func (_m *Client) GetTags(chart string, noCache bool) ([]string, error) {
 	ret := _m.Called(chart, noCache)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetTags")
 	}
 
-	var r0 *helm.TagsList
+	var r0 []string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string, bool) (*helm.TagsList, error)); ok {
+	if rf, ok := ret.Get(0).(func(string, bool) ([]string, error)); ok {
 		return rf(chart, noCache)
 	}
-	if rf, ok := ret.Get(0).(func(string, bool) *helm.TagsList); ok {
+	if rf, ok := ret.Get(0).(func(string, bool) []string); ok {
 		r0 = rf(chart, noCache)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*helm.TagsList)
+			r0 = ret.Get(0).([]string)
 		}
 	}
 
