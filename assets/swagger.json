@@ -2082,6 +2082,11 @@
             "description": "The application set namespace. Default empty is argocd control plane namespace.",
             "name": "appsetNamespace",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceVersion",
+            "in": "query"
           }
         ],
         "responses": {
@@ -4234,6 +4239,34 @@
             "type": "string",
             "description": "The application set namespace. Default empty is argocd control plane namespace.",
             "name": "appsetNamespace",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "name": "projects",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceVersion",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "selector",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "name": "project",
             "in": "query"
           }
         ],

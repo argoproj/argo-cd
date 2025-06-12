@@ -57,7 +57,7 @@ argocd-applicationset-controller [flags]
       --token-ref-strict-mode                   Set to true to require secrets referenced by SCM providers to have the argocd.argoproj.io/secret-type=scm-creds label set (Default: false)
       --user string                             The name of the kubeconfig user to use
       --username string                         Username for basic authentication to the API server
-      --webhook-addr string                     The address the webhook endpoint binds to. (default ":7000")
+      --webhook-addr string                     The address the webhook endpoint binds to. (default ":7001")
       --webhook-parallelism-limit int           Number of webhook requests processed concurrently (default 50)
 ```
 
