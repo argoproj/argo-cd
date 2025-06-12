@@ -1161,6 +1161,9 @@ message HostInfo {
 
   // SystemInfo contains detailed system-level information about the host, such as OS, kernel version, and architecture.
   optional .k8s.io.api.core.v1.NodeSystemInfo systemInfo = 3;
+
+  // Labels holds the labels attached to the host.
+  map<string, string> labels = 4;
 }
 
 // HostResourceInfo represents resource usage details for a specific resource type on a host.
