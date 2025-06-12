@@ -4,7 +4,7 @@ metadata:
   annotations:
     deployment.kubernetes.io/revision: "1"
     kubectl.kubernetes.io/last-applied-configuration: |
-      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"labels":{"app.kubernetes.io/instance":"guestbook"},"name":"kustomize-guestbook-ui","namespace":"default"},"spec":{"replicas":1,"revisionHistoryLimit":3,"selector":{"matchLabels":{"app":"guestbook-ui"}},"template":{"metadata":{"labels":{"app":"guestbook-ui"}},"spec":{"containers":[{"image":"gcr.io/heptio-images/ks-guestbook-demo:0.1","name":"guestbook-ui","ports":[{"containerPort":80}]}]}}}}
+      {"apiVersion":"apps/v1","kind":"Deployment","metadata":{"annotations":{},"labels":{"app.kubernetes.io/instance":"guestbook"},"name":"kustomize-guestbook-ui","namespace":"default"},"spec":{"replicas":1,"revisionHistoryLimit":3,"selector":{"matchLabels":{"app":"guestbook-ui"}},"template":{"metadata":{"labels":{"app":"guestbook-ui"}},"spec":{"containers":[{"image":"quay.io/argoprojlabs/argocd-e2e-container:0.1","name":"guestbook-ui","ports":[{"containerPort":80}]}]}}}}
   creationTimestamp: "2021-12-01T20:36:10Z"
   generation: 4
   labels:
@@ -126,7 +126,7 @@ spec:
         app: guestbook-ui
     spec:
       containers:
-      - image: gcr.io/heptio-images/ks-guestbook-demo:0.1
+      - image: quay.io/argoprojlabs/argocd-e2e-container:0.1
         imagePullPolicy: IfNotPresent
         name: guestbook-ui
         ports:
