@@ -7,7 +7,6 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller/testdata"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -256,7 +256,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 				Name:      "configmap1",
 				Namespace: "default",
 				Annotations: map[string]string{
-					common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
+					argocommon.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
 				},
 			},
 		})
@@ -273,10 +273,10 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 		}}
 
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(f.application, opState)
 
 		// then
-		assert.Equal(t, synccommon.OperationFailed, opState.Phase)
+		assert.Equal(t, common.OperationFailed, opState.Phase)
 		assert.Contains(t, opState.Message, "ConfigMap/configmap1 is part of applications fake-argocd-ns/my-app and guestbook")
 	})
 }
