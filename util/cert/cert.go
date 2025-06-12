@@ -79,9 +79,9 @@ var validFQDNRegexp = regexp.MustCompile(`^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{
 // If fqdn is true, given string must also be a FQDN representation.
 func IsValidHostname(hostname string, fqdn bool) bool {
 	if !fqdn {
-		return validHostNameRegexp.MatchString(hostname) || validIPv6Regexp.MatchString(hostname)
+		return validHostNameRegexp.Match([]byte(hostname)) || validIPv6Regexp.Match([]byte(hostname))
 	}
-	return validFQDNRegexp.MatchString(hostname)
+	return validFQDNRegexp.Match([]byte(hostname))
 }
 
 // Get the configured path to where TLS certificates are stored on the local

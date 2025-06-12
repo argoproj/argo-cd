@@ -39,7 +39,7 @@ func setupAzureIdentity(t *testing.T) {
 	tokenFilePath := filepath.Join(tempDir, "token.txt")
 	tempFile, err := os.Create(tokenFilePath)
 	require.NoError(t, err)
-	_, err = tempFile.WriteString("serviceAccountToken")
+	_, err = tempFile.Write([]byte("serviceAccountToken"))
 	require.NoError(t, err)
 	t.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
 }
@@ -446,7 +446,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 	app.HandleCallback(w, req)
 
-	assert.NotContains(t, w.Body.String(), ErrInvalidRedirectURL.Error())
+	assert.NotContains(t, w.Body.String(), InvalidRedirectURLError.Error())
 }
 
 func TestClientApp_HandleCallback(t *testing.T) {
@@ -536,7 +536,7 @@ func Test_azureApp_getFederatedServiceAccountToken(t *testing.T) {
 	setupAzureIdentity(t)
 
 	t.Run("before the method call assertion should be empty.", func(t *testing.T) {
-		assert.Empty(t, app.assertion)
+		assert.Equal(t, "", app.assertion)
 	})
 
 	t.Run("Fetch the token value from the file", func(t *testing.T) {
@@ -812,7 +812,7 @@ func TestGenerateAppState_XSS(t *testing.T) {
 		}
 
 		returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), state)
-		require.ErrorIs(t, err, ErrInvalidRedirectURL)
+		require.ErrorIs(t, err, InvalidRedirectURLError)
 		assert.Empty(t, returnURL)
 	})
 

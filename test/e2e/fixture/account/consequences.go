@@ -11,7 +11,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
 // this implements the "then" part of given/when/then
@@ -56,7 +56,7 @@ func (c *Consequences) getCurrentUser() (*session.GetUserInfoResponse, error) {
 	c.context.t.Helper()
 	closer, client, err := fixture.ArgoCDClientset.NewSessionClient()
 	require.NoError(c.context.t, err)
-	defer utilio.Close(closer)
+	defer io.Close(closer)
 	return client.GetUserInfo(context.Background(), &session.GetUserInfoRequest{})
 }
 

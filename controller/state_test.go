@@ -72,12 +72,12 @@ func TestCompareAppStateRepoError(t *testing.T) {
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	assert.Nil(t, compRes)
-	require.EqualError(t, err, ErrCompareStateRepo.Error())
+	require.EqualError(t, err, CompareStateRepoError.Error())
 
 	// expect to still get compare state error to as inside grace period
 	compRes, err = ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	assert.Nil(t, compRes)
-	require.EqualError(t, err, ErrCompareStateRepo.Error())
+	require.EqualError(t, err, CompareStateRepoError.Error())
 
 	time.Sleep(10 * time.Second)
 	// expect to not get error as outside of grace period, but status should be unknown
@@ -717,7 +717,8 @@ func TestSetHealth(t *testing.T) {
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 
-	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus)
+	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
+	assert.Equal(t, app.Status.Health.LastTransitionTime, compRes.healthStatus.LastTransitionTime)
 }
 
 func TestPreserveStatusTimestamp(t *testing.T) {
@@ -753,7 +754,8 @@ func TestPreserveStatusTimestamp(t *testing.T) {
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 
-	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus)
+	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
+	assert.Equal(t, timestamp, *compRes.healthStatus.LastTransitionTime)
 }
 
 func TestSetHealthSelfReferencedApp(t *testing.T) {
@@ -790,7 +792,8 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 
-	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus)
+	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
+	assert.Equal(t, app.Status.Health.LastTransitionTime, compRes.healthStatus.LastTransitionTime)
 }
 
 func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
@@ -865,7 +868,8 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 
-	assert.Equal(t, health.HealthStatusUnknown, compRes.healthStatus)
+	assert.Equal(t, health.HealthStatusUnknown, compRes.healthStatus.Status)
+	assert.Equal(t, app.Status.Health.LastTransitionTime, compRes.healthStatus.LastTransitionTime)
 	assert.Equal(t, v1alpha1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
 }
 
@@ -906,9 +910,6 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	}, nil)
 	manager := ctrl.appStateManager.(*appStateManager)
 	setRevisionHistoryLimit := func(value int) {
-		if value < 0 {
-			value = 0
-		}
 		i := int64(value)
 		app.Spec.RevisionHistoryLimit = &i
 	}
@@ -952,11 +953,6 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	err := manager.persistRevisionHistory(app, "my-revision", v1alpha1.ApplicationSource{}, []string{}, []v1alpha1.ApplicationSource{}, false, metav1NowTime, v1alpha1.OperationInitiator{})
 	require.NoError(t, err)
 	assert.Equal(t, app.Status.History.LastRevisionHistory().DeployStartedAt, &metav1NowTime)
-
-	// negative limit to 0
-	setRevisionHistoryLimit(-1)
-	addHistory()
-	assert.Empty(t, app.Status.History)
 }
 
 // helper function to read contents of a file to string
@@ -1283,7 +1279,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 }
 
 func TestComparisonResult_GetHealthStatus(t *testing.T) {
-	status := health.HealthStatusMissing
+	status := &v1alpha1.HealthStatus{Status: health.HealthStatusMissing}
 	res := comparisonResult{
 		healthStatus: status,
 	}
@@ -1301,8 +1297,6 @@ func TestComparisonResult_GetSyncStatus(t *testing.T) {
 }
 
 func TestIsLiveResourceManaged(t *testing.T) {
-	t.Parallel()
-
 	managedObj := kube.MustToUnstructured(&corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",

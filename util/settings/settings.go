@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	enginecache "github.com/argoproj/gitops-engine/pkg/cache"
-	timeutil "github.com/argoproj/pkg/v2/time"
+	timeutil "github.com/argoproj/pkg/time"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -567,6 +567,8 @@ type SettingsManager struct {
 	// mutex protects concurrency sensitive parts of settings manager: access to subscribers list and initialization flag
 	mutex                 *sync.Mutex
 	initContextCancel     func()
+	reposCache            []Repository
+	repoCredsCache        []RepositoryCredentials
 	reposOrClusterChanged func()
 }
 
@@ -711,6 +713,8 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*corev1.ConfigMap) err
 	if err != nil {
 		return err
 	}
+
+	mgr.invalidateCache()
 
 	return mgr.ResyncInformers()
 }
@@ -1268,6 +1272,15 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	return &settings, nil
 }
 
+// Clears cached settings on configmap/secret change
+func (mgr *SettingsManager) invalidateCache() {
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
+
+	mgr.reposCache = nil
+	mgr.repoCredsCache = nil
+}
+
 func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	tweakConfigMap := func(options *metav1.ListOptions) {
 		cmLabelSelector := fields.ParseSelectorOrDie(partOfArgoCDSelector)
@@ -1276,6 +1289,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 
 	eventHandler := cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(_, _ any) {
+			mgr.invalidateCache()
 			mgr.onRepoOrClusterChanged()
 		},
 		AddFunc: func(_ any) {
@@ -1316,7 +1330,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}()
 
 	if !cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced, secretsInformer.HasSynced) {
-		return errors.New("timed out waiting for settings cache to sync")
+		return errors.New("Timed out waiting for settings cache to sync")
 	}
 	log.Info("Configmap/secret informer synced")
 
@@ -1467,7 +1481,7 @@ func validateExternalURL(u string) error {
 	}
 	URL, err := url.Parse(u)
 	if err != nil {
-		return fmt.Errorf("failed to parse URL: %w", err)
+		return fmt.Errorf("Failed to parse URL: %w", err)
 	}
 	if URL.Scheme != "http" && URL.Scheme != "https" {
 		return errors.New("URL must include http or https protocol")

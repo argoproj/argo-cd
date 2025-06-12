@@ -9,8 +9,6 @@ import (
 )
 
 func TestCombineStringMaps(t *testing.T) {
-	t.Parallel()
-
 	testCases := []struct {
 		name        string
 		left        map[string]any

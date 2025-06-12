@@ -172,8 +172,6 @@ func TestIsValidContainerNameName(t *testing.T) {
 }
 
 func TestTerminalHandler_ServeHTTP_empty_params(t *testing.T) {
-	t.Parallel()
-
 	testKeys := []string{
 		"pod",
 		"container",

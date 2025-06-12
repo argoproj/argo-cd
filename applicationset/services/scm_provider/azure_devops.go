@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/v7"
-	azureGit "github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
+	"github.com/microsoft/azure-devops-go-api/azuredevops"
+	azureGit "github.com/microsoft/azure-devops-go-api/azuredevops/git"
 )
 
 const AZURE_DEVOPS_DEFAULT_URL = "https://dev.azure.com"
@@ -47,6 +47,7 @@ func (factory *devopsFactoryImpl) GetClient(ctx context.Context) (azureGit.Clien
 type AzureDevOpsProvider struct {
 	organization  string
 	teamProject   string
+	accessToken   string
 	clientFactory AzureDevOpsClientFactory
 	allBranches   bool
 }
@@ -68,7 +69,7 @@ func NewAzureDevOpsProvider(accessToken string, org string, url string, project 
 
 	connection := azuredevops.NewPatConnection(devOpsURL, accessToken)
 
-	return &AzureDevOpsProvider{organization: org, teamProject: project, clientFactory: &devopsFactoryImpl{connection: connection}, allBranches: allBranches}, nil
+	return &AzureDevOpsProvider{organization: org, teamProject: project, accessToken: accessToken, clientFactory: &devopsFactoryImpl{connection: connection}, allBranches: allBranches}, nil
 }
 
 func (g *AzureDevOpsProvider) ListRepos(ctx context.Context, _ string) ([]*Repository, error) {

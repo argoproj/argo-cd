@@ -29,6 +29,7 @@ import (
 	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test"
+	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/password"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -97,11 +98,12 @@ func TestSessionManager_AdminToken(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, newToken)
 
-	mapClaims := *(claims.(*jwt.MapClaims))
-	subject := mapClaims["sub"].(string)
-	if subject != "admin" {
-		t.Errorf("Token claim subject %q does not match expected subject %q.", subject, "admin")
-	}
+	mapClaims, err := jwtutil.MapClaims(claims)
+	require.NoError(t, err)
+	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
+	require.NoError(t, err)
+
+	assert.Equal(t, "admin", argoClaims.Subject)
 }
 
 func TestSessionManager_AdminToken_ExpiringSoon(t *testing.T) {
@@ -123,9 +125,13 @@ func TestSessionManager_AdminToken_ExpiringSoon(t *testing.T) {
 	claims, _, err := mgr.Parse(newToken)
 	require.NoError(t, err)
 
-	mapClaims := *(claims.(*jwt.MapClaims))
-	subject := mapClaims["sub"].(string)
-	assert.Equal(t, "admin", subject)
+	mapClaims, err := jwtutil.MapClaims(claims)
+	require.NoError(t, err)
+
+	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
+	require.NoError(t, err)
+
+	assert.Equal(t, "admin", argoClaims.Subject)
 }
 
 func TestSessionManager_AdminToken_Revoked(t *testing.T) {
@@ -196,7 +202,10 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 		mapClaims, err := jwtutil.MapClaims(claims)
 		require.NoError(t, err)
 
-		assert.Equal(t, "proj:default:test", mapClaims["sub"])
+		argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
+		require.NoError(t, err)
+
+		assert.Equal(t, "proj:default:test", argoClaims.Subject)
 	})
 
 	t.Run("Token Revoked", func(t *testing.T) {
@@ -695,7 +704,7 @@ rootCA: |
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.ErrTokenVerification)
+		assert.ErrorIs(t, err, common.TokenVerificationErr)
 	})
 
 	t.Run("OIDC provider is external, TLS is configured", func(t *testing.T) {
@@ -730,7 +739,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.ErrTokenVerification)
+		assert.ErrorIs(t, err, common.TokenVerificationErr)
 	})
 
 	t.Run("OIDC provider is Dex, TLS is configured", func(t *testing.T) {
@@ -765,7 +774,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.ErrTokenVerification)
+		assert.ErrorIs(t, err, common.TokenVerificationErr)
 	})
 
 	t.Run("OIDC provider is external, TLS is configured, OIDCTLSInsecureSkipVerify is true", func(t *testing.T) {
@@ -939,7 +948,7 @@ skipAudienceCheckWhenTokenHasNoAudience: false`, oidcTestServer.URL),
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.ErrTokenVerification)
+		assert.ErrorIs(t, err, common.TokenVerificationErr)
 	})
 
 	t.Run("OIDC provider is external, audience is client ID, no allowed list specified", func(t *testing.T) {
@@ -1049,7 +1058,7 @@ allowedAudiences:
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.ErrTokenVerification)
+		assert.ErrorIs(t, err, common.TokenVerificationErr)
 	})
 
 	t.Run("OIDC provider is external, audience is not client ID, and there is no allow list", func(t *testing.T) {
@@ -1085,7 +1094,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.ErrTokenVerification)
+		assert.ErrorIs(t, err, common.TokenVerificationErr)
 	})
 
 	t.Run("OIDC provider is external, audience is specified, but allow list is empty", func(t *testing.T) {
@@ -1122,7 +1131,7 @@ allowedAudiences: []`, oidcTestServer.URL),
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.ErrTokenVerification)
+		assert.ErrorIs(t, err, common.TokenVerificationErr)
 	})
 
 	// Make sure the logic works to allow any of the allowed audiences, not just the first one.
@@ -1195,7 +1204,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.ErrTokenVerification)
+		assert.ErrorIs(t, err, common.TokenVerificationErr)
 	})
 }
 

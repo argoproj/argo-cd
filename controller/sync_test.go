@@ -189,9 +189,8 @@ func TestSyncComparisonError(t *testing.T) {
 }
 
 func TestAppStateManager_SyncAppState(t *testing.T) {
-	t.Parallel()
-
 	type fixture struct {
+		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
 		controller  *ApplicationController
 	}
@@ -223,6 +222,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 		ctrl := newFakeController(&data, nil)
 
 		return &fixture{
+			project:     project,
 			application: app,
 			controller:  ctrl,
 		}
@@ -257,9 +257,8 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 }
 
 func TestSyncWindowDeniesSync(t *testing.T) {
-	t.Parallel()
-
 	type fixture struct {
+		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
 		controller  *ApplicationController
 	}
@@ -298,6 +297,7 @@ func TestSyncWindowDeniesSync(t *testing.T) {
 		ctrl := newFakeController(&data, nil)
 
 		return &fixture{
+			project:     project,
 			application: app,
 			controller:  ctrl,
 		}
@@ -646,8 +646,6 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 }
 
 func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
-	t.Parallel()
-
 	type fixture struct {
 		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
@@ -994,8 +992,6 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 }
 
 func TestDeriveServiceAccountMatchingServers(t *testing.T) {
-	t.Parallel()
-
 	type fixture struct {
 		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
@@ -1272,6 +1268,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 func TestSyncWithImpersonate(t *testing.T) {
 	type fixture struct {
+		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
 		controller  *ApplicationController
 	}
@@ -1322,6 +1319,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 		}
 		ctrl := newFakeController(&data, nil)
 		return &fixture{
+			project:     project,
 			application: app,
 			controller:  ctrl,
 		}

@@ -31,7 +31,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	listersv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/glob"
@@ -198,7 +197,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 	// ignore error if CompareStateRepoError, this shouldn't happen as noRevisionCache is true
 	compareResult, err := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, isMultiSourceRevision, rollback)
-	if err != nil && !stderrors.Is(err, ErrCompareStateRepo) {
+	if err != nil && !stderrors.Is(err, CompareStateRepoError) {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
 		return
@@ -257,11 +256,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 	syncId := fmt.Sprintf("%05d-%s", syncIdPrefix, randSuffix)
 
-	logEntry := log.WithFields(applog.GetAppLogFields(app)).WithField("syncId", syncId)
-	initialResourcesRes := make([]common.ResourceSyncResult, len(syncRes.Resources))
+	logEntry := log.WithFields(log.Fields{"application": app.QualifiedName(), "syncId": syncId})
+	initialResourcesRes := make([]common.ResourceSyncResult, 0)
 	for i, res := range syncRes.Resources {
 		key := kube.ResourceKey{Group: res.Group, Kind: res.Kind, Namespace: res.Namespace, Name: res.Name}
-		initialResourcesRes[i] = common.ResourceSyncResult{
+		initialResourcesRes = append(initialResourcesRes, common.ResourceSyncResult{
 			ResourceKey: key,
 			Message:     res.Message,
 			Status:      res.Status,
@@ -269,9 +268,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			HookType:    res.HookType,
 			SyncPhase:   res.SyncPhase,
 			Version:     res.Version,
-			Images:      res.Images,
 			Order:       i + 1,
-		}
+		})
 	}
 
 	prunePropagationPolicy := metav1.DeletePropagationForeground
@@ -377,7 +375,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		sync.WithServerSideApply(syncOp.SyncOptions.HasOption(common.SyncOptionServerSideApply)),
 		sync.WithServerSideApplyManager(cdcommon.ArgoCDSSAManager),
 		sync.WithPruneConfirmed(app.IsDeletionConfirmed(state.StartedAt.Time)),
-		sync.WithSkipDryRunOnMissingResource(syncOp.SyncOptions.HasOption(common.SyncOptionSkipDryRunOnMissingResource)),
 	}
 
 	if syncOp.SyncOptions.HasOption("CreateNamespace=true") {
@@ -446,7 +443,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			HookPhase: res.HookPhase,
 			Status:    res.Status,
 			Message:   res.Message,
-			Images:    res.Images,
 		})
 	}
 

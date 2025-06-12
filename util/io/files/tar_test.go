@@ -19,8 +19,6 @@ import (
 )
 
 func TestTgz(t *testing.T) {
-	t.Parallel()
-
 	type fixture struct {
 		file *os.File
 	}

@@ -74,7 +74,6 @@ nav:
     - operator-manual/notifications/troubleshooting.md
     - operator-manual/notifications/troubleshooting-commands.md
     - operator-manual/notifications/troubleshooting-errors.md
-    - operator-manual/notifications/examples.md
     - Notification Services:
       - operator-manual/notifications/services/alertmanager.md
       - operator-manual/notifications/services/awssqs.md
@@ -161,14 +160,12 @@ nav:
   - user-guide/application_sources.md
   - user-guide/kustomize.md
   - user-guide/helm.md
-  - user-guide/oci.md
   - user-guide/import.md
   - user-guide/jsonnet.md
   - user-guide/directory.md
   - user-guide/tool_detection.md
   - user-guide/projects.md
   - user-guide/private-repositories.md
-  - user-guide/plugins.md
   - user-guide/multiple_sources.md
   - GnuPG verification: user-guide/gpg-verification.md
   - user-guide/auto_sync.md
@@ -211,6 +208,7 @@ nav:
   - developer-guide/release-process-and-cadence.md
   - developer-guide/running-locally.md
   - developer-guide/debugging-remote-environment.md
+  - developer-guide/use-gitpod.md
   - developer-guide/api-docs.md
   - developer-guide/test-e2e.md
   - developer-guide/dependencies.md

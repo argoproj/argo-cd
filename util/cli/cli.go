@@ -28,7 +28,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/io"
 	utillog "github.com/argoproj/argo-cd/v3/util/log"
 )
 
@@ -165,7 +165,7 @@ func ReadAndConfirmPassword(username string) (string, error) {
 			return "", err
 		}
 		fmt.Print("\n")
-		if bytes.Equal(password, confirmPassword) {
+		if string(password) == string(confirmPassword) {
 			return string(password), nil
 		}
 		log.Error("Passwords do not match")
@@ -204,7 +204,7 @@ func SetGLogLevel(glogLevel int) {
 func writeToTempFile(pattern string, data []byte) string {
 	f, err := os.CreateTemp("", pattern)
 	errors.CheckError(err)
-	defer utilio.Close(f)
+	defer io.Close(f)
 	_, err = f.Write(data)
 	errors.CheckError(err)
 	return f.Name()
@@ -276,7 +276,7 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 
 		updated, err := os.ReadFile(tempFile)
 		errors.CheckError(err)
-		if len(updated) == 0 || bytes.Equal(updated, data) {
+		if string(updated) == "" || string(updated) == string(data) {
 			errors.CheckError(stderrors.New("edit cancelled, no valid changes were saved"))
 			break
 		}

@@ -4,38 +4,17 @@ import (
 	"encoding/json"
 	"os"
 	"path"
-	"path/filepath"
 	"testing"
 
+	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 )
 
-// tempRoot creates a temporary directory and returns an os.Root object for it.
-// We use this instead of t.TempDir() because OSX does weird things with temp directories, and it triggers
-// the os.Root protections.
-func tempRoot(t *testing.T) *os.Root {
-	t.Helper()
-
-	dir, err := os.MkdirTemp(".", "")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		err := os.RemoveAll(dir)
-		require.NoError(t, err)
-	})
-	root, err := os.OpenRoot(dir)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		err := root.Close()
-		require.NoError(t, err)
-	})
-	return root
-}
-
 func TestWriteForPaths(t *testing.T) {
-	root := tempRoot(t)
+	dir := t.TempDir()
 
 	repoURL := "https://github.com/example/repo"
 	drySha := "abc123"
@@ -54,20 +33,13 @@ func TestWriteForPaths(t *testing.T) {
 			},
 			Commands: []string{"command3"},
 		},
-		{
-			Path: "path3/nested",
-			Manifests: []*apiclient.HydratedManifestDetails{
-				{ManifestJSON: `{"kind":"Deployment","apiVersion":"apps/v1"}`},
-			},
-			Commands: []string{"command4"},
-		},
 	}
 
-	err := WriteForPaths(root, repoURL, drySha, paths)
+	err := WriteForPaths(dir, repoURL, drySha, paths)
 	require.NoError(t, err)
 
 	// Check if the top-level hydrator.metadata exists and contains the repo URL and dry SHA
-	topMetadataPath := filepath.Join(root.Name(), "hydrator.metadata")
+	topMetadataPath := path.Join(dir, "hydrator.metadata")
 	topMetadataBytes, err := os.ReadFile(topMetadataPath)
 	require.NoError(t, err)
 
@@ -78,7 +50,8 @@ func TestWriteForPaths(t *testing.T) {
 	assert.Equal(t, drySha, topMetadata.DrySHA)
 
 	for _, p := range paths {
-		fullHydratePath := filepath.Join(root.Name(), p.Path)
+		fullHydratePath, err := securejoin.SecureJoin(dir, p.Path)
+		require.NoError(t, err)
 
 		// Check if each path directory exists
 		assert.DirExists(t, fullHydratePath)
@@ -108,17 +81,17 @@ func TestWriteForPaths(t *testing.T) {
 }
 
 func TestWriteMetadata(t *testing.T) {
-	root := tempRoot(t)
+	dir := t.TempDir()
 
 	metadata := hydratorMetadataFile{
 		RepoURL: "https://github.com/example/repo",
 		DrySHA:  "abc123",
 	}
 
-	err := writeMetadata(root, "", metadata)
+	err := writeMetadata(dir, metadata)
 	require.NoError(t, err)
 
-	metadataPath := filepath.Join(root.Name(), "hydrator.metadata")
+	metadataPath := path.Join(dir, "hydrator.metadata")
 	metadataBytes, err := os.ReadFile(metadataPath)
 	require.NoError(t, err)
 
@@ -129,33 +102,33 @@ func TestWriteMetadata(t *testing.T) {
 }
 
 func TestWriteReadme(t *testing.T) {
-	root := tempRoot(t)
+	dir := t.TempDir()
 
 	metadata := hydratorMetadataFile{
 		RepoURL: "https://github.com/example/repo",
 		DrySHA:  "abc123",
 	}
 
-	err := writeReadme(root, "", metadata)
+	err := writeReadme(dir, metadata)
 	require.NoError(t, err)
 
-	readmePath := filepath.Join(root.Name(), "README.md")
+	readmePath := path.Join(dir, "README.md")
 	readmeBytes, err := os.ReadFile(readmePath)
 	require.NoError(t, err)
 	assert.Contains(t, string(readmeBytes), metadata.RepoURL)
 }
 
 func TestWriteManifests(t *testing.T) {
-	root := tempRoot(t)
+	dir := t.TempDir()
 
 	manifests := []*apiclient.HydratedManifestDetails{
 		{ManifestJSON: `{"kind":"Pod","apiVersion":"v1"}`},
 	}
 
-	err := writeManifests(root, "", manifests)
+	err := writeManifests(dir, manifests)
 	require.NoError(t, err)
 
-	manifestPath := path.Join(root.Name(), "manifest.yaml")
+	manifestPath := path.Join(dir, "manifest.yaml")
 	manifestBytes, err := os.ReadFile(manifestPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(manifestBytes), "kind")
