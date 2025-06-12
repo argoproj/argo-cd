@@ -263,7 +263,7 @@ func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(azureCon
 	authenticate := resp.Header.Get("Www-Authenticate")
 	tokens := strings.Split(authenticate, " ")
 
-	if strings.ToLower(tokens[0]) != "bearer" {
+	if !strings.EqualFold(tokens[0], "bearer") {
 		return nil, fmt.Errorf("registry does not allow 'Bearer' authentication, got '%s'", tokens[0])
 	}
 

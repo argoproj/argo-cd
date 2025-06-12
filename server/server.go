@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -815,7 +816,7 @@ func (server *ArgoCDServer) watchSettings() {
 		server.settings = newSettings
 		newDexCfgBytes, err := dexutil.GenerateDexConfigYAML(server.settings, server.DexTLSConfig == nil || server.DexTLSConfig.DisableTLS)
 		errorsutil.CheckError(err)
-		if string(newDexCfgBytes) != string(prevDexCfgBytes) {
+		if !bytes.Equal(newDexCfgBytes, prevDexCfgBytes) {
 			log.Infof("dex config modified. restarting")
 			break
 		}
@@ -1533,7 +1534,7 @@ var mainJsBundleRegex = regexp.MustCompile(`^main\.[0-9a-f]{20}\.js$`)
 
 func isMainJsBundle(url *url.URL) bool {
 	filename := path.Base(url.Path)
-	return mainJsBundleRegex.Match([]byte(filename))
+	return mainJsBundleRegex.MatchString(filename)
 }
 
 type registerFunc func(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error
