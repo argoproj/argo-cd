@@ -7,6 +7,13 @@ metadata:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
 data:
+  # ArgoCD hydrates this config map with secrets, and by default the secrets are required to be labeled with
+  # `app.kubernetes.io/part-of: argocd`.
+  # This is not always desirable, as the namespace might be dedicated to ArgoCD alone and secrets might be
+  # distributed by external tool, in which case they may not have that label.
+  # Setting this to "false" will disable this check and will allow all secrets in the namespace to be used in the configmap.
+  secrets.partOfSelectorCheckEnabled: "true"
+
   # Argo CD's externally facing base URL (optional). Required when configuring SSO
   url: https://argo-cd-demo.argoproj.io
 
