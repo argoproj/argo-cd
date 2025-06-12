@@ -2,7 +2,6 @@ package applicationset
 
 import (
 	appsetv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/watch"
 	"sync"
@@ -26,8 +25,9 @@ type broadcasterHandler struct {
 }
 
 func (b *broadcasterHandler) notify(event *appsetv1.ApplicationSetWatchEvent) {
-	// Make a local copy of b.subscribers, then send channel events outside the lock,
-	// to avoid data race on b.subscribers changes
+	log.Infof("broadcaster: received event: %s for %s", event.Type, event.ApplicationSet.Name)
+
+	// Copy subscribers before unlocking
 	subscribers := []*subscriber{}
 	b.lock.Lock()
 	subscribers = append(subscribers, b.subscribers...)
@@ -35,11 +35,12 @@ func (b *broadcasterHandler) notify(event *appsetv1.ApplicationSetWatchEvent) {
 
 	for _, s := range subscribers {
 		if s.matches(event) {
+			log.Infof("broadcaster: notifying subscriber for %s", event.ApplicationSet.Name)
 			select {
 			case s.ch <- event:
+				log.Infof("broadcaster: successfully sent event for %s", event.ApplicationSet.Name)
 			default:
-				// drop event if cannot send right away
-				log.WithFields(applog.GetAppsetLogFields(&event.ApplicationSet)).Warn("unable to send event notification")
+				log.Warnf("broadcaster: failed to send event (channel full?) for %s", event.ApplicationSet.Name)
 			}
 		}
 	}
