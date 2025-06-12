@@ -91,6 +91,7 @@ type comparisonResult struct {
 	timings            map[string]time.Duration
 	diffResultList     *diff.DiffResultList
 	hasPostDeleteHooks bool
+	hasPreDeleteHooks  bool
 	revisionUpdated    bool
 }
 
@@ -762,8 +763,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 	}
+	hasPreDeleteHooks := false
 	hasPostDeleteHooks := false
 	for _, obj := range targetObjs {
+		if isPreDeleteHook(obj) {
+			hasPreDeleteHooks = true
+		}
 		if isPostDeleteHook(obj) {
 			hasPostDeleteHooks = true
 		}
@@ -1004,6 +1009,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		diffConfig:           diffConfig,
 		diffResultList:       diffResults,
 		hasPostDeleteHooks:   hasPostDeleteHooks,
+		hasPreDeleteHooks:    hasPreDeleteHooks,
 		revisionUpdated:      revisionUpdated,
 	}
 
