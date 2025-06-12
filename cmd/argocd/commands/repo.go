@@ -41,7 +41,7 @@ argocd repo get https://github.com/yourusername/your-repo.git
 # List Configured Repositories
 argocd repo list
 
-# Remove Repository Credentials
+# Remove Configured Repositories
 argocd repo rm https://github.com/yourusername/your-repo.git
 `,
 	}
@@ -106,7 +106,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 	command := &cobra.Command{
 		Use:     "add REPOURL",
-		Short:   "Add git repository connection parameters",
+		Short:   "Add git, oci or helm repository connection parameters",
 		Example: repoAddExamples,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -264,12 +264,12 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	return command
 }
 
-// NewRepoRemoveCommand returns a new instance of an `argocd repo remove` command
+// NewRepoRemoveCommand returns a new instance of an `argocd repo rm` command
 func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var project string
 	command := &cobra.Command{
-		Use:   "rm REPO",
-		Short: "Remove repository credentials",
+		Use:   "rm REPO ...",
+		Short: "Remove configured repositories",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -373,7 +373,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		project string
 	)
 	command := &cobra.Command{
-		Use:   "get",
+		Use:   "get REPO",
 		Short: "Get a configured repository by URL",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
