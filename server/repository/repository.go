@@ -704,6 +704,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		Proxy:                      q.Proxy,
 		GCPServiceAccountKey:       q.GcpServiceAccountKey,
 		InsecureOCIForceHttp:       q.InsecureOciForceHttp,
+		UseAzureWorkloadIdentity:   q.UseAzureWorkloadIdentity,
 	}
 
 	// If repo does not have credentials, check if there are credentials stored
@@ -753,6 +754,7 @@ func (s *Server) ValidateWriteAccess(ctx context.Context, q *repositorypkg.RepoA
 		GitHubAppEnterpriseBaseURL: q.GithubAppEnterpriseBaseUrl,
 		Proxy:                      q.Proxy,
 		GCPServiceAccountKey:       q.GcpServiceAccountKey,
+		UseAzureWorkloadIdentity:   q.UseAzureWorkloadIdentity,
 	}
 
 	err := s.testRepo(ctx, repo)
