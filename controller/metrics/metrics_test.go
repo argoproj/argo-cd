@@ -19,13 +19,18 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/yaml"
 
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
 	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 const fakeApp = `
@@ -179,6 +184,17 @@ var noOpHealthCheck = func(_ *http.Request) error {
 
 var appFilter = func(_ any) bool {
 	return true
+}
+
+func init() {
+	// Create a fake manager
+	mgr, err := manager.New(&rest.Config{}, manager.Options{})
+	if err != nil {
+		panic(err)
+	}
+	// Create a fake controller so we initialize the internal controller metrics.
+	// https://github.com/kubernetes-sigs/controller-runtime/blob/4000e996a202917ad7d40f02ed8a2079a9ce25e9/pkg/internal/controller/metrics/metrics.go
+	_, _ = controller.New("test-controller", mgr, controller.Options{})
 }
 
 func newFakeApp(fakeAppYAML string) *argoappv1.Application {
@@ -557,14 +573,28 @@ func TestWorkqueueMetrics(t *testing.T) {
 	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
 	require.NoError(t, err)
 
+	expectedMetrics := `
+# TYPE workqueue_adds_total counter
+workqueue_adds_total{controller="test",name="test"}
+# TYPE workqueue_depth gauge
+workqueue_depth{controller="test",name="test",priority=""}
+# TYPE workqueue_longest_running_processor_seconds gauge
+workqueue_longest_running_processor_seconds{controller="test",name="test"}
+# TYPE workqueue_queue_duration_seconds histogram
+# TYPE workqueue_unfinished_work_seconds gauge
+workqueue_unfinished_work_seconds{controller="test",name="test"}
+# TYPE workqueue_work_duration_seconds histogram
+`
+	workqueue.NewNamed("test")
+
 	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
-	log.Printf("TestWorkqueueMetrics response body: %s", body)
-	assert.Equal(t, http.StatusOK, rr.Code)
+	log.Println(body)
+	assertMetricsPrinted(t, expectedMetrics, body)
 }
 
 func TestGoMetrics(t *testing.T) {
