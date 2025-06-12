@@ -80,7 +80,7 @@ argocd repo add REPOURL [flags]
       --project string                          project of the repository
       --proxy string                            use proxy to access repository
       --ssh-private-key-path string             path to the private ssh key (e.g. ~/.ssh/id_rsa)
-      --tls-client-cert-key-path string         path to the TLS client cert's key path (must be PEM format)
+      --tls-client-cert-key-path string         path to the TLS client cert's key (must be PEM format)
       --tls-client-cert-path string             path to the TLS client cert (must be PEM format)
       --type string                             type of the repository, "git", "oci" or "helm" (default "git")
       --upsert                                  Override an existing repository with the same name even if the spec differs

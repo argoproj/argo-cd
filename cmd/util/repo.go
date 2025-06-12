@@ -38,7 +38,7 @@ func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
 	command.Flags().StringVar(&opts.Repo.BearerToken, "bearer-token", "", "bearer token to the Git BitBucket Data Center repository")
 	command.Flags().StringVar(&opts.SshPrivateKeyPath, "ssh-private-key-path", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
 	command.Flags().StringVar(&opts.TlsClientCertPath, "tls-client-cert-path", "", "path to the TLS client cert (must be PEM format)")
-	command.Flags().StringVar(&opts.TlsClientCertKeyPath, "tls-client-cert-key-path", "", "path to the TLS client cert's key path (must be PEM format)")
+	command.Flags().StringVar(&opts.TlsClientCertKeyPath, "tls-client-cert-key-path", "", "path to the TLS client cert's key (must be PEM format)")
 	command.Flags().BoolVar(&opts.InsecureIgnoreHostKey, "insecure-ignore-host-key", false, "disables SSH strict host key checking (deprecated, use --insecure-skip-server-verification instead)")
 	command.Flags().BoolVar(&opts.InsecureSkipServerVerification, "insecure-skip-server-verification", false, "disables server certificate and host key checks")
 	command.Flags().BoolVar(&opts.EnableLfs, "enable-lfs", false, "enable git-lfs (Large File Support) on this repository")
