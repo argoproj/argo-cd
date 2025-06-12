@@ -16,6 +16,7 @@ message ApplicationSetGetQuery {
 	string name = 1;
 	// The application set namespace. Default empty is argocd control plane namespace
 	string appsetNamespace = 2;
+	string resourceVersion = 3;
 }
 
 message ApplicationSetListQuery {
@@ -49,9 +50,13 @@ message ApplicationSetDeleteRequest {
 
 message ApplicationSetWatchQuery {
 	// The name of the ApplicationSet
-	string name = 1;
+	 string name = 1;
 	// The application set namespace. Default empty is argocd control plane namespace
-	string appsetNamespace = 2;
+	 string appsetNamespace = 2;
+	repeated string projects = 3;
+	 string resourceVersion = 4;
+	 string selector = 5;
+	repeated string project = 7;
 }
 
 message ApplicationSetTreeQuery {

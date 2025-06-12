@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
-	k8swatch "k8s.io/apimachinery/pkg/watch"
 	"os"
 	"reflect"
 	"text/tabwriter"
+
+	k8swatch "k8s.io/apimachinery/pkg/watch"
 
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
