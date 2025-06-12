@@ -8012,6 +8012,45 @@
         }
       }
     },
+    "v1alpha1CommitMetadata": {
+      "description": "CommitMetadata contains metadata about a commit that is related in some way to another commit.",
+      "type": "object",
+      "properties": {
+        "author": {
+          "$ref": "#/definitions/v1alpha1CommitMetadataAuthor"
+        },
+        "date": {
+          "description": "Date is the date of the commit, formatted as by `git show -s --format=%aI`.\nComes from the Argocd-reference-commit-date trailer.",
+          "type": "string"
+        },
+        "repoUrl": {
+          "description": "RepoURL is the URL of the repository where the commit is located.\nComes from the Argocd-reference-commit-repourl trailer.\nThis value is not validated and should not be used to construct UI links unless it is properly\nvalidated and/or sanitized first.",
+          "type": "string"
+        },
+        "sha": {
+          "description": "SHA is the commit hash.\nComes from the Argocd-reference-commit-sha trailer.",
+          "type": "string"
+        },
+        "subject": {
+          "description": "Subject is the commit message subject.\nComes from the Argocd-reference-commit-subject trailer.",
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1CommitMetadataAuthor": {
+      "description": "CommitMetadataAuthor contains information about the author of a commit.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "description": "Email is the email of the author.\nComes from the Argocd-reference-commit-author-email trailer.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Name is the name of the author.\nComes from the Argocd-reference-commit-author-name trailer.",
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1ComparedTo": {
       "type": "object",
       "title": "ComparedTo contains application source and target which was used for resources comparison",
@@ -9130,32 +9169,6 @@
         }
       }
     },
-    "v1alpha1RelatedRevisionMetadata": {
-      "description": "RelatedRevisionMetadata contains metadata about a commit that is related in some way to another commit.",
-      "type": "object",
-      "properties": {
-        "author": {
-          "description": "Author is the author of the commit.\nComes from the Argocd-related-commit-author trailer.",
-          "type": "string"
-        },
-        "date": {
-          "description": "Date is the date of the commit, formatted as by `git show -s --format=%aI`.\nComes from the Argocd-related-commit-date trailer.",
-          "type": "string"
-        },
-        "repoUrl": {
-          "description": "RepoURL is the URL of the repository where the commit is located.\nComes from the Argocd-related-commit-repourl trailer.\nThis value is not validated and should not be used to construct UI links unless it is properly\nvalidated and/or sanitized first.",
-          "type": "string"
-        },
-        "sha": {
-          "description": "SHA is the commit hash.\nComes from the Argocd-related-commit-sha trailer.",
-          "type": "string"
-        },
-        "subject": {
-          "description": "Subject is the commit message subject.\nComes from the Argocd-related-commit-subject trailer.",
-          "type": "string"
-        }
-      }
-    },
     "v1alpha1RepoCreds": {
       "type": "object",
       "title": "RepoCreds holds the definition for repository credentials",
@@ -9830,11 +9843,11 @@
           "description": "Message contains the message associated with the revision, most likely the commit message.",
           "type": "string"
         },
-        "relatedRevisions": {
-          "description": "RelatedRevisions contains metadata about commits that are related to this commit in some way.",
+        "references": {
+          "description": "References contains references to information that's related to this commit in some way.",
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1RelatedRevisionMetadata"
+            "$ref": "#/definitions/v1alpha1RevisionReference"
           }
         },
         "signatureInfo": {
@@ -9847,6 +9860,15 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1alpha1RevisionReference": {
+      "description": "RevisionReference contains a reference to a some information that is related in some way to another commit. For now,\nit supports only references to a commit. In the future, it may support other types of references.",
+      "type": "object",
+      "properties": {
+        "commit": {
+          "$ref": "#/definitions/v1alpha1CommitMetadata"
         }
       }
     },

@@ -213,13 +213,13 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 }
 
 type hydratorMetadataFile struct {
-	RepoURL        string                             `json:"repoURL"`
-	DrySHA         string                             `json:"drySha"`
-	Commands       []string                           `json:"commands"`
-	Author         string                             `json:"author"`
-	Date           string                             `json:"date"`
-	Message        string                             `json:"message"`
-	RelatedCommits []v1alpha1.RelatedRevisionMetadata `json:"relatedCommits,omitempty"`
+	RepoURL        string                    `json:"repoURL"`
+	DrySHA         string                    `json:"drySha"`
+	Commands       []string                  `json:"commands"`
+	Author         string                    `json:"author"`
+	Date           string                    `json:"date"`
+	Message        string                    `json:"message"`
+	RelatedCommits []v1alpha1.CommitMetadata `json:"relatedCommits,omitempty"`
 }
 
 // TODO: make this configurable via ConfigMap.

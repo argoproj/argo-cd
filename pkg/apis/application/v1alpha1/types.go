@@ -1569,25 +1569,41 @@ type SyncStrategyHook struct {
 	SyncStrategyApply `json:",inline" protobuf:"bytes,1,opt,name=syncStrategyApply"`
 }
 
-// RelatedRevisionMetadata contains metadata about a commit that is related in some way to another commit.
-type RelatedRevisionMetadata struct {
+// CommitMetadataAuthor contains information about the author of a commit.
+type CommitMetadataAuthor struct {
+	// Name is the name of the author.
+	// Comes from the Argocd-reference-commit-author-name trailer.
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	// Email is the email of the author.
+	// Comes from the Argocd-reference-commit-author-email trailer.
+	Email string `json:"email,omitempty" protobuf:"bytes,2,opt,name=email"`
+}
+
+// CommitMetadata contains metadata about a commit that is related in some way to another commit.
+type CommitMetadata struct {
 	// Author is the author of the commit.
-	// Comes from the Argocd-related-commit-author trailer.
-	Author string `json:"author,omitempty" protobuf:"bytes,1,opt,name=author"`
+	Author CommitMetadataAuthor `json:"author,omitempty" protobuf:"bytes,1,opt,name=author"`
 	// Date is the date of the commit, formatted as by `git show -s --format=%aI`.
-	// Comes from the Argocd-related-commit-date trailer.
+	// Comes from the Argocd-reference-commit-date trailer.
 	Date string `json:"date,omitempty" protobuf:"bytes,2,opt,name=date"`
 	// Subject is the commit message subject.
-	// Comes from the Argocd-related-commit-subject trailer.
+	// Comes from the Argocd-reference-commit-subject trailer.
 	Subject string `json:"subject,omitempty" protobuf:"bytes,3,opt,name=subject"`
 	// SHA is the commit hash.
-	// Comes from the Argocd-related-commit-sha trailer.
+	// Comes from the Argocd-reference-commit-sha trailer.
 	SHA string `json:"sha,omitempty" protobuf:"bytes,4,opt,name=sha"`
 	// RepoURL is the URL of the repository where the commit is located.
-	// Comes from the Argocd-related-commit-repourl trailer.
+	// Comes from the Argocd-reference-commit-repourl trailer.
 	// This value is not validated and should not be used to construct UI links unless it is properly
 	// validated and/or sanitized first.
 	RepoURL string `json:"repoUrl,omitempty" protobuf:"bytes,5,opt,name=repoUrl"`
+}
+
+// RevisionReference contains a reference to a some information that is related in some way to another commit. For now,
+// it supports only references to a commit. In the future, it may support other types of references.
+type RevisionReference struct {
+	// Commit contains metadata about the commit that is related in some way to another commit.
+	Commit *CommitMetadata `json:"commit,omitempty" protobuf:"bytes,1,opt,name=commit"`
 }
 
 // RevisionMetadata contains metadata for a specific revision in a Git repository. This field is used by the
@@ -1606,8 +1622,8 @@ type RevisionMetadata struct {
 	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
 	// SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
 	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
-	// RelatedRevisions contains metadata about commits that are related to this commit in some way.
-	RelatedRevisions []RelatedRevisionMetadata `json:"relatedRevisions,omitempty" protobuf:"bytes,6,opt,name=relatedRevisions"`
+	// References contains references to information that's related to this commit in some way.
+	References []RevisionReference `json:"references,omitempty" protobuf:"bytes,6,opt,name=references"`
 }
 
 // OCIMetadata contains metadata for a specific revision in an OCI repository

@@ -158,12 +158,16 @@ code commit.
 
 ```shell
 git commit -m "Bump image to v1.2.3" \
-  --trailer "Argocd-related-commit-author: Author Name <author-email>" \
-  --trailer "Argocd-related-commit-sha: <code-commit-sha>" \
-  --trailer "Argocd-related-commit-subject: Commit message of the code commit" \
-  --trailer "Argocd-related-commit-repourl: https://git.example.com/owner/repo" \
-  --trailer "Argocd-related-commit-date: 2025-06-09T13:50:18-04:00" # The date must by in ISO 8601 format
+  --trailer "Argocd-reference-commit-author-name: Author Name" \
+  --trailer "Argocd-reference-commit-author-email: author@example.com" \
+  --trailer "Argocd-reference-commit-sha: <code-commit-sha>" \
+  --trailer "Argocd-reference-commit-subject: Commit message of the code commit" \
+  --trailer "Argocd-reference-commit-repourl: https://git.example.com/owner/repo" \ # the repo URL must be a valid URL
+  --trailer "Argocd-reference-commit-date: 2025-06-09T13:50:18-04:00" # The date must by in ISO 8601 format
 ```
+
+!!!note Invalid values are ignored
+    The repo URL and date format must be valid, otherwise they will be ignored.
 
 So the full CI script might look something like this:
 
@@ -176,7 +180,8 @@ cd repo
 # <cusom build logic here>
 
 # Get the commit information
-author=$(git show -s --format='%an <%ae>')
+authorName=$(git show -s --format='%an')
+authorEmail=$(git show -s --format='%ae')
 sha=$(git rev-parse HEAD)
 message=$(git show -s --format='%s')
 repourl=$(git remote get-url origin)
@@ -191,30 +196,39 @@ cd deployment-repo
 
 # Commit the changes with the commit trailers
 git commit -m "Bump image to v1.2.3" \
-  --trailer "Argocd-related-commit-author: $author" \
-  --trailer "Argocd-related-commit-sha: $sha" \
-  --trailer "Argocd-related-commit-subject: $message" \
-  --trailer "Argocd-related-commit-repourl: $repourl" \
-  --trailer "Argocd-related-commit-date: $date"
+  --trailer "Argocd-reference-commit-author-name: $authorName" \
+  --trailer "Argocd-reference-commit-author-email: $authorEmail" \
+  --trailer "Argocd-reference-commit-sha: $sha" \
+  --trailer "Argocd-reference-commit-subject: $message" \
+  --trailer "Argocd-reference-commit-repourl: $repourl" \
+  --trailer "Argocd-reference-commit-date: $date"
 ```
 
 The commit metadata will appear in the hydrated commit's root hydrator.metadata file:
 
 ```json
 {
-  "relatedCommits": [
+  "references": [
     {
-      "author": "Author Name <author-email>",
-      "sha": "<code-commit-sha>",
-      "message": "Commit message of the code commit",
-      "repoURL": "https://git.example.com/owner/repo",
-      "date": "2025-06-09T13:50:18-04:00"
+      "commit": {
+        "author": {
+          "name": "Author Name",
+          "email": "author@example.com"
+        },
+        "sha": "<code-commit-sha>",
+        "message": "Commit message of the code commit",
+        "repoURL": "https://git.example.com/owner/repo",
+        "date": "2025-06-09T13:50:18-04:00"
+      }
     }
   ]
 }
 ```
 
-Although `relatedCommits` is an array, the source hydrator currently only supports a single related commit.
+Although `references` is an array, the source hydrator currently only supports a single related commit. If a trailer is
+specified more than once, the last one will be used.
+
+All trailers are optional. If a trailer is not specified, the corresponding field in the metadata will be omitted.
 
 ## Limitations
 

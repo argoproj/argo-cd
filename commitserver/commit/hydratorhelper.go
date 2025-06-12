@@ -26,7 +26,7 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 	author := ""
 	message := ""
 	date := ""
-	var relatedCommits []appv1.RelatedRevisionMetadata
+	var relatedCommits []appv1.CommitMetadata
 	if dryCommitMetadata != nil {
 		author = dryCommitMetadata.Author
 		message = dryCommitMetadata.Message
