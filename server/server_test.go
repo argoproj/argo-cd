@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -549,7 +548,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
 		case "/api/dex/.well-known/openid-configuration":
-			_, err := io.WriteString(w, fmt.Sprintf(`
+			_, err := fmt.Fprintf(w, `
 {
   "issuer": "%[1]s/api/dex",
   "authorization_endpoint": "%[1]s/api/dex/auth",
@@ -599,7 +598,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
     "preferred_username",
     "at_hash"
   ]
-}`, url))
+}`, url)
 			if err != nil {
 				t.Fail()
 			}

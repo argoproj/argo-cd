@@ -206,7 +206,7 @@ func removeKeyRing(path string) error {
 
 // IsGPGEnabled returns true if GPG feature is enabled
 func IsGPGEnabled() bool {
-	if en := os.Getenv("ARGOCD_GPG_ENABLED"); strings.ToLower(en) == "false" || strings.ToLower(en) == "no" {
+	if en := os.Getenv("ARGOCD_GPG_ENABLED"); strings.EqualFold(en, "false") || strings.EqualFold(en, "no") {
 		return false
 	}
 	return true

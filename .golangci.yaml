@@ -48,12 +48,40 @@ linters:
 
   settings:
     gocritic:
+      enable-all: true
+      # Most of these should probably be enabled one-by-one.
       disabled-checks:
         - appendAssign
+        - appendCombine
         - assignOp
+        - builtinShadow
+        - commentedOutCode
+        - deferInLoop
+        - emptyStringTest
         - exitAfterDefer
+        - exposedSyncMutex
+        - evalOrder
+        - filepathJoin
+        - httpNoBody
+        - hugeParam
+        - importShadow
         - mapKey
+        - nestingReduce
+        - paramTypeCombine
+        - ptrToRefParam
+        - rangeValCopy
+        - regexpSimplify
+        - sloppyReassign
+        - sortSlice
+        - sprintfQuotedString
+        - tooManyResultsChecker
+        - typeAssertChain
+        - typeDefFirst
         - typeSwitchVar
+        - typeUnparen
+        - unnecessaryBlock
+        - unnamedResult
+        - whyNoLint
 
     gomodguard:
       blocked:
