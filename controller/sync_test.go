@@ -915,13 +915,13 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 				DefaultServiceAccount: "default-sa",
 			},
 			{
-				Server:                "*",
+				Server:                "https://kubernetes.svc.local",
 				Namespace:             "*",
 				DefaultServiceAccount: "test-sa",
 			},
 		}
 		destinationNamespace := "testns"
-		destinationServerURL := "https://localhost:6443"
+		destinationServerURL := "https://kubernetes.svc.local"
 		applicationNamespace := "argocd-ns"
 		expectedSA := "system:serviceaccount:testns:test-sa"
 
@@ -1287,7 +1287,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			},
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.
-					ApplicationDestinationServiceAccount{
+				ApplicationDestinationServiceAccount{
 					{
 						Server:                "https://localhost:6443",
 						Namespace:             destinationNamespace,
