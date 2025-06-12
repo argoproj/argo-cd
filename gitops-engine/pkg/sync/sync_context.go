@@ -129,6 +129,13 @@ func WithPruneConfirmed(confirmed bool) SyncOpt {
 	}
 }
 
+// WithPruneDisabled specifies if prune is globally disabled for this application
+func WithPruneDisabled(disabled bool) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.pruneDisabled = disabled
+	}
+}
+
 // WithOperationSettings allows to set sync operation settings
 func WithOperationSettings(dryRun bool, prune bool, force bool, skipHooks bool) SyncOpt {
 	return func(ctx *syncContext) {
@@ -375,6 +382,7 @@ type syncContext struct {
 	prunePropagationPolicy          *metav1.DeletionPropagation
 	pruneConfirmed                  bool
 	requiresPruneConfirmation       bool
+	pruneDisabled                   bool
 	clientSideApplyMigrationManager string
 	enableClientSideApplyMigration  bool
 
@@ -1229,7 +1237,7 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dryRun bool) (common.ResultCode, string) {
 	if !prune {
 		return common.ResultCodePruneSkipped, "ignored (requires pruning)"
-	} else if resourceutil.HasAnnotationOption(liveObj, common.AnnotationSyncOptions, common.SyncOptionDisablePrune) {
+	} else if resourceutil.HasAnnotationOption(liveObj, common.AnnotationSyncOptions, common.SyncOptionDisablePrune) || sc.pruneDisabled {
 		return common.ResultCodePruneSkipped, "ignored (no prune)"
 	}
 	if dryRun {

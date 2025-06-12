@@ -348,6 +348,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		),
 		sync.WithPruneConfirmed(app.IsDeletionConfirmed(state.StartedAt.Time)),
 		sync.WithRequiresPruneConfirmation(syncOp.SyncOptions.HasOption(common.SyncOptionPruneRequireConfirm)),
+		sync.WithPruneDisabled(syncOp.SyncOptions.HasOption(common.SyncOptionDisablePrune)),
 		sync.WithSkipDryRunOnMissingResource(syncOp.SyncOptions.HasOption(common.SyncOptionSkipDryRunOnMissingResource)),
 	}
 

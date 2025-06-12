@@ -2565,6 +2565,16 @@ func Test_syncDeleteOption(t *testing.T) {
 	})
 }
 
+func Test_syncDeleteOptionGlobal(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SyncPolicy.SyncOptions = []string{"Delete=false"}
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
+
+	cm := newFakeCM()
+	cmObj := kube.MustToUnstructured(&cm)
+	assert.False(t, ctrl.shouldBeDeleted(app, cmObj))
+}
+
 func TestAddControllerNamespace(t *testing.T) {
 	t.Run("set controllerNamespace when the app is in the controller namespace", func(t *testing.T) {
 		app := newFakeApp()

@@ -835,6 +835,23 @@ func TestDoNotPrunePruneFalse(t *testing.T) {
 
 	phase, _, _ = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
+
+	// test that we can still not prune if prune is disabled on the app level
+	syncCtx.pruneDisabled = true
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=true"})
+	syncCtx.Sync()
+
+	phase, _, resources = syncCtx.GetState()
+
+	assert.Equal(t, synccommon.OperationSucceeded, phase)
+	assert.Len(t, resources, 1)
+	assert.Equal(t, synccommon.ResultCodePruneSkipped, resources[0].Status)
+	assert.Equal(t, "ignored (no prune)", resources[0].Message)
+
+	syncCtx.Sync()
+
+	phase, _, _ = syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationSucceeded, phase)
 }
 
 // make sure that we need confirmation to prune with Prune=confirm
