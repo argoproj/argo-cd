@@ -212,6 +212,18 @@ func WithServerSideApplyManager(manager string) SyncOpt {
 	}
 }
 
+// WithClientSideApplyMigration configures client-side apply migration for server-side apply.
+// When enabled, fields managed by the specified manager will be migrated to server-side apply.
+// Defaults to enabled=true with manager="kubectl-client-side-apply" if not configured.
+func WithClientSideApplyMigration(enabled bool, manager string) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.enableClientSideApplyMigration = enabled
+		if enabled && manager != "" {
+			ctx.clientSideApplyMigrationManager = manager
+		}
+	}
+}
+
 // NewSyncContext creates new instance of a SyncContext
 func NewSyncContext(
 	revision string,
@@ -240,21 +252,23 @@ func NewSyncContext(
 		return nil, nil, fmt.Errorf("failed to manage resources: %w", err)
 	}
 	ctx := &syncContext{
-		revision:            revision,
-		resources:           groupResources(reconciliationResult),
-		hooks:               reconciliationResult.Hooks,
-		config:              restConfig,
-		rawConfig:           rawConfig,
-		dynamicIf:           dynamicIf,
-		disco:               disco,
-		extensionsclientset: extensionsclientset,
-		kubectl:             kubectl,
-		resourceOps:         resourceOps,
-		namespace:           namespace,
-		log:                 textlogger.NewLogger(textlogger.NewConfig()),
-		validate:            true,
-		startedAt:           time.Now(),
-		syncRes:             map[string]common.ResourceSyncResult{},
+		revision:                        revision,
+		resources:                       groupResources(reconciliationResult),
+		hooks:                           reconciliationResult.Hooks,
+		config:                          restConfig,
+		rawConfig:                       rawConfig,
+		dynamicIf:                       dynamicIf,
+		disco:                           disco,
+		extensionsclientset:             extensionsclientset,
+		kubectl:                         kubectl,
+		resourceOps:                     resourceOps,
+		namespace:                       namespace,
+		log:                             textlogger.NewLogger(textlogger.NewConfig()),
+		validate:                        true,
+		startedAt:                       time.Now(),
+		syncRes:                         map[string]common.ResourceSyncResult{},
+		clientSideApplyMigrationManager: common.DefaultClientSideApplyMigrationManager,
+		enableClientSideApplyMigration:  true,
 		permissionValidator: func(_ *unstructured.Unstructured, _ *metav1.APIResource) error {
 			return nil
 		},
@@ -346,20 +360,22 @@ type syncContext struct {
 	resourceOps         kubeutil.ResourceOperations
 	namespace           string
 
-	dryRun                      bool
-	skipDryRun                  bool
-	skipDryRunOnMissingResource bool
-	force                       bool
-	validate                    bool
-	skipHooks                   bool
-	resourcesFilter             func(key kubeutil.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool
-	prune                       bool
-	replace                     bool
-	serverSideApply             bool
-	serverSideApplyManager      string
-	pruneLast                   bool
-	prunePropagationPolicy      *metav1.DeletionPropagation
-	pruneConfirmed              bool
+	dryRun                          bool
+	skipDryRun                      bool
+	skipDryRunOnMissingResource     bool
+	force                           bool
+	validate                        bool
+	skipHooks                       bool
+	resourcesFilter                 func(key kubeutil.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool
+	prune                           bool
+	replace                         bool
+	serverSideApply                 bool
+	serverSideApplyManager          string
+	pruneLast                       bool
+	prunePropagationPolicy          *metav1.DeletionPropagation
+	pruneConfirmed                  bool
+	clientSideApplyMigrationManager string
+	enableClientSideApplyMigration  bool
 
 	syncRes   map[string]common.ResourceSyncResult
 	startedAt time.Time
@@ -1072,6 +1088,52 @@ func (sc *syncContext) shouldUseServerSideApply(targetObj *unstructured.Unstruct
 	return sc.serverSideApply || resourceutil.HasAnnotationOption(targetObj, common.AnnotationSyncOptions, common.SyncOptionServerSideApply)
 }
 
+// needsClientSideApplyMigration checks if a resource has fields managed by the specified manager
+// that need to be migrated to the server-side apply manager
+func (sc *syncContext) needsClientSideApplyMigration(liveObj *unstructured.Unstructured, fieldManager string) bool {
+	if liveObj == nil || fieldManager == "" {
+		return false
+	}
+
+	managedFields := liveObj.GetManagedFields()
+	if len(managedFields) == 0 {
+		return false
+	}
+
+	for _, field := range managedFields {
+		if field.Manager == fieldManager {
+			return true
+		}
+	}
+
+	return false
+}
+
+// performClientSideApplyMigration performs a client-side-apply using the specified field manager.
+// This moves the 'last-applied-configuration' field to be managed by the specified manager.
+// The next time server-side apply is performed, kubernetes automatically migrates all fields from the manager
+// that owns 'last-applied-configuration' to the manager that uses server-side apply. This will remove the
+// specified manager from the resources managed fields. 'kubectl-client-side-apply' is used as the default manager.
+func (sc *syncContext) performClientSideApplyMigration(targetObj *unstructured.Unstructured, fieldManager string) error {
+	sc.log.WithValues("resource", kubeutil.GetResourceKey(targetObj)).V(1).Info("Performing client-side apply migration step")
+
+	// Apply with the specified manager to set up the migration
+	_, err := sc.resourceOps.ApplyResource(
+		context.TODO(),
+		targetObj,
+		cmdutil.DryRunNone,
+		false,
+		false,
+		false,
+		fieldManager,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to perform client-side apply migration on manager %s: %w", fieldManager, err)
+	}
+
+	return nil
+}
+
 func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.ResultCode, string) {
 	dryRunStrategy := cmdutil.DryRunNone
 	if dryRun {
@@ -1088,6 +1150,17 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 	shouldReplace := sc.replace || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionReplace)
 	force := sc.force || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionForce)
 	serverSideApply := sc.shouldUseServerSideApply(t.targetObj, dryRun)
+
+	// Check if we need to perform client-side apply migration for server-side apply
+	if serverSideApply && !dryRun && sc.enableClientSideApplyMigration {
+		if sc.needsClientSideApplyMigration(t.liveObj, sc.clientSideApplyMigrationManager) {
+			err = sc.performClientSideApplyMigration(t.targetObj, sc.clientSideApplyMigrationManager)
+			if err != nil {
+				return common.ResultCodeSyncFailed, fmt.Sprintf("Failed to perform client-side apply migration: %v", err)
+			}
+		}
+	}
+
 	if shouldReplace {
 		if t.liveObj != nil {
 			// Avoid using `kubectl replace` for CRDs since 'replace' might recreate resource and so delete all CRD instances.
