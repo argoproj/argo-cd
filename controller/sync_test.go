@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -210,7 +209,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 		}
 
 		project := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: v1.ObjectMeta{
 				Namespace: test.FakeArgoCDNamespace,
 				Name:      "default",
 			},
@@ -248,11 +247,11 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 		t.Parallel()
 
 		sharedObject := kube.MustToUnstructured(&corev1.ConfigMap{
-			TypeMeta: metav1.TypeMeta{
+			TypeMeta: v1.TypeMeta{
 				APIVersion: "v1",
 				Kind:       "ConfigMap",
 			},
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: v1.ObjectMeta{
 				Name:      "configmap1",
 				Namespace: "default",
 				Annotations: map[string]string{
