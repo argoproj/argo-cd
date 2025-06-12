@@ -1137,6 +1137,18 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
         [setExtensionPanelVisible]
     );
 
+    const requiresDeletionConfirmation = (app: appModels.Application): boolean => {
+        if (app.status.resources.find(r => r.requiresDeletionConfirmation)) {
+            return true;
+        }
+
+        if (app.spec.syncPolicy?.syncOptions?.includes('Delete=confirm') || app.spec.syncPolicy?.syncOptions?.includes('Prune=confirm')) {
+            return true;
+        }
+
+        return false;
+    };
+
     const getApplicationActionMenu = useCallback(
         (app: appModels.Application, needOverlapLabelOnNarrowScreen: boolean) => {
             const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
@@ -1163,7 +1175,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                     action: () => AppUtils.showDeploy('all', null, appContext),
                     disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0) && !app.spec.sourceHydrator
                 },
-                ...(app.status?.operationState?.phase === 'Running' && app.status.resources.find(r => r.requiresDeletionConfirmation)
+                ...(app.status?.operationState?.phase === 'Running' && requiresDeletionConfirmation(app)
                     ? [
                           {
                               iconClassName: 'fa fa-check',
@@ -1186,9 +1198,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                     },
                     disabled: !app.status.operationState
                 },
-                app.metadata.deletionTimestamp &&
-                app.status.resources.find(r => r.requiresDeletionConfirmation) &&
-                !((app.metadata.annotations || {})[appModels.AppDeletionConfirmedAnnotation] == 'true')
+                app.metadata.deletionTimestamp && requiresDeletionConfirmation(app) && !((app.metadata.annotations || {})[appModels.AppDeletionConfirmedAnnotation] == 'true')
                     ? {
                           iconClassName: 'fa fa-check',
                           title: <ActionMenuItem actionLabel='Confirm Deletion' />,

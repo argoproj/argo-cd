@@ -115,6 +115,13 @@ func WithPrune(prune bool) SyncOpt {
 	}
 }
 
+// WithRequiresPruneConfirmation specifies if pruning resources requires a confirmation
+func WithRequiresPruneConfirmation(requiresConfirmation bool) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.requiresPruneConfirmation = requiresConfirmation
+	}
+}
+
 // WithPruneConfirmed specifies if prune is confirmed for resources that require confirmation
 func WithPruneConfirmed(confirmed bool) SyncOpt {
 	return func(ctx *syncContext) {
@@ -367,6 +374,7 @@ type syncContext struct {
 	pruneLast                       bool
 	prunePropagationPolicy          *metav1.DeletionPropagation
 	pruneConfirmed                  bool
+	requiresPruneConfirmation       bool
 	clientSideApplyMigrationManager string
 	enableClientSideApplyMigration  bool
 
@@ -1406,7 +1414,7 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 		if !sc.pruneConfirmed {
 			var resources []string
 			for _, task := range pruneTasks {
-				if resourceutil.HasAnnotationOption(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPruneRequireConfirm) {
+				if sc.requiresPruneConfirmation || resourceutil.HasAnnotationOption(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPruneRequireConfirm) {
 					resources = append(resources, fmt.Sprintf("%s/%s/%s", task.obj().GetAPIVersion(), task.obj().GetKind(), task.name()))
 				}
 			}

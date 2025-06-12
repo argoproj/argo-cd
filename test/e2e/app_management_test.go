@@ -3087,6 +3087,42 @@ func TestDeletionConfirmation(t *testing.T) {
 		Then().Expect(DoesNotExist())
 }
 
+func TestDeletionConfirmationSyncOption(t *testing.T) {
+	ctx := Given(t)
+	ctx.
+		And(func() {
+			_, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(
+				t.Context(), &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-configmap",
+						Labels: map[string]string{
+							common.LabelKeyAppInstance: ctx.AppName(),
+						},
+					},
+				}, metav1.CreateOptions{})
+			require.NoError(t, err)
+		}).
+		Path(guestbookPath).
+		Async(true).
+		When().
+		CreateApp().Then().When().
+		PatchApp(`[{
+			"op": "add",
+			"path": "/spec/syncPolicy",
+			"value": { "syncOptions": ["Delete=confirm", "Prune=confirm"] }
+			}]`).Sync().
+		Then().Expect(OperationPhaseIs(OperationRunning)).
+		When().ConfirmDeletion().
+		Then().Expect(OperationPhaseIs(OperationSucceeded)).
+		When().Delete(true).
+		Then().
+		And(func(app *Application) {
+			assert.NotNil(t, app.DeletionTimestamp)
+		}).
+		When().ConfirmDeletion().
+		Then().Expect(DoesNotExist())
+}
+
 func TestLastTransitionTimeUnchangedError(t *testing.T) {
 	// Ensure that, if the health status hasn't changed, the lastTransitionTime is not updated.
 

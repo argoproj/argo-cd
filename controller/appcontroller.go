@@ -1230,6 +1230,11 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 			return err
 		}
 
+		if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.SyncOptions.HasOption(synccommon.SyncOptionDeleteRequireConfirm) && !deletionApproved {
+			logCtx.Infof("Application requires manual confirmation to be deleted")
+			return nil
+		}
+
 		for k := range objsMap {
 			// Wait for objects pending deletion to complete before proceeding with next sync wave
 			if objsMap[k].GetDeletionTimestamp() != nil {

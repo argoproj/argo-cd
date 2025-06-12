@@ -34,6 +34,20 @@ metadata:
 To confirm the pruning you can use Argo CD UI, CLI or manually apply the `argocd.argoproj.io/deletion-approved: <ISO formatted timestamp>`
 annotation to the application.
 
+It also can be enabled at the application level like in the example below:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - Prune=confirm
+```
+
+Note that setting a Prune sync option on the application level will not override
+the same sync option set on a specific resource, both will still be applied.
+
 ## Disable Kubectl Validation
 
 For a certain class of objects, it is necessary to `kubectl apply` them using the `--validate=false` flag. Examples of this are Kubernetes types which uses `RawExtension`, such as [ServiceCatalog](https://github.com/kubernetes-incubator/service-catalog/blob/master/pkg/apis/servicecatalog/v1beta1/types.go#L497). You can do that using this annotation:
@@ -100,6 +114,20 @@ metadata:
 
 To confirm the deletion you can use Argo CD UI, CLI or manually apply the `argocd.argoproj.io/deletion-approved: <ISO formatted timestamp>`
 annotation to the application.
+
+It also can be enabled at the application level like in the example below:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - Delete=confirm
+```
+
+Note that setting a Delete sync option on the application level will not override
+the same sync option set on a specific resource, both will still be applied.
 
 ## Selective Sync
 
