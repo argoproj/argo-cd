@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller/testdata"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -189,16 +190,22 @@ func TestSyncComparisonError(t *testing.T) {
 }
 
 func TestAppStateManager_SyncAppState(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
-		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
+		project     *v1alpha1.AppProject
 		controller  *ApplicationController
 	}
 
-	setup := func() *fixture {
+	setup := func(liveObjects map[kube.ResourceKey]*unstructured.Unstructured) *fixture {
 		app := newFakeApp()
 		app.Status.OperationState = nil
 		app.Status.History = nil
+
+		if liveObjects == nil {
+			liveObjects = make(map[kube.ResourceKey]*unstructured.Unstructured)
+		}
 
 		project := &v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{
@@ -207,6 +214,12 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 			},
 			Spec: v1alpha1.AppProjectSpec{
 				SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}},
+				Destinations: []v1alpha1.ApplicationDestination{
+					{
+						Namespace: "*",
+						Server:    "*",
+					},
+				},
 			},
 		}
 		data := fakeData{
@@ -217,13 +230,13 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 				Server:    test.FakeClusterURL,
 				Revision:  "abc123",
 			},
-			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+			managedLiveObjs: liveObjects,
 		}
 		ctrl := newFakeController(&data, nil)
 
 		return &fixture{
-			project:     project,
 			application: app,
+			project:     project,
 			controller:  ctrl,
 		}
 	}
@@ -231,13 +244,23 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 	t.Run("will fail the sync if finds shared resources", func(t *testing.T) {
 		// given
 		t.Parallel()
-		f := setup()
-		syncErrorMsg := "deployment already applied by another application"
-		condition := v1alpha1.ApplicationCondition{
-			Type:    v1alpha1.ApplicationConditionSharedResourceWarning,
-			Message: syncErrorMsg,
-		}
-		f.application.Status.Conditions = append(f.application.Status.Conditions, condition)
+
+		sharedObject := kube.MustToUnstructured(&corev1.ConfigMap{
+			TypeMeta: v1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+			},
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "configmap1",
+				Namespace: "default",
+				Labels: map[string]string{
+					argocommon.LabelKeyAppInstance: "another-app",
+				},
+			},
+		})
+		liveObjects := make(map[kube.ResourceKey]*unstructured.Unstructured)
+		liveObjects[kube.GetResourceKey(sharedObject)] = sharedObject
+		f := setup(liveObjects)
 
 		// Sync with source unspecified
 		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
@@ -252,7 +275,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 
 		// then
 		assert.Equal(t, common.OperationFailed, opState.Phase)
-		assert.Contains(t, opState.Message, syncErrorMsg)
+		assert.Contains(t, opState.Message, "ConfigMap/configmap1 is part of applications fake-argocd-ns/my-app and another-app")
 	})
 }
 
