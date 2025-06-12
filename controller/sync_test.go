@@ -254,8 +254,8 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "configmap1",
 				Namespace: "default",
-				Annotations: map[string]string{
-					argocommon.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
+				Labels: map[string]string{
+					argocommon.LabelKeyAppInstance: "another-app",
 				},
 			},
 		})
@@ -276,7 +276,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 
 		// then
 		assert.Equal(t, common.OperationFailed, opState.Phase)
-		assert.Contains(t, opState.Message, "ConfigMap/configmap1 is part of applications fake-argocd-ns/my-app and guestbook")
+		assert.Contains(t, opState.Message, "ConfigMap/configmap1 is part of applications fake-argocd-ns/my-app and another-app")
 	})
 }
 
