@@ -2,10 +2,13 @@ package commit
 
 import (
 	"encoding/json"
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -63,7 +66,28 @@ func TestWriteForPaths(t *testing.T) {
 		},
 	}
 
-	err := WriteForPaths(root, repoURL, drySha, nil, paths)
+	now := metav1.NewTime(time.Now())
+	metadata := &appsv1.RevisionMetadata{
+		Author:  "test-author",
+		Date:    &now,
+		Message: "test-message",
+		References: []appsv1.RevisionReference{
+			{
+				Commit: &appsv1.CommitMetadata{
+					Author: appsv1.CommitMetadataAuthor{
+						Name:  "test-code-author",
+						Email: "test-email-author@example.com",
+					},
+					Date:    now.Format(time.RFC3339),
+					Subject: "test-code-subject",
+					SHA:     "test-code-sha",
+					RepoURL: "https://example.com/test/repo.git",
+				},
+			},
+		},
+	}
+
+	err := WriteForPaths(root, repoURL, drySha, metadata, paths)
 	require.NoError(t, err)
 
 	// Check if the top-level hydrator.metadata exists and contains the repo URL and dry SHA
@@ -76,6 +100,10 @@ func TestWriteForPaths(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, repoURL, topMetadata.RepoURL)
 	assert.Equal(t, drySha, topMetadata.DrySHA)
+	assert.Equal(t, metadata.Author, topMetadata.Author)
+	assert.Equal(t, metadata.Message, topMetadata.Message)
+	assert.Equal(t, metadata.Date.Format(time.RFC3339), topMetadata.Date)
+	assert.Equal(t, metadata.References, topMetadata.References)
 
 	for _, p := range paths {
 		fullHydratePath := filepath.Join(root.Name(), p.Path)
@@ -92,14 +120,13 @@ func TestWriteForPaths(t *testing.T) {
 		err = json.Unmarshal(metadataBytes, &readMetadata)
 		require.NoError(t, err)
 		assert.Equal(t, repoURL, readMetadata.RepoURL)
-
 		// Check if each path contains a README.md file and contains the repo URL
 		readmePath := path.Join(fullHydratePath, "README.md")
 		readmeBytes, err := os.ReadFile(readmePath)
 		require.NoError(t, err)
 		assert.Contains(t, string(readmeBytes), repoURL)
 
-		// Check if each path contains a manifest.yaml file and contains the word Pod
+		// Check if each path contains a manifest.yaml file and contains the word kind
 		manifestPath := path.Join(fullHydratePath, "manifest.yaml")
 		manifestBytes, err := os.ReadFile(manifestPath)
 		require.NoError(t, err)

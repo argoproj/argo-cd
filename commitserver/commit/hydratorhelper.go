@@ -26,17 +26,18 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 	author := ""
 	message := ""
 	date := ""
-	var relatedCommits []appv1.CommitMetadata
+	var references []appv1.RevisionReference
 	if dryCommitMetadata != nil {
 		author = dryCommitMetadata.Author
 		message = dryCommitMetadata.Message
 		if dryCommitMetadata.Date != nil {
 			date = dryCommitMetadata.Date.Format(time.RFC3339)
 		}
+		references = dryCommitMetadata.References
 	}
 
 	// Write the top-level readme.
-	err := writeMetadata(root, "", hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl, Author: author, Message: message, Date: date, RelatedCommits: relatedCommits})
+	err := writeMetadata(root, "", hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl, Author: author, Message: message, Date: date, References: references})
 	if err != nil {
 		return fmt.Errorf("failed to write top-level hydrator metadata: %w", err)
 	}

@@ -7,12 +7,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
@@ -213,13 +212,13 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 }
 
 type hydratorMetadataFile struct {
-	RepoURL        string                    `json:"repoURL"`
-	DrySHA         string                    `json:"drySha"`
-	Commands       []string                  `json:"commands"`
-	Author         string                    `json:"author"`
-	Date           string                    `json:"date"`
-	Message        string                    `json:"message"`
-	RelatedCommits []v1alpha1.CommitMetadata `json:"relatedCommits,omitempty"`
+	RepoURL    string                       `json:"repoURL,omitempty"`
+	DrySHA     string                       `json:"drySha,omitempty"`
+	Commands   []string                     `json:"commands,omitempty"`
+	Author     string                       `json:"author,omitempty"`
+	Date       string                       `json:"date,omitempty"`
+	Message    string                       `json:"message,omitempty"`
+	References []v1alpha1.RevisionReference `json:"references,omitempty"`
 }
 
 // TODO: make this configurable via ConfigMap.

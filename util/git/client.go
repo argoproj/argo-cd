@@ -54,7 +54,7 @@ type CommitMetadataAuthor struct {
 // CommitMetadata contains metadata about a commit that is related in some way to another commit.
 type CommitMetadata struct {
 	// Author is the author of the commit.
-	// Comes from the Argocd-reference-commit-author trailer.
+	// Comes from the Argocd-reference-commit-author-* trailers.
 	Author CommitMetadataAuthor
 	// Date is the date of the commit, formatted as by `git show -s --format=%aI`.
 	// Comes from the Argocd-reference-commit-date trailer.
