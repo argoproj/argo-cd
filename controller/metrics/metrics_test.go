@@ -557,35 +557,13 @@ func TestWorkqueueMetrics(t *testing.T) {
 	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
 	require.NoError(t, err)
 
-	// 	expectedMetrics := `
-	// # TYPE workqueue_adds_total counter
-	// workqueue_adds_total{controller="test",name="test"}
-
-	// # TYPE workqueue_depth gauge
-	// workqueue_depth{controller="test",name="test"}
-
-	// # TYPE workqueue_longest_running_processor_seconds gauge
-	// workqueue_longest_running_processor_seconds{controller="test",name="test"}
-
-	// # TYPE workqueue_queue_duration_seconds histogram
-
-	// # TYPE workqueue_unfinished_work_seconds gauge
-	// workqueue_unfinished_work_seconds{controller="test",name="test"}
-
-	// # TYPE workqueue_work_duration_seconds histogram
-	// `
-	// 	workqueue.NewNamed("test")
-
 	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
-	// assertMetricsPrinted(t, expectedMetrics, body)
 	log.Printf("TestWorkqueueMetrics response body: %s", body)
-
-	// The specific metrics depend on controller-runtime being fully initialized
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
