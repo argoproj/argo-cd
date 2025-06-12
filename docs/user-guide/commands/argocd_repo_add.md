@@ -2,7 +2,7 @@
 
 ## argocd repo add
 
-Add git repository connection parameters
+Add git, oci or helm repository connection parameters
 
 ```
 argocd repo add REPOURL [flags]
