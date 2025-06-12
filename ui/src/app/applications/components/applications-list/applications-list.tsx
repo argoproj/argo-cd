@@ -263,8 +263,10 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
                 </React.Fragment>
             )}
             onSelect={val => {
-                const qualifiedName = AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
-                const selectedApp = apps?.find(app => qualifiedName === val);
+                const selectedApp = apps?.find(app => {
+                    const qualifiedName = AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
+                    return qualifiedName === val;
+                });
                 if (selectedApp) {
                     ctx.navigation.goto(`/${AppUtils.getAppUrl(selectedApp)}`);
                 }
