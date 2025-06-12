@@ -2,8 +2,6 @@ package commit
 
 import (
 	"encoding/json"
-	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path"
 	"path/filepath"
@@ -12,8 +10,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 // tempRoot creates a temporary directory and returns an os.Root object for it.
