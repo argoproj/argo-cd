@@ -112,6 +112,8 @@ export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
             </div>
         ))}
         <div className='small-12' style={optionStyle}>
+            {selectOption('Prune', 'Prune', 'true', ['true', 'false', 'confirm'], props)}
+            {selectOption('Delete', 'Delete', 'true', ['true', 'false', 'confirm'], props)}
             {booleanOption('Replace', 'Replace', false, props, false, REPLACE_WARNING)}
         </div>
     </div>
