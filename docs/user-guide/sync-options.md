@@ -14,6 +14,17 @@ metadata:
     argocd.argoproj.io/sync-options: Prune=false
 ```
 
+It also can be enabled at the application level like in the example below:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - Prune=false
+```
+
 The sync-status panel shows that pruning was skipped, and why:
 
 ![sync option no prune](../assets/sync-option-no-prune-sync-status.png)
@@ -96,6 +107,17 @@ In such situations you can stop those resources from being cleaned up during app
 metadata:
   annotations:
     argocd.argoproj.io/sync-options: Delete=false
+```
+
+It also can be enabled at the application level like in the example below:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - Delete=false
 ```
 
 ## Resource Deletion With Confirmation
