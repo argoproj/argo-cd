@@ -70,14 +70,20 @@ type TokenProvider_GetToken_Call struct {
 }
 
 // GetToken is a helper method to define mock.On call
-//   - scope
+//   - scope string
 func (_e *TokenProvider_Expecter) GetToken(scope interface{}) *TokenProvider_GetToken_Call {
 	return &TokenProvider_GetToken_Call{Call: _e.mock.On("GetToken", scope)}
 }
 
 func (_c *TokenProvider_GetToken_Call) Run(run func(scope string)) *TokenProvider_GetToken_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }

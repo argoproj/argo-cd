@@ -81,9 +81,9 @@ type CommitServiceClient_CommitHydratedManifests_Call struct {
 }
 
 // CommitHydratedManifests is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
+//   - ctx context.Context
+//   - in *apiclient.CommitHydratedManifestsRequest
+//   - opts ...grpc.CallOption
 func (_e *CommitServiceClient_Expecter) CommitHydratedManifests(ctx interface{}, in interface{}, opts ...interface{}) *CommitServiceClient_CommitHydratedManifests_Call {
 	return &CommitServiceClient_CommitHydratedManifests_Call{Call: _e.mock.On("CommitHydratedManifests",
 		append([]interface{}{ctx, in}, opts...)...)}
@@ -91,13 +91,27 @@ func (_e *CommitServiceClient_Expecter) CommitHydratedManifests(ctx interface{},
 
 func (_c *CommitServiceClient_CommitHydratedManifests_Call) Run(run func(ctx context.Context, in *apiclient.CommitHydratedManifestsRequest, opts ...grpc.CallOption)) *CommitServiceClient_CommitHydratedManifests_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *apiclient.CommitHydratedManifestsRequest
+		if args[1] != nil {
+			arg1 = args[1].(*apiclient.CommitHydratedManifestsRequest)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*apiclient.CommitHydratedManifestsRequest), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
