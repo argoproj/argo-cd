@@ -7,7 +7,6 @@ export interface HTTPSQuery {
     url: string;
     username: string;
     password: string;
-    bearerToken: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
     insecure: boolean;
@@ -17,8 +16,6 @@ export interface HTTPSQuery {
     project?: string;
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
-    useAzureWorkloadIdentity: boolean;
-    insecureOCIForceHttp: boolean;
 }
 
 export interface SSHQuery {
@@ -98,7 +95,6 @@ export class RepositoriesService {
                 repo: q.url,
                 username: q.username,
                 password: q.password,
-                bearerToken: q.bearerToken,
                 tlsClientCertData: q.tlsClientCertData,
                 tlsClientCertKey: q.tlsClientCertKey,
                 insecure: q.insecure,
@@ -107,9 +103,7 @@ export class RepositoriesService {
                 noProxy: q.noProxy,
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
-                enableOCI: q.enableOCI,
-                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
-                insecureOCIForceHttp: q.insecureOCIForceHttp
+                enableOCI: q.enableOCI
             })
             .then(res => res.body as models.Repository);
     }
@@ -123,7 +117,6 @@ export class RepositoriesService {
                 repo: q.url,
                 username: q.username,
                 password: q.password,
-                bearerToken: q.bearerToken,
                 tlsClientCertData: q.tlsClientCertData,
                 tlsClientCertKey: q.tlsClientCertKey,
                 insecure: q.insecure,
@@ -132,9 +125,7 @@ export class RepositoriesService {
                 noProxy: q.noProxy,
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
-                enableOCI: q.enableOCI,
-                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
-                insecureOCIForceHttp: q.insecureOCIForceHttp
+                enableOCI: q.enableOCI
             })
             .then(res => res.body as models.Repository);
     }
@@ -148,7 +139,6 @@ export class RepositoriesService {
                 repo: q.url,
                 username: q.username,
                 password: q.password,
-                bearerToken: q.bearerToken,
                 tlsClientCertData: q.tlsClientCertData,
                 tlsClientCertKey: q.tlsClientCertKey,
                 insecure: q.insecure,
@@ -157,9 +147,7 @@ export class RepositoriesService {
                 noProxy: q.noProxy,
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
-                enableOCI: q.enableOCI,
-                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
-                insecureOCIForceHttp: q.insecureOCIForceHttp
+                enableOCI: q.enableOCI
             })
             .then(res => res.body as models.Repository);
     }
@@ -173,7 +161,6 @@ export class RepositoriesService {
                 repo: q.url,
                 username: q.username,
                 password: q.password,
-                bearerToken: q.bearerToken,
                 tlsClientCertData: q.tlsClientCertData,
                 tlsClientCertKey: q.tlsClientCertKey,
                 insecure: q.insecure,
@@ -182,9 +169,7 @@ export class RepositoriesService {
                 noProxy: q.noProxy,
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
-                enableOCI: q.enableOCI,
-                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
-                insecureOCIForceHttp: q.insecureOCIForceHttp
+                enableOCI: q.enableOCI
             })
             .then(res => res.body as models.Repository);
     }
@@ -313,10 +298,6 @@ export class RepositoriesService {
 
     public async revisions(repo: string): Promise<models.RefsInfo> {
         return requests.get(`/repositories/${encodeURIComponent(repo)}/refs`).then(res => res.body as models.RefsInfo);
-    }
-
-    public async ociTags(repo: string): Promise<models.RefsInfo> {
-        return requests.get(`/repositories/${encodeURIComponent(repo)}/oci-tags`).then(res => res.body as models.RefsInfo);
     }
 
     public apps(repo: string, revision: string, appName: string, appProject: string): Promise<models.AppInfo[]> {

@@ -114,7 +114,7 @@ export const Filters = (props: FiltersProps) => {
             case 'Health':
                 return props.resourceNodes.filter(res => res.health?.status === HealthStatuses[label]).length;
             case 'Kind':
-                return props.resourceNodes.reduce((count, res) => (res.group && label === 'Pod' ? res.group.length : res.kind === label ? count + 1 : count), 0);
+                return props.resourceNodes.filter(res => res.kind === label).length;
             default:
                 return 0;
         }

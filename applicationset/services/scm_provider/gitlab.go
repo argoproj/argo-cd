@@ -8,9 +8,9 @@ import (
 	"os"
 
 	"github.com/hashicorp/go-retryablehttp"
-	gitlab "gitlab.com/gitlab-org/api/client-go"
+	"github.com/xanzy/go-gitlab"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 )
 
 type GitlabProvider struct {
@@ -24,7 +24,7 @@ type GitlabProvider struct {
 
 var _ SCMProviderService = &GitlabProvider{}
 
-func NewGitlabProvider(organization string, token string, url string, allBranches, includeSubgroups, includeSharedProjects, insecure bool, scmRootCAPath, topic string, caCerts []byte) (*GitlabProvider, error) {
+func NewGitlabProvider(ctx context.Context, organization string, token string, url string, allBranches, includeSubgroups, includeSharedProjects, insecure bool, scmRootCAPath, topic string, caCerts []byte) (*GitlabProvider, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITLAB_TOKEN")
@@ -75,7 +75,7 @@ func (g *GitlabProvider) GetBranches(ctx context.Context, repo *Repository) ([]*
 	return repos, nil
 }
 
-func (g *GitlabProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*Repository, error) {
+func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
 	opt := &gitlab.ListGroupProjectsOptions{
 		ListOptions:      gitlab.ListOptions{PerPage: 100},
 		IncludeSubGroups: &g.includeSubgroups,
@@ -104,7 +104,6 @@ func (g *GitlabProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*
 			var repoLabels []string
 			if len(gitlabRepo.Topics) == 0 {
 				// fallback to for gitlab prior to 14.5
-				//nolint:staticcheck
 				repoLabels = gitlabRepo.TagList
 			} else {
 				repoLabels = gitlabRepo.Topics

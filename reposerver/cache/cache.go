@@ -16,11 +16,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
-	"github.com/argoproj/argo-cd/v3/util/env"
-	"github.com/argoproj/argo-cd/v3/util/hash"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/hash"
 )
 
 var (
@@ -144,15 +145,15 @@ func listApps(repoURL, revision string) string {
 	return fmt.Sprintf("ldir|%s|%s", repoURL, revision)
 }
 
-func (c *Cache) ListApps(repoURL, revision string) (map[string]string, error) {
+func (c *Cache) ListApps(repoUrl, revision string) (map[string]string, error) {
 	res := make(map[string]string)
-	err := c.cache.GetItem(listApps(repoURL, revision), &res)
+	err := c.cache.GetItem(listApps(repoUrl, revision), &res)
 	return res, err
 }
 
-func (c *Cache) SetApps(repoURL, revision string, apps map[string]string) error {
+func (c *Cache) SetApps(repoUrl, revision string, apps map[string]string) error {
 	return c.cache.SetItem(
-		listApps(repoURL, revision),
+		listApps(repoUrl, revision),
 		apps,
 		&cacheutil.CacheActionOpts{
 			Expiration: c.repoCacheExpiration,
@@ -161,18 +162,14 @@ func (c *Cache) SetApps(repoURL, revision string, apps map[string]string) error 
 }
 
 func helmIndexRefsKey(repo string) string {
-	return "helm-index|" + repo
-}
-
-func ociTagsKey(repo string) string {
-	return "oci-tags|" + repo
+	return fmt.Sprintf("helm-index|%s", repo)
 }
 
 // SetHelmIndex stores helm repository index.yaml content to cache
 func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
 	if indexData == nil {
 		// Logged as warning upstream
-		return errors.New("helm index data is nil, skipping cache")
+		return fmt.Errorf("helm index data is nil, skipping cache")
 	}
 	return c.cache.SetItem(
 		helmIndexRefsKey(repo),
@@ -185,25 +182,8 @@ func (c *Cache) GetHelmIndex(repo string, indexData *[]byte) error {
 	return c.cache.GetItem(helmIndexRefsKey(repo), indexData)
 }
 
-// SetOCITags stores oci image tags to cache
-func (c *Cache) SetOCITags(repo string, indexData []byte) error {
-	if indexData == nil {
-		// Logged as warning upstream
-		return errors.New("oci index data is nil, skipping cache")
-	}
-	return c.cache.SetItem(
-		ociTagsKey(repo),
-		indexData,
-		&cacheutil.CacheActionOpts{Expiration: c.revisionCacheExpiration})
-}
-
-// GetOCITags retrieves oci image tags from cache
-func (c *Cache) GetOCITags(repo string, indexData *[]byte) error {
-	return c.cache.GetItem(ociTagsKey(repo), indexData)
-}
-
 func gitRefsKey(repo string) string {
-	return "git-refs|" + repo
+	return fmt.Sprintf("git-refs|%s", repo)
 }
 
 // SetGitReferences saves resolved Git repository references to cache
@@ -325,7 +305,7 @@ func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs 
 
 func trackingKey(appLabelKey string, trackingMethod string) string {
 	trackingKey := appLabelKey
-	if text.FirstNonEmpty(trackingMethod, string(appv1.TrackingMethodLabel)) != string(appv1.TrackingMethodLabel) {
+	if text.FirstNonEmpty(trackingMethod, string(argo.TrackingMethodLabel)) != string(argo.TrackingMethodLabel) {
 		trackingKey = trackingMethod + ":" + trackingKey
 	}
 	return trackingKey
@@ -361,7 +341,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, s
 
 	hash, err := res.generateCacheEntryHash()
 	if err != nil {
-		return fmt.Errorf("unable to generate hash value: %w", err)
+		return fmt.Errorf("Unable to generate hash value: %w", err)
 	}
 
 	// If cached result does not have manifests or the expected hash of the cache entry does not match the actual hash value...
@@ -372,7 +352,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, s
 
 		err = c.DeleteManifests(revision, appSrc, srcRefs, clusterInfo, namespace, trackingMethod, appLabelKey, appName, refSourceCommitSHAs, installationID)
 		if err != nil {
-			return fmt.Errorf("unable to delete manifest after hash mismatch: %w", err)
+			return fmt.Errorf("Unable to delete manifest after hash mismatch, %w", err)
 		}
 
 		// Treat hash mismatches as cache misses, so that the underlying resource is reacquired
@@ -396,7 +376,7 @@ func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, s
 		res = res.shallowCopy()
 		hash, err := res.generateCacheEntryHash()
 		if err != nil {
-			return fmt.Errorf("unable to generate hash value: %w", err)
+			return fmt.Errorf("Unable to generate hash value: %w", err)
 		}
 		res.CacheEntryHash = hash
 	}
@@ -419,7 +399,7 @@ func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource
 
 func appDetailsCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, trackingMethod appv1.TrackingMethod, refSourceCommitSHAs ResolvedRevisions) string {
 	if trackingMethod == "" {
-		trackingMethod = appv1.TrackingMethodLabel
+		trackingMethod = argo.TrackingMethodLabel
 	}
 	return fmt.Sprintf("appdetails|%s|%d|%s", revision, appSourceKey(appSrc, srcRefs, refSourceCommitSHAs), trackingMethod)
 }

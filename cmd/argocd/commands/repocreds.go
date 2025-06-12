@@ -1,7 +1,6 @@
 package commands
 
 import (
-	stderrors "errors"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -9,25 +8,24 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
-	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
-	"github.com/argoproj/argo-cd/v3/common"
-	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
-	repocredspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repocreds"
-	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/cli"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/git"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/templates"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
+	"github.com/argoproj/argo-cd/v2/common"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	repocredspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 // NewRepoCredsCommand returns a new instance of an `argocd repocreds` command
 func NewRepoCredsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "repocreds",
-		Short: "Manage credential templates for repositories",
+		Short: "Manage repository connection parameters",
 		Example: templates.Examples(`
 			# Add credentials with user/pass authentication to use for all repositories under the specified URL
 			argocd repocreds add URL --username USERNAME --password PASSWORD
@@ -35,7 +33,7 @@ func NewRepoCredsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 			# List all the configured repository credentials
 			argocd repocreds list
 
-			# Remove credentials for the repositories with specified URL
+			# Remove credentials for the repositories with speficied URL
 			argocd repocreds rm URL
 		`),
 		Run: func(c *cobra.Command, args []string) {
@@ -65,9 +63,6 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	// For better readability and easier formatting
 	repocredsAddExamples := `  # Add credentials with user/pass authentication to use for all repositories under https://git.example.com/repos
   argocd repocreds add https://git.example.com/repos/ --username git --password secret
-
-  # Add credentials with bearer token authentication to use for all BitBucket Data Center repositories under https://bitbucket.example.com/scm
-  argocd repocreds add https://bitbucket.example.com/scm/ --bearer-token secret-token
 
   # Add credentials with SSH private key authentication to use for all repositories under ssh://git@git.example.com/repos
   argocd repocreds add ssh://git@git.example.com/repos/ --ssh-private-key-path ~/.ssh/id_rsa
@@ -109,14 +104,16 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 					}
 					repo.SSHPrivateKey = string(keyData)
 				} else {
-					errors.Fatal(errors.ErrorGeneric, "--ssh-private-key-path is only supported for SSH repositories.")
+					err := fmt.Errorf("--ssh-private-key-path is only supported for SSH repositories.")
+					errors.CheckError(err)
 				}
 			}
 
 			// tls-client-cert-path and tls-client-cert-key-key-path must always be
 			// specified together
 			if (tlsClientCertPath != "" && tlsClientCertKeyPath == "") || (tlsClientCertPath == "" && tlsClientCertKeyPath != "") {
-				errors.Fatal(errors.ErrorGeneric, "--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
+				err := fmt.Errorf("--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
+				errors.CheckError(err)
 			}
 
 			// Specifying tls-client-cert-path is only valid for HTTPS repositories
@@ -129,7 +126,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 					repo.TLSClientCertData = string(tlsCertData)
 					repo.TLSClientCertKey = string(tlsCertKey)
 				} else {
-					err := stderrors.New("--tls-client-cert-path is only supported for HTTPS repositories")
+					err := fmt.Errorf("--tls-client-cert-path is only supported for HTTPS repositories")
 					errors.CheckError(err)
 				}
 			}
@@ -141,7 +138,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 					errors.CheckError(err)
 					repo.GithubAppPrivateKey = string(githubAppPrivateKey)
 				} else {
-					err := stderrors.New("--github-app-private-key-path is only supported for HTTPS repositories")
+					err := fmt.Errorf("--github-app-private-key-path is only supported for HTTPS repositories")
 					errors.CheckError(err)
 				}
 			}
@@ -153,26 +150,19 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 					errors.CheckError(err)
 					repo.GCPServiceAccountKey = string(gcpServiceAccountKey)
 				} else {
-					err := stderrors.New("--gcp-service-account-key-path is only supported for HTTPS repositories")
+					err := fmt.Errorf("--gcp-service-account-key-path is only supported for HTTPS repositories")
 					errors.CheckError(err)
 				}
 			}
 
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 
 			// If the user set a username, but didn't supply password via --password,
 			// then we prompt for it
 			if repo.Username != "" && repo.Password == "" {
 				repo.Password = cli.PromptPassword(repo.Password)
 			}
-
-			err := cmdutil.ValidateBearerTokenAndPasswordCombo(repo.BearerToken, repo.Password)
-			errors.CheckError(err)
-			err = cmdutil.ValidateBearerTokenForGitOnly(repo.BearerToken, repo.Type)
-			errors.CheckError(err)
-			err = cmdutil.ValidateBearerTokenForHTTPSRepoOnly(repo.BearerToken, git.IsHTTPSURL(repo.URL))
-			errors.CheckError(err)
 
 			repoCreateReq := repocredspkg.RepoCredsCreateRequest{
 				Creds:  &repo,
@@ -186,7 +176,6 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	}
 	command.Flags().StringVar(&repo.Username, "username", "", "username to the repository")
 	command.Flags().StringVar(&repo.Password, "password", "", "password to the repository")
-	command.Flags().StringVar(&repo.BearerToken, "bearer-token", "", "bearer token to the Git repository")
 	command.Flags().StringVar(&sshPrivateKeyPath, "ssh-private-key-path", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
 	command.Flags().StringVar(&tlsClientCertPath, "tls-client-cert-path", "", "path to the TLS client cert (must be PEM format)")
 	command.Flags().StringVar(&tlsClientCertKeyPath, "tls-client-cert-key-path", "", "path to the TLS client cert's key path (must be PEM format)")
@@ -199,7 +188,6 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	command.Flags().StringVar(&repo.Type, "type", common.DefaultRepoType, "type of the repository, \"git\" or \"helm\"")
 	command.Flags().StringVar(&gcpServiceAccountKeyPath, "gcp-service-account-key-path", "", "service account key for the Google Cloud Platform")
 	command.Flags().BoolVar(&repo.ForceHttpBasicAuth, "force-http-basic-auth", false, "whether to force basic auth when connecting via HTTP")
-	command.Flags().BoolVar(&repo.UseAzureWorkloadIdentity, "use-azure-workload-identity", false, "whether to use azure workload identity for authentication")
 	command.Flags().StringVar(&repo.Proxy, "proxy-url", "", "If provided, this URL will be used to connect via proxy")
 	return command
 }
@@ -221,7 +209,7 @@ func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				os.Exit(1)
 			}
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 
 			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
 
@@ -279,11 +267,11 @@ func NewRepoCredsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			# List all repo urls in url format
 			argocd repocreds list -o url
 		`),
-		Run: func(c *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 			repos, err := repoIf.ListRepositoryCredentials(ctx, &repocredspkg.RepoCredsQuery{})
 			errors.CheckError(err)
 			switch output {

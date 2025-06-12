@@ -3,6 +3,7 @@ package cache
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"io"
 	"strconv"
 	"testing"
@@ -33,6 +34,7 @@ var (
 )
 
 type MockMetricsServer struct {
+	registry              *prometheus.Registry
 	redisRequestCounter   *prometheus.CounterVec
 	redisRequestHistogram *prometheus.HistogramVec
 }
@@ -42,6 +44,7 @@ func NewMockMetricsServer() *MockMetricsServer {
 	registry.MustRegister(redisRequestCounter)
 	registry.MustRegister(redisRequestHistogram)
 	return &MockMetricsServer{
+		registry:              registry,
 		redisRequestCounter:   redisRequestCounter,
 		redisRequestHistogram: redisRequestHistogram,
 	}
@@ -105,7 +108,7 @@ func TestRedisSetCacheCompressed(t *testing.T) {
 	testValue := "my-value"
 	require.NoError(t, client.Set(&Item{Key: "my-key", Object: testValue}))
 
-	compressedData, err := redisClient.Get(t.Context(), "my-key.gz").Bytes()
+	compressedData, err := redisClient.Get(context.Background(), "my-key.gz").Bytes()
 	require.NoError(t, err)
 
 	assert.Greater(t, len(compressedData), len([]byte(testValue)), "compressed data is bigger than uncompressed")

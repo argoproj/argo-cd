@@ -2,27 +2,24 @@ package commit
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
-	"path/filepath"
-	"strings"
+	"path"
 	"text/template"
 
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 )
 
 // WriteForPaths writes the manifests, hydrator.metadata, and README.md files for each path in the provided paths. It
 // also writes a root-level hydrator.metadata file containing the repo URL and dry SHA.
-func WriteForPaths(root *os.Root, repoUrl string, drySha string, paths []*apiclient.PathDetails) error { //nolint:revive //FIXME(var-naming)
+func WriteForPaths(rootPath string, repoUrl string, drySha string, paths []*apiclient.PathDetails) error {
 	// Write the top-level readme.
-	err := writeMetadata(root, "", hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl})
+	err := writeMetadata(rootPath, hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl})
 	if err != nil {
 		return fmt.Errorf("failed to write top-level hydrator metadata: %w", err)
 	}
@@ -33,13 +30,14 @@ func WriteForPaths(root *os.Root, repoUrl string, drySha string, paths []*apicli
 			hydratePath = ""
 		}
 
-		err = mkdirAll(root, hydratePath)
+		var fullHydratePath string
+		fullHydratePath, err = files.SecureMkdirAll(rootPath, hydratePath, os.ModePerm)
 		if err != nil {
 			return fmt.Errorf("failed to create path: %w", err)
 		}
 
 		// Write the manifests
-		err = writeManifests(root, hydratePath, p.Manifests)
+		err = writeManifests(fullHydratePath, p.Manifests)
 		if err != nil {
 			return fmt.Errorf("failed to write manifests: %w", err)
 		}
@@ -50,13 +48,13 @@ func WriteForPaths(root *os.Root, repoUrl string, drySha string, paths []*apicli
 			DrySHA:   drySha,
 			RepoURL:  repoUrl,
 		}
-		err = writeMetadata(root, hydratePath, hydratorMetadata)
+		err = writeMetadata(fullHydratePath, hydratorMetadata)
 		if err != nil {
 			return fmt.Errorf("failed to write hydrator metadata: %w", err)
 		}
 
 		// Write README
-		err = writeReadme(root, hydratePath, hydratorMetadata)
+		err = writeReadme(fullHydratePath, hydratorMetadata)
 		if err != nil {
 			return fmt.Errorf("failed to write readme: %w", err)
 		}
@@ -65,35 +63,31 @@ func WriteForPaths(root *os.Root, repoUrl string, drySha string, paths []*apicli
 }
 
 // writeMetadata writes the metadata to the hydrator.metadata file.
-func writeMetadata(root *os.Root, dirPath string, metadata hydratorMetadataFile) error {
-	hydratorMetadataJSON, err := json.MarshalIndent(metadata, "", "  ")
+func writeMetadata(dirPath string, metadata hydratorMetadataFile) error {
+	hydratorMetadataJson, err := json.MarshalIndent(metadata, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal hydrator metadata: %w", err)
 	}
 	// No need to use SecureJoin here, as the path is already sanitized.
-	hydratorMetadataPath := filepath.Join(dirPath, "hydrator.metadata")
-	f, err := root.Create(hydratorMetadataPath)
+	hydratorMetadataPath := path.Join(dirPath, "hydrator.metadata")
+	err = os.WriteFile(hydratorMetadataPath, hydratorMetadataJson, os.ModePerm)
 	if err != nil {
-		return fmt.Errorf("failed to create hydrator metadata file: %w", err)
-	}
-	defer io.Close(f)
-	_, err = f.Write(hydratorMetadataJSON)
-	if err != nil {
-		return fmt.Errorf("failed to write hydrator metadata file: %w", err)
+		return fmt.Errorf("failed to write hydrator metadata: %w", err)
 	}
 	return nil
 }
 
 // writeReadme writes the readme to the README.md file.
-func writeReadme(root *os.Root, dirPath string, metadata hydratorMetadataFile) error {
-	readmeTemplate, err := template.New("readme").Parse(manifestHydrationReadmeTemplate)
+func writeReadme(dirPath string, metadata hydratorMetadataFile) error {
+	readmeTemplate := template.New("readme")
+	readmeTemplate, err := readmeTemplate.Parse(manifestHydrationReadmeTemplate)
 	if err != nil {
 		return fmt.Errorf("failed to parse readme template: %w", err)
 	}
 	// Create writer to template into
 	// No need to use SecureJoin here, as the path is already sanitized.
-	readmePath := filepath.Join(dirPath, "README.md")
-	readmeFile, err := root.Create(readmePath)
+	readmePath := path.Join(dirPath, "README.md")
+	readmeFile, err := os.Create(readmePath)
 	if err != nil && !os.IsExist(err) {
 		return fmt.Errorf("failed to create README file: %w", err)
 	}
@@ -110,12 +104,12 @@ func writeReadme(root *os.Root, dirPath string, metadata hydratorMetadataFile) e
 
 // writeManifests writes the manifests to the manifest.yaml file, truncating the file if it exists and appending the
 // manifests in the order they are provided.
-func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.HydratedManifestDetails) error {
+func writeManifests(dirPath string, manifests []*apiclient.HydratedManifestDetails) error {
 	// If the file exists, truncate it.
 	// No need to use SecureJoin here, as the path is already sanitized.
-	manifestPath := filepath.Join(dirPath, "manifest.yaml")
+	manifestPath := path.Join(dirPath, "manifest.yaml")
 
-	file, err := root.OpenFile(manifestPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
+	file, err := os.OpenFile(manifestPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("failed to open manifest file: %w", err)
 	}
@@ -147,27 +141,5 @@ func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.Hydrat
 		}
 	}
 
-	return nil
-}
-
-// mkdirAll creates the directory and all its parents if they do not exist. It returns an error if the directory
-// cannot be.
-func mkdirAll(root *os.Root, dirPath string) error {
-	parts := strings.Split(dirPath, string(os.PathSeparator))
-	builtPath := ""
-	for _, part := range parts {
-		if part == "" {
-			continue
-		}
-		builtPath = filepath.Join(builtPath, part)
-		err := root.Mkdir(builtPath, os.ModePerm)
-		if err != nil {
-			if errors.Is(err, fs.ErrExist) {
-				log.WithError(err).Warnf("path %s already exists, skipping", dirPath)
-				continue
-			}
-			return fmt.Errorf("failed to create path: %w", err)
-		}
-	}
 	return nil
 }

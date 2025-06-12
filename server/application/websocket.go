@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	httputil "github.com/argoproj/argo-cd/v3/util/http"
-	"github.com/argoproj/argo-cd/v3/util/rbac"
-	util_session "github.com/argoproj/argo-cd/v3/util/session"
+	"github.com/argoproj/argo-cd/v2/common"
+	httputil "github.com/argoproj/argo-cd/v2/util/http"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
+	util_session "github.com/argoproj/argo-cd/v2/util/session"
 
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
@@ -38,6 +38,7 @@ type terminalSession struct {
 	wsConn         *websocket.Conn
 	sizeChan       chan remotecommand.TerminalSize
 	doneChan       chan struct{}
+	tty            bool
 	readLock       sync.Mutex
 	writeLock      sync.Mutex
 	sessionManager *util_session.SessionManager
@@ -66,6 +67,7 @@ func newTerminalSession(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	session := &terminalSession{
 		ctx:            ctx,
 		wsConn:         conn,
+		tty:            true,
 		sizeChan:       make(chan remotecommand.TerminalSize),
 		doneChan:       make(chan struct{}),
 		sessionManager: sessionManager,
@@ -142,7 +144,7 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 		if err != nil {
 			log.Errorf("permission denied message err: %v", err)
 		}
-		return copy(p, EndOfTransmission), common.PermissionDeniedAPIError
+		return copy(p, EndOfTransmission), permissionDeniedErr
 	}
 
 	if err := t.terminalOpts.Enf.EnforceErr(t.ctx.Value("claims"), rbac.ResourceExec, rbac.ActionCreate, t.appRBACName); err != nil {
@@ -150,7 +152,7 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 		if err != nil {
 			log.Errorf("permission denied message err: %v", err)
 		}
-		return copy(p, EndOfTransmission), common.PermissionDeniedAPIError
+		return copy(p, EndOfTransmission), permissionDeniedErr
 	}
 	return 0, nil
 }
@@ -187,11 +189,7 @@ func (t *terminalSession) Read(p []byte) (int, error) {
 	_, message, err := t.wsConn.ReadMessage()
 	t.readLock.Unlock()
 	if err != nil {
-		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-			log.Errorf("unexpected closer error: %v", err)
-			return copy(p, EndOfTransmission), err
-		}
-		log.Errorf("read message error: %v", err)
+		log.Errorf("read message err: %v", err)
 		return copy(p, EndOfTransmission), err
 	}
 	var msg TerminalMessage

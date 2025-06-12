@@ -16,15 +16,15 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/lua"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/lua"
 )
 
 var (
 	app = &appv1.Application{
 		Status: appv1.ApplicationStatus{
-			Health: appv1.AppHealthStatus{
+			Health: appv1.HealthStatus{
 				LastTransitionTime: &metav1.Time{Time: time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC)},
 			},
 		},
@@ -66,17 +66,23 @@ func TestSetApplicationHealth(t *testing.T) {
 
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	require.NoError(t, err)
-	assert.Equal(t, health.HealthStatusDegraded, healthStatus)
+	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
 	assert.Equal(t, health.HealthStatusHealthy, resourceStatuses[0].Health.Status)
 	assert.Equal(t, health.HealthStatusDegraded, resourceStatuses[1].Health.Status)
-	app.Status.Health.Status = healthStatus
+	// Health.LastTransitionTime is set only for app health and not at individual resource level
+	assert.NotNil(t, healthStatus.LastTransitionTime)
+	assert.Nil(t, resourceStatuses[0].Health.LastTransitionTime)
+	assert.Nil(t, resourceStatuses[1].Health.LastTransitionTime)
+	app.Status.Health = *healthStatus
 
 	// now mark the job as a hook and retry. it should ignore the hook and consider the app healthy
 	failedJob.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
 	healthStatus, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
 	require.NoError(t, err)
-	assert.Equal(t, health.HealthStatusHealthy, healthStatus)
-	app.Status.Health.Status = healthStatus
+	assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
+	// timestamp should be the same in case health did not change
+	assert.Equal(t, app.Status.Health.LastTransitionTime, healthStatus.LastTransitionTime)
+	app.Status.Health = *healthStatus
 
 	// now we set the `argocd.argoproj.io/ignore-healthcheck: "true"` annotation on the job's target.
 	// The app is considered healthy
@@ -85,7 +91,8 @@ func TestSetApplicationHealth(t *testing.T) {
 	resources[1].Target = &failedJobIgnoreHealthcheck
 	healthStatus, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
 	require.NoError(t, err)
-	assert.Equal(t, health.HealthStatusHealthy, healthStatus)
+	assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
+	assert.Equal(t, app.Status.Health.LastTransitionTime, healthStatus.LastTransitionTime)
 }
 
 func TestSetApplicationHealth_ResourceHealthNotPersisted(t *testing.T) {
@@ -98,7 +105,7 @@ func TestSetApplicationHealth_ResourceHealthNotPersisted(t *testing.T) {
 
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, false)
 	require.NoError(t, err)
-	assert.Equal(t, health.HealthStatusDegraded, healthStatus)
+	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
 
 	assert.Nil(t, resourceStatuses[0].Health)
 }
@@ -113,7 +120,8 @@ func TestSetApplicationHealth_MissingResource(t *testing.T) {
 
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	require.NoError(t, err)
-	assert.Equal(t, health.HealthStatusMissing, healthStatus)
+	assert.Equal(t, health.HealthStatusMissing, healthStatus.Status)
+	assert.Equal(t, app.Status.Health.LastTransitionTime, healthStatus.LastTransitionTime)
 }
 
 func TestSetApplicationHealth_HealthImproves(t *testing.T) {
@@ -144,7 +152,8 @@ func TestSetApplicationHealth_HealthImproves(t *testing.T) {
 		t.Run(string(fmt.Sprintf("%s to %s", tc.oldStatus, tc.newStatus)), func(t *testing.T) {
 			healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
 			require.NoError(t, err)
-			assert.Equal(t, tc.newStatus, healthStatus)
+			assert.Equal(t, tc.newStatus, healthStatus.Status)
+			assert.Equal(t, app.Status.Health.LastTransitionTime, healthStatus.LastTransitionTime)
 		})
 	}
 }
@@ -160,7 +169,8 @@ func TestSetApplicationHealth_MissingResourceNoBuiltHealthCheck(t *testing.T) {
 	t.Run("NoOverride", func(t *testing.T) {
 		healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 		require.NoError(t, err)
-		assert.Equal(t, health.HealthStatusHealthy, healthStatus)
+		assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
+		assert.Equal(t, app.Status.Health.LastTransitionTime, healthStatus.LastTransitionTime)
 		assert.Equal(t, health.HealthStatusMissing, resourceStatuses[0].Health.Status)
 	})
 
@@ -171,7 +181,8 @@ func TestSetApplicationHealth_MissingResourceNoBuiltHealthCheck(t *testing.T) {
 			},
 		}, app, true)
 		require.NoError(t, err)
-		assert.Equal(t, health.HealthStatusMissing, healthStatus)
+		assert.Equal(t, health.HealthStatusMissing, healthStatus.Status)
+		assert.Equal(t, app.Status.Health.LastTransitionTime, healthStatus.LastTransitionTime)
 	})
 }
 
@@ -185,7 +196,7 @@ func newAppLiveObj(status health.HealthStatusCode) *unstructured.Unstructured {
 			Kind:       application.ApplicationKind,
 		},
 		Status: appv1.ApplicationStatus{
-			Health: appv1.AppHealthStatus{
+			Health: appv1.HealthStatus{
 				Status: status,
 			},
 		},
@@ -222,7 +233,7 @@ return hs`,
 
 		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
 		require.NoError(t, err)
-		assert.Equal(t, health.HealthStatusDegraded, healthStatus)
+		assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
 	})
 
 	t.Run("ChildAppMissing", func(t *testing.T) {
@@ -234,6 +245,6 @@ return hs`,
 
 		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
 		require.NoError(t, err)
-		assert.Equal(t, health.HealthStatusHealthy, healthStatus)
+		assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
 	})
 }

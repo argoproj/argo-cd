@@ -16,18 +16,16 @@ import (
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
-	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/git"
-	"github.com/argoproj/argo-cd/v3/util/healthz"
-	metricsutil "github.com/argoproj/argo-cd/v3/util/metrics"
-	"github.com/argoproj/argo-cd/v3/util/metrics/kubectl"
-	"github.com/argoproj/argo-cd/v3/util/profile"
+	"github.com/argoproj/argo-cd/v2/common"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	applister "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/healthz"
+	metricsutil "github.com/argoproj/argo-cd/v2/util/metrics"
+	"github.com/argoproj/argo-cd/v2/util/profile"
+
+	ctrl_metrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 type MetricsServer struct {
@@ -51,6 +49,8 @@ type MetricsServer struct {
 const (
 	// MetricsPath is the endpoint to collect application metrics
 	MetricsPath = "/metrics"
+	// EnvVarLegacyControllerMetrics is a env var to re-enable deprecated prometheus metrics
+	EnvVarLegacyControllerMetrics = "ARGOCD_LEGACY_CONTROLLER_METRICS"
 )
 
 // Follow Prometheus naming practices
@@ -68,12 +68,34 @@ var (
 		nil,
 	)
 
+	// Deprecated
+	descAppCreated = prometheus.NewDesc(
+		"argocd_app_created_time",
+		"Creation time in unix timestamp for an application.",
+		descAppDefaultLabels,
+		nil,
+	)
+	// Deprecated: superseded by sync_status label in argocd_app_info
+	descAppSyncStatusCode = prometheus.NewDesc(
+		"argocd_app_sync_status",
+		"The application current sync status.",
+		append(descAppDefaultLabels, "sync_status"),
+		nil,
+	)
+	// Deprecated: superseded by health_status label in argocd_app_info
+	descAppHealthStatus = prometheus.NewDesc(
+		"argocd_app_health_status",
+		"The application current health status.",
+		append(descAppDefaultLabels, "health_status"),
+		nil,
+	)
+
 	syncCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_app_sync_total",
 			Help: "Number of application syncs.",
 		},
-		append(descAppDefaultLabels, "dest_server", "phase", "dry_run"),
+		append(descAppDefaultLabels, "dest_server", "phase"),
 	)
 
 	k8sRequestCounter = prometheus.NewCounterVec(
@@ -81,7 +103,7 @@ var (
 			Name: "argocd_app_k8s_request_total",
 			Help: "Number of kubernetes requests executed during application reconciliation.",
 		},
-		append(descAppDefaultLabels, "server", "response_code", "verb", "resource_kind", "resource_namespace", "dry_run"),
+		append(descAppDefaultLabels, "server", "response_code", "verb", "resource_kind", "resource_namespace"),
 	)
 
 	kubectlExecCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -150,7 +172,7 @@ var (
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
-func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj any) bool, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string, db db.ArgoDB) (*MetricsServer, error) {
+func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string) (*MetricsServer, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
@@ -176,13 +198,13 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	}
 
 	mux := http.NewServeMux()
-	registry := NewAppRegistry(appLister, appFilter, appLabels, appConditions, db)
+	registry := NewAppRegistry(appLister, appFilter, appLabels, appConditions)
 
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
 		registry,
 		// contains workqueue metrics, process and golang metrics
-		ctrlmetrics.Registry,
+		ctrl_metrics.Registry,
 	}, promhttp.HandlerOpts{}))
 	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
@@ -199,11 +221,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	registry.MustRegister(resourceEventsProcessingHistogram)
 	registry.MustRegister(resourceEventsNumberGauge)
 
-	kubectlMetricsServer := kubectl.NewKubectlMetrics()
-	kubectlMetricsServer.RegisterWithClientGo()
-	kubectl.RegisterWithPrometheus(registry)
-
-	metricsServer := &MetricsServer{
+	return &MetricsServer{
 		registry: registry,
 		Server: &http.Server{
 			Addr:    addr,
@@ -225,23 +243,21 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		// Currently clearing the metrics cache is logging and deleting from the map
 		// so there is no possibility of panic, but we will add a chain to keep robfig/cron v1 behavior.
 		cron: cron.New(cron.WithChain(cron.Recover(cron.PrintfLogger(log.StandardLogger())))),
-	}
-
-	return metricsServer, nil
+	}, nil
 }
 
-func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo, db db.ArgoDB, clusterLabels []string) {
-	collector := NewClusterCollector(ctx, source, db.ListClusters, clusterLabels)
+func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo) {
+	collector := &clusterCollector{infoSource: source}
+	go collector.Run(ctx)
 	m.registry.MustRegister(collector)
 }
 
 // IncSync increments the sync counter for an application
-func (m *MetricsServer) IncSync(app *argoappv1.Application, destServer string, state *argoappv1.OperationState) {
+func (m *MetricsServer) IncSync(app *argoappv1.Application, state *argoappv1.OperationState) {
 	if !state.Phase.Completed() {
 		return
 	}
-	isDryRun := app.Operation != nil && app.Operation.DryRun()
-	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), destServer, string(state.Phase), strconv.FormatBool(isDryRun)).Inc()
+	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), app.Spec.Destination.Server, string(state.Phase)).Inc()
 }
 
 func (m *MetricsServer) IncKubectlExec(command string) {
@@ -268,16 +284,14 @@ func (m *MetricsServer) IncClusterEventsCount(server, group, kind string) {
 // IncKubernetesRequest increments the kubernetes requests counter for an application
 func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, server, statusCode, verb, resourceKind, resourceNamespace string) {
 	var namespace, name, project string
-	isDryRun := false
 	if app != nil {
 		namespace = app.Namespace
 		name = app.Name
 		project = app.Spec.GetProject()
-		isDryRun = app.Operation != nil && app.Operation.DryRun()
 	}
 	m.k8sRequestCounter.WithLabelValues(
 		namespace, name, project, server, statusCode,
-		verb, resourceKind, resourceNamespace, strconv.FormatBool(isDryRun),
+		verb, resourceKind, resourceNamespace,
 	).Inc()
 }
 
@@ -297,8 +311,8 @@ func (m *MetricsServer) ObserveResourceEventsProcessingDuration(server string, d
 }
 
 // IncReconcile increments the reconcile counter for an application
-func (m *MetricsServer) IncReconcile(app *argoappv1.Application, destServer string, duration time.Duration) {
-	m.reconcileHistogram.WithLabelValues(app.Namespace, destServer).Observe(duration.Seconds())
+func (m *MetricsServer) IncReconcile(app *argoappv1.Application, duration time.Duration) {
+	m.reconcileHistogram.WithLabelValues(app.Namespace, app.Spec.Destination.Server).Observe(duration.Seconds())
 }
 
 // HasExpiration return true if expiration is set
@@ -309,7 +323,7 @@ func (m *MetricsServer) HasExpiration() bool {
 // SetExpiration reset Prometheus metrics based on time duration interval
 func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 	if m.HasExpiration() {
-		return errors.New("expiration is already set")
+		return errors.New("Expiration is already set")
 	}
 
 	_, err := m.cron.AddFunc(fmt.Sprintf("@every %s", cacheExpiration), func() {
@@ -325,7 +339,6 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 		m.redisRequestHistogram.Reset()
 		m.resourceEventsProcessingHistogram.Reset()
 		m.resourceEventsNumberGauge.Reset()
-		kubectl.ResetAll()
 	})
 	if err != nil {
 		return err
@@ -337,27 +350,25 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 
 type appCollector struct {
 	store         applister.ApplicationLister
-	appFilter     func(obj any) bool
+	appFilter     func(obj interface{}) bool
 	appLabels     []string
 	appConditions []string
-	db            db.ArgoDB
 }
 
 // NewAppCollector returns a prometheus collector for application metrics
-func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) prometheus.Collector {
+func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, appLabels []string, appConditions []string) prometheus.Collector {
 	return &appCollector{
 		store:         appLister,
 		appFilter:     appFilter,
 		appLabels:     appLabels,
 		appConditions: appConditions,
-		db:            db,
 	}
 }
 
 // NewAppRegistry creates a new prometheus registry that collects applications
-func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) *prometheus.Registry {
+func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, appLabels []string, appConditions []string) *prometheus.Registry {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions, db))
+	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions))
 	return registry
 }
 
@@ -370,6 +381,8 @@ func (c *appCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- descAppConditions
 	}
 	ch <- descAppInfo
+	ch <- descAppSyncStatusCode
+	ch <- descAppHealthStatus
 }
 
 // Collect implements the prometheus.Collector interface
@@ -381,15 +394,7 @@ func (c *appCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	for _, app := range apps {
 		if c.appFilter(app) {
-			destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, c.db)
-			if err != nil {
-				log.Warnf("Failed to get destination cluster for application %s: %v", app.Name, err)
-			}
-			destServer := ""
-			if destCluster != nil {
-				destServer = destCluster.Server
-			}
-			c.collectApps(ch, app, destServer)
+			c.collectApps(ch, app)
 		}
 	}
 }
@@ -401,7 +406,7 @@ func boolFloat64(b bool) float64 {
 	return 0
 }
 
-func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application, destServer string) {
+func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
 	addConstMetric := func(desc *prometheus.Desc, t prometheus.ValueType, v float64, lv ...string) {
 		project := app.Spec.GetProject()
 		lv = append([]string{app.Namespace, app.Name, project}, lv...)
@@ -426,9 +431,9 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 		healthStatus = health.HealthStatusUnknown
 	}
 
-	autoSyncEnabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled()
+	autoSyncEnabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil
 
-	addGauge(descAppInfo, 1, strconv.FormatBool(autoSyncEnabled), git.NormalizeGitURL(app.Spec.GetSource().RepoURL), destServer, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation)
+	addGauge(descAppInfo, 1, strconv.FormatBool(autoSyncEnabled), git.NormalizeGitURL(app.Spec.GetSource().RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation)
 
 	if len(c.appLabels) > 0 {
 		labelValues := []string{}
@@ -450,5 +455,22 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 		for conditionType, count := range conditionCount {
 			addGauge(descAppConditions, float64(count), conditionType)
 		}
+	}
+
+	// Deprecated controller metrics
+	if os.Getenv(EnvVarLegacyControllerMetrics) == "true" {
+		addGauge(descAppCreated, float64(app.CreationTimestamp.Unix()))
+
+		addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeSynced), string(argoappv1.SyncStatusCodeSynced))
+		addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeOutOfSync), string(argoappv1.SyncStatusCodeOutOfSync))
+		addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeUnknown || syncStatus == ""), string(argoappv1.SyncStatusCodeUnknown))
+
+		healthStatus := app.Status.Health.Status
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusUnknown || healthStatus == ""), string(health.HealthStatusUnknown))
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusProgressing), string(health.HealthStatusProgressing))
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusSuspended), string(health.HealthStatusSuspended))
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusHealthy), string(health.HealthStatusHealthy))
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusDegraded), string(health.HealthStatusDegraded))
+		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusMissing), string(health.HealthStatusMissing))
 	}
 }

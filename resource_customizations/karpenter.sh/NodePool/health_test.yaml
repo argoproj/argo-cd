@@ -1,9 +1,0 @@
-tests:
-  - healthStatus:
-      status: Degraded
-      message: 'NodePool is not ready'
-    inputPath: testdata/degraded.yaml
-  - healthStatus:
-      status: Healthy
-      message: 'NodePool is ready'
-    inputPath: testdata/healthy.yaml

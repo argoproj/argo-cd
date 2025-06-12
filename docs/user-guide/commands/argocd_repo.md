@@ -21,7 +21,7 @@ argocd repo get https://github.com/yourusername/your-repo.git
 # List Configured Repositories
 argocd repo list
 
-# Remove Configured Repositories
+# Remove Repository Credentials
 argocd repo rm https://github.com/yourusername/your-repo.git
 
 ```
@@ -67,7 +67,7 @@ argocd repo rm https://github.com/yourusername/your-repo.git
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: json|text (default "json")
+      --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
@@ -85,8 +85,8 @@ argocd repo rm https://github.com/yourusername/your-repo.git
 ### SEE ALSO
 
 * [argocd](argocd.md)	 - argocd controls a Argo CD server
-* [argocd repo add](argocd_repo_add.md)	 - Add git, oci or helm repository connection parameters
+* [argocd repo add](argocd_repo_add.md)	 - Add git repository connection parameters
 * [argocd repo get](argocd_repo_get.md)	 - Get a configured repository by URL
 * [argocd repo list](argocd_repo_list.md)	 - List configured repositories
-* [argocd repo rm](argocd_repo_rm.md)	 - Remove configured repositories
+* [argocd repo rm](argocd_repo_rm.md)	 - Remove repository credentials
 

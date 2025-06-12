@@ -5,21 +5,21 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
-	"github.com/argoproj/argo-cd/v3/cmd/util"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
+	"github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
-	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
-	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
 )
 
 func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -58,7 +58,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
-		defer utilio.Close(conn)
+		defer argoio.Close(conn)
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
 			ApplicationName: &appName,
 			AppNamespace:    &appNs,
@@ -123,7 +123,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
-		defer utilio.Close(conn)
+		defer argoio.Close(conn)
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
 			ApplicationName: &appName,
 			AppNamespace:    &appNs,
@@ -164,12 +164,12 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 }
 
 func parentChildInfo(nodes []v1alpha1.ResourceNode) (map[string]v1alpha1.ResourceNode, map[string][]string, map[string]struct{}) {
-	mapUIDToNode := make(map[string]v1alpha1.ResourceNode)
+	mapUidToNode := make(map[string]v1alpha1.ResourceNode)
 	mapParentToChild := make(map[string][]string)
 	parentNode := make(map[string]struct{})
 
 	for _, node := range nodes {
-		mapUIDToNode[node.UID] = node
+		mapUidToNode[node.UID] = node
 
 		if len(node.ParentRefs) > 0 {
 			_, ok := mapParentToChild[node.ParentRefs[0].UID]
@@ -182,7 +182,7 @@ func parentChildInfo(nodes []v1alpha1.ResourceNode) (map[string]v1alpha1.Resourc
 			parentNode[node.UID] = struct{}{}
 		}
 	}
-	return mapUIDToNode, mapParentToChild, parentNode
+	return mapUidToNode, mapParentToChild, parentNode
 }
 
 func printDetailedTreeViewAppResourcesNotOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, w *tabwriter.Writer) {
@@ -211,33 +211,32 @@ func printTreeViewAppResourcesOrphaned(nodeMapping map[string]v1alpha1.ResourceN
 
 func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.ApplicationTree, output string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	switch output {
-	case "tree=detailed":
+	if output == "tree=detailed" {
 		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\tAGE\tHEALTH\tREASON\n")
 
 		if !orphaned || listAll {
-			mapUIDToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.Nodes)
-			printDetailedTreeViewAppResourcesNotOrphaned(mapUIDToNode, mapParentToChild, parentNode, w)
+			mapUidToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.Nodes)
+			printDetailedTreeViewAppResourcesNotOrphaned(mapUidToNode, mapParentToChild, parentNode, w)
 		}
 
 		if orphaned || listAll {
-			mapUIDToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.OrphanedNodes)
-			printDetailedTreeViewAppResourcesOrphaned(mapUIDToNode, mapParentToChild, parentNode, w)
+			mapUidToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.OrphanedNodes)
+			printDetailedTreeViewAppResourcesOrphaned(mapUidToNode, mapParentToChild, parentNode, w)
 		}
-	case "tree":
+	} else if output == "tree" {
 		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\n")
 
 		if !orphaned || listAll {
-			mapUIDToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.Nodes)
-			printTreeViewAppResourcesNotOrphaned(mapUIDToNode, mapParentToChild, parentNode, w)
+			mapUidToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.Nodes)
+			printTreeViewAppResourcesNotOrphaned(mapUidToNode, mapParentToChild, parentNode, w)
 		}
 
 		if orphaned || listAll {
-			mapUIDToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.OrphanedNodes)
-			printTreeViewAppResourcesOrphaned(mapUIDToNode, mapParentToChild, parentNode, w)
+			mapUidToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.OrphanedNodes)
+			printTreeViewAppResourcesOrphaned(mapUidToNode, mapParentToChild, parentNode, w)
 		}
-	default:
-		headers := []any{"GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED"}
+	} else {
+		headers := []interface{}{"GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED"}
 		fmtStr := "%s\t%s\t%s\t%s\t%s\n"
 		_, _ = fmt.Fprintf(w, fmtStr, headers...)
 		if !orphaned || listAll {
@@ -272,7 +271,7 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 			listAll := !c.Flag("orphaned").Changed
 			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
-			defer utilio.Close(conn)
+			defer argoio.Close(conn)
 			appResourceTree, err := appIf.ResourceTree(ctx, &applicationpkg.ResourcesQuery{
 				ApplicationName: &appName,
 				AppNamespace:    &appNs,

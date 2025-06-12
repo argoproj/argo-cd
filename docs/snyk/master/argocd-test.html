@@ -456,12 +456,12 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">June 8th 2025, 12:23:20 am (UTC+00:00)</p>
+                <p class="timestamp">December 15th 2024, 12:21:36 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
                 <ul>
-                  <li class="paths">/argo-cd/argoproj/argo-cd/v3/go.mod (gomodules)</li>
+                  <li class="paths">/argo-cd/argoproj/argo-cd/v2/go.mod (gomodules)</li>
                   <li class="paths">/argo-cd/argoproj/argo-cd/get-previous-release/hack/get-previous-release/go.mod (gomodules)</li>
                   <li class="paths">/argo-cd/ui/yarn.lock (yarn)</li>
                 </ul>
@@ -470,7 +470,7 @@
               <div class="meta-counts">
                 <div class="meta-count"><span>7</span> <span>known vulnerabilities</span></div>
                 <div class="meta-count"><span>26 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2094</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>2160</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -479,7 +479,7 @@
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">MPL-2.0 license</h2>
+            <h2 class="card__title">LGPL-3.0 license</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -490,7 +490,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
+                        Manifest file: /argo-cd/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> go.mod
                     </li>
                     <li class="card__meta__item">
                         Package Manager: golang
@@ -498,13 +498,13 @@
                     <li class="card__meta__item">
                             Module:
         
-                            github.com/r3labs/diff/v3
+                            gopkg.in/retry.v1
                     </li>
         
                     <li class="card__meta__item">Introduced through:
         
-                                github.com/argoproj/argo-cd/v3@0.0.0 and github.com/r3labs/diff/v3@3.0.1
         
+                                    github.com/argoproj/argo-cd/v2@0.0.0, github.com/Azure/kubelogin/pkg/token@0.1.5 and others
                     </li>
                 </ul>
         
@@ -516,9 +516,13 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                        github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/r3labs/diff/v3@3.0.1
+                                        github.com/Azure/kubelogin/pkg/token@0.1.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/Azure/kubelogin/pkg/internal/token@0.1.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gopkg.in/retry.v1@1.0.3
                                         
                                 </span>
         
@@ -529,12 +533,12 @@
         
               <hr/>
               <!-- Overview -->
-              <p>MPL-2.0 license</p>
+              <p>LGPL-3.0 license</p>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:r3labs:diff:v3:MPL-2.0">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/snyk:lic:golang:gopkg.in:retry.v1:LGPL-3.0">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -550,7 +554,67 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
+                        Manifest file: /argo-cd/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Module:
+        
+                            github.com/r3labs/diff
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v2@0.0.0 and github.com/r3labs/diff@1.1.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/r3labs/diff@1.1.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <p>MPL-2.0 license</p>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:r3labs:diff:MPL-2.0">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">MPL-2.0 license</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> go.mod
                     </li>
                     <li class="card__meta__item">
                         Package Manager: golang
@@ -564,7 +628,7 @@
                     <li class="card__meta__item">Introduced through:
         
         
-                                    github.com/argoproj/argo-cd/v3@0.0.0, code.gitea.io/sdk/gitea@0.21.0 and others
+                                    github.com/argoproj/argo-cd/v2@0.0.0, code.gitea.io/sdk/gitea@0.19.0 and others
                     </li>
                 </ul>
         
@@ -576,11 +640,11 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                        github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        code.gitea.io/sdk/gitea@0.21.0
+                                        code.gitea.io/sdk/gitea@0.19.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-version@1.7.0
+                                        github.com/hashicorp/go-version@1.6.0
                                         
                                 </span>
         
@@ -612,7 +676,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
+                        Manifest file: /argo-cd/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> go.mod
                     </li>
                     <li class="card__meta__item">
                         Package Manager: golang
@@ -625,7 +689,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                github.com/argoproj/argo-cd/v3@0.0.0 and github.com/hashicorp/go-retryablehttp@0.7.7
+                                github.com/argoproj/argo-cd/v2@0.0.0 and github.com/hashicorp/go-retryablehttp@0.7.7
         
                     </li>
                 </ul>
@@ -638,7 +702,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                        github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.7
                                         
@@ -647,20 +711,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                        github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.7
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gitlab.com/gitlab-org/api/client-go@0.129.0
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.7
                                         
@@ -669,11 +722,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                        github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#87bf0576a872
+                                        github.com/xanzy/go-gitlab@0.114.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.7
                                         
@@ -682,24 +733,11 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                        github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#87bf0576a872
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#2fef5c9049fd
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.7
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.7
                                         
@@ -708,13 +746,11 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                        github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#87bf0576a872
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#2fef5c9049fd
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#87bf0576a872
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.7
                                         
@@ -723,13 +759,11 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                        github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#87bf0576a872
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#87bf0576a872
+                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.0.5
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.7
                                         
@@ -738,28 +772,13 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                        github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#87bf0576a872
+                                        github.com/argoproj/notifications-engine/pkg/api@#2fef5c9049fd
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#87bf0576a872
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#2fef5c9049fd
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.7
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.7
                                         
@@ -768,15 +787,13 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                        github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#87bf0576a872
+                                        github.com/argoproj/notifications-engine/pkg/controller@#2fef5c9049fd
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#87bf0576a872
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#2fef5c9049fd
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.7
                                         
@@ -785,15 +802,62 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                        github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#87bf0576a872
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#2fef5c9049fd
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#87bf0576a872
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#87bf0576a872
+                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.0.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
+                                        github.com/hashicorp/go-retryablehttp@0.7.7
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.0.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/hashicorp/go-retryablehttp@0.7.7
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.0.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/hashicorp/go-retryablehttp@0.7.7
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.0.5
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.7
                                         
@@ -827,7 +891,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
+                        Manifest file: /argo-cd/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> go.mod
                     </li>
                     <li class="card__meta__item">
                         Package Manager: golang
@@ -841,7 +905,7 @@
                     <li class="card__meta__item">Introduced through:
         
         
-                                    github.com/argoproj/argo-cd/v3@0.0.0, github.com/hashicorp/go-retryablehttp@0.7.7 and others
+                                    github.com/argoproj/argo-cd/v2@0.0.0, github.com/hashicorp/go-retryablehttp@0.7.7 and others
                     </li>
                 </ul>
         
@@ -853,7 +917,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                        github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.7
                                          <span class="list-paths__item__arrow">›</span> 
@@ -864,9 +928,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                        github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        gitlab.com/gitlab-org/api/client-go@0.129.0
+                                        github.com/xanzy/go-gitlab@0.114.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-cleanhttp@0.5.2
                                         
@@ -875,9 +939,9 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                        github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        gitlab.com/gitlab-org/api/client-go@0.129.0
+                                        github.com/xanzy/go-gitlab@0.114.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.7
                                          <span class="list-paths__item__arrow">›</span> 
@@ -888,28 +952,11 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                        github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#87bf0576a872
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.7
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-cleanhttp@0.5.2
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
+                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.0.5
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.7
                                          <span class="list-paths__item__arrow">›</span> 
@@ -920,32 +967,13 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                        github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#87bf0576a872
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#2fef5c9049fd
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#87bf0576a872
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.7
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-cleanhttp@0.5.2
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#87bf0576a872
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
+                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.0.5
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.7
                                          <span class="list-paths__item__arrow">›</span> 
@@ -956,15 +984,51 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                        github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#87bf0576a872
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#2fef5c9049fd
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#87bf0576a872
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#87bf0576a872
+                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.0.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
+                                        github.com/hashicorp/go-retryablehttp@0.7.7
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/hashicorp/go-cleanhttp@0.5.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.0.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/hashicorp/go-retryablehttp@0.7.7
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/hashicorp/go-cleanhttp@0.5.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.0.5
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.7
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1000,7 +1064,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
+                        Manifest file: /argo-cd/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> go.mod
                     </li>
                     <li class="card__meta__item">
                         Package Manager: golang
@@ -1013,7 +1077,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                github.com/argoproj/argo-cd/v3@0.0.0 and github.com/gosimple/slug@1.15.0
+                                github.com/argoproj/argo-cd/v2@0.0.0 and github.com/gosimple/slug@1.14.0
         
                     </li>
                 </ul>
@@ -1026,9 +1090,9 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                        github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/gosimple/slug@1.15.0
+                                        github.com/gosimple/slug@1.14.0
                                         
                                 </span>
         
@@ -1190,76 +1254,6 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-JS-FOUNDATIONSITES-8310364">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">Insecure Randomness</h2>
-            <div class="card__section">
-        
-                <div class="label label--low">
-                    <span class="label__text">low severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/yarn.lock
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: npm
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            formidable
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    argo-cd-ui@1.0.0, superagent@8.1.2 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        argo-cd-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        superagent@8.1.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        formidable@2.1.2
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Insecure Randomness due to its use of the <code>hexoid()</code> function in the generation of fingerprint IDs.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>formidable</code> to version 2.1.3, 3.5.3 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/node-formidable/formidable/commit/022c2c5577dfe14d2947f10909d81b03b6070bf5">GitHub Commit</a></li>
-        <li><a href="https://github.com/zast-ai/vulnerability-reports/blob/main/formidable/file_upload/report.md">Vulnerability Report</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-JS-FORMIDABLE-9788127">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
