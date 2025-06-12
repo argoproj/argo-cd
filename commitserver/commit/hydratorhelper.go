@@ -22,9 +22,21 @@ import (
 
 // WriteForPaths writes the manifests, hydrator.metadata, and README.md files for each path in the provided paths. It
 // also writes a root-level hydrator.metadata file containing the repo URL and dry SHA.
-func WriteForPaths(root *os.Root, repoUrl, drySha, author, message string, date time.Time, relatedCommits []appv1.RelatedRevisionMetadata, paths []*apiclient.PathDetails) error { //nolint:revive //FIXME(var-naming)
+func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails) error { //nolint:revive //FIXME(var-naming)
+	author := ""
+	message := ""
+	date := ""
+	var relatedCommits []appv1.RelatedRevisionMetadata
+	if dryCommitMetadata != nil {
+		author = dryCommitMetadata.Author
+		message = dryCommitMetadata.Message
+		if dryCommitMetadata.Date != nil {
+			date = dryCommitMetadata.Date.Format(time.RFC3339)
+		}
+	}
+
 	// Write the top-level readme.
-	err := writeMetadata(root, "", hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl, Author: author, Message: message, Date: date.Format(time.RFC3339), RelatedCommits: relatedCommits})
+	err := writeMetadata(root, "", hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl, Author: author, Message: message, Date: date, RelatedCommits: relatedCommits})
 	if err != nil {
 		return fmt.Errorf("failed to write top-level hydrator metadata: %w", err)
 	}

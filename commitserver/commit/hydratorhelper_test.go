@@ -6,9 +6,6 @@ import (
 	"path"
 	"path/filepath"
 	"testing"
-	"time"
-
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -66,7 +63,7 @@ func TestWriteForPaths(t *testing.T) {
 		},
 	}
 
-	err := WriteForPaths(root, repoURL, drySha, "test-author", "test-message", time.Now(), []appv1.RelatedRevisionMetadata{}, paths)
+	err := WriteForPaths(root, repoURL, drySha, nil, paths)
 	require.NoError(t, err)
 
 	// Check if the top-level hydrator.metadata exists and contains the repo URL and dry SHA
