@@ -80,19 +80,22 @@ $pod-age-icon-clr: #ffce25;
             border-radius: 3px;
             background-color: $argo-color-gray-3;
             color: $argo-color-gray-6;
-            max-height: 100px;
-            overflow: auto;
-            div {
+             &__item {
                 display: flex;
-                white-space: nowrap;
-                overflow: auto;
-                & div:first-child {
+         
+                &__name {
                     max-width: 60%;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
                 }
-                & div:last-child {
+                &__value {
                     font-weight: 500;
                     margin-left: auto;
                     max-width: 40%;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
                 }
             }
         }

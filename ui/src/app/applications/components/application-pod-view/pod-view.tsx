@@ -166,17 +166,23 @@ export class PodView extends React.Component<PodViewProps> {
                                                         <div>
                                                             <div className='pod-view__node__info--large'>
                                                                 {(group.info || []).map(item => (
-                                                                    <div key={item.name}>
-                                                                        {item.name}: <div>{item.value}</div>
-                                                                    </div>
+                                                                    <Tooltip content={`${item.name}: ${item.value}`} key={item.name}>
+                                                                        <div className='pod-view__node__info--large__item'>
+                                                                            <div className='pod-view__node__info--large__item__name'>{item.name}:</div>
+                                                                            <div className='pod-view__node__info--large__item__value'>{item.value}</div>
+                                                                        </div>
+                                                                    </Tooltip>
                                                                 ))}
                                                             </div>
                                                             {group.hostLabels && Object.keys(group.hostLabels).length > 0 ? (
                                                                 <div className='pod-view__node__info--large'>
                                                                     {Object.keys(group.hostLabels || []).map(label => (
-                                                                        <div key={label}>
-                                                                            <div>{label}</div>: <div>{group.hostLabels[label]}</div>
-                                                                        </div>
+                                                                        <Tooltip content={`${label}: ${group.hostLabels[label]}`} key={label}>
+                                                                            <div className='pod-view__node__info--large__item'>
+                                                                                <div className='pod-view__node__info--large__item__name'>{label}:</div>
+                                                                                <div className='pod-view__node__info--large__item__value'>{group.hostLabels[label]}</div>
+                                                                            </div>
+                                                                        </Tooltip>
                                                                     ))}
                                                                 </div>
                                                             ) : null}
