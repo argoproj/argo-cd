@@ -981,7 +981,7 @@ func TestGetIngressInfo(t *testing.T) {
 		populateNodeInfo(tc.Ingress, info, []string{})
 		assert.Empty(t, info.Info)
 		sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
-			return info.NetworkingInfo.TargetRefs[j].Name < info.NetworkingInfo.TargetRefs[i].Name
+			return info.NetworkingInfo.TargetRefs[i].Name < info.NetworkingInfo.TargetRefs[j].Name
 		})
 		assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 			Ingress: []corev1.LoadBalancerIngress{{IP: "107.178.210.11"}},
@@ -989,12 +989,12 @@ func TestGetIngressInfo(t *testing.T) {
 				Namespace: "default",
 				Group:     "",
 				Kind:      kube.ServiceKind,
-				Name:      "not-found-service",
+				Name:      "helm-guestbook",
 			}, {
 				Namespace: "default",
 				Group:     "",
 				Kind:      kube.ServiceKind,
-				Name:      "helm-guestbook",
+				Name:      "not-found-service",
 			}},
 			ExternalURLs: []string{"https://helm-guestbook.example.com/"},
 		}, info.NetworkingInfo)
@@ -1006,7 +1006,7 @@ func TestGetLinkAnnotatedIngressInfo(t *testing.T) {
 	populateNodeInfo(testLinkAnnotatedIngress, info, []string{})
 	assert.Empty(t, info.Info)
 	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
-		return info.NetworkingInfo.TargetRefs[j].Name < info.NetworkingInfo.TargetRefs[i].Name
+		return info.NetworkingInfo.TargetRefs[i].Name < info.NetworkingInfo.TargetRefs[j].Name
 	})
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		Ingress: []corev1.LoadBalancerIngress{{IP: "107.178.210.11"}},
@@ -1014,12 +1014,12 @@ func TestGetLinkAnnotatedIngressInfo(t *testing.T) {
 			Namespace: "default",
 			Group:     "",
 			Kind:      kube.ServiceKind,
-			Name:      "not-found-service",
+			Name:      "helm-guestbook",
 		}, {
 			Namespace: "default",
 			Group:     "",
 			Kind:      kube.ServiceKind,
-			Name:      "helm-guestbook",
+			Name:      "not-found-service",
 		}},
 		ExternalURLs: []string{"http://my-grafana.example.com/ingress-link", "https://helm-guestbook.example.com/"},
 	}, info.NetworkingInfo)
@@ -1030,7 +1030,7 @@ func TestGetIngressInfoWildCardPath(t *testing.T) {
 	populateNodeInfo(testIngressWildCardPath, info, []string{})
 	assert.Empty(t, info.Info)
 	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
-		return info.NetworkingInfo.TargetRefs[j].Name < info.NetworkingInfo.TargetRefs[i].Name
+		return info.NetworkingInfo.TargetRefs[i].Name < info.NetworkingInfo.TargetRefs[j].Name
 	})
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		Ingress: []corev1.LoadBalancerIngress{{IP: "107.178.210.11"}},
@@ -1038,12 +1038,12 @@ func TestGetIngressInfoWildCardPath(t *testing.T) {
 			Namespace: "default",
 			Group:     "",
 			Kind:      kube.ServiceKind,
-			Name:      "not-found-service",
+			Name:      "helm-guestbook",
 		}, {
 			Namespace: "default",
 			Group:     "",
 			Kind:      kube.ServiceKind,
-			Name:      "helm-guestbook",
+			Name:      "not-found-service",
 		}},
 		ExternalURLs: []string{"https://helm-guestbook.example.com/"},
 	}, info.NetworkingInfo)
@@ -1054,7 +1054,7 @@ func TestGetIngressInfoWithoutTls(t *testing.T) {
 	populateNodeInfo(testIngressWithoutTLS, info, []string{})
 	assert.Empty(t, info.Info)
 	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
-		return info.NetworkingInfo.TargetRefs[j].Name < info.NetworkingInfo.TargetRefs[i].Name
+		return info.NetworkingInfo.TargetRefs[i].Name < info.NetworkingInfo.TargetRefs[j].Name
 	})
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		Ingress: []corev1.LoadBalancerIngress{{IP: "107.178.210.11"}},
@@ -1062,12 +1062,12 @@ func TestGetIngressInfoWithoutTls(t *testing.T) {
 			Namespace: "default",
 			Group:     "",
 			Kind:      kube.ServiceKind,
-			Name:      "not-found-service",
+			Name:      "helm-guestbook",
 		}, {
 			Namespace: "default",
 			Group:     "",
 			Kind:      kube.ServiceKind,
-			Name:      "helm-guestbook",
+			Name:      "not-found-service",
 		}},
 		ExternalURLs: []string{"http://helm-guestbook.example.com/"},
 	}, info.NetworkingInfo)

@@ -72,7 +72,6 @@ linters:
         - rangeValCopy
         - regexpSimplify
         - sloppyReassign
-        - sortSlice
         - sprintfQuotedString
         - tooManyResultsChecker
         - typeAssertChain
