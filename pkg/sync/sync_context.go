@@ -188,12 +188,6 @@ func WithReplace(replace bool) SyncOpt {
 	}
 }
 
-func WithSkipDryRun(skipDryRun bool) SyncOpt {
-	return func(ctx *syncContext) {
-		ctx.skipDryRun = skipDryRun
-	}
-}
-
 func WithSkipDryRunOnMissingResource(skipDryRunOnMissingResource bool) SyncOpt {
 	return func(ctx *syncContext) {
 		ctx.skipDryRunOnMissingResource = skipDryRunOnMissingResource
@@ -361,7 +355,6 @@ type syncContext struct {
 	namespace           string
 
 	dryRun                          bool
-	skipDryRun                      bool
 	skipDryRunOnMissingResource     bool
 	force                           bool
 	validate                        bool
@@ -866,13 +859,6 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 				// then skip verification during `kubectl apply --dry-run` since we expect the CRD
 				// to be created during app synchronization.
 				sc.log.WithValues("task", task).V(1).Info("Skip dry-run for custom resource")
-				task.skipDryRun = true
-			case sc.skipDryRun:
-				// Skip dryrun for task if the sync context is in skip dryrun mode
-				// This can be useful when resource creation is depending on the creation of other resources
-				// like namespaces that need to be created first before the resources in the namespace can be created
-				// For CRD's one can also use the SkipDryRunOnMissingResource annotation.
-				sc.log.WithValues("task", task).V(1).Info("Skipping dry-run for task because skipDryRun is set in the sync context")
 				task.skipDryRun = true
 			default:
 				sc.setResourceResult(task, common.ResultCodeSyncFailed, "", err.Error())

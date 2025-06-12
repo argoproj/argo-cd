@@ -1198,39 +1198,6 @@ func TestNamespaceAutoCreationForNonExistingNs(t *testing.T) {
 			waveOverride:   nil,
 		}, tasks[0])
 	})
-
-	t.Run("pre-sync task error should be ignored if skip dryrun is true", func(t *testing.T) {
-		syncCtx.resources = groupResources(ReconciliationResult{
-			Live:   []*unstructured.Unstructured{nil},
-			Target: []*unstructured.Unstructured{pod},
-		})
-
-		fakeDisco := syncCtx.disco.(*fakedisco.FakeDiscovery)
-		fakeDisco.Resources = []*metav1.APIResourceList{}
-		syncCtx.disco = fakeDisco
-
-		syncCtx.skipDryRun = true
-		creatorCalled := false
-		syncCtx.syncNamespace = func(_, _ *unstructured.Unstructured) (bool, error) {
-			creatorCalled = true
-			return true, errors.New("some error")
-		}
-		tasks, successful := syncCtx.getSyncTasks()
-
-		assert.True(t, creatorCalled)
-		assert.True(t, successful)
-		assert.Len(t, tasks, 2)
-		assert.Equal(t, &syncTask{
-			phase:          synccommon.SyncPhasePreSync,
-			liveObj:        nil,
-			targetObj:      tasks[0].targetObj,
-			skipDryRun:     true,
-			syncStatus:     synccommon.ResultCodeSyncFailed,
-			operationState: synccommon.OperationError,
-			message:        "namespaceModifier error: some error",
-			waveOverride:   nil,
-		}, tasks[0])
-	})
 }
 
 func createNamespaceTask(namespace string) (*syncTask, error) {
