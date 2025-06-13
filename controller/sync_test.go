@@ -1287,7 +1287,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			},
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.
-				ApplicationDestinationServiceAccount{
+					ApplicationDestinationServiceAccount{
 					{
 						Server:                "https://localhost:6443",
 						Namespace:             destinationNamespace,
