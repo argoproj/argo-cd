@@ -670,7 +670,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 			}
 		}
 
-		w, err := watchutil.NewRetryWatcher(resourceVersion, &cache.ListWatch{
+		w, err := watchutil.NewRetryWatcherWithContext(ctx, resourceVersion, &cache.ListWatch{
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				res, err := resClient.Watch(ctx, options)
 				if apierrors.IsNotFound(err) {

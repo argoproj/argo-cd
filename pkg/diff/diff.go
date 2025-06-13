@@ -922,6 +922,7 @@ func normalizeEndpoint(un *unstructured.Unstructured, o options) {
 	if gvk.Group != "" || gvk.Kind != "Endpoints" {
 		return
 	}
+	//nolint:staticcheck // SA1019: corev1.Endpoints is deprecated in v1.33+, but we need to keep it for backward compatibility
 	var ep corev1.Endpoints
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &ep)
 	if err != nil {
