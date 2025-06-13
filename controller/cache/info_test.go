@@ -890,6 +890,8 @@ apiVersion: v1
 kind: Node
 metadata:
   name: minikube
+  labels:
+    foo: bar
 spec: {}
 status:
   capacity:
@@ -907,6 +909,7 @@ status:
 		Name:       "minikube",
 		Capacity:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("6091320Ki"), corev1.ResourceCPU: resource.MustParse("6")},
 		SystemInfo: corev1.NodeSystemInfo{Architecture: "amd64", OperatingSystem: "linux", OSImage: "Ubuntu 20.04 LTS"},
+		Labels:     map[string]string{"foo": "bar"},
 	}, info.NodeInfo)
 }
 
