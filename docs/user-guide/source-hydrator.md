@@ -224,8 +224,9 @@ The commit metadata will appear in the hydrated commit's root hydrator.metadata 
           "name": "Author Name",
           "email": "author@example.com"
         },
-        "sha": "<code-commit-sha>",
-        "message": "Commit message of the code commit",
+        "sha": "b82add298aa045d3672880802d5305c5a8aaa46e",
+        "subject": "chore: make a change",
+        "body": "make a change\n\nSigned-off-by: Author Name <author@example.com>",
         "repoURL": "https://git.example.com/owner/repo",
         "date": "2025-06-09T13:50:18-04:00"
       }
