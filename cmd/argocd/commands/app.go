@@ -1106,15 +1106,16 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 
 		for _, kustomizeImage := range opts.kustomizeImages {
 			for i, item := range source.Kustomize.Images {
-				if argoappv1.KustomizeImage(kustomizeImage).Match(item) {
-					updated = true
-					// remove i
-					a := source.Kustomize.Images
-					copy(a[i:], a[i+1:]) // Shift a[i+1:] left one index.
-					a[len(a)-1] = ""     // Erase last element (write zero value).
-					a = a[:len(a)-1]     // Truncate slice.
-					source.Kustomize.Images = a
+				if !argoappv1.KustomizeImage(kustomizeImage).Match(item) {
+					continue
 				}
+				updated = true
+				// remove i
+				a := source.Kustomize.Images
+				copy(a[i:], a[i+1:]) // Shift a[i+1:] left one index.
+				a[len(a)-1] = ""     // Erase last element (write zero value).
+				a = a[:len(a)-1]     // Truncate slice.
+				source.Kustomize.Images = a
 			}
 		}
 
