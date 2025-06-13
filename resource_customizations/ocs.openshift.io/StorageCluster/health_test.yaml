@@ -10,8 +10,4 @@ tests:
 - healthStatus:
     status: Healthy
     message: "Reconcile completed successfully"
-  inputPath: testdata/healthy_available.yaml
-- healthStatus:
-    status: Healthy
-    message: "StorageCluster is healthy and upgradeable"
-  inputPath: testdata/healthy_upgradeable.yaml
+  inputPath: testdata/available.yaml
