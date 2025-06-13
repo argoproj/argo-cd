@@ -14,7 +14,7 @@ tests:
   - healthStatus:
       status: Progressing
       message: could not create application
-    inputPath: testdata/failedCreateApplicationSet.yaml
+    inputPath: testdata/resourceNotUpdatedApplicationSet.yaml
   - healthStatus:
       status: Progressing
       message: ApplicationSet is performing rollout of step 1
