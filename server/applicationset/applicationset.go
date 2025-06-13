@@ -11,6 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v3/server/application"
+	"k8s.io/apimachinery/pkg/watch"
+
 	"github.com/argoproj/pkg/v2/sync"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -54,6 +57,7 @@ type Server struct {
 	appclientset             appclientset.Interface
 	appsetInformer           cache.SharedIndexInformer
 	appsetLister             applisters.ApplicationSetLister
+	appsetBroadcaster        Brodcaster
 	auditLogger              *argo.AuditLogger
 	projectLock              sync.KeyLock
 	enabledNamespaces        []string
@@ -75,6 +79,7 @@ func NewServer(
 	appclientset appclientset.Interface,
 	appsetInformer cache.SharedIndexInformer,
 	appsetLister applisters.ApplicationSetLister,
+	appsetBroadcaster Brodcaster,
 	namespace string,
 	projectLock sync.KeyLock,
 	enabledNamespaces []string,
@@ -85,6 +90,13 @@ func NewServer(
 	enableScmProviders bool,
 	enableK8sEvent []string,
 ) applicationset.ApplicationSetServiceServer {
+	if appsetBroadcaster == nil {
+		appsetBroadcaster = &broadcasterHandler{}
+	}
+	_, err := appsetInformer.AddEventHandler(appsetBroadcaster)
+	if err != nil {
+		log.Error("error adding event handler", err)
+	}
 	s := &Server{
 		ns:                       namespace,
 		db:                       db,
@@ -96,6 +108,7 @@ func NewServer(
 		appclientset:             appclientset,
 		appsetInformer:           appsetInformer,
 		appsetLister:             appsetLister,
+		appsetBroadcaster:        appsetBroadcaster,
 		projectLock:              projectLock,
 		auditLogger:              argo.NewAuditLogger(kubeclientset, "argocd-server", enableK8sEvent),
 		enabledNamespaces:        enabledNamespaces,
@@ -109,13 +122,20 @@ func NewServer(
 }
 
 func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*v1alpha1.ApplicationSet, error) {
-	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
+	appSetName := q.GetName()
+	appSetNamespace := s.appsetNamespaceOrDefault(q.GetAppsetNamespace())
 
-	if !s.isNamespaceEnabled(namespace) {
-		return nil, security.NamespaceNotPermittedError(namespace)
+	if !s.isNamespaceEnabled(appSetNamespace) {
+		return nil, security.NamespaceNotPermittedError(appSetNamespace)
 	}
 
-	a, err := s.appsetLister.ApplicationSets(namespace).Get(q.Name)
+	events := make(chan *v1alpha1.ApplicationSetWatchEvent, application.WatchAPIBufferSize)
+	unsubscribe := s.appsetBroadcaster.Subscribe(events, func(event *v1alpha1.ApplicationSetWatchEvent) bool {
+		return event.ApplicationSet.Name == appSetName && event.ApplicationSet.Namespace == appSetNamespace
+	})
+	defer unsubscribe()
+
+	a, err := s.appsetLister.ApplicationSets(appSetNamespace).Get(q.Name)
 	if err != nil {
 		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
 	}
@@ -123,7 +143,14 @@ func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetGetQue
 		return nil, err
 	}
 
-	return a, nil
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, errors.New("applicationset deadline exceeded")
+		case event := <-events:
+			return event.ApplicationSet.DeepCopy(), nil
+		}
+	}
 }
 
 // List returns list of ApplicationSets
@@ -253,6 +280,90 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 		return nil, fmt.Errorf("error updating ApplicationSets: %w", err)
 	}
 	return updated, nil
+}
+
+func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicationset.ApplicationSetService_WatchServer) error {
+	appsetName := q.GetName()
+	appsetNs := s.appsetNamespaceOrDefault(q.GetAppsetNamespace())
+	logCtx := log.NewEntry(log.New())
+	if appsetName != "" {
+		logCtx = logCtx.WithField("applicationset", appsetName)
+	}
+	claims := ws.Context().Value("claims")
+	selector, err := labels.Parse(q.GetSelector())
+	if err != nil {
+		return fmt.Errorf("error parsing labels with selectors: %w", err)
+	}
+
+	minVersion := 0
+	if rv := q.GetResourceVersion(); rv != "" {
+		if minVersion, err = strconv.Atoi(rv); err != nil {
+			minVersion = 0
+		}
+	}
+
+	sendIfPermitted := func(appset v1alpha1.ApplicationSet, eventType watch.EventType) {
+		permitted := s.isApplicationSetPermitted(selector, minVersion, claims, appsetName, appsetNs, appset)
+		if !permitted {
+			return
+		}
+		logCtx.Infof("Sending %s event for appset: %s", eventType, appset.Name)
+		if err := ws.Send(&v1alpha1.ApplicationSetWatchEvent{
+			Type:           eventType,
+			ApplicationSet: appset,
+		}); err != nil {
+			logCtx.Warnf("Unable to send stream message: %v", err)
+		}
+	}
+
+	events := make(chan *v1alpha1.ApplicationSetWatchEvent, 100)
+	unsubscribe := s.appsetBroadcaster.Subscribe(events)
+	defer unsubscribe()
+
+	if q.GetResourceVersion() == "" || q.GetName() != "" {
+		appsets, err := s.appsetLister.List(selector)
+		if err != nil {
+			return fmt.Errorf("error listing appsets with selector: %w", err)
+		}
+		sort.Slice(appsets, func(i, j int) bool {
+			return appsets[i].QualifiedName() < appsets[j].QualifiedName()
+		})
+		for i := range appsets {
+			sendIfPermitted(*appsets[i], watch.Added)
+		}
+	}
+
+	for {
+		select {
+		case event := <-events:
+			logCtx.Infof("watch(): received event: %s for %s", event.Type, event.ApplicationSet.Name)
+			sendIfPermitted(event.ApplicationSet, event.Type)
+		case <-ws.Context().Done():
+			logCtx.Info("watch(): context closed, stopping")
+			return nil
+		}
+	}
+}
+
+func (s *Server) isApplicationSetPermitted(selector labels.Selector, minVersion int, claims any, appSetName, appSetNs string, appset v1alpha1.ApplicationSet) bool {
+	if appSetVersion, err := strconv.Atoi(appset.ResourceVersion); err == nil && appSetVersion < minVersion {
+		return false
+	}
+
+	matchedEvent := (appSetName == "" || (appset.Name == appSetName && appset.Namespace == appSetNs)) && selector.Matches(labels.Set(appset.Labels))
+	if !matchedEvent {
+		return false
+	}
+
+	if !s.isNamespaceEnabled(appset.Namespace) {
+		return false
+	}
+
+	if !s.enf.Enforce(claims, rbac.ResourceApplicationSets, rbac.ActionGet, appset.RBACName(s.ns)) {
+		return false
+	}
+
+	return true
 }
 
 func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.Entry, appset v1alpha1.ApplicationSet, namespace string) ([]v1alpha1.Application, error) {
