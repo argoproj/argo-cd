@@ -1893,6 +1893,13 @@ func (a *ArgoCDSettings) OAuth2ClientSecret() string {
 	return ""
 }
 
+func (a *ArgoCDSettings) OAuth2UsePKCE() bool {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+		return oidcConfig.EnablePKCEAuthentication
+	}
+	return false
+}
+
 func (a *ArgoCDSettings) UseAzureWorkloadIdentity() bool {
 	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.Azure != nil {
 		return oidcConfig.Azure.UseWorkloadIdentity
