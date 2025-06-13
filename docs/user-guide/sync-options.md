@@ -14,6 +14,17 @@ metadata:
     argocd.argoproj.io/sync-options: Prune=false
 ```
 
+It also can be enabled at the application level like in the example below:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - Prune=false
+```
+
 The sync-status panel shows that pruning was skipped, and why:
 
 ![sync option no prune](../assets/sync-option-no-prune-sync-status.png)
@@ -33,6 +44,17 @@ metadata:
 
 To confirm the pruning you can use Argo CD UI, CLI or manually apply the `argocd.argoproj.io/deletion-approved: <ISO formatted timestamp>`
 annotation to the application.
+
+It also can be enabled at the application level like in the example below:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - Prune=confirm
+```
 
 ## Disable Kubectl Validation
 
@@ -87,6 +109,17 @@ metadata:
     argocd.argoproj.io/sync-options: Delete=false
 ```
 
+It also can be enabled at the application level like in the example below:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - Delete=false
+```
+
 ## Resource Deletion With Confirmation
 
 Resources such as Namespaces are critical and should not be deleted without confirmation. You can set the `Delete=confirm`
@@ -100,6 +133,17 @@ metadata:
 
 To confirm the deletion you can use Argo CD UI, CLI or manually apply the `argocd.argoproj.io/deletion-approved: <ISO formatted timestamp>`
 annotation to the application.
+
+It also can be enabled at the application level like in the example below:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - Delete=confirm
+```
 
 ## Selective Sync
 
