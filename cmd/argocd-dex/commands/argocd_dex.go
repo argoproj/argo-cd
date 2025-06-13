@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -126,7 +127,7 @@ func NewRunDexCommand() *cobra.Command {
 					newSettings := <-updateCh
 					newDexCfgBytes, err := dex.GenerateDexConfigYAML(newSettings, disableTLS)
 					errors.CheckError(err)
-					if string(newDexCfgBytes) != string(dexCfgBytes) {
+					if !bytes.Equal(newDexCfgBytes, dexCfgBytes) {
 						prevSettings = newSettings
 						log.Infof("dex config modified. restarting dex")
 						if cmd != nil && cmd.Process != nil {
