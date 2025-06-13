@@ -506,7 +506,7 @@ func Test_nativeGitClient_RevisionMetadata(t *testing.T) {
 		"--trailer", "Argocd-reference-commit-author-email: test@email.com",
 		"--trailer", "Argocd-reference-commit-date: "+now.Format(time.RFC3339),
 		"--trailer", "Argocd-reference-commit-subject: chore: make a change",
-		"--trailer", "Argocd-reference-commit-sha: test-sha",
+		"--trailer", "Argocd-reference-commit-sha: abc123",
 		"--trailer", "Argocd-reference-commit-repourl: https://git.example.com/test/repo.git",
 	)
 	require.NoError(t, err)
@@ -525,7 +525,7 @@ Argocd-reference-commit-author-name: test-author
 Argocd-reference-commit-author-email: test@email.com
 Argocd-reference-commit-date: %s
 Argocd-reference-commit-subject: chore: make a change
-Argocd-reference-commit-sha: test-sha
+Argocd-reference-commit-sha: abc123
 Argocd-reference-commit-repourl: https://git.example.com/test/repo.git`, now.Format(time.RFC3339)),
 		References: []RevisionReference{
 			{
@@ -536,7 +536,7 @@ Argocd-reference-commit-repourl: https://git.example.com/test/repo.git`, now.For
 					},
 					Date:    now.Format(time.RFC3339),
 					Subject: "chore: make a change",
-					SHA:     "test-sha",
+					SHA:     "abc123",
 					RepoURL: "https://git.example.com/test/repo.git",
 				},
 			},
