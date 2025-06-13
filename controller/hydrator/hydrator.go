@@ -43,16 +43,16 @@ type Hydrator struct {
 	statusRefreshTimeout time.Duration
 	commitClientset      commitclient.Clientset
 	repoClientset        apiclient.Clientset
-	db                   RepoGetter
+	repoGetter           RepoGetter
 }
 
-func NewHydrator(dependencies Dependencies, statusRefreshTimeout time.Duration, commitClientset commitclient.Clientset, repoClientset apiclient.Clientset, db RepoGetter) *Hydrator {
+func NewHydrator(dependencies Dependencies, statusRefreshTimeout time.Duration, commitClientset commitclient.Clientset, repoClientset apiclient.Clientset, repoGetter RepoGetter) *Hydrator {
 	return &Hydrator{
 		dependencies:         dependencies,
 		statusRefreshTimeout: statusRefreshTimeout,
 		commitClientset:      commitClientset,
 		repoClientset:        repoClientset,
-		db:                   db,
+		repoGetter:           repoGetter,
 	}
 }
 
@@ -349,7 +349,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 }
 
 func (h *Hydrator) getRevisionMetadata(ctx context.Context, repoURL, project, revision string) (*appv1.RevisionMetadata, error) {
-	repo, err := h.db.GetRepository(ctx, repoURL, project)
+	repo, err := h.repoGetter.GetRepository(ctx, repoURL, project)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository %q: %w", repoURL, err)
 	}
