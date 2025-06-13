@@ -11,6 +11,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
@@ -124,7 +125,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 
 	logCtx.Debug("Writing manifests")
-	err = WriteForPaths(root, r.Repo.Repo, r.DrySha, r.Paths)
+	err = WriteForPaths(root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}
@@ -211,21 +212,34 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 }
 
 type hydratorMetadataFile struct {
-	RepoURL  string   `json:"repoURL"`
-	DrySHA   string   `json:"drySha"`
-	Commands []string `json:"commands"`
+	RepoURL    string                       `json:"repoURL,omitempty"`
+	DrySHA     string                       `json:"drySha,omitempty"`
+	Commands   []string                     `json:"commands,omitempty"`
+	Author     string                       `json:"author,omitempty"`
+	Date       string                       `json:"date,omitempty"`
+	Message    string                       `json:"message,omitempty"`
+	References []v1alpha1.RevisionReference `json:"references,omitempty"`
 }
 
 // TODO: make this configurable via ConfigMap.
-var manifestHydrationReadmeTemplate = `
-# Manifest Hydration
+var manifestHydrationReadmeTemplate = `# Manifest Hydration
 
 To hydrate the manifests in this repository, run the following commands:
 
-` + "```shell\n" + `
+` + "```shell" + `
 git clone {{ .RepoURL }}
 # cd into the cloned directory
 git checkout {{ .DrySHA }}
 {{ range $command := .Commands -}}
 {{ $command }}
-{{ end -}}` + "```"
+{{ end -}}` + "```" + `
+{{ if .References -}}
+
+## References
+
+{{ range $ref := .References -}}
+{{ if $ref.Commit -}}
+* [{{ $ref.Commit.SHA | mustRegexFind "[0-9a-f]+" | trunc 7 }}]({{ $ref.Commit.RepoURL }}): {{ $ref.Commit.Subject }} ({{ $ref.Commit.Author.Name }} <{{ $ref.Commit.Author.Email }}>)
+{{ end -}}
+{{ end -}}
+{{ end -}}`

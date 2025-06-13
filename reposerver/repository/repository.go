@@ -2437,7 +2437,27 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 		}
 	}
 
-	metadata = &v1alpha1.RevisionMetadata{Author: m.Author, Date: metav1.Time{Time: m.Date}, Tags: m.Tags, Message: m.Message, SignatureInfo: signatureInfo}
+	relatedRevisions := make([]v1alpha1.RevisionReference, len(m.References))
+	for i := range m.References {
+		if m.References[i].Commit == nil {
+			continue
+		}
+
+		relatedRevisions[i] = v1alpha1.RevisionReference{
+			Commit: &v1alpha1.CommitMetadata{
+				Author: v1alpha1.CommitMetadataAuthor{
+					Name:  m.References[i].Commit.Author.Name,
+					Email: m.References[i].Commit.Author.Email,
+				},
+				Date:    m.References[i].Commit.Date,
+				Subject: m.References[i].Commit.Subject,
+				Body:    m.References[i].Commit.Body,
+				SHA:     m.References[i].Commit.SHA,
+				RepoURL: m.References[i].Commit.RepoURL,
+			},
+		}
+	}
+	metadata = &v1alpha1.RevisionMetadata{Author: m.Author, Date: &metav1.Time{Time: m.Date}, Tags: m.Tags, Message: m.Message, SignatureInfo: signatureInfo, References: relatedRevisions}
 	_ = s.cache.SetRevisionMetadata(q.Repo.Repo, q.Revision, metadata)
 	return metadata, nil
 }
