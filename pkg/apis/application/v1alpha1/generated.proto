@@ -937,18 +937,21 @@ message Command {
 
 // CommitMetadata contains metadata about a commit that is related in some way to another commit.
 message CommitMetadata {
-  // Author is the author of the commit.
-  optional CommitMetadataAuthor author = 1;
+  // Author is the author of the commit, i.e. `git show -s --format=%an <%ae>`.
+  // Must be formatted according to RFC 5322 (mail.Address.String()).
+  // Comes from the Argocd-reference-commit-author trailer.
+  optional string author = 1;
 
-  // Date is the date of the commit, formatted as by `git show -s --format=%aI`.
+  // Date is the date of the commit, formatted as by `git show -s --format=%aI` (RFC 3339).
+  // It can also be an empty string if the date is unknown.
   // Comes from the Argocd-reference-commit-date trailer.
   optional string date = 2;
 
-  // Subject is the commit message subject.
+  // Subject is the commit message subject line, i.e. `git show -s --format=%s`.
   // Comes from the Argocd-reference-commit-subject trailer.
   optional string subject = 3;
 
-  // Body is the commit message body.
+  // Body is the commit message body minus the subject line, i.e. `git show -s --format=%b`.
   // Comes from the Argocd-reference-commit-body trailer.
   optional string body = 4;
 
@@ -961,17 +964,6 @@ message CommitMetadata {
   // This value is not validated and should not be used to construct UI links unless it is properly
   // validated and/or sanitized first.
   optional string repoUrl = 6;
-}
-
-// CommitMetadataAuthor contains information about the author of a commit.
-message CommitMetadataAuthor {
-  // Name is the name of the author.
-  // Comes from the Argocd-reference-commit-author-name trailer.
-  optional string name = 1;
-
-  // Email is the email of the author.
-  // Comes from the Argocd-reference-commit-author-email trailer.
-  optional string email = 2;
 }
 
 // ComparedTo contains application source and target which was used for resources comparison

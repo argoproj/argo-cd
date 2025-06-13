@@ -2445,10 +2445,7 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 
 		relatedRevisions[i] = v1alpha1.RevisionReference{
 			Commit: &v1alpha1.CommitMetadata{
-				Author: v1alpha1.CommitMetadataAuthor{
-					Name:  m.References[i].Commit.Author.Name,
-					Email: m.References[i].Commit.Author.Email,
-				},
+				Author:  m.References[i].Commit.Author.String(),
 				Date:    m.References[i].Commit.Date,
 				Subject: m.References[i].Commit.Subject,
 				Body:    m.References[i].Commit.Body,

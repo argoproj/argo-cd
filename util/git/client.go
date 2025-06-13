@@ -45,28 +45,19 @@ import (
 
 var ErrInvalidRepoURL = errors.New("repo URL is invalid")
 
-// CommitMetadataAuthor contains information about the author of a commit.
-type CommitMetadataAuthor struct {
-	// Name is the name of the author.
-	// Comes from the Argocd-reference-commit-author-name trailer.
-	Name string
-	// Email is the email of the author.
-	// Comes from the Argocd-reference-commit-author-email trailer.
-	Email string
-}
-
 // CommitMetadata contains metadata about a commit that is related in some way to another commit.
 type CommitMetadata struct {
 	// Author is the author of the commit.
-	// Comes from the Argocd-reference-commit-author-* trailers.
-	Author CommitMetadataAuthor
+	// Comes from the Argocd-reference-commit-author trailer.
+	Author mail.Address
 	// Date is the date of the commit, formatted as by `git show -s --format=%aI`.
+	// May be an empty string if the date is unknown.
 	// Comes from the Argocd-reference-commit-date trailer.
 	Date string
-	// Subject is the commit message subject.
+	// Subject is the commit message subject, i.e. `git show -s --format=%s`.
 	// Comes from the Argocd-reference-commit-subject trailer.
 	Subject string
-	// Body is the full commit message body, formatted as a JSON string.
+	// Body is the commit message body, excluding the subject, i.e. `git show -s --format=%b`.
 	// Comes from the Argocd-reference-commit-body trailer.
 	Body string
 	// SHA is the commit hash.
@@ -74,8 +65,8 @@ type CommitMetadata struct {
 	SHA string
 	// RepoURL is the URL of the repository where the commit is located.
 	// Comes from the Argocd-reference-commit-repourl trailer.
-	// This value is not validated and should not be used to construct UI links unless it is properly
-	// validated and/or sanitized first.
+	// This value is not validated beyond confirming that it's a URL, and it should not be used to construct UI links
+	// unless it is properly validated and/or sanitized first.
 	RepoURL string
 }
 
@@ -853,23 +844,21 @@ func getReferences(logCtx *log.Entry, commitMessageBody string) []RevisionRefere
 				continue
 			}
 			relatedCommit.RepoURL = trailerValue
-		case "Argocd-reference-commit-author-name":
-			relatedCommit.Author.Name = trailerValue
-		case "Argocd-reference-commit-author-email":
-			_, err := mail.ParseAddress(trailerValue)
-			if err != nil {
+		case "Argocd-reference-commit-author":
+			address, err := mail.ParseAddress(trailerValue)
+			if err != nil || address == nil {
 				logCtx.Errorf("failed to parse author email %q: %v", truncate(trailerValue), err)
 				continue
 			}
-			relatedCommit.Author.Email = trailerValue
+			relatedCommit.Author = *address
 		case "Argocd-reference-commit-date":
 			// Validate that it's the correct date format.
-			_, err := time.Parse(time.RFC3339, trailerValue)
+			t, err := time.Parse(time.RFC3339, trailerValue)
 			if err != nil {
 				logCtx.Errorf("failed to parse date %q with RFC3339 format: %v", truncate(trailerValue), err)
 				continue
 			}
-			relatedCommit.Date = trailerValue
+			relatedCommit.Date = t.Format(time.RFC3339)
 		case "Argocd-reference-commit-subject":
 			relatedCommit.Subject = trailerValue
 		case "Argocd-reference-commit-body":
