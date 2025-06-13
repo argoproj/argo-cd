@@ -8325,6 +8325,13 @@
       "description": "HostInfo holds metadata and resource usage metrics for a specific host in the cluster.",
       "type": "object",
       "properties": {
+        "labels": {
+          "description": "Labels holds the labels attached to the host.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "name": {
           "description": "Name is the hostname or node name in the Kubernetes cluster.",
           "type": "string"

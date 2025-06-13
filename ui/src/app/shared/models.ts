@@ -1005,6 +1005,7 @@ export interface Node {
     name: string;
     systemInfo: NodeSystemInfo;
     resourcesInfo: HostResourceInfo[];
+    labels: {[name: string]: string};
 }
 
 export interface NodeSystemInfo {
