@@ -8,7 +8,7 @@ tests:
     message: "Healthy"
   inputPath: testdata/PipelineRollout/healthy.yaml
 - healthStatus:
-    status: Suspended
+    status: Healthy
     message: "Pipeline paused"
   inputPath: testdata/PipelineRollout/paused.yaml
 - healthStatus:

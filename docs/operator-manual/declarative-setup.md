@@ -1259,7 +1259,7 @@ An optional comma-separated list of `metadata.annotations` keys can be configure
 
 ## Auto respect RBAC for controller
 
-Argocd controller can be restricted from discovering/syncing specific resources using just controller rbac, without having to manually configure resource exclusions.
+Argo CD controller can be restricted from discovering/syncing specific resources using just controller RBAC, without having to manually configure resource exclusions.
 This feature can be enabled by setting `resource.respectRBAC` key in argocd cm, once it is set the controller will automatically stop watching for resources 
 that it does not have the permission to list/access. Possible values for `resource.respectRBAC` are:
     - `strict` : This setting checks whether the list call made by controller is forbidden/unauthorized and if it is, it will cross-check the permission by making a `SelfSubjectAccessReview` call for the resource.
@@ -1270,7 +1270,7 @@ Users who are comfortable with an increase in kube api-server calls can opt for 
 
 Notes:
 
-* When set to use `strict` mode controller must have rbac permission to `create` a `SelfSubjectAccessReview` resource 
+* When set to use `strict` mode controller must have RBAC permission to `create` a `SelfSubjectAccessReview` resource 
 * The `SelfSubjectAccessReview` request will be only made for the `list` verb, it is assumed that if `list` is allowed for a resource then all other permissions are also available to the controller.
 
 Example argocd cm with `resource.respectRBAC` set to `strict`:

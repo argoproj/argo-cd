@@ -499,9 +499,7 @@ func getImageParameters(objs []*unstructured.Unstructured) []Image {
 	for _, obj := range objs {
 		images = append(images, getImages(obj.Object)...)
 	}
-	sort.Slice(images, func(i, j int) bool {
-		return i < j
-	})
+	sort.Strings(images)
 	return images
 }
 

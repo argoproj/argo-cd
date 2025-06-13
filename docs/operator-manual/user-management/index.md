@@ -210,7 +210,7 @@ data:
           - name: your-github-org
 ```
 
-After saving, the changes should take affect automatically.
+After saving, the changes should take effect automatically.
 
 NOTES:
 
@@ -253,7 +253,7 @@ data:
 
 By default Dex only retrieves the profile and email scopes. In order to retrieve more claims you
 can add them under the `scopes` entry in the Dex configuration. To enable group claims through Dex,
-`insecureEnableGroups` also needs to enabled. Group information is currently only refreshed at authentication
+`insecureEnableGroups` also needs to be enabled. Group information is currently only refreshed at authentication
 time and support to refresh group information more dynamically can be tracked here: [dexidp/dex#1065](https://github.com/dexidp/dex/issues/1065).
 
 ```yaml

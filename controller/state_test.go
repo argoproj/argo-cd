@@ -1301,6 +1301,8 @@ func TestComparisonResult_GetSyncStatus(t *testing.T) {
 }
 
 func TestIsLiveResourceManaged(t *testing.T) {
+	t.Parallel()
+
 	managedObj := kube.MustToUnstructured(&corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",

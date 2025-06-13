@@ -20,7 +20,6 @@ import (
 type AuditLogger struct {
 	kIf            kubernetes.Interface
 	component      string
-	ns             string
 	enableEventLog map[string]bool
 }
 
@@ -179,9 +178,8 @@ func (l *AuditLogger) LogAppProjEvent(proj *v1alpha1.AppProject, info EventInfo,
 	l.logEvent(objectMeta, v1alpha1.AppProjectSchemaGroupVersionKind, info, message, nil, nil)
 }
 
-func NewAuditLogger(ns string, kIf kubernetes.Interface, component string, enableK8sEvent []string) *AuditLogger {
+func NewAuditLogger(kIf kubernetes.Interface, component string, enableK8sEvent []string) *AuditLogger {
 	return &AuditLogger{
-		ns:             ns,
 		kIf:            kIf,
 		component:      component,
 		enableEventLog: setK8sEventList(enableK8sEvent),

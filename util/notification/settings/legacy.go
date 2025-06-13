@@ -203,20 +203,21 @@ func GetLegacyDestinations(annotations map[string]string, defaultTriggers []stri
 		}
 
 		for _, recipient := range text.SplitRemoveEmpty(v, ",") {
-			if recipient = strings.TrimSpace(recipient); recipient != "" {
-				parts := strings.Split(recipient, ":")
-				dest := services.Destination{Service: parts[0]}
-				if len(parts) > 1 {
-					dest.Recipient = parts[1]
-				}
+			if recipient = strings.TrimSpace(recipient); recipient == "" {
+				continue
+			}
+			parts := strings.Split(recipient, ":")
+			dest := services.Destination{Service: parts[0]}
+			if len(parts) > 1 {
+				dest.Recipient = parts[1]
+			}
 
-				t := triggerNames
-				if v, ok := serviceDefaultTriggers[dest.Service]; ok {
-					t = v
-				}
-				for _, name := range t {
-					dests[name] = append(dests[name], dest)
-				}
+			t := triggerNames
+			if v, ok := serviceDefaultTriggers[dest.Service]; ok {
+				t = v
+			}
+			for _, name := range t {
+				dests[name] = append(dests[name], dest)
 			}
 		}
 	}

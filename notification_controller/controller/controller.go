@@ -91,7 +91,6 @@ func NewController(
 		configMapInformer: configMapInformer,
 		appInformer:       appInformer,
 		appProjInformer:   appProjInformer,
-		apiFactory:        apiFactory,
 	}
 	skipProcessingOpt := controller.WithSkipProcessing(func(obj metav1.Object) (bool, string) {
 		app, ok := (obj).(*unstructured.Unstructured)
@@ -173,7 +172,6 @@ func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string
 }
 
 type notificationController struct {
-	apiFactory        api.Factory
 	ctrl              controller.NotificationController
 	appInformer       cache.SharedIndexInformer
 	appProjInformer   cache.SharedIndexInformer

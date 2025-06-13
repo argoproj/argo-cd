@@ -97,6 +97,15 @@ export interface RevisionMetadata {
     signatureInfo?: string;
 }
 
+export interface OCIMetadata {
+    createdAt: string;
+    authors: string;
+    docsUrl: string;
+    sourceUrl: string;
+    version: string;
+    description: string;
+}
+
 export interface ChartDetails {
     description?: string;
     maintainers?: string[];
@@ -608,6 +617,7 @@ export interface Repository {
     enableLfs?: boolean;
     githubAppId?: string;
     forceHttpBasicAuth?: boolean;
+    insecureOCIForceHttp?: boolean;
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
 }
@@ -991,6 +1001,7 @@ export interface Node {
     name: string;
     systemInfo: NodeSystemInfo;
     resourcesInfo: HostResourceInfo[];
+    labels: {[name: string]: string};
 }
 
 export interface NodeSystemInfo {
