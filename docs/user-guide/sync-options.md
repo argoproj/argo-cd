@@ -293,7 +293,9 @@ to apply changes.
 
 Note: [`Replace=true`](#replace-resource-instead-of-applying-changes) takes precedence over `ServerSideApply=true`.
 
-Argo CD supports client-side apply migration, which helps transition from client-side apply to server-side apply by moving a resources' managed fields from one manager to Argo CD's manager. This feature is particularly useful when you need to migrate existing resources that were created using kubectl client-side apply to server-side apply with Argo CD.
+### Client-Side Apply Migration
+
+Argo CD supports client-side apply migration, which helps transitioning from client-side apply to server-side apply by moving a resource's managed fields from one manager to Argo CD's manager. This feature is particularly useful when you need to migrate existing resources that were created using kubectl client-side apply to server-side apply with Argo CD.
 
 By default, client-side apply migration is enabled. You can disable it using the sync option:
 
@@ -317,6 +319,8 @@ metadata:
 ```
 
 This is useful when you have other operators managing resources that are no longer in use and would like Argo CD to own all the fields for that operator.
+
+### How it works
 
 When client-side apply migration is enabled:
 1. Argo CD will use the specified field manager (or default if not specified) to perform migration
