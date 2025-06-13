@@ -17,11 +17,14 @@ func Test_timeout(t *testing.T) {
 	t.Run("Default", func(t *testing.T) {
 		initTimeout()
 		assert.Equal(t, 90*time.Second, timeout)
+		assert.Equal(t, 10*time.Second, fatalTimeout)
 	})
 	t.Run("Default", func(t *testing.T) {
 		t.Setenv("ARGOCD_EXEC_TIMEOUT", "1s")
+		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "2s")
 		initTimeout()
 		assert.Equal(t, 1*time.Second, timeout)
+		assert.Equal(t, 2*time.Second, fatalTimeout)
 	})
 }
 
@@ -42,6 +45,7 @@ func TestHideUsernamePassword(t *testing.T) {
 	require.Error(t, err)
 }
 
+// This tests a cmd that properly handles a SIGTERM signal
 func TestRunWithExecRunOpts(t *testing.T) {
 	t.Setenv("ARGOCD_EXEC_TIMEOUT", "200ms")
 	initTimeout()
@@ -54,6 +58,25 @@ func TestRunWithExecRunOpts(t *testing.T) {
 	}
 	_, err := RunWithExecRunOpts(exec.Command("sh", "-c", "trap 'trap - 15 && echo captured && exit' 15 && sleep 2"), opts)
 	assert.ErrorContains(t, err, "failed timeout after 200ms")
+}
+
+// This tests a mis-behaved cmd that stalls on SIGTERM and requires a SIGKILL
+func TestRunWithExecRunOptsFatal(t *testing.T) {
+	t.Setenv("ARGOCD_EXEC_TIMEOUT", "200ms")
+	t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "100ms")
+
+	initTimeout()
+
+	opts := ExecRunOpts{
+		TimeoutBehavior: TimeoutBehavior{
+			Signal:     syscall.SIGTERM,
+			ShouldWait: true,
+		},
+	}
+	// The returned error string in this case should contain a "fatal" in this case
+	_, err := RunWithExecRunOpts(exec.Command("sh", "-c", "trap 'trap - 15 && echo captured && sleep 10000' 15 && sleep 2"), opts)
+	// The expected timeout is ARGOCD_EXEC_TIMEOUT + ARGOCD_EXEC_FATAL_TIMEOUT = 200ms + 100ms = 300ms
+	assert.ErrorContains(t, err, "failed fatal timeout after 300ms")
 }
 
 func Test_getCommandArgsToLog(t *testing.T) {
