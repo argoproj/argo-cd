@@ -414,13 +414,13 @@ jobs:
         # latest: true means that this version mush upload the coverage report to codecov.io
         # We designate the latest version because we only collect code coverage for that version.
         k3s:
-          - version: v1.32.1
+          - version: v1.33.1
             latest: true
+          - version: v1.32.1
+            latest: false
           - version: v1.31.0
             latest: false
           - version: v1.30.4
-            latest: false
-          - version: v1.29.8
             latest: false
     needs:
       - build-go

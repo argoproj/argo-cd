@@ -138,7 +138,7 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 		var err error
 		switch r.RequestURI {
 		case "/repositories/OWNER/REPO/pullrequests/":
-			_, err = io.WriteString(w, fmt.Sprintf(`{
+			_, err = fmt.Fprintf(w, `{
 				"size": 2,
 				"pagelen": 1,
 				"page": 1,
@@ -177,9 +177,9 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 						}
 					}
 				]
-			}`, r.Host))
+			}`, r.Host)
 		case "/repositories/OWNER/REPO/pullrequests/?pagelen=1&page=2":
-			_, err = io.WriteString(w, fmt.Sprintf(`{
+			_, err = fmt.Fprintf(w, `{
 				"size": 2,
 				"pagelen": 1,
 				"page": 2,
@@ -202,7 +202,7 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 						}
 					}
 				]
-			}`, r.Host))
+			}`, r.Host)
 		default:
 			t.Fail()
 		}
@@ -329,7 +329,7 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 		var err error
 		switch r.RequestURI {
 		case "/repositories/OWNER/REPO/pullrequests/":
-			_, err = io.WriteString(w, fmt.Sprintf(`{
+			_, err = fmt.Fprintf(w, `{
 				"size": 2,
 				"pagelen": 1,
 				"page": 1,
@@ -378,9 +378,9 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 						}
 					}
 				]
-			}`, r.Host))
+			}`, r.Host)
 		case "/repositories/OWNER/REPO/pullrequests/?pagelen=1&page=2":
-			_, err = io.WriteString(w, fmt.Sprintf(`{
+			_, err = fmt.Fprintf(w, `{
 				"size": 2,
 				"pagelen": 1,
 				"page": 2,
@@ -408,7 +408,7 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 						}
 					}
 				]
-			}`, r.Host))
+			}`, r.Host)
 		default:
 			t.Fail()
 		}

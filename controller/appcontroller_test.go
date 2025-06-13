@@ -2230,6 +2230,9 @@ func TestGetAppHosts(t *testing.T) {
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
 		},
+		configMapData: map[string]string{
+			"application.allowedNodeLabels": "label1,label2",
+		},
 	}
 	ctrl := newFakeController(data, nil)
 	mockStateCache := &mockstatecache.LiveStateCache{}
@@ -2241,6 +2244,7 @@ func TestGetAppHosts(t *testing.T) {
 			Name:       "minikube",
 			SystemInfo: corev1.NodeSystemInfo{OSImage: "debian"},
 			Capacity:   map[corev1.ResourceName]resource.Quantity{corev1.ResourceCPU: resource.MustParse("5")},
+			Labels:     map[string]string{"label1": "value1", "label2": "value2"},
 		}})
 
 		// app pod
@@ -2278,6 +2282,7 @@ func TestGetAppHosts(t *testing.T) {
 				ResourceName: corev1.ResourceCPU, Capacity: 5000, RequestedByApp: 1000, RequestedByNeighbors: 2000,
 			},
 		},
+		Labels: map[string]string{"label1": "value1", "label2": "value2"},
 	}}, hosts)
 }
 

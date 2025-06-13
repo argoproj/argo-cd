@@ -147,6 +147,99 @@ Argo CD will only push changes to the `hydrateTo` branch, it will not create a P
 changes to the `syncSource` branch. You will need to use your own tooling to move the changes from the `hydrateTo` 
 branch to the `syncSource` branch.
 
+## Commit Tracing
+
+It's common for CI or other tooling to push DRY manifest changes after a code change. It's important for users to be
+able to trace the hydrated commits back to the original code change that caused the hydration.
+
+Source Hydrator makes use of some custom git commit trailers to facilitate this tracing. A CI job that builds an image
+and pushes an image bump to DRY manifests can use the following commit trailers to link the hydrated commit to the
+code commit.
+
+```shell
+git commit -m "Bump image to v1.2.3" \
+  --trailer "Argocd-reference-commit-author-name: Author Name" \
+  # Must be a valid email address per RFC 5322
+  --trailer "Argocd-reference-commit-author-email: author@example.com" \
+  # Must be a hex string 5-40 characters long
+  --trailer "Argocd-reference-commit-sha: <code-commit-sha>" \
+  --trailer "Argocd-reference-commit-subject: Commit message of the code commit" \
+   # The body must be a valid JSON string, including opening and closing quotes
+  --trailer 'Argocd-reference-commit-body: "Commit message of the code commit\n\nSigned-off-by: Author Name <author@example.com>"' \
+   # The repo URL must be a valid URL
+  --trailer "Argocd-reference-commit-repourl: https://git.example.com/owner/repo" \
+  # The date must by in ISO 8601 format
+  --trailer "Argocd-reference-commit-date: 2025-06-09T13:50:18-04:00" 
+```
+
+!!!note Newlines are not allowed
+    The commit trailers must not contain newlines. The 
+
+So the full CI script might look something like this:
+
+```shell
+# Clone code repo
+git clone https://git.example.com/owner/repo.git
+cd repo
+
+# Build the image and get the new image tag
+# <cusom build logic here>
+
+# Get the commit information
+authorName=$(git show -s --format='%an')
+authorEmail=$(git show -s --format='%ae')
+sha=$(git rev-parse HEAD)
+subject=$(git show -s --format='%s')
+body=$(git show -s --format='%b')
+jsonbody=$(jq -n --arg body "$body" '$body')
+repourl=$(git remote get-url origin)
+date=$(git show -s --format='%aI')
+
+# Clone the dry source repo
+git clone https://git.example.com/owner/deployment-repo.git
+cd deployment-repo
+
+# Bump the image in the dry manifests
+# <custom bump logic here, e.g. `kustomize edit`>
+
+# Commit the changes with the commit trailers
+git commit -m "Bump image to v1.2.3" \
+  --trailer "Argocd-reference-commit-author-name: $authorName" \
+  --trailer "Argocd-reference-commit-author-email: $authorEmail" \
+  --trailer "Argocd-reference-commit-sha: $sha" \
+  --trailer "Argocd-reference-commit-subject: $subject" \
+  --trailer "Argocd-reference-commit-body: $jsonbody" \
+  --trailer "Argocd-reference-commit-repourl: $repourl" \
+  --trailer "Argocd-reference-commit-date: $date"
+```
+
+The commit metadata will appear in the hydrated commit's root hydrator.metadata file:
+
+```json
+{
+  "references": [
+    {
+      "commit": {
+        "author": {
+          "name": "Author Name",
+          "email": "author@example.com"
+        },
+        "sha": "b82add298aa045d3672880802d5305c5a8aaa46e",
+        "subject": "chore: make a change",
+        "body": "make a change\n\nSigned-off-by: Author Name <author@example.com>",
+        "repoURL": "https://git.example.com/owner/repo",
+        "date": "2025-06-09T13:50:18-04:00"
+      }
+    }
+  ]
+}
+```
+
+Although `references` is an array, the source hydrator currently only supports a single related commit. If a trailer is
+specified more than once, the last one will be used.
+
+All trailers are optional. If a trailer is not specified, the corresponding field in the metadata will be omitted.
+
 ## Limitations
 
 ### Signature Verification
