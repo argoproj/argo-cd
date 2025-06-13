@@ -180,14 +180,15 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 		found := false
 
 		for _, argoCluster := range clustersFromArgoCD {
-			if argoCluster.Name == strMatchValue {
-				log.WithField(matchKey, argoCluster.Name).Info("matched cluster in ArgoCD")
-				params["name"] = argoCluster.Name
-				params["server"] = argoCluster.Server
-
-				found = true
-				break // Stop looking
+			if argoCluster.Name != strMatchValue {
+				continue
 			}
+			log.WithField(matchKey, argoCluster.Name).Info("matched cluster in ArgoCD")
+			params["name"] = argoCluster.Name
+			params["server"] = argoCluster.Server
+
+			found = true
+			break // Stop looking
 		}
 
 		if !found {

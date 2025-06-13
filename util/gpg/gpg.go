@@ -497,61 +497,62 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 	scanner := bufio.NewScanner(strings.NewReader(out))
 	var curKey *appsv1.GnuPGPublicKey
 	for scanner.Scan() {
-		if strings.HasPrefix(scanner.Text(), "pub ") {
-			// This is the beginning of a new key, time to store the previously parsed one in our list and start fresh.
-			if curKey != nil {
-				keys = append(keys, curKey)
-				curKey = nil
-			}
-
-			key := appsv1.GnuPGPublicKey{}
-
-			// Second field in pub output denotes key sub type (cipher and length)
-			token := subTypeMatch.FindStringSubmatch(scanner.Text())
-			if len(token) != 2 {
-				return nil, fmt.Errorf("invalid line: %s (len=%d)", scanner.Text(), len(token))
-			}
-			key.SubType = token[1]
-
-			// Next line should be the key ID, no prefix
-			if !scanner.Scan() {
-				return nil, errors.New("invalid output from gpg, end of text after primary key")
-			}
-
-			token = keyIdMatch.FindStringSubmatch(scanner.Text())
-			if len(token) != 2 {
-				return nil, errors.New("invalid output from gpg, no key ID for primary key")
-			}
-
-			key.Fingerprint = token[1]
-			// KeyID is just the last bytes of the fingerprint
-			key.KeyID = token[1][24:]
-
-			if curKey == nil {
-				curKey = &key
-			}
-
-			// Next line should be UID
-			if !scanner.Scan() {
-				return nil, errors.New("invalid output from gpg, end of text after key ID")
-			}
-
-			if !strings.HasPrefix(scanner.Text(), "uid ") {
-				return nil, errors.New("invalid output from gpg, no identity for primary key")
-			}
-
-			token = uidMatch.FindStringSubmatch(scanner.Text())
-
-			if len(token) < 3 {
-				return nil, fmt.Errorf("malformed identity line: %s (len=%d)", scanner.Text(), len(token))
-			}
-
-			// Store trust level
-			key.Trust = token[1]
-
-			// Identity - we are only interested in the first uid
-			key.Owner = token[2]
+		if !strings.HasPrefix(scanner.Text(), "pub ") {
+			continue
 		}
+		// This is the beginning of a new key, time to store the previously parsed one in our list and start fresh.
+		if curKey != nil {
+			keys = append(keys, curKey)
+			curKey = nil
+		}
+
+		key := appsv1.GnuPGPublicKey{}
+
+		// Second field in pub output denotes key sub type (cipher and length)
+		token := subTypeMatch.FindStringSubmatch(scanner.Text())
+		if len(token) != 2 {
+			return nil, fmt.Errorf("invalid line: %s (len=%d)", scanner.Text(), len(token))
+		}
+		key.SubType = token[1]
+
+		// Next line should be the key ID, no prefix
+		if !scanner.Scan() {
+			return nil, errors.New("invalid output from gpg, end of text after primary key")
+		}
+
+		token = keyIdMatch.FindStringSubmatch(scanner.Text())
+		if len(token) != 2 {
+			return nil, errors.New("invalid output from gpg, no key ID for primary key")
+		}
+
+		key.Fingerprint = token[1]
+		// KeyID is just the last bytes of the fingerprint
+		key.KeyID = token[1][24:]
+
+		if curKey == nil {
+			curKey = &key
+		}
+
+		// Next line should be UID
+		if !scanner.Scan() {
+			return nil, errors.New("invalid output from gpg, end of text after key ID")
+		}
+
+		if !strings.HasPrefix(scanner.Text(), "uid ") {
+			return nil, errors.New("invalid output from gpg, no identity for primary key")
+		}
+
+		token = uidMatch.FindStringSubmatch(scanner.Text())
+
+		if len(token) < 3 {
+			return nil, fmt.Errorf("malformed identity line: %s (len=%d)", scanner.Text(), len(token))
+		}
+
+		// Store trust level
+		key.Trust = token[1]
+
+		// Identity - we are only interested in the first uid
+		key.Owner = token[2]
 	}
 
 	// Also store the last processed key into our list to be returned
@@ -724,23 +725,24 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 
 	// First, add all keys that are found in the configuration but are not yet in the keyring
 	for key := range configured {
-		if _, ok := installed[key]; !ok {
-			addedKey, err := ImportPGPKeys(path.Join(basePath, key))
-			if err != nil {
-				return nil, nil, fmt.Errorf("error import PGP keys: %w", err)
-			}
-			if len(addedKey) != 1 {
-				return nil, nil, fmt.Errorf("invalid key found in %s", path.Join(basePath, key))
-			}
-			importedKey, err := GetInstalledPGPKeys([]string{addedKey[0].KeyID})
-			if err != nil {
-				return nil, nil, fmt.Errorf("error get installed PGP keys: %w", err)
-			} else if len(importedKey) != 1 {
-				return nil, nil, fmt.Errorf("could not get details of imported key ID %s", importedKey)
-			}
-			newKeys = append(newKeys, key)
-			fingerprints = append(fingerprints, importedKey[0].Fingerprint)
+		if _, ok := installed[key]; ok {
+			continue
 		}
+		addedKey, err := ImportPGPKeys(path.Join(basePath, key))
+		if err != nil {
+			return nil, nil, fmt.Errorf("error import PGP keys: %w", err)
+		}
+		if len(addedKey) != 1 {
+			return nil, nil, fmt.Errorf("invalid key found in %s", path.Join(basePath, key))
+		}
+		importedKey, err := GetInstalledPGPKeys([]string{addedKey[0].KeyID})
+		if err != nil {
+			return nil, nil, fmt.Errorf("error get installed PGP keys: %w", err)
+		} else if len(importedKey) != 1 {
+			return nil, nil, fmt.Errorf("could not get details of imported key ID %s", importedKey)
+		}
+		newKeys = append(newKeys, key)
+		fingerprints = append(fingerprints, importedKey[0].Fingerprint)
 	}
 
 	// Delete all keys from the keyring that are not found in the configuration anymore.
