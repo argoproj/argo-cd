@@ -9,20 +9,45 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 
+	"github.com/Masterminds/sprig/v3"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
+var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
+
+func init() {
+	// Avoid allowing the user to learn things about the environment.
+	delete(sprigFuncMap, "env")
+	delete(sprigFuncMap, "expandenv")
+	delete(sprigFuncMap, "getHostByName")
+}
+
 // WriteForPaths writes the manifests, hydrator.metadata, and README.md files for each path in the provided paths. It
 // also writes a root-level hydrator.metadata file containing the repo URL and dry SHA.
-func WriteForPaths(root *os.Root, repoUrl string, drySha string, paths []*apiclient.PathDetails) error { //nolint:revive //FIXME(var-naming)
+func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails) error { //nolint:revive //FIXME(var-naming)
+	author := ""
+	message := ""
+	date := ""
+	var references []appv1.RevisionReference
+	if dryCommitMetadata != nil {
+		author = dryCommitMetadata.Author
+		message = dryCommitMetadata.Message
+		if dryCommitMetadata.Date != nil {
+			date = dryCommitMetadata.Date.Format(time.RFC3339)
+		}
+		references = dryCommitMetadata.References
+	}
+
 	// Write the top-level readme.
-	err := writeMetadata(root, "", hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl})
+	err := writeMetadata(root, "", hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl, Author: author, Message: message, Date: date, References: references})
 	if err != nil {
 		return fmt.Errorf("failed to write top-level hydrator metadata: %w", err)
 	}
@@ -66,27 +91,26 @@ func WriteForPaths(root *os.Root, repoUrl string, drySha string, paths []*apicli
 
 // writeMetadata writes the metadata to the hydrator.metadata file.
 func writeMetadata(root *os.Root, dirPath string, metadata hydratorMetadataFile) error {
-	hydratorMetadataJSON, err := json.MarshalIndent(metadata, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal hydrator metadata: %w", err)
-	}
-	// No need to use SecureJoin here, as the path is already sanitized.
 	hydratorMetadataPath := filepath.Join(dirPath, "hydrator.metadata")
 	f, err := root.Create(hydratorMetadataPath)
 	if err != nil {
 		return fmt.Errorf("failed to create hydrator metadata file: %w", err)
 	}
 	defer io.Close(f)
-	_, err = f.Write(hydratorMetadataJSON)
+	e := json.NewEncoder(f)
+	e.SetIndent("", "  ")
+	// We don't need to escape HTML, because we're not embedding this JSON in HTML.
+	e.SetEscapeHTML(false)
+	err = e.Encode(metadata)
 	if err != nil {
-		return fmt.Errorf("failed to write hydrator metadata file: %w", err)
+		return fmt.Errorf("failed to encode hydrator metadata: %w", err)
 	}
 	return nil
 }
 
 // writeReadme writes the readme to the README.md file.
 func writeReadme(root *os.Root, dirPath string, metadata hydratorMetadataFile) error {
-	readmeTemplate, err := template.New("readme").Parse(manifestHydrationReadmeTemplate)
+	readmeTemplate, err := template.New("readme").Funcs(sprigFuncMap).Parse(manifestHydrationReadmeTemplate)
 	if err != nil {
 		return fmt.Errorf("failed to parse readme template: %w", err)
 	}
