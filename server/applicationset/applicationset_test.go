@@ -162,6 +162,7 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		"",
 		[]string{},
 		true,
+		true,
 		testEnableEventList,
 	)
 	return server.(*Server)

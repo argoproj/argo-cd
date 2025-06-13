@@ -282,6 +282,8 @@ data:
   applicationsetcontroller.global.preserved.annotations: "acme.com/annotation1,acme.com/annotation2"
   # Comma delimited list of labels to preserve in generated applications
   applicationsetcontroller.global.preserved.labels: "acme.com/label1,acme.com/label2"
+  # Enable GitHub API metrics for generators that use GitHub API
+  applicationsetcontroller.enable.github.api.metrics: "true"
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")
