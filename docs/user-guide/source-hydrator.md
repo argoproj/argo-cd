@@ -158,7 +158,8 @@ code commit.
 
 ```shell
 git commit -m "Bump image to v1.2.3" \
-  --trailer "Argocd-reference-commit-author-name: Author Name" \
+  # Must be an RFC 5322 name
+  --trailer "Argocd-reference-commit-author: Author Name <author@example.com>" \
   # Must be a valid email address per RFC 5322
   --trailer "Argocd-reference-commit-author-email: author@example.com" \
   # Must be a hex string 5-40 characters long
@@ -186,8 +187,7 @@ cd repo
 # <cusom build logic here>
 
 # Get the commit information
-authorName=$(git show -s --format='%an')
-authorEmail=$(git show -s --format='%ae')
+author=$(git show -s --format="%an <%ae>")
 sha=$(git rev-parse HEAD)
 subject=$(git show -s --format='%s')
 body=$(git show -s --format='%b')
@@ -204,8 +204,7 @@ cd deployment-repo
 
 # Commit the changes with the commit trailers
 git commit -m "Bump image to v1.2.3" \
-  --trailer "Argocd-reference-commit-author-name: $authorName" \
-  --trailer "Argocd-reference-commit-author-email: $authorEmail" \
+  --trailer "Argocd-reference-commit-author: $author" \
   --trailer "Argocd-reference-commit-sha: $sha" \
   --trailer "Argocd-reference-commit-subject: $subject" \
   --trailer "Argocd-reference-commit-body: $jsonbody" \
