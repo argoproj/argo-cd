@@ -17,6 +17,11 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
+type RepoGetter interface {
+	// GetRepository returns a repository by its URL and project name.
+	GetRepository(ctx context.Context, repoURL, project string) (*appv1.Repository, error)
+}
+
 // Dependencies is the interface for the dependencies of the Hydrator. It serves two purposes: 1) it prevents the
 // hydrator from having direct access to the app controller, and 2) it allows for easy mocking of dependencies in tests.
 // If you add something here, be sure that it is something the app controller needs to provide to the hydrator.
@@ -37,13 +42,17 @@ type Hydrator struct {
 	dependencies         Dependencies
 	statusRefreshTimeout time.Duration
 	commitClientset      commitclient.Clientset
+	repoClientset        apiclient.Clientset
+	repoGetter           RepoGetter
 }
 
-func NewHydrator(dependencies Dependencies, statusRefreshTimeout time.Duration, commitClientset commitclient.Clientset) *Hydrator {
+func NewHydrator(dependencies Dependencies, statusRefreshTimeout time.Duration, commitClientset commitclient.Clientset, repoClientset apiclient.Clientset, repoGetter RepoGetter) *Hydrator {
 	return &Hydrator{
 		dependencies:         dependencies,
 		statusRefreshTimeout: statusRefreshTimeout,
 		commitClientset:      commitClientset,
+		repoClientset:        repoClientset,
+		repoGetter:           repoGetter,
 	}
 }
 
@@ -299,6 +308,12 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 		}
 	}
 
+	// Get the commit metadata for the target revision.
+	revisionMetadata, err := h.getRevisionMetadata(context.Background(), repoURL, project, targetRevision)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get revision metadata for %q: %w", targetRevision, err)
+	}
+
 	repo, err := h.dependencies.GetWriteCredentials(context.Background(), repoURL, project)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get hydrator credentials: %w", err)
@@ -312,12 +327,13 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 	}
 
 	manifestsRequest := commitclient.CommitHydratedManifestsRequest{
-		Repo:          repo,
-		SyncBranch:    syncBranch,
-		TargetBranch:  targetBranch,
-		DrySha:        targetRevision,
-		CommitMessage: "[Argo CD Bot] hydrate " + targetRevision,
-		Paths:         paths,
+		Repo:              repo,
+		SyncBranch:        syncBranch,
+		TargetBranch:      targetBranch,
+		DrySha:            targetRevision,
+		CommitMessage:     "[Argo CD Bot] hydrate " + targetRevision,
+		Paths:             paths,
+		DryCommitMetadata: revisionMetadata,
 	}
 
 	closer, commitService, err := h.commitClientset.NewCommitServerClient()
@@ -330,6 +346,28 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 		return targetRevision, "", fmt.Errorf("failed to commit hydrated manifests: %w", err)
 	}
 	return targetRevision, resp.HydratedSha, nil
+}
+
+func (h *Hydrator) getRevisionMetadata(ctx context.Context, repoURL, project, revision string) (*appv1.RevisionMetadata, error) {
+	repo, err := h.repoGetter.GetRepository(ctx, repoURL, project)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repository %q: %w", repoURL, err)
+	}
+
+	closer, repoService, err := h.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create commit service: %w", err)
+	}
+	defer utilio.Close(closer)
+
+	resp, err := repoService.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:     repo,
+		Revision: revision,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get revision metadata: %w", err)
+	}
+	return resp, nil
 }
 
 // appNeedsHydration answers if application needs manifests hydrated.

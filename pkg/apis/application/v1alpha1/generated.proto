@@ -935,6 +935,45 @@ message Command {
   repeated string args = 2;
 }
 
+// CommitMetadata contains metadata about a commit that is related in some way to another commit.
+message CommitMetadata {
+  // Author is the author of the commit.
+  optional CommitMetadataAuthor author = 1;
+
+  // Date is the date of the commit, formatted as by `git show -s --format=%aI`.
+  // Comes from the Argocd-reference-commit-date trailer.
+  optional string date = 2;
+
+  // Subject is the commit message subject.
+  // Comes from the Argocd-reference-commit-subject trailer.
+  optional string subject = 3;
+
+  // Body is the commit message body.
+  // Comes from the Argocd-reference-commit-body trailer.
+  optional string body = 4;
+
+  // SHA is the commit hash.
+  // Comes from the Argocd-reference-commit-sha trailer.
+  optional string sha = 5;
+
+  // RepoURL is the URL of the repository where the commit is located.
+  // Comes from the Argocd-reference-commit-repourl trailer.
+  // This value is not validated and should not be used to construct UI links unless it is properly
+  // validated and/or sanitized first.
+  optional string repoUrl = 6;
+}
+
+// CommitMetadataAuthor contains information about the author of a commit.
+message CommitMetadataAuthor {
+  // Name is the name of the author.
+  // Comes from the Argocd-reference-commit-author-name trailer.
+  optional string name = 1;
+
+  // Email is the email of the author.
+  // Comes from the Argocd-reference-commit-author-email trailer.
+  optional string email = 2;
+}
+
 // ComparedTo contains application source and target which was used for resources comparison
 message ComparedTo {
   // Source is a reference to the application's source used for comparison
@@ -2207,7 +2246,8 @@ message RevisionHistory {
   optional OperationInitiator initiatedBy = 10;
 }
 
-// RevisionMetadata contains metadata for a specific revision in a Git repository
+// RevisionMetadata contains metadata for a specific revision in a Git repository. This field is used by the
+// Source Hydrator feature which may be removed in the future.
 message RevisionMetadata {
   // who authored this revision,
   // typically their name and email, e.g. "John Doe <john_doe@my-company.com>",
@@ -2226,6 +2266,16 @@ message RevisionMetadata {
 
   // SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
   optional string signatureInfo = 5;
+
+  // References contains references to information that's related to this commit in some way.
+  repeated RevisionReference references = 6;
+}
+
+// RevisionReference contains a reference to a some information that is related in some way to another commit. For now,
+// it supports only references to a commit. In the future, it may support other types of references.
+message RevisionReference {
+  // Commit contains metadata about the commit that is related in some way to another commit.
+  optional CommitMetadata commit = 1;
 }
 
 // SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.
