@@ -3221,6 +3221,49 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 			},
 		},
 		{
+			name: "order appstatus by name",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{
+								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+							}},
+						}},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+			},
+			appStatuses: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application: "app2",
+					Message:     "testing SetApplicationSetApplicationStatus to Healthy",
+					Status:      "Healthy",
+				},
+				{
+					Application: "app1",
+					Message:     "testing SetApplicationSetApplicationStatus to Healthy",
+					Status:      "Healthy",
+				},
+			},
+			expectedAppStatuses: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application: "app1",
+					Message:     "testing SetApplicationSetApplicationStatus to Healthy",
+					Status:      "Healthy",
+				},
+				{
+					Application: "app2",
+					Message:     "testing SetApplicationSetApplicationStatus to Healthy",
+					Status:      "Healthy",
+				},
+			},
+		},
+		{
 			name: "removes an appstatus",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
