@@ -326,7 +326,9 @@ If you don't need to set any environment variables, you can set an empty plugin 
     if version was mentioned in the `ConfigManagementPlugin` spec or else just use `<metadata.name>`. You can also remove the name altogether 
     and let the automatic discovery to identify the plugin.
 !!! note
-    If a CMP renders blank manifests, and `prune` is set to `true`, Argo CD will automatically remove resources. CMP plugin authors should ensure errors are part of the exit code. Commonly something like `kustomize build . | cat` won't pass errors because of the pipe. Consider setting `set -o pipefail` so anything piped will pass errors on failure.
+    If a CMP renders blank manfiests, and `prune` is set to `true`, Argo CD will automatically remove resources. CMP plugin authors should ensure errors are part of the exit code. Commonly something like `kustomize build . | cat` won't pass errors because of the pipe. Consider setting `set -o pipefail` so anything piped will pass errors on failure.
+!!! note
+    If a CMP command fails to gracefully exit on `ARGOCD_EXEC_TIMEOUT`, it will be forcefully killed after an additional timeout of `ARGOCD_EXEC_FATAL_TIMEOUT`.
 
 ## Debugging a CMP
 
