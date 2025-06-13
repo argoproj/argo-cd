@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -182,7 +183,6 @@ type ArgoCDServer struct {
 	settingsMgr    *settings_util.SettingsManager
 	enf            *rbac.Enforcer
 	projInformer   cache.SharedIndexInformer
-	projLister     applisters.AppProjectNamespaceLister
 	policyEnforcer *rbacpolicy.RBACPolicyEnforcer
 	appInformer    cache.SharedIndexInformer
 	appLister      applisters.ApplicationLister
@@ -202,7 +202,7 @@ type ArgoCDServer struct {
 	configMapInformer  cache.SharedIndexInformer
 	serviceSet         *ArgoCDServiceSet
 	extensionManager   *extension.Manager
-	shutdown           func()
+	Shutdown           func()
 	terminateRequested atomic.Bool
 	available          atomic.Bool
 }
@@ -371,7 +371,6 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		settingsMgr:        settingsMgr,
 		enf:                enf,
 		projInformer:       projInformer,
-		projLister:         projLister,
 		appInformer:        appInformer,
 		appLister:          appLister,
 		appsetInformer:     appsetInformer,
@@ -384,7 +383,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		secretInformer:     secretInformer,
 		configMapInformer:  configMapInformer,
 		extensionManager:   em,
-		shutdown:           noopShutdown,
+		Shutdown:           noopShutdown,
 		stopCh:             make(chan os.Signal, 1),
 	}
 
@@ -559,16 +558,18 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		if r := recover(); r != nil {
 			log.WithField("trace", string(debug.Stack())).Error("Recovered from panic: ", r)
 			server.terminateRequested.Store(true)
-			server.shutdown()
+			server.Shutdown()
 		}
 	}()
-
-	server.userStateStorage.Init(ctx)
 
 	metricsServ := metrics.NewMetricsServer(server.MetricsHost, server.MetricsPort)
 	if server.RedisClient != nil {
 		cacheutil.CollectMetrics(server.RedisClient, metricsServ, server.userStateStorage.GetLockObject())
 	}
+
+	// Don't init storage until after CollectMetrics. CollectMetrics adds hooks to the Redis client, and Init
+	// reads those hooks. If this is called first, there may be a data race.
+	server.userStateStorage.Init(ctx)
 
 	svcSet := newArgoCDServiceSet(server)
 	server.serviceSet = svcSet
@@ -726,7 +727,7 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 			log.Warn("Graceful shutdown timeout. Exiting...")
 		}
 	}
-	server.shutdown = shutdownFunc
+	server.Shutdown = shutdownFunc
 	signal.Notify(server.stopCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	server.available.Store(true)
 
@@ -737,11 +738,11 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		if signal != gracefulRestartSignal {
 			server.terminateRequested.Store(true)
 		}
-		server.shutdown()
+		server.Shutdown()
 	case <-ctx.Done():
 		log.Infof("API Server: %s", ctx.Err())
 		server.terminateRequested.Store(true)
-		server.shutdown()
+		server.Shutdown()
 	}
 }
 
@@ -807,7 +808,7 @@ func (server *ArgoCDServer) watchSettings() {
 		server.settings = newSettings
 		newDexCfgBytes, err := dexutil.GenerateDexConfigYAML(server.settings, server.DexTLSConfig == nil || server.DexTLSConfig.DisableTLS)
 		errorsutil.CheckError(err)
-		if string(newDexCfgBytes) != string(prevDexCfgBytes) {
+		if !bytes.Equal(newDexCfgBytes, prevDexCfgBytes) {
 			log.Infof("dex config modified. restarting")
 			break
 		}
@@ -1011,7 +1012,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	kubectl := kubeutil.NewKubectl()
 	clusterService := cluster.NewServer(a.db, a.enf, a.Cache, kubectl)
 	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr, a.HydratorEnabled)
-	repoCredsService := repocreds.NewServer(a.RepoClientset, a.db, a.enf, a.settingsMgr)
+	repoCredsService := repocreds.NewServer(a.db, a.enf)
 	var loginRateLimiter func() (utilio.Closer, error)
 	if maxConcurrentLoginRequestsCount > 0 {
 		loginRateLimiter = session.NewLoginRateLimiter(maxConcurrentLoginRequestsCount)
@@ -1048,8 +1049,6 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.AppClientset,
 		a.appsetInformer,
 		a.appsetLister,
-		a.projLister,
-		a.settingsMgr,
 		a.Namespace,
 		projectLock,
 		a.ApplicationNamespaces,
@@ -1067,8 +1066,8 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
 
 	notificationService := notification.NewServer(a.apiFactory)
-	certificateService := certificate.NewServer(a.RepoClientset, a.db, a.enf)
-	gpgkeyService := gpgkey.NewServer(a.RepoClientset, a.db, a.enf)
+	certificateService := certificate.NewServer(a.db, a.enf)
+	gpgkeyService := gpgkey.NewServer(a.db, a.enf)
 	versionService := version.NewServer(a, func() (bool, error) {
 		if a.DisableAuth {
 			return true, nil
@@ -1171,7 +1170,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 			handler: mux,
 			urlToHandler: map[string]http.Handler{
 				"/api/badge":          badge.NewHandler(server.AppClientset, server.settingsMgr, server.Namespace, server.ApplicationNamespaces),
-				common.LogoutEndpoint: logout.NewHandler(server.AppClientset, server.settingsMgr, server.sessionMgr, server.RootPath, server.BaseHRef, server.Namespace),
+				common.LogoutEndpoint: logout.NewHandler(server.settingsMgr, server.sessionMgr, server.RootPath, server.BaseHRef),
 			},
 			contentTypeToHandler: map[string]http.Handler{
 				"application/grpc-web+proto": grpcWebHandler,
@@ -1202,7 +1201,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	terminalOpts := application.TerminalOptions{DisableAuth: server.DisableAuth, Enf: server.enf}
 
-	terminal := application.NewHandler(server.appLister, server.Namespace, server.ApplicationNamespaces, server.db, server.Cache, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
+	terminal := application.NewHandler(server.appLister, server.Namespace, server.ApplicationNamespaces, server.db, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
 		WithFeatureFlagMiddleware(server.settingsMgr.GetSettings)
 	th := util_session.WithAuthMiddleware(server.DisableAuth, server.sessionMgr, terminal)
 	mux.Handle("/terminal", th)
@@ -1489,7 +1488,7 @@ var mainJsBundleRegex = regexp.MustCompile(`^main\.[0-9a-f]{20}\.js$`)
 
 func isMainJsBundle(url *url.URL) bool {
 	filename := path.Base(url.Path)
-	return mainJsBundleRegex.Match([]byte(filename))
+	return mainJsBundleRegex.MatchString(filename)
 }
 
 type registerFunc func(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error

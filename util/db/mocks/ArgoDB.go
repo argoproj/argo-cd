@@ -781,6 +781,62 @@ func (_c *ArgoDB_GetAllHelmRepositoryCredentials_Call) RunAndReturn(run func(ctx
 	return _c
 }
 
+// GetAllOCIRepositoryCredentials provides a mock function for the type ArgoDB
+func (_mock *ArgoDB) GetAllOCIRepositoryCredentials(ctx context.Context) ([]*v1alpha1.RepoCreds, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAllOCIRepositoryCredentials")
+	}
+
+	var r0 []*v1alpha1.RepoCreds
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]*v1alpha1.RepoCreds, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []*v1alpha1.RepoCreds); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*v1alpha1.RepoCreds)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ArgoDB_GetAllOCIRepositoryCredentials_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAllOCIRepositoryCredentials'
+type ArgoDB_GetAllOCIRepositoryCredentials_Call struct {
+	*mock.Call
+}
+
+// GetAllOCIRepositoryCredentials is a helper method to define mock.On call
+//   - ctx
+func (_e *ArgoDB_Expecter) GetAllOCIRepositoryCredentials(ctx interface{}) *ArgoDB_GetAllOCIRepositoryCredentials_Call {
+	return &ArgoDB_GetAllOCIRepositoryCredentials_Call{Call: _e.mock.On("GetAllOCIRepositoryCredentials", ctx)}
+}
+
+func (_c *ArgoDB_GetAllOCIRepositoryCredentials_Call) Run(run func(ctx context.Context)) *ArgoDB_GetAllOCIRepositoryCredentials_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *ArgoDB_GetAllOCIRepositoryCredentials_Call) Return(repoCredss []*v1alpha1.RepoCreds, err error) *ArgoDB_GetAllOCIRepositoryCredentials_Call {
+	_c.Call.Return(repoCredss, err)
+	return _c
+}
+
+func (_c *ArgoDB_GetAllOCIRepositoryCredentials_Call) RunAndReturn(run func(ctx context.Context) ([]*v1alpha1.RepoCreds, error)) *ArgoDB_GetAllOCIRepositoryCredentials_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetApplicationControllerReplicas provides a mock function for the type ArgoDB
 func (_mock *ArgoDB) GetApplicationControllerReplicas() int {
 	ret := _mock.Called()
@@ -1502,6 +1558,62 @@ func (_c *ArgoDB_ListHelmRepositories_Call) Return(repositorys []*v1alpha1.Repos
 }
 
 func (_c *ArgoDB_ListHelmRepositories_Call) RunAndReturn(run func(ctx context.Context) ([]*v1alpha1.Repository, error)) *ArgoDB_ListHelmRepositories_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListOCIRepositories provides a mock function for the type ArgoDB
+func (_mock *ArgoDB) ListOCIRepositories(ctx context.Context) ([]*v1alpha1.Repository, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListOCIRepositories")
+	}
+
+	var r0 []*v1alpha1.Repository
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]*v1alpha1.Repository, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []*v1alpha1.Repository); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*v1alpha1.Repository)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ArgoDB_ListOCIRepositories_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListOCIRepositories'
+type ArgoDB_ListOCIRepositories_Call struct {
+	*mock.Call
+}
+
+// ListOCIRepositories is a helper method to define mock.On call
+//   - ctx
+func (_e *ArgoDB_Expecter) ListOCIRepositories(ctx interface{}) *ArgoDB_ListOCIRepositories_Call {
+	return &ArgoDB_ListOCIRepositories_Call{Call: _e.mock.On("ListOCIRepositories", ctx)}
+}
+
+func (_c *ArgoDB_ListOCIRepositories_Call) Run(run func(ctx context.Context)) *ArgoDB_ListOCIRepositories_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *ArgoDB_ListOCIRepositories_Call) Return(repositorys []*v1alpha1.Repository, err error) *ArgoDB_ListOCIRepositories_Call {
+	_c.Call.Return(repositorys, err)
+	return _c
+}
+
+func (_c *ArgoDB_ListOCIRepositories_Call) RunAndReturn(run func(ctx context.Context) ([]*v1alpha1.Repository, error)) *ArgoDB_ListOCIRepositories_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -38,6 +38,8 @@ func NewUserStateStorage(redis *redis.Client) *userStateStorage {
 	}
 }
 
+// Init sets up watches on the revoked tokens and starts a ticker to periodically resync the revoked tokens from Redis.
+// Don't call this until after setting up all hooks on the Redis client, or you might encounter race conditions.
 func (storage *userStateStorage) Init(ctx context.Context) {
 	go storage.watchRevokedTokens(ctx)
 	ticker := time.NewTicker(storage.resyncDuration)

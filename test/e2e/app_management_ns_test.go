@@ -1975,7 +1975,7 @@ metadata:
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "")
 	require.NoError(t, err)
-	_, err = tmpFile.Write([]byte(s))
+	_, err = tmpFile.WriteString(s)
 	require.NoError(t, err)
 
 	_, err = fixture.Run("", "kubectl", "apply", "-f", tmpFile.Name())

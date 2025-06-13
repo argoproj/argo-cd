@@ -124,6 +124,7 @@ const (
 	RepoURLTypeHelm                 = "helm"
 	RepoURLTypeHelmParent           = "helm-par"
 	RepoURLTypeHelmOCI              = "helm-oci"
+	RepoURLTypeOCI                  = "oci"
 	GitUsername                     = "admin"
 	GitPassword                     = "password"
 	GitBearerToken                  = "test"
@@ -131,6 +132,10 @@ const (
 	GithubAppInstallationID         = "7893789433789"
 	GpgGoodKeyID                    = "D56C4FCA57A46444"
 	HelmOCIRegistryURL              = "localhost:5000/myrepo"
+	HelmAuthenticatedOCIRegistryURL = "localhost:5001/myrepo"
+	OCIRegistryURL                  = "oci://localhost:5000/my-oci-repo"
+	OCIHostURL                      = "oci://localhost:5000"
+	AuthenticatedOCIHostURL         = "oci://localhost:5001"
 )
 
 // TestNamespace returns the namespace where Argo CD E2E test instance will be
@@ -345,6 +350,8 @@ func RepoURL(urlType RepoURLType) string {
 	// When Helm Repo has sub repos, this is the parent repo URL
 	case RepoURLTypeHelmParent:
 		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo")
+	case RepoURLTypeOCI:
+		return OCIRegistryURL
 	case RepoURLTypeHelmOCI:
 		return HelmOCIRegistryURL
 	default:

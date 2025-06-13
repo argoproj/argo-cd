@@ -17,10 +17,12 @@ import (
 
 // Context implements the "given" part of given/when/then
 type Context struct {
-	t           *testing.T
-	path        string
-	chart       string
-	repoURLType fixture.RepoURLType
+	t               *testing.T
+	path            string
+	chart           string
+	ociRegistry     string
+	ociRegistryPath string
+	repoURLType     fixture.RepoURLType
 	// seconds
 	timeout                  int
 	name                     string
@@ -187,8 +189,23 @@ func (c *Context) HelmOCIRepoAdded(name string) *Context {
 	return c
 }
 
+func (c *Context) PushImageToOCIRegistry(pathName, tag string) *Context {
+	repos.PushImageToOCIRegistry(c.t, pathName, tag)
+	return c
+}
+
+func (c *Context) PushImageToAuthenticatedOCIRegistry(pathName, tag string) *Context {
+	repos.PushImageToAuthenticatedOCIRegistry(c.t, pathName, tag)
+	return c
+}
+
 func (c *Context) PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
 	repos.PushChartToOCIRegistry(c.t, chartPathName, chartName, chartVersion)
+	return c
+}
+
+func (c *Context) PushChartToAuthenticatedOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
+	repos.PushChartToAuthenticatedOCIRegistry(c.t, chartPathName, chartName, chartVersion)
 	return c
 }
 
@@ -214,6 +231,21 @@ func (c *Context) HTTPSCredentialsTLSClientCertAdded() *Context {
 
 func (c *Context) SSHCredentialsAdded() *Context {
 	repos.AddSSHCredentials(c.t)
+	return c
+}
+
+func (c *Context) OCIRepoAdded(name, imagePath string) *Context {
+	repos.AddOCIRepo(c.t, name, imagePath)
+	return c
+}
+
+func (c *Context) AuthenticatedOCIRepoAdded(name, imagePath string) *Context {
+	repos.AddAuthenticatedOCIRepo(c.t, name, imagePath)
+	return c
+}
+
+func (c *Context) OCIRegistry(registry string) *Context {
+	c.ociRegistry = registry
 	return c
 }
 
@@ -279,6 +311,11 @@ func (c *Context) Recurse() *Context {
 
 func (c *Context) Chart(chart string) *Context {
 	c.chart = chart
+	return c
+}
+
+func (c *Context) OCIRegistryPath(ociPath string) *Context {
+	c.ociRegistryPath = ociPath
 	return c
 }
 

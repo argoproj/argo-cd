@@ -65,8 +65,7 @@ type repoCacheMocks struct {
 }
 
 type newGitRepoHelmChartOptions struct {
-	chartName    string
-	chartVersion string
+	chartName string
 	// valuesFiles is a map of the values file name to the key/value pairs to be written to the file
 	valuesFiles map[string]map[string]string
 }
@@ -148,7 +147,7 @@ func newServiceWithOpt(t *testing.T, cf clientFunc, root string) (*Service, *git
 	cf(gitClient, helmClient, paths)
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
-	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, root)
+	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, root)
 
 	service.newGitClient = func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
@@ -229,6 +228,8 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 }
 
 func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name                    string
 		outOfBoundsFilename     string
@@ -367,7 +368,7 @@ func TestGenerateManifest_RefOnlyShortCircuit(t *testing.T) {
 	repoRemote := "file://" + repopath
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
-	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, repopath)
+	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, repopath)
 	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		opts = append(opts, git.WithEventHandlers(git.EventHandlers{
 			// Primary check, we want to make sure ls-remote is not called when the item is in cache
@@ -431,7 +432,7 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 			})
 		require.NoError(t, err)
 	})
-	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, repopath)
+	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, repopath)
 	var gitClient git.Client
 	var err error
 	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
@@ -452,9 +453,8 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 		createPath: true,
 		remote:     repoRemote,
 		helmChartOptions: newGitRepoHelmChartOptions{
-			chartName:    "my-chart",
-			chartVersion: "v1.0.0",
-			valuesFiles:  map[string]map[string]string{"test.yaml": {"testval": "test"}},
+			chartName:   "my-chart",
+			valuesFiles: map[string]map[string]string{"test.yaml": {"testval": "test"}},
 		},
 	})
 	src := v1alpha1.ApplicationSource{RepoURL: repoRemote, Path: ".", TargetRevision: "HEAD", Helm: &v1alpha1.ApplicationSourceHelm{
@@ -679,6 +679,17 @@ func TestInvalidManifestsInDir(t *testing.T) {
 
 	_, err := service.GenerateManifest(t.Context(), &q)
 	require.Error(t, err)
+}
+
+func TestSkippedInvalidManifestsInDir(t *testing.T) {
+	service := newService(t, ".")
+
+	src := v1alpha1.ApplicationSource{Path: "./testdata/invalid-manifests-skipped", Directory: &v1alpha1.ApplicationSourceDirectory{Recurse: true}}
+
+	q := apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &src}
+
+	_, err := service.GenerateManifest(t.Context(), &q)
+	require.NoError(t, err)
 }
 
 func TestInvalidMetadata(t *testing.T) {
@@ -1681,6 +1692,20 @@ func TestGetRevisionMetadata(t *testing.T) {
 		Author:  "author",
 		Date:    now,
 		Tags:    []string{"tag1", "tag2"},
+		References: []git.RevisionReference{
+			{
+				Commit: &git.CommitMetadata{
+					Author: git.CommitMetadataAuthor{
+						Name:  "test-name",
+						Email: "test-email",
+					},
+					Date:    now.Format(time.RFC3339),
+					Subject: "test-subject",
+					SHA:     "test-sha",
+					RepoURL: "test-repo-url",
+				},
+			},
+		},
 	}, nil)
 
 	res, err := service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
@@ -1695,6 +1720,9 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Equal(t, "author", res.Author)
 	assert.Equal(t, []string{"tag1", "tag2"}, res.Tags)
 	assert.NotEmpty(t, res.SignatureInfo)
+	require.Len(t, res.References, 1)
+	require.NotNil(t, res.References[0].Commit)
+	assert.Equal(t, "test-sha", res.References[0].Commit.SHA)
 
 	// Check for truncated revision value
 	res, err = service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
@@ -2817,6 +2845,13 @@ func Test_findManifests(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	t.Run("invalid manifest containing '+argocd:skip-file-rendering' doesn't throw an error", func(t *testing.T) {
+		require.DirExists(t, "./testdata/invalid-manifests-skipped")
+		manifests, err := findManifests(logCtx, "./testdata/invalid-manifests-skipped", "./testdata/invalid-manifests-skipped", nil, noRecurse, nil, resource.MustParse("0"))
+		assert.Empty(t, manifests)
+		require.NoError(t, err)
+	})
+
 	t.Run("irrelevant YAML gets skipped, relevant YAML gets parsed", func(t *testing.T) {
 		manifests, err := findManifests(logCtx, "./testdata/irrelevant-yaml", "./testdata/irrelevant-yaml", nil, noRecurse, nil, resource.MustParse("0"))
 		assert.Len(t, manifests, 1)
@@ -2850,7 +2885,7 @@ func Test_findManifests(t *testing.T) {
 	})
 }
 
-func TestTestRepoOCI(t *testing.T) {
+func TestTestRepoHelmOCI(t *testing.T) {
 	service := newService(t, ".")
 	_, err := service.TestRepository(t.Context(), &apiclient.TestRepositoryRequest{
 		Repo: &v1alpha1.Repository{
@@ -3207,7 +3242,7 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	})
 }
 
-func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
+func TestGetHelmRepos_OCIHelmDependenciesWithHelmRepo(t *testing.T) {
 	src := v1alpha1.ApplicationSource{Path: "."}
 	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{}, ApplicationSource: &src, HelmRepoCreds: []*v1alpha1.RepoCreds{
 		{URL: "example.com", Username: "test", Password: "test", EnableOCI: true},
@@ -3222,9 +3257,37 @@ func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
 	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
 }
 
-func TestGetHelmRepos_OCIDependenciesWithRepo(t *testing.T) {
+func TestGetHelmRepos_OCIHelmDependenciesWithRepo(t *testing.T) {
 	src := v1alpha1.ApplicationSource{Path: "."}
 	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{{Repo: "example.com", Username: "test", Password: "test", EnableOCI: true}}, ApplicationSource: &src, HelmRepoCreds: []*v1alpha1.RepoCreds{}}
+
+	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
+	require.NoError(t, err)
+
+	assert.Len(t, helmRepos, 1)
+	assert.Equal(t, "test", helmRepos[0].GetUsername())
+	assert.True(t, helmRepos[0].EnableOci)
+	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
+}
+
+func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
+	src := v1alpha1.ApplicationSource{Path: "."}
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{}, ApplicationSource: &src, HelmRepoCreds: []*v1alpha1.RepoCreds{
+		{URL: "oci://example.com", Username: "test", Password: "test", Type: "oci"},
+	}}
+
+	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
+	require.NoError(t, err)
+
+	assert.Len(t, helmRepos, 1)
+	assert.Equal(t, "test", helmRepos[0].GetUsername())
+	assert.True(t, helmRepos[0].EnableOci)
+	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
+}
+
+func TestGetHelmRepos_OCIDependenciesWithRepo(t *testing.T) {
+	src := v1alpha1.ApplicationSource{Path: "."}
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{{Repo: "oci://example.com", Username: "test", Password: "test", Type: "oci"}}, ApplicationSource: &src, HelmRepoCreds: []*v1alpha1.RepoCreds{}}
 
 	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
 	require.NoError(t, err)
@@ -3268,6 +3331,8 @@ func TestGetHelmRepo_NamedReposAlias(t *testing.T) {
 }
 
 func Test_getResolvedValueFiles(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 	paths := utilio.NewRandomizedTempPaths(tempDir)
 
