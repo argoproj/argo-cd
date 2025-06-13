@@ -58,6 +58,7 @@ func TestMergeGenerate(t *testing.T) {
 		mergeKeys      []string
 		expectedErr    error
 		expected       []map[string]any
+		useGoTemplate  bool
 	}{
 		{
 			name:           "no generators",
@@ -84,6 +85,19 @@ func TestMergeGenerate(t *testing.T) {
 			expected: []map[string]any{
 				{"a": "2_1", "b": "same", "c": "1_3"},
 			},
+		},
+		{
+			name: "happy flow templated - generate paramSets",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				*getNestedListGenerator(`{"a": "1_1","b": "same"}`),
+				*getNestedListGenerator(`{"a": "1_1","b": "same","c": "2_3"}`),
+				*getNestedListGenerator(`{"a": "3_1","b": "different","c": "3_3"}`), // gets ignored because its merge key value isn't in the base params set
+			},
+			mergeKeys: []string{"{{ .a }}-{{ .b }}"},
+			expected: []map[string]any{
+				{"a": "1_1", "b": "same", "c": "2_3"},
+			},
+			useGoTemplate: true,
 		},
 		{
 			name: "merge keys absent - do not merge",
@@ -157,6 +171,7 @@ func TestMergeGenerate(t *testing.T) {
 			t.Parallel()
 
 			appSet := &argoprojiov1alpha1.ApplicationSet{}
+			appSet.Spec.GoTemplate = testCaseCopy.useGoTemplate
 
 			mergeGenerator := NewMergeGenerator(
 				map[string]Generator{
@@ -215,11 +230,13 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		name        string
-		mergeKeys   []string
-		paramSets   []map[string]any
-		expectedErr error
-		expected    map[string]map[string]any
+		name              string
+		mergeKeys         []string
+		paramSets         []map[string]any
+		expectedErr       error
+		expected          map[string]map[string]any
+		useGoTemplate     bool
+		goTemplateOptions []string
 	}{
 		{
 			name:        "no merge keys",
@@ -227,18 +244,60 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 			expectedErr: ErrNoMergeKeys,
 		},
 		{
+			name:          "no merge keys templated",
+			mergeKeys:     []string{},
+			expectedErr:   ErrNoMergeKeys,
+			useGoTemplate: true,
+		},
+		{
 			name:      "no paramSets",
 			mergeKeys: []string{"key"},
 			expected:  make(map[string]map[string]any),
 		},
 		{
-			name:      "simple key, unique paramSets",
+			name:          "no paramSets templated",
+			mergeKeys:     []string{"key"},
+			expected:      make(map[string]map[string]any),
+			useGoTemplate: true,
+		},
+		{
+			name:      "simple key, no gotemplates, unique paramSets",
 			mergeKeys: []string{"key"},
 			paramSets: []map[string]any{{"key": "a"}, {"key": "b"}},
 			expected: map[string]map[string]any{
 				`{"key":"a"}`: {"key": "a"},
 				`{"key":"b"}`: {"key": "b"},
 			},
+		},
+		{
+			name:      "simple key, gotemplates, unique paramSets",
+			mergeKeys: []string{"key"},
+			paramSets: []map[string]any{{"key": "a"}, {"key": "b"}},
+			expected: map[string]map[string]any{
+				`{"key":"string:a"}`: {"key": "a"},
+				`{"key":"string:b"}`: {"key": "b"},
+			},
+			useGoTemplate: true,
+		},
+		{
+			name:      "simple templated key, gotemplates, unique paramSets",
+			mergeKeys: []string{"{{ .key }}"},
+			paramSets: []map[string]any{{"key": "a"}, {"key": "b"}},
+			expected: map[string]map[string]any{
+				`{"{{ .key }}":"a"}`: {"key": "a"},
+				`{"{{ .key }}":"b"}`: {"key": "b"},
+			},
+			useGoTemplate: true,
+		},
+		{
+			name:      "templated multi-key, unique paramSets",
+			mergeKeys: []string{"{{ .key }}-{{ .key }}"},
+			paramSets: []map[string]any{{"key": "a"}, {"key": "b"}},
+			expected: map[string]map[string]any{
+				`{"{{ .key }}-{{ .key }}":"a-a"}`: {"key": "a"},
+				`{"{{ .key }}-{{ .key }}":"b-b"}`: {"key": "b"},
+			},
+			useGoTemplate: true,
 		},
 		{
 			name:      "simple key object, unique paramSets",
@@ -248,6 +307,13 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 				`{"key":{"hello":"world"}}`: {"key": map[string]any{"hello": "world"}},
 				`{"key":"b"}`:               {"key": "b"},
 			},
+		},
+		{
+			name:          "invalid auto convertable, leading dot",
+			mergeKeys:     []string{".key"},
+			paramSets:     []map[string]any{{".key": "a"}, {".key": "b"}},
+			expectedErr:   fmt.Errorf("failed generating paramSetRepr for paramSet %v: %w", 0, fmt.Errorf("merge key is not valid goTemplate, missing curly brackets: %s", ".key")),
+			useGoTemplate: true,
 		},
 		{
 			name:        "simple key, non-unique paramSets",
@@ -313,6 +379,47 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 			},
 		},
 		{
+			name:      "compound templated duplicate key, unique nested paramSets",
+			mergeKeys: []string{"key1", "key2", "{{ .key3.key4 }}", "key2"},
+			paramSets: []map[string]any{
+				{"key1": "a", "key2": "a", "key3": map[string]any{"key4": "a"}},
+				{"key1": "a", "key2": "b", "key3": map[string]any{"key4": "a", "key5": "b"}},
+				{"key1": "b", "key2": "a", "key3": map[string]any{"key4": "b"}},
+			},
+			expected: map[string]map[string]any{
+				`{"key1":"string:a","key2":"string:a","{{ .key3.key4 }}":"a"}`: {"key1": "a", "key2": "a", "key3": map[string]any{"key4": "a"}},
+				`{"key1":"string:a","key2":"string:b","{{ .key3.key4 }}":"a"}`: {"key1": "a", "key2": "b", "key3": map[string]any{"key4": "a", "key5": "b"}},
+				`{"key1":"string:b","key2":"string:a","{{ .key3.key4 }}":"b"}`: {"key1": "b", "key2": "a", "key3": map[string]any{"key4": "b"}},
+			},
+			useGoTemplate: true,
+		},
+		{
+			name:      "compound templated ordered key",
+			mergeKeys: []string{"key1", "key2"},
+			paramSets: []map[string]any{
+				{"key1": "a", "key2": map[string]any{"key3": "a", "key4": "b"}},
+				{"key1": "b", "key2": map[string]any{"key4": "b", "key3": "a"}},
+			},
+			expected: map[string]map[string]any{
+				`{"key1":"string:a","key2":"map:map[key3:a key4:b]"}`: {"key1": "a", "key2": map[string]any{"key3": "a", "key4": "b"}},
+				`{"key1":"string:b","key2":"map:map[key3:a key4:b]"}`: {"key1": "b", "key2": map[string]any{"key4": "b", "key3": "a"}},
+			},
+			useGoTemplate: true,
+		},
+		{
+			name:      "compound templated hierarchical key",
+			mergeKeys: []string{"key1"},
+			paramSets: []map[string]any{
+				{"key1": map[string]any{"key2": "a"}},
+				{"key1": "map[key2:a]"},
+			},
+			expected: map[string]map[string]any{
+				`{"key1":"map:map[key2:a]"}`:    {"key1": map[string]any{"key2": "a"}},
+				`{"key1":"string:map[key2:a]"}`: {"key1": "map[key2:a]"},
+			},
+			useGoTemplate: true,
+		},
+		{
 			name:      "compound key, non-unique paramSets",
 			mergeKeys: []string{"key1", "key2"},
 			paramSets: []map[string]any{
@@ -340,7 +447,7 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := getParamSetsByMergeKey(testCaseCopy.mergeKeys, testCaseCopy.paramSets)
+			got, err := getParamSetsByMergeKey(testCaseCopy.mergeKeys, testCaseCopy.paramSets, testCaseCopy.useGoTemplate, testCaseCopy.goTemplateOptions)
 
 			if testCaseCopy.expectedErr != nil {
 				require.EqualError(t, err, testCaseCopy.expectedErr.Error())
