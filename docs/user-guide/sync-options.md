@@ -293,6 +293,44 @@ to apply changes.
 
 Note: [`Replace=true`](#replace-resource-instead-of-applying-changes) takes precedence over `ServerSideApply=true`.
 
+### Client-Side Apply Migration
+
+Argo CD supports client-side apply migration, which helps transitioning from client-side apply to server-side apply by moving a resource's managed fields from one manager to Argo CD's manager. This feature is particularly useful when you need to migrate existing resources that were created using kubectl client-side apply to server-side apply with Argo CD.
+
+By default, client-side apply migration is enabled. You can disable it using the sync option:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - DisableClientSideApplyMigration=true
+```
+
+You can specify a custom field manager for the client-side apply migration using an annotation:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    argocd.argoproj.io/client-side-apply-migration-manager: "my-custom-manager"
+```
+
+This is useful when you have other operators managing resources that are no longer in use and would like Argo CD to own all the fields for that operator.
+
+### How it works
+
+When client-side apply migration is enabled:
+1. Argo CD will use the specified field manager (or default if not specified) to perform migration
+2. During a server-side apply sync operation, it will:
+   - Perfirm a client-side-apply with the specified field manager
+   - Move the 'last-appled-configuration' annotation to be managed by the specified manager
+   - Perform the server-side apply, which will auto migrate all the fields under the manager that owns the 'last-applied-configration' annotation.
+
+This feature is based on Kubernetes' [client-side apply migration KEP](https://github.com/alexzielenski/enhancements/blob/03df8820b9feca6d2cab78e303c99b2c9c0c4c5c/keps/sig-cli/3517-kubectl-client-side-apply-migration/README.md), which provides the auto migration from client-side to server-side apply.
+
 ## Fail the sync if a shared resource is found
 
 By default, Argo CD will apply all manifests found in the git path configured in the Application regardless if the resources defined in the yamls are already applied by another Application. If the `FailOnSharedResource` sync option is set, Argo CD will fail the sync whenever it finds a resource in the current Application that is already applied in the cluster by another Application.
