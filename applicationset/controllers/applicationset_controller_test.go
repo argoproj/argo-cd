@@ -707,7 +707,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
-						Source: &v1alpha1.ApplicationSource{
+						Source:  &v1alpha1.ApplicationSource{
 							// Directory and jsonnet block are removed
 						},
 					},
@@ -6818,7 +6818,7 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 			appSetOld: buildAppSet(map[string]string{}),
 			appSetNew: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
-					DeletionTimestamp: &metav1.Time{time.Now()},
+					DeletionTimestamp: &metav1.Time{Time: time.Now()},
 				},
 			},
 			enableProgressiveSyncs: true,
@@ -6829,7 +6829,7 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 			appSetOld: buildAppSet(map[string]string{}),
 			appSetNew: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
-					DeletionTimestamp: &metav1.Time{time.Now()},
+					DeletionTimestamp: &metav1.Time{Time: time.Now()},
 				},
 			},
 			enableProgressiveSyncs: false,

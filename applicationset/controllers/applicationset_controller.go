@@ -16,6 +16,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"runtime/debug"
@@ -386,13 +387,12 @@ func (r *ApplicationSetReconciler) performReverseDeletion(ctx context.Context, l
 	_, appStepMap := r.buildAppDependencyList(logCtx, appset, currentApps)
 	// reverse the AppStepMap to perform deletion
 	type deleteInOrder struct {
-		AppName      string
-		Step         int
-		hasFinalizer bool
+		AppName string
+		Step    int
 	}
 	var reverseDeleteAppSteps []deleteInOrder
 	for appName, appStep := range appStepMap {
-		reverseDeleteAppSteps = append(reverseDeleteAppSteps, deleteInOrder{appName, stepLength - appStep - 1, true})
+		reverseDeleteAppSteps = append(reverseDeleteAppSteps, deleteInOrder{appName, stepLength - appStep - 1})
 	}
 
 	sort.Slice(reverseDeleteAppSteps, func(i, j int) bool {
@@ -408,7 +408,7 @@ func (r *ApplicationSetReconciler) performReverseDeletion(ctx context.Context, l
 		logCtx.Infof("step %v : app %v", step.Step, step.AppName)
 		app := appMap[step.AppName]
 		retrievedApp := argov1alpha1.Application{}
-		if err := r.Client.Get(ctx, types.NamespacedName{Name: app.Name, Namespace: app.Namespace}, &retrievedApp); err != nil {
+		if err := r.Get(ctx, types.NamespacedName{Name: app.Name, Namespace: app.Namespace}, &retrievedApp); err != nil {
 			if apierrors.IsNotFound(err) {
 				logCtx.Infof("application %s successfully deleted", step.AppName)
 				continue
@@ -418,11 +418,11 @@ func (r *ApplicationSetReconciler) performReverseDeletion(ctx context.Context, l
 		if retrievedApp.DeletionTimestamp != nil {
 			logCtx.Infof("Deletion of the application %v has been triggered, has a deletion timestamp but not completed deletion", step.AppName)
 			if time.Since(retrievedApp.DeletionTimestamp.Time) > 2*time.Minute {
-				return 0, fmt.Errorf("Application has not been deleted in over 2 minutes")
+				return 0, errors.New("application has not been deleted in over 2 minutes")
 			}
 		}
 		// The application has not been deleted yet, trigger its deletion
-		if err := r.Client.Delete(ctx, &retrievedApp); err != nil {
+		if err := r.Delete(ctx, &retrievedApp); err != nil {
 			return 0, err
 		}
 		return requeueTime, nil
