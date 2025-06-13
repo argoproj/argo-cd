@@ -379,17 +379,18 @@ func (c *appCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 	for _, app := range apps {
-		if c.appFilter(app) {
-			destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, c.db)
-			if err != nil {
-				log.Warnf("Failed to get destination cluster for application %s: %v", app.Name, err)
-			}
-			destServer := ""
-			if destCluster != nil {
-				destServer = destCluster.Server
-			}
-			c.collectApps(ch, app, destServer)
+		if !c.appFilter(app) {
+			continue
 		}
+		destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, c.db)
+		if err != nil {
+			log.Warnf("Failed to get destination cluster for application %s: %v", app.Name, err)
+		}
+		destServer := ""
+		if destCluster != nil {
+			destServer = destCluster.Server
+		}
+		c.collectApps(ch, app, destServer)
 	}
 }
 
