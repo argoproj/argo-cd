@@ -80,7 +80,10 @@ $pod-age-icon-clr: #ffce25;
             border-radius: 3px;
             background-color: $argo-color-gray-3;
             color: $argo-color-gray-6;
+            max-height: 100px;
+            overflow: auto;
              &__item {
+                line-height: 20px;
                 display: flex;
          
                 &__name {
