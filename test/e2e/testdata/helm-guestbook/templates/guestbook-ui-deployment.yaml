@@ -2,8 +2,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: guestbook-ui
+  labels:
+    test: "true"
 spec:
-  replicas: 1
+  replicas: {{ .Values.replicas }}
   revisionHistoryLimit: 3
   selector:
     matchLabels:
@@ -15,6 +17,7 @@ spec:
     spec:
       containers:
       - image: quay.io/argoprojlabs/argocd-e2e-container:0.2
+        imagePullPolicy: IfNotPresent
         name: guestbook-ui
         ports:
         - containerPort: 80

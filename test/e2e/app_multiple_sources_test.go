@@ -65,7 +65,7 @@ func TestMultiSourceAppWithHelmExternalValueFiles(t *testing.T) {
 		RepoURL: RepoURL(RepoURLTypeFile),
 		Ref:     "values",
 	}, {
-		RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+		RepoURL:        RepoURL(RepoURLTypeFile),
 		TargetRevision: "HEAD",
 		Path:           "helm-guestbook",
 		Helm: &ApplicationSourceHelm{
@@ -107,9 +107,13 @@ func TestMultiSourceAppWithHelmExternalValueFiles(t *testing.T) {
 			for _, r := range app.Status.Resources {
 				statusByName[r.Name] = r.Status
 			}
-			// check if the app has 3 resources, guestbook and 2 pods
 			assert.Len(t, statusByName, 1)
-			assert.Equal(t, SyncStatusCodeSynced, statusByName["helm-guestbook"])
+			assert.Equal(t, SyncStatusCodeSynced, statusByName["guestbook-ui"])
+
+			// Confirm that the deployment has 3 replicas.
+			output, err := Run("", "kubectl", "get", "deployment", "guestbook-ui", "-n", DeploymentNamespace(), "-o", "jsonpath={.spec.replicas}")
+			require.NoError(t, err)
+			assert.Equal(t, "3", output, "Expected 3 replicas for the helm-guestbook deployment")
 		})
 }
 
