@@ -11,6 +11,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/Masterminds/sprig/v3"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -19,6 +20,15 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/io"
 )
+
+var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
+
+func init() {
+	// Avoid allowing the user to learn things about the environment.
+	delete(sprigFuncMap, "env")
+	delete(sprigFuncMap, "expandenv")
+	delete(sprigFuncMap, "getHostByName")
+}
 
 // WriteForPaths writes the manifests, hydrator.metadata, and README.md files for each path in the provided paths. It
 // also writes a root-level hydrator.metadata file containing the repo URL and dry SHA.
@@ -100,7 +110,7 @@ func writeMetadata(root *os.Root, dirPath string, metadata hydratorMetadataFile)
 
 // writeReadme writes the readme to the README.md file.
 func writeReadme(root *os.Root, dirPath string, metadata hydratorMetadataFile) error {
-	readmeTemplate, err := template.New("readme").Parse(manifestHydrationReadmeTemplate)
+	readmeTemplate, err := template.New("readme").Funcs(sprigFuncMap).Parse(manifestHydrationReadmeTemplate)
 	if err != nil {
 		return fmt.Errorf("failed to parse readme template: %w", err)
 	}

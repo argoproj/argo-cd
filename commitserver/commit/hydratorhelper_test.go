@@ -1,7 +1,11 @@
 package commit
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -158,18 +162,50 @@ func TestWriteMetadata(t *testing.T) {
 func TestWriteReadme(t *testing.T) {
 	root := tempRoot(t)
 
+	randomData := make([]byte, 32)
+	_, err := rand.Read(randomData)
+	require.NoError(t, err)
+	hash := sha256.Sum256(randomData)
+	sha := hex.EncodeToString(hash[:])
+
 	metadata := hydratorMetadataFile{
 		RepoURL: "https://github.com/example/repo",
 		DrySHA:  "abc123",
+		References: []appsv1.RevisionReference{
+			{
+				Commit: &appsv1.CommitMetadata{
+					Author: appsv1.CommitMetadataAuthor{
+						Name:  "test-code-author",
+						Email: "test@example.com",
+					},
+					Date:    time.Now().Format(time.RFC3339),
+					Subject: "test-code-subject",
+					SHA:     sha,
+					RepoURL: "https://example.com/test/repo.git",
+				},
+			},
+		},
 	}
 
-	err := writeReadme(root, "", metadata)
+	err = writeReadme(root, "", metadata)
 	require.NoError(t, err)
 
 	readmePath := filepath.Join(root.Name(), "README.md")
 	readmeBytes, err := os.ReadFile(readmePath)
 	require.NoError(t, err)
-	assert.Contains(t, string(readmeBytes), metadata.RepoURL)
+	assert.Equal(t, `# Manifest Hydration
+
+To hydrate the manifests in this repository, run the following commands:
+
+`+"```shell"+`
+git clone https://github.com/example/repo
+# cd into the cloned directory
+git checkout abc123
+`+"```"+fmt.Sprintf(`
+## References
+
+* [%s](https://example.com/test/repo.git): test-code-subject (test-code-author <test@example.com>)
+`, sha[:7]), string(readmeBytes))
 }
 
 func TestWriteManifests(t *testing.T) {

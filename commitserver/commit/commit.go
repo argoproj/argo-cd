@@ -222,15 +222,24 @@ type hydratorMetadataFile struct {
 }
 
 // TODO: make this configurable via ConfigMap.
-var manifestHydrationReadmeTemplate = `
-# Manifest Hydration
+var manifestHydrationReadmeTemplate = `# Manifest Hydration
 
 To hydrate the manifests in this repository, run the following commands:
 
-` + "```shell\n" + `
+` + "```shell" + `
 git clone {{ .RepoURL }}
 # cd into the cloned directory
 git checkout {{ .DrySHA }}
 {{ range $command := .Commands -}}
 {{ $command }}
-{{ end -}}` + "```"
+{{ end -}}` + "```" + `
+{{ if .References -}}
+
+## References
+
+{{ range $ref := .References -}}
+{{ if $ref.Commit -}}
+* [{{ $ref.Commit.SHA | mustRegexFind "[0-9a-f]+" | trunc 7 }}]({{ $ref.Commit.RepoURL }}): {{ $ref.Commit.Subject }} ({{ $ref.Commit.Author.Name }} <{{ $ref.Commit.Author.Email }}>)
+{{ end -}}
+{{ end -}}
+{{ end -}}`

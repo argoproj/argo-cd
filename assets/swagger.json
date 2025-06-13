@@ -8019,6 +8019,10 @@
         "author": {
           "$ref": "#/definitions/v1alpha1CommitMetadataAuthor"
         },
+        "body": {
+          "description": "Body is the commit message body.\nComes from the Argocd-reference-commit-body trailer.",
+          "type": "string"
+        },
         "date": {
           "description": "Date is the date of the commit, formatted as by `git show -s --format=%aI`.\nComes from the Argocd-reference-commit-date trailer.",
           "type": "string"

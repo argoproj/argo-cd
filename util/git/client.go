@@ -1,11 +1,14 @@
 package git
 
 import (
+	"bufio"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
 	"net/http"
+	"net/mail"
 	"net/url"
 	"os"
 	"os/exec"
@@ -16,6 +19,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode/utf8"
 
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/go-git/go-git/v5"
@@ -62,6 +66,9 @@ type CommitMetadata struct {
 	// Subject is the commit message subject.
 	// Comes from the Argocd-reference-commit-subject trailer.
 	Subject string
+	// Body is the full commit message body, formatted as a JSON string.
+	// Comes from the Argocd-reference-commit-body trailer.
+	Body string
 	// SHA is the commit hash.
 	// Comes from the Argocd-reference-commit-sha trailer.
 	SHA string
@@ -790,9 +797,9 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 	cmd.Stdin = strings.NewReader(message)
 	out, err = m.runCmdOutput(cmd, runOpts{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to interpret trailers: %w", err)
+		return nil, fmt.Errorf("failed to interpret trailers for revision %q in repo %q: %w", revision, m.repoURL, err)
 	}
-	relatedCommits := getReferences(out)
+	relatedCommits := getReferences(log.WithFields(log.Fields{"repo": m.repoURL, "revision": revision}), out)
 
 	out, err = m.runCmd("tag", "--points-at", revision)
 	if err != nil {
@@ -809,12 +816,26 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 	}, nil
 }
 
-// getReferences extracts related commit metadata from the commit message trailers. If related commit
+func truncate(str string) string {
+	if utf8.RuneCountInString(str) > 100 {
+		return string([]rune(str)[0:97]) + "..."
+	}
+	return str
+}
+
+var shaRegex = regexp.MustCompile(`^[0-9a-f]{5,40}$`)
+
+// getReferences extracts related commit metadata from the commit message trailers. If referenced commit
 // metadata is present, we return a slice containing a single metadata object. If no related commit metadata is found,
 // we return a nil slice.
-func getReferences(commitMessageBody string) []RevisionReference {
+//
+// If a trailer fails validation, we log an error and skip that trailer. We truncate the trailer values to 100
+// characters to avoid excessively long log messages.
+func getReferences(logCtx *log.Entry, commitMessageBody string) []RevisionReference {
 	var relatedCommit CommitMetadata
-	for _, line := range strings.Split(commitMessageBody, "\n") {
+	scanner := bufio.NewScanner(strings.NewReader(commitMessageBody))
+	for scanner.Scan() {
+		line := scanner.Text()
 		if !strings.HasPrefix(line, "Argocd-reference-commit-") {
 			continue
 		}
@@ -828,25 +849,42 @@ func getReferences(commitMessageBody string) []RevisionReference {
 		case "Argocd-reference-commit-repourl":
 			_, err := url.Parse(trailerValue)
 			if err != nil {
-				log.Errorf("failed to parse repo URL %s: %v", trailerValue, err)
+				logCtx.Errorf("failed to parse repo URL %q: %v", truncate(trailerValue), err)
 				continue
 			}
 			relatedCommit.RepoURL = trailerValue
 		case "Argocd-reference-commit-author-name":
 			relatedCommit.Author.Name = trailerValue
 		case "Argocd-reference-commit-author-email":
+			_, err := mail.ParseAddress(trailerValue)
+			if err != nil {
+				logCtx.Errorf("failed to parse author email %q: %v", truncate(trailerValue), err)
+				continue
+			}
 			relatedCommit.Author.Email = trailerValue
 		case "Argocd-reference-commit-date":
 			// Validate that it's the correct date format.
 			_, err := time.Parse(time.RFC3339, trailerValue)
 			if err != nil {
-				log.Errorf("failed to parse date %s: %v", trailerValue, err)
+				logCtx.Errorf("failed to parse date %q with RFC3339 format: %v", truncate(trailerValue), err)
 				continue
 			}
 			relatedCommit.Date = trailerValue
 		case "Argocd-reference-commit-subject":
 			relatedCommit.Subject = trailerValue
+		case "Argocd-reference-commit-body":
+			body := ""
+			err := json.Unmarshal([]byte(trailerValue), &body)
+			if err != nil {
+				logCtx.Errorf("failed to parse body %q as JSON: %v", truncate(trailerValue), err)
+				continue
+			}
+			relatedCommit.Body = body
 		case "Argocd-reference-commit-sha":
+			if !shaRegex.MatchString(trailerValue) {
+				logCtx.Errorf("invalid commit SHA %q in trailer %s: must be a lowercase hex string 5-40 characters long", truncate(trailerValue), trailerKey)
+				continue
+			}
 			relatedCommit.SHA = trailerValue
 		}
 	}

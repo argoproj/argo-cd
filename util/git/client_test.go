@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
@@ -1116,9 +1118,32 @@ func Test_getReferences(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:     "Invalid trailers",
-			input:    "Argocd-reference-commit-repourl: % invalid %\nArgocd-reference-commit-date: invalid-date",
+			name: "Invalid trailers",
+			input: `Argocd-reference-commit-repourl: % invalid %
+Argocd-reference-commit-date: invalid-date
+Argocd-reference-commit-sha: xyz123
+Argocd-reference-commit-body: this isn't json
+Argocd-reference-commit-author-email: % not email %
+Argocd-reference-commit-bogus:`,
 			expected: nil,
+		},
+		{
+			name:     "Unknown trailers",
+			input:    "Argocd-reference-commit-unknown: foobar",
+			expected: nil,
+		},
+		{
+			name: "Some valid and Invalid trailers",
+			input: `Argocd-reference-commit-sha: abc123
+Argocd-reference-commit-repourl: % invalid %
+Argocd-reference-commit-date: invalid-date`,
+			expected: []RevisionReference{
+				{
+					Commit: &CommitMetadata{
+						SHA: "abc123",
+					},
+				},
+			},
 		},
 		{
 			name: "Valid trailers",
@@ -1127,6 +1152,7 @@ Argocd-reference-commit-author-name: John Doe
 Argocd-reference-commit-author-email: john.doe@example.com
 Argocd-reference-commit-date: 2023-10-01T12:00:00Z
 Argocd-reference-commit-subject: Fix bug
+Argocd-reference-commit-body: "Fix bug\n\nSome: trailer"
 Argocd-reference-commit-sha: abc123`,
 			expected: []RevisionReference{
 				{
@@ -1136,6 +1162,7 @@ Argocd-reference-commit-sha: abc123`,
 							Email: "john.doe@example.com",
 						},
 						Date:    "2023-10-01T12:00:00Z",
+						Body:    "Fix bug\n\nSome: trailer",
 						Subject: "Fix bug",
 						SHA:     "abc123",
 						RepoURL: "https://github.com/org/repo.git",
@@ -1161,7 +1188,8 @@ Argocd-reference-commit-repourl: https://github.com/another/repo.git`,
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			result := getReferences(tt.input)
+			logCtx := log.WithFields(log.Fields{})
+			result := getReferences(logCtx, tt.input)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

@@ -159,15 +159,21 @@ code commit.
 ```shell
 git commit -m "Bump image to v1.2.3" \
   --trailer "Argocd-reference-commit-author-name: Author Name" \
+  # Must be a valid email address per RFC 5322
   --trailer "Argocd-reference-commit-author-email: author@example.com" \
+  # Must be a hex string 5-40 characters long
   --trailer "Argocd-reference-commit-sha: <code-commit-sha>" \
   --trailer "Argocd-reference-commit-subject: Commit message of the code commit" \
-  --trailer "Argocd-reference-commit-repourl: https://git.example.com/owner/repo" \ # the repo URL must be a valid URL
-  --trailer "Argocd-reference-commit-date: 2025-06-09T13:50:18-04:00" # The date must by in ISO 8601 format
+   # The body must be a valid JSON string, including opening and closing quotes
+  --trailer 'Argocd-reference-commit-body: "Commit message of the code commit\n\nSigned-off-by: Author Name <author@example.com>"' \
+   # The repo URL must be a valid URL
+  --trailer "Argocd-reference-commit-repourl: https://git.example.com/owner/repo" \
+  # The date must by in ISO 8601 format
+  --trailer "Argocd-reference-commit-date: 2025-06-09T13:50:18-04:00" 
 ```
 
-!!!note Invalid values are ignored
-    The repo URL and date format must be valid, otherwise they will be ignored.
+!!!note Newlines are not allowed
+    The commit trailers must not contain newlines. The 
 
 So the full CI script might look something like this:
 
@@ -183,7 +189,9 @@ cd repo
 authorName=$(git show -s --format='%an')
 authorEmail=$(git show -s --format='%ae')
 sha=$(git rev-parse HEAD)
-message=$(git show -s --format='%s')
+subject=$(git show -s --format='%s')
+body=$(git show -s --format='%b')
+jsonbody=$(jq -n --arg body "$body" '$body')
 repourl=$(git remote get-url origin)
 date=$(git show -s --format='%aI')
 
@@ -199,7 +207,8 @@ git commit -m "Bump image to v1.2.3" \
   --trailer "Argocd-reference-commit-author-name: $authorName" \
   --trailer "Argocd-reference-commit-author-email: $authorEmail" \
   --trailer "Argocd-reference-commit-sha: $sha" \
-  --trailer "Argocd-reference-commit-subject: $message" \
+  --trailer "Argocd-reference-commit-subject: $subject" \
+  --trailer "Argocd-reference-commit-body: $jsonbody" \
   --trailer "Argocd-reference-commit-repourl: $repourl" \
   --trailer "Argocd-reference-commit-date: $date"
 ```

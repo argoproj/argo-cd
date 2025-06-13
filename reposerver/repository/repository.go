@@ -2446,6 +2446,7 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 				},
 				Date:    m.References[i].Commit.Date,
 				Subject: m.References[i].Commit.Subject,
+				Body:    m.References[i].Commit.Body,
 				SHA:     m.References[i].Commit.SHA,
 				RepoURL: m.References[i].Commit.RepoURL,
 			},

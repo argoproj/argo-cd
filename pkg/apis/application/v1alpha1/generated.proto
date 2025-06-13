@@ -948,15 +948,19 @@ message CommitMetadata {
   // Comes from the Argocd-reference-commit-subject trailer.
   optional string subject = 3;
 
+  // Body is the commit message body.
+  // Comes from the Argocd-reference-commit-body trailer.
+  optional string body = 4;
+
   // SHA is the commit hash.
   // Comes from the Argocd-reference-commit-sha trailer.
-  optional string sha = 4;
+  optional string sha = 5;
 
   // RepoURL is the URL of the repository where the commit is located.
   // Comes from the Argocd-reference-commit-repourl trailer.
   // This value is not validated and should not be used to construct UI links unless it is properly
   // validated and/or sanitized first.
-  optional string repoUrl = 5;
+  optional string repoUrl = 6;
 }
 
 // CommitMetadataAuthor contains information about the author of a commit.

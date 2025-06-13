@@ -1589,14 +1589,17 @@ type CommitMetadata struct {
 	// Subject is the commit message subject.
 	// Comes from the Argocd-reference-commit-subject trailer.
 	Subject string `json:"subject,omitempty" protobuf:"bytes,3,opt,name=subject"`
+	// Body is the commit message body.
+	// Comes from the Argocd-reference-commit-body trailer.
+	Body string `json:"body,omitempty" protobuf:"bytes,4,opt,name=body"`
 	// SHA is the commit hash.
 	// Comes from the Argocd-reference-commit-sha trailer.
-	SHA string `json:"sha,omitempty" protobuf:"bytes,4,opt,name=sha"`
+	SHA string `json:"sha,omitempty" protobuf:"bytes,5,opt,name=sha"`
 	// RepoURL is the URL of the repository where the commit is located.
 	// Comes from the Argocd-reference-commit-repourl trailer.
 	// This value is not validated and should not be used to construct UI links unless it is properly
 	// validated and/or sanitized first.
-	RepoURL string `json:"repoUrl,omitempty" protobuf:"bytes,5,opt,name=repoUrl"`
+	RepoURL string `json:"repoUrl,omitempty" protobuf:"bytes,6,opt,name=repoUrl"`
 }
 
 // RevisionReference contains a reference to a some information that is related in some way to another commit. For now,
