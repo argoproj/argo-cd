@@ -2,6 +2,8 @@ module github.com/argoproj/argo-cd/v3
 
 go 1.24.4
 
+replace github.com/argoproj/gitops-engine => github.com/agaudreault/gitops-engine v0.7.1-0.20250606181227-a3a3fb407d3b
+
 require (
 	code.gitea.io/sdk/gitea v0.21.0
 	dario.cat/mergo v1.0.2
@@ -11,8 +13,8 @@ require (
 	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/TomOnTime/utfutil v1.0.0
-	github.com/alicebob/miniredis/v2 v2.35.0
-	github.com/argoproj/gitops-engine v0.7.1-0.20250606144909-cebed7e704a5
+	github.com/alicebob/miniredis/v2 v2.34.0
+	github.com/argoproj/gitops-engine v0.0.0-00010101000000-000000000000
 	github.com/argoproj/notifications-engine v0.4.1-0.20250309174002-87bf0576a872
 	github.com/argoproj/pkg v0.13.6
 	github.com/argoproj/pkg/v2 v2.0.1
@@ -141,6 +143,7 @@ require (
 	github.com/PagerDuty/go-pagerduty v1.8.0 // indirect
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/RocketChat/Rocket.Chat.Go.SDK v0.0.0-20240116134246-a8cbe886bab0 // indirect
+	github.com/alicebob/gopher-json v0.0.0-20230218143504-906a9b012302 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.36.3 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.29.9 // indirect

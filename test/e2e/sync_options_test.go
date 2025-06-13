@@ -1,19 +1,89 @@
 package e2e
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 )
+
+// TestSyncWithCreateNamespace verifies that the namespace is created when the
+// CreateNamespace=true is provided as part of the normal sync resources
+func TestSyncWithCreateNamespace(t *testing.T) {
+	newNamespace := getNewNamespace(t)
+	defer func() {
+		if !t.Skipped() {
+			errors.NewHandler(t).FailOnErr(Run("", "kubectl", "delete", "namespace", newNamespace))
+		}
+	}()
+
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Destination.Namespace = newNamespace
+			app.Spec.SyncPolicy = &SyncPolicy{
+				SyncOptions: SyncOptions{
+					"CreateNamespace=true",
+				},
+			}
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(ResourceResultNumbering(3))
+}
+
+// TestSyncWithCreateNamespaceAndDryRunError verifies that the namespace is created before the
+// DryRun validation is made on the resources, even if the sync fails. This allows transient errors
+// to be resolved on sync retries
+func TestSyncWithCreateNamespaceAndDryRunError(t *testing.T) {
+	newNamespace := getNewNamespace(t)
+	defer func() {
+		if !t.Skipped() {
+			errors.NewHandler(t).FailOnErr(Run("", "kubectl", "delete", "namespace", newNamespace))
+		}
+	}()
+
+	Given(t).
+		Path("failure-during-sync").
+		When().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Destination.Namespace = newNamespace
+			app.Spec.SyncPolicy = &SyncPolicy{
+				SyncOptions: SyncOptions{
+					"CreateNamespace=true",
+				},
+			}
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		IgnoreErrors().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationFailed)).
+		Expect(ResourceResultNumbering(2)).
+		Expect(ResourceResultMatches(ResourceResult{Version: "v1", Kind: "Namespace", Name: newNamespace, Status: ResultCodeSynced, Message: fmt.Sprintf("namespace/%s created", newNamespace), HookPhase: OperationRunning, SyncPhase: SyncPhasePreSync})).
+		Expect(ResourceResultMatches(ResourceResult{Version: "v1", Kind: "ServiceAccount", Namespace: newNamespace, Name: "failure-during-sync", Status: ResultCodeSyncFailed, Message: `ServiceAccount "failure-during-sync" is invalid: metadata.labels: Invalid value`, HookPhase: OperationFailed, SyncPhase: SyncPhaseSync}))
+}
 
 // TestSyncOptionsValidateFalse verifies we can disable validation during kubectl apply, using the
 // 'argocd.argoproj.io/sync-options: Validate=false' sync option
@@ -53,7 +123,7 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 		Path(guestbookPath).
 		When().
 		And(func() {
-			require.NoError(t, fixture.SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, SetResourceOverrides(map[string]ResourceOverride{
 				"/": {
 					IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/status"}},
 				},
@@ -73,7 +143,7 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 		// app should remain synced if k8s change detected
 		When().
 		And(func() {
-			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(t.Context(),
+			errors.NewHandler(t).FailOnErr(KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Patch(t.Context(),
 				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/status/observedGeneration", "value": 2 }]`), metav1.PatchOptions{}))
 		}).
 		Then().
@@ -104,7 +174,7 @@ func TestSyncWithApplyOutOfSyncOnly(t *testing.T) {
 }
 
 func TestSyncWithSkipHook(t *testing.T) {
-	fixture.SkipOnEnv(t, "OPENSHIFT")
+	SkipOnEnv(t, "OPENSHIFT")
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -145,4 +215,47 @@ func TestSyncWithForceReplace(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+// Given application is set with --sync-option CreateNamespace=true and --sync-option ServerSideApply=true
+//
+//		application --dest-namespace exists
+//
+//	Then, --dest-namespace is created with server side apply
+//		  	application is synced and healthy with resource
+//		  	application resources created with server side apply in the newly created namespace.
+func TestNamespaceCreationWithSSA(t *testing.T) {
+	SkipOnEnv(t, "OPENSHIFT")
+	namespace := getNewNamespace(t)
+	defer func() {
+		if !t.Skipped() {
+			errors.NewHandler(t).FailOnErr(Run("", "kubectl", "delete", "namespace", namespace))
+		}
+	}()
+
+	Given(t).
+		Path("guestbook").
+		When().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Destination.Namespace = namespace
+			app.Spec.SyncPolicy = &SyncPolicy{
+				SyncOptions: SyncOptions{"CreateNamespace=true", "ServerSideApply=true"},
+			}
+		}).
+		Then().
+		Expect(NoNamespace(namespace)).
+		When().
+		Sync().
+		Then().
+		Expect(Success("")).
+		Expect(Namespace(namespace, func(_ *Application, ns *corev1.Namespace) {
+			assert.NotContains(t, ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
+		})).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(ResourceHealthWithNamespaceIs("Deployment", "guestbook-ui", namespace, health.HealthStatusHealthy)).
+		Expect(ResourceSyncStatusWithNamespaceIs("Deployment", "guestbook-ui", namespace, SyncStatusCodeSynced)).
+		Expect(ResourceHealthWithNamespaceIs("Service", "guestbook-ui", namespace, health.HealthStatusHealthy)).
+		Expect(ResourceSyncStatusWithNamespaceIs("Service", "guestbook-ui", namespace, SyncStatusCodeSynced))
 }
