@@ -176,9 +176,9 @@ func StringsFromEnv(env string, defaultValue []string, separator string) []strin
 // nolinit:unparam
 func ParseBoolFromEnv(envVar string, defaultValue bool) bool {
 	if val := os.Getenv(envVar); val != "" {
-		if strings.ToLower(val) == "true" {
+		if strings.EqualFold(val, "true") {
 			return true
-		} else if strings.ToLower(val) == "false" {
+		} else if strings.EqualFold(val, "false") {
 			return false
 		}
 	}

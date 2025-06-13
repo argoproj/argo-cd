@@ -1692,6 +1692,20 @@ func TestGetRevisionMetadata(t *testing.T) {
 		Author:  "author",
 		Date:    now,
 		Tags:    []string{"tag1", "tag2"},
+		References: []git.RevisionReference{
+			{
+				Commit: &git.CommitMetadata{
+					Author: git.CommitMetadataAuthor{
+						Name:  "test-name",
+						Email: "test-email",
+					},
+					Date:    now.Format(time.RFC3339),
+					Subject: "test-subject",
+					SHA:     "test-sha",
+					RepoURL: "test-repo-url",
+				},
+			},
+		},
 	}, nil)
 
 	res, err := service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
@@ -1706,6 +1720,9 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Equal(t, "author", res.Author)
 	assert.Equal(t, []string{"tag1", "tag2"}, res.Tags)
 	assert.NotEmpty(t, res.SignatureInfo)
+	require.Len(t, res.References, 1)
+	require.NotNil(t, res.References[0].Commit)
+	assert.Equal(t, "test-sha", res.References[0].Commit.SHA)
 
 	// Check for truncated revision value
 	res, err = service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
