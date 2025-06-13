@@ -199,8 +199,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	registry.MustRegister(resourceEventsProcessingHistogram)
 	registry.MustRegister(resourceEventsNumberGauge)
 
-	kubectlMetricsServer := kubectl.NewKubectlMetrics()
-	kubectlMetricsServer.RegisterWithClientGo()
+	kubectl.RegisterWithClientGo()
 	kubectl.RegisterWithPrometheus(registry)
 
 	metricsServer := &MetricsServer{
