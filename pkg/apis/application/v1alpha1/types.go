@@ -1870,6 +1870,8 @@ type HostInfo struct {
 	ResourcesInfo []HostResourceInfo `json:"resourcesInfo,omitempty" protobuf:"bytes,2,name=resourcesInfo"`
 	// SystemInfo contains detailed system-level information about the host, such as OS, kernel version, and architecture.
 	SystemInfo corev1.NodeSystemInfo `json:"systemInfo,omitempty" protobuf:"bytes,3,opt,name=systemInfo"`
+	// Labels holds the labels attached to the host.
+	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,4,opt,name=labels"`
 }
 
 // ApplicationTree represents the hierarchical structure of resources associated with an Argo CD application.
