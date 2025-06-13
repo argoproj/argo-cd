@@ -13,6 +13,8 @@ import (
 	"github.com/argoproj/notifications-engine/pkg/triggers"
 	"github.com/argoproj/notifications-engine/pkg/util/misc"
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/renderer"
+	"github.com/olekukonko/tablewriter/tw"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
@@ -125,11 +127,13 @@ func generateBuiltInTriggersDocs(out io.Writer, triggers map[string][]triggers.C
 
 	_, _ = fmt.Fprintln(out, "## Triggers")
 
-	w := tablewriter.NewWriter(out)
-	w.SetHeader([]string{"NAME", "DESCRIPTION", "TEMPLATE"})
-	w.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
-	w.SetCenterSeparator("|")
-	w.SetAutoWrapText(false)
+	r := tw.Rendition{
+		Borders: tw.Border{Left: tw.On, Top: tw.Off, Right: tw.On, Bottom: tw.Off},
+		Symbols: tw.NewSymbolCustom("pipe-center").WithCenter("|").WithMidLeft("|").WithMidRight("|"),
+	}
+	c := tablewriter.NewConfigBuilder().WithRowAutoWrap(tw.WrapNone).Build()
+	table := tablewriter.NewTable(out, tablewriter.WithConfig(c), tablewriter.WithRenderer(renderer.NewBlueprint(r)))
+	table.Header("NAME", "DESCRIPTION", "TEMPLATE")
 	misc.IterateStringKeyMap(triggers, func(name string) {
 		t := triggers[name]
 		desc := ""
@@ -138,9 +142,15 @@ func generateBuiltInTriggersDocs(out io.Writer, triggers map[string][]triggers.C
 			desc = t[0].Description
 			template = strings.Join(t[0].Send, ",")
 		}
-		w.Append([]string{name, desc, fmt.Sprintf("[%s](#%s)", template, template)})
+		err := table.Append([]string{name, desc, fmt.Sprintf("[%s](#%s)", template, template)})
+		if err != nil {
+			panic(err)
+		}
 	})
-	w.Render()
+	err := table.Render()
+	if err != nil {
+		panic(err)
+	}
 
 	_, _ = fmt.Fprintln(out, "")
 	_, _ = fmt.Fprintln(out, "## Templates")

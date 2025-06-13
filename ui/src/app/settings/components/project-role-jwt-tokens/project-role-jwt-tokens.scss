@@ -4,3 +4,28 @@
     top: 1em;
     cursor: pointer;
 }
+
+.project-role-jwt-tokens__id {
+    display: flex;
+    align-items: center;
+}
+
+.project-role-jwt-tokens__id-tooltip {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.project-role-jwt-tokens__expired-token {
+    color:  white;
+    font-size: 1.2em;
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+    line-height: 1.4em;
+    background-color: #8FA4B1;
+    margin-left: 0.2em;
+    border-radius: 0.2em;
+    transform: scale(0.8);
+    flex: 0;
+    min-width: fit-content;
+}

@@ -947,6 +947,8 @@ func TestAppSourceEquality(t *testing.T) {
 }
 
 func TestAppSource_GetKubeVersionOrDefault(t *testing.T) {
+	t.Parallel()
+
 	defaultKV := "999.999.999"
 	cases := []struct {
 		name   string
@@ -996,6 +998,8 @@ func TestAppSource_GetKubeVersionOrDefault(t *testing.T) {
 }
 
 func TestAppSource_GetAPIVersionsOrDefault(t *testing.T) {
+	t.Parallel()
+
 	defaultAPIVersions := []string{"v1", "v2"}
 	cases := []struct {
 		name   string
@@ -1045,6 +1049,8 @@ func TestAppSource_GetAPIVersionsOrDefault(t *testing.T) {
 }
 
 func TestAppSource_GetNamespaceOrDefault(t *testing.T) {
+	t.Parallel()
+
 	defaultNS := "default"
 	cases := []struct {
 		name   string
@@ -2193,38 +2199,51 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 func TestAppProjectSpec_AddWindow(t *testing.T) {
 	proj := newTestProjectWithSyncWindows()
 	tests := []struct {
-		name string
-		p    *AppProject
-		k    string
-		s    string
-		d    string
-		a    []string
-		n    []string
-		c    []string
-		m    bool
-		t    string
-		o    bool
-		want string
+		name        string
+		p           *AppProject
+		k           string
+		s           string
+		d           string
+		a           []string
+		n           []string
+		c           []string
+		m           bool
+		t           string
+		o           bool
+		description string
+		want        string
 	}{
-		{"MissingKind", proj, "", "* * * * *", "11", []string{"app1"}, []string{}, []string{}, false, "error", false, ""},
-		{"MissingSchedule", proj, "allow", "", "", []string{"app1"}, []string{}, []string{}, false, "error", false, ""},
-		{"MissingDuration", proj, "allow", "* * * * *", "", []string{"app1"}, []string{}, []string{}, false, "error", false, ""},
-		{"BadSchedule", proj, "allow", "* * *", "1h", []string{"app1"}, []string{}, []string{}, false, "error", false, ""},
-		{"BadDuration", proj, "deny", "* * * * *", "33mm", []string{"app1"}, []string{}, []string{}, false, "error", false, ""},
-		{"WorkingApplication", proj, "allow", "1 * * * *", "1h", []string{"app1"}, []string{}, []string{}, false, "noError", false, ""},
-		{"WorkingNamespace", proj, "deny", "3 * * * *", "1h", []string{}, []string{}, []string{"cluster"}, false, "noError", false, ""},
+		{"MissingKind", proj, "", "* * * * *", "11", []string{"app1"}, []string{}, []string{}, false, "error", false, "", ""},
+		{"MissingSchedule", proj, "allow", "", "", []string{"app1"}, []string{}, []string{}, false, "error", false, "", ""},
+		{"MissingDuration", proj, "allow", "* * * * *", "", []string{"app1"}, []string{}, []string{}, false, "error", false, "", ""},
+		{"BadSchedule", proj, "allow", "* * *", "1h", []string{"app1"}, []string{}, []string{}, false, "error", false, "", ""},
+		{"BadDuration", proj, "deny", "* * * * *", "33mm", []string{"app1"}, []string{}, []string{}, false, "error", false, "", ""},
+		{"WorkingApplication", proj, "allow", "1 * * * *", "1h", []string{"app1"}, []string{}, []string{}, false, "noError", false, "", ""},
+		{"WorkingNamespace", proj, "deny", "3 * * * *", "1h", []string{}, []string{}, []string{"cluster"}, false, "noError", false, "", ""},
+		{"WorkeringDescription", proj, "deny", "3 * * * *", "1h", []string{}, []string{}, []string{"cluster"}, false, "noError", false, "description", ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			switch tt.want {
 			case "error":
-				require.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t, tt.o))
+				require.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t, tt.o, tt.description))
 			case "noError":
-				require.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t, tt.o))
+				require.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t, tt.o, tt.description))
 				require.NoError(t, tt.p.Spec.DeleteWindow(0))
 			}
 		})
 	}
+}
+
+func TestAppProjectSpecWindowWithDescription(t *testing.T) {
+	proj := newTestProjectWithSyncWindows()
+	require.NoError(t, proj.Spec.AddWindow("allow", "* * * * *", "1h", []string{"app1"}, []string{}, []string{}, false, "error", false, "Ticket AAAAA"))
+	require.Equal(t, "Ticket AAAAA", proj.Spec.SyncWindows[1].Description)
+
+	require.NoError(t, proj.Spec.SyncWindows[1].Update("", "", []string{}, []string{}, []string{}, "", "Ticket BBBBB"))
+	require.Equal(t, "Ticket BBBBB", proj.Spec.SyncWindows[1].Description)
+
+	require.Error(t, proj.Spec.SyncWindows[1].Update("", "", []string{}, []string{}, []string{}, "", ""))
 }
 
 func TestAppProjectSpec_DeleteWindow(t *testing.T) {
@@ -2452,6 +2471,8 @@ func TestSyncWindows_Matches_AND_Operator(t *testing.T) {
 }
 
 func TestSyncWindows_CanSync(t *testing.T) {
+	t.Parallel()
+
 	t.Run("will allow manual sync if inactive-deny-window set with manual true", func(t *testing.T) {
 		// given
 		t.Parallel()
@@ -2983,33 +3004,38 @@ func TestSyncWindow_Active(t *testing.T) {
 func TestSyncWindow_Update(t *testing.T) {
 	e := SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h", Applications: []string{"app1"}}
 	t.Run("AddApplication", func(t *testing.T) {
-		err := e.Update("", "", []string{"app1", "app2"}, []string{}, []string{}, "")
+		err := e.Update("", "", []string{"app1", "app2"}, []string{}, []string{}, "", "")
 		require.NoError(t, err)
 		assert.Equal(t, []string{"app1", "app2"}, e.Applications)
 	})
 	t.Run("AddNamespace", func(t *testing.T) {
-		err := e.Update("", "", []string{}, []string{"namespace1"}, []string{}, "")
+		err := e.Update("", "", []string{}, []string{"namespace1"}, []string{}, "", "")
 		require.NoError(t, err)
 		assert.Equal(t, []string{"namespace1"}, e.Namespaces)
 	})
 	t.Run("AddCluster", func(t *testing.T) {
-		err := e.Update("", "", []string{}, []string{}, []string{"cluster1"}, "")
+		err := e.Update("", "", []string{}, []string{}, []string{"cluster1"}, "", "")
 		require.NoError(t, err)
 		assert.Equal(t, []string{"cluster1"}, e.Clusters)
 	})
 	t.Run("MissingConfig", func(t *testing.T) {
-		err := e.Update("", "", []string{}, []string{}, []string{}, "")
-		require.EqualError(t, err, "cannot update: require one or more of schedule, duration, application, namespace, or cluster")
+		err := e.Update("", "", []string{}, []string{}, []string{}, "", "")
+		require.EqualError(t, err, "cannot update: require one or more of schedule, duration, application, namespace, cluster or description")
 	})
 	t.Run("ChangeDuration", func(t *testing.T) {
-		err := e.Update("", "10h", []string{}, []string{}, []string{}, "")
+		err := e.Update("", "10h", []string{}, []string{}, []string{}, "", "")
 		require.NoError(t, err)
 		assert.Equal(t, "10h", e.Duration)
 	})
 	t.Run("ChangeSchedule", func(t *testing.T) {
-		err := e.Update("* 1 0 0 *", "", []string{}, []string{}, []string{}, "")
+		err := e.Update("* 1 0 0 *", "", []string{}, []string{}, []string{}, "", "")
 		require.NoError(t, err)
 		assert.Equal(t, "* 1 0 0 *", e.Schedule)
+	})
+	t.Run("AddDescription", func(t *testing.T) {
+		err := e.Update("", "", []string{}, []string{}, []string{}, "", "Ticket 123")
+		require.NoError(t, err)
+		assert.Equal(t, "Ticket 123", e.Description)
 	})
 }
 
@@ -3370,6 +3396,8 @@ func TestRevisionHistories_Trunc(t *testing.T) {
 	assert.Len(t, RevisionHistories{{}, {}}.Trunc(1), 1)
 	// keep the last element, even with longer list
 	assert.Equal(t, RevisionHistories{{Revision: "my-revision"}}, RevisionHistories{{}, {}, {Revision: "my-revision"}}.Trunc(1))
+	// negative limit to 0
+	assert.Empty(t, RevisionHistories{}.Trunc(-1))
 }
 
 func TestApplicationSpec_GetRevisionHistoryLimit(t *testing.T) {
@@ -4053,6 +4081,8 @@ func getApplicationSpec() *ApplicationSpec {
 }
 
 func TestGetSource(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		hasSources     bool
@@ -4082,6 +4112,8 @@ func TestGetSource(t *testing.T) {
 }
 
 func TestGetSources(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name            string
 		hasSources      bool
@@ -4119,6 +4151,8 @@ func TestGetSources(t *testing.T) {
 }
 
 func TestOptionalArrayEquality(t *testing.T) {
+	t.Parallel()
+
 	// Demonstrate that the JSON unmarshalling of an empty array parameter is an OptionalArray with the array field set
 	// to an empty array.
 	presentButEmpty := `{"array":[]}`
@@ -4162,6 +4196,8 @@ func TestOptionalArrayEquality(t *testing.T) {
 }
 
 func TestOptionalMapEquality(t *testing.T) {
+	t.Parallel()
+
 	// Demonstrate that the JSON unmarshalling of an empty map parameter is an OptionalMap with the map field set
 	// to an empty map.
 	presentButEmpty := `{"map":{}}`

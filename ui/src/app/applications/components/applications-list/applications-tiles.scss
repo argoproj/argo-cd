@@ -26,4 +26,24 @@
     &__selected {
         box-shadow: 0 0 0 1px $argo-color-teal-5;
     }
+
+    .applications-list__title {
+        white-space: normal !important;
+        word-break: break-word; 
+        overflow-wrap: break-word; 
+        hyphens: auto; 
+        line-height: 1.4; 
+        width: 100%; 
+    }
+}
+
+.columns:has(> .argo-icon-git), .columns:has(> .argo-icon-helm) {
+    display: flex;
+    align-items: center;
+}
+
+@media screen and (min-width: calc(map-get($breakpoints, xxlarge) - 1px)) {
+    .custom-tooltip {
+        display: none !important;
+    }
 }

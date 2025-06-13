@@ -10,6 +10,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -40,7 +41,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/config"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -99,7 +100,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 	argocd admin app generate-spec nginx-ingress --repo https://charts.helm.sh/stable --helm-chart nginx-ingress --revision 1.24.3 --dest-namespace default --dest-server https://kubernetes.default.svc
 
 	# Generate declarative config for a Kustomize app
-	argocd admin app generate-spec kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
+	argocd admin app generate-spec kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image quay.io/argoprojlabs/argocd-e2e-container:0.1
 
 	# Generate declarative config for a app using a custom tool:
 	argocd admin app generate-spec kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
@@ -120,7 +121,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 			}
 			out, closer, err := getOutWriter(inline, fileURL)
 			errors.CheckError(err)
-			defer io.Close(closer)
+			defer utilio.Close(closer)
 
 			errors.CheckError(PrintResources(outputFormat, out, app))
 		},
@@ -143,7 +144,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 
 type appReconcileResult struct {
 	Name       string                          `json:"name"`
-	Health     *v1alpha1.HealthStatus          `json:"health"`
+	Health     health.HealthStatusCode         `json:"health"`
 	Sync       *v1alpha1.SyncStatus            `json:"sync"`
 	Conditions []v1alpha1.ApplicationCondition `json:"conditions"`
 }
@@ -348,7 +349,7 @@ func getReconcileResults(ctx context.Context, appClientset appclientset.Interfac
 		items = append(items, appReconcileResult{
 			Name:       app.Name,
 			Conditions: app.Status.Conditions,
-			Health:     &app.Status.Health,
+			Health:     app.Status.Health.Status,
 			Sync:       &app.Status.Sync,
 		})
 	}
@@ -389,7 +390,7 @@ func reconcileApplications(
 		return true
 	}, func(_ *http.Request) error {
 		return nil
-	}, []string{}, []string{})
+	}, []string{}, []string{}, argoDB)
 	if err != nil {
 		return nil, fmt.Errorf("error starting new metrics server: %w", err)
 	}
@@ -478,5 +479,5 @@ func reconcileApplications(
 }
 
 func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache {
-	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
+	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
 }

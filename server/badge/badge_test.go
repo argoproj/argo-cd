@@ -51,7 +51,7 @@ func testApp() *v1alpha1.Application {
 		ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "default"},
 		Status: v1alpha1.ApplicationStatus{
 			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
-			Health: v1alpha1.HealthStatus{Status: health.HealthStatusHealthy},
+			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
 			OperationState: &v1alpha1.OperationState{
 				SyncResult: &v1alpha1.SyncOperationResult{
 					Revision: "aa29b85",
@@ -66,7 +66,7 @@ func testApp2() *v1alpha1.Application {
 		ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "argocd-test"},
 		Status: v1alpha1.ApplicationStatus{
 			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
-			Health: v1alpha1.HealthStatus{Status: health.HealthStatusHealthy},
+			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
 			OperationState: &v1alpha1.OperationState{
 				SyncResult: &v1alpha1.SyncOperationResult{
 					Revision: "aa29b85",
@@ -81,7 +81,7 @@ func testApp3() *v1alpha1.Application {
 		ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "argocd-test"},
 		Status: v1alpha1.ApplicationStatus{
 			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
-			Health: v1alpha1.HealthStatus{Status: health.HealthStatusHealthy},
+			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
 			OperationState: &v1alpha1.OperationState{
 				SyncResult: &v1alpha1.SyncOperationResult{
 					Revision: "aa29b85ababababababab",
@@ -343,7 +343,7 @@ func createApplicationFeatureProjectIsEnabled(healthStatus health.HealthStatusCo
 		ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: namespace},
 		Status: v1alpha1.ApplicationStatus{
 			Sync:   v1alpha1.SyncStatus{Status: syncStatus},
-			Health: v1alpha1.HealthStatus{Status: healthStatus},
+			Health: v1alpha1.AppHealthStatus{Status: healthStatus},
 			OperationState: &v1alpha1.OperationState{
 				SyncResult: &v1alpha1.SyncOperationResult{},
 			},

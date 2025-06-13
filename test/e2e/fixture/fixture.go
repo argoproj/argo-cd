@@ -35,7 +35,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	grpcutil "github.com/argoproj/argo-cd/v3/util/grpc"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/rand"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -124,6 +124,7 @@ const (
 	RepoURLTypeHelm                 = "helm"
 	RepoURLTypeHelmParent           = "helm-par"
 	RepoURLTypeHelmOCI              = "helm-oci"
+	RepoURLTypeOCI                  = "oci"
 	GitUsername                     = "admin"
 	GitPassword                     = "password"
 	GitBearerToken                  = "test"
@@ -131,6 +132,10 @@ const (
 	GithubAppInstallationID         = "7893789433789"
 	GpgGoodKeyID                    = "D56C4FCA57A46444"
 	HelmOCIRegistryURL              = "localhost:5000/myrepo"
+	HelmAuthenticatedOCIRegistryURL = "localhost:5001/myrepo"
+	OCIRegistryURL                  = "oci://localhost:5000/my-oci-repo"
+	OCIHostURL                      = "oci://localhost:5000"
+	AuthenticatedOCIHostURL         = "oci://localhost:5001"
 )
 
 // TestNamespace returns the namespace where Argo CD E2E test instance will be
@@ -247,7 +252,7 @@ func loginAs(username, password string) error {
 	if err != nil {
 		return err
 	}
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 
 	userInfoResponse, err := client.GetUserInfo(context.Background(), &sessionpkg.GetUserInfoRequest{})
 	if err != nil {
@@ -345,6 +350,8 @@ func RepoURL(urlType RepoURLType) string {
 	// When Helm Repo has sub repos, this is the parent repo URL
 	case RepoURLTypeHelmParent:
 		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo")
+	case RepoURLTypeOCI:
+		return OCIRegistryURL
 	case RepoURLTypeHelmOCI:
 		return HelmOCIRegistryURL
 	default:
@@ -1006,6 +1013,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	}).Info("clean state")
 }
 
+// RunCliWithRetry executes an Argo CD CLI command with retry logic.
 func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
 	var out string
 	var err error
@@ -1019,10 +1027,12 @@ func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
 	return out, err
 }
 
+// RunCli executes an Argo CD CLI command with no stdin input and default server authentication.
 func RunCli(args ...string) (string, error) {
 	return RunCliWithStdin("", false, args...)
 }
 
+// RunCliWithStdin executes an Argo CD CLI command with optional stdin input and authentication.
 func RunCliWithStdin(stdin string, isKubeConextOnlyCli bool, args ...string) (string, error) {
 	if plainText {
 		args = append(args, "--plaintext")
@@ -1035,6 +1045,11 @@ func RunCliWithStdin(stdin string, isKubeConextOnlyCli bool, args ...string) (st
 
 	args = append(args, "--insecure")
 
+	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
+}
+
+// RunPluginCli executes an Argo CD CLI plugin with optional stdin input.
+func RunPluginCli(stdin string, args ...string) (string, error) {
 	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
 }
 

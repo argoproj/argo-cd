@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	goSync "sync"
 	"time"
@@ -34,6 +35,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
@@ -41,7 +43,7 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/gpg"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/stats"
 )
@@ -77,7 +79,7 @@ type AppStateManager interface {
 // comparisonResult holds the state of an application after the reconciliation
 type comparisonResult struct {
 	syncStatus           *v1alpha1.SyncStatus
-	healthStatus         *v1alpha1.HealthStatus
+	healthStatus         health.HealthStatusCode
 	resources            []v1alpha1.ResourceStatus
 	managedResources     []managedResource
 	reconciliationResult sync.ReconciliationResult
@@ -96,7 +98,7 @@ func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
 	return res.syncStatus
 }
 
-func (res *comparisonResult) GetHealthStatus() *v1alpha1.HealthStatus {
+func (res *comparisonResult) GetHealthStatus() health.HealthStatusCode {
 	return res.healthStatus
 }
 
@@ -137,6 +139,15 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		return nil, nil, false, fmt.Errorf("failed to get permitted Helm repositories for project %q: %w", proj.Name, err)
 	}
 
+	ociRepos, err := m.db.ListOCIRepositories(context.Background())
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("failed to list OCI repositories: %w", err)
+	}
+	permittedOCIRepos, err := argo.GetPermittedRepos(proj, ociRepos)
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("failed to get permitted OCI repositories for project %q: %w", proj.Name, err)
+	}
+
 	ts.AddCheckpoint("repo_ms")
 	helmRepositoryCredentials, err := m.db.GetAllHelmRepositoryCredentials(context.Background())
 	if err != nil {
@@ -145,6 +156,15 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	permittedHelmCredentials, err := argo.GetPermittedReposCredentials(proj, helmRepositoryCredentials)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get permitted Helm credentials for project %q: %w", proj.Name, err)
+	}
+
+	ociRepositoryCredentials, err := m.db.GetAllOCIRepositoryCredentials(context.Background())
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("failed to get OCI credentials: %w", err)
+	}
+	permittedOCICredentials, err := argo.GetPermittedReposCredentials(proj, ociRepositoryCredentials)
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("failed to get permitted OCI credentials for project %q: %w", proj.Name, err)
 	}
 
 	enabledSourceTypes, err := m.settingsMgr.GetEnabledSourceTypes()
@@ -161,6 +181,11 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	helmOptions, err := m.settingsMgr.GetHelmSettings()
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get Helm settings: %w", err)
+	}
+
+	trackingMethod, err := m.settingsMgr.GetTrackingMethod()
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("failed to get trackingMethod: %w", err)
 	}
 
 	installationID, err := m.settingsMgr.GetInstallationID()
@@ -186,7 +211,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to connect to repo server: %w", err)
 	}
-	defer io.Close(conn)
+	defer utilio.Close(conn)
 
 	manifestInfos := make([]*apiclient.ManifestResponse, 0)
 	targetObjs := make([]*unstructured.Unstructured, 0)
@@ -249,7 +274,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 				ApplicationSource:  &source,
 				KubeVersion:        serverVersion,
 				ApiVersions:        apiVersions,
-				TrackingMethod:     string(argo.GetTrackingMethod(m.settingsMgr)),
+				TrackingMethod:     trackingMethod,
 				RefSources:         refSources,
 				HasMultipleSources: app.Spec.HasMultipleSources(),
 				InstallationID:     installationID,
@@ -270,10 +295,22 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			atLeastOneRevisionIsNotPossibleToBeUpdated = true
 		}
 
+		repos := permittedHelmRepos
+		helmRepoCreds := permittedHelmCredentials
+		// If the source is OCI, there is a potential for an OCI image to be a Helm chart and that said chart in
+		// turn would have OCI dependencies. To ensure that those dependencies can be resolved, add them to the repos
+		// list.
+		if source.IsOCI() {
+			repos = slices.Clone(permittedHelmRepos)
+			helmRepoCreds = slices.Clone(permittedHelmCredentials)
+			repos = append(repos, permittedOCIRepos...)
+			helmRepoCreds = append(helmRepoCreds, permittedOCICredentials...)
+		}
+
 		log.Debugf("Generating Manifest for source %s revision %s", source, revision)
 		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 			Repo:                            repo,
-			Repos:                           permittedHelmRepos,
+			Repos:                           repos,
 			Revision:                        revision,
 			NoCache:                         noCache,
 			NoRevisionCache:                 noRevisionCache,
@@ -285,8 +322,8 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			KubeVersion:                     serverVersion,
 			ApiVersions:                     apiVersions,
 			VerifySignature:                 verifySignature,
-			HelmRepoCreds:                   permittedHelmCredentials,
-			TrackingMethod:                  string(argo.GetTrackingMethod(m.settingsMgr)),
+			HelmRepoCreds:                   helmRepoCreds,
+			TrackingMethod:                  trackingMethod,
 			EnabledSourceTypes:              enabledSourceTypes,
 			HelmOptions:                     helmOptions,
 			HasMultipleSources:              app.Spec.HasMultipleSources(),
@@ -309,7 +346,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 
 	ts.AddCheckpoint("manifests_ms")
-	logCtx := log.WithField("application", app.QualifiedName())
+	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	for k, v := range ts.Timings() {
 		logCtx = logCtx.WithField(k, v.Milliseconds())
 	}
@@ -331,7 +368,7 @@ func (m *appStateManager) ResolveGitRevision(repoURL string, revision string) (s
 	if err != nil {
 		return "", fmt.Errorf("failed to connect to repo server: %w", err)
 	}
-	defer io.Close(conn)
+	defer utilio.Close(conn)
 
 	repo, err := m.db.GetRepository(context.Background(), repoURL, "")
 	if err != nil {
@@ -435,24 +472,28 @@ func normalizeClusterScopeTracking(targetObjs []*unstructured.Unstructured, info
 
 // getComparisonSettings will return the system level settings related to the
 // diff/normalization process.
-func (m *appStateManager) getComparisonSettings() (string, map[string]v1alpha1.ResourceOverride, *settings.ResourcesFilter, string, error) {
+func (m *appStateManager) getComparisonSettings() (string, map[string]v1alpha1.ResourceOverride, *settings.ResourcesFilter, string, string, error) {
 	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
 	if err != nil {
-		return "", nil, nil, "", err
+		return "", nil, nil, "", "", err
 	}
 	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
-		return "", nil, nil, "", err
+		return "", nil, nil, "", "", err
 	}
 	resFilter, err := m.settingsMgr.GetResourcesFilter()
 	if err != nil {
-		return "", nil, nil, "", err
+		return "", nil, nil, "", "", err
 	}
 	installationID, err := m.settingsMgr.GetInstallationID()
 	if err != nil {
-		return "", nil, nil, "", err
+		return "", nil, nil, "", "", err
 	}
-	return appLabelKey, resourceOverrides, resFilter, installationID, nil
+	trackingMethod, err := m.settingsMgr.GetTrackingMethod()
+	if err != nil {
+		return "", nil, nil, "", "", err
+	}
+	return appLabelKey, resourceOverrides, resFilter, installationID, trackingMethod, nil
 }
 
 // verifyGnuPGSignature verifies the result of a GnuPG operation for a given git
@@ -503,13 +544,12 @@ func isManagedNamespace(ns *unstructured.Unstructured, app *v1alpha1.Application
 // revision and overrides in the app spec.
 func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool, rollback bool) (*comparisonResult, error) {
 	ts := stats.NewTimingStats()
-	appLabelKey, resourceOverrides, resFilter, installationID, err := m.getComparisonSettings()
+	appLabelKey, resourceOverrides, resFilter, installationID, trackingMethod, err := m.getComparisonSettings()
 
 	ts.AddCheckpoint("settings_ms")
 
 	// return unknown comparison result if basic comparison settings cannot be loaded
 	if err != nil {
-		now := metav1.Now()
 		if hasMultipleSources {
 			return &comparisonResult{
 				syncStatus: &v1alpha1.SyncStatus{
@@ -517,7 +557,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					Status:     v1alpha1.SyncStatusCodeUnknown,
 					Revisions:  revisions,
 				},
-				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, LastTransitionTime: &now},
+				healthStatus: health.HealthStatusUnknown,
 			}, nil
 		}
 		return &comparisonResult{
@@ -526,7 +566,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				Status:     v1alpha1.SyncStatusCodeUnknown,
 				Revision:   revisions[0],
 			},
-			healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, LastTransitionTime: &now},
+			healthStatus: health.HealthStatusUnknown,
 		}, nil
 	}
 
@@ -542,8 +582,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		return nil, err
 	}
 
-	logCtx := log.WithField("application", app.QualifiedName())
-	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", destCluster.Server, app.Spec.Destination.Namespace)
+	logCtx := log.WithFields(applog.GetAppLogFields(app))
+	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
 
 	var targetObjs []*unstructured.Unstructured
 	now := metav1.Now()
@@ -612,10 +652,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		infoProvider = &resourceInfoProviderStub{}
 	}
 
-	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
-
 	err = normalizeClusterScopeTracking(targetObjs, infoProvider, func(u *unstructured.Unstructured) error {
-		return m.resourceTracking.SetAppInstance(u, appLabelKey, app.InstanceName(m.namespace), app.Spec.Destination.Namespace, trackingMethod, installationID)
+		return m.resourceTracking.SetAppInstance(u, appLabelKey, app.InstanceName(m.namespace), app.Spec.Destination.Namespace, v1alpha1.TrackingMethod(trackingMethod), installationID)
 	})
 	if err != nil {
 		msg := "Failed to normalize cluster-scoped resource tracking: " + err.Error()
@@ -682,7 +720,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	for _, liveObj := range liveObjByKey {
 		if liveObj != nil {
-			appInstanceName := m.resourceTracking.GetAppName(liveObj, appLabelKey, trackingMethod, installationID)
+			appInstanceName := m.resourceTracking.GetAppName(liveObj, appLabelKey, v1alpha1.TrackingMethod(trackingMethod), installationID)
 			if appInstanceName != "" && appInstanceName != app.InstanceName(m.namespace) {
 				fqInstanceName := strings.ReplaceAll(appInstanceName, "_", "/")
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
@@ -821,7 +859,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		}
 		gvk := obj.GroupVersionKind()
 
-		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.GetName(), trackingMethod, installationID)
+		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.GetName(), v1alpha1.TrackingMethod(trackingMethod), installationID)
 
 		resState := v1alpha1.ResourceStatus{
 			Namespace:       obj.GetNamespace(),
@@ -1145,7 +1183,7 @@ func (m *appStateManager) isSelfReferencedObj(live, config *unstructured.Unstruc
 
 	// If tracking method doesn't contain required metadata for this check,
 	// we are not able to determine and just assume the object to be managed.
-	if trackingMethod == argo.TrackingMethodLabel {
+	if trackingMethod == v1alpha1.TrackingMethodLabel {
 		return true
 	}
 

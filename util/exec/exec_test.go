@@ -80,6 +80,8 @@ func TestRunWithExecRunOptsFatal(t *testing.T) {
 }
 
 func Test_getCommandArgsToLog(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name     string
 		args     []string

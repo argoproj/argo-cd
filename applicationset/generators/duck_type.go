@@ -10,8 +10,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj/argo-cd/v3/util/settings"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -26,22 +24,18 @@ var _ Generator = (*DuckTypeGenerator)(nil)
 
 // DuckTypeGenerator generates Applications for some or all clusters registered with ArgoCD.
 type DuckTypeGenerator struct {
-	ctx             context.Context
-	dynClient       dynamic.Interface
-	clientset       kubernetes.Interface
-	namespace       string // namespace is the Argo CD namespace
-	settingsManager *settings.SettingsManager
+	ctx       context.Context
+	dynClient dynamic.Interface
+	clientset kubernetes.Interface
+	namespace string // namespace is the Argo CD namespace
 }
 
 func NewDuckTypeGenerator(ctx context.Context, dynClient dynamic.Interface, clientset kubernetes.Interface, namespace string) Generator {
-	settingsManager := settings.NewSettingsManager(ctx, clientset, namespace)
-
 	g := &DuckTypeGenerator{
-		ctx:             ctx,
-		dynClient:       dynClient,
-		clientset:       clientset,
-		namespace:       namespace,
-		settingsManager: settingsManager,
+		ctx:       ctx,
+		dynClient: dynClient,
+		clientset: clientset,
+		namespace: namespace,
 	}
 	return g
 }
