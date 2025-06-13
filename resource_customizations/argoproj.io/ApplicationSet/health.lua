@@ -11,7 +11,7 @@ if obj.status ~= nil then
     end
     for i, condition in pairs(obj.status.conditions) do
       if condition.type == "ResourcesUpToDate" and condition.status == "False" then
-        hs.status = "Progressing"
+        hs.status = "Degraded"
         hs.message = condition.message
         return hs
       end

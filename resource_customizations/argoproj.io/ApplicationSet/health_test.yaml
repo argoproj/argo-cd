@@ -12,7 +12,7 @@ tests:
       message: Waiting for the status to be reported
     inputPath: testdata/noStatusApplicationSet.yaml
   - healthStatus:
-      status: Progressing
+      status: Degraded
       message: could not create application
     inputPath: testdata/resourceNotUpdatedApplicationSet.yaml
   - healthStatus:
