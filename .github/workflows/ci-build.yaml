@@ -14,7 +14,7 @@ on:
 env:
   # Golang version to use across CI steps
   # renovate: datasource=golang-version packageName=golang
-  GOLANG_VERSION: '1.24.3'
+  GOLANG_VERSION: '1.24.4'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -32,7 +32,7 @@ jobs:
       docs: ${{ steps.filter.outputs.docs_any_changed }}
     steps:
       - uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
-      - uses: tj-actions/changed-files@c6634ca281a9fc05b03bee224ba00910cb78ab6e # v46.0.5
+      - uses: tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c # v46.0.5
         id: filter
         with:
           # Any file which is not under docs/, ui/ or is not a markdown file is counted as a backend file
@@ -414,13 +414,13 @@ jobs:
         # latest: true means that this version mush upload the coverage report to codecov.io
         # We designate the latest version because we only collect code coverage for that version.
         k3s:
-          - version: v1.32.1
+          - version: v1.33.1
             latest: true
+          - version: v1.32.1
+            latest: false
           - version: v1.31.0
             latest: false
           - version: v1.30.4
-            latest: false
-          - version: v1.29.8
             latest: false
     needs:
       - build-go

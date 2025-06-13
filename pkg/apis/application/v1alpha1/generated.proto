@@ -1100,7 +1100,7 @@ message GnuPGPublicKey {
   // Trust holds the level of trust assigned to this key
   optional string trust = 4;
 
-  // SubType holds the key's sub type (e.g. rsa4096)
+  // SubType holds the key's subtype (e.g. rsa4096)
   optional string subType = 5;
 
   // KeyData holds the raw key data, in base64 encoded format
@@ -1164,6 +1164,9 @@ message HostInfo {
 
   // SystemInfo contains detailed system-level information about the host, such as OS, kernel version, and architecture.
   optional .k8s.io.api.core.v1.NodeSystemInfo systemInfo = 3;
+
+  // Labels holds the labels attached to the host.
+  map<string, string> labels = 4;
 }
 
 // HostResourceInfo represents resource usage details for a specific resource type on a host.
@@ -1378,6 +1381,23 @@ message NestedMergeGenerator {
   repeated ApplicationSetTerminalGenerator generators = 1;
 
   repeated string mergeKeys = 2;
+}
+
+// OCIMetadata contains metadata for a specific revision in an OCI repository
+message OCIMetadata {
+  optional string createdAt = 1;
+
+  optional string authors = 2;
+
+  optional string imageUrl = 3;
+
+  optional string docsUrl = 4;
+
+  optional string sourceUrl = 5;
+
+  optional string version = 6;
+
+  optional string description = 7;
 }
 
 // Operation contains information about a requested or running operation
@@ -1747,6 +1767,9 @@ message RepoCreds {
 
   // BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
   optional string bearerToken = 25;
+
+  // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
+  optional bool insecureOCIForceHttp = 26;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1833,6 +1856,9 @@ message Repository {
 
   // BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
   optional string bearerToken = 25;
+
+  // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
+  optional bool insecureOCIForceHttp = 26;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

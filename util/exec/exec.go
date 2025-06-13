@@ -20,8 +20,9 @@ import (
 )
 
 var (
-	timeout    time.Duration
-	Unredacted = Redact(nil)
+	timeout      time.Duration
+	fatalTimeout time.Duration
+	Unredacted   = Redact(nil)
 )
 
 type ExecRunOpts struct {
@@ -45,6 +46,10 @@ func initTimeout() {
 	if err != nil {
 		timeout = 90 * time.Second
 	}
+	fatalTimeout, err = time.ParseDuration(os.Getenv("ARGOCD_EXEC_FATAL_TIMEOUT"))
+	if err != nil {
+		fatalTimeout = 10 * time.Second
+	}
 }
 
 func Run(cmd *exec.Cmd) (string, error) {
@@ -57,7 +62,7 @@ func RunWithRedactor(cmd *exec.Cmd, redactor func(text string) string) (string, 
 }
 
 func RunWithExecRunOpts(cmd *exec.Cmd, opts ExecRunOpts) (string, error) {
-	cmdOpts := CmdOpts{Timeout: timeout, Redactor: opts.Redactor, TimeoutBehavior: opts.TimeoutBehavior, SkipErrorLogging: opts.SkipErrorLogging}
+	cmdOpts := CmdOpts{Timeout: timeout, FatalTimeout: fatalTimeout, Redactor: opts.Redactor, TimeoutBehavior: opts.TimeoutBehavior, SkipErrorLogging: opts.SkipErrorLogging}
 	span := tracing.NewLoggingTracer(log.NewLogrusLogger(log.NewWithCurrentConfig())).StartSpan(fmt.Sprintf("exec %v", cmd.Args[0]))
 	span.SetBaggageItem("dir", cmd.Dir)
 	if cmdOpts.Redactor != nil {
@@ -130,6 +135,8 @@ type TimeoutBehavior struct {
 type CmdOpts struct {
 	// Timeout determines how long to wait for the command to exit
 	Timeout time.Duration
+	// FatalTimeout is the amount of additional time to wait after Timeout before fatal SIGKILL
+	FatalTimeout time.Duration
 	// Redactor redacts tokens from the output
 	Redactor func(text string) string
 	// TimeoutBehavior configures what to do in case of timeout
@@ -142,6 +149,7 @@ type CmdOpts struct {
 
 var DefaultCmdOpts = CmdOpts{
 	Timeout:          time.Duration(0),
+	FatalTimeout:     time.Duration(0),
 	Redactor:         Unredacted,
 	TimeoutBehavior:  TimeoutBehavior{syscall.SIGKILL, false},
 	SkipErrorLogging: false,
@@ -189,11 +197,16 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	done := make(chan error)
 	go func() { done <- cmd.Wait() }()
 
-	// Start a timer
+	// Start timers for timeout
 	timeout := DefaultCmdOpts.Timeout
+	fatalTimeout := DefaultCmdOpts.FatalTimeout
 
 	if opts.Timeout != time.Duration(0) {
 		timeout = opts.Timeout
+	}
+
+	if opts.FatalTimeout != time.Duration(0) {
+		fatalTimeout = opts.FatalTimeout
 	}
 
 	var timoutCh <-chan time.Time
@@ -201,7 +214,13 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		timoutCh = time.NewTimer(timeout).C
 	}
 
+	var fatalTimeoutCh <-chan time.Time
+	if fatalTimeout != 0 {
+		fatalTimeoutCh = time.NewTimer(timeout + fatalTimeout).C
+	}
+
 	timeoutBehavior := DefaultCmdOpts.TimeoutBehavior
+	fatalTimeoutBehaviour := syscall.SIGKILL
 	if opts.TimeoutBehavior.Signal != syscall.Signal(0) {
 		timeoutBehavior = opts.TimeoutBehavior
 	}
@@ -209,10 +228,29 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	select {
 	// noinspection ALL
 	case <-timoutCh:
+		// send timeout signal
 		_ = cmd.Process.Signal(timeoutBehavior.Signal)
+		// wait on timeout signal and fallback to fatal timeout signal
 		if timeoutBehavior.ShouldWait {
-			<-done
+			select {
+			case <-done:
+			case <-fatalTimeoutCh:
+				// upgrades to SIGKILL if cmd does not respect SIGTERM
+				_ = cmd.Process.Signal(fatalTimeoutBehaviour)
+				// now original cmd should exit immediately after SIGKILL
+				<-done
+				// return error with a marker indicating that cmd exited only after fatal SIGKILL
+				output := stdout.String()
+				if opts.CaptureStderr {
+					output += stderr.String()
+				}
+				logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
+				err = newCmdError(redactor(args), fmt.Errorf("fatal timeout after %v", timeout+fatalTimeout), "")
+				logCtx.Error(err.Error())
+				return strings.TrimSuffix(output, "\n"), err
+			}
 		}
+		// either did not wait for timeout or cmd did respect SIGTERM
 		output := stdout.String()
 		if opts.CaptureStderr {
 			output += stderr.String()
@@ -235,7 +273,6 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 			return strings.TrimSuffix(output, "\n"), err
 		}
 	}
-
 	output := stdout.String()
 	if opts.CaptureStderr {
 		output += stderr.String()

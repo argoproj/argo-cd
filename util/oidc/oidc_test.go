@@ -39,7 +39,7 @@ func setupAzureIdentity(t *testing.T) {
 	tokenFilePath := filepath.Join(tempDir, "token.txt")
 	tempFile, err := os.Create(tokenFilePath)
 	require.NoError(t, err)
-	_, err = tempFile.Write([]byte("serviceAccountToken"))
+	_, err = tempFile.WriteString("serviceAccountToken")
 	require.NoError(t, err)
 	t.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
 }

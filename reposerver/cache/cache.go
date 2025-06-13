@@ -164,6 +164,10 @@ func helmIndexRefsKey(repo string) string {
 	return "helm-index|" + repo
 }
 
+func ociTagsKey(repo string) string {
+	return "oci-tags|" + repo
+}
+
 // SetHelmIndex stores helm repository index.yaml content to cache
 func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
 	if indexData == nil {
@@ -179,6 +183,23 @@ func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
 // GetHelmIndex retrieves helm repository index.yaml content from cache
 func (c *Cache) GetHelmIndex(repo string, indexData *[]byte) error {
 	return c.cache.GetItem(helmIndexRefsKey(repo), indexData)
+}
+
+// SetOCITags stores oci image tags to cache
+func (c *Cache) SetOCITags(repo string, indexData []byte) error {
+	if indexData == nil {
+		// Logged as warning upstream
+		return errors.New("oci index data is nil, skipping cache")
+	}
+	return c.cache.SetItem(
+		ociTagsKey(repo),
+		indexData,
+		&cacheutil.CacheActionOpts{Expiration: c.revisionCacheExpiration})
+}
+
+// GetOCITags retrieves oci image tags from cache
+func (c *Cache) GetOCITags(repo string, indexData *[]byte) error {
+	return c.cache.GetItem(ociTagsKey(repo), indexData)
 }
 
 func gitRefsKey(repo string) string {

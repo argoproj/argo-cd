@@ -1704,6 +1704,70 @@
         }
       }
     },
+    "/api/v1/applications/{name}/revisions/{revision}/ocimetadata": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Get the chart metadata (description, maintainers, home) for a specific revision of the application",
+        "operationId": "ApplicationService_GetOCIMetadata",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "the application's name",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "the revision of the app",
+            "name": "revision",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "the application's namespace.",
+            "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "source index (for multi source apps).",
+            "name": "sourceIndex",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "versionId from historical data (for multi source apps).",
+            "name": "versionId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1OCIMetadata"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/rollback": {
       "post": {
         "tags": [
@@ -3576,6 +3640,49 @@
         }
       }
     },
+    "/api/v1/repositories/{repo}/oci-tags": {
+      "get": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "operationId": "RepositoryService_ListOCITags",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryRefs"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/repositories/{repo}/refs": {
       "get": {
         "tags": [
@@ -3757,6 +3864,12 @@
             "type": "string",
             "description": "BearerToken contains the bearer token used for Git auth at the repo server.",
             "name": "bearerToken",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether https should be disabled for an OCI repo.",
+            "name": "insecureOciForceHttp",
             "in": "query"
           }
         ],
@@ -4595,6 +4708,12 @@
             "type": "string",
             "description": "BearerToken contains the bearer token used for Git auth at the repo server.",
             "name": "bearerToken",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether https should be disabled for an OCI repo.",
+            "name": "insecureOciForceHttp",
             "in": "query"
           }
         ],
@@ -6260,6 +6379,17 @@
         }
       }
     },
+    "v1NodeSwapStatus": {
+      "description": "NodeSwapStatus represents swap memory information.",
+      "type": "object",
+      "properties": {
+        "capacity": {
+          "type": "integer",
+          "format": "int64",
+          "title": "Total amount of swap memory in bytes.\n+optional"
+        }
+      }
+    },
     "v1NodeSystemInfo": {
       "description": "NodeSystemInfo is a set of ids/uuids to uniquely identify the node.",
       "type": "object",
@@ -6299,6 +6429,9 @@
         "osImage": {
           "description": "OS Image reported by the node from /etc/os-release (e.g. Debian GNU/Linux 7 (wheezy)).",
           "type": "string"
+        },
+        "swap": {
+          "$ref": "#/definitions/v1NodeSwapStatus"
         },
         "systemUUID": {
           "type": "string",
@@ -8134,7 +8267,7 @@
         },
         "subType": {
           "type": "string",
-          "title": "SubType holds the key's sub type (e.g. rsa4096)"
+          "title": "SubType holds the key's subtype (e.g. rsa4096)"
         },
         "trust": {
           "type": "string",
@@ -8210,6 +8343,13 @@
       "description": "HostInfo holds metadata and resource usage metrics for a specific host in the cluster.",
       "type": "object",
       "properties": {
+        "labels": {
+          "description": "Labels holds the labels attached to the host.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "name": {
           "description": "Name is the hostname or node name in the Kubernetes cluster.",
           "type": "string"
@@ -8532,6 +8672,33 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        }
+      }
+    },
+    "v1alpha1OCIMetadata": {
+      "type": "object",
+      "title": "OCIMetadata contains metadata for a specific revision in an OCI repository",
+      "properties": {
+        "authors": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "docsUrl": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "type": "string"
+        },
+        "sourceUrl": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
         }
       }
     },
@@ -9026,6 +9193,10 @@
           "type": "string",
           "title": "GithubAppPrivateKey specifies the private key PEM data for authentication via GitHub app"
         },
+        "insecureOCIForceHttp": {
+          "description": "InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.",
+          "type": "boolean"
+        },
         "noProxy": {
           "type": "string",
           "title": "NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied"
@@ -9139,6 +9310,10 @@
         "insecureIgnoreHostKey": {
           "type": "boolean",
           "title": "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured\nUsed only for Git repos"
+        },
+        "insecureOCIForceHttp": {
+          "description": "InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.",
+          "type": "boolean"
         },
         "name": {
           "type": "string",

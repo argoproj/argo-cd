@@ -133,6 +133,8 @@ func getMultiSourceApp(annotation string, paths ...string) *v1alpha1.Application
 }
 
 func Test_AppFilesHaveChanged(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		app            *v1alpha1.Application
@@ -191,6 +193,8 @@ func Test_AppFilesHaveChanged(t *testing.T) {
 }
 
 func Test_GetAppRefreshPaths(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name          string
 		app           *v1alpha1.Application
