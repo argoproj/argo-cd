@@ -1,0 +1,21 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: Waiting for Nacks
+  inputPath: test_data/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: 'failed to create stream'
+  inputPath: test_data/degraded_failure.yaml
+- healthStatus:
+    status: Degraded
+    message: 'Trying to create resource for more than 30 seconds'
+  inputPath: test_data/degraded_stuck.yaml
+- healthStatus:
+    status: Healthy
+    message: 'Stream successfully updated'
+  inputPath: test_data/healthy_updated.yaml
+- healthStatus:
+    status: Healthy
+    message: 'Stream successfully created'
+  inputPath: test_data/healthy_created.yaml
