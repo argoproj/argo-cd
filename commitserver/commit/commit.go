@@ -212,12 +212,15 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 }
 
 type hydratorMetadataFile struct {
-	RepoURL    string                       `json:"repoURL,omitempty"`
-	DrySHA     string                       `json:"drySha,omitempty"`
-	Commands   []string                     `json:"commands,omitempty"`
-	Author     string                       `json:"author,omitempty"`
-	Date       string                       `json:"date,omitempty"`
-	Message    string                       `json:"message,omitempty"`
+	RepoURL  string   `json:"repoURL,omitempty"`
+	DrySHA   string   `json:"drySha,omitempty"`
+	Commands []string `json:"commands,omitempty"`
+	Author   string   `json:"author,omitempty"`
+	Date     string   `json:"date,omitempty"`
+	// Subject is the subject line of the DRY commit message, i.e. `git show --format=%s`.
+	Subject string `json:"message,omitempty"`
+	// Body is the body of the DRY commit message, excluding the subject line, i.e. `git show --format=%b`.
+	Body       string                       `json:"body,omitempty"`
 	References []v1alpha1.RevisionReference `json:"references,omitempty"`
 }
 
@@ -239,7 +242,7 @@ git checkout {{ .DrySHA }}
 
 {{ range $ref := .References -}}
 {{ if $ref.Commit -}}
-* [{{ $ref.Commit.SHA | mustRegexFind "[0-9a-f]+" | trunc 7 }}]({{ $ref.Commit.RepoURL }}): {{ $ref.Commit.Subject }} ({{ $ref.Commit.Author.Name }} <{{ $ref.Commit.Author.Email }}>)
+* [{{ $ref.Commit.SHA | mustRegexFind "[0-9a-f]+" | trunc 7 }}]({{ $ref.Commit.RepoURL }}): {{ $ref.Commit.Subject }} ({{ $ref.Commit.Author }})
 {{ end -}}
 {{ end -}}
 {{ end -}}`

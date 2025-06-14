@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -78,10 +79,7 @@ func TestWriteForPaths(t *testing.T) {
 		References: []appsv1.RevisionReference{
 			{
 				Commit: &appsv1.CommitMetadata{
-					Author: appsv1.CommitMetadataAuthor{
-						Name:  "test-code-author",
-						Email: "test-email-author@example.com",
-					},
+					Author:  "test-code-author <test-email-author@example.com>",
 					Date:    now.Format(time.RFC3339),
 					Subject: "test-code-subject",
 					SHA:     "test-code-sha",
@@ -99,13 +97,16 @@ func TestWriteForPaths(t *testing.T) {
 	topMetadataBytes, err := os.ReadFile(topMetadataPath)
 	require.NoError(t, err)
 
+	expectedSubject, expectedBody, _ := strings.Cut(metadata.Message, "\n\n")
+
 	var topMetadata hydratorMetadataFile
 	err = json.Unmarshal(topMetadataBytes, &topMetadata)
 	require.NoError(t, err)
 	assert.Equal(t, repoURL, topMetadata.RepoURL)
 	assert.Equal(t, drySha, topMetadata.DrySHA)
 	assert.Equal(t, metadata.Author, topMetadata.Author)
-	assert.Equal(t, metadata.Message, topMetadata.Message)
+	assert.Equal(t, expectedSubject, topMetadata.Subject)
+	assert.Equal(t, expectedBody, topMetadata.Body)
 	assert.Equal(t, metadata.Date.Format(time.RFC3339), topMetadata.Date)
 	assert.Equal(t, metadata.References, topMetadata.References)
 
@@ -174,10 +175,7 @@ func TestWriteReadme(t *testing.T) {
 		References: []appsv1.RevisionReference{
 			{
 				Commit: &appsv1.CommitMetadata{
-					Author: appsv1.CommitMetadataAuthor{
-						Name:  "test-code-author",
-						Email: "test@example.com",
-					},
+					Author:  "test-code-author <test@example.com>",
 					Date:    time.Now().Format(time.RFC3339),
 					Subject: "test-code-subject",
 					SHA:     sha,

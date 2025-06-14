@@ -8,6 +8,7 @@ import (
 	"fmt"
 	goio "io"
 	"io/fs"
+	"net/mail"
 	"os"
 	"os/exec"
 	"path"
@@ -1695,9 +1696,9 @@ func TestGetRevisionMetadata(t *testing.T) {
 		References: []git.RevisionReference{
 			{
 				Commit: &git.CommitMetadata{
-					Author: git.CommitMetadataAuthor{
-						Name:  "test-name",
-						Email: "test-email",
+					Author: mail.Address{
+						Name:    "test-name",
+						Address: "test-email@example.com",
 					},
 					Date:    now.Format(time.RFC3339),
 					Subject: "test-subject",

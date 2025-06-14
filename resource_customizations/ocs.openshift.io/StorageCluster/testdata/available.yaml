@@ -41,9 +41,9 @@ status:
     type: ReconcileComplete
   - lastHeartBeatTime: "2023-10-01T12:00:00Z"
     lastTransitionTime: "2023-10-01T12:00:00Z"
-    message: 'CephCluster error: Failed to configure ceph cluster'
-    reason: ClusterStateError
-    status: "False"
+    message: "Reconcile completed successfully"
+    reason: ReconcileCompleted
+    status: "True"
     type: Available
   - lastHeartBeatTime: "2023-10-01T12:00:00Z"
     lastTransitionTime: "2023-10-01T12:00:00Z"
@@ -53,9 +53,9 @@ status:
     type: Progressing
   - lastHeartBeatTime: "2023-10-01T12:00:00Z"
     lastTransitionTime: "2023-10-01T12:00:00Z"
-    message: "CephCluster error: Failed to configure ceph cluster"
-    reason: ClusterStateError
-    status: "True"
+    message: Reconcile completed successfully
+    reason: ReconcileCompleted
+    status: "False"
     type: Degraded
   - lastHeartBeatTime: "2023-10-01T12:00:00Z"
     lastTransitionTime: "2023-10-01T12:00:00Z"
