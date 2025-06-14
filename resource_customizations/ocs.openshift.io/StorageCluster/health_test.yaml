@@ -1,17 +1,13 @@
 tests:
 - healthStatus:
     status: Degraded
-    message: "StorageCluster is degraded"
+    message: "CephCluster error: Failed to configure ceph cluster"
   inputPath: testdata/degraded.yaml
 - healthStatus:
     status: Progressing
-    message: "StorageCluster is progressing"
+    message: "Initializing StorageCluster"
   inputPath: testdata/progressing.yaml
 - healthStatus:
     status: Healthy
     message: "Reconcile completed successfully"
-  inputPath: testdata/healthy_available.yaml
-- healthStatus:
-    status: Healthy
-    message: "StorageCluster is healthy and upgradeable"
-  inputPath: testdata/healthy_upgradeable.yaml
+  inputPath: testdata/available.yaml
