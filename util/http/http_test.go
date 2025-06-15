@@ -65,7 +65,7 @@ func (rt TestRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 
 func TestTransportWithHeader(t *testing.T) {
 	client := &http.Client{}
-	req, _ := http.NewRequest(http.MethodGet, "/foo", nil)
+	req, _ := http.NewRequest(http.MethodGet, "/foo", http.NoBody)
 	req.Header.Set("Bar", "req_1")
 	req.Header.Set("Foo", "req_1")
 
