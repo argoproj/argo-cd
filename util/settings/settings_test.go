@@ -1661,7 +1661,7 @@ func TestReplaceStringSecret(t *testing.T) {
 
 func TestRedirectURLForRequest(t *testing.T) {
 	generateRequest := func(url string) *http.Request {
-		r, err := http.NewRequest(http.MethodPost, url, nil)
+		r, err := http.NewRequest(http.MethodPost, url, http.NoBody)
 		require.NoError(t, err)
 		return r
 	}
