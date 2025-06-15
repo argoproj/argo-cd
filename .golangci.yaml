@@ -57,7 +57,6 @@ linters:
         - builtinShadow
         - commentedOutCode
         - deferInLoop
-        - emptyStringTest
         - exitAfterDefer
         - exposedSyncMutex
         - evalOrder
