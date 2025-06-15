@@ -183,14 +183,14 @@ function viewDestinationServiceAccountsInfoList(type: field, proj: Project) {
                 <React.Fragment>
                     <div className='row white-box__details-row'>
                         <div className='columns small-4'>Server</div>
-                        <div className='columns small-8'>Namespace</div>
-                        <div className='columns small-12'>DefaultServiceAccount</div>
+                        <div className='columns small-3'>Namespace</div>
+                        <div className='columns small-5'>DefaultServiceAccount</div>
                     </div>
                     {list.map((destinationServiceAccounts, i) => (
                         <div className='row white-box__details-row' key={i}>
                             <div className='columns small-4'>{destinationServiceAccounts.server}</div>
-                            <div className='columns small-8'>{destinationServiceAccounts.namespace}</div>
-                            <div className='columns small-12'>{destinationServiceAccounts.defaultServiceAccount}</div>
+                            <div className='columns small-3'>{destinationServiceAccounts.namespace}</div>
+                            <div className='columns small-5'>{destinationServiceAccounts.defaultServiceAccount}</div>
                         </div>
                     ))}
                 </React.Fragment>

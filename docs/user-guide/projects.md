@@ -269,6 +269,7 @@ Projects, which match `matchExpressions` specified in `argocd-cm` ConfigMap, inh
 * SyncWindows
 * SourceRepos
 * Destinations
+* DestinationServiceAccounts
 
 Configure global projects in `argocd-cm` ConfigMap:
 ```yaml
