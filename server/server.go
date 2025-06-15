@@ -875,7 +875,7 @@ func (server *ArgoCDServer) watchSettings() {
 func (server *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
 	err := server.enf.RunPolicyLoader(ctx, func(cm *corev1.ConfigMap) error {
 		var scopes []string
-		if scopesStr, ok := cm.Data[rbac.ConfigMapScopesKey]; len(scopesStr) > 0 && ok {
+		if scopesStr, ok := cm.Data[rbac.ConfigMapScopesKey]; scopesStr != "" && ok {
 			scopes = make([]string, 0)
 			err := yaml.Unmarshal([]byte(scopesStr), &scopes)
 			if err != nil {
@@ -1381,7 +1381,7 @@ func newRedirectServer(port int, rootPath string) *http.Server {
 				target += req.URL.Path
 			}
 
-			if len(req.URL.RawQuery) > 0 {
+			if req.URL.RawQuery != "" {
 				target += "?" + req.URL.RawQuery
 			}
 			http.Redirect(w, req, target, http.StatusTemporaryRedirect)

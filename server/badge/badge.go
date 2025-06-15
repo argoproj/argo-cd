@@ -141,7 +141,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Sample url: http://localhost:8080/api/badge?project=default
 	if projects, ok := r.URL.Query()["project"]; ok && enabled && !notFound {
 		for _, p := range projects {
-			if errs := validation.NameIsDNSLabel(strings.ToLower(p), false); len(p) > 0 && len(errs) != 0 {
+			if errs := validation.NameIsDNSLabel(strings.ToLower(p), false); p != "" && len(errs) != 0 {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
