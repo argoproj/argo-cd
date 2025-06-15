@@ -89,6 +89,11 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		return nil, err
 	}
 
+	installationID, err := s.mgr.GetInstallationID()
+	if err != nil {
+		return nil, err
+	}
+
 	set := settingspkg.Settings{
 		URL:                argoCDSettings.URL,
 		AdditionalURLs:     argoCDSettings.AdditionalURLs,
@@ -112,6 +117,7 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		KustomizeVersions:         kustomizeVersions,
 		UiCssURL:                  argoCDSettings.UiCssURL,
 		TrackingMethod:            trackingMethod,
+		InstallationID:            installationID,
 		ExecEnabled:               argoCDSettings.ExecEnabled,
 		AppsInAnyNamespaceEnabled: s.appsInAnyNamespaceEnabled,
 		ImpersonationEnabled:      argoCDSettings.ImpersonationEnabled,
