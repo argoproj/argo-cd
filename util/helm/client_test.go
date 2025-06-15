@@ -85,7 +85,7 @@ func TestIndex(t *testing.T) {
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true, false)
 	require.NoError(t, err)
 	defer utilio.Close(closer)
 	info, err := os.Stat(path)
@@ -95,18 +95,34 @@ func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 
 func Test_nativeHelmChart_ExtractChartWithLimiter(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-	_, _, err := client.ExtractChart("argo-cd", "0.7.1", false, 100, false)
+	_, _, err := client.ExtractChart("argo-cd", "0.7.1", false, 100, false, false)
 	require.Error(t, err, "error while iterating on tar reader: unexpected EOF")
 }
 
 func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{InsecureSkipVerify: true}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true, false)
 	require.NoError(t, err)
 	defer utilio.Close(closer)
 	info, err := os.Stat(path)
 	require.NoError(t, err)
 	assert.True(t, info.IsDir())
+}
+
+func Test_nativeHelmChart_ExtractChart_DirectPull(t *testing.T) {
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true, true)
+	require.NoError(t, err)
+	defer utilio.Close(closer)
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.True(t, info.IsDir())
+}
+
+func Test_nativeHelmChart_ExtractChart_DirectPullWithoutVersion(t *testing.T) {
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
+	_, _, err := client.ExtractChart("argo-cd", "", false, math.MaxInt64, true, true)
+	require.Error(t, err, "failed to fetch chart 'argo-cd': version should be defined fetching by direct url")
 }
 
 func Test_normalizeChartName(t *testing.T) {

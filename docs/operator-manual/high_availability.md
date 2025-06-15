@@ -36,6 +36,8 @@ and might fail. To avoid failed syncs use the `ARGOCD_GIT_ATTEMPTS_COUNT` enviro
 
 * `argocd-repo-server` will issue a `SIGTERM` signal to a command that has elapsed the `ARGOCD_EXEC_TIMEOUT`. In most cases, well-behaved commands will exit immediately when receiving the signal. However, if this does not happen, `argocd-repo-server` will wait an additional timeout of `ARGOCD_EXEC_FATAL_TIMEOUT` and then forcefully exit the command with a `SIGKILL` to prevent stalling. Note that a failure to exit with `SIGTERM` is usually a bug in either the offending command or in the way `argocd-repo-server` calls it and should be reported to the issue tracker for further investigation.
 
+* `argocd-repo-server` performs helm pull on every Application revision change, which triggers a download of index.yaml; for large index files (~40MB), this may cause high memory usage (~900MB), which can be avoided by setting `ARGOCD_HELM_DIRECT_PULL` env variable to enable direct chart download without loading the entire index.
+
 **metrics:**
 
 * `argocd_git_request_total` - Number of git requests. This metric provides two tags:

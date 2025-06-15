@@ -115,6 +115,7 @@ type RepoServerInitConstants struct {
 	DisableHelmManifestMaxExtractedSize          bool
 	IncludeHiddenDirectories                     bool
 	CMPUseManifestGeneratePaths                  bool
+	HelmDirectPull                               bool
 }
 
 var manifestGenerateLock = sync.NewKeyLock()
@@ -421,7 +422,7 @@ func (s *Service) runRepoOperation(
 		if source.Helm != nil {
 			helmPassCredentials = source.Helm.PassCredentials
 		}
-		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision, helmPassCredentials, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
+		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision, helmPassCredentials, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize, s.initConstants.HelmDirectPull)
 		if err != nil {
 			return err
 		}
@@ -2500,7 +2501,7 @@ func (s *Service) GetRevisionChartDetails(_ context.Context, q *apiclient.RepoSe
 	if err != nil {
 		return nil, fmt.Errorf("helm client error: %w", err)
 	}
-	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision, false, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
+	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision, false, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize, s.initConstants.HelmDirectPull)
 	if err != nil {
 		return nil, fmt.Errorf("error extracting chart: %w", err)
 	}

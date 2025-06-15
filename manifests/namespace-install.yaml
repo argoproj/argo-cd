@@ -1532,6 +1532,12 @@ spec:
               key: reposerver.include.hidden.directories
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_HELM_DIRECT_PULL
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.helm.direct.pull
+              name: argocd-cmd-params-cm
+              optional: true
         - name: HELM_CACHE_HOME
           value: /helm-working-dir
         - name: HELM_CONFIG_HOME

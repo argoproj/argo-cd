@@ -127,8 +127,8 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 			oobChart: {{Version: "1.0.0"}, {Version: version}},
 		}}, nil)
 		helmClient.On("GetTags", mock.Anything, mock.Anything).Return(nil, nil)
-		helmClient.On("ExtractChart", chart, version, false, int64(0), false).Return("./testdata/my-chart", utilio.NopCloser, nil)
-		helmClient.On("ExtractChart", oobChart, version, false, int64(0), false).Return("./testdata2/out-of-bounds-chart", utilio.NopCloser, nil)
+		helmClient.On("ExtractChart", chart, version, false, int64(0), false, false).Return("./testdata/my-chart", utilio.NopCloser, nil)
+		helmClient.On("ExtractChart", oobChart, version, false, int64(0), false, false).Return("./testdata2/out-of-bounds-chart", utilio.NopCloser, nil)
 		helmClient.On("CleanChartCache", chart, version).Return(nil)
 		helmClient.On("CleanChartCache", oobChart, version).Return(nil)
 		helmClient.On("DependencyBuild").Return(nil)

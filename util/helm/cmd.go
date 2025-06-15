@@ -225,11 +225,8 @@ func writeToTmp(data []byte) (string, utilio.Closer, error) {
 	}), nil
 }
 
-func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, passCredentials bool) (string, error) {
+func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, passCredentials bool, directPull bool) (string, error) {
 	args := []string{"pull", "--destination", destination}
-	if version != "" {
-		args = append(args, "--version", version)
-	}
 	if creds.GetUsername() != "" {
 		args = append(args, "--username", creds.GetUsername())
 	}
@@ -245,7 +242,17 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 		args = append(args, "--insecure-skip-tls-verify")
 	}
 
-	args = append(args, "--repo", repo, chartName)
+	if directPull {
+		if version == "" {
+			return "", fmt.Errorf("failed to fetch chart '%s': version should be defined fetching by direct url", chartName)
+		}
+		args = append(args, fmt.Sprintf("%s/%s-%s.tgz", repo, chartName, version))
+	} else {
+		if version != "" {
+			args = append(args, "--version", version)
+		}
+		args = append(args, "--repo", repo, chartName)
+	}
 
 	if creds.GetCAPath() != "" {
 		args = append(args, "--ca-file", creds.GetCAPath())
