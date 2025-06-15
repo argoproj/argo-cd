@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"strconv"
 	"testing"
 
@@ -15,12 +14,12 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj/argo-cd/v2/controller/testdata"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/argo/diff"
-	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/controller/testdata"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/argo/diff"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
 
 func TestPersistRevisionHistory(t *testing.T) {
@@ -54,7 +53,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 	// Ensure we record spec.source into sync result
 	assert.Equal(t, app.Spec.GetSource(), opState.SyncResult.Source)
 
-	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 	require.NoError(t, err)
 	require.Len(t, updatedApp.Status.History, 1)
 	assert.Equal(t, app.Spec.GetSource(), updatedApp.Status.History[0].Source)
@@ -143,7 +142,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 	// Ensure we record opState's source into sync result
 	assert.Equal(t, source, opState.SyncResult.Source)
 
-	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.Len(t, updatedApp.Status.History, 1)
 	assert.Equal(t, source, updatedApp.Status.History[0].Source)
@@ -190,8 +189,9 @@ func TestSyncComparisonError(t *testing.T) {
 }
 
 func TestAppStateManager_SyncAppState(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
-		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
 		controller  *ApplicationController
 	}
@@ -223,7 +223,6 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 		ctrl := newFakeController(&data, nil)
 
 		return &fixture{
-			project:     project,
 			application: app,
 			controller:  ctrl,
 		}
@@ -258,8 +257,9 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 }
 
 func TestSyncWindowDeniesSync(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
-		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
 		controller  *ApplicationController
 	}
@@ -298,7 +298,6 @@ func TestSyncWindowDeniesSync(t *testing.T) {
 		ctrl := newFakeController(&data, nil)
 
 		return &fixture{
-			project:     project,
 			application: app,
 			controller:  ctrl,
 		}
@@ -464,7 +463,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	type fixture struct {
 		comparisonResult *comparisonResult
 	}
-	setupHttpProxy := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
+	setupHTTPProxy := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
 		t.Helper()
 		dc, err := diff.NewDiffConfigBuilder().
 			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
@@ -494,7 +493,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 				// JSONPointers: []string{"/spec/routes"},
 			},
 		}
-		f := setupHttpProxy(t, ignores)
+		f := setupHTTPProxy(t, ignores)
 		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
@@ -531,7 +530,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 				JQPathExpressions: []string{".spec.template.spec.containers[].env[] | select(.name == \"SOME_ENV_VAR\")"},
 			},
 		}
-		f := setupHttpProxy(t, ignores)
+		f := setupHTTPProxy(t, ignores)
 		live := test.YamlToUnstructured(testdata.LiveDeploymentEnvVarsYaml)
 		target := test.YamlToUnstructured(testdata.TargetDeploymentEnvVarsYaml)
 		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
@@ -583,7 +582,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 				JQPathExpressions: []string{".spec.template.spec.containers[].image"},
 			},
 		}
-		f := setupHttpProxy(t, ignores)
+		f := setupHTTPProxy(t, ignores)
 		live := test.YamlToUnstructured(testdata.MinimalImageReplicaDeploymentYaml)
 		target := test.YamlToUnstructured(testdata.AdditionalImageReplicaDeploymentYaml)
 		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
@@ -647,6 +646,8 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 }
 
 func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
 		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
@@ -993,6 +994,8 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 }
 
 func TestDeriveServiceAccountMatchingServers(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
 		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
@@ -1269,7 +1272,6 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 func TestSyncWithImpersonate(t *testing.T) {
 	type fixture struct {
-		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
 		controller  *ApplicationController
 	}
@@ -1320,7 +1322,6 @@ func TestSyncWithImpersonate(t *testing.T) {
 		}
 		ctrl := newFakeController(&data, nil)
 		return &fixture{
-			project:     project,
 			application: app,
 			controller:  ctrl,
 		}
@@ -1408,6 +1409,110 @@ func TestSyncWithImpersonate(t *testing.T) {
 		// then application sync should pass using the control plane service account
 		assert.Equal(t, common.OperationSucceeded, opState.Phase)
 		assert.Contains(t, opState.Message, opMessage)
+	})
+}
+
+func TestClientSideApplyMigration(t *testing.T) {
+	t.Parallel()
+
+	type fixture struct {
+		application *v1alpha1.Application
+		controller  *ApplicationController
+	}
+
+	setup := func(disableMigration bool, customManager string) *fixture {
+		app := newFakeApp()
+		app.Status.OperationState = nil
+		app.Status.History = nil
+
+		// Add sync options
+		if disableMigration {
+			app.Spec.SyncPolicy.SyncOptions = append(app.Spec.SyncPolicy.SyncOptions, "DisableClientSideApplyMigration=true")
+		}
+
+		// Add custom manager annotation if specified
+		if customManager != "" {
+			app.Annotations = map[string]string{
+				"argocd.argoproj.io/client-side-apply-migration-manager": customManager,
+			}
+		}
+
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: test.FakeArgoCDNamespace,
+				Name:      "default",
+			},
+		}
+		data := fakeData{
+			apps: []runtime.Object{app, project},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data, nil)
+
+		return &fixture{
+			application: app,
+			controller:  ctrl,
+		}
+	}
+
+	t.Run("client-side apply migration enabled by default", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup(false, "")
+
+		// when
+		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{
+				Source: &v1alpha1.ApplicationSource{},
+			},
+		}}
+		f.controller.appStateManager.SyncAppState(f.application, opState)
+
+		// then
+		assert.Equal(t, common.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, "successfully synced")
+	})
+
+	t.Run("client-side apply migration disabled", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup(true, "")
+
+		// when
+		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{
+				Source: &v1alpha1.ApplicationSource{},
+			},
+		}}
+		f.controller.appStateManager.SyncAppState(f.application, opState)
+
+		// then
+		assert.Equal(t, common.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, "successfully synced")
+	})
+
+	t.Run("client-side apply migration with custom manager", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup(false, "my-custom-manager")
+
+		// when
+		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{
+				Source: &v1alpha1.ApplicationSource{},
+			},
+		}}
+		f.controller.appStateManager.SyncAppState(f.application, opState)
+
+		// then
+		assert.Equal(t, common.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, "successfully synced")
 	})
 }
 

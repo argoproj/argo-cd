@@ -12,14 +12,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
+	"github.com/argoproj/argo-cd/v3/hack/gen-resources/util"
 
 	"k8s.io/client-go/kubernetes"
 )
 
 type Repo struct {
 	Id  int    `json:"id"`
-	Url string `json:"html_url"`
+	Url string `json:"html_url"` //nolint:revive //FIXME(var-naming)
 }
 
 type RepoGenerator struct {

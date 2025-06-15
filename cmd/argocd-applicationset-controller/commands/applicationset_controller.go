@@ -8,22 +8,22 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/argoproj/pkg/stats"
+	"github.com/argoproj/pkg/v2/stats"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	logutils "github.com/argoproj/argo-cd/v2/util/log"
-	"github.com/argoproj/argo-cd/v2/util/tls"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	logutils "github.com/argoproj/argo-cd/v3/util/log"
+	"github.com/argoproj/argo-cd/v3/util/tls"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/controllers"
-	"github.com/argoproj/argo-cd/v2/applicationset/generators"
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	"github.com/argoproj/argo-cd/v2/applicationset/webhook"
-	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/github_app"
+	"github.com/argoproj/argo-cd/v3/applicationset/controllers"
+	"github.com/argoproj/argo-cd/v3/applicationset/generators"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/applicationset/webhook"
+	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/github_app"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -36,16 +36,20 @@ import (
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	appsetmetrics "github.com/argoproj/argo-cd/v2/applicationset/metrics"
-	"github.com/argoproj/argo-cd/v2/applicationset/services"
-	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
+	appsetmetrics "github.com/argoproj/argo-cd/v3/applicationset/metrics"
+	"github.com/argoproj/argo-cd/v3/applicationset/services"
+	appv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 var gitSubmoduleEnabled = env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
+
+const (
+	cliName = common.ApplicationSetController
+)
 
 func NewCommand() *cobra.Command {
 	var (
@@ -79,9 +83,10 @@ func NewCommand() *cobra.Command {
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = appv1alpha1.AddToScheme(scheme)
 	command := cobra.Command{
-		Use:   "controller",
-		Short: "Starts Argo CD ApplicationSet controller",
-		RunE: func(c *cobra.Command, args []string) error {
+		Use:               cliName,
+		Short:             "Starts Argo CD ApplicationSet controller",
+		DisableAutoGenTag: true,
+		RunE: func(c *cobra.Command, _ []string) error {
 			ctx := c.Context()
 
 			vers := common.GetVersion()
@@ -188,13 +193,12 @@ func NewCommand() *cobra.Command {
 			}
 
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, repoServerTimeoutSeconds, tlsConfig)
-			argoCDService, err := services.NewArgoCDService(argoCDDB.GetRepository, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
-			errors.CheckError(err)
+			argoCDService := services.NewArgoCDService(argoCDDB, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
 
 			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig)
 
 			// start a webhook server that listens to incoming webhook payloads
-			webhookHandler, err := webhook.NewWebhookHandler(namespace, webhookParallelism, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
+			webhookHandler, err := webhook.NewWebhookHandler(webhookParallelism, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
 			if err != nil {
 				log.Error(err, "failed to create webhook handler")
 			}
@@ -252,7 +256,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&policy, "policy", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_POLICY", ""), "Modify how application is synced between the generator and the cluster. Default is '' (empty), which means AppSets default to 'sync', but they may override that default. Setting an explicit value prevents AppSet-level overrides, unless --allow-policy-override is enabled. Explicit options are: 'sync' (create & update & delete), 'create-only', 'create-update' (no deletion), 'create-delete' (no update)")
 	command.Flags().BoolVar(&enablePolicyOverride, "enable-policy-override", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE", policy == ""), "For security reason if 'policy' is set, it is not possible to override it at applicationSet level. 'allow-policy-override' allows user to define their own policy")
 	command.Flags().BoolVar(&debugLog, "debug", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_DEBUG", false), "Print debug logs. Takes precedence over loglevel")
-	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringSliceVar(&allowedScmProviders, "allowed-scm-providers", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS", []string{}, ","), "The list of allowed custom SCM provider API URLs. This restriction does not apply to SCM or PR generators which do not accept a custom API URL. (Default: Empty = all)")
 	command.Flags().BoolVar(&enableScmProviders, "enable-scm-providers", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS", true), "Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true)")

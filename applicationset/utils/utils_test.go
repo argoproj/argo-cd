@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
-	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoappsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestRenderTemplateParams(t *testing.T) {
@@ -180,14 +180,14 @@ func TestRenderTemplateParams(t *testing.T) {
 				// the target field has been templated into the expected value
 				actualValue := *getPtrFunc(newApplication)
 				assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", fieldName, test.expectedVal, actualValue)
-				assert.Equal(t, "annotation-value", newApplication.ObjectMeta.Annotations["annotation-key"])
-				assert.Equal(t, "annotation-value2", newApplication.ObjectMeta.Annotations["annotation-key2"])
-				assert.Equal(t, "label-value", newApplication.ObjectMeta.Labels["label-key"])
-				assert.Equal(t, "label-value2", newApplication.ObjectMeta.Labels["label-key2"])
-				assert.Equal(t, "application-one", newApplication.ObjectMeta.Name)
-				assert.Equal(t, "default", newApplication.ObjectMeta.Namespace)
-				assert.Equal(t, newApplication.ObjectMeta.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
-				assert.Equal(t, newApplication.ObjectMeta.CreationTimestamp, application.ObjectMeta.CreationTimestamp)
+				assert.Equal(t, "annotation-value", newApplication.Annotations["annotation-key"])
+				assert.Equal(t, "annotation-value2", newApplication.Annotations["annotation-key2"])
+				assert.Equal(t, "label-value", newApplication.Labels["label-key"])
+				assert.Equal(t, "label-value2", newApplication.Labels["label-key2"])
+				assert.Equal(t, "application-one", newApplication.Name)
+				assert.Equal(t, "default", newApplication.Namespace)
+				assert.Equal(t, newApplication.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
+				assert.Equal(t, newApplication.CreationTimestamp, application.CreationTimestamp)
 				require.NoError(t, err)
 			}
 		})
@@ -565,7 +565,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			expectedVal:  "  foo:\n    bar:\n      bool: true\n      number: 2\n      str: Hello world",
 			errorMessage: "failed to execute go template {{ toYaml . | indent 2 }}: template: :1:3: executing \"\" at <toYaml .>: error calling toYaml: error marshaling into JSON: json: unsupported type: func(*string)",
 			params: map[string]any{
-				"foo": func(test *string) {
+				"foo": func(_ *string) {
 				},
 			},
 		},
@@ -627,14 +627,14 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 					require.NoError(t, err)
 					actualValue := *getPtrFunc(newApplication)
 					assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", fieldName, test.expectedVal, actualValue)
-					assert.Equal(t, "annotation-value", newApplication.ObjectMeta.Annotations["annotation-key"])
-					assert.Equal(t, "annotation-value2", newApplication.ObjectMeta.Annotations["annotation-key2"])
-					assert.Equal(t, "label-value", newApplication.ObjectMeta.Labels["label-key"])
-					assert.Equal(t, "label-value2", newApplication.ObjectMeta.Labels["label-key2"])
-					assert.Equal(t, "application-one", newApplication.ObjectMeta.Name)
-					assert.Equal(t, "default", newApplication.ObjectMeta.Namespace)
-					assert.Equal(t, newApplication.ObjectMeta.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
-					assert.Equal(t, newApplication.ObjectMeta.CreationTimestamp, application.ObjectMeta.CreationTimestamp)
+					assert.Equal(t, "annotation-value", newApplication.Annotations["annotation-key"])
+					assert.Equal(t, "annotation-value2", newApplication.Annotations["annotation-key2"])
+					assert.Equal(t, "label-value", newApplication.Labels["label-key"])
+					assert.Equal(t, "label-value2", newApplication.Labels["label-key2"])
+					assert.Equal(t, "application-one", newApplication.Name)
+					assert.Equal(t, "default", newApplication.Namespace)
+					assert.Equal(t, newApplication.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
+					assert.Equal(t, newApplication.CreationTimestamp, application.CreationTimestamp)
 				}
 			}
 		})
@@ -687,8 +687,8 @@ func TestRenderTemplateKeys(t *testing.T) {
 		render := Render{}
 		newApplication, err := render.RenderTemplateParams(application, nil, params, false, nil)
 		require.NoError(t, err)
-		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
-		assert.Equal(t, "annotation-some-value", newApplication.ObjectMeta.Annotations["annotation-some-key"])
+		require.Contains(t, newApplication.Annotations, "annotation-some-key")
+		assert.Equal(t, "annotation-some-value", newApplication.Annotations["annotation-some-key"])
 	})
 	t.Run("gotemplate", func(t *testing.T) {
 		application := &argoappsv1.Application{
@@ -707,8 +707,8 @@ func TestRenderTemplateKeys(t *testing.T) {
 		render := Render{}
 		newApplication, err := render.RenderTemplateParams(application, nil, params, true, nil)
 		require.NoError(t, err)
-		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
-		assert.Equal(t, "annotation-some-value", newApplication.ObjectMeta.Annotations["annotation-some-key"])
+		require.Contains(t, newApplication.Annotations, "annotation-some-key")
+		assert.Equal(t, "annotation-some-value", newApplication.Annotations["annotation-some-key"])
 	})
 }
 
@@ -1331,42 +1331,42 @@ WkBKOclmOV2xlTVuPw==
 		scmRootCAPath           string
 		insecure                bool
 		caCerts                 []byte
-		validateCertInTlsConfig bool
+		validateCertInTLSConfig bool
 	}{
 		{
 			name:                    "Insecure mode configured, SCM Root CA Path not set",
 			scmRootCAPath:           "",
 			insecure:                true,
 			caCerts:                 nil,
-			validateCertInTlsConfig: false,
+			validateCertInTLSConfig: false,
 		},
 		{
 			name:                    "SCM Root CA Path set, Insecure mode set to false",
 			scmRootCAPath:           rootCAPath,
 			insecure:                false,
 			caCerts:                 nil,
-			validateCertInTlsConfig: true,
+			validateCertInTLSConfig: true,
 		},
 		{
 			name:                    "SCM Root CA Path set, Insecure mode set to true",
 			scmRootCAPath:           rootCAPath,
 			insecure:                true,
 			caCerts:                 nil,
-			validateCertInTlsConfig: true,
+			validateCertInTLSConfig: true,
 		},
 		{
 			name:                    "Cert passed, Insecure mode set to false",
 			scmRootCAPath:           "",
 			insecure:                false,
 			caCerts:                 []byte(certFromCM),
-			validateCertInTlsConfig: true,
+			validateCertInTLSConfig: true,
 		},
 		{
 			name:                    "SCM Root CA Path set, cert passed, Insecure mode set to false",
 			scmRootCAPath:           rootCAPath,
 			insecure:                false,
 			caCerts:                 []byte(certFromCM),
-			validateCertInTlsConfig: true,
+			validateCertInTLSConfig: true,
 		},
 	}
 
@@ -1384,7 +1384,7 @@ WkBKOclmOV2xlTVuPw==
 				assert.True(t, ok)
 			}
 			assert.NotNil(t, tlsConfig)
-			if testCase.validateCertInTlsConfig {
+			if testCase.validateCertInTLSConfig {
 				assert.True(t, tlsConfig.RootCAs.Equal(certPool))
 			}
 		})

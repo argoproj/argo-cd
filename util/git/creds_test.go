@@ -8,8 +8,10 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
+	gocache "github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
@@ -17,8 +19,10 @@ import (
 
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 
-	"github.com/argoproj/argo-cd/v2/util/cert"
-	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v3/util/cert"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
 
 type cred struct {
@@ -43,25 +47,25 @@ func (s *memoryCredsStore) Remove(id string) {
 	delete(s.creds, id)
 }
 
-func (s *memoryCredsStore) Environ(id string) []string {
+func (s *memoryCredsStore) Environ(_ string) []string {
 	return nil
 }
 
 func TestHTTPSCreds_Environ_no_cert_cleanup(t *testing.T) {
 	store := &memoryCredsStore{creds: make(map[string]cred)}
-	creds := NewHTTPSCreds("", "", "", "", true, "", "", store, false)
+	creds := NewHTTPSCreds("", "", "", "", "", true, store, false)
 	closer, _, err := creds.Environ()
 	require.NoError(t, err)
 	credsLenBefore := len(store.creds)
-	io.Close(closer)
+	utilio.Close(closer)
 	assert.Len(t, store.creds, credsLenBefore-1)
 }
 
 func TestHTTPSCreds_Environ_insecure_true(t *testing.T) {
-	creds := NewHTTPSCreds("", "", "", "", true, "", "", &NoopCredsStore{}, false)
+	creds := NewHTTPSCreds("", "", "", "", "", true, &NoopCredsStore{}, false)
 	closer, env, err := creds.Environ()
 	t.Cleanup(func() {
-		io.Close(closer)
+		utilio.Close(closer)
 	})
 	require.NoError(t, err)
 	found := false
@@ -75,10 +79,10 @@ func TestHTTPSCreds_Environ_insecure_true(t *testing.T) {
 }
 
 func TestHTTPSCreds_Environ_insecure_false(t *testing.T) {
-	creds := NewHTTPSCreds("", "", "", "", false, "", "", &NoopCredsStore{}, false)
+	creds := NewHTTPSCreds("", "", "", "", "", false, &NoopCredsStore{}, false)
 	closer, env, err := creds.Environ()
 	t.Cleanup(func() {
-		io.Close(closer)
+		utilio.Close(closer)
 	})
 	require.NoError(t, err)
 	found := false
@@ -94,7 +98,7 @@ func TestHTTPSCreds_Environ_insecure_false(t *testing.T) {
 func TestHTTPSCreds_Environ_forceBasicAuth(t *testing.T) {
 	t.Run("Enabled and credentials set", func(t *testing.T) {
 		store := &memoryCredsStore{creds: make(map[string]cred)}
-		creds := NewHTTPSCreds("username", "password", "", "", false, "", "", store, true)
+		creds := NewHTTPSCreds("username", "password", "", "", "", false, store, true)
 		closer, env, err := creds.Environ()
 		require.NoError(t, err)
 		defer closer.Close()
@@ -112,7 +116,7 @@ func TestHTTPSCreds_Environ_forceBasicAuth(t *testing.T) {
 	})
 	t.Run("Enabled but credentials not set", func(t *testing.T) {
 		store := &memoryCredsStore{creds: make(map[string]cred)}
-		creds := NewHTTPSCreds("", "", "", "", false, "", "", store, true)
+		creds := NewHTTPSCreds("", "", "", "", "", false, store, true)
 		closer, env, err := creds.Environ()
 		require.NoError(t, err)
 		defer closer.Close()
@@ -129,7 +133,7 @@ func TestHTTPSCreds_Environ_forceBasicAuth(t *testing.T) {
 	})
 	t.Run("Disabled with credentials set", func(t *testing.T) {
 		store := &memoryCredsStore{creds: make(map[string]cred)}
-		creds := NewHTTPSCreds("username", "password", "", "", false, "", "", store, false)
+		creds := NewHTTPSCreds("username", "password", "", "", "", false, store, false)
 		closer, env, err := creds.Environ()
 		require.NoError(t, err)
 		defer closer.Close()
@@ -147,7 +151,7 @@ func TestHTTPSCreds_Environ_forceBasicAuth(t *testing.T) {
 
 	t.Run("Disabled with credentials not set", func(t *testing.T) {
 		store := &memoryCredsStore{creds: make(map[string]cred)}
-		creds := NewHTTPSCreds("", "", "", "", false, "", "", store, false)
+		creds := NewHTTPSCreds("", "", "", "", "", false, store, false)
 		closer, env, err := creds.Environ()
 		require.NoError(t, err)
 		defer closer.Close()
@@ -164,9 +168,29 @@ func TestHTTPSCreds_Environ_forceBasicAuth(t *testing.T) {
 	})
 }
 
+func TestHTTPSCreds_Environ_bearerTokenAuth(t *testing.T) {
+	t.Run("Enabled and credentials set", func(t *testing.T) {
+		store := &memoryCredsStore{creds: make(map[string]cred)}
+		creds := NewHTTPSCreds("", "", "token", "", "", false, store, false)
+		closer, env, err := creds.Environ()
+		require.NoError(t, err)
+		defer closer.Close()
+		var header string
+		for _, envVar := range env {
+			if strings.HasPrefix(envVar, bearerAuthHeaderEnv+"=") {
+				header = envVar[len(bearerAuthHeaderEnv)+1:]
+			}
+			if header != "" {
+				break
+			}
+		}
+		assert.Equal(t, "Authorization: Bearer token", header)
+	})
+}
+
 func TestHTTPSCreds_Environ_clientCert(t *testing.T) {
 	store := &memoryCredsStore{creds: make(map[string]cred)}
-	creds := NewHTTPSCreds("", "", "clientCertData", "clientCertKey", false, "", "", store, false)
+	creds := NewHTTPSCreds("", "", "", "clientCertData", "clientCertKey", false, store, false)
 	closer, env, err := creds.Environ()
 	require.NoError(t, err)
 	var cert, key string
@@ -190,7 +214,7 @@ func TestHTTPSCreds_Environ_clientCert(t *testing.T) {
 	assert.Equal(t, "clientCertKey", string(keyBytes))
 	require.NoError(t, err)
 
-	io.Close(closer)
+	utilio.Close(closer)
 
 	_, err = os.Stat(cert)
 	require.ErrorIs(t, err, os.ErrNotExist)
@@ -204,7 +228,7 @@ func Test_SSHCreds_Environ(t *testing.T) {
 		caFile := path.Join(tempDir, "caFile")
 		err := os.WriteFile(caFile, []byte(""), os.FileMode(0o600))
 		require.NoError(t, err)
-		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, &NoopCredsStore{}, "", "")
+		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, "")
 		closer, env, err := creds.Environ()
 		require.NoError(t, err)
 		require.Len(t, env, 2)
@@ -226,7 +250,7 @@ func Test_SSHCreds_Environ(t *testing.T) {
 		assert.Regexp(t, envRegex, env[1])
 		privateKeyFile := envRegex.FindStringSubmatch(env[1])[1]
 		assert.FileExists(t, privateKeyFile)
-		io.Close(closer)
+		utilio.Close(closer)
 		assert.NoFileExists(t, privateKeyFile)
 	}
 }
@@ -237,7 +261,7 @@ func Test_SSHCreds_Environ_WithProxy(t *testing.T) {
 		caFile := path.Join(tempDir, "caFile")
 		err := os.WriteFile(caFile, []byte(""), os.FileMode(0o600))
 		require.NoError(t, err)
-		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, &NoopCredsStore{}, "socks5://127.0.0.1:1080", "")
+		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, "socks5://127.0.0.1:1080")
 		closer, env, err := creds.Environ()
 		require.NoError(t, err)
 		require.Len(t, env, 2)
@@ -260,7 +284,7 @@ func Test_SSHCreds_Environ_WithProxy(t *testing.T) {
 		assert.Regexp(t, envRegex, env[1])
 		privateKeyFile := envRegex.FindStringSubmatch(env[1])[1]
 		assert.FileExists(t, privateKeyFile)
-		io.Close(closer)
+		utilio.Close(closer)
 		assert.NoFileExists(t, privateKeyFile)
 	}
 }
@@ -271,7 +295,7 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 		caFile := path.Join(tempDir, "caFile")
 		err := os.WriteFile(caFile, []byte(""), os.FileMode(0o600))
 		require.NoError(t, err)
-		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, &NoopCredsStore{}, "socks5://user:password@127.0.0.1:1080", "")
+		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, "socks5://user:password@127.0.0.1:1080")
 		closer, env, err := creds.Environ()
 		require.NoError(t, err)
 		require.Len(t, env, 4)
@@ -296,7 +320,7 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 		assert.Regexp(t, envRegex, env[1])
 		privateKeyFile := envRegex.FindStringSubmatch(env[1])[1]
 		assert.FileExists(t, privateKeyFile)
-		io.Close(closer)
+		utilio.Close(closer)
 		assert.NoFileExists(t, privateKeyFile)
 	}
 }
@@ -304,7 +328,7 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 	// Previously, if the proxy URL was invalid, a temporary file would be left in /dev/shm. This ensures the file is cleaned up in this case.
 
-	// countDev returns the number of files in /dev/shm (argoio.TempDir)
+	// countDev returns the number of files in /dev/shm (argoutilio.TempDir)
 	countFilesInDevShm := func() int {
 		entries, err := os.ReadDir(argoio.TempDir)
 		require.NoError(t, err)
@@ -317,7 +341,7 @@ func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 		caFile := path.Join(tempDir, "caFile")
 		err := os.WriteFile(caFile, []byte(""), os.FileMode(0o600))
 		require.NoError(t, err)
-		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, &NoopCredsStore{}, ":invalid-proxy-url", "")
+		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, ":invalid-proxy-url")
 
 		filesInDevShmBeforeInvocation := countFilesInDevShm()
 
@@ -360,11 +384,11 @@ func TestNewGoogleCloudCreds_invalidJSON(t *testing.T) {
 	assert.Nil(t, googleCloudCreds.creds)
 
 	token, err := googleCloudCreds.getAccessToken()
-	assert.Equal(t, "", token)
+	assert.Empty(t, token)
 	require.Error(t, err)
 
 	username, err := googleCloudCreds.getUsername()
-	assert.Equal(t, "", username)
+	assert.Empty(t, username)
 	require.Error(t, err)
 
 	closer, envStringSlice, err := googleCloudCreds.Environ()
@@ -385,6 +409,97 @@ func TestGoogleCloudCreds_Environ_cleanup(t *testing.T) {
 	closer, _, err := googleCloudCreds.Environ()
 	require.NoError(t, err)
 	credsLenBefore := len(store.creds)
-	io.Close(closer)
+	utilio.Close(closer)
 	assert.Len(t, store.creds, credsLenBefore-1)
+}
+
+func TestAzureWorkloadIdentityCreds_Environ(t *testing.T) {
+	resetAzureTokenCache()
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	workloadIdentityMock := new(mocks.TokenProvider)
+	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return(&workloadidentity.Token{AccessToken: "accessToken", ExpiresOn: time.Now().Add(time.Minute)}, nil)
+	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
+	_, _, err := creds.Environ()
+	require.NoError(t, err)
+	assert.Len(t, store.creds, 1)
+
+	for _, value := range store.creds {
+		assert.Empty(t, value.username)
+		assert.Equal(t, "accessToken", value.password)
+	}
+}
+
+func TestAzureWorkloadIdentityCreds_Environ_cleanup(t *testing.T) {
+	resetAzureTokenCache()
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	workloadIdentityMock := new(mocks.TokenProvider)
+	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return(&workloadidentity.Token{AccessToken: "accessToken", ExpiresOn: time.Now().Add(time.Minute)}, nil)
+	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
+	closer, _, err := creds.Environ()
+	require.NoError(t, err)
+	credsLenBefore := len(store.creds)
+	utilio.Close(closer)
+	assert.Len(t, store.creds, credsLenBefore-1)
+}
+
+func TestAzureWorkloadIdentityCreds_GetUserInfo(t *testing.T) {
+	resetAzureTokenCache()
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	workloadIdentityMock := new(mocks.TokenProvider)
+	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return(&workloadidentity.Token{AccessToken: "accessToken", ExpiresOn: time.Now().Add(time.Minute)}, nil)
+	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
+
+	user, email, err := creds.GetUserInfo(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, workloadidentity.EmptyGuid, user)
+	assert.Empty(t, email)
+}
+
+func TestGetHelmCredsShouldReturnHelmCredsIfAzureWorkloadIdentityNotSpecified(t *testing.T) {
+	var creds Creds = NewAzureWorkloadIdentityCreds(NoopCredsStore{}, new(mocks.TokenProvider))
+
+	_, ok := creds.(AzureWorkloadIdentityCreds)
+	require.Truef(t, ok, "expected HelmCreds but got %T", creds)
+}
+
+func TestAzureWorkloadIdentityCreds_FetchNewTokenIfExistingIsExpired(t *testing.T) {
+	resetAzureTokenCache()
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	workloadIdentityMock := new(mocks.TokenProvider)
+	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).
+		Return(&workloadidentity.Token{AccessToken: "firstToken", ExpiresOn: time.Now().Add(time.Minute)}, nil).Once()
+	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).
+		Return(&workloadidentity.Token{AccessToken: "secondToken"}, nil).Once()
+	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
+	token, err := creds.GetAzureDevOpsAccessToken()
+	require.NoError(t, err)
+
+	assert.Equal(t, "firstToken", token)
+	time.Sleep(5 * time.Second)
+	token, err = creds.GetAzureDevOpsAccessToken()
+	require.NoError(t, err)
+	assert.Equal(t, "secondToken", token)
+}
+
+func TestAzureWorkloadIdentityCreds_ReuseTokenIfExistingIsNotExpired(t *testing.T) {
+	resetAzureTokenCache()
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	workloadIdentityMock := new(mocks.TokenProvider)
+	firstToken := &workloadidentity.Token{AccessToken: "firstToken", ExpiresOn: time.Now().Add(6 * time.Minute)}
+	secondToken := &workloadidentity.Token{AccessToken: "secondToken"}
+	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return(firstToken, nil).Once()
+	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return(secondToken, nil).Once()
+	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
+	token, err := creds.GetAzureDevOpsAccessToken()
+	require.NoError(t, err)
+
+	assert.Equal(t, "firstToken", token)
+	time.Sleep(5 * time.Second)
+	token, err = creds.GetAzureDevOpsAccessToken()
+	require.NoError(t, err)
+	assert.Equal(t, "firstToken", token)
+}
+
+func resetAzureTokenCache() {
+	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
 }

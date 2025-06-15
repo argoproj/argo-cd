@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/pkg/sync"
+	"github.com/argoproj/pkg/v2/sync"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -24,25 +24,23 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	appsettemplate "github.com/argoproj/argo-cd/v2/applicationset/controllers/template"
-	"github.com/argoproj/argo-cd/v2/applicationset/generators"
-	"github.com/argoproj/argo-cd/v2/applicationset/services"
-	appsetstatus "github.com/argoproj/argo-cd/v2/applicationset/status"
-	appsetutils "github.com/argoproj/argo-cd/v2/applicationset/utils"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/collections"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/github_app"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
-	"github.com/argoproj/argo-cd/v2/util/security"
-	"github.com/argoproj/argo-cd/v2/util/session"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	appsettemplate "github.com/argoproj/argo-cd/v3/applicationset/controllers/template"
+	"github.com/argoproj/argo-cd/v3/applicationset/generators"
+	"github.com/argoproj/argo-cd/v3/applicationset/services"
+	appsetstatus "github.com/argoproj/argo-cd/v3/applicationset/status"
+	appsetutils "github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	repoapiclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/collections"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/github_app"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/security"
+	"github.com/argoproj/argo-cd/v3/util/session"
 )
 
 type Server struct {
@@ -56,9 +54,7 @@ type Server struct {
 	appclientset             appclientset.Interface
 	appsetInformer           cache.SharedIndexInformer
 	appsetLister             applisters.ApplicationSetLister
-	projLister               applisters.AppProjectNamespaceLister
 	auditLogger              *argo.AuditLogger
-	settings                 *settings.SettingsManager
 	projectLock              sync.KeyLock
 	enabledNamespaces        []string
 	GitSubmoduleEnabled      bool
@@ -79,8 +75,6 @@ func NewServer(
 	appclientset appclientset.Interface,
 	appsetInformer cache.SharedIndexInformer,
 	appsetLister applisters.ApplicationSetLister,
-	projLister applisters.AppProjectNamespaceLister,
-	settings *settings.SettingsManager,
 	namespace string,
 	projectLock sync.KeyLock,
 	enabledNamespaces []string,
@@ -102,10 +96,8 @@ func NewServer(
 		appclientset:             appclientset,
 		appsetInformer:           appsetInformer,
 		appsetLister:             appsetLister,
-		projLister:               projLister,
-		settings:                 settings,
 		projectLock:              projectLock,
-		auditLogger:              argo.NewAuditLogger(namespace, kubeclientset, "argocd-server", enableK8sEvent),
+		auditLogger:              argo.NewAuditLogger(kubeclientset, "argocd-server", enableK8sEvent),
 		enabledNamespaces:        enabledNamespaces,
 		GitSubmoduleEnabled:      gitSubmoduleEnabled,
 		EnableNewGitFileGlobbing: enableNewGitFileGlobbing,
@@ -127,7 +119,7 @@ func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetGetQue
 	if err != nil {
 		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
 	}
-	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
+	if err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionGet, a.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
 
@@ -160,7 +152,7 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 			continue
 		}
 
-		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
+		if s.enf.Enforce(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionGet, a.RBACName(s.ns)) {
 			newItems = append(newItems, *a)
 		}
 	}
@@ -225,7 +217,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 
 	created, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).Create(ctx, appset, metav1.CreateOptions{})
 	if err == nil {
-		s.logAppSetEvent(created, ctx, argo.EventReasonResourceCreated, "created ApplicationSet")
+		s.logAppSetEvent(ctx, created, argo.EventReasonResourceCreated, "created ApplicationSet")
 		s.waitSync(created)
 		return created, nil
 	}
@@ -253,10 +245,10 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 	if !q.Upsert {
 		return nil, status.Errorf(codes.InvalidArgument, "existing ApplicationSet spec is different, use upsert flag to force update")
 	}
-	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionUpdate, appset.RBACName(s.ns)); err != nil {
+	if err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionUpdate, appset.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
-	updated, err := s.updateAppSet(existing, appset, ctx, true)
+	updated, err := s.updateAppSet(ctx, existing, appset, true)
 	if err != nil {
 		return nil, fmt.Errorf("error updating ApplicationSets: %w", err)
 	}
@@ -267,15 +259,7 @@ func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.E
 	argoCDDB := s.db
 
 	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true)
-
-	getRepository := func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
-		return s.db.GetRepository(ctx, url, project)
-	}
-	argoCDService, err := services.NewArgoCDService(getRepository, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
-	if err != nil {
-		return nil, fmt.Errorf("error creating ArgoCDService: %w", err)
-	}
-
+	argoCDService := services.NewArgoCDService(s.db, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
 	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, namespace, argoCDService, s.dynamicClient, scmConfig)
 
 	apps, _, err := appsettemplate.GenerateApplications(logEntry, appset, appSetGenerators, &appsetutils.Render{}, s.client)
@@ -285,15 +269,15 @@ func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.E
 	return apps, nil
 }
 
-func (s *Server) updateAppSet(appset *v1alpha1.ApplicationSet, newAppset *v1alpha1.ApplicationSet, ctx context.Context, merge bool) (*v1alpha1.ApplicationSet, error) {
+func (s *Server) updateAppSet(ctx context.Context, appset *v1alpha1.ApplicationSet, newAppset *v1alpha1.ApplicationSet, merge bool) (*v1alpha1.ApplicationSet, error) {
 	if appset != nil && appset.Spec.Template.Spec.Project != newAppset.Spec.Template.Spec.Project {
 		// When changing projects, caller must have applicationset create and update privileges in new project
 		// NOTE: the update check was already verified in the caller to this function
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionCreate, newAppset.RBACName(s.ns)); err != nil {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionCreate, newAppset.RBACName(s.ns)); err != nil {
 			return nil, err
 		}
 		// They also need 'update' privileges in the old project
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionUpdate, appset.RBACName(s.ns)); err != nil {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionUpdate, appset.RBACName(s.ns)); err != nil {
 			return nil, err
 		}
 	}
@@ -307,10 +291,10 @@ func (s *Server) updateAppSet(appset *v1alpha1.ApplicationSet, newAppset *v1alph
 			appset.Labels = newAppset.Labels
 			appset.Annotations = newAppset.Annotations
 		}
-
+		appset.Finalizers = newAppset.Finalizers
 		res, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(s.ns).Update(ctx, appset, metav1.UpdateOptions{})
 		if err == nil {
-			s.logAppSetEvent(appset, ctx, argo.EventReasonResourceUpdated, "updated ApplicationSets spec")
+			s.logAppSetEvent(ctx, appset, argo.EventReasonResourceUpdated, "updated ApplicationSets spec")
 			s.waitSync(res)
 			return res, nil
 		}
@@ -334,7 +318,7 @@ func (s *Server) Delete(ctx context.Context, q *applicationset.ApplicationSetDel
 		return nil, fmt.Errorf("error getting ApplicationSets: %w", err)
 	}
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionDelete, appset.RBACName(s.ns)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionDelete, appset.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
 
@@ -345,7 +329,7 @@ func (s *Server) Delete(ctx context.Context, q *applicationset.ApplicationSetDel
 	if err != nil {
 		return nil, fmt.Errorf("error deleting ApplicationSets: %w", err)
 	}
-	s.logAppSetEvent(appset, ctx, argo.EventReasonResourceDeleted, "deleted ApplicationSets")
+	s.logAppSetEvent(ctx, appset, argo.EventReasonResourceDeleted, "deleted ApplicationSets")
 	return &applicationset.ApplicationSetResponse{}, nil
 }
 
@@ -360,7 +344,7 @@ func (s *Server) ResourceTree(ctx context.Context, q *applicationset.Application
 	if err != nil {
 		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
 	}
-	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
+	if err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionGet, a.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
 
@@ -447,7 +431,7 @@ func (s *Server) validateAppSet(appset *v1alpha1.ApplicationSet) (string, error)
 }
 
 func (s *Server) checkCreatePermissions(ctx context.Context, appset *v1alpha1.ApplicationSet, projectName string) error {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionCreate, appset.RBACName(s.ns)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionCreate, appset.RBACName(s.ns)); err != nil {
 		return err
 	}
 
@@ -495,7 +479,7 @@ func (s *Server) waitSync(appset *v1alpha1.ApplicationSet) {
 	logCtx.Warnf("waitSync failed: timed out")
 }
 
-func (s *Server) logAppSetEvent(a *v1alpha1.ApplicationSet, ctx context.Context, reason string, action string) {
+func (s *Server) logAppSetEvent(ctx context.Context, a *v1alpha1.ApplicationSet, reason string, action string) {
 	eventInfo := argo.EventInfo{Type: corev1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {
@@ -508,9 +492,8 @@ func (s *Server) logAppSetEvent(a *v1alpha1.ApplicationSet, ctx context.Context,
 func (s *Server) appsetNamespaceOrDefault(appNs string) string {
 	if appNs == "" {
 		return s.ns
-	} else {
-		return appNs
 	}
+	return appNs
 }
 
 func (s *Server) isNamespaceEnabled(namespace string) bool {

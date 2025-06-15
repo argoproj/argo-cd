@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/cmp"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
+	pluginclient "github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/cmp"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
 )
 
 type streamMock struct {
@@ -59,10 +59,10 @@ func TestReceiveApplicationStream(t *testing.T) {
 			close(streamMock.messages)
 			os.RemoveAll(workdir)
 		}()
-		go streamMock.sendFile(context.Background(), t, appDir, streamMock, []string{"env1", "env2"}, []string{"DUMMY.md", "dum*"})
+		go streamMock.sendFile(t.Context(), t, appDir, streamMock, []string{"env1", "env2"}, []string{"DUMMY.md", "dum*"})
 
 		// when
-		env, err := cmp.ReceiveRepoStream(context.Background(), streamMock, workdir, false)
+		env, err := cmp.ReceiveRepoStream(t.Context(), streamMock, workdir, false)
 
 		// then
 		require.NoError(t, err)

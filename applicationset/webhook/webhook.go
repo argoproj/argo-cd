@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,11 +16,11 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/generators"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
-	"github.com/argoproj/argo-cd/v2/util/webhook"
+	"github.com/argoproj/argo-cd/v3/applicationset/generators"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/webhook"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/github"
@@ -31,7 +32,6 @@ const payloadQueueSize = 50000
 
 type WebhookHandler struct {
 	sync.WaitGroup // for testing
-	namespace      string
 	github         *github.Webhook
 	gitlab         *gitlab.Webhook
 	azuredevops    *azuredevops.Webhook
@@ -68,27 +68,26 @@ type prGeneratorGitlabInfo struct {
 	APIHostname string
 }
 
-func NewWebhookHandler(namespace string, webhookParallelism int, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
+func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
 	// register the webhook secrets stored under "argocd-secret" for verifying incoming payloads
 	argocdSettings, err := argocdSettingsMgr.GetSettings()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get argocd settings: %w", err)
+		return nil, fmt.Errorf("failed to get argocd settings: %w", err)
 	}
 	githubHandler, err := github.New(github.Options.Secret(argocdSettings.WebhookGitHubSecret))
 	if err != nil {
-		return nil, fmt.Errorf("Unable to init GitHub webhook: %w", err)
+		return nil, fmt.Errorf("unable to init GitHub webhook: %w", err)
 	}
 	gitlabHandler, err := gitlab.New(gitlab.Options.Secret(argocdSettings.WebhookGitLabSecret))
 	if err != nil {
-		return nil, fmt.Errorf("Unable to init GitLab webhook: %w", err)
+		return nil, fmt.Errorf("unable to init GitLab webhook: %w", err)
 	}
 	azuredevopsHandler, err := azuredevops.New(azuredevops.Options.BasicAuth(argocdSettings.WebhookAzureDevOpsUsername, argocdSettings.WebhookAzureDevOpsPassword))
 	if err != nil {
-		return nil, fmt.Errorf("Unable to init Azure DevOps webhook: %w", err)
+		return nil, fmt.Errorf("unable to init Azure DevOps webhook: %w", err)
 	}
 
 	webhookHandler := &WebhookHandler{
-		namespace:   namespace,
 		github:      githubHandler,
 		gitlab:      gitlabHandler,
 		azuredevops: azuredevopsHandler,
@@ -217,13 +216,7 @@ func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
 	}
 
 	log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, revision, touchedHead)
-	urlObj, err := url.Parse(webURL)
-	if err != nil {
-		log.Errorf("Failed to parse repoURL '%s'", webURL)
-		return nil
-	}
-	regexpStr := `(?i)(http://|https://|\w+@|ssh://(\w+@)?)` + urlObj.Hostname() + "(:[0-9]+|)[:/]" + urlObj.Path[1:] + "(\\.git)?$"
-	repoRegexp, err := regexp.Compile(regexpStr)
+	repoRegexp, err := webhook.GetWebURLRegex(webURL)
 	if err != nil {
 		log.Errorf("Failed to compile regexp for repoURL '%s'", webURL)
 		return nil
@@ -240,18 +233,12 @@ func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 	var info prGeneratorInfo
 	switch payload := payload.(type) {
 	case github.PullRequestPayload:
-		if !isAllowedGithubPullRequestAction(payload.Action) {
+		if !slices.Contains(githubAllowedPullRequestActions, payload.Action) {
 			return nil
 		}
 
 		apiURL := payload.Repository.URL
-		urlObj, err := url.Parse(apiURL)
-		if err != nil {
-			log.Errorf("Failed to parse repoURL '%s'", apiURL)
-			return nil
-		}
-		regexpStr := `(?i)(http://|https://|\w+@|ssh://(\w+@)?)` + urlObj.Hostname() + "(:[0-9]+|)[:/]"
-		apiRegexp, err := regexp.Compile(regexpStr)
+		apiRegexp, err := webhook.GetAPIURLRegex(apiURL)
 		if err != nil {
 			log.Errorf("Failed to compile regexp for repoURL '%s'", apiURL)
 			return nil
@@ -262,7 +249,7 @@ func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 			APIRegexp: apiRegexp,
 		}
 	case gitlab.MergeRequestEventPayload:
-		if !isAllowedGitlabPullRequestAction(payload.ObjectAttributes.Action) {
+		if !slices.Contains(gitlabAllowedPullRequestActions, payload.ObjectAttributes.Action) {
 			return nil
 		}
 
@@ -278,7 +265,7 @@ func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 			APIHostname: urlObj.Hostname(),
 		}
 	case azuredevops.GitPullRequestEvent:
-		if !isAllowedAzureDevOpsPullRequestAction(string(payload.EventType)) {
+		if !slices.Contains(azuredevopsAllowedPullRequestActions, string(payload.EventType)) {
 			return nil
 		}
 
@@ -321,33 +308,6 @@ var azuredevopsAllowedPullRequestActions = []string{
 	"git.pullrequest.created",
 	"git.pullrequest.merged",
 	"git.pullrequest.updated",
-}
-
-func isAllowedGithubPullRequestAction(action string) bool {
-	for _, allow := range githubAllowedPullRequestActions {
-		if allow == action {
-			return true
-		}
-	}
-	return false
-}
-
-func isAllowedGitlabPullRequestAction(action string) bool {
-	for _, allow := range gitlabAllowedPullRequestActions {
-		if allow == action {
-			return true
-		}
-	}
-	return false
-}
-
-func isAllowedAzureDevOpsPullRequestAction(action string) bool {
-	for _, allow := range azuredevopsAllowedPullRequestActions {
-		if allow == action {
-			return true
-		}
-	}
-	return false
 }
 
 func shouldRefreshGitGenerator(gen *v1alpha1.GitGenerator, info *gitGeneratorInfo) bool {

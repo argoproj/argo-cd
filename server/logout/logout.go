@@ -10,35 +10,30 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	httputil "github.com/argoproj/argo-cd/v2/util/http"
-	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
-	"github.com/argoproj/argo-cd/v2/util/session"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	httputil "github.com/argoproj/argo-cd/v3/util/http"
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+	"github.com/argoproj/argo-cd/v3/util/session"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // NewHandler creates handler serving to do api/logout endpoint
-func NewHandler(appClientset versioned.Interface, settingsMrg *settings.SettingsManager, sessionMgr *session.SessionManager, rootPath, baseHRef, namespace string) *Handler {
+func NewHandler(settingsMrg *settings.SettingsManager, sessionMgr *session.SessionManager, rootPath, baseHRef string) *Handler {
 	return &Handler{
-		appClientset: appClientset,
-		namespace:    namespace,
-		settingsMgr:  settingsMrg,
-		rootPath:     rootPath,
-		baseHRef:     baseHRef,
-		verifyToken:  sessionMgr.VerifyToken,
-		revokeToken:  sessionMgr.RevokeToken,
+		settingsMgr: settingsMrg,
+		rootPath:    rootPath,
+		baseHRef:    baseHRef,
+		verifyToken: sessionMgr.VerifyToken,
+		revokeToken: sessionMgr.RevokeToken,
 	}
 }
 
 type Handler struct {
-	namespace    string
-	appClientset versioned.Interface
-	settingsMgr  *settings.SettingsManager
-	rootPath     string
-	verifyToken  func(tokenString string) (jwt.Claims, string, error)
-	revokeToken  func(ctx context.Context, id string, expiringAt time.Duration) error
-	baseHRef     string
+	settingsMgr *settings.SettingsManager
+	rootPath    string
+	verifyToken func(tokenString string) (jwt.Claims, string, error)
+	revokeToken func(ctx context.Context, id string, expiringAt time.Duration) error
+	baseHRef    string
 }
 
 var (

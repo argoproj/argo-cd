@@ -12,9 +12,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
 
-	"github.com/argoproj/argo-cd/v2/util/lua"
+	"github.com/argoproj/argo-cd/v3/util/lua"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 var (
@@ -153,16 +153,17 @@ func (ctrl *ApplicationController) cleanupPostDeleteHooks(liveObjs map[kube.Reso
 
 	for _, obj := range hooks {
 		for _, policy := range hook.DeletePolicies(obj) {
-			if policy == common.HookDeletePolicyHookFailed && aggregatedHealth == health.HealthStatusDegraded || policy == common.HookDeletePolicyHookSucceeded && aggregatedHealth == health.HealthStatusHealthy {
-				pendingDeletionCount++
-				if obj.GetDeletionTimestamp() != nil {
-					continue
-				}
-				logCtx.Infof("Deleting post-delete hook %s/%s", obj.GetNamespace(), obj.GetName())
-				err = ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{})
-				if err != nil {
-					return false, err
-				}
+			if (policy != common.HookDeletePolicyHookFailed || aggregatedHealth != health.HealthStatusDegraded) && (policy != common.HookDeletePolicyHookSucceeded || aggregatedHealth != health.HealthStatusHealthy) {
+				continue
+			}
+			pendingDeletionCount++
+			if obj.GetDeletionTimestamp() != nil {
+				continue
+			}
+			logCtx.Infof("Deleting post-delete hook %s/%s", obj.GetNamespace(), obj.GetName())
+			err = ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{})
+			if err != nil {
+				return false, err
 			}
 		}
 	}

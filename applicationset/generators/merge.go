@@ -9,10 +9,8 @@ import (
 	"dario.cat/mergo"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
-	log "github.com/sirupsen/logrus"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 var _ Generator = (*MergeGenerator)(nil)
@@ -54,7 +52,7 @@ func (m *MergeGenerator) getParamSetsForAllGenerators(generators []argoprojiov1a
 // GenerateParams gets the params produced by the MergeGenerator.
 func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]any, error) {
 	if appSetGenerator.Merge == nil {
-		return nil, EmptyAppSetGeneratorError
+		return nil, ErrEmptyAppSetGenerator
 	}
 
 	if len(appSetGenerator.Merge.Generators) < 2 {
@@ -124,11 +122,11 @@ func getParamSetsByMergeKey(mergeKeys []string, paramSets []map[string]any) (map
 		for mergeKey := range deDuplicatedMergeKeys {
 			paramSetKey[mergeKey] = paramSet[mergeKey]
 		}
-		paramSetKeyJson, err := json.Marshal(paramSetKey)
+		paramSetKeyJSON, err := json.Marshal(paramSetKey)
 		if err != nil {
 			return nil, fmt.Errorf("error marshalling param set key json: %w", err)
 		}
-		paramSetKeyString := string(paramSetKeyJson)
+		paramSetKeyString := string(paramSetKeyJSON)
 		if _, exists := paramSetsByMergeKey[paramSetKeyString]; exists {
 			return nil, fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamSets, paramSetKeyString)
 		}
@@ -144,21 +142,9 @@ func (m *MergeGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Applic
 	if err != nil {
 		return nil, err
 	}
-	if matrixGen != nil && !appSet.Spec.ApplyNestedSelectors {
-		foundSelector := dropDisabledNestedSelectors(matrixGen.Generators)
-		if foundSelector {
-			log.Warnf("AppSet '%v' defines selector on nested matrix generator's generator without enabling them via 'spec.applyNestedSelectors', ignoring nested selector", appSet.Name)
-		}
-	}
 	mergeGen, err := getMergeGenerator(appSetBaseGenerator)
 	if err != nil {
 		return nil, err
-	}
-	if mergeGen != nil && !appSet.Spec.ApplyNestedSelectors {
-		foundSelector := dropDisabledNestedSelectors(mergeGen.Generators)
-		if foundSelector {
-			log.Warnf("AppSet '%v' defines selector on nested merge generator's generator without enabling them via 'spec.applyNestedSelectors', ignoring nested selector", appSet.Name)
-		}
 	}
 
 	t, err := Transform(
@@ -224,9 +210,8 @@ func (m *MergeGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.App
 
 	if found {
 		return res
-	} else {
-		return NoRequeueAfter
 	}
+	return NoRequeueAfter
 }
 
 func getMergeGenerator(r argoprojiov1alpha1.ApplicationSetNestedGenerator) (*argoprojiov1alpha1.MergeGenerator, error) {

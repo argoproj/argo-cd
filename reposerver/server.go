@@ -6,12 +6,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
+	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/health"
@@ -19,29 +19,23 @@ import (
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	reposervercache "github.com/argoproj/argo-cd/v2/reposerver/cache"
-	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
-	"github.com/argoproj/argo-cd/v2/reposerver/repository"
-	"github.com/argoproj/argo-cd/v2/server/version"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/git"
-	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
-	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
+	"github.com/argoproj/argo-cd/v3/common"
+	versionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	reposervercache "github.com/argoproj/argo-cd/v3/reposerver/cache"
+	"github.com/argoproj/argo-cd/v3/reposerver/metrics"
+	"github.com/argoproj/argo-cd/v3/reposerver/repository"
+	"github.com/argoproj/argo-cd/v3/server/version"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/git"
+	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
+	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 )
 
 // ArgoCDRepoServer is the repo server implementation
 type ArgoCDRepoServer struct {
-	log           *log.Entry
-	repoService   *repository.Service
-	metricsServer *metrics.MetricsServer
-	gitCredsStore git.CredsStore
-	cache         *reposervercache.Cache
-	opts          []grpc.ServerOption
-	initConstants repository.RepoServerInitConstants
+	repoService *repository.Service
+	opts        []grpc.ServerOption
 }
 
 // The hostnames to generate self-signed issues with
@@ -64,28 +58,32 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 		tlsConfCustomizer(tlsConfig)
 	}
 
+	var serverMetricsOptions []grpc_prometheus.ServerMetricsOption
 	if os.Getenv(common.EnvEnableGRPCTimeHistogramEnv) == "true" {
-		grpc_prometheus.EnableHandlingTimeHistogram()
+		serverMetricsOptions = append(serverMetricsOptions, grpc_prometheus.WithServerHandlingTimeHistogram())
 	}
+	serverMetrics := grpc_prometheus.NewServerMetrics(serverMetricsOptions...)
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(serverMetrics)
 
 	serverLog := log.NewEntry(log.StandardLogger())
 	streamInterceptors := []grpc.StreamServerInterceptor{
 		otelgrpc.StreamServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
-		grpc_logrus.StreamServerInterceptor(serverLog),
-		grpc_prometheus.StreamServerInterceptor,
-		grpc_util.PanicLoggerStreamServerInterceptor(serverLog),
+		logging.StreamServerInterceptor(grpc_util.InterceptorLogger(serverLog)),
+		serverMetrics.StreamServerInterceptor(),
+		recovery.StreamServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(serverLog))),
 	}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
 		otelgrpc.UnaryServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
-		grpc_logrus.UnaryServerInterceptor(serverLog),
-		grpc_prometheus.UnaryServerInterceptor,
-		grpc_util.PanicLoggerUnaryServerInterceptor(serverLog),
+		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(serverLog)),
+		serverMetrics.UnaryServerInterceptor(),
+		recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(serverLog))),
 		grpc_util.ErrorSanitizerUnaryServerInterceptor(),
 	}
 
 	serverOpts := []grpc.ServerOption{
-		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(unaryInterceptors...)),
-		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(streamInterceptors...)),
+		grpc.ChainUnaryInterceptor(unaryInterceptors...),
+		grpc.ChainStreamInterceptor(streamInterceptors...),
 		grpc.MaxRecvMsgSize(apiclient.MaxGRPCMessageSize),
 		grpc.MaxSendMsgSize(apiclient.MaxGRPCMessageSize),
 		grpc.KeepaliveEnforcementPolicy(
@@ -100,19 +98,14 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	if tlsConfig != nil {
 		serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
 	}
-	repoService := repository.NewService(metricsServer, cache, initConstants, argo.NewResourceTracking(), gitCredsStore, filepath.Join(os.TempDir(), "_argocd-repo"))
+	repoService := repository.NewService(metricsServer, cache, initConstants, gitCredsStore, filepath.Join(os.TempDir(), "_argocd-repo"))
 	if err := repoService.Init(); err != nil {
 		return nil, fmt.Errorf("failed to initialize the repo service: %w", err)
 	}
 
 	return &ArgoCDRepoServer{
-		log:           serverLog,
-		metricsServer: metricsServer,
-		cache:         cache,
-		initConstants: initConstants,
-		opts:          serverOpts,
-		gitCredsStore: gitCredsStore,
-		repoService:   repoService,
+		opts:        serverOpts,
+		repoService: repoService,
 	}, nil
 }
 

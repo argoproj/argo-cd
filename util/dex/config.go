@@ -7,13 +7,13 @@ import (
 
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	log "github.com/sirupsen/logrus"
 )
 
-func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTls bool) ([]byte, error) {
+func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS bool) ([]byte, error) {
 	if !argocdSettings.IsDexConfigured() {
 		return nil, nil
 	}
@@ -30,7 +30,7 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTls b
 	dexCfg["storage"] = map[string]any{
 		"type": "memory",
 	}
-	if disableTls {
+	if disableTLS {
 		dexCfg["web"] = map[string]any{
 			"http": "0.0.0.0:5556",
 		}

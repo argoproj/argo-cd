@@ -19,14 +19,16 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	certutil "github.com/argoproj/argo-cd/v2/util/cert"
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/proxy"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	certutil "github.com/argoproj/argo-cd/v3/util/cert"
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
+	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/proxy"
+
+	securejoin "github.com/cyphar/filepath-securejoin"
 )
 
-// represents a Docker image in the format NAME[:TAG].
+// Image represents a Docker image in the format NAME[:TAG].
 type Image = string
 
 type BuildOpts struct {
@@ -70,7 +72,29 @@ type kustomize struct {
 	noProxy string
 }
 
-var _ Kustomize = &kustomize{}
+var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Kustomization"}
+
+// IsKustomization checks if the given file name matches any known kustomization file names.
+func IsKustomization(path string) bool {
+	for _, kustomization := range KustomizationNames {
+		if path == kustomization {
+			return true
+		}
+	}
+	return false
+}
+
+// findKustomizeFile looks for any known kustomization file in the path
+func findKustomizeFile(dir string) string {
+	for _, file := range KustomizationNames {
+		path := filepath.Join(dir, file)
+		if _, err := os.Stat(path); err == nil {
+			return file
+		}
+	}
+
+	return ""
+}
 
 func (k *kustomize) getBinaryPath() string {
 	if k.binaryPath != "" {
@@ -83,7 +107,7 @@ func (k *kustomize) getBinaryPath() string {
 // https://github.com/kubernetes-sigs/kustomize/commit/b214fa7d5aa51d7c2ae306ec15115bf1c044fed8#diff-0328c59bcd29799e365ff0647653b886f17c8853df008cd54e7981db882c1b36
 func mapToEditAddArgs(val map[string]string) []string {
 	var args []string
-	if getSemverSafe().LessThan(semver.MustParse("v3.8.5")) {
+	if getSemverSafe(&kustomize{}).LessThan(semver.MustParse("v3.8.5")) {
 		arg := ""
 		for labelName, labelValue := range val {
 			if arg != "" {
@@ -123,13 +147,14 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			log.Warnf("Could not parse URL %s: %v", k.repo, err)
 		} else {
 			caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
-			if err != nil {
+			switch {
+			case err != nil:
 				// Some error while getting CA bundle
 				log.Warnf("Could not get CA bundle path for %s: %v", parsedURL.Host, err)
-			} else if caPath == "" {
+			case caPath == "":
 				// No cert configured
 				log.Debugf("No caCert found for repo %s", parsedURL.Host)
-			} else {
+			default:
 				// Make Git use CA bundle
 				environ = append(environ, "GIT_SSL_CAINFO="+caPath)
 			}
@@ -205,6 +230,9 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			if opts.LabelWithoutSelector {
 				args = append(args, "--without-selector")
 			}
+			if opts.LabelIncludeTemplates {
+				args = append(args, "--include-templates")
+			}
 			commonLabels := map[string]string{}
 			for name, value := range opts.CommonLabels {
 				commonLabels[name] = envVars.Envsubst(value)
@@ -253,7 +281,13 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		}
 
 		if len(opts.Patches) > 0 {
-			kustomizationPath := filepath.Join(k.path, "kustomization.yaml")
+			kustFile := findKustomizeFile(k.path)
+			// If the kustomization file is not found, return early.
+			// There is no point reading the kustomization path if it doesn't exist.
+			if kustFile == "" {
+				return nil, nil, nil, errors.New("kustomization file not found in the path")
+			}
+			kustomizationPath := filepath.Join(k.path, kustFile)
 			b, err := os.ReadFile(kustomizationPath)
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("failed to load kustomization.yaml: %w", err)
@@ -304,13 +338,29 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		if len(opts.Components) > 0 {
 			// components only supported in kustomize >= v3.7.0
 			// https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md
-			if getSemverSafe().LessThan(semver.MustParse("v3.7.0")) {
+			if getSemverSafe(k).LessThan(semver.MustParse("v3.7.0")) {
 				return nil, nil, nil, errors.New("kustomize components require kustomize v3.7.0 and above")
 			}
 
 			// add components
+			foundComponents := opts.Components
+			if opts.IgnoreMissingComponents {
+				foundComponents = make([]string, 0)
+				for _, c := range opts.Components {
+					resolvedPath, err := securejoin.SecureJoin(k.path, c)
+					if err != nil {
+						return nil, nil, nil, fmt.Errorf("Kustomize components path failed: %w", err)
+					}
+					_, err = os.Stat(resolvedPath)
+					if err != nil {
+						log.Debugf("%s component directory does not exist", resolvedPath)
+						continue
+					}
+					foundComponents = append(foundComponents, c)
+				}
+			}
 			args := []string{"edit", "add", "component"}
-			args = append(args, opts.Components...)
+			args = append(args, foundComponents...)
 			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
 			cmd.Env = env
@@ -324,7 +374,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 
 	var cmd *exec.Cmd
 	if kustomizeOptions != nil && kustomizeOptions.BuildOptions != "" {
-		params := parseKustomizeBuildOptions(k.path, kustomizeOptions.BuildOptions, buildOpts)
+		params := parseKustomizeBuildOptions(k, kustomizeOptions.BuildOptions, buildOpts)
 		cmd = exec.Command(k.getBinaryPath(), params...)
 	} else {
 		cmd = exec.Command(k.getBinaryPath(), "build", k.path)
@@ -351,10 +401,10 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	return objs, getImageParameters(objs), redactedCommands, nil
 }
 
-func parseKustomizeBuildOptions(path string, buildOptions string, buildOpts *BuildOpts) []string {
-	buildOptsParams := append([]string{"build", path}, strings.Fields(buildOptions)...)
+func parseKustomizeBuildOptions(k *kustomize, buildOptions string, buildOpts *BuildOpts) []string {
+	buildOptsParams := append([]string{"build", k.path}, strings.Fields(buildOptions)...)
 
-	if buildOpts != nil && !getSemverSafe().LessThan(semver.MustParse("v5.3.0")) && isHelmEnabled(buildOptions) {
+	if buildOpts != nil && !getSemverSafe(k).LessThan(semver.MustParse("v5.3.0")) && isHelmEnabled(buildOptions) {
 		if buildOpts.KubeVersion != "" {
 			buildOptsParams = append(buildOptsParams, "--helm-kube-version", buildOpts.KubeVersion)
 		}
@@ -368,17 +418,6 @@ func parseKustomizeBuildOptions(path string, buildOptions string, buildOpts *Bui
 
 func isHelmEnabled(buildOptions string) bool {
 	return strings.Contains(buildOptions, "--enable-helm")
-}
-
-var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Kustomization"}
-
-func IsKustomization(path string) bool {
-	for _, kustomization := range KustomizationNames {
-		if path == kustomization {
-			return true
-		}
-	}
-	return false
 }
 
 // semver/v3 doesn't export the regexp anymore, so shamelessly copied it over to
@@ -396,8 +435,8 @@ var (
 )
 
 // getSemver returns parsed kustomize version
-func getSemver() (*semver.Version, error) {
-	verStr, err := Version(true)
+func getSemver(k *kustomize) (*semver.Version, error) {
+	verStr, err := versionWithBinaryPath(k)
 	if err != nil {
 		return nil, err
 	}
@@ -413,12 +452,12 @@ func getSemver() (*semver.Version, error) {
 // getSemverSafe returns parsed kustomize version;
 // if version cannot be parsed assumes that "kustomize version" output format changed again
 // and fallback to latest ( v99.99.99 )
-func getSemverSafe() *semver.Version {
+func getSemverSafe(k *kustomize) *semver.Version {
 	if semVer == nil {
 		semVerLock.Lock()
 		defer semVerLock.Unlock()
 
-		if ver, err := getSemver(); err != nil {
+		if ver, err := getSemver(k); err != nil {
 			semVer = unknownVersion
 			log.Warnf("Failed to parse kustomize version: %v", err)
 		} else {
@@ -428,33 +467,30 @@ func getSemverSafe() *semver.Version {
 	return semVer
 }
 
-func Version(shortForm bool) (string, error) {
-	executable := "kustomize"
-	cmdArgs := []string{"version"}
-	if shortForm {
-		cmdArgs = append(cmdArgs, "--short")
-	}
-	cmd := exec.Command(executable, cmdArgs...)
+func Version() (string, error) {
+	return versionWithBinaryPath(&kustomize{})
+}
+
+func versionWithBinaryPath(k *kustomize) (string, error) {
+	executable := k.getBinaryPath()
+	cmd := exec.Command(executable, "version", "--short")
 	// example version output:
-	// long: "{Version:kustomize/v3.8.1 GitCommit:0b359d0ef0272e6545eda0e99aacd63aef99c4d0 BuildDate:2020-07-16T00:58:46Z GoOs:linux GoArch:amd64}"
 	// short: "{kustomize/v3.8.1  2020-07-16T00:58:46Z  }"
 	version, err := executil.Run(cmd)
 	if err != nil {
 		return "", fmt.Errorf("could not get kustomize version: %w", err)
 	}
 	version = strings.TrimSpace(version)
-	if shortForm {
-		// trim the curly braces
-		version = strings.TrimPrefix(version, "{")
-		version = strings.TrimSuffix(version, "}")
-		version = strings.TrimSpace(version)
+	// trim the curly braces
+	version = strings.TrimPrefix(version, "{")
+	version = strings.TrimSuffix(version, "}")
+	version = strings.TrimSpace(version)
 
-		// remove double space in middle
-		version = strings.ReplaceAll(version, "  ", " ")
+	// remove double space in middle
+	version = strings.ReplaceAll(version, "  ", " ")
 
-		// remove extra 'kustomize/' before version
-		version = strings.TrimPrefix(version, "kustomize/")
-	}
+	// remove extra 'kustomize/' before version
+	version = strings.TrimPrefix(version, "kustomize/")
 	return version, nil
 }
 
@@ -463,9 +499,7 @@ func getImageParameters(objs []*unstructured.Unstructured) []Image {
 	for _, obj := range objs {
 		images = append(images, getImages(obj.Object)...)
 	}
-	sort.Slice(images, func(i, j int) bool {
-		return i < j
-	})
+	sort.Strings(images)
 	return images
 }
 

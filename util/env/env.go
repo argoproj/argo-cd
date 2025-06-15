@@ -13,8 +13,6 @@ import (
 // Helper function to parse a number from an environment variable. Returns a
 // default if env is not set, is not parseable to a number, exceeds max (if
 // max is greater than 0) or is less than min.
-//
-// nolint:unparam
 func ParseNumFromEnv(env string, defaultValue, min, max int) int {
 	str := os.Getenv(env)
 	if str == "" {
@@ -43,8 +41,6 @@ func ParseNumFromEnv(env string, defaultValue, min, max int) int {
 // Helper function to parse a int64 from an environment variable. Returns a
 // default if env is not set, is not parseable to a number, exceeds max (if
 // max is greater than 0) or is less than min.
-//
-// nolint:unparam
 func ParseInt64FromEnv(env string, defaultValue, min, max int64) int64 {
 	str := os.Getenv(env)
 	if str == "" {
@@ -70,8 +66,6 @@ func ParseInt64FromEnv(env string, defaultValue, min, max int64) int64 {
 // Helper function to parse a float32 from an environment variable. Returns a
 // default if env is not set, is not parseable to a number, exceeds max (if
 // max is greater than 0) or is less than min (and min is greater than 0).
-//
-// nolint:unparam
 func ParseFloatFromEnv(env string, defaultValue, min, max float32) float32 {
 	str := os.Getenv(env)
 	if str == "" {
@@ -97,8 +91,6 @@ func ParseFloatFromEnv(env string, defaultValue, min, max float32) float32 {
 // Helper function to parse a float64 from an environment variable. Returns a
 // default if env is not set, is not parseable to a number, exceeds max (if
 // max is greater than 0) or is less than min (and min is greater than 0).
-//
-// nolint:unparam
 func ParseFloat64FromEnv(env string, defaultValue, min, max float64) float64 {
 	str := os.Getenv(env)
 	if str == "" {
@@ -184,9 +176,9 @@ func StringsFromEnv(env string, defaultValue []string, separator string) []strin
 // nolinit:unparam
 func ParseBoolFromEnv(envVar string, defaultValue bool) bool {
 	if val := os.Getenv(envVar); val != "" {
-		if strings.ToLower(val) == "true" {
+		if strings.EqualFold(val, "true") {
 			return true
-		} else if strings.ToLower(val) == "false" {
+		} else if strings.EqualFold(val, "false") {
 			return false
 		}
 	}

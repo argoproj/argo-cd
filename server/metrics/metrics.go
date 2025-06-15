@@ -9,8 +9,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/profile"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/metrics/kubectl"
+	"github.com/argoproj/argo-cd/v3/util/profile"
 )
 
 type MetricsServer struct {
@@ -19,7 +20,6 @@ type MetricsServer struct {
 	redisRequestHistogram    *prometheus.HistogramVec
 	extensionRequestCounter  *prometheus.CounterVec
 	extensionRequestDuration *prometheus.HistogramVec
-	argoVersion              *prometheus.GaugeVec
 }
 
 var (
@@ -80,6 +80,9 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 	registry.MustRegister(extensionRequestDuration)
 	registry.MustRegister(argoVersion)
 
+	kubectl.RegisterWithClientGo()
+	kubectl.RegisterWithPrometheus(registry)
+
 	return &MetricsServer{
 		Server: &http.Server{
 			Addr:    fmt.Sprintf("%s:%d", host, port),
@@ -89,7 +92,6 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 		redisRequestHistogram:    redisRequestHistogram,
 		extensionRequestCounter:  extensionRequestCounter,
 		extensionRequestDuration: extensionRequestDuration,
-		argoVersion:              argoVersion,
 	}
 }
 

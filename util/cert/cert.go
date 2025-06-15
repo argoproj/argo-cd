@@ -19,7 +19,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v3/common"
 )
 
 // A struct representing an entry in the list of SSH known hosts.
@@ -79,10 +79,9 @@ var validFQDNRegexp = regexp.MustCompile(`^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{
 // If fqdn is true, given string must also be a FQDN representation.
 func IsValidHostname(hostname string, fqdn bool) bool {
 	if !fqdn {
-		return validHostNameRegexp.Match([]byte(hostname)) || validIPv6Regexp.Match([]byte(hostname))
-	} else {
-		return validFQDNRegexp.Match([]byte(hostname))
+		return validHostNameRegexp.MatchString(hostname) || validIPv6Regexp.MatchString(hostname)
 	}
+	return validFQDNRegexp.MatchString(hostname)
 }
 
 // Get the configured path to where TLS certificates are stored on the local
@@ -91,9 +90,8 @@ func IsValidHostname(hostname string, fqdn bool) bool {
 func GetTLSCertificateDataPath() string {
 	if envPath := os.Getenv(common.EnvVarTLSDataPath); envPath != "" {
 		return envPath
-	} else {
-		return common.DefaultPathTLSConfig
 	}
+	return common.DefaultPathTLSConfig
 }
 
 // Get the configured path to where SSH certificates are stored on the local
@@ -102,9 +100,8 @@ func GetTLSCertificateDataPath() string {
 func GetSSHKnownHostsDataPath() string {
 	if envPath := os.Getenv(common.EnvVarSSHDataPath); envPath != "" {
 		return filepath.Join(envPath, common.DefaultSSHKnownHostsName)
-	} else {
-		return filepath.Join(common.DefaultPathSSHConfig, common.DefaultSSHKnownHostsName)
 	}
+	return filepath.Join(common.DefaultPathSSHConfig, common.DefaultSSHKnownHostsName)
 }
 
 // Decode a certificate in PEM format to X509 data structure
@@ -326,9 +323,8 @@ func GetCertificateForConnect(serverName string) ([]string, error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
-		} else {
-			return nil, err
 		}
+		return nil, err
 	}
 
 	if len(certificates) == 0 {

@@ -9,8 +9,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 const initialPasswordSecretName = "argocd-initial-admin-secret"
@@ -21,7 +21,7 @@ func NewInitialPasswordCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   "initial-password",
 		Short: "Prints initial password to log in to Argo CD for the first time",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			namespace, _, err := clientConfig.Namespace()

@@ -52,7 +52,7 @@ func (c *ExtendedClient) GetContents(repo *Repository, path string) (bool, error
 
 var _ SCMProviderService = &BitBucketCloudProvider{}
 
-func NewBitBucketCloudProvider(ctx context.Context, owner string, user string, password string, allBranches bool) (*BitBucketCloudProvider, error) {
+func NewBitBucketCloudProvider(owner string, user string, password string, allBranches bool) (*BitBucketCloudProvider, error) {
 	client := &ExtendedClient{
 		bitbucket.NewBasicAuth(user, password),
 		user,
@@ -62,7 +62,7 @@ func NewBitBucketCloudProvider(ctx context.Context, owner string, user string, p
 	return &BitBucketCloudProvider{client: client, owner: owner, allBranches: allBranches}, nil
 }
 
-func (g *BitBucketCloudProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
+func (g *BitBucketCloudProvider) GetBranches(_ context.Context, repo *Repository) ([]*Repository, error) {
 	repos := []*Repository{}
 	branches, err := g.listBranches(repo)
 	if err != nil {
@@ -87,7 +87,7 @@ func (g *BitBucketCloudProvider) GetBranches(ctx context.Context, repo *Reposito
 	return repos, nil
 }
 
-func (g *BitBucketCloudProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
+func (g *BitBucketCloudProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*Repository, error) {
 	if cloneProtocol == "" {
 		cloneProtocol = "ssh"
 	}
@@ -101,7 +101,7 @@ func (g *BitBucketCloudProvider) ListRepos(ctx context.Context, cloneProtocol st
 		return nil, fmt.Errorf("error listing repositories for %s: %w", g.owner, err)
 	}
 	for _, bitBucketRepo := range accountReposResp.Items {
-		cloneUrl, err := findCloneURL(cloneProtocol, &bitBucketRepo)
+		cloneURL, err := findCloneURL(cloneProtocol, &bitBucketRepo)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching clone url for repo %s: %w", bitBucketRepo.Slug, err)
 		}
@@ -109,7 +109,7 @@ func (g *BitBucketCloudProvider) ListRepos(ctx context.Context, cloneProtocol st
 			Organization: g.owner,
 			Repository:   bitBucketRepo.Slug,
 			Branch:       bitBucketRepo.Mainbranch.Name,
-			URL:          *cloneUrl,
+			URL:          *cloneURL,
 			Labels:       []string{},
 			RepositoryId: bitBucketRepo.Uuid,
 		})
@@ -117,7 +117,7 @@ func (g *BitBucketCloudProvider) ListRepos(ctx context.Context, cloneProtocol st
 	return repos, nil
 }
 
-func (g *BitBucketCloudProvider) RepoHasPath(ctx context.Context, repo *Repository, path string) (bool, error) {
+func (g *BitBucketCloudProvider) RepoHasPath(_ context.Context, repo *Repository, path string) (bool, error) {
 	contents, err := g.client.GetContents(repo, path)
 	if err != nil {
 		return false, err

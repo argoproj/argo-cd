@@ -3,6 +3,8 @@ package plugin
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,16 +14,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/pkg/rand"
 	"github.com/golang/protobuf/ptypes/empty"
 
-	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
-	"github.com/argoproj/argo-cd/v2/common"
-	repoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/buffered_context"
-	"github.com/argoproj/argo-cd/v2/util/cmp"
-	argoexec "github.com/argoproj/argo-cd/v2/util/exec"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
+	"github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
+	"github.com/argoproj/argo-cd/v3/common"
+	repoclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/buffered_context"
+	"github.com/argoproj/argo-cd/v3/util/cmp"
+	argoexec "github.com/argoproj/argo-cd/v3/util/exec"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	securejoin "github.com/cyphar/filepath-securejoin"
@@ -61,6 +62,16 @@ func (s *Service) Init(workDir string) error {
 	return nil
 }
 
+const execIDLen = 5
+
+func randExecID() (string, error) {
+	execIDBytes := make([]byte, execIDLen/2+1) // we need one extra letter to discard
+	if _, err := rand.Read(execIDBytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(execIDBytes)[0:execIDLen], nil
+}
+
 func runCommand(ctx context.Context, command Command, path string, env []string) (string, error) {
 	if len(command.Command) == 0 {
 		return "", errors.New("Command is empty")
@@ -70,7 +81,7 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	cmd.Env = env
 	cmd.Dir = path
 
-	execId, err := rand.RandString(5)
+	execId, err := randExecID()
 	if err != nil {
 		return "", err
 	}
@@ -157,7 +168,7 @@ func newCmdError(args string, cause error, stderr string) *CmdError {
 func environ(envVars []*apiclient.EnvEntry) []string {
 	var environ []string
 	for _, item := range envVars {
-		if item != nil && item.Name != "" && item.Value != "" {
+		if item != nil && item.Name != "" {
 			environ = append(environ, fmt.Sprintf("%s=%s", item.Name, item.Value))
 		}
 	}
@@ -425,7 +436,7 @@ func getParametersAnnouncement(ctx context.Context, appDir string, announcements
 	return repoResponse, nil
 }
 
-func (s *Service) CheckPluginConfiguration(ctx context.Context, _ *empty.Empty) (*apiclient.CheckPluginConfigurationResponse, error) {
+func (s *Service) CheckPluginConfiguration(_ context.Context, _ *empty.Empty) (*apiclient.CheckPluginConfigurationResponse, error) {
 	isDiscoveryConfigured := s.isDiscoveryConfigured()
 	response := &apiclient.CheckPluginConfigurationResponse{IsDiscoveryConfigured: isDiscoveryConfigured, ProvideGitCreds: s.initConstants.PluginConfig.Spec.ProvideGitCreds}
 

@@ -288,6 +288,10 @@ stringData:
 !!! tip
     The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys).
 
+Example for Azure Container Registry/ Azure Devops repositories using Azure workload identity:
+
+Refer to [Azure Container Registry/Azure Repos using Azure Workload Identity](../user-guide/private-repositories.md#azure-container-registryazure-repos-using-azure-workload-identity)
+
 ### Repository Credentials
 
 If you want to use the same credentials for multiple repositories, you can configure credential templates. Credential templates can carry the same credentials information as repositories.
@@ -357,6 +361,10 @@ The following keys are valid to refer to credential secrets:
 * `githubAppInstallationID` refers to the Installation ID of the GitHub app you created and installed.
 * `githubAppEnterpriseBaseUrl` refers to the base api URL for GitHub Enterprise (e.g. `https://ghe.example.com/api/v3`)
 * `tlsClientCertData` and `tlsClientCertKey` refer to secrets where a TLS client certificate (`tlsClientCertData`) and the corresponding private key `tlsClientCertKey` are stored for accessing GitHub Enterprise if custom certificates are used.
+
+#### Helm Chart repositories
+
+See the [Helm](#helm) section for the properties that apply to Helm repositories and charts sourced from OCI registries.
 
 ### Repositories using self-signed TLS certificates (or are signed by custom CA)
 
@@ -494,43 +502,6 @@ stringData:
 
 A note on noProxy: Argo CD uses exec to interact with different tools such as helm and kustomize. Not all of these tools support the same noProxy syntax as the [httpproxy go package](https://cs.opensource.google/go/x/net/+/internal-branch.go1.21-vendor:http/httpproxy/proxy.go;l=38-50) does. In case you run in trouble with noProxy not beeing respected you might want to try using the full domain instead of a wildcard pattern or IP range to find a common syntax that all tools support.
 
-### Legacy behaviour
-
-In Argo CD version 2.0 and earlier, repositories were stored as part of the `argocd-cm` config map. For
-backward-compatibility, Argo CD will still honor repositories in the config map, but this style of repository
-configuration is deprecated and support for it will be removed in a future version.
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-data:
-  repositories: |
-    - url: https://github.com/argoproj/my-private-repository
-      passwordSecret:
-        name: my-secret
-        key: password
-      usernameSecret:
-        name: my-secret
-        key: username
-  repository.credentials: |
-    - url: https://github.com/argoproj
-      passwordSecret:
-        name: my-secret
-        key: password
-      usernameSecret:
-        name: my-secret
-        key: username
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: my-secret
-  namespace: argocd
-stringData:
-  password: my-password
-  username: my-username
-```
-
 ## Clusters
 
 Cluster credentials are stored in secrets same as repositories or repository credentials. Each secret must have label
@@ -540,10 +511,10 @@ The secret data must include following fields:
 
 * `name` - cluster name
 * `server` - cluster api server url
-* `namespaces` - optional comma-separated list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.
-* `clusterResources` - optional boolean string (`"true"` or `"false"`) determining whether Argo CD can manage cluster-level resources on this cluster. This setting is used only if the list of managed namespaces is not empty.
+* `namespaces` - optional comma-separated list of namespaces which are accessible in that cluster. Setting namespace values will cause cluster-level resources to be ignored unless `clusterResources` is set to `true`.
+* `clusterResources` - optional boolean string (`"true"` or `"false"`) determining whether Argo CD can manage cluster-level resources on this cluster. This setting is only used when namespaces are restricted using the `namespaces` list.
 * `project` - optional string to designate this as a project-scoped cluster.
-* `config` - JSON representation of following data structure:
+* `config` - JSON representation of the following data structure:
 
 ```yaml
 # Basic authentication settings
@@ -588,7 +559,14 @@ tlsClientConfig:
 disableCompression: boolean
 ```
 
-Note that if you specify a command to run under `execProviderConfig`, that command must be available in the Argo CD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
+!!! important
+    When `namespaces` is set, Argo CD will perform a separate list/watch operation for each namespace. This can cause
+    the Application controller to exceed the maximum number of idle connections allowed for the Kubernetes API server.
+    To resolve this issue, you can increase the `ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS` environment variable in the
+    Application controller.
+
+!!! important 
+    Note that if you specify a command to run under `execProviderConfig`, that command must be available in the Argo CD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
 
 Cluster secret example:
 
@@ -817,7 +795,7 @@ The above role is granted cluster admin permissions via `AmazonEKSClusterAdminPo
 assume this role is therefore granted the same cluster admin permissions when it generates an API token when adding the 
 associated EKS cluster.
 
-**AWS Auth (Depreciated)**
+**AWS Auth (Deprecated)**
 
 Instead of using Access Entries, you may need to use the depreciated `aws-auth`.
 
@@ -1126,27 +1104,54 @@ stringData:
     }
 ```
 
-## Helm Chart Repositories
+## Helm
 
-Non standard Helm Chart repositories have to be registered explicitly.
-Each repository must have `url`, `type` and `name` fields. For private Helm repos you may need to configure access credentials and HTTPS settings using `username`, `password`,
-`tlsClientCertData` and `tlsClientCertKey` fields.
+Helm charts can be sourced from a Helm repository or OCI registry.
 
-Example:
+This is an example of a Helm chart being sourced from a Helm repository. The `releaseName` property is used to customize the name of the Helm _release_.
 
 ```yaml
-apiVersion: v1
-kind: Secret
+apiVersion: argoproj.io/v1alpha1
+kind: Application
 metadata:
-  name: istio
+  name: sealed-secrets
   namespace: argocd
-  labels:
-    argocd.argoproj.io/secret-type: repository
-stringData:
-  name: istio.io
-  url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
-  type: helm
----
+spec:
+  project: default
+  source:
+    chart: sealed-secrets
+    repoURL: https://bitnami-labs.github.io/sealed-secrets
+    targetRevision: 1.16.1
+    helm:
+      releaseName: sealed-secrets
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: kubeseal
+```
+
+Another example using a public OCI helm chart:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx
+spec:
+  project: default
+  source:
+    chart: nginx
+    repoURL: registry-1.docker.io/bitnamicharts  # note: the oci:// syntax is not included.
+    targetRevision: 15.9.0
+  destination:
+    name: "in-cluster"
+    namespace: nginx
+```
+
+Helm charts located in sources that require additional configuration, such as authentication or TLS connection details, are defined within a _repository_ Secret. Each Secret must specify the `url`, `type` and `name` fields. Additional fields including `username`, `password`, `tlsClientCertData` and `tlsClientCertKey` can be specified as desired.
+
+Helm Chart Repository:
+
+```yaml
 apiVersion: v1
 kind: Secret
 metadata:
@@ -1162,6 +1167,23 @@ stringData:
   password: my-password
   tlsClientCertData: ...
   tlsClientCertKey: ...
+```
+
+Helm charts sourced from OCI registries should utilize the fields described previously as well as set the `enableOCI` field as `true`.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: oci-helm-chart
+  namespace: oci-helm-chart
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  name: oci-helm-chart
+  url: myregistry.example.com
+  type: helm
+  enableOCI: "true"
 ```
 
 ## Resource Exclusion/Inclusion
@@ -1225,6 +1247,7 @@ Notes:
 * Quote globs in your YAML to avoid parsing errors.
 * Invalid globs result in the whole rule being ignored.
 * If you add a rule that matches existing resources, these will appear in the interface as `OutOfSync`.
+* Some excluded objects may already be in the controller cache. A restart of the controller will be necessary to remove them from the Application View.
 
 ## Mask sensitive Annotations on Secrets
 
@@ -1236,7 +1259,7 @@ An optional comma-separated list of `metadata.annotations` keys can be configure
 
 ## Auto respect RBAC for controller
 
-Argocd controller can be restricted from discovering/syncing specific resources using just controller rbac, without having to manually configure resource exclusions.
+Argo CD controller can be restricted from discovering/syncing specific resources using just controller RBAC, without having to manually configure resource exclusions.
 This feature can be enabled by setting `resource.respectRBAC` key in argocd cm, once it is set the controller will automatically stop watching for resources 
 that it does not have the permission to list/access. Possible values for `resource.respectRBAC` are:
     - `strict` : This setting checks whether the list call made by controller is forbidden/unauthorized and if it is, it will cross-check the permission by making a `SelfSubjectAccessReview` call for the resource.
@@ -1247,7 +1270,7 @@ Users who are comfortable with an increase in kube api-server calls can opt for 
 
 Notes:
 
-* When set to use `strict` mode controller must have rbac permission to `create` a `SelfSubjectAccessReview` resource 
+* When set to use `strict` mode controller must have RBAC permission to `create` a `SelfSubjectAccessReview` resource 
 * The `SelfSubjectAccessReview` request will be only made for the `list` verb, it is assumed that if `list` is allowed for a resource then all other permissions are also available to the controller.
 
 Example argocd cm with `resource.respectRBAC` set to `strict`:

@@ -1,16 +1,30 @@
 package git
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"net/mail"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport"
+	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
 
 func runCmd(workingDir string, name string, args ...string) error {
@@ -124,6 +138,19 @@ func Test_IsAnnotatedTag(t *testing.T) {
 	// We moved on, so tag doesn't point to HEAD anymore
 	atag = client.IsAnnotatedTag("HEAD")
 	assert.False(t, atag)
+}
+
+func Test_resolveTagReference(t *testing.T) {
+	// Setup
+	commitHash := plumbing.NewHash("0123456789abcdef0123456789abcdef01234567")
+	tagRef := plumbing.NewReferenceFromStrings("refs/tags/v1.0.0", "sometaghash")
+
+	// Test single function
+	resolvedRef := plumbing.NewHashReference(tagRef.Name(), commitHash)
+
+	// Verify
+	assert.Equal(t, commitHash, resolvedRef.Hash())
+	assert.Equal(t, tagRef.Name(), resolvedRef.Name())
 }
 
 func Test_ChangedFiles(t *testing.T) {
@@ -306,7 +333,7 @@ func Test_SemverTags(t *testing.T) {
 		// However, if one specifies the minor/patch versions, semver constraints can be used to match non-semver tags.
 		// 2024-banana is considered as "2024.0.0-banana" in semver-ish, and banana > apple, so it's a match.
 		// Note: this is more for documentation and future reference than real testing, as it seems like quite odd behaviour.
-		name:     "semver constraints on non-semver tags",
+		name:     "semver constraints on semver tags",
 		ref:      "> 2024.0.0-apple",
 		expected: mapTagRefs["2024-banana"],
 	}} {
@@ -470,20 +497,49 @@ func Test_nativeGitClient_RevisionMetadata(t *testing.T) {
 
 	err = runCmd(client.Root(), "git", "add", "README")
 	require.NoError(t, err)
+	now := time.Now()
 	err = runCmd(client.Root(), "git", "commit", "--date=\"Sat Jun 5 20:00:00 2021 +0000 UTC\"", "-m", `| Initial commit |
 
 
 (╯°□°)╯︵ ┻━┻
-		`, "-a")
+		`, "-a",
+		"--trailer", "Argocd-reference-commit-author: test-author <test@email.com>",
+		"--trailer", "Argocd-reference-commit-date: "+now.Format(time.RFC3339),
+		"--trailer", "Argocd-reference-commit-subject: chore: make a change",
+		"--trailer", "Argocd-reference-commit-sha: abc123",
+		"--trailer", "Argocd-reference-commit-repourl: https://git.example.com/test/repo.git",
+	)
 	require.NoError(t, err)
 
 	metadata, err := client.RevisionMetadata("HEAD")
 	require.NoError(t, err)
 	require.Equal(t, &RevisionMetadata{
-		Author:  `FooBar ||| somethingelse <foo@foo.com>`,
-		Date:    time.Date(2021, time.June, 5, 20, 0, 0, 0, time.UTC).Local(),
-		Tags:    []string{},
-		Message: "| Initial commit |\n\n(╯°□°)╯︵ ┻━┻",
+		Author: `FooBar ||| somethingelse <foo@foo.com>`,
+		Date:   time.Date(2021, time.June, 5, 20, 0, 0, 0, time.UTC).Local(),
+		Tags:   []string{},
+		Message: fmt.Sprintf(`| Initial commit |
+
+(╯°□°)╯︵ ┻━┻
+
+Argocd-reference-commit-author: test-author <test@email.com>
+Argocd-reference-commit-date: %s
+Argocd-reference-commit-subject: chore: make a change
+Argocd-reference-commit-sha: abc123
+Argocd-reference-commit-repourl: https://git.example.com/test/repo.git`, now.Format(time.RFC3339)),
+		References: []RevisionReference{
+			{
+				Commit: &CommitMetadata{
+					Author: mail.Address{
+						Name:    "test-author",
+						Address: "test@email.com",
+					},
+					Date:    now.Format(time.RFC3339),
+					Subject: "chore: make a change",
+					SHA:     "abc123",
+					RepoURL: "https://git.example.com/test/repo.git",
+				},
+			},
+		},
 	}, metadata)
 }
 
@@ -576,7 +632,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		// make origin git repository
 		tempDir, err := _createEmptyGitRepo()
 		require.NoError(t, err)
-		originGitRepoUrl := "file://" + tempDir
+		originGitRepoURL := "file://" + tempDir
 		err = runCmd(tempDir, "git", "commit", "-m", "Second commit", "--allow-empty")
 		require.NoError(t, err)
 
@@ -589,7 +645,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		tempDir, err = os.MkdirTemp("", "")
 		require.NoError(t, err)
 
-		client, err := NewClientExt(originGitRepoUrl, tempDir, NopCreds{}, true, false, "", "")
+		client, err := NewClientExt(originGitRepoURL, tempDir, NopCreds{}, true, false, "", "")
 		require.NoError(t, err)
 
 		err = client.Init()
@@ -835,4 +891,306 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 	require.NoError(t, err)
 	actualCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
 	require.Equal(t, expectedCommitHash, actualCommitHash)
+}
+
+func Test_newAuth_AzureWorkloadIdentity(t *testing.T) {
+	tokenprovider := new(mocks.TokenProvider)
+	tokenprovider.On("GetToken", azureDevopsEntraResourceId).Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil)
+
+	creds := AzureWorkloadIdentityCreds{store: NoopCredsStore{}, tokenProvider: tokenprovider}
+
+	auth, err := newAuth("", creds)
+	require.NoError(t, err)
+	_, ok := auth.(*githttp.TokenAuth)
+	require.Truef(t, ok, "expected TokenAuth but got %T", auth)
+}
+
+func TestNewAuth(t *testing.T) {
+	tests := []struct {
+		name     string
+		repoURL  string
+		creds    Creds
+		expected transport.AuthMethod
+		wantErr  bool
+	}{
+		{
+			name:    "HTTPSCreds with bearer token",
+			repoURL: "https://github.com/org/repo.git",
+			creds: HTTPSCreds{
+				bearerToken: "test-token",
+			},
+			expected: &githttp.TokenAuth{Token: "test-token"},
+			wantErr:  false,
+		},
+		{
+			name:    "HTTPSCreds with basic auth",
+			repoURL: "https://github.com/org/repo.git",
+			creds: HTTPSCreds{
+				username: "test-user",
+				password: "test-password",
+			},
+			expected: &githttp.BasicAuth{Username: "test-user", Password: "test-password"},
+			wantErr:  false,
+		},
+		{
+			name:    "HTTPSCreds with basic auth no username",
+			repoURL: "https://github.com/org/repo.git",
+			creds: HTTPSCreds{
+				password: "test-password",
+			},
+			expected: &githttp.BasicAuth{Username: "x-access-token", Password: "test-password"},
+			wantErr:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			auth, err := newAuth(tt.repoURL, tt.creds)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("newAuth() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			assert.Equal(t, tt.expected, auth)
+		})
+	}
+}
+
+func Test_nativeGitClient_runCredentialedCmd(t *testing.T) {
+	tests := []struct {
+		name         string
+		creds        Creds
+		environ      []string
+		expectedArgs []string
+		expectedEnv  []string
+		expectedErr  bool
+	}{
+		{
+			name: "basic auth header set",
+			creds: &mockCreds{
+				environ: []string{forceBasicAuthHeaderEnv + "=Basic dGVzdDp0ZXN0"},
+			},
+			expectedArgs: []string{"--config-env", "http.extraHeader=" + forceBasicAuthHeaderEnv, "status"},
+			expectedEnv:  []string{forceBasicAuthHeaderEnv + "=Basic dGVzdDp0ZXN0"},
+			expectedErr:  false,
+		},
+		{
+			name: "bearer auth header set",
+			creds: &mockCreds{
+				environ: []string{bearerAuthHeaderEnv + "=Bearer test-token"},
+			},
+			expectedArgs: []string{"--config-env", "http.extraHeader=" + bearerAuthHeaderEnv, "status"},
+			expectedEnv:  []string{bearerAuthHeaderEnv + "=Bearer test-token"},
+			expectedErr:  false,
+		},
+		{
+			name: "no auth header set",
+			creds: &mockCreds{
+				environ: []string{},
+			},
+			expectedArgs: []string{"status"},
+			expectedEnv:  []string{},
+			expectedErr:  false,
+		},
+		{
+			name: "error getting environment",
+			creds: &mockCreds{
+				environErr: true,
+			},
+			expectedArgs: []string{},
+			expectedEnv:  []string{},
+			expectedErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := &nativeGitClient{
+				creds: tt.creds,
+			}
+
+			err := client.runCredentialedCmd("status")
+			if (err != nil) != tt.expectedErr {
+				t.Errorf("runCredentialedCmd() error = %v, expectedErr %v", err, tt.expectedErr)
+				return
+			}
+
+			if tt.expectedErr {
+				return
+			}
+
+			cmd := exec.Command("git", tt.expectedArgs...)
+			cmd.Env = append(os.Environ(), tt.expectedEnv...)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Errorf("runCredentialedCmd() command error = %v, output = %s", err, output)
+			}
+		})
+	}
+}
+
+func Test_LsFiles_RaceCondition(t *testing.T) {
+	// Create two temporary directories and initialize them as git repositories
+	tempDir1 := t.TempDir()
+	tempDir2 := t.TempDir()
+
+	client1, err := NewClient("file://"+tempDir1, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	client2, err := NewClient("file://"+tempDir2, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	err = client1.Init()
+	require.NoError(t, err)
+	err = client2.Init()
+	require.NoError(t, err)
+
+	// Add different files to each repository
+	file1 := filepath.Join(client1.Root(), "file1.txt")
+	err = os.WriteFile(file1, []byte("content1"), 0o644)
+	require.NoError(t, err)
+	err = runCmd(client1.Root(), "git", "add", "file1.txt")
+	require.NoError(t, err)
+	err = runCmd(client1.Root(), "git", "commit", "-m", "Add file1")
+	require.NoError(t, err)
+
+	file2 := filepath.Join(client2.Root(), "file2.txt")
+	err = os.WriteFile(file2, []byte("content2"), 0o644)
+	require.NoError(t, err)
+	err = runCmd(client2.Root(), "git", "add", "file2.txt")
+	require.NoError(t, err)
+	err = runCmd(client2.Root(), "git", "commit", "-m", "Add file2")
+	require.NoError(t, err)
+
+	// Assert that LsFiles returns the correct files when called sequentially
+	files1, err := client1.LsFiles("*", true)
+	require.NoError(t, err)
+	require.Contains(t, files1, "file1.txt")
+
+	files2, err := client2.LsFiles("*", true)
+	require.NoError(t, err)
+	require.Contains(t, files2, "file2.txt")
+
+	// Define a function to call LsFiles multiple times in parallel
+	var wg sync.WaitGroup
+	callLsFiles := func(client Client, expectedFile string) {
+		defer wg.Done()
+		for i := 0; i < 100; i++ {
+			files, err := client.LsFiles("*", true)
+			require.NoError(t, err)
+			require.Contains(t, files, expectedFile)
+		}
+	}
+
+	// Call LsFiles in parallel for both clients
+	wg.Add(2)
+	go callLsFiles(client1, "file1.txt")
+	go callLsFiles(client2, "file2.txt")
+	wg.Wait()
+}
+
+type mockCreds struct {
+	environ    []string
+	environErr bool
+}
+
+func (m *mockCreds) Environ() (io.Closer, []string, error) {
+	if m.environErr {
+		return nil, nil, errors.New("error getting environment")
+	}
+	return io.NopCloser(nil), m.environ, nil
+}
+
+func (m *mockCreds) GetUserInfo(_ context.Context) (string, string, error) {
+	return "", "", nil
+}
+
+func Test_getReferences(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+
+	tests := []struct {
+		name     string
+		input    string
+		expected []RevisionReference
+	}{
+		{
+			name:     "No trailers",
+			input:    "This is a commit message without trailers.",
+			expected: nil,
+		},
+		{
+			name: "Invalid trailers",
+			input: `Argocd-reference-commit-repourl: % invalid %
+Argocd-reference-commit-date: invalid-date
+Argocd-reference-commit-sha: xyz123
+Argocd-reference-commit-body: this isn't json
+Argocd-reference-commit-author: % not email %
+Argocd-reference-commit-bogus:`,
+			expected: nil,
+		},
+		{
+			name:     "Unknown trailers",
+			input:    "Argocd-reference-commit-unknown: foobar",
+			expected: nil,
+		},
+		{
+			name: "Some valid and Invalid trailers",
+			input: `Argocd-reference-commit-sha: abc123
+Argocd-reference-commit-repourl: % invalid %
+Argocd-reference-commit-date: invalid-date`,
+			expected: []RevisionReference{
+				{
+					Commit: &CommitMetadata{
+						SHA: "abc123",
+					},
+				},
+			},
+		},
+		{
+			name: "Valid trailers",
+			input: fmt.Sprintf(`Argocd-reference-commit-repourl: https://github.com/org/repo.git
+Argocd-reference-commit-author: John Doe <john.doe@example.com>
+Argocd-reference-commit-date: %s
+Argocd-reference-commit-subject: Fix bug
+Argocd-reference-commit-body: "Fix bug\n\nSome: trailer"
+Argocd-reference-commit-sha: abc123`, now.Format(time.RFC3339)),
+			expected: []RevisionReference{
+				{
+					Commit: &CommitMetadata{
+						Author: mail.Address{
+							Name:    "John Doe",
+							Address: "john.doe@example.com",
+						},
+						Date:    now.Format(time.RFC3339),
+						Body:    "Fix bug\n\nSome: trailer",
+						Subject: "Fix bug",
+						SHA:     "abc123",
+						RepoURL: "https://github.com/org/repo.git",
+					},
+				},
+			},
+		},
+		{
+			name: "Duplicate trailers",
+			input: `Argocd-reference-commit-repourl: https://github.com/org/repo.git
+Argocd-reference-commit-repourl: https://github.com/another/repo.git`,
+			expected: []RevisionReference{
+				{
+					Commit: &CommitMetadata{
+						RepoURL: "https://github.com/another/repo.git",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			logCtx := log.WithFields(log.Fields{})
+			result := getReferences(logCtx, tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }

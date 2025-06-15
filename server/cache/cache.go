@@ -8,10 +8,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
-	"github.com/argoproj/argo-cd/v2/util/env"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
 var ErrCacheMiss = appstatecache.ErrCacheMiss
@@ -20,16 +20,14 @@ type Cache struct {
 	cache                           *appstatecache.Cache
 	connectionStatusCacheExpiration time.Duration
 	oidcCacheExpiration             time.Duration
-	loginAttemptsExpiration         time.Duration
 }
 
 func NewCache(
 	cache *appstatecache.Cache,
 	connectionStatusCacheExpiration time.Duration,
 	oidcCacheExpiration time.Duration,
-	loginAttemptsExpiration time.Duration,
 ) *Cache {
-	return &Cache{cache, connectionStatusCacheExpiration, oidcCacheExpiration, loginAttemptsExpiration}
+	return &Cache{cache, connectionStatusCacheExpiration, oidcCacheExpiration}
 }
 
 func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*Cache, error) {
@@ -39,7 +37,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*
 
 	cmd.Flags().DurationVar(&connectionStatusCacheExpiration, "connection-status-cache-expiration", env.ParseDurationFromEnv("ARGOCD_SERVER_CONNECTION_STATUS_CACHE_EXPIRATION", 1*time.Hour, 0, math.MaxInt64), "Cache expiration for cluster/repo connection status")
 	cmd.Flags().DurationVar(&oidcCacheExpiration, "oidc-cache-expiration", env.ParseDurationFromEnv("ARGOCD_SERVER_OIDC_CACHE_EXPIRATION", 3*time.Minute, 0, math.MaxInt64), "Cache expiration for OIDC state")
-	cmd.Flags().DurationVar(&loginAttemptsExpiration, "login-attempts-expiration", env.ParseDurationFromEnv("ARGOCD_SERVER_LOGIN_ATTEMPTS_EXPIRATION", 24*time.Hour, 0, math.MaxInt64), "Cache expiration for failed login attempts")
+	cmd.Flags().DurationVar(&loginAttemptsExpiration, "login-attempts-expiration", env.ParseDurationFromEnv("ARGOCD_SERVER_LOGIN_ATTEMPTS_EXPIRATION", 24*time.Hour, 0, math.MaxInt64), "Cache expiration for failed login attempts. DEPRECATED: this flag is unused and will be removed in a future version.")
 
 	fn := appstatecache.AddCacheFlagsToCmd(cmd, opts...)
 
@@ -49,7 +47,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*
 			return nil, err
 		}
 
-		return NewCache(cache, connectionStatusCacheExpiration, oidcCacheExpiration, loginAttemptsExpiration), nil
+		return NewCache(cache, connectionStatusCacheExpiration, oidcCacheExpiration), nil
 	}
 }
 

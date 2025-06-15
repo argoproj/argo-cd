@@ -5,10 +5,10 @@ tests:
   inputPath: testdata/MonoVertexRollout/progressing-observedgen.yaml
 - healthStatus:
     status: Healthy
-    message: "Successful"
+    message: "Healthy"
   inputPath: testdata/MonoVertexRollout/healthy.yaml
 - healthStatus:
-    status: Suspended
+    status: Healthy
     message: "MonoVertex paused"
   inputPath: testdata/MonoVertexRollout/paused.yaml
 - healthStatus:
@@ -17,9 +17,13 @@ tests:
   inputPath: testdata/MonoVertexRollout/degraded.yaml
 - healthStatus:
     status: Progressing
-    message: "Progressing"
+    message: "Child Progressing"
   inputPath: testdata/MonoVertexRollout/progressing-reason.yaml
 - healthStatus:
     status: Progressing
-    message: "Phase=Pending"
+    message: "Update in progress"
   inputPath: testdata/MonoVertexRollout/pending-upgrade-in-progress.yaml
+- healthStatus:
+    status: Degraded
+    message: "Progressive upgrade failed"
+  inputPath: testdata/MonoVertexRollout/progressive-failed.yaml

@@ -6,17 +6,17 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/glob"
+	"github.com/argoproj/argo-cd/v3/util/glob"
 
-	"github.com/argoproj/argo-cd/v2/util/notification/k8s"
+	"github.com/argoproj/argo-cd/v3/util/notification/k8s"
 
-	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
+	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
 
-	argocert "github.com/argoproj/argo-cd/v2/util/cert"
+	argocert "github.com/argoproj/argo-cd/v3/util/cert"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/v2/util/notification/settings"
+	"github.com/argoproj/argo-cd/v3/util/notification/settings"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/controller"
@@ -32,7 +32,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
 const (
@@ -91,7 +91,6 @@ func NewController(
 		configMapInformer: configMapInformer,
 		appInformer:       appInformer,
 		appProjInformer:   appProjInformer,
-		apiFactory:        apiFactory,
 	}
 	skipProcessingOpt := controller.WithSkipProcessing(func(obj metav1.Object) (bool, string) {
 		app, ok := (obj).(*unstructured.Unstructured)
@@ -173,7 +172,6 @@ func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string
 }
 
 type notificationController struct {
-	apiFactory        api.Factory
 	ctrl              controller.NotificationController
 	appInformer       cache.SharedIndexInformer
 	appProjInformer   cache.SharedIndexInformer
@@ -191,7 +189,7 @@ func (c *notificationController) Init(ctx context.Context) error {
 	go c.configMapInformer.Run(ctx.Done())
 
 	if !cache.WaitForCacheSync(ctx.Done(), c.appInformer.HasSynced, c.appProjInformer.HasSynced, c.secretInformer.HasSynced, c.configMapInformer.HasSynced) {
-		return errors.New("Timed out waiting for caches to sync")
+		return errors.New("timed out waiting for caches to sync")
 	}
 	return nil
 }

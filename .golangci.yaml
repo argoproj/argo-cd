@@ -1,148 +1,261 @@
-issues:
-  exclude:
-    - SA5011
-  max-issues-per-linter: 0
-  max-same-issues: 0
-  exclude-rules:
-    - path: '(.+)_test\.go'
-      linters:
-        - unparam
-linters:
+formatters:
   enable:
-    - errcheck
-    - errorlint
-    - gocritic
     - gofumpt
     - goimports
+
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/argoproj/argo-cd/v3
+
+issues:
+  max-issues-per-linter: 0
+
+  max-same-issues: 0
+
+linters:
+  enable:
+    - exptostd
+    - errorlint
+    - gocritic
     - gomodguard
-    - gosimple
-    - govet
     - importas
-    - ineffassign
     - misspell
     - perfsprint
     - revive
     - staticcheck
     - testifylint
     - thelper
+    - tparallel
     - unparam
-    - unused
     - usestdlibvars
-    - whitespace 
-linters-settings:
-  gocritic:
-    disabled-checks:
-      - appendAssign
-      - assignOp  # Keep it disabled for readability
-      - badCond
-      - commentFormatting
-      - exitAfterDefer
-      - ifElseChain
-      - mapKey
-      - singleCaseSwitch
-      - typeSwitchVar
-  goimports:
-    local-prefixes: github.com/argoproj/argo-cd/v2
-  gomodguard:
-    blocked:
-      modules:
-        - github.com/golang-jwt/jwt/v4:
-            recommendations:
-              - github.com/golang-jwt/jwt/v5
-        - github.com/imdario/mergo:
-            recommendations:
-              - dario.cat/mergo
-            reason: "`github.com/imdario/mergo` has been renamed."
-        - github.com/pkg/errors:
-            recommendations:
-              - errors
-  importas:
-    alias:
-      - alias: jwtgo 
-        pkg: github.com/golang-jwt/jwt/v5
-      - alias: corev1
-        pkg: k8s.io/api/core/v1
-      - alias: apierrors 
-        pkg: k8s.io/apimachinery/pkg/api/errors
-      - alias: metav1 
-        pkg: k8s.io/apimachinery/pkg/apis/meta/v1
-      - alias: stderrors
-        pkg: errors
-  perfsprint:
-    # Optimizes even if it requires an int or uint type cast.
-    int-conversion: true
-    # Optimizes into `err.Error()` even if it is only equivalent for non-nil errors.
-    err-error: true
-    # Optimizes `fmt.Errorf`.
-    errorf: true
-    # Optimizes `fmt.Sprintf` with only one argument.
-    sprintf1: true
-    # Optimizes into strings concatenation.
-    strconcat: true
-  revive:
+    - usetesting
+    - whitespace
+
+  exclusions:
     rules:
-      # Blank import should be only in a main or test package, or have a comment justifying it.
-      - name: blank-imports
-        disabled: true
-      # context.Context() should be the first parameter of a function when provided as argument.
-      - name: context-as-argument
-        disabled: true
-      # Basic types should not be used as a key in `context.WithValue`
-      - name: context-keys-type
-        disabled: true
-      # Importing with `.` makes the programs much harder to understand
-      - name: dot-imports
-        disabled: true
-      # Empty blocks make code less readable and could be a symptom of a bug or unfinished refactoring.
-      - name: empty-block
-        disabled: true
-      # for better readability, variables of type `error` must be named with the prefix `err`.
-      - name: error-naming
-        disabled: true
-      # for better readability, the errors should be last in the list of returned values by a function.
-      - name: error-return
-      # for better readability, error messages should not be capitalized or end with punctuation or a newline.
-      - name: error-strings
-        disabled: true
-      # report when replacing `errors.New(fmt.Sprintf())` with `fmt.Errorf()` is possible
-      - name: errorf
-      # incrementing an integer variable by 1 is recommended to be done using the `++` operator
-      - name: increment-decrement
-      # highlights redundant else-blocks that can be eliminated from the code
-      - name: indent-error-flow
-        disabled: true
-      # This rule suggests a shorter way of writing ranges that do not use the second value.
-      - name: range
-      # receiver names in a method should reflect the struct name (p for Person, for example)
-      - name: receiver-naming
-        disabled: true
-      # redefining built in names (true, false, append, make) can lead to bugs very difficult to detect.
-      - name: redefines-builtin-id
-        disabled: true
-      # redundant else-blocks that can be eliminated from the code.
-      - name: superfluous-else
-        disabled: true
-      # prevent confusing name for variables when using `time` package
-      - name: time-naming
-        disabled: true
-      # warns when an exported function or method returns a value of an un-exported type.
-      - name: unexported-return
-        disabled: true
-      # spots and proposes to remove unreachable code. also helps to spot errors
-      - name: unreachable-code
-      # Functions or methods with unused parameters can be a symptom of an unfinished refactoring or a bug.
-      - name: unused-parameter
-        disabled: true
-      # Since Go 1.18, interface{} has an alias: any. This rule proposes to replace instances of interface{} with any.
-      - name: use-any
-      # report when a variable declaration can be simplified
-      - name: var-declaration
-      # warns when initialism, variable or package naming conventions are not followed.
-      - name: var-naming
-        disabled: true
-  testifylint:
-    enable-all: true
-    disable:
-      - go-require
-run:
-  timeout: 50m
+      - linters:
+          - unparam
+        path: (.+)_test\.go
+
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+
+    warn-unused: true
+
+  settings:
+    gocritic:
+      enable-all: true
+      # Most of these should probably be enabled one-by-one.
+      disabled-checks:
+        - appendAssign
+        - appendCombine
+        - assignOp
+        - builtinShadow
+        - commentedOutCode
+        - deferInLoop
+        - emptyStringTest
+        - exitAfterDefer
+        - exposedSyncMutex
+        - evalOrder
+        - filepathJoin
+        - httpNoBody
+        - hugeParam
+        - importShadow
+        - mapKey
+        - paramTypeCombine
+        - ptrToRefParam
+        - rangeValCopy
+        - regexpSimplify
+        - sloppyReassign
+        - sprintfQuotedString
+        - tooManyResultsChecker
+        - typeAssertChain
+        - typeDefFirst
+        - typeSwitchVar
+        - typeUnparen
+        - unnecessaryBlock
+        - unnamedResult
+        - whyNoLint
+
+    gomodguard:
+      blocked:
+        modules:
+          - github.com/golang-jwt/jwt/v4:
+              recommendations:
+                - github.com/golang-jwt/jwt/v5
+
+          - github.com/imdario/mergo:
+              recommendations:
+                - dario.cat/mergo
+              reason: '`github.com/imdario/mergo` has been renamed.'
+
+          - github.com/pkg/errors:
+              recommendations:
+                - errors
+
+    importas:
+      alias:
+        - pkg: github.com/golang-jwt/jwt/v5
+          alias: jwtgo
+
+        - pkg: k8s.io/api/apps/v1
+          alias: appsv1
+
+        - pkg: k8s.io/api/core/v1
+          alias: corev1
+
+        - pkg: k8s.io/api/rbac/v1
+          alias: rbacv1
+
+        - pkg: k8s.io/apimachinery/pkg/api/errors
+          alias: apierrors
+
+        - pkg: k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1
+          alias: apiextensionsv1
+
+        - pkg: k8s.io/apimachinery/pkg/apis/meta/v1
+          alias: metav1
+
+        - pkg: k8s.io/client-go/informers/core/v1
+          alias: informersv1
+
+        - pkg: errors
+          alias: stderrors
+
+        - pkg: github.com/argoproj/argo-cd/v3/util/io
+          alias: utilio
+
+    nolintlint:
+      require-specific: true
+
+    perfsprint:
+      # Optimizes even if it requires an int or uint type cast.
+      int-conversion: true
+      # Optimizes into `err.Error()` even if it is only equivalent for non-nil errors.
+      err-error: true
+      # Optimizes `fmt.Errorf`.
+      errorf: true
+      # Optimizes `fmt.Sprintf` with only one argument.
+      sprintf1: true
+      # Optimizes into strings concatenation.
+      strconcat: true
+
+    revive:
+      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md
+      rules:
+        - name: bool-literal-in-expr
+
+        - name: blank-imports
+          disabled: true
+
+        - name: context-as-argument
+          arguments:
+            - allowTypesBefore: '*testing.T,testing.TB'
+
+        - name: context-keys-type
+          disabled: true
+
+        - name: dot-imports
+          disabled: true
+
+        - name: duplicated-imports
+
+        - name: early-return
+          arguments:
+            - preserveScope
+
+        - name: empty-block
+          disabled: true
+
+        - name: error-naming
+          disabled: true
+
+        - name: error-return
+
+        - name: error-strings
+          disabled: true
+
+        - name: errorf
+
+        - name: identical-branches
+
+        - name: if-return
+
+        - name: increment-decrement
+
+        - name: indent-error-flow
+          arguments:
+            - preserveScope
+
+        - name: modifies-parameter
+
+        - name: optimize-operands-order
+
+        - name: range
+
+        - name: receiver-naming
+
+        - name: redefines-builtin-id
+          disabled: true
+
+        - name: redundant-import-alias
+
+        - name: superfluous-else
+          arguments:
+            - preserveScope
+
+        - name: time-equal
+
+        - name: time-naming
+          disabled: true
+
+        - name: unexported-return
+          disabled: true
+
+        - name: unnecessary-stmt
+
+        - name: unreachable-code
+
+        - name: unused-parameter
+
+        - name: use-any
+
+        - name: useless-break
+
+        - name: var-declaration
+
+        - name: var-naming
+          arguments:
+            - - ID
+            - - VM
+            - - skipPackageNameChecks: true
+                upperCaseConst: true
+
+    staticcheck:
+      checks:
+        - all
+        - -SA5011
+        - -ST1003
+        - -ST1016
+
+    testifylint:
+      enable-all: true
+
+      disable:
+        - go-require
+
+    unused:
+      field-writes-are-uses: false
+      exported-fields-are-used: false
+
+    usetesting:
+      os-mkdir-temp: false
+
+output:
+  show-stats: false
+
+version: "2"
