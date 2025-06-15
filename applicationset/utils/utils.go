@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"reflect"
 	"regexp"
@@ -525,4 +526,11 @@ func GetTlsConfig(scmRootCAPath string, insecure bool, caCerts []byte) *tls.Conf
 		tlsConfig.InsecureSkipVerify = true
 	}
 	return tlsConfig
+}
+
+func GetOptionalHTTPClient(optionalHTTPClient ...*http.Client) *http.Client {
+	if len(optionalHTTPClient) > 0 && optionalHTTPClient[0] != nil {
+		return optionalHTTPClient[0]
+	}
+	return &http.Client{}
 }

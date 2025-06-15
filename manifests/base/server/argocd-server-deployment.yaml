@@ -292,6 +292,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: applicationsetcontroller.enable.scm.providers
                   optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.enable.github.api.metrics
+                  optional: true
             - name: ARGOCD_HYDRATOR_ENABLED
               valueFrom:
                 configMapKeyRef:
