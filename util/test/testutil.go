@@ -3,7 +3,6 @@ package test
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -117,7 +116,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
 		case "/api/dex/.well-known/openid-configuration":
-			_, err := io.WriteString(w, fmt.Sprintf(`
+			_, err := fmt.Fprintf(w, `
 {
   "issuer": "%[1]s/api/dex",
   "authorization_endpoint": "%[1]s/api/dex/auth",
@@ -133,7 +132,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
   "scopes_supported": ["openid"],
   "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
   "claims_supported": ["sub", "aud", "exp"]
-}`, url))
+}`, url)
 			require.NoError(t, err)
 		default:
 			w.WriteHeader(http.StatusNotFound)
@@ -158,7 +157,7 @@ func oidcMockHandler(t *testing.T, url string, tokenRequestPreHandler func(r *ht
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
 		case "/.well-known/openid-configuration":
-			_, err := io.WriteString(w, fmt.Sprintf(`
+			_, err := fmt.Fprintf(w, `
 {
   "issuer": "%[1]s",
   "authorization_endpoint": "%[1]s/auth",
@@ -174,16 +173,16 @@ func oidcMockHandler(t *testing.T, url string, tokenRequestPreHandler func(r *ht
   "scopes_supported": ["openid"],
   "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
   "claims_supported": ["sub", "aud", "exp"]
-}`, url))
+}`, url)
 			require.NoError(t, err)
 		case "/userinfo":
 			w.Header().Set("content-type", "application/json")
-			_, err := io.WriteString(w, fmt.Sprintf(`
+			_, err := fmt.Fprintf(w, `
 {
 	"groups":["githubOrg:engineers"],
 	"iss": "%[1]s",
 	"sub": "randomUser"
-}`, url))
+}`, url)
 
 			require.NoError(t, err)
 		case "/keys":
@@ -290,7 +289,7 @@ func (h *LogHook) GetRegexMatchesInEntries(match string) []string {
 	re := regexp.MustCompile(match)
 	matches := make([]string, 0)
 	for _, entry := range h.Entries {
-		if re.Match([]byte(entry.Message)) {
+		if re.MatchString(entry.Message) {
 			matches = append(matches, entry.Message)
 		}
 	}

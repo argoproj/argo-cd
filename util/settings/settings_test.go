@@ -1893,3 +1893,42 @@ func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {
 		})
 	}
 }
+
+func TestSettingsManager_GetAllowedNodeLabels(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		output []string
+	}{
+		{
+			name:   "Empty input",
+			input:  "",
+			output: []string{},
+		},
+		{
+			name:   "Comma separated data",
+			input:  "example.com/label,label1,label2",
+			output: []string{"example.com/label", "label1", "label2"},
+		},
+		{
+			name:   "Comma separated data with space",
+			input:  "example.com/label, label1,    label2",
+			output: []string{"example.com/label", "label1", "label2"},
+		},
+		{
+			name:   "Comma separated data with invalid label",
+			input:  "example.com/label,_invalid,label1,label2",
+			output: []string{"example.com/label", "label1", "label2"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, settingsManager := fixtures(map[string]string{
+				allowedNodeLabelsKey: tt.input,
+			})
+			keys := settingsManager.GetAllowedNodeLabels()
+			assert.Len(t, keys, len(tt.output))
+			assert.Equal(t, tt.output, keys)
+		})
+	}
+}
