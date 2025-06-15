@@ -1807,7 +1807,7 @@ func TestSourceNamespaceCanBeMigratedToManagedNamespaceWithoutBeingPrunedOrOutOf
 		Prune(true).
 		Path("guestbook-with-plain-namespace-manifest").
 		When().
-		PatchFile("guestbook-ui-namespace.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/name", "value": "%s"}]`, fixture.DeploymentNamespace())).
+		PatchFile("guestbook-ui-namespace.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/name", "value": %q}]`, fixture.DeploymentNamespace())).
 		CreateApp().
 		Sync().
 		Then().
@@ -1840,7 +1840,7 @@ func TestSelfManagedApps(t *testing.T) {
 	Given(t).
 		Path("self-managed-app").
 		When().
-		PatchFile("resources.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/spec/source/repoURL", "value": "%s"}]`, fixture.RepoURL(fixture.RepoURLTypeFile))).
+		PatchFile("resources.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/spec/source/repoURL", "value": %q}]`, fixture.RepoURL(fixture.RepoURLTypeFile))).
 		CreateApp().
 		Sync().
 		Then().
