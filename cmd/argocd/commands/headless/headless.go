@@ -261,6 +261,15 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		return nil, fmt.Errorf("error getting namespace: %w", err)
 	}
 
+	paramsCm, err := kubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDCmdParamsConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("error getting params configmap: %w", err)
+	}
+	applicationNamespaces := make([]string, 0)
+	if strNamespaces, ok := paramsCm.Data[common.ApplicationNamespacesCmdParamsKey]; ok {
+		applicationNamespaces = common.NamespacesListFromString(strNamespaces)
+	}
+
 	mr, err := miniredis.Run()
 	if err != nil {
 		return nil, fmt.Errorf("error running miniredis: %w", err)
@@ -272,6 +281,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 
 	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: cache.RedisCompressionType(clientOpts.RedisCompression), redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName, redisPassword: redisOptions.Password}), time.Hour)
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
+		ApplicationNamespaces:   applicationNamespaces,
 		EnableGZip:              false,
 		Namespace:               namespace,
 		ListenPort:              *port,
