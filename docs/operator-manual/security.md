@@ -199,9 +199,20 @@ LAST SEEN   FIRST SEEN   COUNT   NAME                         KIND          SUBO
 1m          1m           1       guestbook.157f7c651990e848   Application               Normal    ResourceUpdated      argocd-application-controller   Updated health status: Progressing -> Healthy
 ```
 
-These events can be then be persisted for longer periods of time using other tools as
+These kubernetes events can be then be persisted for longer periods of time using other tools as
 [Event Exporter](https://github.com/GoogleCloudPlatform/k8s-stackdriver/tree/master/event-exporter) or
 [Event Router](https://github.com/heptiolabs/eventrouter).
+
+Argo CD also outputs audit logging information of system activity,
+indicating the responsible actor when applicable. For example:
+
+```bash
+kubectl get logs -n argocd argocd-server-pod
+2025-05-23T12:00:00Z level=info msg="user@argoproj.github.io updated application spec" application=argocd dest-namespace=argocd dest-server=https://kubernetes.default.svc reason=ResourceUpdated type=Normal user=user@argoproj.github.io patch="map[metadata:map[] spec:map[source:map[targetRevision:BRANCH]]]
+```
+
+These logs can then be persisted and stored using tools such as
+[Loki](https://grafana.com/oss/loki/) or [fluentbit](https://fluentbit.io/).
 
 ## WebHook Payloads
 
