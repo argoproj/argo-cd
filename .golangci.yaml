@@ -62,7 +62,6 @@ linters:
         - exposedSyncMutex
         - evalOrder
         - filepathJoin
-        - httpNoBody
         - hugeParam
         - importShadow
         - mapKey
