@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/gosimple/slug"
+	log "github.com/sirupsen/logrus"
 
 	pullrequest "github.com/argoproj/argo-cd/v3/applicationset/services/pull_request"
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
@@ -47,6 +49,10 @@ func (g *PullRequestGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alph
 	return DefaultPullRequestRequeueAfter
 }
 
+func (g *PullRequestGenerator) GetContinueOnRepoNotFoundError(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) bool {
+	return appSetGenerator.PullRequest.ContinueOnRepoNotFoundError
+}
+
 func (g *PullRequestGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
 	return &appSetGenerator.PullRequest.Template
 }
@@ -67,10 +73,19 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	}
 
 	pulls, err := pullrequest.ListPullRequests(ctx, svc, appSetGenerator.PullRequest.Filters)
-	if err != nil {
-		return nil, fmt.Errorf("error listing repos: %w", err)
-	}
 	params := make([]map[string]any, 0, len(pulls))
+	if err != nil {
+		errStr := strings.ToLower(err.Error())
+		if (strings.Contains(errStr, "404") ||
+			strings.Contains(strings.ToLower(errStr), "not found")) && g.GetContinueOnRepoNotFoundError(appSetGenerator) {
+			log.WithError(err).WithField("generator", g).
+				Warn("Skipping params generation for this repository since it was not found. Some")
+			return params, nil
+		} else {
+			return nil, fmt.Errorf("error listing repos: %w", err)
+		}
+
+	}
 
 	// In order to follow the DNS label standard as defined in RFC 1123,
 	// we need to limit the 'branch' to 50 to give room to append/suffix-ing it

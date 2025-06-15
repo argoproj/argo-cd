@@ -615,6 +615,8 @@ type PullRequestGenerator struct {
 	AzureDevOps *PullRequestGeneratorAzureDevOps `json:"azuredevops,omitempty" protobuf:"bytes,9,opt,name=azuredevops"`
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values map[string]string `json:"values,omitempty" protobuf:"bytes,10,name=values"`
+	// ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator reconciliation even if the repository is not found.
+	ContinueOnRepoNotFoundError bool `json:"continueOnRepoNotFoundError,omitempty" protobuf:"varint,11,opt,name=continueOnRepoNotFoundError"`
 	// If you add a new SCM provider, update CustomApiUrl below.
 }
 
