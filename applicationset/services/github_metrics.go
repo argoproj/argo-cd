@@ -15,13 +15,13 @@ import (
 
 // Metric names as constants
 const (
-	githubAPIRequestTotalPerAppSetMetricName       = "argocd_github_api_requests_total_per_appset"
-	githubAPIRequestDurationPerAppSetMetricName    = "argocd_github_api_request_duration_seconds_per_appset"
-	githubAPIRateLimitRemainingPerAppSetMetricName = "argocd_github_api_rate_limit_remaining_per_appset"
-	githubAPIRateLimitLimitPerAppSetMetricName     = "argocd_github_api_rate_limit_limit_per_appset"
-	githubAPIRateLimitResetPerAppSetMetricName     = "argocd_github_api_rate_limit_reset_per_appset"
-	githubAPIRateLimitUsedPerAppSetMetricName      = "argocd_github_api_rate_limit_used_per_appset"
-	githubAPIRateLimitResourcePerAppSetMetricName  = "argocd_github_api_rate_limit_resource_per_appset"
+	githubAPIRequestTotalMetricName       = "argocd_github_api_requests_total"
+	githubAPIRequestDurationMetricName    = "argocd_github_api_request_duration_seconds"
+	githubAPIRateLimitRemainingMetricName = "argocd_github_api_rate_limit_remaining"
+	githubAPIRateLimitLimitMetricName     = "argocd_github_api_rate_limit_limit"
+	githubAPIRateLimitResetMetricName     = "argocd_github_api_rate_limit_reset"
+	githubAPIRateLimitUsedMetricName      = "argocd_github_api_rate_limit_used"
+	githubAPIRateLimitResourceMetricName  = "argocd_github_api_rate_limit_resource"
 )
 
 // GitHubMetrics groups all metric vectors for easier injection and registration
