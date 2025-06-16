@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -3192,4 +3193,97 @@ func TestSelfHealRemainingBackoff(t *testing.T) {
 			assertDurationAround(t, tc.expectedDuration, duration)
 		})
 	}
+}
+
+func TestConversionWebhookFailureIsolation(t *testing.T) {
+	app1 := newFakeApp()
+	app1.Name = "app1"
+
+	app2 := newFakeApp()
+	app2.Name = "app2"
+	app2.Spec.Destination.Namespace = "different-namespace"
+
+	// Create a conversion webhook error
+	conversionError := errors.New("failed to sync cluster: failed to load initial state of resource BucketServerSideEncryptionConfiguration.s3.aws.upbound.io: conversion webhook for s3.aws.upbound.io/v1beta1, Kind=BucketServerSideEncryptionConfiguration failed: Post \"https://provider-aws-s3.crossplane-system.svc:9443/convert?timeout=30s\": no endpoints available for service \"provider-aws-s3\"")
+
+	data := &fakeData{
+		apps: []runtime.Object{app1, app2, &defaultProj},
+		// Use manifestResponses to allow multiple calls
+		manifestResponses: []*apiclient.ManifestResponse{
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+
+	ctrl := newFakeController(t.Context(), data, nil)
+
+	// Create a new mock state cache for conversion webhook failures
+	customMockStateCache := &mockstatecache.LiveStateCache{}
+
+	// Set up all the necessary methods for basic functionality
+	customMockStateCache.On("IsNamespaced", mock.Anything, mock.Anything).Return(true, nil)
+	customMockStateCache.On("GetVersionsInfo", mock.Anything).Return("v1.2.3", nil, nil)
+
+	// Set up conversion webhook failures for specific operations
+	customMockStateCache.On("GetManagedLiveObjs", mock.Anything, mock.Anything, mock.Anything).Return(nil, conversionError)
+	customMockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything).Return(nil, conversionError)
+	customMockStateCache.On("IterateHierarchyV2", mock.Anything, mock.Anything, mock.Anything).Return(conversionError)
+	customMockStateCache.On("IterateResources", mock.Anything, mock.Anything).Return(nil)
+
+	// Set up cluster cache mock
+	clusterCacheMock := &mocks.ClusterCache{}
+	clusterCacheMock.EXPECT().IsNamespaced(mock.Anything).Return(true, nil)
+	clusterCacheMock.EXPECT().GetOpenAPISchema().Return(nil, nil)
+	clusterCacheMock.EXPECT().GetGVKParser().Return(nil)
+	customMockStateCache.EXPECT().GetClusterCache(mock.Anything).Return(clusterCacheMock, nil)
+
+	// Replace the state cache
+	ctrl.stateCache = customMockStateCache
+	ctrl.appStateManager.(*appStateManager).liveStateCache = customMockStateCache
+
+	// Process queue items for both applications
+	ctrl.processAppRefreshQueueItem() // app1
+	ctrl.processAppRefreshQueueItem() // app2
+
+	updatedApp1, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "app1", metav1.GetOptions{})
+	require.NoError(t, err)
+
+	updatedApp2, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "app2", metav1.GetOptions{})
+	require.NoError(t, err)
+
+	// Test that applications don't go to Unknown state due to conversion webhook failures
+	assert.NotEqual(t, v1alpha1.SyncStatusCodeUnknown, updatedApp1.Status.Sync.Status,
+		"App1 should not be in Unknown sync state due to conversion webhook failure")
+	assert.NotEqual(t, v1alpha1.SyncStatusCodeUnknown, updatedApp2.Status.Sync.Status,
+		"App2 should not be in Unknown sync state due to conversion webhook failure")
+	assert.NotEqual(t, health.HealthStatusUnknown, updatedApp1.Status.Health.Status,
+		"App1 should not be in Unknown health state due to conversion webhook failure")
+	assert.NotEqual(t, health.HealthStatusUnknown, updatedApp2.Status.Health.Status,
+		"App2 should not be in Unknown health state due to conversion webhook failure")
+
+	// Verify that conversion webhook errors are properly handled and reported
+	hasConversionError := false
+	for _, app := range []*v1alpha1.Application{updatedApp1, updatedApp2} {
+		for _, condition := range app.Status.Conditions {
+			if condition.Type == v1alpha1.ApplicationConditionComparisonError &&
+				strings.Contains(condition.Message, "conversion webhook") {
+				hasConversionError = true
+				break
+			}
+		}
+	}
+
+	// We expect the error to be reported, but applications should still function
+	assert.True(t, hasConversionError, "Conversion webhook errors should be reported in application conditions")
 }

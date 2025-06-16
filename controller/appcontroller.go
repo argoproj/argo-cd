@@ -627,7 +627,13 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 		return true
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to iterate resource hierarchy v2: %w", err)
+		if isConversionWebhookError(err) {
+			logCtx := log.WithFields(applog.GetAppLogFields(a))
+			logCtx.Warnf("Conversion webhook error while iterating managed resource hierarchy, continuing with limited resource tree: %v", err)
+			// Continue processing with the nodes we have so far instead of failing completely
+		} else {
+			return nil, fmt.Errorf("failed to iterate resource hierarchy v2: %w", err)
+		}
 	}
 	ts.AddCheckpoint("process_managed_resources_ms")
 	orphanedNodes := make([]appv1.ResourceNode, 0)
@@ -662,7 +668,14 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 		return true
 	})
 	if err != nil {
-		return nil, err
+		if isConversionWebhookError(err) {
+			logCtx := log.WithFields(applog.GetAppLogFields(a))
+			logCtx.Warnf("Conversion webhook error while iterating orphaned resource hierarchy, skipping orphaned resource detection: %v", err)
+			// Clear orphaned nodes since we can't reliably detect them
+			orphanedNodes = make([]appv1.ResourceNode, 0)
+		} else {
+			return nil, fmt.Errorf("failed to iterate resource hierarchy v2 for orphaned resources: %w", err)
+		}
 	}
 
 	var conditions []appv1.ApplicationCondition
