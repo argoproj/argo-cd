@@ -24,7 +24,7 @@ argocd appset update [flags]
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
+      --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
@@ -35,7 +35,7 @@ argocd appset update [flags]
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: json|text (default "json")
+      --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding

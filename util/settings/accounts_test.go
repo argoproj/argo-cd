@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -8,10 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v2/common"
 )
 
 func TestGetAccounts_NoAccountsConfigured(t *testing.T) {
@@ -25,7 +26,7 @@ func TestGetAccounts_NoAccountsConfigured(t *testing.T) {
 }
 
 func TestGetAccounts_HasConfiguredAccounts(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{"accounts.test": "apiKey"}, func(secret *corev1.Secret) {
+	_, settingsManager := fixtures(map[string]string{"accounts.test": "apiKey"}, func(secret *v1.Secret) {
 		secret.Data["accounts.test.tokens"] = []byte(`[{"id":"123","iat":1583789194,"exp":1583789194}]`)
 	})
 	accounts, err := settingsManager.GetAccounts()
@@ -76,13 +77,13 @@ func TestGetAccount_WithInvalidToken(t *testing.T) {
 		"accounts.invaliduser": "apiKey",
 		"accounts.user2":       "apiKey",
 	},
-		func(secret *corev1.Secret) {
+		func(secret *v1.Secret) {
 			secret.Data["accounts.user1.tokens"] = []byte(`[{"id":"1","iat":158378932,"exp":1583789194}]`)
 		},
-		func(secret *corev1.Secret) {
+		func(secret *v1.Secret) {
 			secret.Data["accounts.invaliduser.tokens"] = []byte("Invalid token")
 		},
-		func(secret *corev1.Secret) {
+		func(secret *v1.Secret) {
 			secret.Data["accounts.user2.tokens"] = []byte(`[{"id":"2","iat":1583789194,"exp":1583784545}]`)
 		},
 	)
@@ -93,7 +94,7 @@ func TestGetAccount_WithInvalidToken(t *testing.T) {
 
 func TestGetAdminAccount(t *testing.T) {
 	mTime := time.Now().Format(time.RFC3339)
-	_, settingsManager := fixtures(nil, func(secret *corev1.Secret) {
+	_, settingsManager := fixtures(nil, func(secret *v1.Secret) {
 		secret.Data["admin.password"] = []byte("admin-password")
 		secret.Data["admin.passwordMtime"] = []byte(mTime)
 	})
@@ -152,13 +153,13 @@ func TestAddAccount_AccountAdded(t *testing.T) {
 	err := settingsManager.AddAccount("test", addedAccount)
 	require.NoError(t, err)
 
-	cm, err := clientset.CoreV1().ConfigMaps("default").Get(t.Context(), common.ArgoCDConfigMapName, metav1.GetOptions{})
+	cm, err := clientset.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	require.NoError(t, err)
 
 	assert.Equal(t, "login", cm.Data["accounts.test"])
 	assert.Equal(t, "false", cm.Data["accounts.test.enabled"])
 
-	secret, err := clientset.CoreV1().Secrets("default").Get(t.Context(), common.ArgoCDSecretName, metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets("default").Get(context.Background(), common.ArgoCDSecretName, metav1.GetOptions{})
 	require.NoError(t, err)
 
 	assert.Equal(t, "hash", string(secret.Data["accounts.test.password"]))
@@ -192,13 +193,13 @@ func TestUpdateAccount_SuccessfullyUpdated(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	cm, err := clientset.CoreV1().ConfigMaps("default").Get(t.Context(), common.ArgoCDConfigMapName, metav1.GetOptions{})
+	cm, err := clientset.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	require.NoError(t, err)
 
 	assert.Equal(t, "login", cm.Data["accounts.test"])
 	assert.Equal(t, "false", cm.Data["accounts.test.enabled"])
 
-	secret, err := clientset.CoreV1().Secrets("default").Get(t.Context(), common.ArgoCDSecretName, metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets("default").Get(context.Background(), common.ArgoCDSecretName, metav1.GetOptions{})
 	require.NoError(t, err)
 
 	assert.Equal(t, "hash", string(secret.Data["accounts.test.password"]))
@@ -217,7 +218,7 @@ func TestUpdateAccount_UpdateAdminPassword(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	secret, err := clientset.CoreV1().Secrets("default").Get(t.Context(), common.ArgoCDSecretName, metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets("default").Get(context.Background(), common.ArgoCDSecretName, metav1.GetOptions{})
 	require.NoError(t, err)
 
 	assert.Equal(t, "newPassword", string(secret.Data["admin.password"]))

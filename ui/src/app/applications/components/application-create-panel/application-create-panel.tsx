@@ -170,16 +170,6 @@ export const ApplicationCreatePanel = (props: {
         }
     }
 
-    const onCreateApp = (data: models.Application) => {
-        if (destinationComboValue === 'URL') {
-            delete data.spec.destination.name;
-        } else {
-            delete data.spec.destination.server;
-        }
-
-        props.createApp(data);
-    };
-
     return (
         <React.Fragment>
             <DataLoader
@@ -233,7 +223,7 @@ export const ApplicationCreatePanel = (props: {
                                     })}
                                     defaultValues={app}
                                     formDidUpdate={state => debouncedOnAppChanged(state.values as any)}
-                                    onSubmit={onCreateApp}
+                                    onSubmit={props.createApp}
                                     getApi={props.getFormApi}>
                                     {api => {
                                         const generalPanel = () => (
@@ -314,10 +304,7 @@ export const ApplicationCreatePanel = (props: {
                                                             qeId='application-create-field-repository-url'
                                                             field='spec.source.repoURL'
                                                             component={AutocompleteField}
-                                                            componentProps={{
-                                                                items: repos,
-                                                                filterSuggestions: true
-                                                            }}
+                                                            componentProps={{items: repos}}
                                                         />
                                                     </div>
                                                     <div className='columns small-2'>
@@ -409,8 +396,7 @@ export const ApplicationCreatePanel = (props: {
                                                                             field='spec.source.targetRevision'
                                                                             component={AutocompleteField}
                                                                             componentProps={{
-                                                                                items: (selectedChart && selectedChart.versions) || [],
-                                                                                filterSuggestions: true
+                                                                                items: (selectedChart && selectedChart.versions) || []
                                                                             }}
                                                                         />
                                                                         <RevisionHelpIcon type='helm' />
@@ -433,10 +419,7 @@ export const ApplicationCreatePanel = (props: {
                                                                 label='Cluster URL'
                                                                 qeId='application-create-field-cluster-url'
                                                                 field='spec.destination.server'
-                                                                componentProps={{
-                                                                    items: clusters.map(cluster => cluster.server),
-                                                                    filterSuggestions: true
-                                                                }}
+                                                                componentProps={{items: clusters.map(cluster => cluster.server)}}
                                                                 component={AutocompleteField}
                                                             />
                                                         </div>
@@ -447,10 +430,7 @@ export const ApplicationCreatePanel = (props: {
                                                                 label='Cluster Name'
                                                                 qeId='application-create-field-cluster-name'
                                                                 field='spec.destination.name'
-                                                                componentProps={{
-                                                                    items: clusters.map(cluster => cluster.name),
-                                                                    filterSuggestions: true
-                                                                }}
+                                                                componentProps={{items: clusters.map(cluster => cluster.name)}}
                                                                 component={AutocompleteField}
                                                             />
                                                         </div>

@@ -2,7 +2,6 @@ package generators
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -11,9 +10,9 @@ import (
 
 	"github.com/gosimple/slug"
 
-	pullrequest "github.com/argoproj/argo-cd/v3/applicationset/services/pull_request"
-	"github.com/argoproj/argo-cd/v3/applicationset/utils"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	pullrequest "github.com/argoproj/argo-cd/v2/applicationset/services/pull_request"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 var _ Generator = (*PullRequestGenerator)(nil)
@@ -51,7 +50,7 @@ func (g *PullRequestGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.A
 	return &appSetGenerator.PullRequest.Template
 }
 
-func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
+func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]interface{}, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -70,7 +69,7 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	if err != nil {
 		return nil, fmt.Errorf("error listing repos: %w", err)
 	}
-	params := make([]map[string]any, 0, len(pulls))
+	params := make([]map[string]interface{}, 0, len(pulls))
 
 	// In order to follow the DNS label standard as defined in RFC 1123,
 	// we need to limit the 'branch' to 50 to give room to append/suffix-ing it
@@ -96,7 +95,7 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			shortSHALength7 = len(pull.HeadSHA)
 		}
 
-		paramMap := map[string]any{
+		paramMap := map[string]interface{}{
 			"number":             strconv.Itoa(pull.Number),
 			"title":              pull.Title,
 			"branch":             pull.Branch,
@@ -107,11 +106,6 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			"head_short_sha":     pull.HeadSHA[:shortSHALength],
 			"head_short_sha_7":   pull.HeadSHA[:shortSHALength7],
 			"author":             pull.Author,
-		}
-
-		err := appendTemplatedValues(appSetGenerator.PullRequest.Values, paramMap, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
-		if err != nil {
-			return nil, fmt.Errorf("failed to append templated values: %w", err)
 		}
 
 		// PR lables will only be supported for Go Template appsets, since fasttemplate will be deprecated.
@@ -149,7 +143,7 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %w", err)
 		}
-		return pullrequest.NewGitLabService(token, providerConfig.API, providerConfig.Project, providerConfig.Labels, providerConfig.PullRequestState, g.scmRootCAPath, providerConfig.Insecure, caCerts)
+		return pullrequest.NewGitLabService(ctx, token, providerConfig.API, providerConfig.Project, providerConfig.Labels, providerConfig.PullRequestState, g.scmRootCAPath, providerConfig.Insecure, caCerts)
 	}
 	if generatorConfig.Gitea != nil {
 		providerConfig := generatorConfig.Gitea
@@ -157,7 +151,7 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %w", err)
 		}
-		return pullrequest.NewGiteaService(token, providerConfig.API, providerConfig.Owner, providerConfig.Repo, providerConfig.Insecure)
+		return pullrequest.NewGiteaService(ctx, token, providerConfig.API, providerConfig.Owner, providerConfig.Repo, providerConfig.Insecure)
 	}
 	if generatorConfig.BitbucketServer != nil {
 		providerConfig := generatorConfig.BitbucketServer
@@ -181,8 +175,9 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 				return nil, fmt.Errorf("error fetching Secret token: %w", err)
 			}
 			return pullrequest.NewBitbucketServiceBasicAuth(ctx, providerConfig.BasicAuth.Username, password, providerConfig.API, providerConfig.Project, providerConfig.Repo, g.scmRootCAPath, providerConfig.Insecure, caCerts)
+		} else {
+			return pullrequest.NewBitbucketServiceNoAuth(ctx, providerConfig.API, providerConfig.Project, providerConfig.Repo, g.scmRootCAPath, providerConfig.Insecure, caCerts)
 		}
-		return pullrequest.NewBitbucketServiceNoAuth(ctx, providerConfig.API, providerConfig.Project, providerConfig.Repo, g.scmRootCAPath, providerConfig.Insecure, caCerts)
 	}
 	if generatorConfig.Bitbucket != nil {
 		providerConfig := generatorConfig.Bitbucket
@@ -198,8 +193,9 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 				return nil, fmt.Errorf("error fetching Secret token: %w", err)
 			}
 			return pullrequest.NewBitbucketCloudServiceBasicAuth(providerConfig.API, providerConfig.BasicAuth.Username, password, providerConfig.Owner, providerConfig.Repo)
+		} else {
+			return pullrequest.NewBitbucketCloudServiceNoAuth(providerConfig.API, providerConfig.Owner, providerConfig.Repo)
 		}
-		return pullrequest.NewBitbucketCloudServiceNoAuth(providerConfig.API, providerConfig.Owner, providerConfig.Repo)
 	}
 	if generatorConfig.AzureDevOps != nil {
 		providerConfig := generatorConfig.AzureDevOps
@@ -207,9 +203,9 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %w", err)
 		}
-		return pullrequest.NewAzureDevOpsService(token, providerConfig.API, providerConfig.Organization, providerConfig.Project, providerConfig.Repo, providerConfig.Labels)
+		return pullrequest.NewAzureDevOpsService(ctx, token, providerConfig.API, providerConfig.Organization, providerConfig.Project, providerConfig.Repo, providerConfig.Labels)
 	}
-	return nil, errors.New("no Pull Request provider implementation configured")
+	return nil, fmt.Errorf("no Pull Request provider implementation configured")
 }
 
 func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alpha1.PullRequestGeneratorGithub, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
@@ -227,5 +223,5 @@ func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alph
 	if err != nil {
 		return nil, fmt.Errorf("error fetching Secret token: %w", err)
 	}
-	return pullrequest.NewGithubService(token, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
+	return pullrequest.NewGithubService(ctx, token, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
 }

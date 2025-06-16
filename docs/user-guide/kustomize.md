@@ -29,8 +29,7 @@ The following configuration options are available for Kustomize:
 * `images` is a list of Kustomize image overrides
 * `replicas` is a list of Kustomize replica overrides
 * `commonLabels` is a string map of additional labels
-* `labelWithoutSelector` is a boolean value which defines if the common label(s) should be applied to resource selectors. It also excludes common labels from templates unless `labelIncludeTemplates` is set to true.
-* `labelIncludeTemplates` is a boolean value which defines if the common label(s) should be applied to resource templates.
+* `labelWithoutSelector` is a boolean value which defines if the common label(s) should be applied to resource selectors and templates.
 * `forceCommonLabels` is a boolean value which defines if it's allowed to override existing labels
 * `commonAnnotations` is a string map of additional annotations
 * `namespace` is a Kubernetes resources namespace
@@ -38,7 +37,6 @@ The following configuration options are available for Kustomize:
 * `commonAnnotationsEnvsubst` is a boolean value which enables env variables substition in annotation  values
 * `patches` is a list of Kustomize patches that supports inline updates
 * `components` is a list of Kustomize components
-* `ignoreMissingComponents` prevents kustomize from failing when components do not exist locally by not appending them to kustomization file
 
 To use Kustomize with an overlay, point your path to the overlay.
 
@@ -132,8 +130,7 @@ spec:
 ```
 
 ## Components
-Kustomize [components](https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md) encapsulate both resources and patches together. They provide a powerful way to modularize and reuse configuration in Kubernetes applications. 
-If Kustomize is passed a non-existing component directory, it will error out. Missing component directories can be ignored (meaning, not passed to Kustomize) using `ignoreMissingComponents`. This can be particularly helpful to implement a [default/override pattern].
+Kustomize [components](https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md) encapsulate both resources and patches together. They provide a powerful way to modularize and reuse configuration in Kubernetes applications.
 
 Outside of Argo CD, to utilize components, you must add the following to the `kustomization.yaml` that the Application references. For example:
 ```yaml
@@ -161,7 +158,6 @@ spec:
     kustomize:
       components:
         - ../component  # relative to the kustomization.yaml (`source.path`).
-      ignoreMissingComponents: true
 ```
 
 ## Private Remote Bases

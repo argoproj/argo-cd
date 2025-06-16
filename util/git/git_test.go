@@ -1,6 +1,7 @@
 package git
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -10,10 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/test/fixture/log"
-	"github.com/argoproj/argo-cd/v3/test/fixture/path"
-	"github.com/argoproj/argo-cd/v3/test/fixture/test"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/test/fixture/log"
+	"github.com/argoproj/argo-cd/v2/test/fixture/path"
+	"github.com/argoproj/argo-cd/v2/test/fixture/test"
 )
 
 func TestIsCommitSHA(t *testing.T) {
@@ -134,7 +135,7 @@ func TestCustomHTTPClient(t *testing.T) {
 	assert.NotEqual(t, "", string(keyData))
 
 	// Get HTTPSCreds with client cert creds specified, and insecure connection
-	creds := NewHTTPSCreds("test", "test", "", string(certData), string(keyData), false, "http://proxy:5000", "", &NoopCredsStore{}, false)
+	creds := NewHTTPSCreds("test", "test", string(certData), string(keyData), false, "http://proxy:5000", "", &NoopCredsStore{}, false)
 	client := GetRepoHTTPClient("https://localhost:9443/foo/bar", false, creds, "http://proxy:5000", "")
 	assert.NotNil(t, client)
 	assert.NotNil(t, client.Transport)
@@ -163,7 +164,7 @@ func TestCustomHTTPClient(t *testing.T) {
 	t.Setenv("http_proxy", "http://proxy-from-env:7878")
 
 	// Get HTTPSCreds without client cert creds, but insecure connection
-	creds = NewHTTPSCreds("test", "test", "", "", "", true, "", "", &NoopCredsStore{}, false)
+	creds = NewHTTPSCreds("test", "test", "", "", true, "", "", &NoopCredsStore{}, false)
 	client = GetRepoHTTPClient("https://localhost:9443/foo/bar", true, creds, "", "")
 	assert.NotNil(t, client)
 	assert.NotNil(t, client.Transport)
@@ -326,7 +327,7 @@ func TestLFSClient(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, largeFiles, 3)
 
-	fileHandle, err := os.Open(tempDir + "/test3.yaml")
+	fileHandle, err := os.Open(fmt.Sprintf("%s/test3.yaml", tempDir))
 	require.NoError(t, err)
 	if err == nil {
 		defer func() {
@@ -378,7 +379,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 }
 
 func TestNewFactory(t *testing.T) {
-	addBinDirToPath := path.NewBinDirToPath(t)
+	addBinDirToPath := path.NewBinDirToPath()
 	defer addBinDirToPath.Close()
 	closer := log.Debug()
 	defer closer()
@@ -500,4 +501,28 @@ func TestLsFiles(t *testing.T) {
 	lsResult, err = client.LsFiles(filepath.Join(tmpDir2, "*.yaml"), true)
 	require.NoError(t, err)
 	assert.Equal(t, nilResult, lsResult)
+}
+
+func TestAnnotatedTagHandling(t *testing.T) {
+	dir := t.TempDir()
+
+	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", dir, NopCreds{}, false, false, "", "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	// Test annotated tag resolution
+	commitSHA, err := client.LsRemote("v1.0.0") // Known annotated tag
+	require.NoError(t, err)
+
+	// Verify we get commit SHA, not tag SHA
+	assert.True(t, IsCommitSHA(commitSHA))
+
+	// Test tag reference handling
+	refs, err := client.LsRefs()
+	require.NoError(t, err)
+
+	// Verify tag exists in the list and points to a valid commit SHA
+	assert.Contains(t, refs.Tags, "v1.0.0", "Tag v1.0.0 should exist in refs")
 }

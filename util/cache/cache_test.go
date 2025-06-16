@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v2/common"
 )
 
 func TestAddCacheFlagsToCmd(t *testing.T) {
@@ -85,5 +86,5 @@ func TestGenerateCacheKey(t *testing.T) {
 	client := NewInMemoryCache(60 * time.Second)
 	cache := NewCache(client)
 	testKey := cache.generateFullKey("testkey")
-	assert.Equal(t, "testkey|"+common.CacheVersion, testKey)
+	assert.Equal(t, fmt.Sprintf("testkey|%s", common.CacheVersion), testKey)
 }

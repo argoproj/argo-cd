@@ -16,11 +16,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
-	"github.com/argoproj/argo-cd/v3/util/env"
-	"github.com/argoproj/argo-cd/v3/util/hash"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/hash"
 )
 
 var (
@@ -144,15 +145,15 @@ func listApps(repoURL, revision string) string {
 	return fmt.Sprintf("ldir|%s|%s", repoURL, revision)
 }
 
-func (c *Cache) ListApps(repoURL, revision string) (map[string]string, error) {
+func (c *Cache) ListApps(repoUrl, revision string) (map[string]string, error) {
 	res := make(map[string]string)
-	err := c.cache.GetItem(listApps(repoURL, revision), &res)
+	err := c.cache.GetItem(listApps(repoUrl, revision), &res)
 	return res, err
 }
 
-func (c *Cache) SetApps(repoURL, revision string, apps map[string]string) error {
+func (c *Cache) SetApps(repoUrl, revision string, apps map[string]string) error {
 	return c.cache.SetItem(
-		listApps(repoURL, revision),
+		listApps(repoUrl, revision),
 		apps,
 		&cacheutil.CacheActionOpts{
 			Expiration: c.repoCacheExpiration,
@@ -161,14 +162,14 @@ func (c *Cache) SetApps(repoURL, revision string, apps map[string]string) error 
 }
 
 func helmIndexRefsKey(repo string) string {
-	return "helm-index|" + repo
+	return fmt.Sprintf("helm-index|%s", repo)
 }
 
 // SetHelmIndex stores helm repository index.yaml content to cache
 func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
 	if indexData == nil {
 		// Logged as warning upstream
-		return errors.New("helm index data is nil, skipping cache")
+		return fmt.Errorf("helm index data is nil, skipping cache")
 	}
 	return c.cache.SetItem(
 		helmIndexRefsKey(repo),
@@ -182,7 +183,7 @@ func (c *Cache) GetHelmIndex(repo string, indexData *[]byte) error {
 }
 
 func gitRefsKey(repo string) string {
-	return "git-refs|" + repo
+	return fmt.Sprintf("git-refs|%s", repo)
 }
 
 // SetGitReferences saves resolved Git repository references to cache
@@ -304,7 +305,7 @@ func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs 
 
 func trackingKey(appLabelKey string, trackingMethod string) string {
 	trackingKey := appLabelKey
-	if text.FirstNonEmpty(trackingMethod, string(appv1.TrackingMethodLabel)) != string(appv1.TrackingMethodLabel) {
+	if text.FirstNonEmpty(trackingMethod, string(argo.TrackingMethodLabel)) != string(argo.TrackingMethodLabel) {
 		trackingKey = trackingMethod + ":" + trackingKey
 	}
 	return trackingKey
@@ -398,7 +399,7 @@ func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource
 
 func appDetailsCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, trackingMethod appv1.TrackingMethod, refSourceCommitSHAs ResolvedRevisions) string {
 	if trackingMethod == "" {
-		trackingMethod = appv1.TrackingMethodLabel
+		trackingMethod = argo.TrackingMethodLabel
 	}
 	return fmt.Sprintf("appdetails|%s|%d|%s", revision, appSourceKey(appSrc, srcRefs, refSourceCommitSHAs), trackingMethod)
 }
