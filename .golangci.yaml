@@ -72,7 +72,6 @@ linters:
         - tooManyResultsChecker
         - typeAssertChain
         - typeDefFirst
-        - typeSwitchVar
         - typeUnparen
         - unnecessaryBlock
         - unnamedResult
