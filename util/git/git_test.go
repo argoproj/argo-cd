@@ -183,7 +183,7 @@ func TestCustomHTTPClient(t *testing.T) {
 				assert.Nil(t, cert.PrivateKey)
 			}
 		}
-		req, err := http.NewRequest(http.MethodGet, "http://proxy-from-env:7878", nil)
+		req, err := http.NewRequest(http.MethodGet, "http://proxy-from-env:7878", http.NoBody)
 		require.NoError(t, err)
 		proxy, err := transport.Proxy(req)
 		require.NoError(t, err)
