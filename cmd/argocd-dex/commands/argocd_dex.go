@@ -221,17 +221,18 @@ func NewGenDexConfigCommand() *cobra.Command {
 }
 
 func iterateStringFields(obj any, callback func(name string, val string) string) {
-	if mapField, ok := obj.(map[string]any); ok {
-		for field, val := range mapField {
+	switch obj := obj.(type) {
+	case map[string]any:
+		for field, val := range obj {
 			if strVal, ok := val.(string); ok {
-				mapField[field] = callback(field, strVal)
+				obj[field] = callback(field, strVal)
 			} else {
 				iterateStringFields(val, callback)
 			}
 		}
-	} else if arrayField, ok := obj.([]any); ok {
-		for i := range arrayField {
-			iterateStringFields(arrayField[i], callback)
+	case []any:
+		for i := range obj {
+			iterateStringFields(obj[i], callback)
 		}
 	}
 }

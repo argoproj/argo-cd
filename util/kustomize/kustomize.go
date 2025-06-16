@@ -506,9 +506,10 @@ func getImageParameters(objs []*unstructured.Unstructured) []Image {
 func getImages(object map[string]any) []Image {
 	var images []Image
 	for k, v := range object {
-		if array, ok := v.([]any); ok {
+		switch v := v.(type) {
+		case []any:
 			if k == "containers" || k == "initContainers" {
-				for _, obj := range array {
+				for _, obj := range v {
 					if mapObj, isMapObj := obj.(map[string]any); isMapObj {
 						if image, hasImage := mapObj["image"]; hasImage {
 							images = append(images, fmt.Sprintf("%s", image))
@@ -516,14 +517,14 @@ func getImages(object map[string]any) []Image {
 					}
 				}
 			} else {
-				for i := range array {
-					if mapObj, isMapObj := array[i].(map[string]any); isMapObj {
+				for i := range v {
+					if mapObj, isMapObj := v[i].(map[string]any); isMapObj {
 						images = append(images, getImages(mapObj)...)
 					}
 				}
 			}
-		} else if objMap, ok := v.(map[string]any); ok {
-			images = append(images, getImages(objMap)...)
+		case map[string]any:
+			images = append(images, getImages(v)...)
 		}
 	}
 	return images

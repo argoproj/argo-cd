@@ -29,6 +29,31 @@ status:
   conditions:
   - lastHeartBeatTime: "2023-10-01T12:00:00Z"
     lastTransitionTime: "2023-10-01T12:00:00Z"
-    message: "StorageCluster is progressing"
+    message: Version check successful
+    reason: VersionMatched
     status: "False"
+    type: VersionMismatch
+  - lastHeartBeatTime: "2023-10-01T12:00:00Z"
+    lastTransitionTime: "2023-10-01T12:00:00Z"
+    message: Initializing StorageCluster
+    reason: Init
+    status: "False"
+    type: Available
+  - lastHeartBeatTime: "2023-10-01T12:00:00Z"
+    lastTransitionTime: "2023-10-01T12:00:00Z"
+    message: Initializing StorageCluster
+    reason: Init
+    status: "True"
     type: Progressing
+  - lastHeartBeatTime: "2023-10-01T12:00:00Z"
+    lastTransitionTime: "2023-10-01T12:00:00Z"
+    message: Initializing StorageCluster
+    reason: Init
+    status: "False"
+    type: Degraded
+  - lastHeartBeatTime: "2023-10-01T12:00:00Z"
+    lastTransitionTime: "2023-10-01T12:00:00Z"
+    message: Initializing StorageCluster
+    reason: Init
+    status: Unknown
+    type: Upgradeable
