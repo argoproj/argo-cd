@@ -243,9 +243,22 @@ linters:
         rules:
           json: goCamel
         overrides:
+          - pkg: util/git
+            rules:
+              json: snake
+          - pkg: util/localconfig
+            rules:
+              json: kebab
+          - pkg: util/oidc
+            rules:
+              json: snake
+          - pkg: util/settings
+            rules:
+              json: camel
           - pkg: util/test
             rules:
-              json: goSnake
+              json: snake
+
     testifylint:
       enable-all: true
 
