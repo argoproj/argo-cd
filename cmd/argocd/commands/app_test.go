@@ -1218,6 +1218,8 @@ func Test_unset(t *testing.T) {
 }
 
 func Test_unset_nothingToUnset(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name   string
 		source v1alpha1.ApplicationSource

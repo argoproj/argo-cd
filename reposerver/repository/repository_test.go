@@ -8,6 +8,7 @@ import (
 	"fmt"
 	goio "io"
 	"io/fs"
+	"net/mail"
 	"os"
 	"os/exec"
 	"path"
@@ -228,6 +229,8 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 }
 
 func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name                    string
 		outOfBoundsFilename     string
@@ -677,6 +680,17 @@ func TestInvalidManifestsInDir(t *testing.T) {
 
 	_, err := service.GenerateManifest(t.Context(), &q)
 	require.Error(t, err)
+}
+
+func TestSkippedInvalidManifestsInDir(t *testing.T) {
+	service := newService(t, ".")
+
+	src := v1alpha1.ApplicationSource{Path: "./testdata/invalid-manifests-skipped", Directory: &v1alpha1.ApplicationSourceDirectory{Recurse: true}}
+
+	q := apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &src}
+
+	_, err := service.GenerateManifest(t.Context(), &q)
+	require.NoError(t, err)
 }
 
 func TestInvalidMetadata(t *testing.T) {
@@ -1679,6 +1693,20 @@ func TestGetRevisionMetadata(t *testing.T) {
 		Author:  "author",
 		Date:    now,
 		Tags:    []string{"tag1", "tag2"},
+		References: []git.RevisionReference{
+			{
+				Commit: &git.CommitMetadata{
+					Author: mail.Address{
+						Name:    "test-name",
+						Address: "test-email@example.com",
+					},
+					Date:    now.Format(time.RFC3339),
+					Subject: "test-subject",
+					SHA:     "test-sha",
+					RepoURL: "test-repo-url",
+				},
+			},
+		},
 	}, nil)
 
 	res, err := service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
@@ -1693,6 +1721,9 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Equal(t, "author", res.Author)
 	assert.Equal(t, []string{"tag1", "tag2"}, res.Tags)
 	assert.NotEmpty(t, res.SignatureInfo)
+	require.Len(t, res.References, 1)
+	require.NotNil(t, res.References[0].Commit)
+	assert.Equal(t, "test-sha", res.References[0].Commit.SHA)
 
 	// Check for truncated revision value
 	res, err = service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
@@ -2815,6 +2846,13 @@ func Test_findManifests(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	t.Run("invalid manifest containing '+argocd:skip-file-rendering' doesn't throw an error", func(t *testing.T) {
+		require.DirExists(t, "./testdata/invalid-manifests-skipped")
+		manifests, err := findManifests(logCtx, "./testdata/invalid-manifests-skipped", "./testdata/invalid-manifests-skipped", nil, noRecurse, nil, resource.MustParse("0"))
+		assert.Empty(t, manifests)
+		require.NoError(t, err)
+	})
+
 	t.Run("irrelevant YAML gets skipped, relevant YAML gets parsed", func(t *testing.T) {
 		manifests, err := findManifests(logCtx, "./testdata/irrelevant-yaml", "./testdata/irrelevant-yaml", nil, noRecurse, nil, resource.MustParse("0"))
 		assert.Len(t, manifests, 1)
@@ -3294,6 +3332,8 @@ func TestGetHelmRepo_NamedReposAlias(t *testing.T) {
 }
 
 func Test_getResolvedValueFiles(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 	paths := utilio.NewRandomizedTempPaths(tempDir)
 

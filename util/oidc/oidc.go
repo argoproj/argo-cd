@@ -639,7 +639,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 			err = json.Unmarshal(claimsRaw, &claims)
 			if err == nil {
 				// return the cached claims since they are not yet expired, were successfully decrypted and unmarshaled
-				return claims, false, err
+				return claims, false, nil
 			}
 			log.Errorf("cannot unmarshal cached claims structure: %s", err)
 		}
@@ -662,7 +662,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	}
 
 	url := issuerURL + userInfoPath
-	request, err := http.NewRequest(http.MethodGet, url, nil)
+	request, err := http.NewRequest(http.MethodGet, url, http.NoBody)
 	if err != nil {
 		err = fmt.Errorf("failed creating new http request: %w", err)
 		return claims, false, err

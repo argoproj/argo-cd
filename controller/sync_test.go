@@ -189,6 +189,8 @@ func TestSyncComparisonError(t *testing.T) {
 }
 
 func TestAppStateManager_SyncAppState(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
 		application *v1alpha1.Application
 		controller  *ApplicationController
@@ -255,6 +257,8 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 }
 
 func TestSyncWindowDeniesSync(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
 		application *v1alpha1.Application
 		controller  *ApplicationController
@@ -642,6 +646,8 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 }
 
 func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
 		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
@@ -988,6 +994,8 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 }
 
 func TestDeriveServiceAccountMatchingServers(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
 		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
@@ -1401,6 +1409,110 @@ func TestSyncWithImpersonate(t *testing.T) {
 		// then application sync should pass using the control plane service account
 		assert.Equal(t, common.OperationSucceeded, opState.Phase)
 		assert.Contains(t, opState.Message, opMessage)
+	})
+}
+
+func TestClientSideApplyMigration(t *testing.T) {
+	t.Parallel()
+
+	type fixture struct {
+		application *v1alpha1.Application
+		controller  *ApplicationController
+	}
+
+	setup := func(disableMigration bool, customManager string) *fixture {
+		app := newFakeApp()
+		app.Status.OperationState = nil
+		app.Status.History = nil
+
+		// Add sync options
+		if disableMigration {
+			app.Spec.SyncPolicy.SyncOptions = append(app.Spec.SyncPolicy.SyncOptions, "DisableClientSideApplyMigration=true")
+		}
+
+		// Add custom manager annotation if specified
+		if customManager != "" {
+			app.Annotations = map[string]string{
+				"argocd.argoproj.io/client-side-apply-migration-manager": customManager,
+			}
+		}
+
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: test.FakeArgoCDNamespace,
+				Name:      "default",
+			},
+		}
+		data := fakeData{
+			apps: []runtime.Object{app, project},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data, nil)
+
+		return &fixture{
+			application: app,
+			controller:  ctrl,
+		}
+	}
+
+	t.Run("client-side apply migration enabled by default", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup(false, "")
+
+		// when
+		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{
+				Source: &v1alpha1.ApplicationSource{},
+			},
+		}}
+		f.controller.appStateManager.SyncAppState(f.application, opState)
+
+		// then
+		assert.Equal(t, common.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, "successfully synced")
+	})
+
+	t.Run("client-side apply migration disabled", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup(true, "")
+
+		// when
+		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{
+				Source: &v1alpha1.ApplicationSource{},
+			},
+		}}
+		f.controller.appStateManager.SyncAppState(f.application, opState)
+
+		// then
+		assert.Equal(t, common.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, "successfully synced")
+	})
+
+	t.Run("client-side apply migration with custom manager", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup(false, "my-custom-manager")
+
+		// when
+		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{
+				Source: &v1alpha1.ApplicationSource{},
+			},
+		}}
+		f.controller.appStateManager.SyncAppState(f.application, opState)
+
+		// then
+		assert.Equal(t, common.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, "successfully synced")
 	})
 }
 

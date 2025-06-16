@@ -26,6 +26,7 @@ linters:
     - staticcheck
     - testifylint
     - thelper
+    - tparallel
     - unparam
     - usestdlibvars
     - usetesting
@@ -47,12 +48,32 @@ linters:
 
   settings:
     gocritic:
+      enable-all: true
+      # Most of these should probably be enabled one-by-one.
       disabled-checks:
         - appendAssign
+        - appendCombine
         - assignOp
+        - builtinShadow
+        - commentedOutCode
+        - deferInLoop
         - exitAfterDefer
+        - exposedSyncMutex
+        - evalOrder
+        - filepathJoin
+        - hugeParam
+        - importShadow
         - mapKey
+        - paramTypeCombine
+        - ptrToRefParam
+        - rangeValCopy
+        - sloppyReassign
+        - tooManyResultsChecker
+        - typeDefFirst
         - typeSwitchVar
+        - unnecessaryBlock
+        - unnamedResult
+        - whyNoLint
 
     gomodguard:
       blocked:
