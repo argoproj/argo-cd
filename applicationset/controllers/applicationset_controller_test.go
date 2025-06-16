@@ -6678,8 +6678,6 @@ func TestMigrateStatus(t *testing.T) {
 }
 
 func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
-	ownsHandler := getApplicationSetOwnsHandler()
-
 	buildAppSet := func(annotations map[string]string) *v1alpha1.ApplicationSet {
 		return &v1alpha1.ApplicationSet{
 			ObjectMeta: metav1.ObjectMeta{
@@ -6689,10 +6687,11 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 	}
 
 	tests := []struct {
-		name      string
-		appSetOld crtclient.Object
-		appSetNew crtclient.Object
-		want      bool
+		name                   string
+		appSetOld              crtclient.Object
+		appSetNew              crtclient.Object
+		enableProgressiveSyncs bool
+		want                   bool
 	}{
 		{
 			name: "Different Spec",
@@ -6710,13 +6709,15 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 					},
 				},
 			},
-			want: true,
+			enableProgressiveSyncs: false,
+			want:                   true,
 		},
 		{
-			name:      "Different Annotations",
-			appSetOld: buildAppSet(map[string]string{"key1": "value1"}),
-			appSetNew: buildAppSet(map[string]string{"key1": "value2"}),
-			want:      true,
+			name:                   "Different Annotations",
+			appSetOld:              buildAppSet(map[string]string{"key1": "value1"}),
+			appSetNew:              buildAppSet(map[string]string{"key1": "value2"}),
+			enableProgressiveSyncs: false,
+			want:                   true,
 		},
 		{
 			name: "Different Labels",
@@ -6730,7 +6731,8 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 					Labels: map[string]string{"key1": "value2"},
 				},
 			},
-			want: true,
+			enableProgressiveSyncs: false,
+			want:                   true,
 		},
 		{
 			name: "Different Finalizers",
@@ -6744,7 +6746,8 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 					Finalizers: []string{"finalizer2"},
 				},
 			},
-			want: true,
+			enableProgressiveSyncs: false,
+			want:                   true,
 		},
 		{
 			name: "No Changes",
@@ -6772,15 +6775,17 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 					Finalizers:  []string{"finalizer1"},
 				},
 			},
-			want: false,
+			enableProgressiveSyncs: false,
+			want:                   false,
 		},
 		{
 			name: "annotation removed",
 			appSetOld: buildAppSet(map[string]string{
 				argocommon.AnnotationApplicationSetRefresh: "true",
 			}),
-			appSetNew: buildAppSet(map[string]string{}),
-			want:      false,
+			appSetNew:              buildAppSet(map[string]string{}),
+			enableProgressiveSyncs: false,
+			want:                   false,
 		},
 		{
 			name: "annotation not removed",
@@ -6790,7 +6795,8 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 			appSetNew: buildAppSet(map[string]string{
 				argocommon.AnnotationApplicationSetRefresh: "true",
 			}),
-			want: false,
+			enableProgressiveSyncs: false,
+			want:                   false,
 		},
 		{
 			name:      "annotation added",
@@ -6798,35 +6804,39 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 			appSetNew: buildAppSet(map[string]string{
 				argocommon.AnnotationApplicationSetRefresh: "true",
 			}),
-			want: true,
+			enableProgressiveSyncs: false,
+			want:                   true,
 		},
 		{
-			name:      "old object is not an appset",
-			appSetOld: &v1alpha1.Application{},
-			appSetNew: buildAppSet(map[string]string{}),
-			want:      false,
+			name:                   "old object is not an appset",
+			appSetOld:              &v1alpha1.Application{},
+			appSetNew:              buildAppSet(map[string]string{}),
+			enableProgressiveSyncs: false,
+			want:                   false,
 		},
 		{
-			name:      "new object is not an appset",
-			appSetOld: buildAppSet(map[string]string{}),
-			appSetNew: &v1alpha1.Application{},
-			want:      false,
+			name:                   "new object is not an appset",
+			appSetOld:              buildAppSet(map[string]string{}),
+			appSetNew:              &v1alpha1.Application{},
+			enableProgressiveSyncs: false,
+			want:                   false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ownsHandler := getApplicationSetOwnsHandler(tt.enableProgressiveSyncs)
 			requeue := ownsHandler.UpdateFunc(event.UpdateEvent{
 				ObjectOld: tt.appSetOld,
 				ObjectNew: tt.appSetNew,
 			})
-			assert.Equalf(t, tt.want, requeue, "ownsHandler.UpdateFunc(%v, %v)", tt.appSetOld, tt.appSetNew)
+			assert.Equalf(t, tt.want, requeue, "ownsHandler.UpdateFunc(%v, %v, %t)", tt.appSetOld, tt.appSetNew, tt.enableProgressiveSyncs)
 		})
 	}
 }
 
 func TestApplicationSetOwnsHandlerGeneric(t *testing.T) {
-	ownsHandler := getApplicationSetOwnsHandler()
+	ownsHandler := getApplicationSetOwnsHandler(false)
 	tests := []struct {
 		name string
 		obj  crtclient.Object
@@ -6855,7 +6865,7 @@ func TestApplicationSetOwnsHandlerGeneric(t *testing.T) {
 }
 
 func TestApplicationSetOwnsHandlerCreate(t *testing.T) {
-	ownsHandler := getApplicationSetOwnsHandler()
+	ownsHandler := getApplicationSetOwnsHandler(false)
 	tests := []struct {
 		name string
 		obj  crtclient.Object
@@ -6884,7 +6894,7 @@ func TestApplicationSetOwnsHandlerCreate(t *testing.T) {
 }
 
 func TestApplicationSetOwnsHandlerDelete(t *testing.T) {
-	ownsHandler := getApplicationSetOwnsHandler()
+	ownsHandler := getApplicationSetOwnsHandler(false)
 	tests := []struct {
 		name string
 		obj  crtclient.Object
@@ -6914,19 +6924,55 @@ func TestApplicationSetOwnsHandlerDelete(t *testing.T) {
 
 func TestShouldRequeueForApplicationSet(t *testing.T) {
 	type args struct {
-		appSetOld *v1alpha1.ApplicationSet
-		appSetNew *v1alpha1.ApplicationSet
+		appSetOld              *v1alpha1.ApplicationSet
+		appSetNew              *v1alpha1.ApplicationSet
+		enableProgressiveSyncs bool
 	}
 	tests := []struct {
 		name string
 		args args
 		want bool
 	}{
-		{name: "NilAppSet", args: args{appSetNew: &v1alpha1.ApplicationSet{}, appSetOld: nil}, want: false},
+		{
+			name: "NilAppSet",
+			args: args{
+				appSetNew:              &v1alpha1.ApplicationSet{},
+				appSetOld:              nil,
+				enableProgressiveSyncs: false,
+			},
+			want: false,
+		},
+		{
+			name: "ApplicationSetApplicationStatusChanged",
+			args: args{
+				appSetOld: &v1alpha1.ApplicationSet{
+					Status: v1alpha1.ApplicationSetStatus{
+						ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+							{
+								Application: "app1",
+								Status:      "Healthy",
+							},
+						},
+					},
+				},
+				appSetNew: &v1alpha1.ApplicationSet{
+					Status: v1alpha1.ApplicationSetStatus{
+						ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+							{
+								Application: "app1",
+								Status:      "Waiting",
+							},
+						},
+					},
+				},
+				enableProgressiveSyncs: true,
+			},
+			want: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, shouldRequeueForApplicationSet(tt.args.appSetOld, tt.args.appSetNew), "shouldRequeueForApplicationSet(%v, %v)", tt.args.appSetOld, tt.args.appSetNew)
+			assert.Equalf(t, tt.want, shouldRequeueForApplicationSet(tt.args.appSetOld, tt.args.appSetNew, tt.args.enableProgressiveSyncs), "shouldRequeueForApplicationSet(%v, %v)", tt.args.appSetOld, tt.args.appSetNew)
 		})
 	}
 }
