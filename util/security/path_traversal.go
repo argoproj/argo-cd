@@ -24,10 +24,10 @@ func isRequestedDirUnderCurrentRoot(currentRoot, requestedPath string) bool {
 		return true
 	}
 	if requestedPath[len(requestedPath)-1] != '/' {
-		requestedPath = requestedPath + "/"
+		requestedPath += "/"
 	}
 	if currentRoot[len(currentRoot)-1] != '/' {
-		currentRoot = currentRoot + "/"
+		currentRoot += "/"
 	}
 	return strings.HasPrefix(requestedPath, currentRoot)
 }

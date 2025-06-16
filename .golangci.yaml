@@ -53,7 +53,6 @@ linters:
       disabled-checks:
         - appendAssign
         - appendCombine
-        - assignOp
         - builtinShadow
         - commentedOutCode
         - deferInLoop

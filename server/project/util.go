@@ -7,7 +7,7 @@ func difference(a, b []string) []string {
 func unique(slice []string) []string {
 	encountered := map[string]int{}
 	for _, v := range slice {
-		encountered[v] = encountered[v] + 1
+		encountered[v]++
 	}
 
 	diff := make([]string, 0)

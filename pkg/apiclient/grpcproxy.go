@@ -197,12 +197,12 @@ func (c *client) useGRPCProxy() (net.Addr, io.Closer, error) {
 			return nil, nil, err
 		}
 	}
-	c.proxyUsersCount = c.proxyUsersCount + 1
+	c.proxyUsersCount++
 
 	return c.proxyListener.Addr(), utilio.NewCloser(func() error {
 		c.proxyMutex.Lock()
 		defer c.proxyMutex.Unlock()
-		c.proxyUsersCount = c.proxyUsersCount - 1
+		c.proxyUsersCount--
 		if c.proxyUsersCount == 0 {
 			c.proxyServer.Stop()
 			c.proxyListener = nil

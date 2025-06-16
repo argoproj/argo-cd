@@ -166,7 +166,7 @@ func init() {
 	maxConcurrentLoginRequestsCount = env.ParseNumFromEnv(maxConcurrentLoginRequestsCountEnv, maxConcurrentLoginRequestsCount, 0, math.MaxInt32)
 	replicasCount = env.ParseNumFromEnv(replicasCountEnv, replicasCount, 0, math.MaxInt32)
 	if replicasCount > 0 {
-		maxConcurrentLoginRequestsCount = maxConcurrentLoginRequestsCount / replicasCount
+		maxConcurrentLoginRequestsCount /= replicasCount
 	}
 	enableGRPCTimeHistogram = env.ParseBoolFromEnv(common.EnvEnableGRPCTimeHistogramEnv, false)
 }

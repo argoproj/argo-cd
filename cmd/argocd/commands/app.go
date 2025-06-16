@@ -1772,7 +1772,7 @@ func formatSyncPolicy(app argoappv1.Application) string {
 	}
 	policy := "Auto"
 	if app.Spec.SyncPolicy.Automated.Prune {
-		policy = policy + "-Prune"
+		policy += "-Prune"
 	}
 	return policy
 }

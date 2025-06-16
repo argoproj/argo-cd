@@ -217,7 +217,7 @@ var validatorsByGroup = map[string]settingValidator{
 		if ssoProvider != "" {
 			summary = ssoProvider + " is configured"
 			if general.URL == "" {
-				summary = summary + " ('url' field is missing)"
+				summary += " ('url' field is missing)"
 			}
 		} else if ssoProvider != "" && general.URL != "" {
 		} else {
