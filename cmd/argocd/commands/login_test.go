@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"crypto/x509"
+	"encoding/pem"
 	"io"
 	"os"
 	"testing"
@@ -76,4 +78,38 @@ func Test_ssoAuthFlow_ssoLaunchBrowser_false(t *testing.T) {
 	})
 
 	assert.Contains(t, out, "To authenticate, copy-and-paste the following URL into your preferred browser: http://test-sso-browser-flow.com")
+}
+
+func Test_generateSelfSignedCert(t *testing.T) {
+	host := "localhost"
+	certFile, keyFile, err := generateSelfSignedCert(host)
+	assert.NoError(t, err)
+
+	// Check if the certificate file is created
+	if _, err := os.Stat(certFile); os.IsNotExist(err) {
+		t.Errorf("Expected certificate file %s to exist, but it does not", certFile)
+	}
+
+	// Check if the key file is created
+	if _, err := os.Stat(keyFile); os.IsNotExist(err) {
+		t.Errorf("Expected key file %s to exist, but it does not", keyFile)
+	}
+
+	// Read and parse the certificate
+	certData, err := os.ReadFile(certFile)
+	if err != nil {
+		t.Fatalf("Failed to read certificate file %s: %v", certFile, err)
+	}
+
+	certPem, _ := pem.Decode(certData)
+
+	cert, err := x509.ParseCertificate(certPem.Bytes)
+	if err != nil {
+		t.Fatalf("Failed to parse certificate from %s: %s", certFile, err)
+	}
+
+	// Validate the host in the certificate matches the requested host
+	if cert.Subject.CommonName != host {
+		t.Errorf("Expected certificate subject common name to be %s, but got %s", host, cert.Subject.CommonName)
+	}
 }
