@@ -121,6 +121,52 @@ func TestSyncNotPermittedNamespace(t *testing.T) {
 	assert.Contains(t, resources[0].Message, "not permitted in project")
 }
 
+func TestSyncNamespaceCreatedBeforeDryRunWithoutFailure(t *testing.T) {
+	pod := testingutils.NewPod()
+	syncCtx := newTestSyncCtx(nil, WithNamespaceModifier(func(_, _ *unstructured.Unstructured) (bool, error) {
+		return true, nil
+	}))
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil, nil},
+		Target: []*unstructured.Unstructured{pod},
+	})
+	syncCtx.Sync()
+	phase, msg, resources := syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationRunning, phase)
+	assert.Equal(t, "waiting for healthy state of /Namespace/fake-argocd-ns", msg)
+	require.Len(t, resources, 1)
+	assert.Equal(t, "Namespace", resources[0].ResourceKey.Kind)
+	assert.Equal(t, synccommon.ResultCodeSynced, resources[0].Status)
+}
+
+func TestSyncNamespaceCreatedBeforeDryRunWithFailure(t *testing.T) {
+	pod := testingutils.NewPod()
+	syncCtx := newTestSyncCtx(nil, WithNamespaceModifier(func(_, _ *unstructured.Unstructured) (bool, error) {
+		return true, nil
+	}), func(ctx *syncContext) {
+		resourceOps := ctx.resourceOps.(*kubetest.MockResourceOps)
+		resourceOps.Commands = map[string]kubetest.KubectlOutput{}
+		resourceOps.Commands[pod.GetName()] = kubetest.KubectlOutput{
+			Output: "should not be returned",
+			Err:    errors.New("invalid object failing dry-run"),
+		}
+	})
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil, nil},
+		Target: []*unstructured.Unstructured{pod},
+	})
+	syncCtx.Sync()
+	phase, msg, resources := syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationFailed, phase)
+	assert.Equal(t, "one or more objects failed to apply (dry run)", msg)
+	require.Len(t, resources, 2)
+	assert.Equal(t, "Namespace", resources[0].ResourceKey.Kind)
+	assert.Equal(t, synccommon.ResultCodeSynced, resources[0].Status)
+	assert.Equal(t, "Pod", resources[1].ResourceKey.Kind)
+	assert.Equal(t, synccommon.ResultCodeSyncFailed, resources[1].Status)
+	assert.Equal(t, "invalid object failing dry-run", resources[1].Message)
+}
+
 func TestSyncCreateInSortedOrder(t *testing.T) {
 	syncCtx := newTestSyncCtx(nil)
 	syncCtx.resources = groupResources(ReconciliationResult{
@@ -1045,7 +1091,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 
 	// Namespace auto creation pre-sync task should not be there
 	// since there is namespace resource in syncCtx.resources
-	t.Run("no pre-sync task 1", func(t *testing.T) {
+	t.Run("no pre-sync task if resource is managed", func(t *testing.T) {
 		syncCtx.resources = groupResources(ReconciliationResult{
 			Live:   []*unstructured.Unstructured{nil},
 			Target: []*unstructured.Unstructured{namespace},
@@ -1057,9 +1103,8 @@ func TestNamespaceAutoCreation(t *testing.T) {
 		assert.NotContains(t, tasks, task)
 	})
 
-	// Namespace auto creation pre-sync task should not be there
-	// since there is no existing sync result
-	t.Run("no pre-sync task 2", func(t *testing.T) {
+	// Namespace auto creation pre-sync task should be there when it is not managed
+	t.Run("pre-sync task when resource is not managed", func(t *testing.T) {
 		syncCtx.resources = groupResources(ReconciliationResult{
 			Live:   []*unstructured.Unstructured{nil},
 			Target: []*unstructured.Unstructured{pod},
@@ -1067,13 +1112,12 @@ func TestNamespaceAutoCreation(t *testing.T) {
 		tasks, successful := syncCtx.getSyncTasks()
 
 		assert.True(t, successful)
-		assert.Len(t, tasks, 1)
-		assert.NotContains(t, tasks, task)
+		assert.Len(t, tasks, 2)
+		assert.Contains(t, tasks, task)
 	})
 
-	// Namespace auto creation pre-sync task should be there
-	// since there is existing sync result which means that task created this namespace
-	t.Run("pre-sync task created", func(t *testing.T) {
+	// Namespace auto creation pre-sync task should be there after sync
+	t.Run("pre-sync task when resource is not managed with existing sync", func(t *testing.T) {
 		syncCtx.resources = groupResources(ReconciliationResult{
 			Live:   []*unstructured.Unstructured{nil},
 			Target: []*unstructured.Unstructured{pod},
@@ -1100,24 +1144,13 @@ func TestNamespaceAutoCreation(t *testing.T) {
 
 	// Namespace auto creation pre-sync task not should be there
 	// since there is no namespace modifier present
-	t.Run("no pre-sync task created", func(t *testing.T) {
+	t.Run("no pre-sync task created if no modifier", func(t *testing.T) {
 		syncCtx.resources = groupResources(ReconciliationResult{
 			Live:   []*unstructured.Unstructured{nil},
 			Target: []*unstructured.Unstructured{pod},
 		})
-		syncCtx.syncNamespace = nil
 
-		res := synccommon.ResourceSyncResult{
-			ResourceKey: kube.GetResourceKey(task.obj()),
-			Version:     task.version(),
-			Status:      task.syncStatus,
-			Message:     task.message,
-			HookType:    task.hookType(),
-			HookPhase:   task.operationState,
-			SyncPhase:   task.phase,
-		}
-		syncCtx.syncRes = map[string]synccommon.ResourceSyncResult{}
-		syncCtx.syncRes[task.resultKey()] = res
+		syncCtx.syncNamespace = nil
 
 		tasks, successful := syncCtx.getSyncTasks()
 
