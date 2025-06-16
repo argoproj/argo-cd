@@ -65,7 +65,6 @@ linters:
         - importShadow
         - mapKey
         - paramTypeCombine
-        - ptrToRefParam
         - rangeValCopy
         - sloppyReassign
         - tooManyResultsChecker
