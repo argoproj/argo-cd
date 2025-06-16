@@ -126,7 +126,11 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                     )} applications-tiles__item`}>
                                                     <div className='row '>
                                                         <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-10' : 'columns small-11'}>
-                                                            <i className={'icon argo-icon-' + (source?.chart != null ? 'helm' : (isOci ? 'oci': 'git'))} style={{marginBottom: (isOci && '3px')}}/>
+                                                            <i
+                                                                className={
+                                                                    'icon argo-icon-' + (source?.chart != null ? 'helm' : isOci ? 'oci applications-tiles__item__small' : 'git')
+                                                                }
+                                                            />
                                                             <Tooltip content={AppUtils.appInstanceName(app)}>
                                                                 <span className='applications-list__title'>
                                                                     {AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
