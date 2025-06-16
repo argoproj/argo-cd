@@ -21,102 +21,89 @@ const (
 	githubAPIRateLimitLimitMetricName     = "argocd_github_api_rate_limit_limit"
 	githubAPIRateLimitResetMetricName     = "argocd_github_api_rate_limit_reset"
 	githubAPIRateLimitUsedMetricName      = "argocd_github_api_rate_limit_used"
-	githubAPIRateLimitResourceMetricName  = "argocd_github_api_rate_limit_resource"
 )
 
 // GitHubMetrics groups all metric vectors for easier injection and registration
 type GitHubMetrics struct {
-	RequestTotal       *prometheus.CounterVec
-	RequestDuration    *prometheus.HistogramVec
-	RateLimitRemaining *prometheus.GaugeVec
-	RateLimitLimit     *prometheus.GaugeVec
-	RateLimitReset     *prometheus.GaugeVec
-	RateLimitUsed      *prometheus.GaugeVec
-	RateLimitResource  *prometheus.GaugeVec
+	RequestTotal          *prometheus.CounterVec
+	RequestDuration       *prometheus.HistogramVec
+	RateLimitRemaining    *prometheus.GaugeVec
+	RateLimitLimit        *prometheus.GaugeVec
+	RateLimitResetSeconds *prometheus.GaugeVec
+	RateLimitUsed         *prometheus.GaugeVec
 }
 
 // Factory for a new set of GitHub metrics (for tests or custom registries)
 func NewGitHubMetrics() *GitHubMetrics {
 	return &GitHubMetrics{
-		RequestTotal:       NewGitHubAPIRequestTotalPerAppSet(),
-		RequestDuration:    NewGitHubAPIRequestDurationPerAppSet(),
-		RateLimitRemaining: NewGitHubAPIRateLimitRemainingPerAppSet(),
-		RateLimitLimit:     NewGitHubAPIRateLimitLimitPerAppSet(),
-		RateLimitReset:     NewGitHubAPIRateLimitResetPerAppSet(),
-		RateLimitUsed:      NewGitHubAPIRateLimitUsedPerAppSet(),
-		RateLimitResource:  NewGitHubAPIRateLimitResourcePerAppSet(),
+		RequestTotal:          NewGitHubAPIRequestTotal(),
+		RequestDuration:       NewGitHubAPIRequestDuration(),
+		RateLimitRemaining:    NewGitHubAPIRateLimitRemaining(),
+		RateLimitLimit:        NewGitHubAPIRateLimitLimit(),
+		RateLimitResetSeconds: NewGitHubAPIRateLimitResetSeconds(),
+		RateLimitUsed:         NewGitHubAPIRateLimitUsed(),
 	}
 }
 
 // Factory functions for each metric vector
-func NewGitHubAPIRequestTotalPerAppSet() *prometheus.CounterVec {
+func NewGitHubAPIRequestTotal() *prometheus.CounterVec {
 	return prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: githubAPIRequestTotalPerAppSetMetricName,
-			Help: "Total number of GitHub API requests per ApplicationSet",
+			Name: githubAPIRequestTotalMetricName,
+			Help: "Total number of GitHub API requests",
 		},
 		[]string{"method", "endpoint", "status", "appset_namespace", "appset_name"},
 	)
 }
 
-func NewGitHubAPIRequestDurationPerAppSet() *prometheus.HistogramVec {
+func NewGitHubAPIRequestDuration() *prometheus.HistogramVec {
 	return prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    githubAPIRequestDurationPerAppSetMetricName,
-			Help:    "GitHub API request duration in seconds, per ApplicationSet",
+			Name:    githubAPIRequestDurationMetricName,
+			Help:    "GitHub API request duration in seconds",
 			Buckets: prometheus.DefBuckets,
 		},
 		[]string{"method", "endpoint", "appset_namespace", "appset_name"},
 	)
 }
 
-func NewGitHubAPIRateLimitRemainingPerAppSet() *prometheus.GaugeVec {
+func NewGitHubAPIRateLimitRemaining() *prometheus.GaugeVec {
 	return prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: githubAPIRateLimitRemainingPerAppSetMetricName,
-			Help: "The number of requests remaining in the current rate limit window, per ApplicationSet",
+			Name: githubAPIRateLimitRemainingMetricName,
+			Help: "The number of requests remaining in the current rate limit window",
 		},
-		[]string{"endpoint", "appset_namespace", "appset_name"},
+		[]string{"endpoint", "appset_namespace", "appset_name", "resource"},
 	)
 }
 
-func NewGitHubAPIRateLimitLimitPerAppSet() *prometheus.GaugeVec {
+func NewGitHubAPIRateLimitLimit() *prometheus.GaugeVec {
 	return prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: githubAPIRateLimitLimitPerAppSetMetricName,
-			Help: "The maximum number of requests that you can make per hour, per ApplicationSet",
+			Name: githubAPIRateLimitLimitMetricName,
+			Help: "The maximum number of requests that you can make per hour",
 		},
-		[]string{"endpoint", "appset_namespace", "appset_name"},
+		[]string{"endpoint", "appset_namespace", "appset_name", "resource"},
 	)
 }
 
-func NewGitHubAPIRateLimitResetPerAppSet() *prometheus.GaugeVec {
+func NewGitHubAPIRateLimitResetSeconds() *prometheus.GaugeVec {
 	return prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: githubAPIRateLimitResetPerAppSetMetricName,
-			Help: "The time at which the current rate limit window resets, in UTC epoch seconds, per ApplicationSet",
+			Name: githubAPIRateLimitResetMetricName,
+			Help: "The time at which the current rate limit window resets, in UTC epoch seconds",
 		},
-		[]string{"endpoint", "appset_namespace", "appset_name"},
+		[]string{"endpoint", "appset_namespace", "appset_name", "resource"},
 	)
 }
 
-func NewGitHubAPIRateLimitUsedPerAppSet() *prometheus.GaugeVec {
+func NewGitHubAPIRateLimitUsed() *prometheus.GaugeVec {
 	return prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: githubAPIRateLimitUsedPerAppSetMetricName,
-			Help: "The number of requests used in the current rate limit window, per ApplicationSet",
+			Name: githubAPIRateLimitUsedMetricName,
+			Help: "The number of requests used in the current rate limit window",
 		},
-		[]string{"endpoint", "appset_namespace", "appset_name"},
-	)
-}
-
-func NewGitHubAPIRateLimitResourcePerAppSet() *prometheus.GaugeVec {
-	return prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: githubAPIRateLimitResourcePerAppSetMetricName,
-			Help: "The rate limit resource that the request counted against, per ApplicationSet",
-		},
-		[]string{"endpoint", "resource", "appset_namespace", "appset_name"},
+		[]string{"endpoint", "appset_namespace", "appset_name", "resource"},
 	)
 }
 
@@ -129,9 +116,8 @@ func init() {
 	metrics.Registry.MustRegister(globalGitHubMetrics.RequestDuration)
 	metrics.Registry.MustRegister(globalGitHubMetrics.RateLimitRemaining)
 	metrics.Registry.MustRegister(globalGitHubMetrics.RateLimitLimit)
-	metrics.Registry.MustRegister(globalGitHubMetrics.RateLimitReset)
+	metrics.Registry.MustRegister(globalGitHubMetrics.RateLimitResetSeconds)
 	metrics.Registry.MustRegister(globalGitHubMetrics.RateLimitUsed)
-	metrics.Registry.MustRegister(globalGitHubMetrics.RateLimitResource)
 }
 
 type MetricsContext struct {
@@ -183,32 +169,29 @@ func (t *GitHubMetricsTransport) RoundTrip(req *http.Request) (*http.Response, e
 		remainingInt := 0
 		limitInt := 0
 		usedInt := 0
-		resource := ""
+		resource := resp.Header.Get("X-RateLimit-Resource")
 
 		// Record rate limit metrics if available
 		if resetTime := resp.Header.Get("X-RateLimit-Reset"); resetTime != "" {
 			if resetUnix, err := strconv.ParseInt(resetTime, 10, 64); err == nil {
-				t.metrics.RateLimitReset.WithLabelValues(endpoint, appsetNamespace, appsetName).Set(float64(resetUnix))
+				t.metrics.RateLimitResetSeconds.WithLabelValues(endpoint, appsetNamespace, appsetName, resource).Set(float64(resetUnix))
 				resetHumanReadableTime = time.Unix(resetUnix, 0).Local().Format("2006-01-02 15:04:05 MST")
 			}
 		}
 		if remaining := resp.Header.Get("X-RateLimit-Remaining"); remaining != "" {
 			if remainingInt, err = strconv.Atoi(remaining); err == nil {
-				t.metrics.RateLimitRemaining.WithLabelValues(endpoint, appsetNamespace, appsetName).Set(float64(remainingInt))
+				t.metrics.RateLimitRemaining.WithLabelValues(endpoint, appsetNamespace, appsetName, resource).Set(float64(remainingInt))
 			}
 		}
 		if limit := resp.Header.Get("X-RateLimit-Limit"); limit != "" {
 			if limitInt, err = strconv.Atoi(limit); err == nil {
-				t.metrics.RateLimitLimit.WithLabelValues(endpoint, appsetNamespace, appsetName).Set(float64(limitInt))
+				t.metrics.RateLimitLimit.WithLabelValues(endpoint, appsetNamespace, appsetName, resource).Set(float64(limitInt))
 			}
 		}
 		if used := resp.Header.Get("X-RateLimit-Used"); used != "" {
 			if usedInt, err = strconv.Atoi(used); err == nil {
-				t.metrics.RateLimitUsed.WithLabelValues(endpoint, appsetNamespace, appsetName).Set(float64(usedInt))
+				t.metrics.RateLimitUsed.WithLabelValues(endpoint, appsetNamespace, appsetName, resource).Set(float64(usedInt))
 			}
-		}
-		if resource = resp.Header.Get("X-RateLimit-Resource"); resource != "" {
-			t.metrics.RateLimitResource.WithLabelValues(endpoint, resource, appsetNamespace, appsetName).Set(1)
 		}
 
 		log.WithFields(log.Fields{

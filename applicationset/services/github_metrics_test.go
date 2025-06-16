@@ -28,41 +28,37 @@ var (
 	appsetNamespace      = "test-ns"
 	appsetName           = "test-appset"
 	appsetNameLabel      = "appset_name=\"test-appset\""
+	resourceLabel        = "resource=\"core\""
 
 	rateLimitMetrics = []Metric{
 		{
-			name:   githubAPIRateLimitRemainingPerAppSetMetricName,
-			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel},
+			name:   githubAPIRateLimitRemainingMetricName,
+			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel, resourceLabel},
 			value:  "42",
 		},
 		{
-			name:   githubAPIRateLimitLimitPerAppSetMetricName,
-			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel},
+			name:   githubAPIRateLimitLimitMetricName,
+			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel, resourceLabel},
 			value:  "100",
 		},
 		{
-			name:   githubAPIRateLimitUsedPerAppSetMetricName,
-			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel},
+			name:   githubAPIRateLimitUsedMetricName,
+			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel, resourceLabel},
 			value:  "58",
 		},
 		{
-			name:   githubAPIRateLimitResourcePerAppSetMetricName,
-			labels: []string{endpointLabel, "resource=\"core\"", appsetNamespaceLabel, appsetNameLabel},
-			value:  "1",
-		},
-		{
-			name:   githubAPIRateLimitResetPerAppSetMetricName,
-			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel},
+			name:   githubAPIRateLimitResetMetricName,
+			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel, resourceLabel},
 			value:  "1",
 		},
 	}
 	successRequestMetrics = Metric{
-		name:   githubAPIRequestTotalPerAppSetMetricName,
+		name:   githubAPIRequestTotalMetricName,
 		labels: []string{"method=\"GET\"", endpointLabel, "status=\"201\"", appsetNamespaceLabel, appsetNameLabel},
 		value:  "1",
 	}
 	failureRequestMetrics = Metric{
-		name:   githubAPIRequestTotalPerAppSetMetricName,
+		name:   githubAPIRequestTotalMetricName,
 		labels: []string{"method=\"GET\"", endpointLabel, "status=\"0\"", appsetNamespaceLabel, appsetNameLabel},
 		value:  "1",
 	}
@@ -76,9 +72,8 @@ func TestGitHubMetrics_CollectorApproach_Success(t *testing.T) {
 		metrics.RequestDuration,
 		metrics.RateLimitRemaining,
 		metrics.RateLimitLimit,
-		metrics.RateLimitReset,
+		metrics.RateLimitResetSeconds,
 		metrics.RateLimitUsed,
-		metrics.RateLimitResource,
 	)
 
 	// Setup a fake HTTP server
@@ -143,9 +138,8 @@ func TestGitHubMetrics_CollectorApproach_NoRateLimitMetricsOnNilResponse(t *test
 		metrics.RequestDuration,
 		metrics.RateLimitRemaining,
 		metrics.RateLimitLimit,
-		metrics.RateLimitReset,
+		metrics.RateLimitResetSeconds,
 		metrics.RateLimitUsed,
-		metrics.RateLimitResource,
 	)
 
 	client := &http.Client{
