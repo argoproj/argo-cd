@@ -52,7 +52,6 @@ linters:
       # Most of these should probably be enabled one-by-one.
       disabled-checks:
         - appendAssign
-        - appendCombine
         - assignOp
         - builtinShadow
         - commentedOutCode

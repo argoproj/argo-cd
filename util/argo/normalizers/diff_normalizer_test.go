@@ -168,8 +168,9 @@ func TestNormalizeJQPathExpression(t *testing.T) {
 	deployment := test.NewDeployment()
 
 	var initContainers []any
-	initContainers = append(initContainers, map[string]any{"name": "init-container-0"})
-	initContainers = append(initContainers, map[string]any{"name": "init-container-1"})
+	initContainers = append(initContainers,
+		map[string]any{"name": "init-container-0"},
+		map[string]any{"name": "init-container-1"})
 	err = unstructured.SetNestedSlice(deployment.Object, initContainers, "spec", "template", "spec", "initContainers")
 	require.NoError(t, err)
 

@@ -177,8 +177,7 @@ func TestCheckAppNotInAdditionalNamespaces(t *testing.T) {
 	}
 	namespace := "argocd"
 	var applicationNamespaces []string
-	applicationNamespaces = append(applicationNamespaces, "namespace1")
-	applicationNamespaces = append(applicationNamespaces, "namespace2")
+	applicationNamespaces = append(applicationNamespaces, "namespace1", "namespace2")
 
 	// app is in same namespace as controller's namespace
 	app.SetNamespace(namespace)

@@ -2024,8 +2024,9 @@ func makeJsonnetVM(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 
 func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]string, error) {
 	envVars := env.Environ()
-	envVars = append(envVars, "KUBE_VERSION="+q.KubeVersion)
-	envVars = append(envVars, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
+	envVars = append(envVars,
+		"KUBE_VERSION="+q.KubeVersion,
+		"KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
 
 	return getPluginParamEnvs(envVars, q.ApplicationSource.Plugin)
 }

@@ -319,8 +319,9 @@ func oauth2Login(
 
 	switch grantType {
 	case oidcutil.GrantTypeAuthorizationCode:
-		opts = append(opts, oauth2.SetAuthURLParam("code_challenge", codeChallenge))
-		opts = append(opts, oauth2.SetAuthURLParam("code_challenge_method", "S256"))
+		opts = append(opts,
+			oauth2.SetAuthURLParam("code_challenge", codeChallenge),
+			oauth2.SetAuthURLParam("code_challenge_method", "S256"))
 		if oidcconfig.DomainHint != "" {
 			opts = append(opts, oauth2.SetAuthURLParam("domain_hint", oidcconfig.DomainHint))
 		}

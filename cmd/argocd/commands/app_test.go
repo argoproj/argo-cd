@@ -109,9 +109,10 @@ func Test_getRefreshType(t *testing.T) {
 func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
 	histories := v1alpha1.RevisionHistories{}
 
-	histories = append(histories, v1alpha1.RevisionHistory{ID: 1})
-	histories = append(histories, v1alpha1.RevisionHistory{ID: 2})
-	histories = append(histories, v1alpha1.RevisionHistory{ID: 3})
+	histories = append(histories,
+		v1alpha1.RevisionHistory{ID: 1},
+		v1alpha1.RevisionHistory{ID: 2},
+		v1alpha1.RevisionHistory{ID: 3})
 
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
@@ -217,9 +218,10 @@ func TestPrintTreeViewDetailedAppGet(t *testing.T) {
 func TestFindRevisionHistoryWithoutPassedIdWithMultipleSources(t *testing.T) {
 	histories := v1alpha1.RevisionHistories{}
 
-	histories = append(histories, v1alpha1.RevisionHistory{ID: 1})
-	histories = append(histories, v1alpha1.RevisionHistory{ID: 2})
-	histories = append(histories, v1alpha1.RevisionHistory{ID: 3})
+	histories = append(histories,
+		v1alpha1.RevisionHistory{ID: 1},
+		v1alpha1.RevisionHistory{ID: 2},
+		v1alpha1.RevisionHistory{ID: 3})
 
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
@@ -301,9 +303,10 @@ func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
 func TestFindRevisionHistoryWithPassedId(t *testing.T) {
 	histories := v1alpha1.RevisionHistories{}
 
-	histories = append(histories, v1alpha1.RevisionHistory{ID: 1})
-	histories = append(histories, v1alpha1.RevisionHistory{ID: 2})
-	histories = append(histories, v1alpha1.RevisionHistory{ID: 3, Revision: "123"})
+	histories = append(histories,
+		v1alpha1.RevisionHistory{ID: 1},
+		v1alpha1.RevisionHistory{ID: 2},
+		v1alpha1.RevisionHistory{ID: 3, Revision: "123"})
 
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,
@@ -331,9 +334,10 @@ func TestFindRevisionHistoryWithPassedId(t *testing.T) {
 func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 	histories := v1alpha1.RevisionHistories{}
 
-	histories = append(histories, v1alpha1.RevisionHistory{ID: 1})
-	histories = append(histories, v1alpha1.RevisionHistory{ID: 2})
-	histories = append(histories, v1alpha1.RevisionHistory{ID: 3, Revision: "123"})
+	histories = append(histories,
+		v1alpha1.RevisionHistory{ID: 1},
+		v1alpha1.RevisionHistory{ID: 2},
+		v1alpha1.RevisionHistory{ID: 3, Revision: "123"})
 
 	status := v1alpha1.ApplicationStatus{
 		Resources:      nil,

@@ -1087,11 +1087,12 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 	// Set $HOME to nowhere, so we can execute Git regardless of any external
 	// authentication keys (e.g. in ~/.ssh) -- this is especially important for
 	// running tests on local machines and/or CircleCI.
-	cmd.Env = append(cmd.Env, "HOME=/dev/null")
-	// Skip LFS for most Git operations except when explicitly requested
-	cmd.Env = append(cmd.Env, "GIT_LFS_SKIP_SMUDGE=1")
-	// Disable Git terminal prompts in case we're running with a tty
-	cmd.Env = append(cmd.Env, "GIT_TERMINAL_PROMPT=false")
+	cmd.Env = append(cmd.Env,
+		"HOME=/dev/null",
+		// Skip LFS for most Git operations except when explicitly requested
+		"GIT_LFS_SKIP_SMUDGE=1",
+		// Disable Git terminal prompts in case we're running with a tty
+		"GIT_TERMINAL_PROMPT=false")
 
 	// For HTTPS repositories, we need to consider insecure repositories as well
 	// as custom CA bundles from the cert database.
