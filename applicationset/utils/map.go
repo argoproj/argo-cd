@@ -42,21 +42,3 @@ func CombineStringMaps(aSI map[string]any, bSI map[string]any) (map[string]strin
 
 	return res, nil
 }
-
-// CombineStringMapsAllowDuplicates merges two maps. Where there are duplicates, take the latter map's value.
-func CombineStringMapsAllowDuplicates(aSI map[string]any, bSI map[string]any) (map[string]string, error) {
-	a := ConvertToMapStringString(aSI)
-	b := ConvertToMapStringString(bSI)
-
-	res := map[string]string{}
-
-	for k, v := range a {
-		res[k] = v
-	}
-
-	for k, v := range b {
-		res[k] = v
-	}
-
-	return res, nil
-}

@@ -189,8 +189,9 @@ func TestSyncComparisonError(t *testing.T) {
 }
 
 func TestAppStateManager_SyncAppState(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
-		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
 		controller  *ApplicationController
 	}
@@ -222,7 +223,6 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 		ctrl := newFakeController(&data, nil)
 
 		return &fixture{
-			project:     project,
 			application: app,
 			controller:  ctrl,
 		}
@@ -257,8 +257,9 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 }
 
 func TestSyncWindowDeniesSync(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
-		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
 		controller  *ApplicationController
 	}
@@ -297,7 +298,6 @@ func TestSyncWindowDeniesSync(t *testing.T) {
 		ctrl := newFakeController(&data, nil)
 
 		return &fixture{
-			project:     project,
 			application: app,
 			controller:  ctrl,
 		}
@@ -507,19 +507,19 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		require.Len(t, patchedTargets, 1)
 
 		// live should have 1 entry
-		require.Len(t, dig[[]any](f.comparisonResult.reconciliationResult.Live[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"}), 1)
+		require.Len(t, dig(f.comparisonResult.reconciliationResult.Live[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"), 1)
 		// assert some arbitrary field to show `entries[0]` is not an empty object
-		require.Equal(t, "sample-header", dig[string](f.comparisonResult.reconciliationResult.Live[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeader", "headerName"}))
+		require.Equal(t, "sample-header", dig(f.comparisonResult.reconciliationResult.Live[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeader", "headerName"))
 
 		// target has 2 entries
-		require.Len(t, dig[[]any](f.comparisonResult.reconciliationResult.Target[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries"}), 2)
+		require.Len(t, dig(f.comparisonResult.reconciliationResult.Target[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries"), 2)
 		// assert some arbitrary field to show `entries[0]` is not an empty object
-		require.Equal(t, "sample-header", dig[string](f.comparisonResult.reconciliationResult.Target[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeaderValueMatch", "headers", 0, "name"}))
+		require.Equal(t, "sample-header", dig(f.comparisonResult.reconciliationResult.Target[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeaderValueMatch", "headers", 0, "name"))
 
 		// It should be *1* entries in the array
-		require.Len(t, dig[[]any](patchedTargets[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"}), 1)
+		require.Len(t, dig(patchedTargets[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"), 1)
 		// and it should NOT equal an empty object
-		require.Len(t, dig[any](patchedTargets[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0}), 1)
+		require.Len(t, dig(patchedTargets[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0), 1)
 	})
 	t.Run("will correctly set array entries if new entries have been added", func(t *testing.T) {
 		// given
@@ -646,6 +646,8 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 }
 
 func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
 		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
@@ -992,6 +994,8 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 }
 
 func TestDeriveServiceAccountMatchingServers(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
 		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
@@ -1268,7 +1272,6 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 func TestSyncWithImpersonate(t *testing.T) {
 	type fixture struct {
-		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
 		controller  *ApplicationController
 	}
@@ -1283,8 +1286,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 				Name:      "default",
 			},
 			Spec: v1alpha1.AppProjectSpec{
-				DestinationServiceAccounts: []v1alpha1.
-					ApplicationDestinationServiceAccount{
+				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
 					{
 						Server:                "https://localhost:6443",
 						Namespace:             destinationNamespace,
@@ -1319,7 +1321,6 @@ func TestSyncWithImpersonate(t *testing.T) {
 		}
 		ctrl := newFakeController(&data, nil)
 		return &fixture{
-			project:     project,
 			application: app,
 			controller:  ctrl,
 		}
@@ -1410,19 +1411,123 @@ func TestSyncWithImpersonate(t *testing.T) {
 	})
 }
 
-func dig[T any](obj any, path []any) T {
+func TestClientSideApplyMigration(t *testing.T) {
+	t.Parallel()
+
+	type fixture struct {
+		application *v1alpha1.Application
+		controller  *ApplicationController
+	}
+
+	setup := func(disableMigration bool, customManager string) *fixture {
+		app := newFakeApp()
+		app.Status.OperationState = nil
+		app.Status.History = nil
+
+		// Add sync options
+		if disableMigration {
+			app.Spec.SyncPolicy.SyncOptions = append(app.Spec.SyncPolicy.SyncOptions, "DisableClientSideApplyMigration=true")
+		}
+
+		// Add custom manager annotation if specified
+		if customManager != "" {
+			app.Annotations = map[string]string{
+				"argocd.argoproj.io/client-side-apply-migration-manager": customManager,
+			}
+		}
+
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: test.FakeArgoCDNamespace,
+				Name:      "default",
+			},
+		}
+		data := fakeData{
+			apps: []runtime.Object{app, project},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data, nil)
+
+		return &fixture{
+			application: app,
+			controller:  ctrl,
+		}
+	}
+
+	t.Run("client-side apply migration enabled by default", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup(false, "")
+
+		// when
+		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{
+				Source: &v1alpha1.ApplicationSource{},
+			},
+		}}
+		f.controller.appStateManager.SyncAppState(f.application, opState)
+
+		// then
+		assert.Equal(t, common.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, "successfully synced")
+	})
+
+	t.Run("client-side apply migration disabled", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup(true, "")
+
+		// when
+		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{
+				Source: &v1alpha1.ApplicationSource{},
+			},
+		}}
+		f.controller.appStateManager.SyncAppState(f.application, opState)
+
+		// then
+		assert.Equal(t, common.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, "successfully synced")
+	})
+
+	t.Run("client-side apply migration with custom manager", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup(false, "my-custom-manager")
+
+		// when
+		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{
+				Source: &v1alpha1.ApplicationSource{},
+			},
+		}}
+		f.controller.appStateManager.SyncAppState(f.application, opState)
+
+		// then
+		assert.Equal(t, common.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, "successfully synced")
+	})
+}
+
+func dig(obj any, path ...any) any {
 	i := obj
 
 	for _, segment := range path {
-		switch segment.(type) {
+		switch segment := segment.(type) {
 		case int:
-			i = i.([]any)[segment.(int)]
+			i = i.([]any)[segment]
 		case string:
-			i = i.(map[string]any)[segment.(string)]
+			i = i.(map[string]any)[segment]
 		default:
 			panic("invalid path for object")
 		}
 	}
 
-	return i.(T)
+	return i
 }

@@ -11,32 +11,24 @@ import (
 
 	repocredspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repocreds"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
-	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // Server provides a Repository service
 type Server struct {
-	db            db.ArgoDB
-	repoClientset apiclient.Clientset
-	enf           *rbac.Enforcer
-	settings      *settings.SettingsManager
+	db  db.ArgoDB
+	enf *rbac.Enforcer
 }
 
 // NewServer returns a new instance of the Repository service
 func NewServer(
-	repoClientset apiclient.Clientset,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
-	settings *settings.SettingsManager,
 ) *Server {
 	return &Server{
-		db:            db,
-		repoClientset: repoClientset,
-		enf:           enf,
-		settings:      settings,
+		db:  db,
+		enf: enf,
 	}
 }
 

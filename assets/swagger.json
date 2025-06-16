@@ -1704,6 +1704,70 @@
         }
       }
     },
+    "/api/v1/applications/{name}/revisions/{revision}/ocimetadata": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Get the chart metadata (description, maintainers, home) for a specific revision of the application",
+        "operationId": "ApplicationService_GetOCIMetadata",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "the application's name",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "the revision of the app",
+            "name": "revision",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "the application's namespace.",
+            "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "source index (for multi source apps).",
+            "name": "sourceIndex",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "versionId from historical data (for multi source apps).",
+            "name": "versionId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1OCIMetadata"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/rollback": {
       "post": {
         "tags": [
@@ -3576,6 +3640,49 @@
         }
       }
     },
+    "/api/v1/repositories/{repo}/oci-tags": {
+      "get": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "operationId": "RepositoryService_ListOCITags",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryRefs"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/repositories/{repo}/refs": {
       "get": {
         "tags": [
@@ -3757,6 +3864,12 @@
             "type": "string",
             "description": "BearerToken contains the bearer token used for Git auth at the repo server.",
             "name": "bearerToken",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether https should be disabled for an OCI repo.",
+            "name": "insecureOciForceHttp",
             "in": "query"
           }
         ],
@@ -4595,6 +4708,12 @@
             "type": "string",
             "description": "BearerToken contains the bearer token used for Git auth at the repo server.",
             "name": "bearerToken",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether https should be disabled for an OCI repo.",
+            "name": "insecureOciForceHttp",
             "in": "query"
           }
         ],
@@ -6260,6 +6379,17 @@
         }
       }
     },
+    "v1NodeSwapStatus": {
+      "description": "NodeSwapStatus represents swap memory information.",
+      "type": "object",
+      "properties": {
+        "capacity": {
+          "type": "integer",
+          "format": "int64",
+          "title": "Total amount of swap memory in bytes.\n+optional"
+        }
+      }
+    },
     "v1NodeSystemInfo": {
       "description": "NodeSystemInfo is a set of ids/uuids to uniquely identify the node.",
       "type": "object",
@@ -6299,6 +6429,9 @@
         "osImage": {
           "description": "OS Image reported by the node from /etc/os-release (e.g. Debian GNU/Linux 7 (wheezy)).",
           "type": "string"
+        },
+        "swap": {
+          "$ref": "#/definitions/v1NodeSwapStatus"
         },
         "systemUUID": {
           "type": "string",
@@ -7893,6 +8026,36 @@
         }
       }
     },
+    "v1alpha1CommitMetadata": {
+      "description": "CommitMetadata contains metadata about a commit that is related in some way to another commit.",
+      "type": "object",
+      "properties": {
+        "author": {
+          "description": "Author is the author of the commit, i.e. `git show -s --format=%an <%ae>`.\nMust be formatted according to RFC 5322 (mail.Address.String()).\nComes from the Argocd-reference-commit-author trailer.",
+          "type": "string"
+        },
+        "body": {
+          "description": "Body is the commit message body minus the subject line, i.e. `git show -s --format=%b`.\nComes from the Argocd-reference-commit-body trailer.",
+          "type": "string"
+        },
+        "date": {
+          "description": "Date is the date of the commit, formatted as by `git show -s --format=%aI` (RFC 3339).\nIt can also be an empty string if the date is unknown.\nComes from the Argocd-reference-commit-date trailer.",
+          "type": "string"
+        },
+        "repoUrl": {
+          "description": "RepoURL is the URL of the repository where the commit is located.\nComes from the Argocd-reference-commit-repourl trailer.\nThis value is not validated and should not be used to construct UI links unless it is properly\nvalidated and/or sanitized first.",
+          "type": "string"
+        },
+        "sha": {
+          "description": "SHA is the commit hash.\nComes from the Argocd-reference-commit-sha trailer.",
+          "type": "string"
+        },
+        "subject": {
+          "description": "Subject is the commit message subject line, i.e. `git show -s --format=%s`.\nComes from the Argocd-reference-commit-subject trailer.",
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1ComparedTo": {
       "type": "object",
       "title": "ComparedTo contains application source and target which was used for resources comparison",
@@ -8130,7 +8293,7 @@
         },
         "subType": {
           "type": "string",
-          "title": "SubType holds the key's sub type (e.g. rsa4096)"
+          "title": "SubType holds the key's subtype (e.g. rsa4096)"
         },
         "trust": {
           "type": "string",
@@ -8206,6 +8369,13 @@
       "description": "HostInfo holds metadata and resource usage metrics for a specific host in the cluster.",
       "type": "object",
       "properties": {
+        "labels": {
+          "description": "Labels holds the labels attached to the host.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "name": {
           "description": "Name is the hostname or node name in the Kubernetes cluster.",
           "type": "string"
@@ -8528,6 +8698,33 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        }
+      }
+    },
+    "v1alpha1OCIMetadata": {
+      "type": "object",
+      "title": "OCIMetadata contains metadata for a specific revision in an OCI repository",
+      "properties": {
+        "authors": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "docsUrl": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "type": "string"
+        },
+        "sourceUrl": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
         }
       }
     },
@@ -9022,6 +9219,10 @@
           "type": "string",
           "title": "GithubAppPrivateKey specifies the private key PEM data for authentication via GitHub app"
         },
+        "insecureOCIForceHttp": {
+          "description": "InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.",
+          "type": "boolean"
+        },
         "noProxy": {
           "type": "string",
           "title": "NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied"
@@ -9135,6 +9336,10 @@
         "insecureIgnoreHostKey": {
           "type": "boolean",
           "title": "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured\nUsed only for Git repos"
+        },
+        "insecureOCIForceHttp": {
+          "description": "InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.",
+          "type": "boolean"
         },
         "name": {
           "type": "string",
@@ -9543,6 +9748,13 @@
           "type": "string",
           "title": "HookType specifies the type of the hook. Empty for non-hook resources"
         },
+        "images": {
+          "type": "array",
+          "title": "Images contains the images related to the ResourceResult",
+          "items": {
+            "type": "string"
+          }
+        },
         "kind": {
           "type": "string",
           "title": "Kind specifies the API kind of the resource"
@@ -9629,8 +9841,8 @@
       }
     },
     "v1alpha1RevisionMetadata": {
+      "description": "RevisionMetadata contains metadata for a specific revision in a Git repository. This field is used by the\nSource Hydrator feature which may be removed in the future.",
       "type": "object",
-      "title": "RevisionMetadata contains metadata for a specific revision in a Git repository",
       "properties": {
         "author": {
           "type": "string",
@@ -9643,6 +9855,13 @@
           "description": "Message contains the message associated with the revision, most likely the commit message.",
           "type": "string"
         },
+        "references": {
+          "description": "References contains references to information that's related to this commit in some way.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1RevisionReference"
+          }
+        },
         "signatureInfo": {
           "description": "SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.",
           "type": "string"
@@ -9653,6 +9872,15 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1alpha1RevisionReference": {
+      "description": "RevisionReference contains a reference to a some information that is related in some way to another commit. For now,\nit supports only references to a commit. In the future, it may support other types of references.",
+      "type": "object",
+      "properties": {
+        "commit": {
+          "$ref": "#/definitions/v1alpha1CommitMetadata"
         }
       }
     },

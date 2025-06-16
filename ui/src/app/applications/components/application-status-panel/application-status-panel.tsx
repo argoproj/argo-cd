@@ -152,7 +152,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
     const errors = cntByCategory.get('error');
     const source = getAppDefaultSource(application);
     const hasMultipleSources = application.spec.sources?.length > 0;
-
+    const revisionType = source?.repoURL?.startsWith('oci://') ? 'oci' : source?.chart ? 'helm' : 'git';
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item'>
@@ -234,7 +234,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                 <RevisionMetadataPanel
                                     appName={application.metadata.name}
                                     appNamespace={application.metadata.namespace}
-                                    type={source?.chart && 'helm'}
+                                    type={revisionType}
                                     revision={revision}
                                     versionId={utils.getAppCurrentVersion(application)}
                                 />
@@ -277,7 +277,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                             <RevisionMetadataPanel
                                 appName={application.metadata.name}
                                 appNamespace={application.metadata.namespace}
-                                type={source?.chart && 'helm'}
+                                type={revisionType}
                                 revision={operationStateRevision}
                                 versionId={utils.getAppCurrentVersion(application)}
                             />

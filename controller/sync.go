@@ -269,6 +269,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			HookType:    res.HookType,
 			SyncPhase:   res.SyncPhase,
 			Version:     res.Version,
+			Images:      res.Images,
 			Order:       i + 1,
 		}
 	}
@@ -281,6 +282,12 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		prunePropagationPolicy = metav1.DeletePropagationForeground
 	case syncOp.SyncOptions.HasOption("PrunePropagationPolicy=orphan"):
 		prunePropagationPolicy = metav1.DeletePropagationOrphan
+	}
+
+	clientSideApplyManager := common.DefaultClientSideApplyMigrationManager
+	// Check for custom field manager from application annotation
+	if managerValue := app.GetAnnotation(cdcommon.AnnotationClientSideApplyMigrationManager); managerValue != "" {
+		clientSideApplyManager = managerValue
 	}
 
 	openAPISchema, err := m.getOpenAPISchema(destCluster)
@@ -375,6 +382,10 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		sync.WithReplace(syncOp.SyncOptions.HasOption(common.SyncOptionReplace)),
 		sync.WithServerSideApply(syncOp.SyncOptions.HasOption(common.SyncOptionServerSideApply)),
 		sync.WithServerSideApplyManager(cdcommon.ArgoCDSSAManager),
+		sync.WithClientSideApplyMigration(
+			!syncOp.SyncOptions.HasOption(common.SyncOptionDisableClientSideApplyMigration),
+			clientSideApplyManager,
+		),
 		sync.WithPruneConfirmed(app.IsDeletionConfirmed(state.StartedAt.Time)),
 		sync.WithSkipDryRunOnMissingResource(syncOp.SyncOptions.HasOption(common.SyncOptionSkipDryRunOnMissingResource)),
 	}
@@ -445,6 +456,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			HookPhase: res.HookPhase,
 			Status:    res.Status,
 			Message:   res.Message,
+			Images:    res.Images,
 		})
 	}
 

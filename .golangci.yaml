@@ -15,10 +15,11 @@ issues:
 
 linters:
   enable:
-    - exptostd
     - errorlint
+    - exptostd
     - gocritic
     - gomodguard
+    - govet
     - importas
     - misspell
     - perfsprint
@@ -26,6 +27,7 @@ linters:
     - staticcheck
     - testifylint
     - thelper
+    - tparallel
     - unparam
     - usestdlibvars
     - usetesting
@@ -47,12 +49,26 @@ linters:
 
   settings:
     gocritic:
+      enable-all: true
+      # Most of these should probably be enabled one-by-one.
       disabled-checks:
         - appendAssign
+        - appendCombine
         - assignOp
+        - builtinShadow
+        - commentedOutCode
+        - deferInLoop
         - exitAfterDefer
-        - mapKey
-        - typeSwitchVar
+        - exposedSyncMutex
+        - filepathJoin
+        - hugeParam
+        - importShadow
+        - paramTypeCombine
+        - rangeValCopy
+        - sloppyReassign
+        - tooManyResultsChecker
+        - unnamedResult
+        - whyNoLint
 
     gomodguard:
       blocked:
@@ -69,6 +85,12 @@ linters:
           - github.com/pkg/errors:
               recommendations:
                 - errors
+
+    govet:
+      disable:
+        - fieldalignment
+        - shadow
+      enable-all: true
 
     importas:
       alias:
@@ -220,6 +242,10 @@ linters:
 
       disable:
         - go-require
+
+    unused:
+      field-writes-are-uses: false
+      exported-fields-are-used: false
 
     usetesting:
       os-mkdir-temp: false

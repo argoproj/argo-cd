@@ -343,6 +343,9 @@ func init() {
 	knownTypes["core/v1/NodeStatus"] = func() any {
 		return &corev1.NodeStatus{}
 	}
+	knownTypes["core/v1/NodeSwapStatus"] = func() any {
+		return &corev1.NodeSwapStatus{}
+	}
 	knownTypes["core/v1/NodeSystemInfo"] = func() any {
 		return &corev1.NodeSystemInfo{}
 	}

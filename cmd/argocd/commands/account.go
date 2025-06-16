@@ -155,8 +155,9 @@ has appropriate RBAC permissions to change other accounts.
 func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var output string
 	command := &cobra.Command{
-		Use:   "get-user-info",
-		Short: "Get user info",
+		Use:     "get-user-info",
+		Short:   "Get user info",
+		Aliases: []string{"whoami"},
 		Example: templates.Examples(`
 			# Get User information for the currently logged-in user (see 'argocd login')
 			argocd account get-user-info
