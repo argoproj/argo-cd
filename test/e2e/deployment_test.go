@@ -238,18 +238,18 @@ func buildArgoCDClusterSecret(secretName, secretNamespace, clusterName, clusterS
 			},
 		},
 		Data: map[string][]byte{
-			"name":   ([]byte)(clusterName),
-			"server": ([]byte)(clusterServer),
-			"config": ([]byte)(string(clusterConfigJSON)),
+			"name":   []byte(clusterName),
+			"server": []byte(clusterServer),
+			"config": []byte(string(clusterConfigJSON)),
 		},
 	}
 
 	if clusterResources != "" {
-		res.Data["clusterResources"] = ([]byte)(clusterResources)
+		res.Data["clusterResources"] = []byte(clusterResources)
 	}
 
 	if clusterNamespaces != "" {
-		res.Data["namespaces"] = ([]byte)(clusterNamespaces)
+		res.Data["namespaces"] = []byte(clusterNamespaces)
 	}
 
 	return res
