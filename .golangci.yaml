@@ -67,7 +67,6 @@ linters:
         - paramTypeCombine
         - ptrToRefParam
         - rangeValCopy
-        - regexpSimplify
         - sloppyReassign
         - tooManyResultsChecker
         - typeDefFirst
