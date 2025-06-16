@@ -37,7 +37,7 @@ func TestWebhookMerger_OK(t *testing.T) {
 
 	merger := NewWebhookMerger(acdHandler, appSetHandler)
 
-	req := httptest.NewRequest(http.MethodPost, "/webhook", nil)
+	req := httptest.NewRequest(http.MethodPost, "/webhook", http.NoBody)
 	w := httptest.NewRecorder()
 
 	merger.Handler(w, req)
@@ -85,7 +85,7 @@ func TestWebhookMerger_Error(t *testing.T) {
 
 			merger := NewWebhookMerger(acdHandler, appSetHandler)
 
-			req := httptest.NewRequest(http.MethodPost, "/webhook", nil)
+			req := httptest.NewRequest(http.MethodPost, "/webhook", http.NoBody)
 			w := httptest.NewRecorder()
 
 			merger.Handler(w, req)
