@@ -1232,7 +1232,7 @@ func TestSimpleGitGeneratorPrivateRepoWithMatchingProject(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
