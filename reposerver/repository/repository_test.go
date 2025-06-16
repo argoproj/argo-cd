@@ -3244,8 +3244,7 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 }
 
 func TestGetHelmRepos_OCIHelmDependenciesWithHelmRepo(t *testing.T) {
-	src := v1alpha1.ApplicationSource{Path: "."}
-	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{}, ApplicationSource: &src, HelmRepoCreds: []*v1alpha1.RepoCreds{
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{}, HelmRepoCreds: []*v1alpha1.RepoCreds{
 		{URL: "example.com", Username: "test", Password: "test", EnableOCI: true},
 	}}
 
@@ -3259,8 +3258,7 @@ func TestGetHelmRepos_OCIHelmDependenciesWithHelmRepo(t *testing.T) {
 }
 
 func TestGetHelmRepos_OCIHelmDependenciesWithRepo(t *testing.T) {
-	src := v1alpha1.ApplicationSource{Path: "."}
-	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{{Repo: "example.com", Username: "test", Password: "test", EnableOCI: true}}, ApplicationSource: &src, HelmRepoCreds: []*v1alpha1.RepoCreds{}}
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{{Repo: "example.com", Username: "test", Password: "test", EnableOCI: true}}, HelmRepoCreds: []*v1alpha1.RepoCreds{}}
 
 	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
 	require.NoError(t, err)
@@ -3272,8 +3270,7 @@ func TestGetHelmRepos_OCIHelmDependenciesWithRepo(t *testing.T) {
 }
 
 func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
-	src := v1alpha1.ApplicationSource{Path: "."}
-	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{}, ApplicationSource: &src, HelmRepoCreds: []*v1alpha1.RepoCreds{
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{}, HelmRepoCreds: []*v1alpha1.RepoCreds{
 		{URL: "oci://example.com", Username: "test", Password: "test", Type: "oci"},
 	}}
 
@@ -3287,8 +3284,7 @@ func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
 }
 
 func TestGetHelmRepos_OCIDependenciesWithRepo(t *testing.T) {
-	src := v1alpha1.ApplicationSource{Path: "."}
-	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{{Repo: "oci://example.com", Username: "test", Password: "test", Type: "oci"}}, ApplicationSource: &src, HelmRepoCreds: []*v1alpha1.RepoCreds{}}
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{{Repo: "oci://example.com", Username: "test", Password: "test", Type: "oci"}}, HelmRepoCreds: []*v1alpha1.RepoCreds{}}
 
 	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
 	require.NoError(t, err)
@@ -3300,12 +3296,13 @@ func TestGetHelmRepos_OCIDependenciesWithRepo(t *testing.T) {
 }
 
 func TestGetHelmRepo_NamedRepos(t *testing.T) {
-	src := v1alpha1.ApplicationSource{Path: "."}
-	q := apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &src, Repos: []*v1alpha1.Repository{{
-		Name:     "custom-repo",
-		Repo:     "https://example.com",
-		Username: "test",
-	}}}
+	q := apiclient.ManifestRequest{
+		Repos: []*v1alpha1.Repository{{
+			Name:     "custom-repo",
+			Repo:     "https://example.com",
+			Username: "test",
+		}},
+	}
 
 	helmRepos, err := getHelmRepos("./testdata/helm-with-dependencies", q.Repos, q.HelmRepoCreds)
 	require.NoError(t, err)
@@ -3316,12 +3313,13 @@ func TestGetHelmRepo_NamedRepos(t *testing.T) {
 }
 
 func TestGetHelmRepo_NamedReposAlias(t *testing.T) {
-	src := v1alpha1.ApplicationSource{Path: "."}
-	q := apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &src, Repos: []*v1alpha1.Repository{{
-		Name:     "custom-repo-alias",
-		Repo:     "https://example.com",
-		Username: "test-alias",
-	}}}
+	q := apiclient.ManifestRequest{
+		Repos: []*v1alpha1.Repository{{
+			Name:     "custom-repo-alias",
+			Repo:     "https://example.com",
+			Username: "test-alias",
+		}},
+	}
 
 	helmRepos, err := getHelmRepos("./testdata/helm-with-dependencies-alias", q.Repos, q.HelmRepoCreds)
 	require.NoError(t, err)

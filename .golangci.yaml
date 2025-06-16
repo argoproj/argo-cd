@@ -15,10 +15,11 @@ issues:
 
 linters:
   enable:
-    - exptostd
     - errorlint
+    - exptostd
     - gocritic
     - gomodguard
+    - govet
     - importas
     - misspell
     - perfsprint
@@ -59,18 +60,13 @@ linters:
         - deferInLoop
         - exitAfterDefer
         - exposedSyncMutex
-        - evalOrder
         - filepathJoin
         - hugeParam
         - importShadow
-        - mapKey
         - paramTypeCombine
-        - ptrToRefParam
         - rangeValCopy
         - sloppyReassign
         - tooManyResultsChecker
-        - typeDefFirst
-        - typeSwitchVar
         - unnamedResult
         - whyNoLint
 
@@ -89,6 +85,12 @@ linters:
           - github.com/pkg/errors:
               recommendations:
                 - errors
+
+    govet:
+      disable:
+        - fieldalignment
+        - shadow
+      enable-all: true
 
     importas:
       alias:
