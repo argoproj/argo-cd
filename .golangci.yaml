@@ -63,7 +63,6 @@ linters:
         - filepathJoin
         - hugeParam
         - importShadow
-        - mapKey
         - paramTypeCombine
         - ptrToRefParam
         - rangeValCopy
