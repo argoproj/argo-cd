@@ -3082,8 +3082,8 @@ func TestServer_ResolveSourceRevisions_SingleSource(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, fakeResolveRevisionResponse().Revision, revision)
 	assert.Equal(t, fakeResolveRevisionResponse().AmbiguousRevision, displayRevision)
-	assert.Equal(t, ([]string)(nil), sourceRevisions)
-	assert.Equal(t, ([]string)(nil), displayRevisions)
+	assert.Equal(t, []string(nil), sourceRevisions)
+	assert.Equal(t, []string(nil), displayRevisions)
 }
 
 func Test_RevisionMetadata(t *testing.T) {

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -201,7 +202,7 @@ type ArgoCDServer struct {
 	configMapInformer  cache.SharedIndexInformer
 	serviceSet         *ArgoCDServiceSet
 	extensionManager   *extension.Manager
-	shutdown           func()
+	Shutdown           func()
 	terminateRequested atomic.Bool
 	available          atomic.Bool
 }
@@ -382,7 +383,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		secretInformer:     secretInformer,
 		configMapInformer:  configMapInformer,
 		extensionManager:   em,
-		shutdown:           noopShutdown,
+		Shutdown:           noopShutdown,
 		stopCh:             make(chan os.Signal, 1),
 	}
 
@@ -557,7 +558,7 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		if r := recover(); r != nil {
 			log.WithField("trace", string(debug.Stack())).Error("Recovered from panic: ", r)
 			server.terminateRequested.Store(true)
-			server.shutdown()
+			server.Shutdown()
 		}
 	}()
 
@@ -726,7 +727,7 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 			log.Warn("Graceful shutdown timeout. Exiting...")
 		}
 	}
-	server.shutdown = shutdownFunc
+	server.Shutdown = shutdownFunc
 	signal.Notify(server.stopCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	server.available.Store(true)
 
@@ -737,11 +738,11 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		if signal != gracefulRestartSignal {
 			server.terminateRequested.Store(true)
 		}
-		server.shutdown()
+		server.Shutdown()
 	case <-ctx.Done():
 		log.Infof("API Server: %s", ctx.Err())
 		server.terminateRequested.Store(true)
-		server.shutdown()
+		server.Shutdown()
 	}
 }
 
@@ -807,7 +808,7 @@ func (server *ArgoCDServer) watchSettings() {
 		server.settings = newSettings
 		newDexCfgBytes, err := dexutil.GenerateDexConfigYAML(server.settings, server.DexTLSConfig == nil || server.DexTLSConfig.DisableTLS)
 		errorsutil.CheckError(err)
-		if string(newDexCfgBytes) != string(prevDexCfgBytes) {
+		if !bytes.Equal(newDexCfgBytes, prevDexCfgBytes) {
 			log.Infof("dex config modified. restarting")
 			break
 		}
@@ -874,7 +875,7 @@ func (server *ArgoCDServer) watchSettings() {
 func (server *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
 	err := server.enf.RunPolicyLoader(ctx, func(cm *corev1.ConfigMap) error {
 		var scopes []string
-		if scopesStr, ok := cm.Data[rbac.ConfigMapScopesKey]; len(scopesStr) > 0 && ok {
+		if scopesStr, ok := cm.Data[rbac.ConfigMapScopesKey]; scopesStr != "" && ok {
 			scopes = make([]string, 0)
 			err := yaml.Unmarshal([]byte(scopesStr), &scopes)
 			if err != nil {
@@ -1380,7 +1381,7 @@ func newRedirectServer(port int, rootPath string) *http.Server {
 				target += req.URL.Path
 			}
 
-			if len(req.URL.RawQuery) > 0 {
+			if req.URL.RawQuery != "" {
 				target += "?" + req.URL.RawQuery
 			}
 			http.Redirect(w, req, target, http.StatusTemporaryRedirect)
@@ -1487,7 +1488,7 @@ var mainJsBundleRegex = regexp.MustCompile(`^main\.[0-9a-f]{20}\.js$`)
 
 func isMainJsBundle(url *url.URL) bool {
 	filename := path.Base(url.Path)
-	return mainJsBundleRegex.Match([]byte(filename))
+	return mainJsBundleRegex.MatchString(filename)
 }
 
 type registerFunc func(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error
@@ -1661,57 +1662,58 @@ func (bf *bug21955Workaround) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 }
 
 func bug21955WorkaroundInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
-	if rq, ok := req.(*repositorypkg.RepoQuery); ok {
-		repo, err := url.QueryUnescape(rq.Repo)
+	switch req := req.(type) {
+	case *repositorypkg.RepoQuery:
+		repo, err := url.QueryUnescape(req.Repo)
 		if err != nil {
 			return nil, err
 		}
-		rq.Repo = repo
-	} else if rk, ok := req.(*repositorypkg.RepoAppsQuery); ok {
-		repo, err := url.QueryUnescape(rk.Repo)
+		req.Repo = repo
+	case *repositorypkg.RepoAppsQuery:
+		repo, err := url.QueryUnescape(req.Repo)
 		if err != nil {
 			return nil, err
 		}
-		rk.Repo = repo
-	} else if rdq, ok := req.(*repositorypkg.RepoAppDetailsQuery); ok {
-		repo, err := url.QueryUnescape(rdq.Source.RepoURL)
+		req.Repo = repo
+	case *repositorypkg.RepoAppDetailsQuery:
+		repo, err := url.QueryUnescape(req.Source.RepoURL)
 		if err != nil {
 			return nil, err
 		}
-		rdq.Source.RepoURL = repo
-	} else if ru, ok := req.(*repositorypkg.RepoUpdateRequest); ok {
-		repo, err := url.QueryUnescape(ru.Repo.Repo)
+		req.Source.RepoURL = repo
+	case *repositorypkg.RepoUpdateRequest:
+		repo, err := url.QueryUnescape(req.Repo.Repo)
 		if err != nil {
 			return nil, err
 		}
-		ru.Repo.Repo = repo
-	} else if rk, ok := req.(*repocredspkg.RepoCredsQuery); ok {
-		pattern, err := url.QueryUnescape(rk.Url)
+		req.Repo.Repo = repo
+	case *repocredspkg.RepoCredsQuery:
+		pattern, err := url.QueryUnescape(req.Url)
 		if err != nil {
 			return nil, err
 		}
-		rk.Url = pattern
-	} else if rk, ok := req.(*repocredspkg.RepoCredsDeleteRequest); ok {
-		pattern, err := url.QueryUnescape(rk.Url)
+		req.Url = pattern
+	case *repocredspkg.RepoCredsDeleteRequest:
+		pattern, err := url.QueryUnescape(req.Url)
 		if err != nil {
 			return nil, err
 		}
-		rk.Url = pattern
-	} else if cq, ok := req.(*clusterpkg.ClusterQuery); ok {
-		if cq.Id != nil {
-			val, err := url.QueryUnescape(cq.Id.Value)
+		req.Url = pattern
+	case *clusterpkg.ClusterQuery:
+		if req.Id != nil {
+			val, err := url.QueryUnescape(req.Id.Value)
 			if err != nil {
 				return nil, err
 			}
-			cq.Id.Value = val
+			req.Id.Value = val
 		}
-	} else if cu, ok := req.(*clusterpkg.ClusterUpdateRequest); ok {
-		if cu.Id != nil {
-			val, err := url.QueryUnescape(cu.Id.Value)
+	case *clusterpkg.ClusterUpdateRequest:
+		if req.Id != nil {
+			val, err := url.QueryUnescape(req.Id.Value)
 			if err != nil {
 				return nil, err
 			}
-			cu.Id.Value = val
+			req.Id.Value = val
 		}
 	}
 	return handler(ctx, req)

@@ -278,7 +278,7 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 			params[pathParamName+".basenameNormalized"] = utils.SanitizeName(path.Base(params[pathParamName].(string)))
 			params[pathParamName+".filenameNormalized"] = utils.SanitizeName(path.Base(params[pathParamName+".filename"].(string)))
 			for k, v := range strings.Split(params[pathParamName].(string), "/") {
-				if len(v) > 0 {
+				if v != "" {
 					params[pathParamName+"["+strconv.Itoa(k)+"]"] = v
 				}
 			}
@@ -353,7 +353,7 @@ func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGene
 			params[pathParamName+".basename"] = path.Base(a)
 			params[pathParamName+".basenameNormalized"] = utils.SanitizeName(path.Base(a))
 			for k, v := range strings.Split(params[pathParamName].(string), "/") {
-				if len(v) > 0 {
+				if v != "" {
 					params[pathParamName+"["+strconv.Itoa(k)+"]"] = v
 				}
 			}

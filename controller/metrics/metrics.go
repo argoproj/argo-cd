@@ -199,8 +199,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	registry.MustRegister(resourceEventsProcessingHistogram)
 	registry.MustRegister(resourceEventsNumberGauge)
 
-	kubectlMetricsServer := kubectl.NewKubectlMetrics()
-	kubectlMetricsServer.RegisterWithClientGo()
+	kubectl.RegisterWithClientGo()
 	kubectl.RegisterWithPrometheus(registry)
 
 	metricsServer := &MetricsServer{
@@ -380,17 +379,18 @@ func (c *appCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 	for _, app := range apps {
-		if c.appFilter(app) {
-			destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, c.db)
-			if err != nil {
-				log.Warnf("Failed to get destination cluster for application %s: %v", app.Name, err)
-			}
-			destServer := ""
-			if destCluster != nil {
-				destServer = destCluster.Server
-			}
-			c.collectApps(ch, app, destServer)
+		if !c.appFilter(app) {
+			continue
 		}
+		destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, c.db)
+		if err != nil {
+			log.Warnf("Failed to get destination cluster for application %s: %v", app.Name, err)
+		}
+		destServer := ""
+		if destCluster != nil {
+			destServer = destCluster.Server
+		}
+		c.collectApps(ch, app, destServer)
 	}
 }
 
