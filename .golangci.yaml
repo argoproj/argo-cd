@@ -70,7 +70,6 @@ linters:
         - regexpSimplify
         - sloppyReassign
         - tooManyResultsChecker
-        - typeAssertChain
         - typeDefFirst
         - typeSwitchVar
         - typeUnparen
