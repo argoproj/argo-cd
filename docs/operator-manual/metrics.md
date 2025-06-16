@@ -14,6 +14,7 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 | `argocd_app_orphaned_resources_count`             |   gauge   | Number of orphaned resources per application.                                                                                               |
 | `argocd_app_reconcile`                            | histogram | Application reconciliation performance in seconds.                                                                                          |
 | `argocd_app_sync_total`                           |  counter  | Counter for application sync history                                                                                                        |
+| `argocd_app_sync_duration_seconds_total`          |  counter  | Application sync performance in seconds total.                                                                                                        |
 | `argocd_cluster_api_resource_objects`             |   gauge   | Number of k8s resource objects in the cache.                                                                                                |
 | `argocd_cluster_api_resources`                    |   gauge   | Number of monitored Kubernetes API resources.                                                                                               |
 | `argocd_cluster_cache_age_seconds`                |   gauge   | Cluster cache age in seconds.                                                                                                               |
