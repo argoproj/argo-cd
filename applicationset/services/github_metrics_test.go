@@ -99,7 +99,7 @@ func TestGitHubMetrics_CollectorApproach_Success(t *testing.T) {
 		),
 	}
 
-	req, _ := http.NewRequest(http.MethodGet, ts.URL+URL, nil)
+	req, _ := http.NewRequest(http.MethodGet, ts.URL+URL, http.NoBody)
 	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -154,7 +154,7 @@ func TestGitHubMetrics_CollectorApproach_NoRateLimitMetricsOnNilResponse(t *test
 		},
 	}
 
-	req, _ := http.NewRequest(http.MethodGet, URL, nil)
+	req, _ := http.NewRequest(http.MethodGet, URL, http.NoBody)
 	_, _ = client.Do(req)
 
 	handler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{})
