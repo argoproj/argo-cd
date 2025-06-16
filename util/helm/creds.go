@@ -244,7 +244,7 @@ func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(azureCon
 		},
 	}
 
-	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
+	req, err := http.NewRequest(http.MethodGet, requestURL, http.NoBody)
 	if err != nil {
 		return nil, err
 	}

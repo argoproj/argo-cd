@@ -1997,12 +1997,12 @@ func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Applica
 	}
 }
 
-func createMergePatch(orig, new any) ([]byte, bool, error) {
+func createMergePatch(orig, newV any) ([]byte, bool, error) {
 	origBytes, err := json.Marshal(orig)
 	if err != nil {
 		return nil, false, err
 	}
-	newBytes, err := json.Marshal(new)
+	newBytes, err := json.Marshal(newV)
 	if err != nil {
 		return nil, false, err
 	}

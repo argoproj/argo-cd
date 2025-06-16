@@ -2373,20 +2373,17 @@ func Test_syncDeleteOption(t *testing.T) {
 	cm := newFakeCM()
 	t.Run("without delete option object is deleted", func(t *testing.T) {
 		cmObj := kube.MustToUnstructured(&cm)
-		delete := ctrl.shouldBeDeleted(app, cmObj)
-		assert.True(t, delete)
+		assert.True(t, ctrl.shouldBeDeleted(app, cmObj))
 	})
 	t.Run("with delete set to false object is retained", func(t *testing.T) {
 		cmObj := kube.MustToUnstructured(&cm)
 		cmObj.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": "Delete=false"})
-		delete := ctrl.shouldBeDeleted(app, cmObj)
-		assert.False(t, delete)
+		assert.False(t, ctrl.shouldBeDeleted(app, cmObj))
 	})
 	t.Run("with delete set to false object is retained", func(t *testing.T) {
 		cmObj := kube.MustToUnstructured(&cm)
 		cmObj.SetAnnotations(map[string]string{"helm.sh/resource-policy": "keep"})
-		delete := ctrl.shouldBeDeleted(app, cmObj)
-		assert.False(t, delete)
+		assert.False(t, ctrl.shouldBeDeleted(app, cmObj))
 	})
 }
 

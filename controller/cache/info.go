@@ -380,7 +380,7 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 			continue
 		case container.State.Terminated != nil:
 			// initialization is failed
-			if len(container.State.Terminated.Reason) == 0 {
+			if container.State.Terminated.Reason == "" {
 				if container.State.Terminated.Signal != 0 {
 					reason = fmt.Sprintf("Init:Signal:%d", container.State.Terminated.Signal)
 				} else {
@@ -390,7 +390,7 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 				reason = "Init:" + container.State.Terminated.Reason
 			}
 			initializing = true
-		case container.State.Waiting != nil && len(container.State.Waiting.Reason) > 0 && container.State.Waiting.Reason != "PodInitializing":
+		case container.State.Waiting != nil && container.State.Waiting.Reason != "" && container.State.Waiting.Reason != "PodInitializing":
 			reason = "Init:" + container.State.Waiting.Reason
 			initializing = true
 		default:

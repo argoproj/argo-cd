@@ -51,8 +51,8 @@ func (c *Cache) GetItem(key string, item any) error {
 	return c.Cache.GetItem(key, item)
 }
 
-func (c *Cache) SetItem(key string, item any, expiration time.Duration, delete bool) error {
-	return c.Cache.SetItem(key, item, &cacheutil.CacheActionOpts{Expiration: expiration, Delete: delete})
+func (c *Cache) SetItem(key string, item any, expiration time.Duration, deletion bool) error {
+	return c.Cache.SetItem(key, item, &cacheutil.CacheActionOpts{Expiration: expiration, Delete: deletion})
 }
 
 func appManagedResourcesKey(appName string) string {
