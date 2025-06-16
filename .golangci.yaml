@@ -15,10 +15,11 @@ issues:
 
 linters:
   enable:
-    - exptostd
     - errorlint
+    - exptostd
     - gocritic
     - gomodguard
+    - govet
     - importas
     - misspell
     - perfsprint
@@ -85,6 +86,12 @@ linters:
           - github.com/pkg/errors:
               recommendations:
                 - errors
+
+    govet:
+      disable:
+        - fieldalignment
+        - shadow
+      enable-all: true
 
     importas:
       alias:
