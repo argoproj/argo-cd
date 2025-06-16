@@ -41,12 +41,12 @@ func (a *Actions) Create(args ...string) *Actions {
 	return a
 }
 
-func (a *Actions) AddDestination(cluster string, namespace string) *Actions {
+func (a *Actions) AddDestination(cluster, namespace string) *Actions {
 	a.runCli("proj", "add-destination", a.context.name, cluster, namespace)
 	return a
 }
 
-func (a *Actions) AddDestinationServiceAccount(cluster string, namespace string) *Actions {
+func (a *Actions) AddDestinationServiceAccount(cluster, namespace string) *Actions {
 	a.runCli("proj", "add-destination-service-account", a.context.name, cluster, namespace)
 	return a
 }

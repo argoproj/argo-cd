@@ -150,7 +150,7 @@ var (
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
-func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj any) bool, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string, db db.ArgoDB) (*MetricsServer, error) {
+func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj any) bool, healthCheck func(r *http.Request) error, appLabels, appConditions []string, db db.ArgoDB) (*MetricsServer, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
@@ -343,7 +343,7 @@ type appCollector struct {
 }
 
 // NewAppCollector returns a prometheus collector for application metrics
-func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) prometheus.Collector {
+func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels, appConditions []string, db db.ArgoDB) prometheus.Collector {
 	return &appCollector{
 		store:         appLister,
 		appFilter:     appFilter,
@@ -354,7 +354,7 @@ func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj a
 }
 
 // NewAppRegistry creates a new prometheus registry that collects applications
-func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) *prometheus.Registry {
+func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels, appConditions []string, db db.ArgoDB) *prometheus.Registry {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions, db))
 	return registry

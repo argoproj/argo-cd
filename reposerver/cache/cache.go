@@ -56,7 +56,7 @@ type CachedManifestResponse struct {
 	NumberOfCachedResponsesReturned int                         `json:"numberOfCachedResponsesReturned"`
 }
 
-func NewCache(cache *cacheutil.Cache, repoCacheExpiration time.Duration, revisionCacheExpiration time.Duration, revisionCacheLockTimeout time.Duration) *Cache {
+func NewCache(cache *cacheutil.Cache, repoCacheExpiration, revisionCacheExpiration, revisionCacheLockTimeout time.Duration) *Cache {
 	return &Cache{cache, repoCacheExpiration, revisionCacheExpiration, revisionCacheLockTimeout}
 }
 
@@ -242,7 +242,7 @@ func GitRefCacheItemToReferences(cacheItem [][2]string) *[]*plumbing.Reference {
 
 // TryLockGitRefCache attempts to lock the key for the Git repository references if the key doesn't exist, returns the value of
 // GetGitReferences after calling the SET
-func (c *Cache) TryLockGitRefCache(repo string, lockId string, references *[]*plumbing.Reference) (string, error) {
+func (c *Cache) TryLockGitRefCache(repo, lockId string, references *[]*plumbing.Reference) (string, error) {
 	// This try set with DisableOverwrite is important for making sure that only one process is able to claim ownership
 	// A normal get + set, or just set would cause ownership to go to whoever the last writer was, and during race conditions
 	// leads to duplicate requests
@@ -282,7 +282,7 @@ func (c *Cache) GetGitReferences(repo string, references *[]*plumbing.Reference)
 
 // GetOrLockGitReferences retrieves the git references if they exist, otherwise creates a lock and returns so the caller can populate the cache
 // Returns isLockOwner, localLockId, error
-func (c *Cache) GetOrLockGitReferences(repo string, lockId string, references *[]*plumbing.Reference) (string, error) {
+func (c *Cache) GetOrLockGitReferences(repo, lockId string, references *[]*plumbing.Reference) (string, error) {
 	// Value matches the ttl on the lock in TryLockGitRefCache
 	waitUntil := time.Now().Add(c.revisionCacheLockTimeout)
 	// Wait only the maximum amount of time configured for the lock
@@ -306,7 +306,7 @@ func (c *Cache) GetOrLockGitReferences(repo string, lockId string, references *[
 }
 
 // UnlockGitReferences unlocks the key for the Git repository references if needed
-func (c *Cache) UnlockGitReferences(repo string, lockId string) error {
+func (c *Cache) UnlockGitReferences(repo, lockId string) error {
 	var input [][2]string
 	var err error
 	if err = c.cache.GetItem(gitRefsKey(repo), &input); err == nil &&
@@ -323,7 +323,7 @@ func (c *Cache) UnlockGitReferences(repo string, lockId string) error {
 
 // refSourceCommitSHAs is a list of resolved revisions for each ref source. This allows us to invalidate the cache
 // when someone pushes a commit to a source which is referenced from the main source (the one referred to by `revision`).
-func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, namespace string, trackingMethod string, appLabelKey string, appName string, info ClusterRuntimeInfo, refSourceCommitSHAs ResolvedRevisions, installationID string) string {
+func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, namespace, trackingMethod, appLabelKey, appName string, info ClusterRuntimeInfo, refSourceCommitSHAs ResolvedRevisions, installationID string) string {
 	// TODO: this function is getting unwieldy. We should probably consolidate some of this stuff into a struct. For
 	//       example, revision could be part of ResolvedRevisions. And srcRefs is probably redundant now that
 	//       refSourceCommitSHAs has been added. We don't need to know the _target_ revisions of the referenced sources
@@ -336,7 +336,7 @@ func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs 
 	return key
 }
 
-func trackingKey(appLabelKey string, trackingMethod string) string {
+func trackingKey(appLabelKey, trackingMethod string) string {
 	trackingKey := appLabelKey
 	if text.FirstNonEmpty(trackingMethod, string(appv1.TrackingMethodLabel)) != string(appv1.TrackingMethodLabel) {
 		trackingKey = trackingMethod + ":" + trackingKey
@@ -346,7 +346,7 @@ func trackingKey(appLabelKey string, trackingMethod string) string {
 
 // LogDebugManifestCacheKeyFields logs all the information included in a manifest cache key. It's intended to be run
 // before every manifest cache operation to help debug cache misses.
-func LogDebugManifestCacheKeyFields(message string, reason string, revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, refSourceCommitSHAs ResolvedRevisions) {
+func LogDebugManifestCacheKeyFields(message, reason, revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace, trackingMethod, appLabelKey, appName string, refSourceCommitSHAs ResolvedRevisions) {
 	if log.IsLevelEnabled(log.DebugLevel) {
 		log.WithFields(log.Fields{
 			"revision":    revision,
@@ -360,13 +360,13 @@ func LogDebugManifestCacheKeyFields(message string, reason string, revision stri
 	}
 }
 
-func (c *Cache) SetNewRevisionManifests(newRevision string, revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, refSourceCommitSHAs ResolvedRevisions, installationID string) error {
+func (c *Cache) SetNewRevisionManifests(newRevision, revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace, trackingMethod, appLabelKey, appName string, refSourceCommitSHAs ResolvedRevisions, installationID string) error {
 	oldKey := manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs, installationID)
 	newKey := manifestCacheKey(newRevision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs, installationID)
 	return c.cache.RenameItem(oldKey, newKey, c.repoCacheExpiration)
 }
 
-func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse, refSourceCommitSHAs ResolvedRevisions, installationID string) error {
+func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace, trackingMethod, appLabelKey, appName string, res *CachedManifestResponse, refSourceCommitSHAs ResolvedRevisions, installationID string) error {
 	err := c.cache.GetItem(manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs, installationID), res)
 	if err != nil {
 		return err
@@ -403,7 +403,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, s
 	return nil
 }
 
-func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse, refSourceCommitSHAs ResolvedRevisions, installationID string) error {
+func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace, trackingMethod, appLabelKey, appName string, res *CachedManifestResponse, refSourceCommitSHAs ResolvedRevisions, installationID string) error {
 	// Generate and apply the cache entry hash, before writing
 	if res != nil {
 		res = res.shallowCopy()

@@ -247,7 +247,7 @@ type TestMetricServerConfig struct {
 	ClusterLister    ClusterLister
 }
 
-func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse string, appLabels []string, appConditions []string) {
+func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse string, appLabels, appConditions []string) {
 	t.Helper()
 	cfg := TestMetricServerConfig{
 		FakeAppYAMLs:     fakeAppYAMLs,

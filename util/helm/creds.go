@@ -111,7 +111,7 @@ func (creds AzureWorkloadIdentityCreds) GetInsecureSkipVerify() bool {
 	return creds.InsecureSkipVerify
 }
 
-func NewAzureWorkloadIdentityCreds(repoURL string, caPath string, certData []byte, keyData []byte, insecureSkipVerify bool, tokenProvider workloadidentity.TokenProvider) AzureWorkloadIdentityCreds {
+func NewAzureWorkloadIdentityCreds(repoURL, caPath string, certData, keyData []byte, insecureSkipVerify bool, tokenProvider workloadidentity.TokenProvider) AzureWorkloadIdentityCreds {
 	return AzureWorkloadIdentityCreds{
 		repoURL:            repoURL,
 		CAPath:             caPath,

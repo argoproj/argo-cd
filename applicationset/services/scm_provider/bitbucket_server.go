@@ -199,7 +199,7 @@ func (b *BitbucketServerProvider) listBranches(repo *Repository) ([]bitbucketv1.
 	return branches, nil
 }
 
-func (b *BitbucketServerProvider) getDefaultBranch(org string, repo string) (*bitbucketv1.Branch, error) {
+func (b *BitbucketServerProvider) getDefaultBranch(org, repo string) (*bitbucketv1.Branch, error) {
 	response, err := b.client.DefaultApi.GetDefaultBranch(org, repo)
 	// The API will return 404 if a default branch is set but doesn't exist. In case the repo is empty and default branch is unset,
 	// we will get an EOF and a nil response.

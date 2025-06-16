@@ -18,7 +18,7 @@ type repositoryLock struct {
 }
 
 // Lock acquires lock unless lock is already acquired with the same commit and allowConcurrent is set to true
-func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool, init func() (io.Closer, error)) (io.Closer, error) {
+func (r *repositoryLock) Lock(path, revision string, allowConcurrent bool, init func() (io.Closer, error)) (io.Closer, error) {
 	r.lock.Lock()
 	state, ok := r.stateByKey[path]
 	if !ok {

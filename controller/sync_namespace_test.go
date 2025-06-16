@@ -11,7 +11,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
-func createFakeNamespace(uid string, resourceVersion string, labels map[string]string, annotations map[string]string) *unstructured.Unstructured {
+func createFakeNamespace(uid, resourceVersion string, labels, annotations map[string]string) *unstructured.Unstructured {
 	un := unstructured.Unstructured{}
 	un.SetUID(types.UID(uid))
 	un.SetResourceVersion(resourceVersion)

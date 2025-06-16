@@ -17,7 +17,7 @@ type GithubProvider struct {
 
 var _ SCMProviderService = &GithubProvider{}
 
-func NewGithubProvider(organization string, token string, url string, allBranches bool) (*GithubProvider, error) {
+func NewGithubProvider(organization, token, url string, allBranches bool) (*GithubProvider, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")

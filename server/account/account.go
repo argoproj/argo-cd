@@ -153,7 +153,7 @@ func toAPIAccount(name string, a settings.Account) *account.Account {
 	}
 }
 
-func (s *Server) ensureHasAccountPermission(ctx context.Context, action string, account string) error {
+func (s *Server) ensureHasAccountPermission(ctx context.Context, action, account string) error {
 	id := session.GetUserIdentifier(ctx)
 
 	// account has always has access to itself

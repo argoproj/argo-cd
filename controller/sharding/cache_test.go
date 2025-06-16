@@ -9,7 +9,7 @@ import (
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
 )
 
-func setupTestSharding(shard int, replicas int) *ClusterSharding {
+func setupTestSharding(shard, replicas int) *ClusterSharding {
 	shardingAlgorithm := "legacy" // we are using the legacy algorithm as it is deterministic based on the cluster id which is easier to test
 	db := &dbmocks.ArgoDB{}
 	return NewClusterSharding(db, shard, replicas, shardingAlgorithm).(*ClusterSharding)

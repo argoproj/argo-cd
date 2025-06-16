@@ -42,7 +42,7 @@ func (i *InMemoryCache) Set(item *Item) error {
 	return nil
 }
 
-func (i *InMemoryCache) Rename(oldKey string, newKey string, expiration time.Duration) error {
+func (i *InMemoryCache) Rename(oldKey, newKey string, expiration time.Duration) error {
 	bufIf, found := i.memCache.Get(oldKey)
 	if !found {
 		return ErrCacheMiss

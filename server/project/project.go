@@ -498,7 +498,7 @@ func (s *Server) ListEvents(ctx context.Context, q *project.ProjectQuery) (*core
 	return s.kubeclientset.CoreV1().Events(s.ns).List(ctx, metav1.ListOptions{FieldSelector: fieldSelector})
 }
 
-func (s *Server) logEvent(ctx context.Context, a *v1alpha1.AppProject, reason string, action string) {
+func (s *Server) logEvent(ctx context.Context, a *v1alpha1.AppProject, reason, action string) {
 	eventInfo := argo.EventInfo{Type: corev1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {

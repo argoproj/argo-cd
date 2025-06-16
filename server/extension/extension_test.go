@@ -306,7 +306,7 @@ func TestCallExtension(t *testing.T) {
 		}
 	}
 
-	getProjectWithDestinations := func(prjName string, destNames []string, destURLs []string) *v1alpha1.AppProject {
+	getProjectWithDestinations := func(prjName string, destNames, destURLs []string) *v1alpha1.AppProject {
 		destinations := []v1alpha1.ApplicationDestination{}
 		for _, destName := range destNames {
 			destination := v1alpha1.ApplicationDestination{

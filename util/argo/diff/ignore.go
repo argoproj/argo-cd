@@ -87,7 +87,7 @@ func resourceToIgnoreDifference(resource v1alpha1.ResourceIgnoreDifferences) *Ig
 
 // mergeIgnoreDifferences will merge all ignores in the given from in target
 // skipping repeated configs.
-func mergeIgnoreDifferences(from *IgnoreDifference, target *IgnoreDifference) {
+func mergeIgnoreDifferences(from, target *IgnoreDifference) {
 	for _, jqPath := range from.JQPathExpressions {
 		if !contains(target.JQPathExpressions, jqPath) {
 			target.JQPathExpressions = append(target.JQPathExpressions, jqPath)

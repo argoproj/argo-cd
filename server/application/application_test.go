@@ -288,7 +288,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 	appCache := servercache.NewCache(appStateCache, time.Hour, time.Hour)
 
 	kubectl := &kubetest.MockKubectlCmd{}
-	kubectl = kubectl.WithGetResourceFunc(func(_ context.Context, _ *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
+	kubectl = kubectl.WithGetResourceFunc(func(_ context.Context, _ *rest.Config, gvk schema.GroupVersionKind, name, namespace string) (*unstructured.Unstructured, error) {
 		for _, obj := range objects {
 			if obj.GetObjectKind().GroupVersionKind().GroupKind() == gvk.GroupKind() {
 				if obj, ok := obj.(*unstructured.Unstructured); ok && obj.GetName() == name && obj.GetNamespace() == namespace {
@@ -451,7 +451,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 	appCache := servercache.NewCache(appStateCache, time.Hour, time.Hour)
 
 	kubectl := &kubetest.MockKubectlCmd{}
-	kubectl = kubectl.WithGetResourceFunc(func(_ context.Context, _ *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
+	kubectl = kubectl.WithGetResourceFunc(func(_ context.Context, _ *rest.Config, gvk schema.GroupVersionKind, name, namespace string) (*unstructured.Unstructured, error) {
 		for _, obj := range objects {
 			if obj.GetObjectKind().GroupVersionKind().GroupKind() == gvk.GroupKind() {
 				if obj, ok := obj.(*unstructured.Unstructured); ok && obj.GetName() == name && obj.GetNamespace() == namespace {

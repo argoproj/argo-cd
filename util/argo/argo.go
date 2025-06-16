@@ -257,7 +257,7 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 	return nil, err
 }
 
-func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerServiceClient, repo *argoappv1.Repository, isHelm bool, isHelmOci bool, isOCI bool) error {
+func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerServiceClient, repo *argoappv1.Repository, isHelm, isHelmOci, isOCI bool) error {
 	repo = repo.DeepCopy()
 	switch {
 	case isHelm:
@@ -478,7 +478,7 @@ func validateRepo(ctx context.Context,
 // GetRefSources creates a map of ref keys (from the sources' 'ref' fields) to information about the referenced source.
 // This function also validates the references use allowed characters and does not define the same ref key more than
 // once (which would lead to ambiguous references).
-func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, project string, getRepository func(ctx context.Context, url string, project string) (*argoappv1.Repository, error), revisions []string, isRollback bool) (argoappv1.RefTargetRevisionMapping, error) {
+func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, project string, getRepository func(ctx context.Context, url, project string) (*argoappv1.Repository, error), revisions []string, isRollback bool) (argoappv1.RefTargetRevisionMapping, error) {
 	refSources := make(argoappv1.RefTargetRevisionMapping)
 	if len(sources) > 1 {
 		// Validate first to avoid unnecessary DB calls.
@@ -901,7 +901,7 @@ func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *ar
 }
 
 // ContainsSyncResource determines if the given resource exists in the provided slice of sync operation resources.
-func ContainsSyncResource(name string, namespace string, gvk schema.GroupVersionKind, rr []argoappv1.SyncOperationResource) bool {
+func ContainsSyncResource(name, namespace string, gvk schema.GroupVersionKind, rr []argoappv1.SyncOperationResource) bool {
 	for _, r := range rr {
 		if r.HasIdentity(name, namespace, gvk) {
 			return true
@@ -912,7 +912,7 @@ func ContainsSyncResource(name string, namespace string, gvk schema.GroupVersion
 
 // IncludeResource The app resource is checked against the include or exclude filters.
 // If exclude filters are present, they are evaluated only after all include filters have been assessed.
-func IncludeResource(resourceName string, resourceNamespace string, gvk schema.GroupVersionKind,
+func IncludeResource(resourceName, resourceNamespace string, gvk schema.GroupVersionKind,
 	syncOperationResources []*argoappv1.SyncOperationResource,
 ) bool {
 	includeResource := false
@@ -1109,7 +1109,7 @@ func GetAppVirtualProject(proj *argoappv1.AppProject, projLister applicationsv1.
 	return virtualProj, nil
 }
 
-func mergeVirtualProject(proj *argoappv1.AppProject, globalProj *argoappv1.AppProject) *argoappv1.AppProject {
+func mergeVirtualProject(proj, globalProj *argoappv1.AppProject) *argoappv1.AppProject {
 	if globalProj == nil {
 		return proj
 	}
@@ -1151,7 +1151,7 @@ func GetDifferentPathsBetweenStructs(a, b any) ([]string, error) {
 
 // parseName will split the qualified name into its components, which are separated by the delimiter.
 // If delimiter is not contained in the string qualifiedName then returned namespace is defaultNs.
-func parseName(qualifiedName string, defaultNs string, delim string) (name string, namespace string) {
+func parseName(qualifiedName, defaultNs, delim string) (name, namespace string) {
 	t := strings.SplitN(qualifiedName, delim, 2)
 	if len(t) == 2 {
 		namespace = t[0]
@@ -1166,14 +1166,14 @@ func parseName(qualifiedName string, defaultNs string, delim string) (name strin
 // ParseAppNamespacedName parses a namespaced name in the format namespace/name
 // and returns the components. If name wasn't namespaced, defaultNs will be
 // returned as namespace component.
-func ParseFromQualifiedName(qualifiedAppName string, defaultNs string) (appName string, appNamespace string) {
+func ParseFromQualifiedName(qualifiedAppName, defaultNs string) (appName, appNamespace string) {
 	return parseName(qualifiedAppName, defaultNs, "/")
 }
 
 // ParseInstanceName parses a namespaced name in the format namespace_name
 // and returns the components. If name wasn't namespaced, defaultNs will be
 // returned as namespace component.
-func ParseInstanceName(appName string, defaultNs string) (string, string) {
+func ParseInstanceName(appName, defaultNs string) (string, string) {
 	return parseName(appName, defaultNs, "_")
 }
 
@@ -1187,7 +1187,7 @@ func AppInstanceName(appName, appNs, defaultNs string) string {
 }
 
 // InstanceNameFromQualified returns the value to be used for app
-func InstanceNameFromQualified(name string, defaultNs string) string {
+func InstanceNameFromQualified(name, defaultNs string) string {
 	appName, appNs := ParseFromQualifiedName(name, defaultNs)
 	return AppInstanceName(appName, appNs, defaultNs)
 }

@@ -295,7 +295,7 @@ func namespace(name string) (*corev1.Namespace, error) {
 	return fixture.KubeClientset.CoreV1().Namespaces().Get(context.Background(), name, metav1.GetOptions{})
 }
 
-func event(namespace string, reason string, message string) Expectation {
+func event(namespace, reason, message string) Expectation {
 	return func(c *Consequences) (state, string) {
 		list, err := fixture.KubeClientset.CoreV1().Events(namespace).List(context.Background(), metav1.ListOptions{
 			FieldSelector: fields.SelectorFromSet(map[string]string{
@@ -317,11 +317,11 @@ func event(namespace string, reason string, message string) Expectation {
 	}
 }
 
-func Event(reason string, message string) Expectation {
+func Event(reason, message string) Expectation {
 	return event(fixture.TestNamespace(), reason, message)
 }
 
-func NamespacedEvent(namespace string, reason string, message string) Expectation {
+func NamespacedEvent(namespace, reason, message string) Expectation {
 	return event(namespace, reason, message)
 }
 

@@ -158,7 +158,7 @@ func (proj AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) 
 }
 
 // TODO: document this method
-func (proj *AppProject) ValidateJWTTokenID(roleName string, id string) error {
+func (proj *AppProject) ValidateJWTTokenID(roleName, id string) error {
 	role, _, err := proj.GetRoleByName(roleName)
 	if err != nil {
 		return err
@@ -423,7 +423,7 @@ func (proj *AppProject) RemoveFinalizer() {
 	setFinalizer(&proj.ObjectMeta, ResourcesFinalizerName, false)
 }
 
-func globMatch(pattern string, val string, allowNegation bool, separators ...rune) bool {
+func globMatch(pattern, val string, allowNegation bool, separators ...rune) bool {
 	if allowNegation && isDenyPattern(pattern) {
 		return !glob.Match(pattern[1:], val, separators...)
 	}
@@ -577,7 +577,7 @@ func syncJWTTokenBetweenStatusAndSpec(proj *AppProject) bool {
 	return needSync
 }
 
-func jwtTokensCombine(tokens1 []JWTToken, tokens2 []JWTToken) []JWTToken {
+func jwtTokensCombine(tokens1, tokens2 []JWTToken) []JWTToken {
 	tokensMap := make(map[string]JWTToken)
 	for _, token := range append(tokens1, tokens2...) {
 		tokensMap[token.ID] = token

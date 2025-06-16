@@ -258,7 +258,7 @@ func (c *Cache) SetClient(client CacheClient) {
 	c.client = client
 }
 
-func (c *Cache) RenameItem(oldKey string, newKey string, expiration time.Duration) error {
+func (c *Cache) RenameItem(oldKey, newKey string, expiration time.Duration) error {
 	return c.client.Rename(fmt.Sprintf("%s|%s", oldKey, common.CacheVersion), fmt.Sprintf("%s|%s", newKey, common.CacheVersion), expiration)
 }
 

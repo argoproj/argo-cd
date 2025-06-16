@@ -43,7 +43,7 @@ type Kustomize interface {
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
-func NewKustomizeApp(repoRoot string, path string, creds git.Creds, fromRepo string, binaryPath string, proxy string, noProxy string) Kustomize {
+func NewKustomizeApp(repoRoot, path string, creds git.Creds, fromRepo, binaryPath, proxy, noProxy string) Kustomize {
 	return &kustomize{
 		repoRoot:   repoRoot,
 		path:       path,

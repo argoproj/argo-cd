@@ -13,7 +13,7 @@ type ClusterShardingCache interface {
 	Init(clusters *v1alpha1.ClusterList, apps *v1alpha1.ApplicationList)
 	Add(c *v1alpha1.Cluster)
 	Delete(clusterServer string)
-	Update(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster)
+	Update(oldCluster, newCluster *v1alpha1.Cluster)
 	AddApp(a *v1alpha1.Application)
 	DeleteApp(a *v1alpha1.Application)
 	UpdateApp(a *v1alpha1.Application)
@@ -112,7 +112,7 @@ func (sharding *ClusterSharding) Delete(clusterServer string) {
 	}
 }
 
-func (sharding *ClusterSharding) Update(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
+func (sharding *ClusterSharding) Update(oldCluster, newCluster *v1alpha1.Cluster) {
 	sharding.lock.Lock()
 	defer sharding.lock.Unlock()
 

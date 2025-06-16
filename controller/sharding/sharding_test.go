@@ -449,7 +449,7 @@ func getClusterPointers(clusters []v1alpha1.Cluster) []*v1alpha1.Cluster {
 	return clusterPointers
 }
 
-func createCluster(name string, id string) v1alpha1.Cluster {
+func createCluster(name, id string) v1alpha1.Cluster {
 	cluster := v1alpha1.Cluster{
 		Name:   name,
 		ID:     id,
@@ -1039,7 +1039,7 @@ func getAppPointers(apps []v1alpha1.Application) []*v1alpha1.Application {
 	return appPointers
 }
 
-func createApp(name string, server string) v1alpha1.Application {
+func createApp(name, server string) v1alpha1.Application {
 	testApp := `
 apiVersion: argoproj.io/v1alpha1
 kind: Application

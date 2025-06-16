@@ -76,7 +76,7 @@ func CreateServiceAccount(
 	return nil
 }
 
-func upsert(kind string, name string, create func() (any, error), update func() (any, error)) error {
+func upsert(kind, name string, create, update func() (any, error)) error {
 	_, err := create()
 	if err != nil {
 		if !apierrors.IsAlreadyExists(err) {
@@ -111,7 +111,7 @@ func upsertClusterRole(clientset kubernetes.Interface, name string, rules []rbac
 	})
 }
 
-func upsertRole(clientset kubernetes.Interface, name string, namespace string, rules []rbacv1.PolicyRule) error {
+func upsertRole(clientset kubernetes.Interface, name, namespace string, rules []rbacv1.PolicyRule) error {
 	role := rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -129,7 +129,7 @@ func upsertRole(clientset kubernetes.Interface, name string, namespace string, r
 	})
 }
 
-func upsertClusterRoleBinding(clientset kubernetes.Interface, name string, clusterRoleName string, subject rbacv1.Subject) error {
+func upsertClusterRoleBinding(clientset kubernetes.Interface, name, clusterRoleName string, subject rbacv1.Subject) error {
 	roleBinding := rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -152,7 +152,7 @@ func upsertClusterRoleBinding(clientset kubernetes.Interface, name string, clust
 	})
 }
 
-func upsertRoleBinding(clientset kubernetes.Interface, name string, roleName string, namespace string, subject rbacv1.Subject) error {
+func upsertRoleBinding(clientset kubernetes.Interface, name, roleName, namespace string, subject rbacv1.Subject) error {
 	roleBinding := rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -221,7 +221,7 @@ func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namesp
 // bearer token secret to use or if a secret should be created. It then
 // waits for the secret to have a bearer token if a secret needs to
 // be created and returns the token in encoded base64.
-func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns string, sa string, timeout time.Duration) (string, error) {
+func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns, sa string, timeout time.Duration) (string, error) {
 	secretName, err := getOrCreateServiceAccountTokenSecret(clientset, sa, ns)
 	if err != nil {
 		return "", err

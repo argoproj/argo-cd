@@ -39,7 +39,7 @@ type RepoStreamReceiver interface {
 }
 
 // SendApplicationManifestQueryWithFiles compresses a folder and sends it over the stream
-func SendApplicationManifestQueryWithFiles(ctx context.Context, stream ApplicationStreamSender, appName string, appNs string, dir string, inclusions []string) error {
+func SendApplicationManifestQueryWithFiles(ctx context.Context, stream ApplicationStreamSender, appName, appNs, dir string, inclusions []string) error {
 	f, filesWritten, checksum, err := tgzstream.CompressFiles(dir, inclusions, nil)
 	if err != nil {
 		return fmt.Errorf("failed to compress files: %w", err)
@@ -160,7 +160,7 @@ func SendRepoStream(repoStream RepoStreamSender, appStream ApplicationStreamRece
 	return nil
 }
 
-func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver, destDir string, maxTarSize int64, maxExtractedSize int64) (*apiclient.ManifestRequest, *apiclient.ManifestFileMetadata, error) {
+func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver, destDir string, maxTarSize, maxExtractedSize int64) (*apiclient.ManifestRequest, *apiclient.ManifestFileMetadata, error) {
 	header, err := receiver.Recv()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to receive header: %w", err)

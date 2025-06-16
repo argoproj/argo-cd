@@ -4,6 +4,8 @@ formatters:
     - goimports
 
   settings:
+    gofumpt:
+      extra-rules: true
     goimports:
       local-prefixes:
         - github.com/argoproj/argo-cd/v3
@@ -53,7 +55,7 @@ linters:
       disabled-checks:
         - appendAssign
         - appendCombine
-        - assignOp
+        - assignOp # WON'T FIX
         - builtinShadow
         - commentedOutCode
         - deferInLoop
@@ -64,7 +66,6 @@ linters:
         - hugeParam
         - importShadow
         - mapKey
-        - paramTypeCombine
         - ptrToRefParam
         - rangeValCopy
         - sloppyReassign

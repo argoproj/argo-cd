@@ -608,7 +608,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 	}
 }
 
-func getTestServer(t *testing.T, anonymousEnabled bool, withFakeSSO bool, useDexForSSO bool, additionalOIDCConfig settings_util.OIDCConfig) (argocd *ArgoCDServer, oidcURL string) {
+func getTestServer(t *testing.T, anonymousEnabled, withFakeSSO, useDexForSSO bool, additionalOIDCConfig settings_util.OIDCConfig) (argocd *ArgoCDServer, oidcURL string) {
 	t.Helper()
 	cm := test.NewFakeConfigMap()
 	if anonymousEnabled {

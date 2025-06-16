@@ -101,7 +101,7 @@ func getResourceList(clientConfig clientcmd.ClientConfig) ([]*metav1.APIResource
 	return serverResources, nil
 }
 
-func generateProjectAllowList(serverResources []*metav1.APIResourceList, clusterRoleFileName string, projName string) (*v1alpha1.AppProject, error) {
+func generateProjectAllowList(serverResources []*metav1.APIResourceList, clusterRoleFileName, projName string) (*v1alpha1.AppProject, error) {
 	yamlBytes, err := os.ReadFile(clusterRoleFileName)
 	if err != nil {
 		return nil, fmt.Errorf("error reading cluster role file: %w", err)

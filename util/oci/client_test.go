@@ -252,7 +252,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				},
 				manifestMaxExtractedSize:        1000,
 				disableManifestMaxExtractedSize: false,
-				postValidationFunc: func(sha string, _ string, _ Client, fields fields, args args) {
+				postValidationFunc: func(sha, _ string, _ Client, fields fields, args args) {
 					store := memory.New()
 					c := newClientWithLock(fields.repoURL, globalLock, store, fields.tagsFunc, func(_ context.Context) error {
 						return nil

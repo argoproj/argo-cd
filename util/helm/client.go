@@ -46,8 +46,8 @@ type indexCache interface {
 }
 
 type Client interface {
-	CleanChartCache(chart string, version string) error
-	ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, utilio.Closer, error)
+	CleanChartCache(chart, version string) error
+	ExtractChart(chart, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, utilio.Closer, error)
 	GetIndex(noCache bool, maxIndexSize int64) (*Index, error)
 	GetTags(chart string, noCache bool) ([]string, error)
 	TestHelmOCI() (bool, error)
@@ -67,11 +67,11 @@ func WithChartPaths(chartPaths utilio.TempPaths) ClientOpts {
 	}
 }
 
-func NewClient(repoURL string, creds Creds, enableOci bool, proxy string, noProxy string, opts ...ClientOpts) Client {
+func NewClient(repoURL string, creds Creds, enableOci bool, proxy, noProxy string, opts ...ClientOpts) Client {
 	return NewClientWithLock(repoURL, creds, globalLock, enableOci, proxy, noProxy, opts...)
 }
 
-func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool, proxy string, noProxy string, opts ...ClientOpts) Client {
+func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool, proxy, noProxy string, opts ...ClientOpts) Client {
 	c := &nativeHelmChart{
 		repoURL:         repoURL,
 		creds:           creds,
@@ -110,7 +110,7 @@ func fileExist(filePath string) (bool, error) {
 	return true, nil
 }
 
-func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
+func (c *nativeHelmChart) CleanChartCache(chart, version string) error {
 	cachePath, err := c.getCachedChartPath(chart, version)
 	if err != nil {
 		return fmt.Errorf("error getting cached chart path: %w", err)
@@ -121,7 +121,7 @@ func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
 	return nil
 }
 
-func untarChart(tempDir string, cachedChartPath string, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) error {
+func untarChart(tempDir, cachedChartPath string, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) error {
 	if disableManifestMaxExtractedSize {
 		cmd := exec.Command("tar", "-zxvf", cachedChartPath)
 		cmd.Dir = tempDir
@@ -138,7 +138,7 @@ func untarChart(tempDir string, cachedChartPath string, manifestMaxExtractedSize
 	return files.Untgz(tempDir, reader, manifestMaxExtractedSize, false)
 }
 
-func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, utilio.Closer, error) {
+func (c *nativeHelmChart) ExtractChart(chart, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, utilio.Closer, error) {
 	// always use Helm V3 since we don't have chart content to determine correct Helm version
 	helmCmd, err := NewCmdWithVersion("", c.enableOci, c.proxy, c.noProxy)
 	if err != nil {
@@ -387,7 +387,7 @@ func normalizeChartName(chart string) string {
 	return nc
 }
 
-func (c *nativeHelmChart) getCachedChartPath(chart string, version string) (string, error) {
+func (c *nativeHelmChart) getCachedChartPath(chart, version string) (string, error) {
 	keyData, err := json.Marshal(map[string]string{"url": c.repoURL, "chart": chart, "version": version})
 	if err != nil {
 		return "", fmt.Errorf("error marshaling cache key data: %w", err)

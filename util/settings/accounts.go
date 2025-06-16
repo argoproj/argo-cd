@@ -156,7 +156,7 @@ func (mgr *SettingsManager) GetAccounts() (map[string]Account, error) {
 	return parseAccounts(secret, cm)
 }
 
-func updateAccountMap(cm *corev1.ConfigMap, key string, val string, defVal string) {
+func updateAccountMap(cm *corev1.ConfigMap, key, val, defVal string) {
 	existingVal := cm.Data[key]
 	if existingVal != val {
 		if val == "" || val == defVal {
@@ -167,7 +167,7 @@ func updateAccountMap(cm *corev1.ConfigMap, key string, val string, defVal strin
 	}
 }
 
-func updateAccountSecret(secret *corev1.Secret, key string, val string, defVal string) {
+func updateAccountSecret(secret *corev1.Secret, key, val, defVal string) {
 	existingVal := string(secret.Data[key])
 	if existingVal != val {
 		if val == "" || val == defVal {

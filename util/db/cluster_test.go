@@ -253,7 +253,7 @@ func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
 	require.Error(t, err)
 }
 
-func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster)) (completed bool) {
+func runWatchTest(t *testing.T, db ArgoDB, actions []func(old, new *v1alpha1.Cluster)) (completed bool) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -262,7 +262,7 @@ func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster,
 
 	allDone := make(chan bool, 1)
 
-	doNext := func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
+	doNext := func(old, new *v1alpha1.Cluster) {
 		if len(actions) == 0 {
 			assert.Fail(t, "Unexpected event")
 		}
@@ -281,7 +281,7 @@ func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster,
 	go func() {
 		assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
 			doNext(nil, cluster)
-		}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
+		}, func(oldCluster, newCluster *v1alpha1.Cluster) {
 			doNext(oldCluster, newCluster)
 		}, func(clusterServer string) {
 			doNext(&v1alpha1.Cluster{Server: clusterServer}, nil)

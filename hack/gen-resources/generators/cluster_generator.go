@@ -64,7 +64,7 @@ func NewClusterGenerator(db db.ArgoDB, clientSet *kubernetes.Clientset, config *
 	return &ClusterGenerator{db, clientSet, config}
 }
 
-func (cg *ClusterGenerator) getClusterCredentials(namespace string, releaseSuffix string) ([]byte, []byte, []byte, error) {
+func (cg *ClusterGenerator) getClusterCredentials(namespace, releaseSuffix string) ([]byte, []byte, []byte, error) {
 	cmd := []string{
 		"sh",
 		"-c",
@@ -133,7 +133,7 @@ func (cg *ClusterGenerator) getClusterCredentials(namespace string, releaseSuffi
 }
 
 // TODO: also should provision service for vcluster pod
-func (cg *ClusterGenerator) installVCluster(opts *util.GenerateOpts, namespace string, releaseName string) error {
+func (cg *ClusterGenerator) installVCluster(opts *util.GenerateOpts, namespace, releaseName string) error {
 	cmd, err := helm.NewCmd("/tmp", "v3", "", "")
 	if err != nil {
 		return err
@@ -146,7 +146,7 @@ func (cg *ClusterGenerator) installVCluster(opts *util.GenerateOpts, namespace s
 	return nil
 }
 
-func (cg *ClusterGenerator) getClusterServerURI(namespace string, releaseSuffix string) (string, error) {
+func (cg *ClusterGenerator) getClusterServerURI(namespace, releaseSuffix string) (string, error) {
 	pod, err := cg.clientSet.CoreV1().Pods(namespace).Get(context.TODO(), POD_PREFIX+"-"+releaseSuffix+"-0", metav1.GetOptions{})
 	if err != nil {
 		return "", err

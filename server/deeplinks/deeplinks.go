@@ -62,7 +62,7 @@ func SanitizeCluster(cluster *v1alpha1.Cluster) (*unstructured.Unstructured, err
 	})
 }
 
-func CreateDeepLinksObject(resourceObj *unstructured.Unstructured, app *unstructured.Unstructured, cluster *unstructured.Unstructured, project *unstructured.Unstructured) map[string]any {
+func CreateDeepLinksObject(resourceObj, app, cluster, project *unstructured.Unstructured) map[string]any {
 	deeplinkObj := map[string]any{}
 	if resourceObj != nil {
 		deeplinkObj[ResourceDeepLinkKey] = resourceObj.Object

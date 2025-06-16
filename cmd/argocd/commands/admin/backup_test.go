@@ -16,7 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 )
 
-func newBackupObject(trackingValue string, trackingLabel bool, trackingAnnotation bool) *unstructured.Unstructured {
+func newBackupObject(trackingValue string, trackingLabel, trackingAnnotation bool) *unstructured.Unstructured {
 	cm := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-configmap",

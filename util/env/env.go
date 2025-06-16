@@ -145,7 +145,7 @@ type StringFromEnvOpts struct {
 	AllowEmpty bool
 }
 
-func StringFromEnv(env string, defaultValue string, opts ...StringFromEnvOpts) string {
+func StringFromEnv(env, defaultValue string, opts ...StringFromEnvOpts) string {
 	opt := StringFromEnvOpts{}
 	for _, o := range opts {
 		opt.AllowEmpty = opt.AllowEmpty || o.AllowEmpty

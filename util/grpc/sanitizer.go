@@ -48,7 +48,7 @@ func SanitizerFromContext(ctx context.Context) (Sanitizer, bool) {
 // Sanitizer provides methods to define list of strings and replacements
 type Sanitizer interface {
 	Replace(s string) string
-	AddReplacement(val string, replacement string)
+	AddReplacement(val, replacement string)
 	AddRegexReplacement(regex *regexp.Regexp, replacement string)
 }
 
@@ -62,7 +62,7 @@ func NewSanitizer() *sanitizer {
 }
 
 // AddReplacement adds a replacement to the Sanitizer
-func (s *sanitizer) AddReplacement(val string, replacement string) {
+func (s *sanitizer) AddReplacement(val, replacement string) {
 	s.replacers = append(s.replacers, func(in string) string {
 		return strings.ReplaceAll(in, val, replacement)
 	})

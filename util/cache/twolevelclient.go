@@ -18,7 +18,7 @@ type twoLevelClient struct {
 	externalCache CacheClient
 }
 
-func (c *twoLevelClient) Rename(oldKey string, newKey string, expiration time.Duration) error {
+func (c *twoLevelClient) Rename(oldKey, newKey string, expiration time.Duration) error {
 	err := c.inMemoryCache.Rename(oldKey, newKey, expiration)
 	if err != nil {
 		log.Warnf("Failed to move key '%s' in in-memory cache: %v", oldKey, err)

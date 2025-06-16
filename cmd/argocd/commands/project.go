@@ -268,7 +268,7 @@ func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions)
 func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var nameInsteadServer bool
 
-	buildApplicationDestination := func(destination string, namespace string, nameInsteadServer bool) v1alpha1.ApplicationDestination {
+	buildApplicationDestination := func(destination, namespace string, nameInsteadServer bool) v1alpha1.ApplicationDestination {
 		if nameInsteadServer {
 			return v1alpha1.ApplicationDestination{Name: destination, Namespace: namespace}
 		}
@@ -588,7 +588,7 @@ func NewProjectRemoveSourceNamespace(clientOpts *argocdclient.ClientOptions) *co
 	return command
 }
 
-func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, group string, kind string) bool {
+func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc, group, kind string) bool {
 	if add {
 		for _, item := range *list {
 			if item.Group == group && item.Kind == kind {
@@ -616,7 +616,7 @@ func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, gr
 	return true
 }
 
-func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdclient.ClientOptions, allow bool, namespacedList bool) *cobra.Command {
+func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdclient.ClientOptions, allow, namespacedList bool) *cobra.Command {
 	var (
 		listType    string
 		defaultList string
@@ -1103,7 +1103,7 @@ func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 func NewProjectAddDestinationServiceAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var serviceAccountNamespace string
 
-	buildApplicationDestinationServiceAccount := func(destination string, namespace string, serviceAccount string, serviceAccountNamespace string) v1alpha1.ApplicationDestinationServiceAccount {
+	buildApplicationDestinationServiceAccount := func(destination, namespace, serviceAccount, serviceAccountNamespace string) v1alpha1.ApplicationDestinationServiceAccount {
 		if serviceAccountNamespace != "" {
 			return v1alpha1.ApplicationDestinationServiceAccount{
 				Server:                destination,

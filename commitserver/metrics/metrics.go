@@ -147,7 +147,7 @@ func (m *Server) ObserveCommitRequestDuration(repo string, rt CommitResponseType
 }
 
 // ObserveUserInfoRequestDuration observes the duration of a userinfo request
-func (m *Server) ObserveUserInfoRequestDuration(repo string, credentialType string, duration time.Duration) {
+func (m *Server) ObserveUserInfoRequestDuration(repo, credentialType string, duration time.Duration) {
 	m.userInfoRequestHistogram.WithLabelValues(repo, credentialType).Observe(duration.Seconds())
 }
 

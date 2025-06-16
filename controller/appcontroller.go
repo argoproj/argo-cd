@@ -879,7 +879,7 @@ func (ctrl *ApplicationController) hideSecretData(destCluster *appv1.Cluster, ap
 }
 
 // Run starts the Application CRD controller.
-func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int, operationProcessors int) {
+func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors, operationProcessors int) {
 	defer runtime.HandleCrash()
 	defer ctrl.appRefreshQueue.ShutDown()
 	defer ctrl.appComparisonTypeRefreshQueue.ShutDown()
@@ -2236,7 +2236,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 
 // alreadyAttemptedSync returns whether the most recent sync was performed against the
 // commitSHA and with the same app source config which are currently set in the app.
-func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS []string, hasMultipleSources bool, revisionUpdated bool) (bool, synccommon.OperationPhase) {
+func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS []string, hasMultipleSources, revisionUpdated bool) (bool, synccommon.OperationPhase) {
 	if app.Status.OperationState == nil || app.Status.OperationState.Operation.Sync == nil || app.Status.OperationState.SyncResult == nil {
 		return false, ""
 	}
@@ -2519,7 +2519,7 @@ func isOperationInProgress(app *appv1.Application) bool {
 
 // automatedSyncEnabled tests if an app went from auto-sync disabled to enabled.
 // if it was toggled to be enabled, the informer handler will force a refresh
-func automatedSyncEnabled(oldApp *appv1.Application, newApp *appv1.Application) bool {
+func automatedSyncEnabled(oldApp, newApp *appv1.Application) bool {
 	oldEnabled := false
 	oldSelfHealEnabled := false
 	if oldApp.Spec.SyncPolicy != nil && oldApp.Spec.SyncPolicy.IsAutomatedSyncEnabled() {

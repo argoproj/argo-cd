@@ -32,7 +32,7 @@ type ArgoDB interface {
 	// WatchClusters allow watching for cluster informer
 	WatchClusters(ctx context.Context,
 		handleAddEvent func(cluster *appv1.Cluster),
-		handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
+		handleModEvent func(oldCluster, newCluster *appv1.Cluster),
 		handleDeleteEvent func(clusterServer string)) error
 	// GetCluster returns a cluster by given server url
 	GetCluster(ctx context.Context, server string) (*appv1.Cluster, error)

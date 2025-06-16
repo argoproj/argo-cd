@@ -71,7 +71,7 @@ const (
 	textPositionWidthPerChar  = 62
 )
 
-func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) string {
+func replaceFirstGroupSubMatch(re *regexp.Regexp, str, repl string) string {
 	result := ""
 	lastIndex := 0
 

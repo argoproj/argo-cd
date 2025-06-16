@@ -209,7 +209,7 @@ func printTreeViewAppResourcesOrphaned(nodeMapping map[string]v1alpha1.ResourceN
 	}
 }
 
-func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.ApplicationTree, output string) {
+func printResources(listAll, orphaned bool, appResourceTree *v1alpha1.ApplicationTree, output string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	switch output {
 	case "tree=detailed":

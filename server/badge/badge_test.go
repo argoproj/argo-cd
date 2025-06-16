@@ -358,7 +358,7 @@ func createApplications(appCombo, projectName []string, namespace string) []*v1a
 	return createApplicationsWithName(appCombo, projectName, namespace, "app")
 }
 
-func createApplicationsWithName(appCombo, projectName []string, namespace string, namePrefix string) []*v1alpha1.Application {
+func createApplicationsWithName(appCombo, projectName []string, namespace, namePrefix string) []*v1alpha1.Application {
 	apps := make([]*v1alpha1.Application, len(appCombo))
 	healthStatus := func(healthType string) health.HealthStatusCode {
 		switch healthType {

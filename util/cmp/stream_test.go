@@ -82,7 +82,7 @@ func TestReceiveApplicationStream(t *testing.T) {
 	})
 }
 
-func (m *streamMock) sendFile(ctx context.Context, t *testing.T, basedir string, sender cmp.StreamSender, env []string, excludedGlobs []string) {
+func (m *streamMock) sendFile(ctx context.Context, t *testing.T, basedir string, sender cmp.StreamSender, env, excludedGlobs []string) {
 	t.Helper()
 	defer func() {
 		m.done <- true

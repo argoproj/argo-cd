@@ -5,7 +5,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/applicationset/services/internal/github_app"
 )
 
-func NewGithubAppProviderFor(g github_app_auth.Authentication, organization string, url string, allBranches bool) (*GithubProvider, error) {
+func NewGithubAppProviderFor(g github_app_auth.Authentication, organization, url string, allBranches bool) (*GithubProvider, error) {
 	client, err := github_app.Client(g, url)
 	if err != nil {
 		return nil, err

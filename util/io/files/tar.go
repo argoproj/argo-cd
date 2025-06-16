@@ -25,7 +25,7 @@ type tgz struct {
 // This is useful to generate checksums. Will exclude files matching the exclusions
 // list blob if exclusions is not nil. Will include only the files matching the
 // inclusions list if inclusions is not nil.
-func Tgz(srcPath string, inclusions []string, exclusions []string, writers ...io.Writer) (int, error) {
+func Tgz(srcPath string, inclusions, exclusions []string, writers ...io.Writer) (int, error) {
 	if _, err := os.Stat(srcPath); err != nil {
 		return 0, fmt.Errorf("error inspecting srcPath %q: %w", srcPath, err)
 	}
@@ -40,7 +40,7 @@ func Tgz(srcPath string, inclusions []string, exclusions []string, writers ...io
 // This is useful to generate checksums. Will exclude files matching the exclusions
 // list blob if exclusions is not nil. Will include only the files matching the
 // inclusions list if inclusions is not nil.
-func Tar(srcPath string, inclusions []string, exclusions []string, writers ...io.Writer) (int, error) {
+func Tar(srcPath string, inclusions, exclusions []string, writers ...io.Writer) (int, error) {
 	if _, err := os.Stat(srcPath); err != nil {
 		return 0, fmt.Errorf("error inspecting srcPath %q: %w", srcPath, err)
 	}
@@ -48,7 +48,7 @@ func Tar(srcPath string, inclusions []string, exclusions []string, writers ...io
 	return writeFile(srcPath, inclusions, exclusions, io.MultiWriter(writers...))
 }
 
-func writeFile(srcPath string, inclusions []string, exclusions []string, writer io.Writer) (int, error) {
+func writeFile(srcPath string, inclusions, exclusions []string, writer io.Writer) (int, error) {
 	tw := tar.NewWriter(writer)
 	defer tw.Close()
 

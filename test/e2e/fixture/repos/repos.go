@@ -31,7 +31,7 @@ func mustToAbsPath(t *testing.T, relativePath string) string {
 }
 
 // sets the current repo as the default SSH test repo
-func AddSSHRepo(t *testing.T, insecure bool, credentials bool, repoURLType fixture.RepoURLType) {
+func AddSSHRepo(t *testing.T, insecure, credentials bool, repoURLType fixture.RepoURLType) {
 	t.Helper()
 	keyPath, err := filepath.Abs("../fixture/testrepos/id_rsa")
 	require.NoError(t, err)
@@ -46,7 +46,7 @@ func AddSSHRepo(t *testing.T, insecure bool, credentials bool, repoURLType fixtu
 }
 
 // sets the current repo as the default HTTPS test repo
-func AddHTTPSRepo(t *testing.T, insecure bool, credentials bool, project string, repoURLType fixture.RepoURLType) {
+func AddHTTPSRepo(t *testing.T, insecure, credentials bool, project string, repoURLType fixture.RepoURLType) {
 	t.Helper()
 	// This construct is somewhat necessary to satisfy the compiler
 	args := []string{"repo", "add", fixture.RepoURL(repoURLType)}

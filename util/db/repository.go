@@ -457,7 +457,7 @@ func (db *db) enrichCredsToRepo(ctx context.Context, repository *v1alpha1.Reposi
 // repositories are _imperatively_ created and need its credentials to be stored in a secret.
 // NOTE: this formula should not be considered stable and may change in future releases.
 // Do NOT rely on this formula as a means of secret lookup, only secret creation.
-func RepoURLToSecretName(prefix string, repo string, project string) string {
+func RepoURLToSecretName(prefix, repo, project string) string {
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(repo))
 	_, _ = h.Write([]byte(project))

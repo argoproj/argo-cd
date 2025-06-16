@@ -196,7 +196,7 @@ func TestArgoCDSupportsMultipleServiceAccountsWithDifferingRBACOnSameCluster(t *
 
 // generateReadOnlyClusterRoleandBindingForServiceAccount creates a ClusterRole/Binding that allows a ServiceAccount in a given namespace to read all resources on a cluster.
 // - This allows the ServiceAccount to be used within a cluster-scoped Argo CD Cluster Secret
-func generateReadOnlyClusterRoleandBindingForServiceAccount(roleSuffix string, serviceAccountNS string) (rbacv1.ClusterRole, rbacv1.ClusterRoleBinding) {
+func generateReadOnlyClusterRoleandBindingForServiceAccount(roleSuffix, serviceAccountNS string) (rbacv1.ClusterRole, rbacv1.ClusterRoleBinding) {
 	clusterRole := rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: E2ETestPrefix + "read-all-" + roleSuffix,

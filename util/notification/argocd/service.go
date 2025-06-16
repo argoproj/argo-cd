@@ -15,7 +15,7 @@ import (
 )
 
 type Service interface {
-	GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string, project string) (*shared.CommitMetadata, error)
+	GetCommitMetadata(ctx context.Context, repoURL, commitSHA, project string) (*shared.CommitMetadata, error)
 	GetAppDetails(ctx context.Context, app *v1alpha1.Application) (*shared.AppDetail, error)
 }
 
@@ -45,7 +45,7 @@ type argoCDService struct {
 	dispose          func()
 }
 
-func (svc *argoCDService) GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string, project string) (*shared.CommitMetadata, error) {
+func (svc *argoCDService) GetCommitMetadata(ctx context.Context, repoURL, commitSHA, project string) (*shared.CommitMetadata, error) {
 	argocdDB := db.NewDB(svc.namespace, svc.settingsMgr, svc.clientset)
 	repo, err := argocdDB.GetRepository(ctx, repoURL, project)
 	if err != nil {

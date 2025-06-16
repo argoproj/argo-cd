@@ -69,7 +69,7 @@ func (n *knownTypesNormalizer) ensureDefaultCRDsConfigured() {
 	}
 }
 
-func (n *knownTypesNormalizer) addKnownField(gk schema.GroupKind, fieldPath string, typePath string) error {
+func (n *knownTypesNormalizer) addKnownField(gk schema.GroupKind, fieldPath, typePath string) error {
 	newFieldFn, ok := knownTypes[typePath]
 	if !ok {
 		return fmt.Errorf("type '%s' is not supported", typePath)

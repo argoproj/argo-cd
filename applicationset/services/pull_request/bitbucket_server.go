@@ -21,7 +21,7 @@ type BitbucketService struct {
 
 var _ PullRequestService = (*BitbucketService)(nil)
 
-func NewBitbucketServiceBasicAuth(ctx context.Context, username, password, url, projectKey, repositorySlug string, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
+func NewBitbucketServiceBasicAuth(ctx context.Context, username, password, url, projectKey, repositorySlug, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
 	bitbucketConfig := bitbucketv1.NewConfiguration(url)
 	// Avoid the XSRF check
 	bitbucketConfig.AddDefaultHeader("x-atlassian-token", "no-check")
@@ -34,7 +34,7 @@ func NewBitbucketServiceBasicAuth(ctx context.Context, username, password, url, 
 	return newBitbucketService(ctx, bitbucketConfig, projectKey, repositorySlug, scmRootCAPath, insecure, caCerts)
 }
 
-func NewBitbucketServiceBearerToken(ctx context.Context, bearerToken, url, projectKey, repositorySlug string, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
+func NewBitbucketServiceBearerToken(ctx context.Context, bearerToken, url, projectKey, repositorySlug, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
 	bitbucketConfig := bitbucketv1.NewConfiguration(url)
 	// Avoid the XSRF check
 	bitbucketConfig.AddDefaultHeader("x-atlassian-token", "no-check")
@@ -44,11 +44,11 @@ func NewBitbucketServiceBearerToken(ctx context.Context, bearerToken, url, proje
 	return newBitbucketService(ctx, bitbucketConfig, projectKey, repositorySlug, scmRootCAPath, insecure, caCerts)
 }
 
-func NewBitbucketServiceNoAuth(ctx context.Context, url, projectKey, repositorySlug string, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
+func NewBitbucketServiceNoAuth(ctx context.Context, url, projectKey, repositorySlug, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
 	return newBitbucketService(ctx, bitbucketv1.NewConfiguration(url), projectKey, repositorySlug, scmRootCAPath, insecure, caCerts)
 }
 
-func newBitbucketService(ctx context.Context, bitbucketConfig *bitbucketv1.Configuration, projectKey, repositorySlug string, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
+func newBitbucketService(ctx context.Context, bitbucketConfig *bitbucketv1.Configuration, projectKey, repositorySlug, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
 	bitbucketConfig.BasePath = utils.NormalizeBitbucketBasePath(bitbucketConfig.BasePath)
 	tlsConfig := utils.GetTlsConfig(scmRootCAPath, insecure, caCerts)
 	bitbucketConfig.HTTPClient = &http.Client{Transport: &http.Transport{

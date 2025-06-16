@@ -373,7 +373,7 @@ func PrettyPrintJson(obj any) string { //nolint:revive //FIXME(var-naming)
 }
 
 // returns dns friends string which is no longer than 63 characters and has specified postfix at the end
-func DnsFriendly(str string, postfix string) string { //nolint:revive //FIXME(var-naming)
+func DnsFriendly(str, postfix string) string { //nolint:revive //FIXME(var-naming)
 	matchFirstCap := regexp.MustCompile("(.)([A-Z][a-z]+)")
 	matchAllCap := regexp.MustCompile("([a-z0-9])([A-Z])")
 

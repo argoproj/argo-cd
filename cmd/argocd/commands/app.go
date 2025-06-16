@@ -231,7 +231,7 @@ func getInfos(infos []string) []*argoappv1.Info {
 	return sliceInfos
 }
 
-func getRefreshType(refresh bool, hardRefresh bool) *string {
+func getRefreshType(refresh, hardRefresh bool) *string {
 	if hardRefresh {
 		refreshType := string(argoappv1.RefreshTypeHard)
 		return &refreshType
@@ -276,7 +276,7 @@ func hasAppChanged(appReq, appRes *argoappv1.Application, upsert bool) bool {
 	return true
 }
 
-func parentChildDetails(ctx context.Context, appIf application.ApplicationServiceClient, appName string, appNs string) (map[string]argoappv1.ResourceNode, map[string][]string, map[string]struct{}) {
+func parentChildDetails(ctx context.Context, appIf application.ApplicationServiceClient, appName, appNs string) (map[string]argoappv1.ResourceNode, map[string][]string, map[string]struct{}) {
 	mapUIDToNode := make(map[string]argoappv1.ResourceNode)
 	mapParentToChild := make(map[string][]string)
 	parentNode := make(map[string]struct{})
@@ -301,7 +301,7 @@ func parentChildDetails(ctx context.Context, appIf application.ApplicationServic
 	return mapUIDToNode, mapParentToChild, parentNode
 }
 
-func printHeader(ctx context.Context, acdClient argocdclient.Client, app *argoappv1.Application, windows *argoappv1.SyncWindows, showOperation bool, showParams bool, sourcePosition int) {
+func printHeader(ctx context.Context, acdClient argocdclient.Client, app *argoappv1.Application, windows *argoappv1.SyncWindows, showOperation, showParams bool, sourcePosition int) {
 	appURL := getAppURL(ctx, acdClient, app.Name)
 	printAppSummaryTable(app, appURL, windows)
 
@@ -1066,7 +1066,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	return command
 }
 
-func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, nothingToUnset bool) {
+func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated, nothingToUnset bool) {
 	needToUnsetRef := false
 	if opts.ref && source.IsRef() {
 		source.Ref = ""
@@ -1244,7 +1244,7 @@ func (p *resourceInfoProvider) IsNamespaced(gk schema.GroupKind) (bool, error) {
 	return p.namespacedByGk[gk], nil
 }
 
-func groupObjsByKey(localObs []*unstructured.Unstructured, liveObjs []*unstructured.Unstructured, appNamespace string) map[kube.ResourceKey]*unstructured.Unstructured {
+func groupObjsByKey(localObs, liveObjs []*unstructured.Unstructured, appNamespace string) map[kube.ResourceKey]*unstructured.Unstructured {
 	namespacedByGk := make(map[schema.GroupKind]bool)
 	for i := range liveObjs {
 		if liveObjs[i] != nil {
@@ -2512,7 +2512,7 @@ func groupResourceStates(app *argoappv1.Application, selectedResources []*argoap
 }
 
 // check if resource health, sync and operation statuses matches watch options
-func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string, operationStatus *argoappv1.Operation, hydrationFinished bool) bool {
+func checkResourceStatus(watch watchOpts, healthStatus, syncStatus string, operationStatus *argoappv1.Operation, hydrationFinished bool) bool {
 	if watch.delete {
 		return false
 	}
@@ -2541,7 +2541,7 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 
 // resourceParentChild gets the latest state of the app and the latest state of the app's resource tree and then
 // constructs the necessary data structures to print the app as a tree.
-func resourceParentChild(ctx context.Context, acdClient argocdclient.Client, appName string, appNs string) (map[string]argoappv1.ResourceNode, map[string][]string, map[string]struct{}, map[string]*resourceState) {
+func resourceParentChild(ctx context.Context, acdClient argocdclient.Client, appName, appNs string) (map[string]argoappv1.ResourceNode, map[string][]string, map[string]struct{}, map[string]*resourceState) {
 	_, appIf := acdClient.NewApplicationClientOrDie()
 	mapUIDToNode, mapParentToChild, parentNode := parentChildDetails(ctx, appIf, appName, appNs)
 	app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: ptr.To(appName), AppNamespace: ptr.To(appNs)})

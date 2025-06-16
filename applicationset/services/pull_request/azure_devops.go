@@ -122,7 +122,7 @@ func convertLabels(tags *[]core.WebApiTagDefinition) []string {
 }
 
 // containAzureDevOpsLabels returns true if gotLabels contains expectedLabels
-func containAzureDevOpsLabels(expectedLabels []string, gotLabels []string) bool {
+func containAzureDevOpsLabels(expectedLabels, gotLabels []string) bool {
 	for _, expected := range expectedLabels {
 		found := false
 		for _, got := range gotLabels {

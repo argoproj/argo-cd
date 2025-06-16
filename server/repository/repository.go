@@ -84,7 +84,7 @@ func (s *Server) getWriteRepo(ctx context.Context, url, project string) (*v1alph
 	return repo, nil
 }
 
-func createRBACObject(project string, repo string) string {
+func createRBACObject(project, repo string) string {
 	if project != "" {
 		return project + "/" + repo
 	}
@@ -94,7 +94,7 @@ func createRBACObject(project string, repo string) string {
 // Get the connection state for a given repository URL by connecting to the
 // repo and evaluate the results. Unless forceRefresh is set to true, the
 // result may be retrieved out of the cache.
-func (s *Server) getConnectionState(ctx context.Context, url string, project string, forceRefresh bool) v1alpha1.ConnectionState {
+func (s *Server) getConnectionState(ctx context.Context, url, project string, forceRefresh bool) v1alpha1.ConnectionState {
 	if !forceRefresh {
 		if connectionState, err := s.cache.GetRepoConnectionState(url, project); err == nil {
 			return connectionState
@@ -777,7 +777,7 @@ func (s *Server) testRepo(ctx context.Context, repo *v1alpha1.Repository) error 
 	return err
 }
 
-func (s *Server) isRepoPermittedInProject(ctx context.Context, repo string, projName string) error {
+func (s *Server) isRepoPermittedInProject(ctx context.Context, repo, projName string) error {
 	proj, err := argo.GetAppProjectByName(ctx, projName, applisters.NewAppProjectLister(s.projLister.GetIndexer()), s.namespace, s.settings, s.db)
 	if err != nil {
 		return err
@@ -790,7 +790,7 @@ func (s *Server) isRepoPermittedInProject(ctx context.Context, repo string, proj
 
 // isSourceInHistory checks if the supplied application source is either our current application
 // source, or was something which we synced to previously.
-func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSource, index int32, versionId int32) bool {
+func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSource, index, versionId int32) bool {
 	// We have to check if the spec is within the source or sources split
 	// and then iterate over the historical
 	if app.Spec.HasMultipleSources() {

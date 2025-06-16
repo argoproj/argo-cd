@@ -935,7 +935,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 
 // validateAndUpdateApp validates and updates the application. currentProject is the name of the project the app
 // currently is under. If not specified, we assume that the app is under the project specified in the app spec.
-func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *v1alpha1.Application, merge bool, validate bool, action string, currentProject string) (*v1alpha1.Application, error) {
+func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *v1alpha1.Application, merge, validate bool, action, currentProject string) (*v1alpha1.Application, error) {
 	s.projectLock.RLock(newApp.Spec.GetProject())
 	defer s.projectLock.RUnlock(newApp.Spec.GetProject())
 
@@ -989,7 +989,7 @@ func (s *Server) waitSync(app *v1alpha1.Application) {
 	logCtx.Warnf("waitSync failed: timed out")
 }
 
-func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newApp *v1alpha1.Application, merge bool) (*v1alpha1.Application, error) {
+func (s *Server) updateApp(ctx context.Context, app, newApp *v1alpha1.Application, merge bool) (*v1alpha1.Application, error) {
 	for i := 0; i < 10; i++ {
 		app.Spec = newApp.Spec
 		if merge {
@@ -1674,7 +1674,7 @@ func (s *Server) GetOCIMetadata(ctx context.Context, q *application.RevisionMeta
 // we use the source(s) currently configured for the app. If the version ID is specified, we find the source for that
 // version ID. If the version ID is not found, we return an error. If the source index is out of bounds for whichever
 // source we choose (configured sources or sources for a specific version), we return an error.
-func getAppSourceBySourceIndexAndVersionId(a *v1alpha1.Application, sourceIndexMaybe *int32, versionIdMaybe *int32) (v1alpha1.ApplicationSource, error) {
+func getAppSourceBySourceIndexAndVersionId(a *v1alpha1.Application, sourceIndexMaybe, versionIdMaybe *int32) (v1alpha1.ApplicationSource, error) {
 	// Start with all the app's configured sources.
 	sources := a.Spec.GetSources()
 
@@ -2237,7 +2237,7 @@ func (s *Server) ListLinks(ctx context.Context, req *application.ListAppLinksReq
 	return finalList, nil
 }
 
-func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *v1alpha1.Application, proj *v1alpha1.AppProject) (cluster *unstructured.Unstructured, project *unstructured.Unstructured, err error) {
+func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *v1alpha1.Application, proj *v1alpha1.AppProject) (cluster, project *unstructured.Unstructured, err error) {
 	// sanitize project jwt tokens
 	proj.Status = v1alpha1.AppProjectStatus{}
 
@@ -2406,7 +2406,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 	return nil, status.Errorf(codes.Internal, "Failed to terminate app. Too many conflicts")
 }
 
-func (s *Server) logAppEvent(ctx context.Context, a *v1alpha1.Application, reason string, action string) {
+func (s *Server) logAppEvent(ctx context.Context, a *v1alpha1.Application, reason, action string) {
 	eventInfo := argo.EventInfo{Type: corev1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {
@@ -2417,7 +2417,7 @@ func (s *Server) logAppEvent(ctx context.Context, a *v1alpha1.Application, reaso
 	s.auditLogger.LogAppEvent(a, eventInfo, message, user, eventLabels)
 }
 
-func (s *Server) logResourceEvent(ctx context.Context, res *v1alpha1.ResourceNode, reason string, action string) {
+func (s *Server) logResourceEvent(ctx context.Context, res *v1alpha1.ResourceNode, reason, action string) {
 	eventInfo := argo.EventInfo{Type: corev1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {

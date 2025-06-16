@@ -27,7 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
 
-func runCmd(workingDir string, name string, args ...string) error {
+func runCmd(workingDir, name string, args ...string) error {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = workingDir
 	cmd.Stdout = os.Stdout
@@ -35,7 +35,7 @@ func runCmd(workingDir string, name string, args ...string) error {
 	return cmd.Run()
 }
 
-func outputCmd(workingDir string, name string, args ...string) ([]byte, error) {
+func outputCmd(workingDir, name string, args ...string) ([]byte, error) {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = workingDir
 	cmd.Stderr = os.Stderr

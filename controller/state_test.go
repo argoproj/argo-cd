@@ -1519,7 +1519,7 @@ func TestUseDiffCache(t *testing.T) {
 		}
 	}
 
-	app := func(namespace string, revision string, refresh bool, a *v1alpha1.Application) *v1alpha1.Application {
+	app := func(namespace, revision string, refresh bool, a *v1alpha1.Application) *v1alpha1.Application {
 		app := &v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "httpbin",

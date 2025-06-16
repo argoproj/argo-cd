@@ -321,7 +321,7 @@ func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 	return nil
 }
 
-func (s *Service) matchRepository(ctx context.Context, workdir string, envEntries []*apiclient.EnvEntry, appRelPath string) (isSupported bool, isDiscoveryEnabled bool, err error) {
+func (s *Service) matchRepository(ctx context.Context, workdir string, envEntries []*apiclient.EnvEntry, appRelPath string) (isSupported, isDiscoveryEnabled bool, err error) {
 	config := s.initConstants.PluginConfig
 
 	appPath, err := securejoin.SecureJoin(workdir, appRelPath)

@@ -220,7 +220,7 @@ func NewGenDexConfigCommand() *cobra.Command {
 	return &command
 }
 
-func iterateStringFields(obj any, callback func(name string, val string) string) {
+func iterateStringFields(obj any, callback func(name, val string) string) {
 	switch obj := obj.(type) {
 	case map[string]any:
 		for field, val := range obj {
@@ -241,7 +241,7 @@ func redactor(dirtyString string) string {
 	config := make(map[string]any)
 	err := yaml.Unmarshal([]byte(dirtyString), &config)
 	errors.CheckError(err)
-	iterateStringFields(config, func(name string, val string) string {
+	iterateStringFields(config, func(name, val string) string {
 		if name == "clientSecret" || name == "secret" || name == "bindPW" {
 			return "********"
 		}

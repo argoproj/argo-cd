@@ -13,13 +13,13 @@ const (
 	settingsResyncDuration = 3 * time.Minute
 )
 
-func NewSecretInformer(clientset kubernetes.Interface, namespace string, secretName string) cache.SharedIndexInformer {
+func NewSecretInformer(clientset kubernetes.Interface, namespace, secretName string) cache.SharedIndexInformer {
 	return informersv1.NewFilteredSecretInformer(clientset, namespace, settingsResyncDuration, cache.Indexers{}, func(options *metav1.ListOptions) {
 		options.FieldSelector = "metadata.name=" + secretName
 	})
 }
 
-func NewConfigMapInformer(clientset kubernetes.Interface, namespace string, configMapName string) cache.SharedIndexInformer {
+func NewConfigMapInformer(clientset kubernetes.Interface, namespace, configMapName string) cache.SharedIndexInformer {
 	return informersv1.NewFilteredConfigMapInformer(clientset, namespace, settingsResyncDuration, cache.Indexers{}, func(options *metav1.ListOptions) {
 		options.FieldSelector = "metadata.name=" + configMapName
 	})

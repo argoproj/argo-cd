@@ -70,7 +70,7 @@ func init() {
 
 type NoopCredsStore struct{}
 
-func (d NoopCredsStore) Add(_ string, _ string) string {
+func (d NoopCredsStore) Add(_, _ string) string {
 	return ""
 }
 
@@ -82,7 +82,7 @@ func (d NoopCredsStore) Environ(_ string) []string {
 }
 
 type CredsStore interface {
-	Add(username string, password string) string
+	Add(username, password string) string
 	Remove(id string)
 	// Environ returns the environment variables that should be set to use the credentials for the given credential ID.
 	Environ(id string) []string
@@ -110,7 +110,7 @@ func (c NopCreds) Environ() (io.Closer, []string, error) {
 }
 
 // GetUserInfo returns empty strings for user info
-func (c NopCreds) GetUserInfo(_ context.Context) (name string, email string, err error) {
+func (c NopCreds) GetUserInfo(_ context.Context) (name, email string, err error) {
 	return "", "", nil
 }
 
@@ -148,7 +148,7 @@ type HTTPSCreds struct {
 	forceBasicAuth bool
 }
 
-func NewHTTPSCreds(username string, password string, bearerToken string, clientCertData string, clientCertKey string, insecure bool, store CredsStore, forceBasicAuth bool) GenericHTTPSCreds {
+func NewHTTPSCreds(username, password, bearerToken, clientCertData, clientCertKey string, insecure bool, store CredsStore, forceBasicAuth bool) GenericHTTPSCreds {
 	return HTTPSCreds{
 		username,
 		password,
@@ -274,7 +274,7 @@ type SSHCreds struct {
 	proxy         string
 }
 
-func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool, proxy string) SSHCreds {
+func NewSSHCreds(sshPrivateKey, caPath string, insecureIgnoreHostKey bool, proxy string) SSHCreds {
 	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey, proxy}
 }
 
@@ -383,7 +383,7 @@ type GitHubAppCreds struct {
 }
 
 // NewGitHubAppCreds provide github app credentials
-func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore) GenericHTTPSCreds {
+func NewGitHubAppCreds(appID, appInstallId int64, privateKey, baseURL, clientCertData, clientCertKey string, insecure bool, proxy, noProxy string, store CredsStore) GenericHTTPSCreds {
 	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, noProxy: noProxy, store: store}
 }
 

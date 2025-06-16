@@ -338,7 +338,7 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 	return array, nil
 }
 
-func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unstructured.Unstructured, cachedDiff []*v1alpha1.ResourceDiff, opts ...diff.Option) (*diff.DiffResultList, error) {
+func diffArrayCached(configArray, liveArray []*unstructured.Unstructured, cachedDiff []*v1alpha1.ResourceDiff, opts ...diff.Option) (*diff.DiffResultList, error) {
 	numItems := len(configArray)
 	if len(liveArray) != numItems {
 		return nil, errors.New("left and right arrays have mismatched lengths")

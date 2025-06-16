@@ -217,7 +217,7 @@ func filterConditionFields(input *[]v1alpha1.ApplicationSetCondition) *[]v1alpha
 }
 
 // appsAreEqual returns true if the apps are equal, comparing only fields of interest
-func appsAreEqual(one v1alpha1.Application, two v1alpha1.Application) bool {
+func appsAreEqual(one, two v1alpha1.Application) bool {
 	return reflect.DeepEqual(filterFields(one), filterFields(two))
 }
 

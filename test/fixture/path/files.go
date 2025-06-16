@@ -9,7 +9,7 @@ import (
 )
 
 // CopyDir copies the contents of a directory from 'src' to 'dest'
-func CopyDir(src string, dest string) error {
+func CopyDir(src, dest string) error {
 	mode, err := os.Stat(src)
 	if err != nil {
 		return err
@@ -38,7 +38,7 @@ func CopyDir(src string, dest string) error {
 	return copySingleFile(src, dest, mode)
 }
 
-func copySingleFile(src string, dest string, mode os.FileInfo) error {
+func copySingleFile(src, dest string, mode os.FileInfo) error {
 	if src == dest {
 		return nil
 	}

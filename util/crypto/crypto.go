@@ -22,7 +22,7 @@ func KeyFromPassphrase(passphrase string) ([]byte, error) {
 }
 
 // Encrypt encrypts the given data with the given passphrase.
-func Encrypt(data []byte, key []byte) ([]byte, error) {
+func Encrypt(data, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func Encrypt(data []byte, key []byte) ([]byte, error) {
 }
 
 // Decrypt decrypts the given data using the given passphrase.
-func Decrypt(data []byte, key []byte) ([]byte, error) {
+func Decrypt(data, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err

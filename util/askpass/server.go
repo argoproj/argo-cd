@@ -81,7 +81,7 @@ func (s *server) Run() error {
 }
 
 // Add adds a new credential to the server and returns associated id
-func (s *server) Add(username string, password string) string {
+func (s *server) Add(username, password string) string {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	id := uuid.New().String()

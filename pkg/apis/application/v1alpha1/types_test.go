@@ -1823,7 +1823,7 @@ func TestSyncWindows_Active(t *testing.T) {
 		assert.Len(t, *activeWindows, 1)
 	})
 
-	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
+	syncWindow := func(kind, schedule, duration, timeZone string) *SyncWindow {
 		return &SyncWindow{
 			Kind:         kind,
 			Schedule:     schedule,
@@ -2006,7 +2006,7 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		assert.Len(t, *inactiveAllowWindows, 1)
 	})
 
-	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
+	syncWindow := func(kind, schedule, duration, timeZone string) *SyncWindow {
 		return &SyncWindow{
 			Kind:         kind,
 			Schedule:     schedule,
@@ -2886,7 +2886,7 @@ func TestSyncWindow_Active(t *testing.T) {
 		assert.True(t, isActive)
 	})
 
-	syncWindow := func(kind string, schedule string, duration string) SyncWindow {
+	syncWindow := func(kind, schedule, duration string) SyncWindow {
 		return SyncWindow{
 			Kind:         kind,
 			Schedule:     schedule,
@@ -3094,7 +3094,7 @@ func (b *projectBuilder) withActiveAllowWindow(allowManual bool) *projectBuilder
 	return b
 }
 
-func (b *projectBuilder) withActiveAllowWindowAndOperator(allowManual bool, andOperator bool) *projectBuilder {
+func (b *projectBuilder) withActiveAllowWindowAndOperator(allowManual, andOperator bool) *projectBuilder {
 	window := newSyncWindow("allow", "* * * * *", allowManual, andOperator)
 	b.proj.Spec.SyncWindows = append(b.proj.Spec.SyncWindows, window)
 	return b
@@ -3133,7 +3133,7 @@ func inactiveCronSchedule() string {
 	return fmt.Sprintf("0 %d * * *", hourPlus10)
 }
 
-func newSyncWindow(kind, schedule string, allowManual bool, andOperator bool) *SyncWindow {
+func newSyncWindow(kind, schedule string, allowManual, andOperator bool) *SyncWindow {
 	return &SyncWindow{
 		Kind:           kind,
 		Schedule:       schedule,
@@ -3353,7 +3353,7 @@ func TestSetConditions(t *testing.T) {
 // assertConditions compares two arrays of conditions without their timestamps, which may be
 // difficult to strictly assert on as they can use time.Now(). Elements in each array are assumed
 // to match positions.
-func assertConditions(t *testing.T, expected []ApplicationCondition, actual []ApplicationCondition) {
+func assertConditions(t *testing.T, expected, actual []ApplicationCondition) {
 	t.Helper()
 	assert.Len(t, actual, len(expected))
 	for i := range expected {

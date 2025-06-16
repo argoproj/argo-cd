@@ -34,7 +34,7 @@ type memoryCredsStore struct {
 	creds map[string]cred
 }
 
-func (s *memoryCredsStore) Add(username string, password string) string {
+func (s *memoryCredsStore) Add(username, password string) string {
 	id := uuid.New().String()
 	s.creds[id] = cred{
 		username: username,

@@ -51,7 +51,7 @@ type legacyServicesConfig struct {
 	Webhook  []legacyWebhookOptions    `json:"webhook"`
 }
 
-func mergePatch(orig any, other any) error {
+func mergePatch(orig, other any) error {
 	origData, err := json.Marshal(orig)
 	if err != nil {
 		return fmt.Errorf("error marshaling json for original: %w", err)

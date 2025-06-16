@@ -51,7 +51,7 @@ type AWSCodeCommitProvider struct {
 	allBranches      bool
 }
 
-func NewAWSCodeCommitProvider(ctx context.Context, tagFilters []*application.TagFilter, role string, region string, allBranches bool) (*AWSCodeCommitProvider, error) {
+func NewAWSCodeCommitProvider(ctx context.Context, tagFilters []*application.TagFilter, role, region string, allBranches bool) (*AWSCodeCommitProvider, error) {
 	taggingClient, codeCommitClient, err := createAWSDiscoveryClients(ctx, role, region)
 	if err != nil {
 		return nil, err
@@ -343,7 +343,7 @@ func toAbsolutePath(path string) string {
 	return filepath.ToSlash(filepath.Join("/", path))
 }
 
-func createAWSDiscoveryClients(_ context.Context, role string, region string) (*resourcegroupstaggingapi.ResourceGroupsTaggingAPI, *codecommit.CodeCommit, error) {
+func createAWSDiscoveryClients(_ context.Context, role, region string) (*resourcegroupstaggingapi.ResourceGroupsTaggingAPI, *codecommit.CodeCommit, error) {
 	podSession, err := session.NewSession()
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating new AWS pod session: %w", err)

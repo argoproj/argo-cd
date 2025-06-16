@@ -132,7 +132,7 @@ func ResolveValueFilePathOrUrl(appPath, repoRoot, valueFile string, allowedURLSc
 	return ResolvedFilePath(path), false, nil
 }
 
-func resolveFileOrDirectory(appPath string, repoRoot string, fileOrDirectory string, allowResolveToRoot bool) (string, error) {
+func resolveFileOrDirectory(appPath, repoRoot, fileOrDirectory string, allowResolveToRoot bool) (string, error) {
 	// Ensure that our repository root is absolute
 	absRepoPath, err := filepath.Abs(repoRoot)
 	if err != nil {

@@ -1501,7 +1501,7 @@ func mustRegisterGWHandler(ctx context.Context, register registerFunc, mux *runt
 	}
 }
 
-func replaceBaseHRef(data string, replaceWith string) string {
+func replaceBaseHRef(data, replaceWith string) string {
 	return baseHRefRegex.ReplaceAllString(data, replaceWith)
 }
 

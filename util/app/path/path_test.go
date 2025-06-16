@@ -100,7 +100,7 @@ func TestAbsSymlink(t *testing.T) {
 	assert.Equal(t, "abslink", oobError.File)
 }
 
-func getApp(annotation string, sourcePath string) *v1alpha1.Application {
+func getApp(annotation, sourcePath string) *v1alpha1.Application {
 	return &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{

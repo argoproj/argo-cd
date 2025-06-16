@@ -16,7 +16,7 @@ type MockCacheClient struct {
 	WriteDelay time.Duration
 }
 
-func (c *MockCacheClient) Rename(oldKey string, newKey string, expiration time.Duration) error {
+func (c *MockCacheClient) Rename(oldKey, newKey string, expiration time.Duration) error {
 	args := c.Called(oldKey, newKey, expiration)
 	if len(args) > 0 && args.Get(0) != nil {
 		return args.Get(0).(error)

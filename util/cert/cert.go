@@ -258,7 +258,7 @@ func KnownHostsLineToPublicKey(line string) ([]string, ssh.PublicKey, error) {
 	return hostnames, keyData, nil
 }
 
-func TokenizedDataToPublicKey(hostname string, subType string, rawKeyData string) ([]string, ssh.PublicKey, error) {
+func TokenizedDataToPublicKey(hostname, subType, rawKeyData string) ([]string, ssh.PublicKey, error) {
 	hostnames, keyData, err := KnownHostsLineToPublicKey(fmt.Sprintf("%s %s %s", hostname, subType, rawKeyData))
 	if err != nil {
 		return nil, nil, err

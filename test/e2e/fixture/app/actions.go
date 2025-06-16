@@ -40,7 +40,7 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 	return a
 }
 
-func (a *Actions) PatchFile(file string, jsonPath string) *Actions {
+func (a *Actions) PatchFile(file, jsonPath string) *Actions {
 	a.context.t.Helper()
 	fixture.Patch(a.context.t, a.context.path+"/"+file, jsonPath)
 	return a
@@ -82,7 +82,7 @@ func (a *Actions) AddTag(name string) *Actions {
 	return a
 }
 
-func (a *Actions) AddAnnotatedTag(name string, message string) *Actions {
+func (a *Actions) AddAnnotatedTag(name, message string) *Actions {
 	a.context.t.Helper()
 	fixture.AddAnnotatedTag(a.context.t, name, message)
 	return a
@@ -330,7 +330,7 @@ func (a *Actions) Declarative(filename string) *Actions {
 	return a.DeclarativeWithCustomRepo(filename, fixture.RepoURL(a.context.repoURLType))
 }
 
-func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Actions {
+func (a *Actions) DeclarativeWithCustomRepo(filename, repoURL string) *Actions {
 	a.context.t.Helper()
 	values := map[string]any{
 		"ArgoCDNamespace":     fixture.TestNamespace(),

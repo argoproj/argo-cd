@@ -819,7 +819,7 @@ func registerMetrics(extName string, metrics httpsnoop.Metrics, extensionMetrics
 //   - Cluster destination name
 //   - Cluster destination server
 //   - Argo CD authenticated username
-func prepareRequest(r *http.Request, namespace string, extName string, app *v1alpha1.Application, username string, groups []string) {
+func prepareRequest(r *http.Request, namespace, extName string, app *v1alpha1.Application, username string, groups []string) {
 	r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s/%s", URLPrefix, extName))
 	r.Header.Set(HeaderArgoCDNamespace, namespace)
 	if app.Spec.Destination.Name != "" {

@@ -103,7 +103,7 @@ func (r *redisCache) unmarshal(data []byte, obj any) error {
 	return nil
 }
 
-func (r *redisCache) Rename(oldKey string, newKey string, _ time.Duration) error {
+func (r *redisCache) Rename(oldKey, newKey string, _ time.Duration) error {
 	err := r.client.Rename(context.TODO(), r.getKey(oldKey), r.getKey(newKey)).Err()
 	if err != nil && err.Error() == "ERR no such key" {
 		err = ErrCacheMiss

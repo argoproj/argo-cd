@@ -535,7 +535,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 	})
 }
 
-func mergemaps(mapA map[string]string, mapB map[string]string) map[string]string {
+func mergemaps(mapA, mapB map[string]string) map[string]string {
 	for k, v := range mapA {
 		mapB[k] = v
 	}

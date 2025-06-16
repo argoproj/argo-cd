@@ -577,7 +577,7 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
 
-	_ = clusterCache.OnResourceUpdated(func(newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
+	_ = clusterCache.OnResourceUpdated(func(newRes, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
 		toNotify := make(map[string]bool)
 		var ref corev1.ObjectReference
 		if newRes != nil {
@@ -837,7 +837,7 @@ func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
 	}
 }
 
-func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *appv1.Cluster) {
+func (c *liveStateCache) handleModEvent(oldCluster, newCluster *appv1.Cluster) {
 	c.clusterSharding.Update(oldCluster, newCluster)
 	c.lock.Lock()
 	cluster, ok := c.clusters[newCluster.Server]

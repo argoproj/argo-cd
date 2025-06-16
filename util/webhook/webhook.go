@@ -417,7 +417,7 @@ func GetAPIURLRegex(apiURL string) (*regexp.Regexp, error) {
 	return getURLRegex(apiURL, `(?i)^(https?://)?(%[1]s@)?%[2]s(:\d+)?/?$`)
 }
 
-func getURLRegex(originalURL string, regexpFormat string) (*regexp.Regexp, error) {
+func getURLRegex(originalURL, regexpFormat string) (*regexp.Regexp, error) {
 	urlObj, err := url.Parse(originalURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse URL '%s'", originalURL)
@@ -435,7 +435,7 @@ func getURLRegex(originalURL string, regexpFormat string) (*regexp.Regexp, error
 	return repoRegexp, nil
 }
 
-func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string, installationID string) error {
+func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, trackingMethod, appInstanceLabelKey, installationID string) error {
 	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, a.db)
 	if err != nil {
 		return fmt.Errorf("error validating destination: %w", err)
@@ -500,7 +500,7 @@ func sourceRevisionHasChanged(source v1alpha1.ApplicationSource, revision string
 	return compareRevisions(revision, source.TargetRevision)
 }
 
-func compareRevisions(revision string, targetRevision string) bool {
+func compareRevisions(revision, targetRevision string) bool {
 	if revision == targetRevision {
 		return true
 	}

@@ -199,7 +199,7 @@ func dieOnError(err error, msg string) {
 	}
 }
 
-func buildConfigFromFS(templatesDir string, triggersDir string) (map[string]services.Notification, map[string][]triggers.Condition, error) {
+func buildConfigFromFS(templatesDir, triggersDir string) (map[string]services.Notification, map[string][]triggers.Condition, error) {
 	templatesCfg := map[string]services.Notification{}
 	err := filepath.Walk(templatesDir, func(p string, info os.FileInfo, e error) error {
 		if e != nil {

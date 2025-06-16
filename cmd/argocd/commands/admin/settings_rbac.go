@@ -302,7 +302,7 @@ argocd admin settings rbac validate --namespace argocd
 
 // Load user policy file if requested or use Kubernetes client to get the
 // appropriate ConfigMap from the current context
-func getPolicy(ctx context.Context, policyFile string, kubeClient kubernetes.Interface, namespace string) (userPolicy string, defaultRole string, matchMode string) {
+func getPolicy(ctx context.Context, policyFile string, kubeClient kubernetes.Interface, namespace string) (userPolicy, defaultRole, matchMode string) {
 	var err error
 	if policyFile != "" {
 		// load from file

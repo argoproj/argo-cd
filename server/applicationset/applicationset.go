@@ -269,7 +269,7 @@ func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.E
 	return apps, nil
 }
 
-func (s *Server) updateAppSet(ctx context.Context, appset *v1alpha1.ApplicationSet, newAppset *v1alpha1.ApplicationSet, merge bool) (*v1alpha1.ApplicationSet, error) {
+func (s *Server) updateAppSet(ctx context.Context, appset, newAppset *v1alpha1.ApplicationSet, merge bool) (*v1alpha1.ApplicationSet, error) {
 	if appset != nil && appset.Spec.Template.Spec.Project != newAppset.Spec.Template.Spec.Project {
 		// When changing projects, caller must have applicationset create and update privileges in new project
 		// NOTE: the update check was already verified in the caller to this function
@@ -479,7 +479,7 @@ func (s *Server) waitSync(appset *v1alpha1.ApplicationSet) {
 	logCtx.Warnf("waitSync failed: timed out")
 }
 
-func (s *Server) logAppSetEvent(ctx context.Context, a *v1alpha1.ApplicationSet, reason string, action string) {
+func (s *Server) logAppSetEvent(ctx context.Context, a *v1alpha1.ApplicationSet, reason, action string) {
 	eventInfo := argo.EventInfo{Type: corev1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {

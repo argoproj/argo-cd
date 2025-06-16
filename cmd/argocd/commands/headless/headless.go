@@ -82,7 +82,7 @@ func (c *forwardCacheClient) Set(item *cache.Item) error {
 	})
 }
 
-func (c *forwardCacheClient) Rename(oldKey string, newKey string, expiration time.Duration) error {
+func (c *forwardCacheClient) Rename(oldKey, newKey string, expiration time.Duration) error {
 	return c.doLazy(func(client cache.CacheClient) error {
 		return client.Rename(oldKey, newKey, expiration)
 	})

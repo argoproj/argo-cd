@@ -1852,7 +1852,7 @@ func Test_hasAppChanged(t *testing.T) {
 	}
 }
 
-func testApp(name, project string, labels map[string]string, annotations map[string]string, finalizers []string) *v1alpha1.Application {
+func testApp(name, project string, labels, annotations map[string]string, finalizers []string) *v1alpha1.Application {
 	return &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
@@ -2016,7 +2016,7 @@ type customAcdClient struct {
 	*fakeAcdClient
 }
 
-func (c *customAcdClient) WatchApplicationWithRetry(ctx context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
+func (c *customAcdClient) WatchApplicationWithRetry(ctx context.Context, _, _ string) chan *v1alpha1.ApplicationWatchEvent {
 	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
 	_, appClient := c.NewApplicationClientOrDie()
 	app, _ := appClient.Get(ctx, &applicationpkg.ApplicationQuery{})
@@ -2364,7 +2364,7 @@ func (c *fakeAcdClient) NewAccountClientOrDie() (io.Closer, accountpkg.AccountSe
 	return nil, nil
 }
 
-func (c *fakeAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
+func (c *fakeAcdClient) WatchApplicationWithRetry(_ context.Context, _, _ string) chan *v1alpha1.ApplicationWatchEvent {
 	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
 
 	go func() {

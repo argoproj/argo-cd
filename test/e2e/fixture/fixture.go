@@ -382,7 +382,7 @@ func updateRBACConfigMap(updater func(cm *corev1.ConfigMap) error) error {
 	return updateGenericConfigMap(common.ArgoCDRBACConfigMapName, updater)
 }
 
-func configMapsEquivalent(a *corev1.ConfigMap, b *corev1.ConfigMap) bool {
+func configMapsEquivalent(a, b *corev1.ConfigMap) bool {
 	return reflect.DeepEqual(a.Immutable, b.Immutable) &&
 		reflect.DeepEqual(a.TypeMeta, b.TypeMeta) &&
 		reflect.DeepEqual(a.ObjectMeta, b.ObjectMeta) &&
@@ -546,7 +546,7 @@ func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverrid
 	})
 }
 
-func getResourceOverrideSplitKey(key string, customizeType string) string {
+func getResourceOverrideSplitKey(key, customizeType string) string {
 	groupKind := key
 	parts := strings.Split(key, "/")
 	if len(parts) == 2 {
@@ -564,7 +564,7 @@ func SetAccounts(accounts map[string][]string) error {
 	})
 }
 
-func SetPermissions(permissions []ACL, username string, roleName string) error {
+func SetPermissions(permissions []ACL, username, roleName string) error {
 	return updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
 		var aclstr string
 
@@ -1053,7 +1053,7 @@ func RunPluginCli(stdin string, args ...string) (string, error) {
 	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
 }
 
-func Patch(t *testing.T, path string, jsonPatch string) {
+func Patch(t *testing.T, path, jsonPatch string) {
 	t.Helper()
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
 
@@ -1171,7 +1171,7 @@ func AddTagWithForce(t *testing.T, name string) {
 	}
 }
 
-func AddAnnotatedTag(t *testing.T, name string, message string) {
+func AddAnnotatedTag(t *testing.T, name, message string) {
 	t.Helper()
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", "-f", "-a", name, "-m", message))
 	if IsRemote() {

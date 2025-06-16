@@ -84,12 +84,12 @@ type MockKubectl struct {
 	CreatedResources []*unstructured.Unstructured
 }
 
-func (m *MockKubectl) CreateResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, obj *unstructured.Unstructured, createOptions metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
+func (m *MockKubectl) CreateResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name, namespace string, obj *unstructured.Unstructured, createOptions metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
 	m.CreatedResources = append(m.CreatedResources, obj)
 	return m.Kubectl.CreateResource(ctx, config, gvk, name, namespace, obj, createOptions, subresources...)
 }
 
-func (m *MockKubectl) DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error {
+func (m *MockKubectl) DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name, namespace string, deleteOptions metav1.DeleteOptions) error {
 	m.DeletedResources = append(m.DeletedResources, kube.NewResourceKey(gvk.Group, gvk.Kind, namespace, name))
 	return m.Kubectl.DeleteResource(ctx, config, gvk, name, namespace, deleteOptions)
 }
@@ -2551,7 +2551,7 @@ func TestAlreadyAttemptSync(t *testing.T) {
 	})
 }
 
-func assertDurationAround(t *testing.T, expected time.Duration, actual time.Duration) {
+func assertDurationAround(t *testing.T, expected, actual time.Duration) {
 	t.Helper()
 	delta := time.Second / 2
 	assert.GreaterOrEqual(t, expected, actual-delta)

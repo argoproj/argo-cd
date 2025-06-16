@@ -94,7 +94,7 @@ func IsHTTPURL(url string) bool {
 }
 
 // TestRepo tests if a repo exists and is accessible with the given credentials
-func TestRepo(repo string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string) error {
+func TestRepo(repo string, creds Creds, insecure, enableLfs bool, proxy, noProxy string) error {
 	client, err := NewClient(repo, creds, insecure, enableLfs, proxy, noProxy)
 	if err != nil {
 		return fmt.Errorf("unable to initialize git client: %w", err)

@@ -16,7 +16,7 @@ import (
 // As workaround methods `newUploadPackSession`, `newClient` and `listRemote` were copied from https://github.com/src-d/go-git/blob/master/remote.go and modified to use
 // transport with InsecureSkipVerify flag is verification should be disabled.
 
-func newUploadPackSession(url string, auth transport.AuthMethod, insecure bool, creds Creds, proxy string, noProxy string) (transport.UploadPackSession, error) {
+func newUploadPackSession(url string, auth transport.AuthMethod, insecure bool, creds Creds, proxy, noProxy string) (transport.UploadPackSession, error) {
 	c, ep, err := newClient(url, insecure, creds, proxy, noProxy)
 	if err != nil {
 		return nil, err
@@ -25,7 +25,7 @@ func newUploadPackSession(url string, auth transport.AuthMethod, insecure bool, 
 	return c.NewUploadPackSession(ep, auth)
 }
 
-func newClient(url string, insecure bool, creds Creds, proxy string, noProxy string) (transport.Transport, *transport.Endpoint, error) {
+func newClient(url string, insecure bool, creds Creds, proxy, noProxy string) (transport.Transport, *transport.Endpoint, error) {
 	ep, err := transport.NewEndpoint(url)
 	if err != nil {
 		return nil, nil, err
@@ -60,7 +60,7 @@ func newClient(url string, insecure bool, creds Creds, proxy string, noProxy str
 	return http.NewClient(GetRepoHTTPClient(url, insecure, creds, proxy, noProxy)), ep, nil
 }
 
-func listRemote(r *git.Remote, o *git.ListOptions, insecure bool, creds Creds, proxy string, noProxy string) (rfs []*plumbing.Reference, err error) {
+func listRemote(r *git.Remote, o *git.ListOptions, insecure bool, creds Creds, proxy, noProxy string) (rfs []*plumbing.Reference, err error) {
 	s, err := newUploadPackSession(r.Config().URLs[0], o.Auth, insecure, creds, proxy, noProxy)
 	if err != nil {
 		return nil, err

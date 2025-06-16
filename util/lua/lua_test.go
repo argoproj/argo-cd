@@ -934,7 +934,7 @@ func TestExecuteResourceActionWithParams(t *testing.T) {
 	})
 }
 
-func createMockResource(kind string, name string, replicas int) *unstructured.Unstructured {
+func createMockResource(kind, name string, replicas int) *unstructured.Unstructured {
 	return StrToUnstructured(fmt.Sprintf(`
     apiVersion: apps/v1
     kind: %s

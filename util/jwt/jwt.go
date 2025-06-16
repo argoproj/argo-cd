@@ -116,7 +116,7 @@ func Claims(in any) jwtgo.Claims {
 }
 
 // IsMember returns whether or not the user's claims is a member of any of the groups
-func IsMember(claims jwtgo.Claims, groups []string, scopes []string) bool {
+func IsMember(claims jwtgo.Claims, groups, scopes []string) bool {
 	mapClaims, err := MapClaims(claims)
 	if err != nil {
 		return false

@@ -32,7 +32,7 @@ func generateNotificationsDocs() {
 	}
 }
 
-func updateMkDocsNav(parent string, child string, subchild string, files []string) error {
+func updateMkDocsNav(parent, child, subchild string, files []string) error {
 	trimPrefixes(files, "docs/")
 	sort.Strings(files)
 	data, err := os.ReadFile("mkdocs.yml")

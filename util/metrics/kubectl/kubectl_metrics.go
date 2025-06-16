@@ -211,13 +211,13 @@ func (k *kubectlResolverLatencyMetric) Observe(_ context.Context, host string, l
 
 type kubectlRequestSizeMetric struct{}
 
-func (k *kubectlRequestSizeMetric) Observe(_ context.Context, verb string, host string, size float64) {
+func (k *kubectlRequestSizeMetric) Observe(_ context.Context, verb, host string, size float64) {
 	requestSizeHistogram.WithLabelValues(host, verb).Observe(size)
 }
 
 type kubectlResponseSizeMetric struct{}
 
-func (k *kubectlResponseSizeMetric) Observe(_ context.Context, verb string, host string, size float64) {
+func (k *kubectlResponseSizeMetric) Observe(_ context.Context, verb, host string, size float64) {
 	responseSizeHistogram.WithLabelValues(host, verb).Observe(size)
 }
 
@@ -230,7 +230,7 @@ func (k *kubectlRateLimiterLatencyMetric) Observe(_ context.Context, verb string
 
 type kubectlRequestResultMetric struct{}
 
-func (k *kubectlRequestResultMetric) Increment(_ context.Context, code string, method string, host string) {
+func (k *kubectlRequestResultMetric) Increment(_ context.Context, code, method, host string) {
 	requestResultCounter.WithLabelValues(host, method, code).Inc()
 }
 
@@ -242,7 +242,7 @@ func (k *kubectlExecPluginCallsMetric) Increment(exitCode int, callStatus string
 
 type kubectlRequestRetryMetric struct{}
 
-func (k *kubectlRequestRetryMetric) IncrementRetry(_ context.Context, code string, method string, host string) {
+func (k *kubectlRequestRetryMetric) IncrementRetry(_ context.Context, code, method, host string) {
 	requestRetryCounter.WithLabelValues(host, method, code).Inc()
 }
 

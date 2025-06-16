@@ -163,7 +163,7 @@ func TestApplicationSetSetConditions(t *testing.T) {
 	}
 }
 
-func assertAppSetConditions(t *testing.T, expected []ApplicationSetCondition, actual []ApplicationSetCondition) {
+func assertAppSetConditions(t *testing.T, expected, actual []ApplicationSetCondition) {
 	t.Helper()
 	assert.Len(t, actual, len(expected))
 	for i := range expected {

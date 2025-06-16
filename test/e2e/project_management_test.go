@@ -21,7 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo"
 )
 
-func assertProjHasEvent(t *testing.T, a *v1alpha1.AppProject, message string, reason string) {
+func assertProjHasEvent(t *testing.T, a *v1alpha1.AppProject, message, reason string) {
 	t.Helper()
 	list, err := fixture.KubeClientset.CoreV1().Events(fixture.TestNamespace()).List(t.Context(), metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(map[string]string{

@@ -31,8 +31,8 @@ type Dependencies interface {
 	GetProcessableAppProj(app *appv1.Application) (*appv1.AppProject, error)
 	GetProcessableApps() (*appv1.ApplicationList, error)
 	GetRepoObjs(app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error)
-	GetWriteCredentials(ctx context.Context, repoURL string, project string) (*appv1.Repository, error)
-	RequestAppRefresh(appName string, appNamespace string) error
+	GetWriteCredentials(ctx context.Context, repoURL, project string) (*appv1.Repository, error)
+	RequestAppRefresh(appName, appNamespace string) error
 	// TODO: only allow access to the hydrator status
 	PersistAppHydratorStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus)
 	AddHydrationQueueItem(key HydrationQueueKey)

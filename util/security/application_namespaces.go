@@ -6,7 +6,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/glob"
 )
 
-func IsNamespaceEnabled(namespace string, serverNamespace string, enabledNamespaces []string) bool {
+func IsNamespaceEnabled(namespace, serverNamespace string, enabledNamespaces []string) bool {
 	return namespace == serverNamespace || glob.MatchStringInList(enabledNamespaces, namespace, glob.REGEXP)
 }
 

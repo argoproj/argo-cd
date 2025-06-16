@@ -115,7 +115,7 @@ func (db *db) deleteSecret(ctx context.Context, secret *corev1.Secret) error {
 func (db *db) watchSecrets(ctx context.Context,
 	secretType string,
 	handleAddEvent func(secret *corev1.Secret),
-	handleModEvent func(oldSecret *corev1.Secret, newSecret *corev1.Secret),
+	handleModEvent func(oldSecret, newSecret *corev1.Secret),
 	handleDeleteEvent func(secret *corev1.Secret),
 ) {
 	secretListOptions := func(options *metav1.ListOptions) {

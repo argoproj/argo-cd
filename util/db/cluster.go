@@ -139,7 +139,7 @@ type ClusterEvent struct {
 
 func (db *db) WatchClusters(ctx context.Context,
 	handleAddEvent func(cluster *appv1.Cluster),
-	handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
+	handleModEvent func(oldCluster, newCluster *appv1.Cluster),
 	handleDeleteEvent func(clusterServer string),
 ) error {
 	argoSettings, err := db.settingsMgr.GetSettings()
@@ -177,7 +177,7 @@ func (db *db) WatchClusters(ctx context.Context,
 			handleAddEvent(cluster)
 		},
 
-		func(oldSecret *corev1.Secret, newSecret *corev1.Secret) {
+		func(oldSecret, newSecret *corev1.Secret) {
 			oldCluster, err := SecretToCluster(oldSecret)
 			if err != nil {
 				log.Errorf("could not unmarshal cluster secret %s", oldSecret.Name)

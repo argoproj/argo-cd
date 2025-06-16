@@ -42,7 +42,7 @@ func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache, kubec
 	}
 }
 
-func CreateClusterRBACObject(project string, server string) string {
+func CreateClusterRBACObject(project, server string) string {
 	if project != "" {
 		return project + "/" + server
 	}
@@ -266,29 +266,29 @@ func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv
 	return nil, nil
 }
 
-var clusterFieldsByPath = map[string]func(updated *appv1.Cluster, existing *appv1.Cluster){
-	"name": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+var clusterFieldsByPath = map[string]func(updated, existing *appv1.Cluster){
+	"name": func(updated, existing *appv1.Cluster) {
 		updated.Name = existing.Name
 	},
-	"namespaces": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+	"namespaces": func(updated, existing *appv1.Cluster) {
 		updated.Namespaces = existing.Namespaces
 	},
-	"config": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+	"config": func(updated, existing *appv1.Cluster) {
 		updated.Config = existing.Config
 	},
-	"shard": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+	"shard": func(updated, existing *appv1.Cluster) {
 		updated.Shard = existing.Shard
 	},
-	"clusterResources": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+	"clusterResources": func(updated, existing *appv1.Cluster) {
 		updated.ClusterResources = existing.ClusterResources
 	},
-	"labels": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+	"labels": func(updated, existing *appv1.Cluster) {
 		updated.Labels = existing.Labels
 	},
-	"annotations": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+	"annotations": func(updated, existing *appv1.Cluster) {
 		updated.Annotations = existing.Annotations
 	},
-	"project": func(updated *appv1.Cluster, existing *appv1.Cluster) {
+	"project": func(updated, existing *appv1.Cluster) {
 		updated.Project = existing.Project
 	},
 }

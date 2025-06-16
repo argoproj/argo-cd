@@ -43,7 +43,7 @@ func (p *Prompt) ConfirmAll(message string) (bool, bool) {
 	return false, false
 }
 
-func (p *Prompt) ConfirmBaseOnCount(messageForSingle string, messageForArray string, count int) (bool, bool) {
+func (p *Prompt) ConfirmBaseOnCount(messageForSingle, messageForArray string, count int) (bool, bool) {
 	if !p.enabled {
 		return true, true
 	}

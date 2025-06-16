@@ -115,11 +115,11 @@ func (m *MetricsServer) GetHandler() http.Handler {
 	return m.handler
 }
 
-func (m *MetricsServer) IncGitFetchFail(repo string, revision string) {
+func (m *MetricsServer) IncGitFetchFail(repo, revision string) {
 	m.gitFetchFailCounter.WithLabelValues(repo, revision).Inc()
 }
 
-func (m *MetricsServer) IncGitLsRemoteFail(repo string, revision string) {
+func (m *MetricsServer) IncGitLsRemoteFail(repo, revision string) {
 	m.gitLsRemoteFailCounter.WithLabelValues(repo, revision).Inc()
 }
 

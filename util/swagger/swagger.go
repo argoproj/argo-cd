@@ -12,7 +12,7 @@ import (
 const redocScriptName = "redoc.standalone.js"
 
 // ServeSwaggerUI serves the Swagger UI and JSON spec.
-func ServeSwaggerUI(mux *http.ServeMux, swaggerJSON string, uiPath string, rootPath string) {
+func ServeSwaggerUI(mux *http.ServeMux, swaggerJSON, uiPath, rootPath string) {
 	prefix := path.Dir(uiPath)
 	swaggerPath := path.Join(prefix, "swagger.json")
 	mux.HandleFunc(swaggerPath, func(w http.ResponseWriter, _ *http.Request) {

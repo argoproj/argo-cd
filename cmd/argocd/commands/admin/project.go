@@ -83,7 +83,7 @@ func NewGenProjectSpecCommand() *cobra.Command {
 	return command
 }
 
-func globMatch(pattern string, val string) bool {
+func globMatch(pattern, val string) bool {
 	if pattern == "*" {
 		return true
 	}
@@ -93,7 +93,7 @@ func globMatch(pattern string, val string) bool {
 	return false
 }
 
-func getModification(modification string, resource string, scope string, permission string) (func(string, string) string, error) {
+func getModification(modification, resource, scope, permission string) (func(string, string) string, error) {
 	switch modification {
 	case "set":
 		if scope == "" {
@@ -102,18 +102,18 @@ func getModification(modification string, resource string, scope string, permiss
 		if permission == "" {
 			return nil, stderrors.New("flag --permission cannot be empty if permission should be set in role")
 		}
-		return func(proj string, action string) string {
+		return func(proj, action string) string {
 			return fmt.Sprintf("%s, %s, %s/%s, %s", resource, action, proj, scope, permission)
 		}, nil
 	case "remove":
-		return func(_ string, _ string) string {
+		return func(_, _ string) string {
 			return ""
 		}, nil
 	}
 	return nil, fmt.Errorf("modification %s is not supported", modification)
 }
 
-func saveProject(ctx context.Context, updated v1alpha1.AppProject, orig v1alpha1.AppProject, projectsIf appclient.AppProjectInterface, dryRun bool) error {
+func saveProject(ctx context.Context, updated, orig v1alpha1.AppProject, projectsIf appclient.AppProjectInterface, dryRun bool) error {
 	fmt.Printf("===== %s ======\n", updated.Name)
 	target, err := kube.ToUnstructured(&updated)
 	errors.CheckError(err)
@@ -131,11 +131,11 @@ func saveProject(ctx context.Context, updated v1alpha1.AppProject, orig v1alpha1
 	return nil
 }
 
-func formatPolicy(proj string, role string, permission string) string {
+func formatPolicy(proj, role, permission string) string {
 	return fmt.Sprintf("p, proj:%s:%s, %s", proj, role, permission)
 }
 
-func split(input string, delimiter string) []string {
+func split(input, delimiter string) []string {
 	parts := strings.Split(input, delimiter)
 	for i := range parts {
 		parts[i] = strings.TrimSpace(parts[i])
@@ -198,7 +198,7 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 	return command
 }
 
-func updateProjects(ctx context.Context, projIf appclient.AppProjectInterface, projectGlob string, rolePattern string, action string, modification func(string, string) string, dryRun bool) error {
+func updateProjects(ctx context.Context, projIf appclient.AppProjectInterface, projectGlob, rolePattern, action string, modification func(string, string) string, dryRun bool) error {
 	projects, err := projIf.List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing the projects: %w", err)

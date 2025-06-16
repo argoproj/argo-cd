@@ -303,7 +303,7 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 }
 
 // checkFieldsToUpdate returns the fields that needs to be updated
-func checkFieldsToUpdate(clusterOptions cmdutil.ClusterOptions, labels []string, annotations []string) []string {
+func checkFieldsToUpdate(clusterOptions cmdutil.ClusterOptions, labels, annotations []string) []string {
 	var updatedFields []string
 	if clusterOptions.Name != "" {
 		updatedFields = append(updatedFields, clusterFieldName)
@@ -361,7 +361,7 @@ argocd cluster get in-cluster`,
 	return command
 }
 
-func strWithDefault(value string, def string) string {
+func strWithDefault(value, def string) string {
 	if value == "" {
 		return def
 	}

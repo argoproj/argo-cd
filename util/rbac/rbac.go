@@ -155,7 +155,7 @@ func (e *Enforcer) invalidateCache(actions ...func()) {
 	e.enforcerCache.Flush()
 }
 
-func (e *Enforcer) getCasbinEnforcer(project string, policy string) CasbinEnforcer {
+func (e *Enforcer) getCasbinEnforcer(project, policy string) CasbinEnforcer {
 	res, err := e.tryGetCasbinEnforcer(project, policy)
 	if err != nil {
 		panic(err)
@@ -164,7 +164,7 @@ func (e *Enforcer) getCasbinEnforcer(project string, policy string) CasbinEnforc
 }
 
 // tryGetCasbinEnforcer returns the cached enforcer for the given optional project and project policy.
-func (e *Enforcer) tryGetCasbinEnforcer(project string, policy string) (CasbinEnforcer, error) {
+func (e *Enforcer) tryGetCasbinEnforcer(project, policy string) (CasbinEnforcer, error) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 	var cached *cachedEnforcer
@@ -360,7 +360,7 @@ func (e *Enforcer) EnforceErr(rvals ...any) error {
 // EnforceRuntimePolicy enforces a policy defined at run-time which augments the built-in and
 // user-defined policy. This allows any explicit denies of the built-in, and user-defined policies
 // to override the run-time policy. Runs normal enforcement if run-time policy is empty.
-func (e *Enforcer) EnforceRuntimePolicy(project string, policy string, rvals ...any) bool {
+func (e *Enforcer) EnforceRuntimePolicy(project, policy string, rvals ...any) bool {
 	enf := e.CreateEnforcerWithRuntimePolicy(project, policy)
 	return e.EnforceWithCustomEnforcer(enf, rvals...)
 }
@@ -368,7 +368,7 @@ func (e *Enforcer) EnforceRuntimePolicy(project string, policy string, rvals ...
 // CreateEnforcerWithRuntimePolicy creates an enforcer with a policy defined at run-time which augments the built-in and
 // user-defined policy. This allows any explicit denies of the built-in, and user-defined policies
 // to override the run-time policy. Runs normal enforcement if run-time policy is empty.
-func (e *Enforcer) CreateEnforcerWithRuntimePolicy(project string, policy string) CasbinEnforcer {
+func (e *Enforcer) CreateEnforcerWithRuntimePolicy(project, policy string) CasbinEnforcer {
 	return e.getCasbinEnforcer(project, policy)
 }
 
@@ -618,14 +618,14 @@ func (a *argocdAdapter) SavePolicy(_ model.Model) error {
 	return errors.New("not implemented")
 }
 
-func (a *argocdAdapter) AddPolicy(_ string, _ string, _ []string) error {
+func (a *argocdAdapter) AddPolicy(_, _ string, _ []string) error {
 	return errors.New("not implemented")
 }
 
-func (a *argocdAdapter) RemovePolicy(_ string, _ string, _ []string) error {
+func (a *argocdAdapter) RemovePolicy(_, _ string, _ []string) error {
 	return errors.New("not implemented")
 }
 
-func (a *argocdAdapter) RemoveFilteredPolicy(_ string, _ string, _ int, _ ...string) error {
+func (a *argocdAdapter) RemoveFilteredPolicy(_, _ string, _ int, _ ...string) error {
 	return errors.New("not implemented")
 }

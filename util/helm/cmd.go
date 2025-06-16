@@ -29,7 +29,7 @@ type Cmd struct {
 	noProxy   string
 }
 
-func NewCmd(workDir string, version string, proxy string, noProxy string) (*Cmd, error) {
+func NewCmd(workDir, version, proxy, noProxy string) (*Cmd, error) {
 	switch version {
 	// If v3 is specified (or by default, if no value is specified) then use v3
 	case "", "v3":
@@ -38,7 +38,7 @@ func NewCmd(workDir string, version string, proxy string, noProxy string) (*Cmd,
 	return nil, fmt.Errorf("helm chart version '%s' is not supported", version)
 }
 
-func NewCmdWithVersion(workDir string, isHelmOci bool, proxy string, noProxy string) (*Cmd, error) {
+func NewCmdWithVersion(workDir string, isHelmOci bool, proxy, noProxy string) (*Cmd, error) {
 	tmpDir, err := os.MkdirTemp("", "helm")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temporary directory for helm: %w", err)
@@ -134,7 +134,7 @@ func (c *Cmd) RegistryLogout(repo string, _ Creds) (string, error) {
 	return out, nil
 }
 
-func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool) (string, error) {
+func (c *Cmd) RepoAdd(name, url string, opts Creds, passCredentials bool) (string, error) {
 	tmp, err := os.MkdirTemp("", "helm")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temporary directory for repo: %w", err)
@@ -277,7 +277,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 	return out, nil
 }
 
-func (c *Cmd) PullOCI(repo string, chart string, version string, destination string, creds Creds) (string, error) {
+func (c *Cmd) PullOCI(repo, chart, version, destination string, creds Creds) (string, error) {
 	args := []string{
 		"pull", fmt.Sprintf("oci://%s/%s", repo, chart), "--version",
 		version,

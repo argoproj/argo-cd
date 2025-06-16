@@ -123,7 +123,7 @@ func (db *db) ListRepoCertificates(_ context.Context, selector *CertificateListS
 }
 
 // Get a single certificate from the datastore
-func (db *db) GetRepoCertificate(_ context.Context, serverType string, serverName string) (*appsv1.RepositoryCertificate, error) {
+func (db *db) GetRepoCertificate(_ context.Context, serverType, serverName string) (*appsv1.RepositoryCertificate, error) {
 	if serverType == "ssh" {
 		sshKnownHostsList, err := db.getSSHKnownHostsData()
 		if err != nil {

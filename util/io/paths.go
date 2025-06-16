@@ -8,7 +8,7 @@ import (
 )
 
 type TempPaths interface {
-	Add(key string, value string)
+	Add(key, value string)
 	GetPath(key string) (string, error)
 	GetPathIfExists(key string) string
 	GetPaths() map[string]string
@@ -28,7 +28,7 @@ func NewRandomizedTempPaths(root string) *RandomizedTempPaths {
 	}
 }
 
-func (p *RandomizedTempPaths) Add(key string, value string) {
+func (p *RandomizedTempPaths) Add(key, value string) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	p.paths[key] = value

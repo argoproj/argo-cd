@@ -410,7 +410,7 @@ func (mgr *SessionManager) exceededFailedLoginAttempts(attempt LoginAttempts) bo
 }
 
 // VerifyUsernamePassword verifies if a username/password combo is correct
-func (mgr *SessionManager) VerifyUsernamePassword(username string, password string) error {
+func (mgr *SessionManager) VerifyUsernamePassword(username, password string) error {
 	if password == "" {
 		return status.Errorf(codes.Unauthenticated, blankPasswordError)
 	}

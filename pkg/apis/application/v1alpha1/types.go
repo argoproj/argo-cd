@@ -1317,7 +1317,7 @@ func (in RevisionHistories) Trunc(n int) RevisionHistories {
 }
 
 // HasIdentity determines whether a sync operation is identified by a manifest
-func (r SyncOperationResource) HasIdentity(name string, namespace string, gvk schema.GroupVersionKind) bool {
+func (r SyncOperationResource) HasIdentity(name, namespace string, gvk schema.GroupVersionKind) bool {
 	if name == r.Name && gvk.Kind == r.Kind && gvk.Group == r.Group && (r.Namespace == "" || namespace == r.Namespace) {
 		return true
 	}
@@ -1325,7 +1325,7 @@ func (r SyncOperationResource) HasIdentity(name string, namespace string, gvk sc
 }
 
 // Compare determines whether an app resource matches the resource filter during sync or wait.
-func (r SyncOperationResource) Compare(name string, namespace string, gvk schema.GroupVersionKind) bool {
+func (r SyncOperationResource) Compare(name, namespace string, gvk schema.GroupVersionKind) bool {
 	if (r.Group == "*" || gvk.Group == r.Group) &&
 		(r.Kind == "*" || gvk.Kind == r.Kind) &&
 		(r.Name == "*" || name == r.Name) &&
@@ -1698,7 +1698,7 @@ func (r *ResourceResult) GroupVersionKind() schema.GroupVersionKind {
 type ResourceResults []*ResourceResult
 
 // Find returns the operation result for a specified resource and the index in the list where it was found
-func (r ResourceResults) Find(group string, kind string, namespace string, name string, phase synccommon.SyncPhase) (int, *ResourceResult) {
+func (r ResourceResults) Find(group, kind, namespace, name string, phase synccommon.SyncPhase) (int, *ResourceResult) {
 	for i, res := range r {
 		if res.Group == group && res.Kind == kind && res.Namespace == namespace && res.Name == name && res.SyncPhase == phase {
 			return i, res
@@ -2004,7 +2004,7 @@ type ApplicationSummary struct {
 // It looks for a node that matches the given group, kind, namespace, and name.
 // The search includes both directly managed nodes (`Nodes`) and orphaned nodes (`OrphanedNodes`).
 // Returns a pointer to the found node, or nil if no matching node is found.
-func (t *ApplicationTree) FindNode(group string, kind string, namespace string, name string) *ResourceNode {
+func (t *ApplicationTree) FindNode(group, kind, namespace, name string) *ResourceNode {
 	for _, n := range append(t.Nodes, t.OrphanedNodes...) {
 		if n.Group == group && n.Kind == kind && n.Namespace == namespace && n.Name == name {
 			return &n
@@ -2564,13 +2564,13 @@ func isValidAction(action string) bool {
 	return false
 }
 
-func isValidObject(proj string, object string) bool {
+func isValidObject(proj, object string) bool {
 	// match against <PROJECT>[/<NAMESPACE>]/<APPLICATION>
 	objectRegexp, err := regexp.Compile(fmt.Sprintf(`^%s(/[*\w-.]+)?/[*\w-.]+$`, regexp.QuoteMeta(proj)))
 	return objectRegexp.MatchString(object) && err == nil
 }
 
-func validatePolicy(proj string, role string, policy string) error {
+func validatePolicy(proj, role, policy string) error {
 	policyComponents := strings.Split(policy, ",")
 	if len(policyComponents) != 6 || strings.Trim(policyComponents[0], " ") != "p" {
 		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': must be of the form: 'p, sub, res, act, obj, eft'", policy)
@@ -2820,7 +2820,7 @@ func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
 }
 
 // AddWindow adds a sync window with the given parameters to the AppProject
-func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string, andOperator bool, description string) error {
+func (spec *AppProjectSpec) AddWindow(knd, sch, dur string, app, ns, cl []string, ms bool, timeZone string, andOperator bool, description string) error {
 	if knd == "" || sch == "" || dur == "" {
 		return errors.New("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 	}
@@ -3063,7 +3063,7 @@ func (w SyncWindow) active(currentTime time.Time) (bool, error) {
 }
 
 // Update updates a sync window's settings with the given parameter
-func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string, description string) error {
+func (w *SyncWindow) Update(s, d string, a, n, c []string, tz, description string) error {
 	if s == "" && d == "" && len(a) == 0 && len(n) == 0 && len(c) == 0 && description == "" {
 		return errors.New("cannot update: require one or more of schedule, duration, application, namespace, cluster or description")
 	}

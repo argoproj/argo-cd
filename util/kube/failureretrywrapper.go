@@ -46,7 +46,7 @@ func (frt *failureRetryRoundTripper) RoundTrip(r *http.Request) (*http.Response,
 }
 
 // AddFailureRetryWrapper adds a transport wrapper which wraps a function call around each kubernetes request
-func AddFailureRetryWrapper(config *rest.Config, failureRetryCount int, failureRetryPeriodSeconds int) *rest.Config {
+func AddFailureRetryWrapper(config *rest.Config, failureRetryCount, failureRetryPeriodSeconds int) *rest.Config {
 	wrap := config.WrapTransport
 	config.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
 		if wrap != nil {

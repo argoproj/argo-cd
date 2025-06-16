@@ -207,7 +207,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	return command
 }
 
-func getActionableResourcesForApplication(ctx context.Context, appIf applicationpkg.ApplicationServiceClient, appNs *string, appName *string) ([]*v1alpha1.ResourceDiff, error) {
+func getActionableResourcesForApplication(ctx context.Context, appIf applicationpkg.ApplicationServiceClient, appNs, appName *string) ([]*v1alpha1.ResourceDiff, error) {
 	resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
 		ApplicationName: appName,
 		AppNamespace:    appNs,

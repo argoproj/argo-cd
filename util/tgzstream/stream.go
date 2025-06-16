@@ -29,7 +29,7 @@ func CloseAndDelete(f *os.File) {
 // directory excluding globs in the excluded array. Returns the file
 // alongside its sha256 hash to be used as checksum. It is the
 // responsibility of the caller to close the file.
-func CompressFiles(appPath string, included []string, excluded []string) (*os.File, int, string, error) {
+func CompressFiles(appPath string, included, excluded []string) (*os.File, int, string, error) {
 	appName := filepath.Base(appPath)
 	tempDir, err := files.CreateTempDir(os.TempDir())
 	if err != nil {

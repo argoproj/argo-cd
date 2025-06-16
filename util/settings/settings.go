@@ -1927,7 +1927,7 @@ func (a *ArgoCDSettings) OIDCTLSConfig() *tls.Config {
 	return tlsConfig
 }
 
-func appendURLPath(inputURL string, inputPath string) (string, error) {
+func appendURLPath(inputURL, inputPath string) (string, error) {
 	u, err := url.Parse(inputURL)
 	if err != nil {
 		return "", err

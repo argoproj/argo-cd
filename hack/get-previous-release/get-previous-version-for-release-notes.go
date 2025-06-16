@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"golang.org/x/mod/semver"
 	"os"
 	"os/exec"
 	"regexp"
 	"strings"
+
+	"golang.org/x/mod/semver"
 )
 
 /**

@@ -207,7 +207,7 @@ type diffPair struct {
 	second *unstructured.Unstructured
 }
 
-func diffReconcileResults(res1 reconcileResults, res2 reconcileResults) error {
+func diffReconcileResults(res1, res2 reconcileResults) error {
 	var pairs []diffPair
 	resMap1 := res1.getAppsMap()
 	resMap2 := res2.getAppsMap()
@@ -338,7 +338,7 @@ func saveToFile(err error, outputFormat string, result reconcileResults, outputP
 	return os.WriteFile(outputPath, data, 0o644)
 }
 
-func getReconcileResults(ctx context.Context, appClientset appclientset.Interface, namespace string, selector string) ([]appReconcileResult, error) {
+func getReconcileResults(ctx context.Context, appClientset appclientset.Interface, namespace, selector string) ([]appReconcileResult, error) {
 	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return nil, fmt.Errorf("error listing namespaced apps: %w", err)

@@ -100,8 +100,8 @@ type Refs struct {
 
 type gitRefCache interface {
 	SetGitReferences(repo string, references []*plumbing.Reference) error
-	GetOrLockGitReferences(repo string, lockId string, references *[]*plumbing.Reference) (string, error)
-	UnlockGitReferences(repo string, lockId string) error
+	GetOrLockGitReferences(repo, lockId string, references *[]*plumbing.Reference) (string, error)
+	UnlockGitReferences(repo, lockId string) error
 }
 
 // Client is a generic git client interface
@@ -119,7 +119,7 @@ type Client interface {
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
 	VerifyCommitSignature(string) (string, error)
 	IsAnnotatedTag(string) bool
-	ChangedFiles(revision string, targetRevision string) ([]string, error)
+	ChangedFiles(revision, targetRevision string) ([]string, error)
 	IsRevisionPresent(revision string) bool
 	// SetAuthor sets the author name and email in the git configuration.
 	SetAuthor(name, email string) (string, error)
@@ -207,7 +207,7 @@ func WithEventHandlers(handlers EventHandlers) ClientOpts {
 	}
 }
 
-func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
+func NewClient(rawRepoURL string, creds Creds, insecure, enableLfs bool, proxy, noProxy string, opts ...ClientOpts) (Client, error) {
 	r := regexp.MustCompile(`([/:])`)
 	normalizedGitURL := NormalizeGitURL(rawRepoURL)
 	if normalizedGitURL == "" {
@@ -220,7 +220,7 @@ func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, pr
 	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, noProxy, opts...)
 }
 
-func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
+func NewClientExt(rawRepoURL, root string, creds Creds, insecure, enableLfs bool, proxy, noProxy string, opts ...ClientOpts) (Client, error) {
 	client := &nativeGitClient{
 		repoURL:   rawRepoURL,
 		root:      root,
@@ -246,7 +246,7 @@ var gitClientTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15
 //     a client with those certificates in the list of root CAs used to verify
 //     the server's certificate.
 //   - Otherwise (and on non-fatal errors), a default HTTP client is returned.
-func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string, noProxy string) *http.Client {
+func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL, noProxy string) *http.Client {
 	// Default HTTP client
 	customHTTPClient := &http.Client{
 		// 15 second timeout by default
@@ -907,7 +907,7 @@ func (m *nativeGitClient) IsAnnotatedTag(revision string) bool {
 }
 
 // ChangedFiles returns a list of files changed between two revisions
-func (m *nativeGitClient) ChangedFiles(revision string, targetRevision string) ([]string, error) {
+func (m *nativeGitClient) ChangedFiles(revision, targetRevision string) ([]string, error) {
 	if revision == targetRevision {
 		return []string{}, nil
 	}

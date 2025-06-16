@@ -10,7 +10,7 @@ import (
 )
 
 // UpsertEnv removes the existing proxy env variables and adds the custom proxy variables
-func UpsertEnv(cmd *exec.Cmd, proxy string, noProxy string) []string {
+func UpsertEnv(cmd *exec.Cmd, proxy, noProxy string) []string {
 	envs := []string{}
 	if proxy == "" {
 		return cmd.Env
@@ -27,7 +27,7 @@ func UpsertEnv(cmd *exec.Cmd, proxy string, noProxy string) []string {
 }
 
 // GetCallback returns the proxy callback function
-func GetCallback(proxy string, noProxy string) func(*http.Request) (*url.URL, error) {
+func GetCallback(proxy, noProxy string) func(*http.Request) (*url.URL, error) {
 	if proxy != "" {
 		c := httpproxy.Config{
 			HTTPProxy:  proxy,

@@ -150,10 +150,10 @@ func newServiceWithOpt(t *testing.T, cf clientFunc, root string) (*Service, *git
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, root)
 
-	service.newGitClient = func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (client git.Client, e error) {
+	service.newGitClient = func(_, _ string, _ git.Creds, _, _ bool, _, _ string, _ ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
 	}
-	service.newHelmClient = func(_ string, _ helm.Creds, _ bool, _ string, _ string, _ ...helm.ClientOpts) helm.Client {
+	service.newHelmClient = func(_ string, _ helm.Creds, _ bool, _, _ string, _ ...helm.ClientOpts) helm.Client {
 		return helmClient
 	}
 	service.gitRepoInitializer = func(_ string) goio.Closer {
@@ -196,7 +196,7 @@ func newServiceWithCommitSHA(t *testing.T, root, revision string) *Service {
 		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
 	}, root)
 
-	service.newGitClient = func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (client git.Client, e error) {
+	service.newGitClient = func(_, _ string, _ git.Creds, _, _ bool, _, _ string, _ ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
 	}
 
@@ -370,7 +370,7 @@ func TestGenerateManifest_RefOnlyShortCircuit(t *testing.T) {
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, repopath)
-	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL, root string, creds git.Creds, insecure, enableLfs bool, proxy, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		opts = append(opts, git.WithEventHandlers(git.EventHandlers{
 			// Primary check, we want to make sure ls-remote is not called when the item is in cache
 			OnLsRemote: func(_ string) func() {
@@ -436,7 +436,7 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, repopath)
 	var gitClient git.Client
 	var err error
-	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL, root string, creds git.Creds, insecure, enableLfs bool, proxy, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		opts = append(opts, git.WithEventHandlers(git.EventHandlers{
 			// Primary check, we want to make sure ls-remote is not called when the item is in cache
 			OnLsRemote: func(_ string) func() {
@@ -520,7 +520,7 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 			{Ref: "ref", RepoURL: "https://git.example.com/test/repo"},
 		},
 	}
-	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 		return &v1alpha1.Repository{
 			Repo: "https://git.example.com/test/repo",
 		}, nil
@@ -556,7 +556,7 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 	// Empty refsource
 	service := newService(t, ".")
 
-	getRepository := func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+	getRepository := func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 		return &v1alpha1.Repository{
 			Repo: "https://git.example.com/test/repo",
 		}, nil
@@ -629,7 +629,7 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 			{Ref: "ref", RepoURL: "https://git.example.com/test/repo"},
 		},
 	}
-	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 		return &v1alpha1.Repository{
 			Repo: "https://git.example.com/test/repo",
 		}, nil
@@ -2415,7 +2415,7 @@ func tempDir(t *testing.T) string {
 	return absDir
 }
 
-func walkFor(t *testing.T, root string, testPath string, run func(info fs.FileInfo)) {
+func walkFor(t *testing.T, root, testPath string, run func(info fs.FileInfo)) {
 	t.Helper()
 	hitExpectedPath := false
 	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
