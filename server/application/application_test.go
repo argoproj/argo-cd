@@ -2087,25 +2087,23 @@ func TestGetCachedAppState(t *testing.T) {
 		watcher := watch.NewFakeWithChanSize(1, true)
 
 		// Configure fakeClientSet within lock, before requesting cached app state, to avoid data race
-		{
-			fakeClientSet.Lock()
-			fakeClientSet.ReactionChain = nil
-			fakeClientSet.WatchReactionChain = nil
-			fakeClientSet.AddReactor("patch", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-				patched = true
-				updated := testApp.DeepCopy()
-				updated.ResourceVersion = "2"
-				appServer.appBroadcaster.OnUpdate(testApp, updated)
-				return true, testApp, nil
-			})
-			fakeClientSet.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-				return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
-			})
-			fakeClientSet.Unlock()
-			fakeClientSet.AddWatchReactor("applications", func(_ kubetesting.Action) (handled bool, ret watch.Interface, err error) {
-				return true, watcher, nil
-			})
-		}
+		fakeClientSet.Lock()
+		fakeClientSet.ReactionChain = nil
+		fakeClientSet.WatchReactionChain = nil
+		fakeClientSet.AddReactor("patch", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			updated := testApp.DeepCopy()
+			updated.ResourceVersion = "2"
+			appServer.appBroadcaster.OnUpdate(testApp, updated)
+			return true, testApp, nil
+		})
+		fakeClientSet.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
+		})
+		fakeClientSet.Unlock()
+		fakeClientSet.AddWatchReactor("applications", func(_ kubetesting.Action) (handled bool, ret watch.Interface, err error) {
+			return true, watcher, nil
+		})
 
 		err := appServer.getCachedAppState(t.Context(), testApp, func() error {
 			res := cache.ErrCacheMiss
