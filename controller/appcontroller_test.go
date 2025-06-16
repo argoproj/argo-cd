@@ -3256,10 +3256,10 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 	ctrl.processAppRefreshQueueItem() // app1
 	ctrl.processAppRefreshQueueItem() // app2
 
-	updatedApp1, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "app1", metav1.GetOptions{})
+	updatedApp1, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "app1", metav1.GetOptions{})
 	require.NoError(t, err)
 
-	updatedApp2, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "app2", metav1.GetOptions{})
+	updatedApp2, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "app2", metav1.GetOptions{})
 	require.NoError(t, err)
 
 	// Test that applications don't go to Unknown state due to conversion webhook failures
