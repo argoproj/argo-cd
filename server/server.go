@@ -1662,57 +1662,58 @@ func (bf *bug21955Workaround) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 }
 
 func bug21955WorkaroundInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
-	if rq, ok := req.(*repositorypkg.RepoQuery); ok {
-		repo, err := url.QueryUnescape(rq.Repo)
+	switch req := req.(type) {
+	case *repositorypkg.RepoQuery:
+		repo, err := url.QueryUnescape(req.Repo)
 		if err != nil {
 			return nil, err
 		}
-		rq.Repo = repo
-	} else if rk, ok := req.(*repositorypkg.RepoAppsQuery); ok {
-		repo, err := url.QueryUnescape(rk.Repo)
+		req.Repo = repo
+	case *repositorypkg.RepoAppsQuery:
+		repo, err := url.QueryUnescape(req.Repo)
 		if err != nil {
 			return nil, err
 		}
-		rk.Repo = repo
-	} else if rdq, ok := req.(*repositorypkg.RepoAppDetailsQuery); ok {
-		repo, err := url.QueryUnescape(rdq.Source.RepoURL)
+		req.Repo = repo
+	case *repositorypkg.RepoAppDetailsQuery:
+		repo, err := url.QueryUnescape(req.Source.RepoURL)
 		if err != nil {
 			return nil, err
 		}
-		rdq.Source.RepoURL = repo
-	} else if ru, ok := req.(*repositorypkg.RepoUpdateRequest); ok {
-		repo, err := url.QueryUnescape(ru.Repo.Repo)
+		req.Source.RepoURL = repo
+	case *repositorypkg.RepoUpdateRequest:
+		repo, err := url.QueryUnescape(req.Repo.Repo)
 		if err != nil {
 			return nil, err
 		}
-		ru.Repo.Repo = repo
-	} else if rk, ok := req.(*repocredspkg.RepoCredsQuery); ok {
-		pattern, err := url.QueryUnescape(rk.Url)
+		req.Repo.Repo = repo
+	case *repocredspkg.RepoCredsQuery:
+		pattern, err := url.QueryUnescape(req.Url)
 		if err != nil {
 			return nil, err
 		}
-		rk.Url = pattern
-	} else if rk, ok := req.(*repocredspkg.RepoCredsDeleteRequest); ok {
-		pattern, err := url.QueryUnescape(rk.Url)
+		req.Url = pattern
+	case *repocredspkg.RepoCredsDeleteRequest:
+		pattern, err := url.QueryUnescape(req.Url)
 		if err != nil {
 			return nil, err
 		}
-		rk.Url = pattern
-	} else if cq, ok := req.(*clusterpkg.ClusterQuery); ok {
-		if cq.Id != nil {
-			val, err := url.QueryUnescape(cq.Id.Value)
+		req.Url = pattern
+	case *clusterpkg.ClusterQuery:
+		if req.Id != nil {
+			val, err := url.QueryUnescape(req.Id.Value)
 			if err != nil {
 				return nil, err
 			}
-			cq.Id.Value = val
+			req.Id.Value = val
 		}
-	} else if cu, ok := req.(*clusterpkg.ClusterUpdateRequest); ok {
-		if cu.Id != nil {
-			val, err := url.QueryUnescape(cu.Id.Value)
+	case *clusterpkg.ClusterUpdateRequest:
+		if req.Id != nil {
+			val, err := url.QueryUnescape(req.Id.Value)
 			if err != nil {
 				return nil, err
 			}
-			cu.Id.Value = val
+			req.Id.Value = val
 		}
 	}
 	return handler(ctx, req)
