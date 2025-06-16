@@ -499,21 +499,23 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 		}
 		// Get Repositories for all sources before generating Manifests
 		for i, source := range sources {
-			if source.Ref != "" {
-				repo, err := getRepository(ctx, source.RepoURL, project)
-				if err != nil {
-					return nil, fmt.Errorf("failed to get repository %s: %w", source.RepoURL, err)
-				}
-				refKey := "$" + source.Ref
-				revision := source.TargetRevision
-				if len(revisions) > i && revisions[i] != "" {
-					revision = revisions[i]
-				}
-				refSources[refKey] = &argoappv1.RefTarget{
-					Repo:           *repo,
-					TargetRevision: revision,
-					Chart:          source.Chart,
-				}
+			if source.Ref == "" {
+				continue
+			}
+
+			repo, err := getRepository(ctx, source.RepoURL, project)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get repository %s: %w", source.RepoURL, err)
+			}
+			refKey := "$" + source.Ref
+			revision := source.TargetRevision
+			if len(revisions) > i && revisions[i] != "" {
+				revision = revisions[i]
+			}
+			refSources[refKey] = &argoappv1.RefTarget{
+				Repo:           *repo,
+				TargetRevision: revision,
+				Chart:          source.Chart,
 			}
 		}
 	}
