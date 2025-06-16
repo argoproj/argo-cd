@@ -25,6 +25,7 @@ linters:
     - perfsprint
     - revive
     - staticcheck
+    - tagliatelle
     - testifylint
     - thelper
     - tparallel
