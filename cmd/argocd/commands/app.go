@@ -780,18 +780,6 @@ func getAppURL(ctx context.Context, acdClient argocdclient.Client, appName strin
 	argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
 	errors.CheckError(err)
 
-	// Get the application to check if it's managed by a different ArgoCD instance
-	appConn, appIf := acdClient.NewApplicationClientOrDie()
-	defer utilio.Close(appConn)
-	app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName})
-	errors.CheckError(err)
-
-	// Check if the application has an annotation indicating which ArgoCD instance manages it
-	if managedByURL, ok := app.Annotations["argocd.argoproj.io/managed-by-url"]; ok {
-		return fmt.Sprintf("%s/applications/%s", managedByURL, appName)
-	}
-
-	// Fall back to the current instance's URL
 	if argoSettings.URL != "" {
 		return fmt.Sprintf("%s/applications/%s", argoSettings.URL, appName)
 	}
