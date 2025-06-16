@@ -1443,6 +1443,7 @@ func TestClientSideApplyMigration(t *testing.T) {
 
 	type fixture struct {
 		application *v1alpha1.Application
+		project     *v1alpha1.AppProject
 		controller  *ApplicationController
 	}
 
@@ -1483,6 +1484,7 @@ func TestClientSideApplyMigration(t *testing.T) {
 
 		return &fixture{
 			application: app,
+			project:     project,
 			controller:  ctrl,
 		}
 	}
@@ -1498,10 +1500,10 @@ func TestClientSideApplyMigration(t *testing.T) {
 				Source: &v1alpha1.ApplicationSource{},
 			},
 		}}
-		f.controller.appStateManager.SyncAppState(f.application, opState)
+		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
 
 		// then
-		assert.Equal(t, common.OperationSucceeded, opState.Phase)
+		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
 		assert.Contains(t, opState.Message, "successfully synced")
 	})
 
@@ -1516,10 +1518,10 @@ func TestClientSideApplyMigration(t *testing.T) {
 				Source: &v1alpha1.ApplicationSource{},
 			},
 		}}
-		f.controller.appStateManager.SyncAppState(f.application, opState)
+		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
 
 		// then
-		assert.Equal(t, common.OperationSucceeded, opState.Phase)
+		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
 		assert.Contains(t, opState.Message, "successfully synced")
 	})
 
@@ -1534,10 +1536,10 @@ func TestClientSideApplyMigration(t *testing.T) {
 				Source: &v1alpha1.ApplicationSource{},
 			},
 		}}
-		f.controller.appStateManager.SyncAppState(f.application, opState)
+		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
 
 		// then
-		assert.Equal(t, common.OperationSucceeded, opState.Phase)
+		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
 		assert.Contains(t, opState.Message, "successfully synced")
 	})
 }
