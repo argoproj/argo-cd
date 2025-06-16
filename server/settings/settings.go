@@ -8,7 +8,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	ioutil "github.com/argoproj/argo-cd/v3/util/io"
 
 	sessionmgr "github.com/argoproj/argo-cd/v3/util/session"
 
@@ -165,7 +165,7 @@ func (s *Server) plugins(ctx context.Context) ([]*settingspkg.Plugin, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error creating repo server client: %w", err)
 	}
-	defer utilio.Close(closer)
+	defer ioutil.Close(closer)
 
 	pluginList, err := client.ListPlugins(ctx, &empty.Empty{})
 	if err != nil {

@@ -141,7 +141,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Sample url: http://localhost:8080/api/badge?project=default
 	if projects, ok := r.URL.Query()["project"]; ok && enabled && !notFound {
 		for _, p := range projects {
-			if errs := validation.NameIsDNSLabel(strings.ToLower(p), false); p != "" && len(errs) != 0 {
+			if errs := validation.NameIsDNSLabel(strings.ToLower(p), false); len(p) > 0 && len(errs) != 0 {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
@@ -192,19 +192,19 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	badge := assets.BadgeSVG
-	badge = leftRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="leftRect" fill=%q $2`, leftColorString))
-	badge = rightRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="rightRect" fill=%q $2`, rightColorString))
+	badge = leftRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="leftRect" fill="%s" $2`, leftColorString))
+	badge = rightRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="rightRect" fill="%s" $2`, rightColorString))
 	badge = replaceFirstGroupSubMatch(leftTextPattern, badge, leftText)
 	badge = replaceFirstGroupSubMatch(rightTextPattern, badge, rightText)
 
 	if !notFound && revisionEnabled && revision != "" {
 		// Enable display of revision components
 		badge = displayNonePattern.ReplaceAllString(badge, `display="inline"`)
-		badge = revisionRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="revisionRect" fill=%q $2`, rightColorString))
+		badge = revisionRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="revisionRect" fill="%s" $2`, rightColorString))
 
 		adjustWidth = true
 		displayedRevision = revision
-		if keepFullRevisionParam, ok := r.URL.Query()["keepFullRevision"]; (!ok || !strings.EqualFold(keepFullRevisionParam[0], "true")) && len(revision) > 7 {
+		if keepFullRevisionParam, ok := r.URL.Query()["keepFullRevision"]; !(ok && strings.EqualFold(keepFullRevisionParam[0], "true")) && len(revision) > 7 {
 			displayedRevision = revision[:7]
 			svgWidth = svgWidthWithRevision
 		} else {

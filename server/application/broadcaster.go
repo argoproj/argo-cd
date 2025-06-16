@@ -7,7 +7,6 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 )
 
 type subscriber struct {
@@ -51,7 +50,7 @@ func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {
 			case s.ch <- event:
 			default:
 				// drop event if cannot send right away
-				log.WithFields(applog.GetAppLogFields(&event.Application)).Warn("unable to send event notification")
+				log.WithField("application", event.Application.Name).Warn("unable to send event notification")
 			}
 		}
 	}

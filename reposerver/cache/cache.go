@@ -43,19 +43,6 @@ type ClusterRuntimeInfo interface {
 	GetKubeVersion() string
 }
 
-// CachedManifestResponse represents a cached result of a previous manifest generation operation, including the caching
-// of a manifest generation error, plus additional information on previous failures
-type CachedManifestResponse struct {
-	// NOTE: When adding fields to this struct, you MUST also update shallowCopy()
-
-	CacheEntryHash                  string                      `json:"cacheEntryHash"`
-	ManifestResponse                *apiclient.ManifestResponse `json:"manifestResponse"`
-	MostRecentError                 string                      `json:"mostRecentError"`
-	FirstFailureTimestamp           int64                       `json:"firstFailureTimestamp"`
-	NumberOfConsecutiveFailures     int                         `json:"numberOfConsecutiveFailures"`
-	NumberOfCachedResponsesReturned int                         `json:"numberOfCachedResponsesReturned"`
-}
-
 func NewCache(cache *cacheutil.Cache, repoCacheExpiration time.Duration, revisionCacheExpiration time.Duration, revisionCacheLockTimeout time.Duration) *Cache {
 	return &Cache{cache, repoCacheExpiration, revisionCacheExpiration, revisionCacheLockTimeout}
 }
@@ -177,10 +164,6 @@ func helmIndexRefsKey(repo string) string {
 	return "helm-index|" + repo
 }
 
-func ociTagsKey(repo string) string {
-	return "oci-tags|" + repo
-}
-
 // SetHelmIndex stores helm repository index.yaml content to cache
 func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
 	if indexData == nil {
@@ -196,23 +179,6 @@ func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
 // GetHelmIndex retrieves helm repository index.yaml content from cache
 func (c *Cache) GetHelmIndex(repo string, indexData *[]byte) error {
 	return c.cache.GetItem(helmIndexRefsKey(repo), indexData)
-}
-
-// SetOCITags stores oci image tags to cache
-func (c *Cache) SetOCITags(repo string, indexData []byte) error {
-	if indexData == nil {
-		// Logged as warning upstream
-		return errors.New("oci index data is nil, skipping cache")
-	}
-	return c.cache.SetItem(
-		ociTagsKey(repo),
-		indexData,
-		&cacheutil.CacheActionOpts{Expiration: c.revisionCacheExpiration})
-}
-
-// GetOCITags retrieves oci image tags from cache
-func (c *Cache) GetOCITags(repo string, indexData *[]byte) error {
-	return c.cache.GetItem(ociTagsKey(repo), indexData)
 }
 
 func gitRefsKey(repo string) string {
@@ -374,7 +340,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, s
 
 	hash, err := res.generateCacheEntryHash()
 	if err != nil {
-		return fmt.Errorf("unable to generate hash value: %w", err)
+		return fmt.Errorf("Unable to generate hash value: %w", err)
 	}
 
 	// If cached result does not have manifests or the expected hash of the cache entry does not match the actual hash value...
@@ -385,7 +351,7 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, s
 
 		err = c.DeleteManifests(revision, appSrc, srcRefs, clusterInfo, namespace, trackingMethod, appLabelKey, appName, refSourceCommitSHAs, installationID)
 		if err != nil {
-			return fmt.Errorf("unable to delete manifest after hash mismatch: %w", err)
+			return fmt.Errorf("Unable to delete manifest after hash mismatch, %w", err)
 		}
 
 		// Treat hash mismatches as cache misses, so that the underlying resource is reacquired
@@ -409,7 +375,7 @@ func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, s
 		res = res.shallowCopy()
 		hash, err := res.generateCacheEntryHash()
 		if err != nil {
-			return fmt.Errorf("unable to generate hash value: %w", err)
+			return fmt.Errorf("Unable to generate hash value: %w", err)
 		}
 		res.CacheEntryHash = hash
 	}
@@ -496,8 +462,7 @@ func (c *Cache) SetGitFiles(repoURL, revision, pattern string, files map[string]
 
 func (c *Cache) GetGitFiles(repoURL, revision, pattern string) (map[string][]byte, error) {
 	var item map[string][]byte
-	err := c.cache.GetItem(gitFilesKey(repoURL, revision, pattern), &item)
-	return item, err
+	return item, c.cache.GetItem(gitFilesKey(repoURL, revision, pattern), &item)
 }
 
 func gitDirectoriesKey(repoURL, revision string) string {
@@ -513,8 +478,7 @@ func (c *Cache) SetGitDirectories(repoURL, revision string, directories []string
 
 func (c *Cache) GetGitDirectories(repoURL, revision string) ([]string, error) {
 	var item []string
-	err := c.cache.GetItem(gitDirectoriesKey(repoURL, revision), &item)
-	return item, err
+	return item, c.cache.GetItem(gitDirectoriesKey(repoURL, revision), &item)
 }
 
 func (cmr *CachedManifestResponse) shallowCopy() *CachedManifestResponse {
@@ -549,4 +513,17 @@ func (cmr *CachedManifestResponse) generateCacheEntryHash() (string, error) {
 	}
 	fnvHash := h.Sum(nil)
 	return base64.URLEncoding.EncodeToString(fnvHash), nil
+}
+
+// CachedManifestResponse represents a cached result of a previous manifest generation operation, including the caching
+// of a manifest generation error, plus additional information on previous failures
+type CachedManifestResponse struct {
+	// NOTE: When adding fields to this struct, you MUST also update shallowCopy()
+
+	CacheEntryHash                  string                      `json:"cacheEntryHash"`
+	ManifestResponse                *apiclient.ManifestResponse `json:"manifestResponse"`
+	MostRecentError                 string                      `json:"mostRecentError"`
+	FirstFailureTimestamp           int64                       `json:"firstFailureTimestamp"`
+	NumberOfConsecutiveFailures     int                         `json:"numberOfConsecutiveFailures"`
+	NumberOfCachedResponsesReturned int                         `json:"numberOfCachedResponsesReturned"`
 }

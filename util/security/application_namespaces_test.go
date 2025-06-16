@@ -7,8 +7,6 @@ import (
 )
 
 func Test_IsNamespaceEnabled(t *testing.T) {
-	t.Parallel()
-
 	testCases := []struct {
 		name              string
 		namespace         string

@@ -154,6 +154,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: server.oidc.cache.expiration
                   optional: true
+            - name: ARGOCD_SERVER_LOGIN_ATTEMPTS_EXPIRATION
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.login.attempts.expiration
+                  optional: true
             - name: ARGOCD_SERVER_STATIC_ASSETS
               valueFrom:
                 configMapKeyRef:

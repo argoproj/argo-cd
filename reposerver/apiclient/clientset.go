@@ -10,7 +10,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/env"
 
-	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/timeout"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -18,7 +19,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	argogrpc "github.com/argoproj/argo-cd/v3/util/grpc"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
 // MaxGRPCMessageSize contains max grpc message size
@@ -36,7 +37,7 @@ type TLSConfiguration struct {
 
 // Clientset represents repository server api clients
 type Clientset interface {
-	NewRepoServerClient() (utilio.Closer, RepoServerServiceClient, error)
+	NewRepoServerClient() (io.Closer, RepoServerServiceClient, error)
 }
 
 type clientSet struct {
@@ -45,7 +46,7 @@ type clientSet struct {
 	tlsConfig      TLSConfiguration
 }
 
-func (c *clientSet) NewRepoServerClient() (utilio.Closer, RepoServerServiceClient, error) {
+func (c *clientSet) NewRepoServerClient() (io.Closer, RepoServerServiceClient, error) {
 	conn, err := NewConnection(c.address, c.timeoutSeconds, &c.tlsConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to open a new connection to repo server: %w", err)
@@ -64,7 +65,7 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 	}
 	opts := []grpc.DialOption{
 		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)),
-		grpc.WithChainUnaryInterceptor(unaryInterceptors...),
+		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)),
 		grpc.WithUnaryInterceptor(argogrpc.OTELUnaryClientInterceptor()),
 		grpc.WithStreamInterceptor(argogrpc.OTELStreamClientInterceptor()),

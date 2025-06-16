@@ -204,7 +204,7 @@ func TestAddProjectDestinationWithName(t *testing.T) {
 	assert.Equal(t, projectName, proj.Name)
 	assert.Len(t, proj.Spec.Destinations, 1)
 
-	assert.Empty(t, proj.Spec.Destinations[0].Server)
+	assert.Equal(t, "", proj.Spec.Destinations[0].Server)
 	assert.Equal(t, "in-cluster", proj.Spec.Destinations[0].Name)
 	assert.Equal(t, "test1", proj.Spec.Destinations[0].Namespace)
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
@@ -344,7 +344,7 @@ func TestUseJWTToken(t *testing.T) {
 	// Create second role with kubectl, to test that it will not affect 1st role
 	_, err = fixture.Run("", "kubectl", "patch", "appproject", projectName, "--type", "merge",
 		"-n", fixture.TestNamespace(),
-		"-p", fmt.Sprintf(`{"spec":{"roles":[{"name":%q},{"name":%q}]}}`, roleName, roleName2))
+		"-p", fmt.Sprintf(`{"spec":{"roles":[{"name":"%s"},{"name":"%s"}]}}`, roleName, roleName2))
 	require.NoError(t, err)
 
 	_, err = fixture.RunCli("proj", "role", "create-token", projectName, roleName2)
@@ -768,7 +768,7 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 	assert.Equal(t, "test-sa", proj.Spec.DestinationServiceAccounts[0].DefaultServiceAccount)
 
 	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.DestinationServiceAccounts[1].Server)
-	assert.Empty(t, proj.Spec.DestinationServiceAccounts[1].Namespace)
+	assert.Equal(t, "", proj.Spec.DestinationServiceAccounts[1].Namespace)
 	assert.Equal(t, "test-sa", proj.Spec.DestinationServiceAccounts[1].DefaultServiceAccount)
 
 	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.DestinationServiceAccounts[2].Server)

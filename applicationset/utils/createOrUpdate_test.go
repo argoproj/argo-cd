@@ -13,8 +13,6 @@ import (
 )
 
 func Test_applyIgnoreDifferences(t *testing.T) {
-	t.Parallel()
-
 	appMeta := metav1.TypeMeta{
 		APIVersion: v1alpha1.ApplicationSchemaGroupVersionKind.GroupVersion().String(),
 		Kind:       v1alpha1.ApplicationSchemaGroupVersionKind.Kind,

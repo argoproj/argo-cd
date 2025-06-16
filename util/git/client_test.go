@@ -3,9 +3,7 @@ package git
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
-	"net/mail"
 	"os"
 	"os/exec"
 	"path"
@@ -15,9 +13,6 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-
-	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/stretchr/testify/assert"
@@ -138,19 +133,6 @@ func Test_IsAnnotatedTag(t *testing.T) {
 	// We moved on, so tag doesn't point to HEAD anymore
 	atag = client.IsAnnotatedTag("HEAD")
 	assert.False(t, atag)
-}
-
-func Test_resolveTagReference(t *testing.T) {
-	// Setup
-	commitHash := plumbing.NewHash("0123456789abcdef0123456789abcdef01234567")
-	tagRef := plumbing.NewReferenceFromStrings("refs/tags/v1.0.0", "sometaghash")
-
-	// Test single function
-	resolvedRef := plumbing.NewHashReference(tagRef.Name(), commitHash)
-
-	// Verify
-	assert.Equal(t, commitHash, resolvedRef.Hash())
-	assert.Equal(t, tagRef.Name(), resolvedRef.Name())
 }
 
 func Test_ChangedFiles(t *testing.T) {
@@ -497,49 +479,20 @@ func Test_nativeGitClient_RevisionMetadata(t *testing.T) {
 
 	err = runCmd(client.Root(), "git", "add", "README")
 	require.NoError(t, err)
-	now := time.Now()
 	err = runCmd(client.Root(), "git", "commit", "--date=\"Sat Jun 5 20:00:00 2021 +0000 UTC\"", "-m", `| Initial commit |
 
 
 (╯°□°)╯︵ ┻━┻
-		`, "-a",
-		"--trailer", "Argocd-reference-commit-author: test-author <test@email.com>",
-		"--trailer", "Argocd-reference-commit-date: "+now.Format(time.RFC3339),
-		"--trailer", "Argocd-reference-commit-subject: chore: make a change",
-		"--trailer", "Argocd-reference-commit-sha: abc123",
-		"--trailer", "Argocd-reference-commit-repourl: https://git.example.com/test/repo.git",
-	)
+		`, "-a")
 	require.NoError(t, err)
 
 	metadata, err := client.RevisionMetadata("HEAD")
 	require.NoError(t, err)
 	require.Equal(t, &RevisionMetadata{
-		Author: `FooBar ||| somethingelse <foo@foo.com>`,
-		Date:   time.Date(2021, time.June, 5, 20, 0, 0, 0, time.UTC).Local(),
-		Tags:   []string{},
-		Message: fmt.Sprintf(`| Initial commit |
-
-(╯°□°)╯︵ ┻━┻
-
-Argocd-reference-commit-author: test-author <test@email.com>
-Argocd-reference-commit-date: %s
-Argocd-reference-commit-subject: chore: make a change
-Argocd-reference-commit-sha: abc123
-Argocd-reference-commit-repourl: https://git.example.com/test/repo.git`, now.Format(time.RFC3339)),
-		References: []RevisionReference{
-			{
-				Commit: &CommitMetadata{
-					Author: mail.Address{
-						Name:    "test-author",
-						Address: "test@email.com",
-					},
-					Date:    now.Format(time.RFC3339),
-					Subject: "chore: make a change",
-					SHA:     "abc123",
-					RepoURL: "https://git.example.com/test/repo.git",
-				},
-			},
-		},
+		Author:  `FooBar ||| somethingelse <foo@foo.com>`,
+		Date:    time.Date(2021, time.June, 5, 20, 0, 0, 0, time.UTC).Local(),
+		Tags:    []string{},
+		Message: "| Initial commit |\n\n(╯°□°)╯︵ ┻━┻",
 	}, metadata)
 }
 
@@ -1101,96 +1054,4 @@ func (m *mockCreds) Environ() (io.Closer, []string, error) {
 
 func (m *mockCreds) GetUserInfo(_ context.Context) (string, string, error) {
 	return "", "", nil
-}
-
-func Test_getReferences(t *testing.T) {
-	t.Parallel()
-
-	now := time.Now()
-
-	tests := []struct {
-		name     string
-		input    string
-		expected []RevisionReference
-	}{
-		{
-			name:     "No trailers",
-			input:    "This is a commit message without trailers.",
-			expected: nil,
-		},
-		{
-			name: "Invalid trailers",
-			input: `Argocd-reference-commit-repourl: % invalid %
-Argocd-reference-commit-date: invalid-date
-Argocd-reference-commit-sha: xyz123
-Argocd-reference-commit-body: this isn't json
-Argocd-reference-commit-author: % not email %
-Argocd-reference-commit-bogus:`,
-			expected: nil,
-		},
-		{
-			name:     "Unknown trailers",
-			input:    "Argocd-reference-commit-unknown: foobar",
-			expected: nil,
-		},
-		{
-			name: "Some valid and Invalid trailers",
-			input: `Argocd-reference-commit-sha: abc123
-Argocd-reference-commit-repourl: % invalid %
-Argocd-reference-commit-date: invalid-date`,
-			expected: []RevisionReference{
-				{
-					Commit: &CommitMetadata{
-						SHA: "abc123",
-					},
-				},
-			},
-		},
-		{
-			name: "Valid trailers",
-			input: fmt.Sprintf(`Argocd-reference-commit-repourl: https://github.com/org/repo.git
-Argocd-reference-commit-author: John Doe <john.doe@example.com>
-Argocd-reference-commit-date: %s
-Argocd-reference-commit-subject: Fix bug
-Argocd-reference-commit-body: "Fix bug\n\nSome: trailer"
-Argocd-reference-commit-sha: abc123`, now.Format(time.RFC3339)),
-			expected: []RevisionReference{
-				{
-					Commit: &CommitMetadata{
-						Author: mail.Address{
-							Name:    "John Doe",
-							Address: "john.doe@example.com",
-						},
-						Date:    now.Format(time.RFC3339),
-						Body:    "Fix bug\n\nSome: trailer",
-						Subject: "Fix bug",
-						SHA:     "abc123",
-						RepoURL: "https://github.com/org/repo.git",
-					},
-				},
-			},
-		},
-		{
-			name: "Duplicate trailers",
-			input: `Argocd-reference-commit-repourl: https://github.com/org/repo.git
-Argocd-reference-commit-repourl: https://github.com/another/repo.git`,
-			expected: []RevisionReference{
-				{
-					Commit: &CommitMetadata{
-						RepoURL: "https://github.com/another/repo.git",
-					},
-				},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			logCtx := log.WithFields(log.Fields{})
-			result := getReferences(logCtx, tt.input)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
 }

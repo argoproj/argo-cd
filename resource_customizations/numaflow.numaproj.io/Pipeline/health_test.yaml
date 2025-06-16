@@ -12,6 +12,6 @@ tests:
     message: "Subresources are unhealthy"
   inputPath: testdata/degraded.yaml
 - healthStatus:
-    status: Healthy
+    status: Suspended
     message: "Pipeline is paused"
-  inputPath: testdata/paused.yaml
+  inputPath: testdata/suspended.yaml

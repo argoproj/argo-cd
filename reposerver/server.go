@@ -26,6 +26,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/metrics"
 	"github.com/argoproj/argo-cd/v3/reposerver/repository"
 	"github.com/argoproj/argo-cd/v3/server/version"
+	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
@@ -34,8 +35,13 @@ import (
 
 // ArgoCDRepoServer is the repo server implementation
 type ArgoCDRepoServer struct {
-	repoService *repository.Service
-	opts        []grpc.ServerOption
+	log           *log.Entry
+	repoService   *repository.Service
+	metricsServer *metrics.MetricsServer
+	gitCredsStore git.CredsStore
+	cache         *reposervercache.Cache
+	opts          []grpc.ServerOption
+	initConstants repository.RepoServerInitConstants
 }
 
 // The hostnames to generate self-signed issues with
@@ -98,14 +104,19 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	if tlsConfig != nil {
 		serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
 	}
-	repoService := repository.NewService(metricsServer, cache, initConstants, gitCredsStore, filepath.Join(os.TempDir(), "_argocd-repo"))
+	repoService := repository.NewService(metricsServer, cache, initConstants, argo.NewResourceTracking(), gitCredsStore, filepath.Join(os.TempDir(), "_argocd-repo"))
 	if err := repoService.Init(); err != nil {
 		return nil, fmt.Errorf("failed to initialize the repo service: %w", err)
 	}
 
 	return &ArgoCDRepoServer{
-		opts:        serverOpts,
-		repoService: repoService,
+		log:           serverLog,
+		metricsServer: metricsServer,
+		cache:         cache,
+		initConstants: initConstants,
+		opts:          serverOpts,
+		gitCredsStore: gitCredsStore,
+		repoService:   repoService,
 	}, nil
 }
 

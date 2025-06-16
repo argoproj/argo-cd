@@ -50,8 +50,6 @@ func listOfMapsToSet(maps []map[string]any) (map[string]bool, error) {
 }
 
 func TestMergeGenerate(t *testing.T) {
-	t.Parallel()
-
 	testCases := []struct {
 		name           string
 		baseGenerators []argoprojiov1alpha1.ApplicationSetNestedGenerator
@@ -212,8 +210,6 @@ func toAPIExtensionsJSON(t *testing.T, g any) *apiextensionsv1.JSON {
 }
 
 func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
-	t.Parallel()
-
 	testCases := []struct {
 		name        string
 		mergeKeys   []string

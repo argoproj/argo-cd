@@ -65,7 +65,7 @@ func copyUnexported(copy, original reflect.Value) {
 
 func IsJSONStr(str string) bool {
 	str = strings.TrimSpace(str)
-	return str != "" && str[0] == '{'
+	return len(str) > 0 && str[0] == '{'
 }
 
 func ConvertYAMLToJSON(str string) (string, error) {
@@ -274,8 +274,8 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 	// b) there IS a syncPolicy, but preserveResourcesOnDeletion is set to false
 	// See TestRenderTemplateParamsFinalizers in util_test.go for test-based definition of behaviour
 	if (syncPolicy == nil || !syncPolicy.PreserveResourcesOnDeletion) &&
-		len(replacedTmpl.Finalizers) == 0 {
-		replacedTmpl.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
+		len(replacedTmpl.ObjectMeta.Finalizers) == 0 {
+		replacedTmpl.ObjectMeta.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
 	}
 
 	return replacedTmpl, nil
@@ -335,8 +335,8 @@ func (r *Render) Replace(tmpl string, replaceMap map[string]any, useGoTemplate b
 	replacedTmpl := fstTmpl.ExecuteFuncString(func(w io.Writer, tag string) (int, error) {
 		trimmedTag := strings.TrimSpace(tag)
 		replacement, ok := replaceMap[trimmedTag].(string)
-		if trimmedTag == "" || !ok {
-			return fmt.Fprintf(w, "{{%s}}", tag)
+		if len(trimmedTag) == 0 || !ok {
+			return w.Write([]byte(fmt.Sprintf("{{%s}}", tag)))
 		}
 		return w.Write([]byte(replacement))
 	})
@@ -353,12 +353,12 @@ func CheckInvalidGenerators(applicationSetInfo *argoappsv1.ApplicationSet) error
 			gnames = append(gnames, n)
 		}
 		sort.Strings(gnames)
-		aname := applicationSetInfo.Name
+		aname := applicationSetInfo.ObjectMeta.Name
 		msg := "ApplicationSet %s contains unrecognized generators: %s"
 		errorMessage = fmt.Errorf(msg, aname, strings.Join(gnames, ", "))
 		log.Warnf(msg, aname, strings.Join(gnames, ", "))
 	} else if hasInvalidGenerators {
-		name := applicationSetInfo.Name
+		name := applicationSetInfo.ObjectMeta.Name
 		msg := "ApplicationSet %s contains unrecognized generators"
 		errorMessage = fmt.Errorf(msg, name)
 		log.Warnf(msg, name)
@@ -394,7 +394,7 @@ func invalidGenerators(applicationSetInfo *argoappsv1.ApplicationSet) (bool, map
 
 func addInvalidGeneratorNames(names map[string]bool, applicationSetInfo *argoappsv1.ApplicationSet, index int) {
 	// The generator names are stored in the "kubectl.kubernetes.io/last-applied-configuration" annotation
-	config := applicationSetInfo.Annotations["kubectl.kubernetes.io/last-applied-configuration"]
+	config := applicationSetInfo.ObjectMeta.Annotations["kubectl.kubernetes.io/last-applied-configuration"]
 	var values map[string]any
 	err := json.Unmarshal([]byte(config), &values)
 	if err != nil {

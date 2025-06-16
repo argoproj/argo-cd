@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -32,7 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/glob"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -44,19 +43,23 @@ var ErrAnotherOperationInProgress = status.Errorf(codes.FailedPrecondition, "ano
 
 // AugmentSyncMsg enrich the K8s message with user-relevant information
 func AugmentSyncMsg(res common.ResourceSyncResult, apiResourceInfoGetter func() ([]kube.APIResourceInfo, error)) (string, error) {
-	if strings.Contains(res.Message, "the server could not find the requested resource") {
+	switch res.Message {
+	case "the server could not find the requested resource":
 		resource, err := getAPIResourceInfo(res.ResourceKey.Group, res.ResourceKey.Kind, apiResourceInfoGetter)
 		if err != nil {
 			return "", fmt.Errorf("failed to get API resource info for group %q and kind %q: %w", res.ResourceKey.Group, res.ResourceKey.Kind, err)
 		}
 		if resource == nil {
-			return fmt.Sprintf("The Kubernetes API could not find %s/%s for requested resource %s/%s. Make sure the %q CRD is installed on the destination cluster.", res.ResourceKey.Group, res.ResourceKey.Kind, res.ResourceKey.Namespace, res.ResourceKey.Name, res.ResourceKey.Kind), nil
+			res.Message = fmt.Sprintf("The Kubernetes API could not find %s/%s for requested resource %s/%s. Make sure the %q CRD is installed on the destination cluster.", res.ResourceKey.Group, res.ResourceKey.Kind, res.ResourceKey.Namespace, res.ResourceKey.Name, res.ResourceKey.Kind)
+		} else {
+			res.Message = fmt.Sprintf("The Kubernetes API could not find version %q of %s/%s for requested resource %s/%s. Version %q of %s/%s is installed on the destination cluster.", res.Version, res.ResourceKey.Group, res.ResourceKey.Kind, res.ResourceKey.Namespace, res.ResourceKey.Name, resource.GroupVersionResource.Version, resource.GroupKind.Group, resource.GroupKind.Kind)
 		}
-		return fmt.Sprintf("The Kubernetes API could not find version %q of %s/%s for requested resource %s/%s. Version %q of %s/%s is installed on the destination cluster.", res.Version, res.ResourceKey.Group, res.ResourceKey.Kind, res.ResourceKey.Namespace, res.ResourceKey.Name, resource.GroupVersionResource.Version, resource.GroupKind.Group, resource.GroupKind.Kind), nil
-	}
-	// Check if the message contains "metadata.annotation: Too long"
-	if strings.Contains(res.Message, "metadata.annotations: Too long: must have at most 262144 bytes") {
-		return res.Message + " \n -Additional Info: This error usually means that you are trying to add a large resource on client side. Consider using Server-side apply or syncing with replace enabled. Note: Syncing with Replace enabled is potentially destructive as it may cause resource deletion and re-creation.", nil
+
+	default:
+		// Check if the message contains "metadata.annotation: Too long"
+		if strings.Contains(res.Message, "metadata.annotations: Too long: must have at most 262144 bytes") {
+			res.Message = res.Message + " \n -Additional Info: This error usually means that you are trying to add a large resource on client side. Consider using Server-side apply or syncing with replace enabled. Note: Syncing with Replace enabled is potentially destructive as it may cause resource deletion and re-creation."
+		}
 	}
 
 	return res.Message, nil
@@ -257,14 +260,11 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 	return nil, err
 }
 
-func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerServiceClient, repo *argoappv1.Repository, isHelm bool, isHelmOci bool, isOCI bool) error {
+func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerServiceClient, repo *argoappv1.Repository, isHelm bool, isHelmOci bool) error {
 	repo = repo.DeepCopy()
-	switch {
-	case isHelm:
+	if isHelm {
 		repo.Type = "helm"
-	case isOCI:
-		repo.Type = "oci"
-	case repo.Type != "oci":
+	} else {
 		repo.Type = "git"
 	}
 	repo.EnableOCI = repo.EnableOCI || isHelmOci
@@ -303,7 +303,7 @@ func ValidateRepo(
 	if err != nil {
 		return nil, fmt.Errorf("error instantiating new repo server client: %w", err)
 	}
-	defer utilio.Close(conn)
+	defer io.Close(conn)
 
 	helmOptions, err := settingsMgr.GetHelmSettings()
 	if err != nil {
@@ -322,25 +322,9 @@ func ValidateRepo(
 	if err != nil {
 		return nil, fmt.Errorf("error getting helm repo creds: %w", err)
 	}
-	ociRepos, err := db.ListOCIRepositories(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list oci repositories: %w", err)
-	}
-	permittedOCIRepos, err := GetPermittedRepos(proj, ociRepos)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get permitted oci repositories for project %q: %w", proj.Name, err)
-	}
 	permittedHelmCredentials, err := GetPermittedReposCredentials(proj, helmRepositoryCredentials)
 	if err != nil {
 		return nil, fmt.Errorf("error getting permitted repo creds: %w", err)
-	}
-	ociRepositoryCredentials, err := db.GetAllOCIRepositoryCredentials(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get OCI credentials: %w", err)
-	}
-	permittedOCICredentials, err := GetPermittedReposCredentials(proj, ociRepositoryCredentials)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get permitted OCI credentials for project %q: %w", proj.Name, err)
 	}
 
 	destCluster, err := GetDestinationCluster(ctx, spec.Destination, db)
@@ -376,13 +360,11 @@ func ValidateRepo(
 		app.Spec.GetSources(),
 		repoClient,
 		permittedHelmRepos,
-		permittedOCIRepos,
 		helmOptions,
 		destCluster,
 		apiGroups,
 		proj,
 		permittedHelmCredentials,
-		permittedOCICredentials,
 		enabledSourceTypes,
 		settingsMgr)
 	if err != nil {
@@ -399,13 +381,11 @@ func validateRepo(ctx context.Context,
 	sources []argoappv1.ApplicationSource,
 	repoClient apiclient.RepoServerServiceClient,
 	permittedHelmRepos []*argoappv1.Repository,
-	permittedOCIRepos []*argoappv1.Repository,
 	helmOptions *argoappv1.HelmOptions,
 	cluster *argoappv1.Cluster,
 	apiGroups []kube.APIResourceInfo,
 	proj *argoappv1.AppProject,
 	permittedHelmCredentials []*argoappv1.RepoCreds,
-	permittedOCICredentials []*argoappv1.RepoCreds,
 	enabledSourceTypes map[string]bool,
 	settingsMgr *settings.SettingsManager,
 ) ([]argoappv1.ApplicationCondition, error) {
@@ -417,7 +397,7 @@ func validateRepo(ctx context.Context,
 		if err != nil {
 			return nil, err
 		}
-		if err := TestRepoWithKnownType(ctx, repoClient, repo, source.IsHelm(), source.IsHelmOci(), source.IsOCI()); err != nil {
+		if err := TestRepoWithKnownType(ctx, repoClient, repo, source.IsHelm(), source.IsHelmOci()); err != nil {
 			errMessage = fmt.Sprintf("repositories not accessible: %v: %v", repo.StringForLogging(), err)
 		}
 		repoAccessible := false
@@ -457,7 +437,6 @@ func validateRepo(ctx context.Context,
 		ctx,
 		db,
 		permittedHelmRepos,
-		permittedOCIRepos,
 		helmOptions,
 		app,
 		proj,
@@ -467,7 +446,6 @@ func validateRepo(ctx context.Context,
 		cluster.ServerVersion,
 		APIResourcesToStrings(apiGroups, true),
 		permittedHelmCredentials,
-		permittedOCICredentials,
 		enabledSourceTypes,
 		settingsMgr,
 		refSources)...)
@@ -484,37 +462,35 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 		// Validate first to avoid unnecessary DB calls.
 		refKeys := make(map[string]bool)
 		for _, source := range sources {
-			if source.Ref == "" {
-				continue
+			if source.Ref != "" {
+				isValidRefKey := regexp.MustCompile(`^[a-zA-Z0-9_-]+$`).MatchString
+				if !isValidRefKey(source.Ref) {
+					return nil, fmt.Errorf("sources.ref %s cannot contain any special characters except '_' and '-'", source.Ref)
+				}
+				refKey := "$" + source.Ref
+				if _, ok := refKeys[refKey]; ok {
+					return nil, errors.New("invalid sources: multiple sources had the same `ref` key")
+				}
+				refKeys[refKey] = true
 			}
-			isValidRefKey := regexp.MustCompile(`^[a-zA-Z0-9_-]+$`).MatchString
-			if !isValidRefKey(source.Ref) {
-				return nil, fmt.Errorf("sources.ref %s cannot contain any special characters except '_' and '-'", source.Ref)
-			}
-			refKey := "$" + source.Ref
-			if _, ok := refKeys[refKey]; ok {
-				return nil, errors.New("invalid sources: multiple sources had the same `ref` key")
-			}
-			refKeys[refKey] = true
 		}
 		// Get Repositories for all sources before generating Manifests
 		for i, source := range sources {
-			if source.Ref == "" {
-				continue
-			}
-			repo, err := getRepository(ctx, source.RepoURL, project)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get repository %s: %w", source.RepoURL, err)
-			}
-			refKey := "$" + source.Ref
-			revision := source.TargetRevision
-			if isRollback {
-				revision = revisions[i]
-			}
-			refSources[refKey] = &argoappv1.RefTarget{
-				Repo:           *repo,
-				TargetRevision: revision,
-				Chart:          source.Chart,
+			if source.Ref != "" {
+				repo, err := getRepository(ctx, source.RepoURL, project)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get repository %s: %w", source.RepoURL, err)
+				}
+				refKey := "$" + source.Ref
+				revision := source.TargetRevision
+				if isRollback {
+					revision = revisions[i]
+				}
+				refSources[refKey] = &argoappv1.RefTarget{
+					Repo:           *repo,
+					TargetRevision: revision,
+					Chart:          source.Chart,
+				}
 			}
 		}
 	}
@@ -739,7 +715,6 @@ func verifyGenerateManifests(
 	ctx context.Context,
 	db db.ArgoDB,
 	helmRepos argoappv1.Repositories,
-	ociRepos argoappv1.Repositories,
 	helmOptions *argoappv1.HelmOptions,
 	app *argoappv1.Application,
 	proj *argoappv1.AppProject,
@@ -748,7 +723,6 @@ func verifyGenerateManifests(
 	kubeVersion string,
 	apiVersions []string,
 	repositoryCredentials []*argoappv1.RepoCreds,
-	ociRepositoryCredentials []*argoappv1.RepoCreds,
 	enableGenerateManifests map[string]bool,
 	settingsMgr *settings.SettingsManager,
 	refSources argoappv1.RefTargetRevisionMapping,
@@ -813,18 +787,6 @@ func verifyGenerateManifests(
 			verifySignature = true
 		}
 
-		repos := helmRepos
-		helmRepoCreds := repositoryCredentials
-		// If the source is OCI, there is a potential for an OCI image to be a Helm chart and that said chart in
-		// turn would have OCI dependencies. To ensure that those dependencies can be resolved, add them to the repos
-		// list.
-		if source.IsOCI() {
-			repos = slices.Clone(helmRepos)
-			helmRepoCreds = slices.Clone(repositoryCredentials)
-			repos = append(repos, ociRepos...)
-			helmRepoCreds = append(helmRepoCreds, ociRepositoryCredentials...)
-		}
-
 		req := apiclient.ManifestRequest{
 			Repo: &argoappv1.Repository{
 				Repo:    source.RepoURL,
@@ -834,7 +796,7 @@ func verifyGenerateManifests(
 				NoProxy: repoRes.NoProxy,
 			},
 			VerifySignature:                 verifySignature,
-			Repos:                           repos,
+			Repos:                           helmRepos,
 			Revision:                        source.TargetRevision,
 			AppName:                         app.Name,
 			Namespace:                       app.Spec.Destination.Namespace,
@@ -844,7 +806,7 @@ func verifyGenerateManifests(
 			KubeVersion:                     kubeVersion,
 			ApiVersions:                     apiVersions,
 			HelmOptions:                     helmOptions,
-			HelmRepoCreds:                   helmRepoCreds,
+			HelmRepoCreds:                   repositoryCredentials,
 			TrackingMethod:                  trackingMethod,
 			EnabledSourceTypes:              enableGenerateManifests,
 			NoRevisionCache:                 true,
@@ -1051,7 +1013,6 @@ func GetDestinationCluster(ctx context.Context, destination argoappv1.Applicatio
 		}
 		return cluster, nil
 	}
-	// nolint:staticcheck // Error constant is very old, shouldn't lowercase the first letter.
 	return nil, errors.New(ErrDestinationMissing)
 }
 

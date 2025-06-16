@@ -14,8 +14,6 @@ import (
 )
 
 func Test_IsDefined(t *testing.T) {
-	t.Parallel()
-
 	testCases := []struct {
 		name     string
 		discover Discover
@@ -78,8 +76,6 @@ func Test_IsDefined(t *testing.T) {
 }
 
 func Test_ReadPluginConfig(t *testing.T) {
-	t.Parallel()
-
 	testCases := []struct {
 		name         string
 		fileContents string
@@ -92,7 +88,7 @@ func Test_ReadPluginConfig(t *testing.T) {
 metadata:
 `,
 			expected:    nil,
-			expectedErr: "invalid plugin configuration file. metadata.name should be non-empty",
+			expectedErr: "invalid plugin configuration file. metadata.name should be non-empty.",
 		},
 		{
 			name: "empty metadata name",
@@ -101,7 +97,7 @@ metadata:
   name: ""
 `,
 			expected:    nil,
-			expectedErr: "invalid plugin configuration file. metadata.name should be non-empty",
+			expectedErr: "invalid plugin configuration file. metadata.name should be non-empty.",
 		},
 		{
 			name: "invalid kind",
@@ -173,8 +169,6 @@ spec:
 }
 
 func Test_PluginConfig_Address(t *testing.T) {
-	t.Parallel()
-
 	testCases := []struct {
 		name     string
 		config   *PluginConfig

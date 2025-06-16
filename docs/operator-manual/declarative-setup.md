@@ -362,10 +362,6 @@ The following keys are valid to refer to credential secrets:
 * `githubAppEnterpriseBaseUrl` refers to the base api URL for GitHub Enterprise (e.g. `https://ghe.example.com/api/v3`)
 * `tlsClientCertData` and `tlsClientCertKey` refer to secrets where a TLS client certificate (`tlsClientCertData`) and the corresponding private key `tlsClientCertKey` are stored for accessing GitHub Enterprise if custom certificates are used.
 
-#### Helm Chart repositories
-
-See the [Helm](#helm) section for the properties that apply to Helm repositories and charts sourced from OCI registries.
-
 ### Repositories using self-signed TLS certificates (or are signed by custom CA)
 
 You can manage the TLS certificates used to verify the authenticity of your repository servers in a ConfigMap object named `argocd-tls-certs-cm`. The data section should contain a map, with the repository server's hostname part (not the complete URL) as key, and the certificate(s) in PEM format as data. So, if you connect to a repository with the URL `https://server.example.com/repos/my-repo`, you should use `server.example.com` as key. The certificate data should be either the server's certificate (in case of self-signed certificate) or the certificate of the CA that was used to sign the server's certificate. You can configure multiple certificates for each server, e.g. if you are having a certificate roll-over planned.
@@ -1104,54 +1100,27 @@ stringData:
     }
 ```
 
-## Helm
+## Helm Chart Repositories
 
-Helm charts can be sourced from a Helm repository or OCI registry.
+Non standard Helm Chart repositories have to be registered explicitly.
+Each repository must have `url`, `type` and `name` fields. For private Helm repos you may need to configure access credentials and HTTPS settings using `username`, `password`,
+`tlsClientCertData` and `tlsClientCertKey` fields.
 
-This is an example of a Helm chart being sourced from a Helm repository. The `releaseName` property is used to customize the name of the Helm _release_.
+Example:
 
 ```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
+apiVersion: v1
+kind: Secret
 metadata:
-  name: sealed-secrets
+  name: istio
   namespace: argocd
-spec:
-  project: default
-  source:
-    chart: sealed-secrets
-    repoURL: https://bitnami-labs.github.io/sealed-secrets
-    targetRevision: 1.16.1
-    helm:
-      releaseName: sealed-secrets
-  destination:
-    server: "https://kubernetes.default.svc"
-    namespace: kubeseal
-```
-
-Another example using a public OCI helm chart:
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: nginx
-spec:
-  project: default
-  source:
-    chart: nginx
-    repoURL: registry-1.docker.io/bitnamicharts  # note: the oci:// syntax is not included.
-    targetRevision: 15.9.0
-  destination:
-    name: "in-cluster"
-    namespace: nginx
-```
-
-Helm charts located in sources that require additional configuration, such as authentication or TLS connection details, are defined within a _repository_ Secret. Each Secret must specify the `url`, `type` and `name` fields. Additional fields including `username`, `password`, `tlsClientCertData` and `tlsClientCertKey` can be specified as desired.
-
-Helm Chart Repository:
-
-```yaml
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  name: istio.io
+  url: https://storage.googleapis.com/istio-prerelease/daily-build/master-latest-daily/charts
+  type: helm
+---
 apiVersion: v1
 kind: Secret
 metadata:
@@ -1167,23 +1136,6 @@ stringData:
   password: my-password
   tlsClientCertData: ...
   tlsClientCertKey: ...
-```
-
-Helm charts sourced from OCI registries should utilize the fields described previously as well as set the `enableOCI` field as `true`.
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: oci-helm-chart
-  namespace: oci-helm-chart
-  labels:
-    argocd.argoproj.io/secret-type: repository
-stringData:
-  name: oci-helm-chart
-  url: myregistry.example.com
-  type: helm
-  enableOCI: "true"
 ```
 
 ## Resource Exclusion/Inclusion
@@ -1247,7 +1199,6 @@ Notes:
 * Quote globs in your YAML to avoid parsing errors.
 * Invalid globs result in the whole rule being ignored.
 * If you add a rule that matches existing resources, these will appear in the interface as `OutOfSync`.
-* Some excluded objects may already be in the controller cache. A restart of the controller will be necessary to remove them from the Application View.
 
 ## Mask sensitive Annotations on Secrets
 
@@ -1259,7 +1210,7 @@ An optional comma-separated list of `metadata.annotations` keys can be configure
 
 ## Auto respect RBAC for controller
 
-Argo CD controller can be restricted from discovering/syncing specific resources using just controller RBAC, without having to manually configure resource exclusions.
+Argocd controller can be restricted from discovering/syncing specific resources using just controller rbac, without having to manually configure resource exclusions.
 This feature can be enabled by setting `resource.respectRBAC` key in argocd cm, once it is set the controller will automatically stop watching for resources 
 that it does not have the permission to list/access. Possible values for `resource.respectRBAC` are:
     - `strict` : This setting checks whether the list call made by controller is forbidden/unauthorized and if it is, it will cross-check the permission by making a `SelfSubjectAccessReview` call for the resource.
@@ -1270,7 +1221,7 @@ Users who are comfortable with an increase in kube api-server calls can opt for 
 
 Notes:
 
-* When set to use `strict` mode controller must have RBAC permission to `create` a `SelfSubjectAccessReview` resource 
+* When set to use `strict` mode controller must have rbac permission to `create` a `SelfSubjectAccessReview` resource 
 * The `SelfSubjectAccessReview` request will be only made for the `list` verb, it is assumed that if `list` is allowed for a resource then all other permissions are also available to the controller.
 
 Example argocd cm with `resource.respectRBAC` set to `strict`:
