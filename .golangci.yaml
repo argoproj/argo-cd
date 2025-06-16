@@ -71,7 +71,6 @@ linters:
         - tooManyResultsChecker
         - typeDefFirst
         - typeSwitchVar
-        - unnecessaryBlock
         - unnamedResult
         - whyNoLint
 
