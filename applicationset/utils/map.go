@@ -13,20 +13,11 @@ func ConvertToMapStringString(mapStringInterface map[string]any) map[string]stri
 	return mapStringString
 }
 
-func ConvertToMapStringInterface(mapStringString map[string]string) map[string]any {
-	mapStringInterface := make(map[string]any, len(mapStringString))
-
-	for key, value := range mapStringString {
-		mapStringInterface[key] = value
-	}
-	return mapStringInterface
-}
-
-func CombineStringMaps(aSI map[string]any, bSI map[string]any) (map[string]string, error) {
+func CombineStringMaps(aSI map[string]any, bSI map[string]any) (map[string]any, error) {
 	a := ConvertToMapStringString(aSI)
 	b := ConvertToMapStringString(bSI)
 
-	res := map[string]string{}
+	res := map[string]any{}
 
 	for k, v := range a {
 		res[k] = v
