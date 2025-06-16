@@ -64,7 +64,6 @@ linters:
         - hugeParam
         - importShadow
         - paramTypeCombine
-        - ptrToRefParam
         - rangeValCopy
         - sloppyReassign
         - tooManyResultsChecker
