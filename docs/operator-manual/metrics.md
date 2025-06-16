@@ -147,13 +147,12 @@ The Application Set controller exposes the following metrics for application set
 | `argocd_kubectl_request_retries_total`            |  counter  | Number of kubectl request retries.                                                                                                                                                          |
 | `argocd_kubectl_transport_cache_entries`          |   gauge   | Number of kubectl transport cache entries.                                                                                                                                                  |
 | `argocd_kubectl_transport_create_calls_total`     |  counter  | Number of kubectl transport create calls.                                                                                                                                                   |
-| `argocd_github_api_requests_total_per_appset`     |  counter  | Number of Github API calls per ApplicationSet. |
-| `argocd_github_api_request_duration_seconds_per_appset`     |  histogram  | Github API request duration per ApplicationSet. |
-| `argocd_github_api_rate_limit_remaining_per_appset`     |  gauge  | The number of requests remaining in the current rate limit window per ApplicationSet. |
-| `argocd_github_api_rate_limit_limit_per_appset`     |  gauge  | The maximum number of requests that you can make per hour per ApplicationSet. |
-| `argocd_github_api_rate_limit_reset_per_appset`     |  gauge  | The time at which the current rate limit window resets, in UTC epoch seconds per ApplicationSet. |
-| `argocd_github_api_rate_limit_used_per_appset`     |  gauge  | The number of requests used in the current rate limit window per ApplicationSet. |
-| `argocd_github_api_rate_limit_resource_per_appset`     |  gauge  | The rate limit resource that the request counted against per ApplicationSet. |
+| `argocd_github_api_requests_total`     |  counter  | Number of Github API calls. It contains labels for the name and namespace of an applicationset.|
+| `argocd_github_api_request_duration_seconds`     |  histogram  | Github API request duration. It contains labels for the name and namespace of an applicationset.|
+| `argocd_github_api_rate_limit_remaining`     |  gauge  | The number of requests remaining in the current rate limit window. It contains labels for the name and namespace of an applicationset, and for the rate limit resource and credentialType used. |
+| `argocd_github_api_rate_limit_limit`     |  gauge  | The maximum number of requests that you can make per hour. |
+| `argocd_github_api_rate_limit_reset_seconds`     |  gauge  | The time left till the current rate limit window resets, in seconds. It contains labels for the name and namespace of an applicationset, and for the rate limit resource and credentialType used. |
+| `argocd_github_api_rate_limit_used`     |  gauge  | The number of requests used in the current rate limit window.  It contains labels for the name and namespace of an applicationset, and for the rate limit resource and credentialType used. |
 
 
 Similar to the same metric in application controller (`argocd_app_labels`) the metric `argocd_appset_labels` is disabled by default. You can enable it by providing the `–metrics-applicationset-labels` argument to the applicationset controller.

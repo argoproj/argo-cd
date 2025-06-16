@@ -29,26 +29,28 @@ var (
 	appsetName           = "test-appset"
 	appsetNameLabel      = "appset_name=\"test-appset\""
 	resourceLabel        = "resource=\"core\""
+	credentialTypeLabel  = "credential_type=\"github_app\""
+	credentialType       = "github_app"
 
 	rateLimitMetrics = []Metric{
 		{
 			name:   githubAPIRateLimitRemainingMetricName,
-			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel, resourceLabel},
+			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel, resourceLabel, credentialTypeLabel},
 			value:  "42",
 		},
 		{
 			name:   githubAPIRateLimitLimitMetricName,
-			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel, resourceLabel},
+			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel, resourceLabel, credentialTypeLabel},
 			value:  "100",
 		},
 		{
 			name:   githubAPIRateLimitUsedMetricName,
-			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel, resourceLabel},
+			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel, resourceLabel, credentialTypeLabel},
 			value:  "58",
 		},
 		{
 			name:   githubAPIRateLimitResetMetricName,
-			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel, resourceLabel},
+			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel, resourceLabel, credentialTypeLabel},
 			value:  "1",
 		},
 	}
@@ -72,13 +74,13 @@ func TestGitHubMetrics_CollectorApproach_Success(t *testing.T) {
 		metrics.RequestDuration,
 		metrics.RateLimitRemaining,
 		metrics.RateLimitLimit,
-		metrics.RateLimitResetSeconds,
+		metrics.RateLimitReset,
 		metrics.RateLimitUsed,
 	)
 
 	// Setup a fake HTTP server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(time.Now().Add(1*time.Hour).Unix(), 10))
+		w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(time.Now().Unix()+1, 10))
 		w.Header().Set("X-RateLimit-Remaining", "42")
 		w.Header().Set("X-RateLimit-Limit", "100")
 		w.Header().Set("X-RateLimit-Used", "58")
@@ -88,7 +90,7 @@ func TestGitHubMetrics_CollectorApproach_Success(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	metricsCtx := &MetricsContext{AppSetNamespace: appsetNamespace, AppSetName: appsetName}
+	metricsCtx := &MetricsContext{AppSetNamespace: appsetNamespace, AppSetName: appsetName, CredentialType: credentialType}
 	client := &http.Client{
 		Transport: NewGitHubMetricsTransport(
 			http.DefaultTransport,
@@ -138,7 +140,7 @@ func TestGitHubMetrics_CollectorApproach_NoRateLimitMetricsOnNilResponse(t *test
 		metrics.RequestDuration,
 		metrics.RateLimitRemaining,
 		metrics.RateLimitLimit,
-		metrics.RateLimitResetSeconds,
+		metrics.RateLimitReset,
 		metrics.RateLimitUsed,
 	)
 

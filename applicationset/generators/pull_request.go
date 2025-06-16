@@ -219,14 +219,6 @@ func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alph
 	var metricsCtx *services.MetricsContext
 	var httpClient *http.Client
 
-	if g.enableGitHubAPIMetrics {
-		metricsCtx = &services.MetricsContext{
-			AppSetNamespace: applicationSetInfo.Namespace,
-			AppSetName:      applicationSetInfo.Name,
-		}
-		httpClient = services.NewGitHubMetricsClient(metricsCtx)
-	}
-
 	// use an app if it was configured
 	if cfg.AppSecretName != "" {
 		auth, err := g.GitHubApps.GetAuthSecret(ctx, cfg.AppSecretName)
@@ -235,6 +227,12 @@ func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alph
 		}
 
 		if g.enableGitHubAPIMetrics {
+			metricsCtx = &services.MetricsContext{
+				AppSetNamespace: applicationSetInfo.Namespace,
+				AppSetName:      applicationSetInfo.Name,
+				CredentialType:  "github_app",
+			}
+			httpClient = services.NewGitHubMetricsClient(metricsCtx)
 			return pullrequest.NewGithubAppService(*auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, httpClient)
 		}
 		return pullrequest.NewGithubAppService(*auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
@@ -247,6 +245,16 @@ func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alph
 	}
 
 	if g.enableGitHubAPIMetrics {
+		credentialType := "token"
+		if token == "" {
+			credentialType = "unauthenticated"
+		}
+		metricsCtx = &services.MetricsContext{
+			AppSetNamespace: applicationSetInfo.Namespace,
+			AppSetName:      applicationSetInfo.Name,
+			CredentialType:  credentialType,
+		}
+		httpClient = services.NewGitHubMetricsClient(metricsCtx)
 		return pullrequest.NewGithubService(token, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, httpClient)
 	}
 	return pullrequest.NewGithubService(token, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
