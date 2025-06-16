@@ -147,8 +147,7 @@ func (t *GitHubMetricsTransport) RoundTrip(req *http.Request) (*http.Response, e
 	log.WithFields(log.Fields{
 		"method":         method,
 		"endpoint":       endpoint,
-		"applicationset": appsetName,
-		"ns":             appsetNamespace,
+		"applicationset": {"name": appsetName, "namespace": appsetNamespace},
 	}).Debugf("Invoking GitHub API")
 
 	startTime := time.Now()
