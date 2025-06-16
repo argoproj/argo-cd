@@ -238,6 +238,14 @@ linters:
         - -ST1003
         - -ST1016
 
+    tagliatelle:
+      case:
+        rules:
+          json: goCamel
+        overrides:
+          - pkg: util/test
+            rules:
+              json: goSnake
     testifylint:
       enable-all: true
 
