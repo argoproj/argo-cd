@@ -1340,24 +1340,6 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *v1alpha1.Appl
 		return status.Errorf(codes.InvalidArgument, "application spec for %s is invalid: %s", app.Name, argo.FormatAppConditions(conditions))
 	}
 
-	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
-
-	// Add managed-by-url annotation if not present
-	if app.Annotations == nil {
-		app.Annotations = make(map[string]string)
-	}
-
-	// Get the current ArgoCD instance URL
-	argoSettings, err := s.settingsMgr.GetSettings()
-	if err != nil {
-		return fmt.Errorf("error getting ArgoCD settings: %w", err)
-	}
-
-	// Only set the managed-by-url annotation if it's not already set
-	if _, ok := app.Annotations["argocd.argoproj.io/managed-by-url"]; !ok {
-		app.Annotations["argocd.argoproj.io/managed-by-url"] = argoSettings.URL
-	}
-
 	return nil
 }
 
