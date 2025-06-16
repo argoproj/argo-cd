@@ -110,7 +110,7 @@ func Test_StaticHeaders(t *testing.T) {
 
 		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
 		require.NoError(t, err)
 		resp, err := client.Do(req)
 		require.NoError(t, err)
@@ -139,7 +139,7 @@ func Test_StaticHeaders(t *testing.T) {
 
 		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
 		require.NoError(t, err)
 		resp, err := client.Do(req)
 		require.NoError(t, err)
@@ -171,7 +171,7 @@ func Test_StaticHeaders(t *testing.T) {
 
 		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
 		require.NoError(t, err)
 		resp, err := client.Do(req)
 		require.NoError(t, err)

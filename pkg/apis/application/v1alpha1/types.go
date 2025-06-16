@@ -1569,27 +1569,20 @@ type SyncStrategyHook struct {
 	SyncStrategyApply `json:",inline" protobuf:"bytes,1,opt,name=syncStrategyApply"`
 }
 
-// CommitMetadataAuthor contains information about the author of a commit.
-type CommitMetadataAuthor struct {
-	// Name is the name of the author.
-	// Comes from the Argocd-reference-commit-author-name trailer.
-	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	// Email is the email of the author.
-	// Comes from the Argocd-reference-commit-author-email trailer.
-	Email string `json:"email,omitempty" protobuf:"bytes,2,opt,name=email"`
-}
-
 // CommitMetadata contains metadata about a commit that is related in some way to another commit.
 type CommitMetadata struct {
-	// Author is the author of the commit.
-	Author CommitMetadataAuthor `json:"author,omitempty" protobuf:"bytes,1,opt,name=author"`
-	// Date is the date of the commit, formatted as by `git show -s --format=%aI`.
+	// Author is the author of the commit, i.e. `git show -s --format=%an <%ae>`.
+	// Must be formatted according to RFC 5322 (mail.Address.String()).
+	// Comes from the Argocd-reference-commit-author trailer.
+	Author string `json:"author,omitempty" protobuf:"bytes,1,opt,name=author"`
+	// Date is the date of the commit, formatted as by `git show -s --format=%aI` (RFC 3339).
+	// It can also be an empty string if the date is unknown.
 	// Comes from the Argocd-reference-commit-date trailer.
 	Date string `json:"date,omitempty" protobuf:"bytes,2,opt,name=date"`
-	// Subject is the commit message subject.
+	// Subject is the commit message subject line, i.e. `git show -s --format=%s`.
 	// Comes from the Argocd-reference-commit-subject trailer.
 	Subject string `json:"subject,omitempty" protobuf:"bytes,3,opt,name=subject"`
-	// Body is the commit message body.
+	// Body is the commit message body minus the subject line, i.e. `git show -s --format=%b`.
 	// Comes from the Argocd-reference-commit-body trailer.
 	Body string `json:"body,omitempty" protobuf:"bytes,4,opt,name=body"`
 	// SHA is the commit hash.
@@ -2828,7 +2821,7 @@ func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
 
 // AddWindow adds a sync window with the given parameters to the AppProject
 func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string, andOperator bool, description string) error {
-	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {
+	if knd == "" || sch == "" || dur == "" {
 		return errors.New("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 	}
 
@@ -3071,15 +3064,15 @@ func (w SyncWindow) active(currentTime time.Time) (bool, error) {
 
 // Update updates a sync window's settings with the given parameter
 func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string, description string) error {
-	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 && len(description) == 0 {
+	if s == "" && d == "" && len(a) == 0 && len(n) == 0 && len(c) == 0 && description == "" {
 		return errors.New("cannot update: require one or more of schedule, duration, application, namespace, cluster or description")
 	}
 
-	if len(s) > 0 {
+	if s != "" {
 		w.Schedule = s
 	}
 
-	if len(d) > 0 {
+	if d != "" {
 		w.Duration = d
 	}
 
@@ -3095,7 +3088,7 @@ func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []stri
 		w.Clusters = c
 	}
 
-	if len(description) > 0 {
+	if description != "" {
 		w.Description = description
 	}
 

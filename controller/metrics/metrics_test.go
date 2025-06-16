@@ -276,7 +276,7 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 		metricsServ.registry.MustRegister(collector)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", http.NoBody)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -436,7 +436,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name=
 	metricsServ.IncSync(fakeApp, "https://localhost:6443", &argoappv1.OperationState{Phase: common.OperationSucceeded})
 	metricsServ.IncSync(fakeApp, "https://localhost:6443", &argoappv1.OperationState{Phase: common.OperationSucceeded})
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", http.NoBody)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -492,7 +492,7 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 	fakeApp := newFakeApp(fakeApp)
 	metricsServ.IncReconcile(fakeApp, "https://localhost:6443", 5*time.Second)
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", http.NoBody)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -518,7 +518,7 @@ argocd_app_orphaned_resources_count{name="my-app-4",namespace="argocd",project="
 	numOrphanedResources := 1
 	metricsServ.SetOrphanedResourcesMetric(app, numOrphanedResources)
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", http.NoBody)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -543,7 +543,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name=
 argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name="my-app",namespace="argocd",phase="Succeeded",project="important-project"} 2
 `
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", http.NoBody)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -554,7 +554,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name=
 	err = metricsServ.SetExpiration(time.Second)
 	require.NoError(t, err)
 	time.Sleep(2 * time.Second)
-	req, err = http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err = http.NewRequest(http.MethodGet, "/metrics", http.NoBody)
 	require.NoError(t, err)
 	rr = httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -587,7 +587,7 @@ workqueue_unfinished_work_seconds{controller="test",name="test"}
 `
 	workqueue.NewNamed("test")
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", http.NoBody)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -620,7 +620,7 @@ go_memstats_sys_bytes
 go_threads
 `
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", http.NoBody)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)

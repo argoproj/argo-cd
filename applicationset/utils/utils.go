@@ -65,7 +65,7 @@ func copyUnexported(copy, original reflect.Value) {
 
 func IsJSONStr(str string) bool {
 	str = strings.TrimSpace(str)
-	return len(str) > 0 && str[0] == '{'
+	return str != "" && str[0] == '{'
 }
 
 func ConvertYAMLToJSON(str string) (string, error) {
@@ -335,7 +335,7 @@ func (r *Render) Replace(tmpl string, replaceMap map[string]any, useGoTemplate b
 	replacedTmpl := fstTmpl.ExecuteFuncString(func(w io.Writer, tag string) (int, error) {
 		trimmedTag := strings.TrimSpace(tag)
 		replacement, ok := replaceMap[trimmedTag].(string)
-		if len(trimmedTag) == 0 || !ok {
+		if trimmedTag == "" || !ok {
 			return fmt.Fprintf(w, "{{%s}}", tag)
 		}
 		return w.Write([]byte(replacement))

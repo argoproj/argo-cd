@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/mail"
 	"os"
 	"os/exec"
 	"path"
@@ -502,8 +503,7 @@ func Test_nativeGitClient_RevisionMetadata(t *testing.T) {
 
 (╯°□°)╯︵ ┻━┻
 		`, "-a",
-		"--trailer", "Argocd-reference-commit-author-name: test-author",
-		"--trailer", "Argocd-reference-commit-author-email: test@email.com",
+		"--trailer", "Argocd-reference-commit-author: test-author <test@email.com>",
 		"--trailer", "Argocd-reference-commit-date: "+now.Format(time.RFC3339),
 		"--trailer", "Argocd-reference-commit-subject: chore: make a change",
 		"--trailer", "Argocd-reference-commit-sha: abc123",
@@ -521,8 +521,7 @@ func Test_nativeGitClient_RevisionMetadata(t *testing.T) {
 
 (╯°□°)╯︵ ┻━┻
 
-Argocd-reference-commit-author-name: test-author
-Argocd-reference-commit-author-email: test@email.com
+Argocd-reference-commit-author: test-author <test@email.com>
 Argocd-reference-commit-date: %s
 Argocd-reference-commit-subject: chore: make a change
 Argocd-reference-commit-sha: abc123
@@ -530,9 +529,9 @@ Argocd-reference-commit-repourl: https://git.example.com/test/repo.git`, now.For
 		References: []RevisionReference{
 			{
 				Commit: &CommitMetadata{
-					Author: CommitMetadataAuthor{
-						Name:  "test-author",
-						Email: "test@email.com",
+					Author: mail.Address{
+						Name:    "test-author",
+						Address: "test@email.com",
 					},
 					Date:    now.Format(time.RFC3339),
 					Subject: "chore: make a change",
@@ -1107,6 +1106,8 @@ func (m *mockCreds) GetUserInfo(_ context.Context) (string, string, error) {
 func Test_getReferences(t *testing.T) {
 	t.Parallel()
 
+	now := time.Now()
+
 	tests := []struct {
 		name     string
 		input    string
@@ -1123,7 +1124,7 @@ func Test_getReferences(t *testing.T) {
 Argocd-reference-commit-date: invalid-date
 Argocd-reference-commit-sha: xyz123
 Argocd-reference-commit-body: this isn't json
-Argocd-reference-commit-author-email: % not email %
+Argocd-reference-commit-author: % not email %
 Argocd-reference-commit-bogus:`,
 			expected: nil,
 		},
@@ -1147,21 +1148,20 @@ Argocd-reference-commit-date: invalid-date`,
 		},
 		{
 			name: "Valid trailers",
-			input: `Argocd-reference-commit-repourl: https://github.com/org/repo.git
-Argocd-reference-commit-author-name: John Doe
-Argocd-reference-commit-author-email: john.doe@example.com
-Argocd-reference-commit-date: 2023-10-01T12:00:00Z
+			input: fmt.Sprintf(`Argocd-reference-commit-repourl: https://github.com/org/repo.git
+Argocd-reference-commit-author: John Doe <john.doe@example.com>
+Argocd-reference-commit-date: %s
 Argocd-reference-commit-subject: Fix bug
 Argocd-reference-commit-body: "Fix bug\n\nSome: trailer"
-Argocd-reference-commit-sha: abc123`,
+Argocd-reference-commit-sha: abc123`, now.Format(time.RFC3339)),
 			expected: []RevisionReference{
 				{
 					Commit: &CommitMetadata{
-						Author: CommitMetadataAuthor{
-							Name:  "John Doe",
-							Email: "john.doe@example.com",
+						Author: mail.Address{
+							Name:    "John Doe",
+							Address: "john.doe@example.com",
 						},
-						Date:    "2023-10-01T12:00:00Z",
+						Date:    now.Format(time.RFC3339),
 						Body:    "Fix bug\n\nSome: trailer",
 						Subject: "Fix bug",
 						SHA:     "abc123",
