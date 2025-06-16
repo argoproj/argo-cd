@@ -70,7 +70,6 @@ linters:
         - sloppyReassign
         - tooManyResultsChecker
         - typeDefFirst
-        - typeSwitchVar
         - unnamedResult
         - whyNoLint
 
