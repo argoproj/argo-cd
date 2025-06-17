@@ -87,6 +87,16 @@ Our fork maintains several important branches:
      ```
 
 4. **Internal CI** will build and publish the image to GHCR for Skyscanner use.
+   - You can find the images at [Skyscanner/argo-cd/pkgs/container/argocd](https://github.com/Skyscanner/argo-cd/pkgs/container/argocd)
+   - Note the image digest which we be used for mirroring to internal AWS ECR and for deployment as well.
+
+5. **Deploy the internal image** to cells ctrl cluster:
+   - Mirror the image to internal AWS ECR:
+     - Add the image under [/grit/images.yml in ecr-mirror repo](https://github.com/Skyscanner/ecr-mirror/blob/main/grit/images.yml)
+     - Ask approval from DODO team
+     - If it's a new image, you will need to follow additional steps to mirror it to internal ECR as mentioned in the [README](https://github.com/Skyscanner/ecr-mirror/tree/main?tab=readme-ov-file#adding-images)
+   - Once the image is mirrored, you can deploy it to the ctrl cluster:
+     - Update k8s/cells repo as shown in this [PR](https://github.skyscannertools.net/k8s/cells/pull/10404/files)
 
 ## Upstream Contribution Workflow
 
