@@ -6,11 +6,8 @@ Tools like Helm and Kustomize allow users to express their Kubernetes manifests 
 (keeping it DRY - Don't Repeat Yourself). However, these tools can obscure the actual Kubernetes manifests that are
 applied to the cluster.
 
-The "rendered manifest pattern" is a way to push the hydrated manifests to git before syncing them to the cluster. This
+The "rendered manifest pattern" is a feature of Argo CD that allows users to push the hydrated manifests to git before syncing them to the cluster. This
 allows users to see the actual Kubernetes manifests that are applied to the cluster.
-
-The source hydrator is a feature of Argo CD that allows users to push the hydrated manifests to git before syncing them
-to the cluster.
 
 ## Enabling the Source Hydrator
 
@@ -49,7 +46,7 @@ With hydrator:    https://raw.githubusercontent.com/argoproj/argo-cd/stable/mani
 
 ## Using the Source Hydrator
 
-To use the source hydrator, you must first install a push secret. This example uses a GitHub App for authentication, but
+To use the source hydrator, you must first install a push and a pull secret. This example uses a GitHub App for authentication, but
 you can use [any authentication method that Argo CD supports for repository access](../operator-manual/declarative-setup.md#repositories).
 
 ```yaml
@@ -68,12 +65,29 @@ stringData:
   githubAppInstallationID: "<your installation ID here>"
   githubAppPrivateKey: |
     <your private key here>
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-pull-secret
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+stringData:
+  url: "https://github.com"
+  type: "git"
+  githubAppID: "<your app ID here>"
+  githubAppInstallationID: "<your installation ID here>"
+  githubAppPrivateKey: |
+    <your private key here>
 ```
 
-The label `argocd.argoproj.io/secret-type: repository-write` causes this Secret to be used for pushing manifests to git
-instead of pulling from git.
+The only difference between the secrets above, besides the resource name, is that the push secret contains the label
+`argocd.argoproj.io/secret-type: repository-write`, which causes the Secret to be used for pushing manifests to git
+instead of pulling from git. Argo CD requires different secrets for pushing and pulling to provide better isolation.
 
-Once your push secret is installed, set the `spec.sourceHydrator` field of the Application. For example:
+Once your secrets are installed, set the `spec.sourceHydrator` field of the Application. For example:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
