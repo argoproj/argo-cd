@@ -1,3 +1,6 @@
+-- Reference CRD can be found here:
+-- https://github.com/DataDog/helm-charts/blob/main/charts/datadog-crds/templates/datadoghq.com_datadogmetrics_v1.yaml
+
 hs = {}
 if obj.status ~= nil and obj.status.conditions ~= nil then
   for i, condition in ipairs(obj.status.conditions) do
