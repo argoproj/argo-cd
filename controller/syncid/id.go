@@ -11,10 +11,10 @@ var globalCount = &atomic.Uint64{}
 
 // Generate generates a new ID
 func Generate() (string, error) {
-	prefix := globalCount.Add(1)
 	randSuffix, err := rand.String(5)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate random suffix: %w", err)
 	}
+	prefix := globalCount.Add(1)
 	return fmt.Sprintf("%05d-%s", prefix, randSuffix), nil
 }
