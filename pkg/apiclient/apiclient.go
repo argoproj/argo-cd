@@ -806,11 +806,9 @@ func (c *client) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceCl
 }
 
 func (c *client) WatchApplicationSetWithRetry(ctx context.Context, appsetName string, revision string) chan *v1alpha1.ApplicationSetWatchEvent {
-	fmt.Println("inside watchapplicationsetwithretry function")
 	appSetEventCh := make(chan *v1alpha1.ApplicationSetWatchEvent)
 	cancelled := false
 	appSetName, appSetNs := argo.ParseFromQualifiedName(appsetName, "")
-	fmt.Println(appSetNs)
 	go func() {
 		defer close(appSetEventCh)
 		for !cancelled {
