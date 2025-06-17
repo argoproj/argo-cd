@@ -1,7 +1,6 @@
 package syncid
 
 import (
-	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,8 +14,8 @@ func TestGenerate(t *testing.T) {
 	idsCh := make(chan string, goroutines*idsPerGoroutine)
 	errCh := make(chan error, goroutines*idsPerGoroutine)
 
-	// Reset syncIdPrefix for deterministic test (not strictly necessary, but helps in CI)
-	atomic.StoreUint64(&globalCount, 0)
+	// Reset globalCount for deterministic test (not strictly necessary, but can help in CI)
+	globalCount.Store(0)
 
 	// Run goroutines in parallel to test for race conditions
 	for g := 0; g < goroutines; g++ {
