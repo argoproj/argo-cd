@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewSyncId(t *testing.T) {
+func TestGenerate(t *testing.T) {
 	t.Parallel()
 	const goroutines = 10
 	const idsPerGoroutine = 50
