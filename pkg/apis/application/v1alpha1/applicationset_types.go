@@ -616,7 +616,8 @@ type PullRequestGenerator struct {
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values map[string]string `json:"values,omitempty" protobuf:"bytes,10,name=values"`
 	// ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator reconciliation even if the repository is not found.
-	ContinueOnRepoNotFoundError bool `json:"continueOnRepoNotFoundError,omitempty" protobuf:"varint,11,opt,name=continueOnRepoNotFoundError"`
+	// ContinueOnRepoNotFoundError bool `json:"continueOnRepoNotFoundError,omitempty" protobuf:"varint,11,opt,name=continueOnRepoNotFoundError"`
+	ContinueOnRepoNotFoundError bool `json:"-" protobuf:"-"`
 	// If you add a new SCM provider, update CustomApiUrl below.
 }
 
