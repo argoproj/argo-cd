@@ -56,7 +56,6 @@ linters:
         - appendCombine # Leave disabled, multi-line assigns can be more readable.
         - assignOp # Leave disabled, assign operations can be more confusing than helpful.
         - commentedOutCode
-        - deferInLoop
         - exitAfterDefer
         - exposedSyncMutex
         - hugeParam
