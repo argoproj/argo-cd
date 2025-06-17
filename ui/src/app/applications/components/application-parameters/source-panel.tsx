@@ -227,9 +227,9 @@ export const SourcePanel = (props: {
                                                                 revision: api.getFormState().values.spec?.source?.targetRevision
                                                             }}
                                                             load={async src =>
-                                                                (src.repoURL &&
-                                                                    // TODO: for autocomplete we need to fetch paths that are used by other apps within the same project making use of the same OCI repo
-                                                                    new Array<string>())
+                                                                src.repoURL &&
+                                                                // TODO: for autocomplete we need to fetch paths that are used by other apps within the same project making use of the same OCI repo
+                                                                new Array<string>()
                                                             }>
                                                             {(paths: string[]) => (
                                                                 <FormField

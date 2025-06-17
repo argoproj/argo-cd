@@ -363,9 +363,9 @@ export const ApplicationCreatePanel = (props: {
                                                             <DataLoader
                                                                 input={{repoURL: app.spec.source.repoURL, revision: app.spec.source.targetRevision}}
                                                                 load={async src =>
-                                                                    (src.repoURL &&
+                                                                    src.repoURL &&
                                                                     // TODO: for autocomplete we need to fetch paths that are used by other apps within the same project making use of the same OCI repo
-                                                                    new Array<string>())
+                                                                    new Array<string>()
                                                                 }>
                                                                 {(paths: string[]) => (
                                                                     <FormField
