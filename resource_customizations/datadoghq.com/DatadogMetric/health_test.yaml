@@ -1,0 +1,9 @@
+tests:
+  - healthStatus:
+      status: Degraded
+      message: "DatadogMetric reported an error"
+    inputPath: testdata/degraded_error.yaml
+  - healthStatus:
+      status: Healthy
+      message: "DatadogMetric is healthy"
+    inputPath: testdata/healthy.yaml 
