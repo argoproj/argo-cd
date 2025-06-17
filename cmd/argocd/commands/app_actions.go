@@ -150,17 +150,18 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	var all bool
 	command := &cobra.Command{
 		Use:   "run APPNAME ACTION",
-		Short: "Runs an available action on resource(s)",
+		Short: "Runs an available action on resource(s) matching the specified filters.",
+		Long:  "All filters except --kind are optional. Use --all to run the action on all matching resources if more than one resource matches the filters. Actions may only be run on resources that are represented in git and cannot be run on child resources.",
 		Example: templates.Examples(`
 	# Run an available action for an application
 	argocd app actions run APPNAME ACTION --kind KIND [--resource-name RESOURCE] [--namespace NAMESPACE] [--group GROUP]
 	`),
 	}
 
-	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
-	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
-	command.Flags().StringVar(&kind, "kind", "", "Kind")
-	command.Flags().StringVar(&group, "group", "", "Group")
+	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource on which the action should be run")
+	command.Flags().StringVar(&namespace, "namespace", "", "Namespace of the resource on which the action should be run")
+	command.Flags().StringVar(&kind, "kind", "", "Kind of the resource on which the action should be run")
+	command.Flags().StringVar(&group, "group", "", "Group of the resource on which the action should be run")
 	errors.CheckError(command.MarkFlagRequired("kind"))
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to run the action on multiple matching resources")
 

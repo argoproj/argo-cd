@@ -168,25 +168,25 @@ func (sharding *ClusterSharding) updateDistribution() {
 }
 
 // hasShardingUpdates returns true if the sharding distribution has explicitly changed
-func hasShardingUpdates(old, new *v1alpha1.Cluster) bool {
-	if old == nil || new == nil {
+func hasShardingUpdates(old, newCluster *v1alpha1.Cluster) bool {
+	if old == nil || newCluster == nil {
 		return false
 	}
 
 	// returns true if the cluster id has changed because some sharding algorithms depend on it.
-	if old.ID != new.ID {
+	if old.ID != newCluster.ID {
 		return true
 	}
 
-	if old.Server != new.Server {
+	if old.Server != newCluster.Server {
 		return true
 	}
 
 	// return false if the shard field has not been modified
-	if old.Shard == nil && new.Shard == nil {
+	if old.Shard == nil && newCluster.Shard == nil {
 		return false
 	}
-	return old.Shard == nil || new.Shard == nil || int64(*old.Shard) != int64(*new.Shard)
+	return old.Shard == nil || newCluster.Shard == nil || int64(*old.Shard) != int64(*newCluster.Shard)
 }
 
 // A read lock should be acquired before calling getClusterAccessor.
