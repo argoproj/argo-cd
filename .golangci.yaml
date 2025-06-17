@@ -59,7 +59,6 @@ linters:
         - deferInLoop
         - exitAfterDefer
         - exposedSyncMutex
-        - filepathJoin
         - hugeParam
         - importShadow
         - paramTypeCombine # Leave disabled, there are too many failures to be worth fixing.
