@@ -20,10 +20,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/util/oci"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
+
+	"github.com/argoproj/argo-cd/v3/util/oci"
 
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 
@@ -4496,9 +4497,9 @@ func TestGenerateManifest_OCISourceSkipsGitClient(t *testing.T) {
 	svc := newService(t, t.TempDir())
 
 	gitCalled := false
-	svc.newGitClient = func(rawRepoURL, root string, creds git.Creds, insecure, enableLfs bool, proxy, noProxy string, opts ...git.ClientOpts) (git.Client, error) {
+	svc.newGitClient = func(_, _ string, _ git.Creds, _, _ bool, _, _ string, _ ...git.ClientOpts) (git.Client, error) {
 		gitCalled = true
-		return nil, fmt.Errorf("git should not be called for OCI")
+		return nil, errors.New("git should not be called for OCI")
 	}
 
 	req := &apiclient.ManifestRequest{
@@ -4516,7 +4517,7 @@ func TestGenerateManifest_OCISourceSkipsGitClient(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 
-	_, err := svc.GenerateManifest(context.Background(), req)
+	_, err := svc.GenerateManifest(t.Context(), req)
 	require.NoError(t, err)
 
 	// verify that newGitClient was never invoked
