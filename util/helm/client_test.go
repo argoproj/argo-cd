@@ -125,6 +125,69 @@ func Test_nativeHelmChart_ExtractChart_DirectPullWithoutVersion(t *testing.T) {
 	require.Error(t, err, "failed to fetch chart 'argo-cd': version should be defined fetching by direct url")
 }
 
+func Test_SafeChartURL(t *testing.T) {
+	t.Run("Test Default URL", func(t *testing.T) {
+		url, err := safeChartURL("https://argoproj.github.io/argo-helm", "my-chart-name", "v0.0.1")
+		require.NoError(t, err)
+		assert.Equal(t, "https://argoproj.github.io/argo-helm/my-chart-name-v0.0.1.tgz", url)
+	})
+
+	t.Run("Valid URL with trailing slash", func(t *testing.T) {
+		url, err := safeChartURL("https://argoproj.github.io/argo-helm/", "my-chart", "1.0.0")
+		require.NoError(t, err)
+		assert.Equal(t, "https://argoproj.github.io/argo-helm/my-chart-1.0.0.tgz", url)
+	})
+
+	t.Run("Valid characters in name/version", func(t *testing.T) {
+		url, err := safeChartURL("https://argoproj.github.io/argo-helm", "chart.name-123", "v1.0_alpha")
+		require.NoError(t, err)
+		assert.Equal(t, "https://argoproj.github.io/argo-helm/chart.name-123-v1.0_alpha.tgz", url)
+	})
+
+	t.Run("Empty chart name", func(t *testing.T) {
+		_, err := safeChartURL("https://argoproj.github.io/argo-helm", "", "1.0.0")
+		assert.ErrorContains(t, err, "chartName and version should be defined")
+	})
+
+	t.Run("Empty version", func(t *testing.T) {
+		_, err := safeChartURL("https://argoproj.github.io/argo-helm", "chart", "")
+		assert.ErrorContains(t, err, "chartName and version should be defined")
+	})
+
+	t.Run("Invalid chars in chart name", func(t *testing.T) {
+		_, err := safeChartURL("https://argoproj.github.io/argo-helm", "chart@name", "1.0.0")
+		assert.ErrorContains(t, err, "invalid characters in chartName")
+	})
+
+	t.Run("Invalid chars in version", func(t *testing.T) {
+		_, err := safeChartURL("https://argoproj.github.io/argo-helm", "chart", "1.0&0")
+		assert.ErrorContains(t, err, "invalid characters in version")
+	})
+
+	t.Run("Path traversal in chart name", func(t *testing.T) {
+		_, err := safeChartURL("https://argoproj.github.io/argo-helm", "../chart", "1.0.0")
+		assert.ErrorContains(t, err, "invalid characters in chartName")
+	})
+
+	t.Run("Long valid names", func(t *testing.T) {
+		longName := strings.Repeat("a", 255)
+		longVersion := strings.Repeat("1", 100)
+		_, err := safeChartURL("https://argoproj.github.io/argo-helm", longName, longVersion)
+		require.NoError(t, err)
+	})
+
+	t.Run("Invalid URL scheme", func(t *testing.T) {
+		_, err := safeChartURL("ftp://repo", "chart", "1.0.0")
+		require.Error(t, err)
+	})
+
+	t.Run("URL with port", func(t *testing.T) {
+		url, err := safeChartURL("https://argoproj.github.io/argo-helm:8080", "chart", "1.0")
+		require.NoError(t, err)
+		assert.Equal(t, "https://argoproj.github.io/argo-helm:8080/chart-1.0.tgz", url)
+	})
+}
+
 func Test_normalizeChartName(t *testing.T) {
 	t.Run("Test non-slashed name", func(t *testing.T) {
 		n := normalizeChartName("mychart")
