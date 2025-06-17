@@ -322,13 +322,21 @@ func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicatio
 	}
 
 	events := make(chan *v1alpha1.ApplicationSetWatchEvent, 100)
-	unsubscribe := s.appsetBroadcaster.Subscribe(events)
-	defer unsubscribe()
-
 	if q.GetResourceVersion() == "" || q.GetName() != "" {
 		appsets, err := s.appsetLister.List(selector)
 		if err != nil {
 			return fmt.Errorf("error listing appsets with selector: %w", err)
+		}
+		// if the list call is unable to list the applicationset
+		// it means the appset has been deleted already, hence
+		// send a Delete event to the channel and return
+		if appsets == nil {
+			if err := ws.Send(&v1alpha1.ApplicationSetWatchEvent{
+				Type: watch.Deleted,
+			}); err != nil {
+				logCtx.Warnf("Unable to send stream message: %v", err)
+			}
+			return nil
 		}
 		sort.Slice(appsets, func(i, j int) bool {
 			return appsets[i].QualifiedName() < appsets[j].QualifiedName()
@@ -337,14 +345,13 @@ func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicatio
 			sendIfPermitted(*appsets[i], watch.Added)
 		}
 	}
-
+	unsubscribe := s.appsetBroadcaster.Subscribe(events)
+	defer unsubscribe()
 	for {
 		select {
 		case event := <-events:
-			logCtx.Infof("watch(): received event: %s for %s", event.Type, event.ApplicationSet.Name)
 			sendIfPermitted(event.ApplicationSet, event.Type)
 		case <-ws.Context().Done():
-			logCtx.Info("watch(): context closed, stopping")
 			return nil
 		}
 	}
