@@ -185,6 +185,7 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 		return nil, fmt.Errorf("error marshaling predicted live for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
 	}
 
+	Normalize(live, opts...)
 	unstructured.RemoveNestedField(live.Object, "metadata", "managedFields")
 	liveBytes, err := json.Marshal(live)
 	if err != nil {
