@@ -1,16 +1,24 @@
 hs = {}
 if obj.status ~= nil and obj.status.conditions ~= nil then
   for i, condition in ipairs(obj.status.conditions) do
+    -- Check for the "Error: True" condition first
+    if condition.type == "Error" and condition.status == "True" then
+      hs.status = "Degraded"
+      local reason = condition.reason or ""
+      local message = condition.message or "DatadogMetric reported an error"
+      if reason ~= "" then
+        hs.message = reason .. ": " .. message
+      else
+        hs.message = message
+      end
+      return hs
+    end
+  end
+  for i, condition in ipairs(obj.status.conditions) do
     -- Check for the "Valid: False" condition
     if condition.type == "Valid" and condition.status == "False" then
       hs.status = "Degraded"
       hs.message = condition.message or "DatadogMetric is not valid"
-      return hs
-    end
-    -- Check for the "Error: True" condition
-    if condition.type == "Error" and condition.status == "True" then
-      hs.status = "Degraded"
-      hs.message = condition.message or "DatadogMetric reported an error"
       return hs
     end
   end
