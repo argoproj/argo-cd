@@ -232,7 +232,10 @@ The commit metadata will appear in the hydrated commit's root hydrator.metadata 
 {
   "author": "CI <ci@example.com>",
   "subject": "chore: bump image to b82add2",
+  "date": "2025-06-09T13:50:08-04:00",
   "body": "Signed-off-by: CI <ci@example.com>\n",
+  "drySha": "6cb951525937865dced818bbdd78c89b2d2b3045",
+  "repoURL": "https://git.example.com/owner/manifests-repo",
   "references": [
     {
       "commit": {
