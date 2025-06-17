@@ -230,7 +230,7 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 	_ = enf.SetBuiltinPolicy(`p, role:test, clusters, *, https://127.0.0.1, allow
 p, role:test, clusters, *, allowed-project/*, allow`)
 	enf.SetDefaultRole("role:test")
-	server := NewServer(db, enf, newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+	server := NewServer(db, enf, newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace))
 
 	for _, c := range testCases {
 		cc := c
@@ -260,7 +260,7 @@ func TestGetCluster_UrlEncodedName(t *testing.T) {
 
 	db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
 
-	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace))
 
 	localCluster, err := server.Get(t.Context(), &cluster.ClusterQuery{
 		Id: &cluster.ClusterID{
@@ -290,7 +290,7 @@ func TestGetCluster_NameWithUrlEncodingButShouldNotBeUnescaped(t *testing.T) {
 
 	db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
 
-	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace))
 
 	localCluster, err := server.Get(t.Context(), &cluster.ClusterQuery{
 		Id: &cluster.ClusterID{
@@ -320,7 +320,7 @@ func TestGetCluster_CannotSetCADataAndInsecureTrue(t *testing.T) {
 	}
 	clientset := getClientset(nil, testNamespace)
 	db := db.NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
-	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), clientset, testNamespace))
 
 	t.Run("Create Fails When CAData is Set and Insecure is True", func(t *testing.T) {
 		_, err := server.Create(t.Context(), &cluster.ClusterCreateRequest{
@@ -362,7 +362,7 @@ func TestUpdateCluster_NoFieldsPaths(t *testing.T) {
 		return true
 	})).Return(&v1alpha1.Cluster{}, nil)
 
-	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace))
 
 	_, err := server.Update(t.Context(), &cluster.ClusterUpdateRequest{
 		Cluster: &v1alpha1.Cluster{
@@ -390,7 +390,7 @@ func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 		return true
 	})).Return(&v1alpha1.Cluster{}, nil)
 
-	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace))
 
 	_, err := server.Update(t.Context(), &cluster.ClusterUpdateRequest{
 		Cluster: &v1alpha1.Cluster{
@@ -475,7 +475,7 @@ func TestDeleteClusterByName(t *testing.T) {
 		},
 	})
 	db := db.NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
-	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), clientset, testNamespace))
 
 	t.Run("Delete Fails When Deleting by Unknown Name", func(t *testing.T) {
 		_, err := server.Delete(t.Context(), &cluster.ClusterQuery{
@@ -552,7 +552,7 @@ func TestRotateAuth(t *testing.T) {
 		})
 
 	db := db.NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
-	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), clientset, testNamespace))
 
 	t.Run("RotateAuth by Unknown Name", func(t *testing.T) {
 		_, err := server.RotateAuth(t.Context(), &cluster.ClusterQuery{
@@ -634,7 +634,7 @@ func TestListCluster(t *testing.T) {
 
 	db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
 
-	s := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+	s := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace))
 
 	tests := []struct {
 		name    string
@@ -737,7 +737,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 
 		db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
 
-		server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+		server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace))
 		localCluster, err := server.getClusterAndVerifyAccess(t.Context(), &cluster.ClusterQuery{
 			Name: "test/not-exists",
 		}, rbac.ActionGet)
@@ -763,7 +763,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 
 		db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
 
-		server := NewServer(db, newEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+		server := NewServer(db, newEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace))
 		localCluster, err := server.getClusterAndVerifyAccess(t.Context(), &cluster.ClusterQuery{
 			Name: "test/ing",
 		}, rbac.ActionGet)
@@ -791,7 +791,7 @@ func TestNoClusterEnumeration(t *testing.T) {
 	db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
 	db.On("GetCluster", mock.Anything, mock.Anything).Return(&mockCluster, nil)
 
-	server := NewServer(db, newEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+	server := NewServer(db, newEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace))
 
 	t.Run("Get", func(t *testing.T) {
 		_, err := server.Get(t.Context(), &cluster.ClusterQuery{

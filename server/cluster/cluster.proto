@@ -8,6 +8,7 @@ package cluster;
 
 import "google/api/annotations.proto";
 import "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.proto";
+import "server/application/application.proto";
 
 // ClusterID holds a cluster server URL or cluster name
 message ClusterID {
@@ -87,7 +88,7 @@ service ClusterService {
 	}
 
 	// ListLinks returns list of links for a cluster
-	rpc ListLinks(ListClusterLinksRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apiclient.application.LinksResponse) {
+	rpc ListLinks(ClusterQuery) returns (application.LinksResponse) {
 		option (google.api.http).get = "/api/v1/clusters/{name}/links";
 	}
 }

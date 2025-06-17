@@ -517,11 +517,8 @@ func (s *Server) InvalidateCache(ctx context.Context, q *cluster.ClusterQuery) (
 	return s.toAPIResponse(cls), nil
 }
 
-func (s *Server) ListLinks(ctx context.Context, req *cluster.ListClusterLinksRequest) (*application.LinksResponse, error) {
-	clst, err := s.getClusterAndVerifyAccess(ctx, &cluster.ClusterQuery{
-		Name:   req.GetName(),
-		Server: req.GetServer(),
-	}, rbac.ActionGet)
+func (s *Server) ListLinks(ctx context.Context, req *cluster.ClusterQuery) (*application.LinksResponse, error) {
+	clst, err := s.getClusterAndVerifyAccess(ctx, req, rbac.ActionGet)
 	if err != nil {
 		return nil, err
 	}
