@@ -38,9 +38,9 @@ func TestNewSyncId(t *testing.T) {
 		case err := <-errCh:
 			require.NoError(t, err)
 		case id := <-idsCh:
-			assert.Regexp(t, `^\d{5}-[a-zA-Z0-9]{5}$`, id, "sync ID should match the expected format")
+			assert.Regexp(t, `^\d{5}-[a-zA-Z0-9]{5}$`, id, "ID should match the expected format")
 			_, exists := ids[id]
-			assert.False(t, exists, "sync ID should be unique")
+			assert.False(t, exists, "ID should be unique")
 			ids[id] = id
 		}
 	}
