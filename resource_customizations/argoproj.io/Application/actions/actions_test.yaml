@@ -1,0 +1,58 @@
+tests:
+- given:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: test-app
+    spec:
+      syncPolicy:
+        automated:
+          enabled: true
+          prune: true
+          selfHeal: true
+  when:
+    action: toggle-auto-sync
+  expect:
+    spec:
+      syncPolicy:
+        automated:
+          enabled: false
+          prune: true
+          selfHeal: true
+
+- given:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: test-app
+    spec:
+      syncPolicy:
+        automated:
+          enabled: false
+          prune: true
+          selfHeal: true
+  when:
+    action: toggle-auto-sync
+  expect:
+    spec:
+      syncPolicy:
+        automated:
+          enabled: true
+          prune: true
+          selfHeal: true
+
+- given:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: test-app
+    spec: {}
+  when:
+    action: toggle-auto-sync
+  expect:
+    spec:
+      syncPolicy:
+        automated:
+          enabled: false
+          prune: false
+          selfHeal: false
