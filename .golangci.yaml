@@ -64,7 +64,6 @@ linters:
         - importShadow
         - paramTypeCombine # Leave disabled, there are too many failures to be worth fixing.
         - rangeValCopy
-        - sloppyReassign
         - tooManyResultsChecker
         - unnamedResult
         - whyNoLint
