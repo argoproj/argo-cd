@@ -26,8 +26,8 @@ argocd app set guestbook -p ingress.enabled=true
 argocd app set guestbook -p ingress.hosts[0]=guestbook.myclusterurl
 ```
 
-The `argocd app set` [command](./commands/argocd_app_set.md) supports more tool-specific flags such as `--kustomize-image`, `--jsonnet-ext-var-str` etc
-flags. You can also specify overrides directly in the source field on application spec. Read more about supported options in corresponded tool [documentation](./application_sources.md).
+The `argocd app set` [command](./commands/argocd_app_set.md) supports more tool-specific flags such as `--kustomize-image`, `--jsonnet-ext-var-str`, etc.
+You can also specify overrides directly in the source field on the application spec. Read more about supported options in the corresponding tool [documentation](./application_sources.md).
 
 ## When To Use Overrides?
 
@@ -65,7 +65,7 @@ Example:
 ```yaml
 kustomize:
   images:
-    - gcr.io/heptio-images/ks-guestbook-demo:0.2
+    - quay.io/argoprojlabs/argocd-e2e-container:0.2
 ```
 
 The `.argocd-source` is trying to solve two following main use cases:
@@ -81,7 +81,7 @@ are sourcing multiple applications from a single path in your repository.
 The application specific file must be named `.argocd-source-<appname>.yaml`,
 where `<appname>` is the name of the application the overrides are valid for.
 
-If there exists an non-application specific `.argocd-source.yaml`, parameters
+If there exists a non-application specific `.argocd-source.yaml`, parameters
 included in that file will be merged first, and then the application specific
 parameters are merged, which can also contain overrides to the parameters
 stored in the non-application specific file.

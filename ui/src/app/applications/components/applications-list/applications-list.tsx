@@ -285,16 +285,18 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
                                 {toolbar.actionMenu && (
                                     <React.Fragment>
                                         {toolbar.actionMenu.items.map((item, i) => (
-                                            <button
-                                                disabled={!!item.disabled}
-                                                qe-id={item.qeId}
-                                                className='argo-button argo-button--base'
-                                                onClick={() => item.action()}
-                                                style={{marginRight: 2}}
-                                                key={i}>
-                                                {item.iconClassName && <i className={item.iconClassName} style={{marginLeft: '-5px', marginRight: '5px'}} />}
-                                                <span className='show-for-large'>{item.title}</span>
-                                            </button>
+                                            <Tooltip className='custom-tooltip' content={item.title}>
+                                                <button
+                                                    disabled={!!item.disabled}
+                                                    qe-id={item.qeId}
+                                                    className='argo-button argo-button--base'
+                                                    onClick={() => item.action()}
+                                                    style={{marginRight: 2}}
+                                                    key={i}>
+                                                    {item.iconClassName && <i className={item.iconClassName} style={{marginLeft: '-5px', marginRight: '5px'}} />}
+                                                    <span className='show-for-large'>{item.title}</span>
+                                                </button>
+                                            </Tooltip>
                                         ))}
                                     </React.Fragment>
                                 )}

@@ -8,13 +8,13 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
 
-	"github.com/argoproj/argo-cd/v2/util/lua"
+	"github.com/argoproj/argo-cd/v3/util/lua"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 var (
@@ -76,7 +76,7 @@ func (ctrl *ApplicationController) executePostDeleteHooks(app *v1alpha1.Applicat
 	}
 	createdCnt := 0
 	for _, obj := range expectedHook {
-		_, err = ctrl.kubectl.CreateResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), obj, v1.CreateOptions{})
+		_, err = ctrl.kubectl.CreateResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), obj, metav1.CreateOptions{})
 		if err != nil {
 			return false, err
 		}
@@ -153,16 +153,17 @@ func (ctrl *ApplicationController) cleanupPostDeleteHooks(liveObjs map[kube.Reso
 
 	for _, obj := range hooks {
 		for _, policy := range hook.DeletePolicies(obj) {
-			if policy == common.HookDeletePolicyHookFailed && aggregatedHealth == health.HealthStatusDegraded || policy == common.HookDeletePolicyHookSucceeded && aggregatedHealth == health.HealthStatusHealthy {
-				pendingDeletionCount++
-				if obj.GetDeletionTimestamp() != nil {
-					continue
-				}
-				logCtx.Infof("Deleting post-delete hook %s/%s", obj.GetNamespace(), obj.GetName())
-				err = ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), v1.DeleteOptions{})
-				if err != nil {
-					return false, err
-				}
+			if (policy != common.HookDeletePolicyHookFailed || aggregatedHealth != health.HealthStatusDegraded) && (policy != common.HookDeletePolicyHookSucceeded || aggregatedHealth != health.HealthStatusHealthy) {
+				continue
+			}
+			pendingDeletionCount++
+			if obj.GetDeletionTimestamp() != nil {
+				continue
+			}
+			logCtx.Infof("Deleting post-delete hook %s/%s", obj.GetNamespace(), obj.GetName())
+			err = ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{})
+			if err != nil {
+				return false, err
 			}
 		}
 	}

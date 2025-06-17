@@ -32,3 +32,31 @@ i.utils-health-status-icon {
     min-width: 13px;
     text-align: center;
 }
+
+.status-button {
+    display: inline;
+    border-radius: 5px;
+    vertical-align: middle;
+    padding: 2px;
+    border: 1px solid $argo-color-gray-5;
+    &:hover {
+        background-color: $argo-color-gray-4;
+    }
+}
+
+.icon.spin {
+    animation: spin 2s linear infinite; 
+    width: 0.5em;
+    height: 0.5em;
+    vertical-align: -0.05em;
+    overflow: visible;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}

@@ -31,7 +31,7 @@ export class Navigation extends Base {
         try {
             const navBarButton = await UiTestUtilities.findUiElement(this.driver, NAVBAR_APPLICATIONS_BUTTON);
             await navBarButton.click();
-        } catch (err) {
+        } catch (err: any) {
             throw new Error(err);
         }
         return this.applicationsList;
@@ -45,7 +45,7 @@ export class Navigation extends Base {
         try {
             const navBarButton = await UiTestUtilities.findUiElement(this.driver, NAVBAR_SETTINGS_BUTTON);
             await navBarButton.click();
-        } catch (err) {
+        } catch (err: any) {
             throw new Error(err);
         }
     }
@@ -58,7 +58,7 @@ export class Navigation extends Base {
         try {
             const navBarButton = await UiTestUtilities.findUiElement(this.driver, NAVBAR_USER_INFO_BUTTON);
             await navBarButton.click();
-        } catch (err) {
+        } catch (err: any) {
             throw new Error(err);
         }
     }
@@ -71,7 +71,7 @@ export class Navigation extends Base {
         try {
             const navBarButton = await UiTestUtilities.findUiElement(this.driver, NAVBAR_DOCS_BUTTON);
             await navBarButton.click();
-        } catch (err) {
+        } catch (err: any) {
             throw new Error(err);
         }
     }

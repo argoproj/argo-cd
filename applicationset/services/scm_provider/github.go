@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/google/go-github/v66/github"
-	"golang.org/x/oauth2"
+	"github.com/google/go-github/v69/github"
+
+	appsetutils "github.com/argoproj/argo-cd/v3/applicationset/utils"
 )
 
 type GithubProvider struct {
@@ -18,21 +19,21 @@ type GithubProvider struct {
 
 var _ SCMProviderService = &GithubProvider{}
 
-func NewGithubProvider(ctx context.Context, organization string, token string, url string, allBranches bool) (*GithubProvider, error) {
-	var ts oauth2.TokenSource
+func NewGithubProvider(organization string, token string, url string, allBranches bool, optionalHTTPClient ...*http.Client) (*GithubProvider, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
 	}
-	if token != "" {
-		ts = oauth2.StaticTokenSource(
-			&oauth2.Token{AccessToken: token},
-		)
-	}
-	httpClient := oauth2.NewClient(ctx, ts)
+
 	var client *github.Client
+	httpClient := appsetutils.GetOptionalHTTPClient(optionalHTTPClient...)
+
 	if url == "" {
-		client = github.NewClient(httpClient)
+		if token == "" {
+			client = github.NewClient(httpClient)
+		} else {
+			client = github.NewClient(httpClient).WithAuthToken(token)
+		}
 	} else {
 		var err error
 		client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)

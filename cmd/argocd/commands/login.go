@@ -12,26 +12,27 @@ import (
 	"strings"
 	"time"
 
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
-	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
-	"github.com/argoproj/argo-cd/v2/util/localconfig"
-	oidcutil "github.com/argoproj/argo-cd/v2/util/oidc"
-	"github.com/argoproj/argo-cd/v2/util/rand"
-	oidcconfig "github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
+	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/localconfig"
+	oidcutil "github.com/argoproj/argo-cd/v3/util/oidc"
+	"github.com/argoproj/argo-cd/v3/util/rand"
+	oidcconfig "github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // NewLoginCommand returns a new instance of `argocd login` command
@@ -67,11 +68,12 @@ argocd login cd.argoproj.io --core`,
 				os.Exit(1)
 			}
 
-			if globalClientOpts.PortForward {
+			switch {
+			case globalClientOpts.PortForward:
 				server = "port-forward"
-			} else if globalClientOpts.Core {
+			case globalClientOpts.Core:
 				server = "kubernetes"
-			} else {
+			default:
 				server = args[0]
 
 				if !skipTestTLS {
@@ -125,7 +127,7 @@ argocd login cd.argoproj.io --core`,
 			if !globalClientOpts.Core {
 				acdClient := headless.NewClientOrDie(&clientOpts, c)
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
-				defer io.Close(setConn)
+				defer utilio.Close(setConn)
 				if !sso {
 					tokenString = passwordLogin(ctx, acdClient, username, password)
 				} else {
@@ -196,7 +198,7 @@ func userDisplayName(claims jwt.MapClaims) string {
 	if name := jwtutil.StringField(claims, "name"); name != "" {
 		return name
 	}
-	return jwtutil.StringField(claims, "sub")
+	return jwtutil.GetUserIdentifier(claims)
 }
 
 // oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and
@@ -354,7 +356,7 @@ func oauth2Login(
 func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username, password string) string {
 	username, password = cli.PromptCredentials(username, password)
 	sessConn, sessionIf := acdClient.NewSessionClientOrDie()
-	defer io.Close(sessConn)
+	defer utilio.Close(sessConn)
 	sessionRequest := sessionpkg.SessionCreateRequest{
 		Username: username,
 		Password: password,

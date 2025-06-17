@@ -12,8 +12,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v3/util/git"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 type Server interface {
@@ -61,7 +61,7 @@ func (s *server) GetCredentials(_ context.Context, q *CredentialsRequest) (*Cred
 	return &CredentialsResponse{Username: creds.Username, Password: creds.Password}, nil
 }
 
-func (s *server) Start(path string) (io.Closer, error) {
+func (s *server) Start(path string) (utilio.Closer, error) {
 	_ = os.Remove(path)
 	listener, err := net.Listen("unix", path)
 	if err != nil {
@@ -72,7 +72,7 @@ func (s *server) Start(path string) (io.Closer, error) {
 	go func() {
 		_ = server.Serve(listener)
 	}()
-	return io.NewCloser(listener.Close), nil
+	return utilio.NewCloser(listener.Close), nil
 }
 
 func (s *server) Run() error {

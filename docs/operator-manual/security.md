@@ -238,6 +238,14 @@ can be found in [server/server.go](https://github.com/argoproj/argo-cd/blob/abba
 Argo CD does not log IP addresses of clients requesting API endpoints, since the API server is typically behind a proxy. Instead, it is recommended
 to configure IP addresses logging in the proxy server that sits in front of the API server.
 
+### Standard Application log fields
+
+For logs related to an Application, Argo CD will log the following standard fields :
+
+* *application*: the Application name, without the namespace
+* *app-namespace*: the Application's namespace
+* *project*: the Application's project
+
 ## ApplicationSets
 
 Argo CD's ApplicationSets feature has its own [security considerations](./applicationset/Security.md). Be aware of those

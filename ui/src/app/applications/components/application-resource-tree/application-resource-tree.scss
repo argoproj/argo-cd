@@ -139,6 +139,9 @@
             box-shadow: 1px 1px 1px $argo-color-gray-4;
             background-color: white;
             margin-left: 215px;
+            @include themify($themes) {
+                background-color: themed('background-2');
+            }
 
             .theme-dark & {
                 box-shadow: 1px 1px 1px $argo-color-gray-7;
@@ -409,9 +412,13 @@
 
     }
 
+    &__fullname {
+        white-space: normal
+    }
+
     &__node-status-icon {
         font-size: 0.8em;
-        i {
+        i, svg {
             margin-right: 2px;
         }
     }

@@ -25,7 +25,7 @@ argocd admin app generate-spec APPNAME [flags]
 	argocd admin app generate-spec nginx-ingress --repo https://charts.helm.sh/stable --helm-chart nginx-ingress --revision 1.24.3 --dest-namespace default --dest-server https://kubernetes.default.svc
 
 	# Generate declarative config for a Kustomize app
-	argocd admin app generate-spec kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
+	argocd admin app generate-spec kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image quay.io/argoprojlabs/argocd-e2e-container:0.1
 
 	# Generate declarative config for a app using a custom tool:
 	argocd admin app generate-spec kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
@@ -64,6 +64,7 @@ argocd admin app generate-spec APPNAME [flags]
       --helm-version string                        Helm version
   -h, --help                                       help for generate-spec
       --hydrate-to-branch string                   The branch to hydrate the app to
+      --ignore-missing-components                  Ignore locally missing component directories when setting Kustomize components
       --ignore-missing-value-files                 Ignore locally missing valueFiles when setting helm template --values
   -i, --inline                                     If set then generated resource is written back to the file specified in --file flag
       --jsonnet-ext-var-code stringArray           Jsonnet ext var
@@ -78,7 +79,8 @@ argocd admin app generate-spec APPNAME [flags]
       --kustomize-force-common-label               Force common labels in Kustomize
       --kustomize-image stringArray                Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)
       --kustomize-kube-version string              kube-version to use when running helm template. If not set, use the kube version from the destination cluster. Only applicable when Helm is enabled for Kustomize builds
-      --kustomize-label-without-selector           Do not apply common label to selectors or templates
+      --kustomize-label-include-templates          Apply common label to resource templates
+      --kustomize-label-without-selector           Do not apply common label to selectors. Also do not apply label to templates unless --kustomize-label-include-templates is set
       --kustomize-namespace string                 Kustomize namespace
       --kustomize-replica stringArray              Kustomize replicas (e.g. --kustomize-replica my-development=2 --kustomize-replica my-statefulset=4)
       --kustomize-version string                   Kustomize version
@@ -128,12 +130,13 @@ argocd admin app generate-spec APPNAME [flags]
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: text|json (default "text")
+      --logformat string                Set the logging format. One of: json|text (default "json")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
       --prompts-enabled                 Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
+      --redis-compress string           Enable this if the application controller is configured with redis compression enabled. (possible values: gzip, none) (default "gzip")
       --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
       --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
       --repo-server-name string         Name of the Argo CD Repo server; set this or the ARGOCD_REPO_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-repo-server")

@@ -25,8 +25,15 @@ interface PodViewProps {
 }
 
 export type PodGroupType = 'topLevelResource' | 'parentResource' | 'node';
+export type SortOrder = 'asc' | 'desc';
+
+const labelForSortOrder: Record<SortOrder, string> = {
+    asc: 'Oldest First',
+    desc: 'Newest First'
+};
 
 export interface PodGroup extends Partial<ResourceNode> {
+    timestamp?: number;
     type: PodGroupType;
     pods: Pod[];
     info?: InfoItem[];
@@ -35,6 +42,7 @@ export interface PodGroup extends Partial<ResourceNode> {
     renderMenu?: () => React.ReactNode;
     renderQuickStarts?: () => React.ReactNode;
     fullName?: string;
+    hostLabels?: {[name: string]: string};
 }
 
 export class PodView extends React.Component<PodViewProps> {
@@ -53,6 +61,18 @@ export class PodView extends React.Component<PodViewProps> {
                     const podPrefs = prefs.appDetails.podView || ({} as PodViewPreferences);
                     const groups = this.processTree(podPrefs.sortMode, this.props.tree.hosts || []) || [];
 
+                    if (podPrefs.sortMode !== 'node' && podPrefs.sortOrder) {
+                        // Sort the groups in place based on precomputed timestamps
+                        groups.sort((a, b) => {
+                            const timeA = Date.parse(a.createdAt || '0');
+                            const timeB = Date.parse(b.createdAt || '0');
+                            a.timestamp = timeA;
+                            b.timestamp = timeB;
+
+                            return podPrefs.sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+                        });
+                    }
+
                     return (
                         <React.Fragment>
                             <div className='pod-view__settings'>
@@ -68,6 +88,20 @@ export class PodView extends React.Component<PodViewProps> {
                                         items={this.menuItemsFor(['node', 'parentResource', 'topLevelResource'], prefs)}
                                     />
                                 </div>
+                                {podPrefs.sortMode !== 'node' && (
+                                    <div className='pod-view__settings__section'>
+                                        SORT BY AGE:&nbsp;
+                                        <DropDownMenu
+                                            anchor={() => (
+                                                <button className='argo-button argo-button--base-o'>
+                                                    {labelForSortOrder[podPrefs.sortOrder || 'desc']}&nbsp;&nbsp;
+                                                    <i className='fa fa-chevron-circle-down' />
+                                                </button>
+                                            )}
+                                            items={this.sortOrderItemsFor(['asc', 'desc'], prefs)}
+                                        />
+                                    </div>
+                                )}
                                 {podPrefs.sortMode === 'node' && (
                                     <div className='pod-view__settings__section'>
                                         <button
@@ -129,12 +163,29 @@ export class PodView extends React.Component<PodViewProps> {
                                                         </div>
                                                     </div>
                                                     {group.type === 'node' ? (
-                                                        <div className='pod-view__node__info--large'>
-                                                            {(group.info || []).map(item => (
-                                                                <div key={item.name}>
-                                                                    {item.name}: <div>{item.value}</div>
+                                                        <div>
+                                                            <div className='pod-view__node__info--large'>
+                                                                {(group.info || []).map(item => (
+                                                                    <Tooltip content={`${item.name}: ${item.value}`} key={item.name}>
+                                                                        <div className='pod-view__node__info--large__item'>
+                                                                            <div className='pod-view__node__info--large__item__name'>{item.name}:</div>
+                                                                            <div className='pod-view__node__info--large__item__value'>{item.value}</div>
+                                                                        </div>
+                                                                    </Tooltip>
+                                                                ))}
+                                                            </div>
+                                                            {group.hostLabels && Object.keys(group.hostLabels).length > 0 ? (
+                                                                <div className='pod-view__node__info--large'>
+                                                                    {Object.keys(group.hostLabels || []).map(label => (
+                                                                        <Tooltip content={`${label}: ${group.hostLabels[label]}`} key={label}>
+                                                                            <div className='pod-view__node__info--large__item'>
+                                                                                <div className='pod-view__node__info--large__item__name'>{label}:</div>
+                                                                                <div className='pod-view__node__info--large__item__value'>{group.hostLabels[label]}</div>
+                                                                            </div>
+                                                                        </Tooltip>
+                                                                    ))}
                                                                 </div>
-                                                            ))}
+                                                            ) : null}
                                                         </div>
                                                     ) : (
                                                         <div className='pod-view__node__info'>
@@ -218,6 +269,26 @@ export class PodView extends React.Component<PodViewProps> {
         );
     }
 
+    private sortOrderItemsFor(orders: SortOrder[], prefs: ViewPreferences): MenuItem[] {
+        const podPrefs = prefs.appDetails.podView || ({} as PodViewPreferences);
+        return orders.map(order => ({
+            title: (
+                <React.Fragment>
+                    {podPrefs.sortOrder === order && <i className='fa fa-check' />} {labelForSortOrder[order]}{' '}
+                </React.Fragment>
+            ),
+            action: () => {
+                this.appContext.apis.navigation.goto('.', {podSortOrder: order});
+                services.viewPreferences.updatePreferences({
+                    appDetails: {
+                        ...prefs.appDetails,
+                        podView: {...podPrefs, sortOrder: order}
+                    }
+                });
+            }
+        }));
+    }
+
     private menuItemsFor(modes: PodGroupType[], prefs: ViewPreferences): MenuItem[] {
         const podPrefs = prefs.appDetails.podView || ({} as PodViewPreferences);
         return modes.map(mode => ({
@@ -254,7 +325,8 @@ export class PodView extends React.Component<PodViewProps> {
                         {name: 'Kernel Version', value: infraNode.systemInfo.kernelVersion},
                         {name: 'OS/Arch', value: `${infraNode.systemInfo.operatingSystem}/${infraNode.systemInfo.architecture}`}
                     ],
-                    hostResourcesInfo: infraNode.resourcesInfo
+                    hostResourcesInfo: infraNode.resourcesInfo,
+                    hostLabels: infraNode.labels
                 };
             });
         }
@@ -324,7 +396,8 @@ export class PodView extends React.Component<PodViewProps> {
                                 {name: 'Kernel Version', value: 'N/A'},
                                 {name: 'OS/Arch', value: 'N/A'}
                             ],
-                            hostResourcesInfo: []
+                            hostResourcesInfo: [],
+                            hostLabels: {}
                         };
                     }
                 }

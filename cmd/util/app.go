@@ -2,6 +2,7 @@ package util
 
 import (
 	"bufio"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -18,15 +19,15 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/config"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/text/label"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/config"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/text/label"
 )
 
 type AppOptions struct {
@@ -54,7 +55,7 @@ type AppOptions struct {
 	helmSkipTests                   bool
 	helmNamespace                   string
 	helmKubeVersion                 string
-	helmApiVersions                 []string
+	helmApiVersions                 []string //nolint:revive //FIXME(var-naming)
 	project                         string
 	syncPolicy                      string
 	syncOptions                     []string
@@ -76,11 +77,13 @@ type AppOptions struct {
 	kustomizeCommonLabels           []string
 	kustomizeCommonAnnotations      []string
 	kustomizeLabelWithoutSelector   bool
+	kustomizeLabelIncludeTemplates  bool
 	kustomizeForceCommonLabels      bool
 	kustomizeForceCommonAnnotations bool
 	kustomizeNamespace              string
 	kustomizeKubeVersion            string
-	kustomizeApiVersions            []string
+	kustomizeApiVersions            []string //nolint:revive //FIXME(var-naming)
+	ignoreMissingComponents         bool
 	pluginEnvs                      []string
 	Validate                        bool
 	directoryExclude                string
@@ -162,11 +165,13 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringArrayVar(&opts.jsonnetLibs, "jsonnet-libs", []string{}, "Additional jsonnet libs (prefixed by repoRoot)")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
 	command.Flags().StringArrayVar(&opts.kustomizeReplicas, "kustomize-replica", []string{}, "Kustomize replicas (e.g. --kustomize-replica my-development=2 --kustomize-replica my-statefulset=4)")
+	command.Flags().BoolVar(&opts.ignoreMissingComponents, "ignore-missing-components", false, "Ignore locally missing component directories when setting Kustomize components")
 	command.Flags().StringArrayVar(&opts.pluginEnvs, "plugin-env", []string{}, "Additional plugin envs")
 	command.Flags().BoolVar(&opts.Validate, "validate", true, "Validation of repo and cluster")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonLabels, "kustomize-common-label", []string{}, "Set common labels in Kustomize")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonAnnotations, "kustomize-common-annotation", []string{}, "Set common labels in Kustomize")
-	command.Flags().BoolVar(&opts.kustomizeLabelWithoutSelector, "kustomize-label-without-selector", false, "Do not apply common label to selectors or templates")
+	command.Flags().BoolVar(&opts.kustomizeLabelWithoutSelector, "kustomize-label-without-selector", false, "Do not apply common label to selectors. Also do not apply label to templates unless --kustomize-label-include-templates is set")
+	command.Flags().BoolVar(&opts.kustomizeLabelIncludeTemplates, "kustomize-label-include-templates", false, "Apply common label to resource templates")
 	command.Flags().BoolVar(&opts.kustomizeForceCommonLabels, "kustomize-force-common-label", false, "Force common labels in Kustomize")
 	command.Flags().BoolVar(&opts.kustomizeForceCommonAnnotations, "kustomize-force-common-annotation", false, "Force common annotations in Kustomize")
 	command.Flags().StringVar(&opts.kustomizeNamespace, "kustomize-namespace", "", "Kustomize namespace")
@@ -198,11 +203,12 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		}
 		source, visited = ConstructSource(source, *appOpts, flags)
 		if spec.HasMultipleSources() {
-			if sourcePosition == 0 {
+			switch {
+			case sourcePosition == 0:
 				spec.Sources[sourcePosition] = *source
-			} else if sourcePosition > 0 {
+			case sourcePosition > 0:
 				spec.Sources[sourcePosition-1] = *source
-			} else {
+			default:
 				spec.Sources = append(spec.Sources, *source)
 			}
 		} else {
@@ -258,7 +264,8 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 				spec.SyncPolicy = nil
 			}
 		case "sync-retry-limit":
-			if appOpts.retryLimit > 0 {
+			switch {
+			case appOpts.retryLimit > 0:
 				if spec.SyncPolicy == nil {
 					spec.SyncPolicy = &argoappv1.SyncPolicy{}
 				}
@@ -270,31 +277,31 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 						Factor:      ptr.To(appOpts.retryBackoffFactor),
 					},
 				}
-			} else if appOpts.retryLimit == 0 {
+			case appOpts.retryLimit == 0:
 				if spec.SyncPolicy.IsZero() {
 					spec.SyncPolicy = nil
 				} else {
 					spec.SyncPolicy.Retry = nil
 				}
-			} else {
+			default:
 				log.Fatalf("Invalid sync-retry-limit [%d]", appOpts.retryLimit)
 			}
 		}
 	})
 	if flags.Changed("auto-prune") {
-		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
+		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
 			log.Fatal("Cannot set --auto-prune: application not configured with automatic sync")
 		}
 		spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
 	}
 	if flags.Changed("self-heal") {
-		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
+		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
 			log.Fatal("Cannot set --self-heal: application not configured with automatic sync")
 		}
 		spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
 	}
 	if flags.Changed("allow-empty") {
-		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
+		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
 			log.Fatal("Cannot set --allow-empty: application not configured with automatic sync")
 		}
 		spec.SyncPolicy.Automated.AllowEmpty = appOpts.allowEmpty
@@ -304,19 +311,21 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 }
 
 type kustomizeOpts struct {
-	namePrefix             string
-	nameSuffix             string
-	images                 []string
-	replicas               []string
-	version                string
-	commonLabels           map[string]string
-	commonAnnotations      map[string]string
-	labelWithoutSelector   bool
-	forceCommonLabels      bool
-	forceCommonAnnotations bool
-	namespace              string
-	kubeVersion            string
-	apiVersions            []string
+	namePrefix              string
+	nameSuffix              string
+	images                  []string
+	replicas                []string
+	version                 string
+	commonLabels            map[string]string
+	commonAnnotations       map[string]string
+	labelWithoutSelector    bool
+	labelIncludeTemplates   bool
+	forceCommonLabels       bool
+	forceCommonAnnotations  bool
+	namespace               string
+	kubeVersion             string
+	apiVersions             []string
+	ignoreMissingComponents bool
 }
 
 func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
@@ -350,11 +359,17 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	if opts.labelWithoutSelector {
 		src.Kustomize.LabelWithoutSelector = opts.labelWithoutSelector
 	}
+	if opts.labelIncludeTemplates {
+		src.Kustomize.LabelIncludeTemplates = opts.labelIncludeTemplates
+	}
 	if opts.forceCommonLabels {
 		src.Kustomize.ForceCommonLabels = opts.forceCommonLabels
 	}
 	if opts.forceCommonAnnotations {
 		src.Kustomize.ForceCommonAnnotations = opts.forceCommonAnnotations
+	}
+	if opts.ignoreMissingComponents {
+		src.Kustomize.IgnoreMissingComponents = opts.ignoreMissingComponents
 	}
 	for _, image := range opts.images {
 		src.Kustomize.MergeImage(argoappv1.KustomizeImage(image))
@@ -414,7 +429,7 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	if opts.ignoreMissingValueFiles {
 		src.Helm.IgnoreMissingValueFiles = opts.ignoreMissingValueFiles
 	}
-	if len(opts.values) > 0 {
+	if opts.values != "" {
 		err := src.Helm.SetValuesString(opts.values)
 		if err != nil {
 			log.Fatal(err)
@@ -566,7 +581,7 @@ func readAppsFromStdin(apps *[]*argoappv1.Application) error {
 func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
 	readFilePayload := func() ([]byte, error) {
 		parsedURL, err := url.ParseRequestURI(fileURL)
-		if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+		if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
 			return os.ReadFile(fileURL)
 		}
 		return config.ReadRemoteFile(fileURL)
@@ -602,11 +617,11 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 	}
 	appName, appNs := argo.ParseFromQualifiedName(appName, "")
 	app = &argoappv1.Application{
-		TypeMeta: v1.TypeMeta{
+		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: application.Group + "/v1alpha1",
 		},
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      appName,
 			Namespace: appNs,
 		},
@@ -621,7 +636,7 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 	}, nil
 }
 
-func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+func constructAppsFromFileURL(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
 	apps := make([]*argoappv1.Application, 0)
 	// read uri
 	err := readAppsFromURI(fileURL, &apps)
@@ -636,7 +651,7 @@ func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args
 			app.Name = appName
 		}
 		if app.Name == "" {
-			return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
+			return nil, stderrors.New("app.Name is empty. --name argument can be used to provide app.Name")
 		}
 
 		mergeLabels(app, labels)
@@ -655,7 +670,7 @@ func ConstructApps(fileURL, appName string, labels, annotations, args []string, 
 	if fileURL == "-" {
 		return constructAppsFromStdin()
 	} else if fileURL != "" {
-		return constructAppsFromFileUrl(fileURL, appName, labels, annotations, args, appOpts, flags)
+		return constructAppsFromFileURL(fileURL, appName, labels, annotations, args, appOpts, flags)
 	}
 
 	return constructAppsBaseOnName(appName, labels, annotations, args, appOpts, flags)
@@ -682,7 +697,7 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			var data []byte
 			// read uri
 			parsedURL, err := url.ParseRequestURI(appOpts.values)
-			if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+			if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
 				data, err = os.ReadFile(appOpts.values)
 			} else {
 				data, err = config.ReadRemoteFile(appOpts.values)
@@ -759,10 +774,14 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			setKustomizeOpt(source, kustomizeOpts{commonAnnotations: parsedAnnotations})
 		case "kustomize-label-without-selector":
 			setKustomizeOpt(source, kustomizeOpts{labelWithoutSelector: appOpts.kustomizeLabelWithoutSelector})
+		case "kustomize-label-include-templates":
+			setKustomizeOpt(source, kustomizeOpts{labelIncludeTemplates: appOpts.kustomizeLabelIncludeTemplates})
 		case "kustomize-force-common-label":
 			setKustomizeOpt(source, kustomizeOpts{forceCommonLabels: appOpts.kustomizeForceCommonLabels})
 		case "kustomize-force-common-annotation":
 			setKustomizeOpt(source, kustomizeOpts{forceCommonAnnotations: appOpts.kustomizeForceCommonAnnotations})
+		case "ignore-missing-components":
+			setKustomizeOpt(source, kustomizeOpts{ignoreMissingComponents: appOpts.ignoreMissingComponents})
 		case "jsonnet-tla-str":
 			setJsonnetOpt(source, appOpts.jsonnetTlaStr, false)
 		case "jsonnet-tla-code":
@@ -895,10 +914,10 @@ func FilterResources(groupChanged bool, resources []*argoappv1.ResourceDiff, gro
 		filteredObjects = append(filteredObjects, deepCopy)
 	}
 	if len(filteredObjects) == 0 {
-		return nil, fmt.Errorf("No matching resource found")
+		return nil, stderrors.New("no matching resource found")
 	}
 	if len(filteredObjects) > 1 && !all {
-		return nil, fmt.Errorf("Multiple resources match inputs. Use the --all flag to patch multiple resources")
+		return nil, stderrors.New("multiple resources match inputs, use the --all flag to patch multiple resources")
 	}
 	return filteredObjects, nil
 }

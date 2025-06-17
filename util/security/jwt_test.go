@@ -4,14 +4,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	utiltest "github.com/argoproj/argo-cd/v2/util/test"
+	utiltest "github.com/argoproj/argo-cd/v3/util/test"
 )
 
 func Test_UnverifiedHasAudClaim(t *testing.T) {
+	t.Parallel()
+
 	tokenForAud := func(t *testing.T, aud jwt.ClaimStrings) string {
 		t.Helper()
 		claims := jwt.RegisteredClaims{Audience: aud, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}

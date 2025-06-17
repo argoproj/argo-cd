@@ -7,12 +7,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	testutil "github.com/argoproj/argo-cd/v2/test"
-	argo "github.com/argoproj/argo-cd/v2/util/argo/diff"
-	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
-	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
-	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	testutil "github.com/argoproj/argo-cd/v3/test"
+	argo "github.com/argoproj/argo-cd/v3/util/argo/diff"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/argo/testdata"
+	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 )
 
 func TestStateDiff(t *testing.T) {
@@ -21,10 +21,7 @@ func TestStateDiff(t *testing.T) {
 		overrides      map[string]v1alpha1.ResourceOverride
 		label          string
 		trackingMethod string
-		noCache        bool
 		ignoreRoles    bool
-		appName        string
-		stateCache     *appstatecache.Cache
 	}
 	defaultDiffConfigParams := func() *diffConfigParams {
 		return &diffConfigParams{
@@ -32,10 +29,7 @@ func TestStateDiff(t *testing.T) {
 			overrides:      map[string]v1alpha1.ResourceOverride{},
 			label:          "",
 			trackingMethod: "",
-			noCache:        true,
 			ignoreRoles:    true,
-			appName:        "",
-			stateCache:     &appstatecache.Cache{},
 		}
 	}
 	diffConfig := func(t *testing.T, params *diffConfigParams) argo.DiffConfig {
@@ -166,7 +160,6 @@ func TestDiffConfigBuilder(t *testing.T) {
 		noCache        bool
 		ignoreRoles    bool
 		appName        string
-		stateCache     *appstatecache.Cache
 	}
 	setup := func() *fixture {
 		return &fixture{
@@ -177,7 +170,6 @@ func TestDiffConfigBuilder(t *testing.T) {
 			noCache:        true,
 			ignoreRoles:    false,
 			appName:        "application-name",
-			stateCache:     &appstatecache.Cache{},
 		}
 	}
 	t.Run("will build diff config successfully", func(t *testing.T) {
@@ -201,7 +193,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 		assert.Equal(t, f.trackingMethod, diffConfig.TrackingMethod())
 		assert.Equal(t, f.noCache, diffConfig.NoCache())
 		assert.Equal(t, f.ignoreRoles, diffConfig.IgnoreAggregatedRoles())
-		assert.Equal(t, "", diffConfig.AppName())
+		assert.Empty(t, diffConfig.AppName())
 		assert.Nil(t, diffConfig.StateCache())
 	})
 	t.Run("will initialize ignore differences if nil is passed", func(t *testing.T) {

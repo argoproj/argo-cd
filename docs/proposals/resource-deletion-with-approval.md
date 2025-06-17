@@ -71,7 +71,7 @@ In order to improve the situation, we propose to introduce `confirm` option for 
 
 * **Sync Operation status**. I suggest not to introduce new sync operation states to avoid disturbing the existing automation around syncing (CI pipelines, scripts etc). 
   If Argo CD is waiting for the operation state should remain `Progressing`. Once the user confirms the deletion, the operation should resume.
-* **Sync Waves**. The sync wave shuold be "paused" while Argo CD is waiting for the user to confirm the deletion. No difference from waiting for the resource to became healthy.
+* **Sync Waves**. The sync wave should be "paused" while Argo CD is waiting for the user to confirm the deletion. No difference from waiting for the resource to became healthy.
 
 ### Introduce `confirm` option for Delete sync option.
 
@@ -117,9 +117,9 @@ Once annotation is applied the Argo CD should proceed with the deletion.
 
 The main reason to use the action is that we can reuse existing [RBAC](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/) to control who can approve the deletion.
 
-#### UI/CLI Convinience to approve all resources
+#### UI/CLI Convenience to approve all resources
 
-The Argo CD UI should provide a convinient way to approve resources that require manual approval. The existing user interface will provide a button that allows end user
+The Argo CD UI should provide a convenient way to approve resources that require manual approval. The existing user interface will provide a button that allows end user
 execute the `Approve Deletion` action and approve resources one by one. In addition to the single resource approval, the UI should provide a way to approve all resources
 that require manual approval. The new button should execute the `Approve Deletion` action for all resources that require manual approval.
 

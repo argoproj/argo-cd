@@ -8,23 +8,23 @@ import (
 	"strconv"
 	"text/tabwriter"
 
-	"github.com/argoproj/argo-cd/v2/util/templates"
+	"github.com/argoproj/argo-cd/v3/util/templates"
 
-	"github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v3/cmd/util"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 type DisplayedAction struct {
@@ -83,8 +83,8 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		}
 		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
-		defer io.Close(conn)
-		resources, err := getActionableResourcesForApplication(appIf, ctx, &appNs, &appName)
+		defer utilio.Close(conn)
+		resources, err := getActionableResourcesForApplication(ctx, appIf, &appNs, &appName)
 		errors.CheckError(err)
 		filteredObjects, err := util.FilterResources(command.Flags().Changed("group"), resources, group, kind, namespace, resourceName, true)
 		errors.CheckError(err)
@@ -150,17 +150,18 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	var all bool
 	command := &cobra.Command{
 		Use:   "run APPNAME ACTION",
-		Short: "Runs an available action on resource(s)",
+		Short: "Runs an available action on resource(s) matching the specified filters.",
+		Long:  "All filters except --kind are optional. Use --all to run the action on all matching resources if more than one resource matches the filters. Actions may only be run on resources that are represented in git and cannot be run on child resources.",
 		Example: templates.Examples(`
 	# Run an available action for an application
 	argocd app actions run APPNAME ACTION --kind KIND [--resource-name RESOURCE] [--namespace NAMESPACE] [--group GROUP]
 	`),
 	}
 
-	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
-	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
-	command.Flags().StringVar(&kind, "kind", "", "Kind")
-	command.Flags().StringVar(&group, "group", "", "Group")
+	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource on which the action should be run")
+	command.Flags().StringVar(&namespace, "namespace", "", "Namespace of the resource on which the action should be run")
+	command.Flags().StringVar(&kind, "kind", "", "Kind of the resource on which the action should be run")
+	command.Flags().StringVar(&group, "group", "", "Group of the resource on which the action should be run")
 	errors.CheckError(command.MarkFlagRequired("kind"))
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to run the action on multiple matching resources")
 
@@ -175,8 +176,8 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 		actionName := args[1]
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
-		defer io.Close(conn)
-		resources, err := getActionableResourcesForApplication(appIf, ctx, &appNs, &appName)
+		defer utilio.Close(conn)
+		resources, err := getActionableResourcesForApplication(ctx, appIf, &appNs, &appName)
 		errors.CheckError(err)
 		filteredObjects, err := util.FilterResources(command.Flags().Changed("group"), resources, group, kind, namespace, resourceName, all)
 		errors.CheckError(err)
@@ -207,7 +208,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	return command
 }
 
-func getActionableResourcesForApplication(appIf applicationpkg.ApplicationServiceClient, ctx context.Context, appNs *string, appName *string) ([]*v1alpha1.ResourceDiff, error) {
+func getActionableResourcesForApplication(ctx context.Context, appIf applicationpkg.ApplicationServiceClient, appNs *string, appName *string) ([]*v1alpha1.ResourceDiff, error) {
 	resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
 		ApplicationName: appName,
 		AppNamespace:    appNs,
