@@ -42,7 +42,7 @@ function selectOption(name: string, label: string, defaultVal: string, values: s
     );
 }
 
-function booleanOption(name: string, label: string, defaultVal: boolean, props: ApplicationSyncOptionProps, invert: boolean, warning: string = null, disabled: boolean = false) {
+function booleanOption(name: string, label: string, defaultVal: boolean, props: ApplicationSyncOptionProps, invert: boolean, warning: string = null) {
     const options = [...(props.options || [])];
     const prefix = `${name}=`;
     const index = options.findIndex(item => item.startsWith(prefix));
@@ -52,7 +52,6 @@ function booleanOption(name: string, label: string, defaultVal: boolean, props: 
             <Checkbox
                 id={`sync-option-${name}-${props.id}`}
                 checked={checked}
-                disabled={disabled}
                 onChange={(val: boolean) => {
                     if (index < 0) {
                         props.onChanged(options.concat(`${name}=${invert ? !val : val}`));
@@ -118,11 +117,11 @@ export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
                 const settings = await services.authService.settings();
                 return settings.syncWithReplaceAllowed;
             }}>
-            {syncWithReplaceAllowed => (
+            {syncWithReplaceAllowed => syncWithReplaceAllowed && (
                 <div className='small-12' style={optionStyle}>
-                    {booleanOption('Replace', 'Replace', false, props, false, REPLACE_WARNING, !syncWithReplaceAllowed)}
+                    {booleanOption('Replace', 'Replace', false, props, false, REPLACE_WARNING)}
                 </div>
-            )}
+            ) || null}
         </DataLoader>
     </div>
 );
