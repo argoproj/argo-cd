@@ -12,7 +12,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/TomOnTime/utfutil v1.0.0
 	github.com/alicebob/miniredis/v2 v2.35.0
-	github.com/argoproj/gitops-engine v0.7.1-0.20250613154745-f8f1b61ba3fd
+	github.com/argoproj/gitops-engine v0.7.1-0.20250616212358-8007df5f6c5d
 	github.com/argoproj/notifications-engine v0.4.1-0.20250309174002-87bf0576a872
 	github.com/argoproj/pkg v0.13.6
 	github.com/argoproj/pkg/v2 v2.0.1
@@ -54,7 +54,7 @@ require (
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/gosimple/slug v1.15.0
-	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.0.1
+	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.1.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/go-retryablehttp v0.7.7

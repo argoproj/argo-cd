@@ -113,8 +113,8 @@ github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be h1:9AeTilPcZAjCFI
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be/go.mod h1:ySMOLuWl6zY27l47sB3qLNK6tF2fkHG55UZxx8oIVo4=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/appscode/go v0.0.0-20191119085241-0887d8ec2ecc/go.mod h1:OawnOmAL4ZX3YaPdN+8HTNwBveT1jMsqP74moa9XUbE=
-github.com/argoproj/gitops-engine v0.7.1-0.20250613154745-f8f1b61ba3fd h1:VZqcXq8o+iEMAiIrhtKABcKdU884R1JTf5UjO5z8E9A=
-github.com/argoproj/gitops-engine v0.7.1-0.20250613154745-f8f1b61ba3fd/go.mod h1:aIBEG3ohgaC1gh/sw2On6knkSnXkqRLDoBj234Dqczw=
+github.com/argoproj/gitops-engine v0.7.1-0.20250616212358-8007df5f6c5d h1:Zv34cXFLw5S+FUiksr6N7gVVvq7qvXuxmnwE2prND+k=
+github.com/argoproj/gitops-engine v0.7.1-0.20250616212358-8007df5f6c5d/go.mod h1:aIBEG3ohgaC1gh/sw2On6knkSnXkqRLDoBj234Dqczw=
 github.com/argoproj/notifications-engine v0.4.1-0.20250309174002-87bf0576a872 h1:ADGAdyN9ty0+RmTT/yn+xV9vwkqvLn9O1ccqeP0Zeas=
 github.com/argoproj/notifications-engine v0.4.1-0.20250309174002-87bf0576a872/go.mod h1:d1RazGXWvKRFv9//rg4MRRR7rbvbE7XLgTSMT5fITTE=
 github.com/argoproj/pkg v0.13.6 h1:36WPD9MNYECHcO1/R1pj6teYspiK7uMQLCgLGft2abM=
@@ -503,8 +503,8 @@ github.com/gregdel/pushover v1.3.1/go.mod h1:EcaO66Nn1StkpEm1iKtBTV3d2A16SoMsVER
 github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 h1:+ngKgrYPPJrOjhax5N+uePQ0Fh1Z7PheYoUI/0nzkPA=
 github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79/go.mod h1:FecbI9+v66THATjSRHfNgh1IVFe/9kFxbXtjV0ctIMA=
 github.com/grpc-ecosystem/go-grpc-middleware v1.2.2/go.mod h1:EaizFBKfUKtMIF5iaDEhniwNedqGo9FuLFzppDr3uwI=
-github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.0.1 h1:qnpSQwGEnkcRpTqNOIR6bJbR0gAorgP9CSALpRcKoAA=
-github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.0.1/go.mod h1:lXGCsh6c22WGtjr+qGHj1otzZpV/1kwTMAqkwZsnWRU=
+github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.1.0 h1:QGLs/O40yoNK9vmy4rhUGBVyMf1lISBGtXRpsu/Qu/o=
+github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.1.0/go.mod h1:hM2alZsMUni80N33RBe6J0e423LB+odMj7d3EMP9l20=
 github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2 h1:sGm2vDRFUrQJO/Veii4h4zG2vvqG6uWNkBHSTqXOZk0=
 github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2/go.mod h1:wd1YpapPLivG6nQgbf7ZkG1hhSOXDhhn4MLTknx2aAc=
 github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0/go.mod h1:8NvIoxWQoOIhqOTXgfV/d3M/q6VIi02HzZEHgUlZvzk=
