@@ -36,7 +36,8 @@ func generateManifest(t *testing.T, store *memory.Store, layerDescs ...layerConf
 
 	var layers []imagev1.Descriptor
 
-	for _, layer := range layerDescs {
+	for i := range layerDescs {
+		layer := &layerDescs[i]
 		layers = append(layers, layer.desc)
 	}
 
@@ -48,7 +49,8 @@ func generateManifest(t *testing.T, store *memory.Store, layerDescs ...layerConf
 	require.NoError(t, err)
 	manifestDesc := content.NewDescriptorFromBytes(imagev1.MediaTypeImageManifest, manifestBlob)
 
-	for _, layer := range layerDescs {
+	for i := range layerDescs {
+		layer := &layerDescs[i]
 		require.NoError(t, store.Push(t.Context(), layer.desc, bytes.NewReader(layer.bytes)))
 	}
 

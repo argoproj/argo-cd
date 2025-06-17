@@ -59,7 +59,8 @@ func Error(message, err string) Expectation {
 // equivalent to provided values.
 func ApplicationsExist(expectedApps []v1alpha1.Application) Expectation {
 	return func(c *Consequences) (state, string) {
-		for _, expectedApp := range expectedApps {
+		for i := range expectedApps {
+			expectedApp := expectedApps[i]
 			foundApp := c.app(expectedApp.Name)
 			if foundApp == nil {
 				return pending, fmt.Sprintf("missing app '%s'", expectedApp.QualifiedName())
@@ -103,7 +104,8 @@ func ApplicationSetHasConditions(applicationSetName string, expectedConditions [
 // ApplicationsDoNotExist checks that each of the 'expectedApps' no longer exist in the namespace
 func ApplicationsDoNotExist(expectedApps []v1alpha1.Application) Expectation {
 	return func(c *Consequences) (state, string) {
-		for _, expectedApp := range expectedApps {
+		for i := range expectedApps {
+			expectedApp := &expectedApps[i]
 			foundApp := c.app(expectedApp.Name)
 			if foundApp != nil {
 				return pending, fmt.Sprintf("app '%s' should no longer exist", expectedApp.QualifiedName())
@@ -122,7 +124,8 @@ func Pod(t *testing.T, predicate func(p corev1.Pod) bool) Expectation {
 		if err != nil {
 			return failed, err.Error()
 		}
-		for _, pod := range pods.Items {
+		for i := range pods.Items {
+			pod := pods.Items[i]
 			if predicate(pod) {
 				return succeeded, fmt.Sprintf("pod predicate matched pod named '%s'", pod.GetName())
 			}

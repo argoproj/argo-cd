@@ -131,21 +131,22 @@ func (h *WebhookHandler) HandleEvent(payload any) {
 		return
 	}
 
-	for _, appSet := range appSetList.Items {
+	for i := range appSetList.Items {
+		appSet := &appSetList.Items[i]
 		shouldRefresh := false
 		for _, gen := range appSet.Spec.Generators {
 			// check if the ApplicationSet uses any generator that is relevant to the payload
 			shouldRefresh = shouldRefreshGitGenerator(gen.Git, gitGenInfo) ||
 				shouldRefreshPRGenerator(gen.PullRequest, prGenInfo) ||
 				shouldRefreshPluginGenerator(gen.Plugin) ||
-				h.shouldRefreshMatrixGenerator(gen.Matrix, &appSet, gitGenInfo, prGenInfo) ||
-				h.shouldRefreshMergeGenerator(gen.Merge, &appSet, gitGenInfo, prGenInfo)
+				h.shouldRefreshMatrixGenerator(gen.Matrix, appSet, gitGenInfo, prGenInfo) ||
+				h.shouldRefreshMergeGenerator(gen.Merge, appSet, gitGenInfo, prGenInfo)
 			if shouldRefresh {
 				break
 			}
 		}
 		if shouldRefresh {
-			err := refreshApplicationSet(h.client, &appSet)
+			err := refreshApplicationSet(h.client, appSet)
 			if err != nil {
 				log.Errorf("Failed to refresh ApplicationSet '%s' for controller reprocessing", appSet.Name)
 				continue

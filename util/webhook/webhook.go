@@ -162,7 +162,8 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		change.shaAfter = ParseRevision(payload.After)
 		change.shaBefore = ParseRevision(payload.Before)
 		touchedHead = bool(payload.Repository.DefaultBranch == revision)
-		for _, commit := range payload.Commits {
+		for i := range payload.Commits {
+			commit := &payload.Commits[i]
 			changedFiles = append(changedFiles, commit.Added...)
 			changedFiles = append(changedFiles, commit.Modified...)
 			changedFiles = append(changedFiles, commit.Removed...)
@@ -174,7 +175,8 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		change.shaAfter = ParseRevision(payload.After)
 		change.shaBefore = ParseRevision(payload.Before)
 		touchedHead = bool(payload.Project.DefaultBranch == revision)
-		for _, commit := range payload.Commits {
+		for i := range payload.Commits {
+			commit := &payload.Commits[i]
 			changedFiles = append(changedFiles, commit.Added...)
 			changedFiles = append(changedFiles, commit.Modified...)
 			changedFiles = append(changedFiles, commit.Removed...)
@@ -187,7 +189,8 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		change.shaAfter = ParseRevision(payload.After)
 		change.shaBefore = ParseRevision(payload.Before)
 		touchedHead = bool(payload.Project.DefaultBranch == revision)
-		for _, commit := range payload.Commits {
+		for i := range payload.Commits {
+			commit := &payload.Commits[i]
 			changedFiles = append(changedFiles, commit.Added...)
 			changedFiles = append(changedFiles, commit.Modified...)
 			changedFiles = append(changedFiles, commit.Removed...)
@@ -196,7 +199,8 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		// See: https://confluence.atlassian.com/bitbucket/event-payloads-740262817.html#EventPayloads-Push
 		// NOTE: this is untested
 		webURLs = append(webURLs, payload.Repository.Links.HTML.Href)
-		for _, changes := range payload.Push.Changes {
+		for i := range payload.Push.Changes {
+			changes := &payload.Push.Changes[i]
 			revision = changes.New.Name
 			change.shaBefore = changes.Old.Target.Hash
 			change.shaAfter = changes.New.Target.Hash
@@ -264,7 +268,8 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 
 		// TODO: bitbucket includes multiple changes as part of a single event.
 		// We only pick the first but need to consider how to handle multiple
-		for _, change := range payload.Changes {
+		for i := range payload.Changes {
+			change := &payload.Changes[i]
 			revision = ParseRevision(change.Reference.ID)
 			break
 		}
@@ -339,7 +344,8 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	// Skip any application that is neither in the control plane's namespace
 	// nor in the list of enabled namespaces.
 	var filteredApps []v1alpha1.Application
-	for _, app := range apps.Items {
+	for i := range apps.Items {
+		app := apps.Items[i]
 		if app.Namespace == a.ns || glob.MatchStringInList(a.appNs, app.Namespace, glob.REGEXP) {
 			filteredApps = append(filteredApps, app)
 		}
@@ -351,11 +357,12 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 			log.Warnf("Failed to get repoRegexp: %s", err)
 			continue
 		}
-		for _, app := range filteredApps {
+		for i := range filteredApps {
+			app := &filteredApps[i]
 			if app.Spec.SourceHydrator != nil {
 				drySource := app.Spec.SourceHydrator.GetDrySource()
 				if sourceRevisionHasChanged(drySource, revision, touchedHead) && sourceUsesURL(drySource, webURL, repoRegexp) {
-					refreshPaths := path.GetAppRefreshPaths(&app)
+					refreshPaths := path.GetAppRefreshPaths(app)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
 						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 						log.Infof("webhook trigger refresh app to hydrate '%s'", app.Name)
@@ -368,9 +375,10 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 				}
 			}
 
-			for _, source := range app.Spec.GetSources() {
+			for i := range app.Spec.GetSources() {
+				source := app.Spec.GetSources()[i]
 				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
-					refreshPaths := path.GetAppRefreshPaths(&app)
+					refreshPaths := path.GetAppRefreshPaths(app)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
 						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 						_, err = argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, true)
@@ -381,7 +389,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 						// No need to refresh multiple times if multiple sources match.
 						break
 					} else if change.shaBefore != "" && change.shaAfter != "" {
-						if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey, installationID); err != nil {
+						if err := a.storePreviouslyCachedManifests(app, change, trackingMethod, appInstanceLabelKey, installationID); err != nil {
 							log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
 						}
 					}

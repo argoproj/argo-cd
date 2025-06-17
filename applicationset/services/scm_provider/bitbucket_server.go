@@ -78,7 +78,8 @@ func (b *BitbucketServerProvider) ListRepos(_ context.Context, cloneProtocol str
 			log.Errorf("error parsing repositories response '%v'", response.Values)
 			return nil, fmt.Errorf("error parsing repositories response %s: %w", b.projectKey, err)
 		}
-		for _, bitbucketRepo := range repositories {
+		for i := range repositories {
+			bitbucketRepo := &repositories[i]
 			var url string
 			switch cloneProtocol {
 			// Default to SSH if unspecified (i.e. if "").

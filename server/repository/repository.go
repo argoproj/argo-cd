@@ -795,8 +795,9 @@ func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSou
 	// and then iterate over the historical
 	if app.Spec.HasMultipleSources() {
 		appSources := app.Spec.GetSources()
-		for _, s := range appSources {
-			if source.Equals(&s) {
+		for i := range appSources {
+			s := &appSources[i]
+			if source.Equals(s) {
 				return true
 			}
 		}
@@ -813,7 +814,8 @@ func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSou
 	// history[].revision will contain the explicit SHA
 	// In case of multi source apps, we have to check the specific versionID because users
 	// could have removed/added new sources and we cannot check all the versions due to that
-	for _, h := range app.Status.History {
+	for i := range app.Status.History {
+		h := &app.Status.History[i]
 		// multi source revision
 		if len(h.Sources) > 0 {
 			if h.ID == int64(versionId) {

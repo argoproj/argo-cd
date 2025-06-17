@@ -70,7 +70,8 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 	filteredItems = filterClustersByServer(filteredItems, q.Server)
 
 	items := make([]appv1.Cluster, 0)
-	for _, clust := range filteredItems {
+	for i := range filteredItems {
+		clust := filteredItems[i]
 		if s.enf.Enforce(ctx.Value("claims"), rbac.ResourceClusters, rbac.ActionGet, CreateClusterRBACObject(clust.Project, clust.Server)) {
 			items = append(items, clust)
 		}
@@ -256,9 +257,10 @@ func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv
 		if err != nil {
 			return nil, fmt.Errorf("failed to list clusters: %w", err)
 		}
-		for _, c := range clusterList.Items {
+		for i := range clusterList.Items {
+			c := &clusterList.Items[i]
 			if c.Name == q.Name {
-				return &c, nil
+				return c, nil
 			}
 		}
 	}

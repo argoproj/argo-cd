@@ -168,7 +168,8 @@ func parentChildInfo(nodes []v1alpha1.ResourceNode) (map[string]v1alpha1.Resourc
 	mapParentToChild := make(map[string][]string)
 	parentNode := make(map[string]struct{})
 
-	for _, node := range nodes {
+	for i := range nodes {
+		node := nodes[i]
 		mapUIDToNode[node.UID] = node
 
 		if len(node.ParentRefs) > 0 {
@@ -241,14 +242,16 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 		fmtStr := "%s\t%s\t%s\t%s\t%s\n"
 		_, _ = fmt.Fprintf(w, fmtStr, headers...)
 		if !orphaned || listAll {
-			for _, res := range appResourceTree.Nodes {
+			for i := range appResourceTree.Nodes {
+				res := &appResourceTree.Nodes[i]
 				if len(res.ParentRefs) == 0 {
 					_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name, "No")
 				}
 			}
 		}
 		if orphaned || listAll {
-			for _, res := range appResourceTree.OrphanedNodes {
+			for i := range appResourceTree.OrphanedNodes {
+				res := &appResourceTree.OrphanedNodes[i]
 				_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name, "Yes")
 			}
 		}

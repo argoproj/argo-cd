@@ -208,7 +208,8 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 		statusMap = appsetstatus.BuildResourceStatus(statusMap, apps)
 
 		statuses := []v1alpha1.ResourceStatus{}
-		for _, status := range statusMap {
+		for i := range statusMap {
+			status := statusMap[i]
 			statuses = append(statuses, status)
 		}
 		appset.Status.Resources = statuses
@@ -397,7 +398,8 @@ func (s *Server) buildApplicationSetTree(a *v1alpha1.ApplicationSet) (*v1alpha1.
 	}
 
 	apps := a.Status.Resources
-	for _, app := range apps {
+	for i := range apps {
+		app := &apps[i]
 		tree.Nodes = append(tree.Nodes, v1alpha1.ResourceNode{
 			Health: app.Health,
 			ResourceRef: v1alpha1.ResourceRef{

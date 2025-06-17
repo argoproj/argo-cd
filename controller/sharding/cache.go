@@ -74,7 +74,8 @@ func (sharding *ClusterSharding) Init(clusters *v1alpha1.ClusterList, apps *v1al
 	sharding.lock.Lock()
 	defer sharding.lock.Unlock()
 	newClusters := make(map[string]*v1alpha1.Cluster, len(clusters.Items))
-	for _, c := range clusters.Items {
+	for i := range clusters.Items {
+		c := clusters.Items[i]
 		cluster := c
 		newClusters[c.Server] = &cluster
 	}

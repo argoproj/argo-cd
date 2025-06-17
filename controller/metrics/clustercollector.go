@@ -133,8 +133,9 @@ func (c *clusterCollector) getClusterData() ([]*clusterData, error) {
 	}
 
 	clusterMap := map[string]*argoappv1.Cluster{}
-	for i, cluster := range clusters.Items {
-		clusterMap[cluster.Server] = &clusters.Items[i]
+	for i := range clusters.Items {
+		cluster := &clusters.Items[i]
+		clusterMap[cluster.Server] = cluster
 	}
 
 	// Base the cluster data on the ClusterInfo because it only contains the

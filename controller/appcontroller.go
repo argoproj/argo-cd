@@ -697,7 +697,8 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 		corev1.ResourceMemory:  true,
 	}
 	appPods := map[kube.ResourceKey]bool{}
-	for _, node := range appNodes {
+	for i := range appNodes {
+		node := &appNodes[i]
 		if node.Group == "" && node.Kind == kube.PodKind {
 			appPods[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = true
 		}
@@ -1741,7 +1742,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	// If we have multiple sources, we use all the sources under `sources` field and ignore source under `source` field.
 	// else we use the source under the source field.
 	if hasMultipleSources {
-		for _, source := range app.Spec.Sources {
+		for i := range app.Spec.Sources {
+			source := app.Spec.Sources[i]
 			// We do not perform any filtering of duplicate sources.
 			// Argo CD will apply and update the resources generated from the sources automatically
 			// based on the order in which manifests were generated
@@ -2113,7 +2115,8 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 
 	if !app.Spec.SyncPolicy.Automated.Prune {
 		requirePruneOnly := true
-		for _, r := range resources {
+		for i := range resources {
+			r := &resources[i]
 			if r.Status != appv1.SyncStatusCodeSynced && !r.RequiresPruning {
 				requirePruneOnly = false
 				break
@@ -2176,7 +2179,8 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 				return nil, 0
 			}
 			op.Sync.SelfHealAttemptsCount++
-			for _, resource := range resources {
+			for i := range resources {
+				resource := &resources[i]
 				if resource.Status != appv1.SyncStatusCodeSynced {
 					op.Sync.Resources = append(op.Sync.Resources, appv1.SyncOperationResource{
 						Kind:  resource.Kind,
@@ -2191,7 +2195,8 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 
 	if app.Spec.SyncPolicy.Automated.Prune && !app.Spec.SyncPolicy.Automated.AllowEmpty {
 		bAllNeedPrune := true
-		for _, r := range resources {
+		for i := range resources {
+			r := &resources[i]
 			if !r.RequiresPruning {
 				bAllNeedPrune = false
 			}
@@ -2366,7 +2371,8 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					return nil, err
 				}
 				newItems := []appv1.Application{}
-				for _, app := range appList.Items {
+				for i := range appList.Items {
+					app := appList.Items[i]
 					if ctrl.isAppNamespaceAllowed(&app) {
 						newItems = append(newItems, app)
 					}
@@ -2574,7 +2580,8 @@ func (ctrl *ApplicationController) getAppList(options metav1.ListOptions) (*appv
 		return nil, err
 	}
 	newItems := []appv1.Application{}
-	for _, app := range appList.Items {
+	for i := range appList.Items {
+		app := appList.Items[i]
 		if ctrl.isAppNamespaceAllowed(&app) {
 			newItems = append(newItems, app)
 		}

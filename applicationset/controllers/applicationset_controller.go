@@ -221,7 +221,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			}
 		} else if isRollingSyncStrategy(&applicationSetInfo) {
 			// The appset uses progressive sync with `RollingSync` strategy
-			for _, app := range currentApplications {
+			for i := range currentApplications {
+				app := currentApplications[i]
 				appMap[app.Name] = app
 			}
 
@@ -481,7 +482,8 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Context, desiredApplications []argov1alpha1.Application, applicationSetInfo argov1alpha1.ApplicationSet) (map[int]error, error) {
 	errorsByIndex := map[int]error{}
 	namesSet := map[string]bool{}
-	for i, app := range desiredApplications {
+	for i := range desiredApplications {
+		app := &desiredApplications[i]
 		if namesSet[app.Name] {
 			errorsByIndex[i] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSetInfo.Name, app.Name)
 			continue
@@ -577,8 +579,9 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, logCtx *log.Entry, applicationSet argov1alpha1.ApplicationSet, desiredApplications []argov1alpha1.Application) error {
 	var firstError error
 	// Creates or updates the application in appList
-	for _, generatedApp := range desiredApplications {
-		appLog := logCtx.WithFields(applog.GetAppLogFields(&generatedApp))
+	for i := range desiredApplications {
+		generatedApp := &desiredApplications[i]
+		appLog := logCtx.WithFields(applog.GetAppLogFields(generatedApp))
 
 		// Normalize to avoid fighting with the application controller.
 		generatedApp.Spec = *argoutil.NormalizeApplicationSpec(&generatedApp.Spec)
@@ -692,12 +695,14 @@ func (r *ApplicationSetReconciler) createInCluster(ctx context.Context, logCtx *
 
 	m := make(map[string]bool) // Will holds the app names that are current in the cluster
 
-	for _, app := range current {
+	for i := range current {
+		app := &current[i]
 		m[app.Name] = true
 	}
 
 	// filter applications that are not in m[string]bool (new to the cluster)
-	for _, app := range desiredApplications {
+	for i := range desiredApplications {
+		app := desiredApplications[i]
 		_, exists := m[app.Name]
 
 		if !exists {
@@ -734,19 +739,21 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 
 	m := make(map[string]bool) // Will holds the app names in appList for the deletion process
 
-	for _, app := range desiredApplications {
+	for i := range desiredApplications {
+		app := &desiredApplications[i]
 		m[app.Name] = true
 	}
 
 	// Delete apps that are not in m[string]bool
 	var firstError error
-	for _, app := range current {
-		logCtx = logCtx.WithFields(applog.GetAppLogFields(&app))
+	for i := range current {
+		app := &current[i]
+		logCtx = logCtx.WithFields(applog.GetAppLogFields(app))
 		_, exists := m[app.Name]
 
 		if !exists {
 			// Removes the Argo CD resources finalizer if the application contains an invalid target (eg missing cluster)
-			err := r.removeFinalizerOnInvalidDestination(ctx, applicationSet, &app, clusterList, logCtx)
+			err := r.removeFinalizerOnInvalidDestination(ctx, applicationSet, app, clusterList, logCtx)
 			if err != nil {
 				logCtx.WithError(err).Error("failed to update Application")
 				if firstError != nil {
@@ -755,7 +762,7 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 				continue
 			}
 
-			err = r.Delete(ctx, &app)
+			err = r.Delete(ctx, app)
 			if err != nil {
 				logCtx.WithError(err).Error("failed to delete Application")
 				if firstError != nil {
@@ -844,9 +851,10 @@ func (r *ApplicationSetReconciler) removeOwnerReferencesOnDeleteAppSet(ctx conte
 		return fmt.Errorf("error getting current applications for ApplicationSet: %w", err)
 	}
 
-	for _, app := range applications {
+	for i := range applications {
+		app := &applications[i]
 		app.SetOwnerReferences([]metav1.OwnerReference{})
-		err := r.Update(ctx, &app)
+		err := r.Update(ctx, app)
 		if err != nil {
 			return fmt.Errorf("error updating application: %w", err)
 		}
@@ -900,7 +908,8 @@ func (r *ApplicationSetReconciler) buildAppDependencyList(logCtx *log.Entry, app
 	appStepMap := map[string]int{}
 
 	// use applicationLabelSelectors to filter generated Applications into steps and status by name
-	for _, app := range applications {
+	for i := range applications {
+		app := &applications[i]
 		for i, step := range steps {
 			selected := true // default to true, assuming the current Application is a match for the given step matchExpression
 
@@ -1046,7 +1055,8 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 	now := metav1.Now()
 	appStatuses := make([]argov1alpha1.ApplicationSetApplicationStatus, 0, len(applications))
 
-	for _, app := range applications {
+	for i := range applications {
+		app := applications[i]
 		healthStatusString, syncStatusString, operationPhaseString := statusStrings(app)
 
 		idx := findApplicationStatusIndex(applicationSet.Status.ApplicationStatus, app.Name)
@@ -1304,7 +1314,8 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 	statusMap = status.BuildResourceStatus(statusMap, apps)
 
 	statuses := []argov1alpha1.ResourceStatus{}
-	for _, status := range statusMap {
+	for i := range statusMap {
+		status := statusMap[i]
 		statuses = append(statuses, status)
 	}
 	sort.Slice(statuses, func(i, j int) bool {

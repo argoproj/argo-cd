@@ -80,7 +80,8 @@ func (legacy legacyConfig) merge(cfg *api.Config, context map[string]string) err
 		return fmt.Errorf("error in merge config and legacy subscriptions: %w", err)
 	}
 
-	for _, template := range legacy.Templates {
+	for i := range legacy.Templates {
+		template := &legacy.Templates[i]
 		t, ok := cfg.Templates[template.Name]
 		if ok {
 			if err := mergePatch(&t, &template.Notification); err != nil {

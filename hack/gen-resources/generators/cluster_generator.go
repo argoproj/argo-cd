@@ -255,7 +255,8 @@ func (cg *ClusterGenerator) Clean(opts *util.GenerateOpts) error {
 		return err
 	}
 
-	for _, ns := range namespaces.Items {
+	for i := range namespaces.Items {
+		ns := &namespaces.Items[i]
 		if strings.HasPrefix(ns.Name, POD_PREFIX) {
 			log.Printf("Delete namespace %s", ns.Name)
 			err = cg.clientSet.CoreV1().Namespaces().Delete(context.TODO(), ns.Name, metav1.DeleteOptions{})

@@ -799,7 +799,8 @@ func NewProjectDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 
 // Print list of project names
 func printProjectNames(projects []v1alpha1.AppProject) {
-	for _, p := range projects {
+	for i := range projects {
+		p := &projects[i]
 		fmt.Println(p.Name)
 	}
 }
@@ -808,8 +809,9 @@ func printProjectNames(projects []v1alpha1.AppProject) {
 func printProjectTable(projects []v1alpha1.AppProject) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tSIGNATURE-KEYS\tORPHANED-RESOURCES\tDESTINATION-SERVICE-ACCOUNTS\n")
-	for _, p := range projects {
-		printProjectLine(w, &p)
+	for i := range projects {
+		p := &projects[i]
+		printProjectLine(w, p)
 	}
 	_ = w.Flush()
 }

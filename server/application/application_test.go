@@ -267,7 +267,8 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 
 			// Pre-populate the resource tree based on the app's resources.
 			nodes := make([]v1alpha1.ResourceNode, len(app.Status.Resources))
-			for i, res := range app.Status.Resources {
+			for i := range app.Status.Resources {
+				res := &app.Status.Resources[i]
 				nodes[i] = v1alpha1.ResourceNode{
 					ResourceRef: v1alpha1.ResourceRef{
 						Group:     res.Group,
@@ -430,7 +431,8 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 
 			// Pre-populate the resource tree based on the app's resources.
 			nodes := make([]v1alpha1.ResourceNode, len(app.Status.Resources))
-			for i, res := range app.Status.Resources {
+			for i := range app.Status.Resources {
+				res := &app.Status.Resources[i]
 				nodes[i] = v1alpha1.ResourceNode{
 					ResourceRef: v1alpha1.ResourceRef{
 						Group:     res.Group,

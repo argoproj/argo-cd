@@ -82,7 +82,8 @@ func (g *AzureDevOpsProvider) ListRepos(ctx context.Context, _ string) ([]*Repos
 		return nil, err
 	}
 	repos := []*Repository{}
-	for _, azureRepo := range *azureRepos {
+	for i := range *azureRepos {
+		azureRepo := &(*azureRepos)[i]
 		if azureRepo.Name == nil || azureRepo.DefaultBranch == nil || azureRepo.RemoteUrl == nil || azureRepo.Id == nil {
 			continue
 		}

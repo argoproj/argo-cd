@@ -71,15 +71,17 @@ func getAPIResourceInfo(group, kind string, getAPIResourceInfo func() ([]kube.AP
 		return nil, fmt.Errorf("failed to get API resource info: %w", err)
 	}
 
-	for _, r := range apiResources {
+	for i := range apiResources {
+		r := &apiResources[i]
 		if r.GroupKind.Group == group && r.GroupKind.Kind == kind {
-			return &r, nil
+			return r, nil
 		}
 	}
 
-	for _, r := range apiResources {
+	for i := range apiResources {
+		r := &apiResources[i]
 		if r.GroupKind.Kind == kind {
-			return &r, nil
+			return r, nil
 		}
 	}
 
@@ -412,7 +414,8 @@ func validateRepo(ctx context.Context,
 	conditions := make([]argoappv1.ApplicationCondition, 0)
 	errMessage := ""
 
-	for _, source := range sources {
+	for i := range sources {
+		source := &sources[i]
 		repo, err := db.GetRepository(ctx, source.RepoURL, proj.Name)
 		if err != nil {
 			return nil, err
@@ -483,7 +486,8 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 	if len(sources) > 1 {
 		// Validate first to avoid unnecessary DB calls.
 		refKeys := make(map[string]bool)
-		for _, source := range sources {
+		for i := range sources {
+			source := &sources[i]
 			if source.Ref == "" {
 				continue
 			}
@@ -498,7 +502,8 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 			refKeys[refKey] = true
 		}
 		// Get Repositories for all sources before generating Manifests
-		for i, source := range sources {
+		for i := range sources {
+			source := &sources[i]
 			if source.Ref == "" {
 				continue
 			}
@@ -592,7 +597,8 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 			})
 		}
 	case spec.HasMultipleSources():
-		for _, source := range spec.Sources {
+		for i := range spec.Sources {
+			source := spec.Sources[i]
 			condition := validateSourcePermissions(source, spec.HasMultipleSources())
 			if len(condition) > 0 {
 				conditions = append(conditions, condition...)
@@ -651,7 +657,8 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 // APIResourcesToStrings converts list of API Resources list into string list
 func APIResourcesToStrings(resources []kube.APIResourceInfo, includeKinds bool) []string {
 	resMap := map[string]bool{}
-	for _, r := range resources {
+	for i := range resources {
+		r := &resources[i]
 		groupVersion := r.GroupVersionResource.GroupVersion().String()
 		resMap[groupVersion] = true
 		if includeKinds {
@@ -764,7 +771,8 @@ func verifyGenerateManifests(
 		return conditions // Can't perform the next check without settings.
 	}
 
-	for _, source := range sources {
+	for i := range sources {
+		source := sources[i]
 		repoRes, err := db.GetRepository(ctx, source.RepoURL, proj.Name)
 		if err != nil {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
@@ -960,8 +968,9 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 		spec.SyncPolicy = nil
 	}
 	if len(spec.Sources) > 0 {
-		for _, source := range spec.Sources {
-			NormalizeSource(&source)
+		for i := range spec.Sources {
+			source := &spec.Sources[i]
+			NormalizeSource(source)
 		}
 	} else if spec.Source != nil {
 		// In practice, spec.Source should never be nil.

@@ -77,7 +77,8 @@ func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
 
 	pullRequests := []*PullRequest{}
 
-	for _, pr := range *azurePullRequests {
+	for i := range *azurePullRequests {
+		pr := &(*azurePullRequests)[i]
 		if pr.Repository == nil ||
 			pr.Repository.Name == nil ||
 			pr.PullRequestId == nil ||

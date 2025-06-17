@@ -116,7 +116,8 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 	}
 
 	// For each matching cluster secret (non-local clusters only)
-	for _, cluster := range secretsFound {
+	for i := range secretsFound {
+		cluster := &secretsFound[i]
 		params := map[string]any{}
 
 		params["name"] = string(cluster.Data["name"])
@@ -189,7 +190,8 @@ func (g *ClusterGenerator) getSecretsByClusterName(log *log.Entry, appSetGenerat
 
 	res := map[string]corev1.Secret{}
 
-	for _, cluster := range clusterSecretList.Items {
+	for i := range clusterSecretList.Items {
+		cluster := clusterSecretList.Items[i]
 		clusterName := string(cluster.Data["name"])
 
 		res[clusterName] = cluster

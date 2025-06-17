@@ -47,7 +47,8 @@ func (ctrl *ApplicationController) executePostDeleteHooks(app *v1alpha1.Applicat
 		return false, err
 	}
 	var revisions []string
-	for _, src := range app.Spec.GetSources() {
+	for i := range app.Spec.GetSources() {
+		src := &app.Spec.GetSources()[i]
 		revisions = append(revisions, src.TargetRevision)
 	}
 

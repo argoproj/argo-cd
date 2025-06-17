@@ -73,14 +73,15 @@ var appFields = map[string]func(app *v1alpha1.Application) any{
 func processApplicationListField(v any, fields map[string]any, exclude bool) (any, error) {
 	if appList, ok := v.(*v1alpha1.ApplicationList); ok {
 		var items []map[string]any
-		for _, app := range appList.Items {
+		for i := range appList.Items {
+			app := &appList.Items[i]
 			converted := make(map[string]any)
 			items = append(items, converted)
 			for field, fn := range appFields {
 				if _, ok := fields["items."+field]; ok == exclude {
 					continue
 				}
-				value := fn(&app)
+				value := fn(app)
 				if value == nil {
 					continue
 				}

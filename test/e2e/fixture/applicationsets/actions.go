@@ -94,7 +94,8 @@ func (a *Actions) CreateClusterSecret(secretName string, clusterName string, clu
 		}
 
 		// If 'application-controller' service account is present, use that
-		for _, sa := range serviceAccountList.Items {
+		for i := range serviceAccountList.Items {
+			sa := &serviceAccountList.Items[i]
 			if strings.Contains(sa.Name, "application-controller") {
 				serviceAccountName = sa.Name
 				return true, nil
@@ -102,7 +103,8 @@ func (a *Actions) CreateClusterSecret(secretName string, clusterName string, clu
 		}
 
 		// Otherwise, use 'default'
-		for _, sa := range serviceAccountList.Items {
+		for i := range serviceAccountList.Items {
+			sa := &serviceAccountList.Items[i]
 			if sa.Name == "default" {
 				serviceAccountName = sa.Name
 				return true, nil

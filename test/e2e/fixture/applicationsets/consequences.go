@@ -78,7 +78,8 @@ func (c *Consequences) When() *Actions {
 func (c *Consequences) app(name string) *v1alpha1.Application {
 	apps := c.apps()
 
-	for index, app := range apps {
+	for index := range apps {
+		app := &apps[index]
 		if app.Name == name {
 			return &apps[index]
 		}

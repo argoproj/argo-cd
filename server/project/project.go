@@ -404,7 +404,8 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 	invalidSrcCount := 0
 	invalidDstCount := 0
 
-	for _, a := range argo.FilterByProjects(appsList.Items, []string{q.Project.Name}) {
+	for i := range argo.FilterByProjects(appsList.Items, []string{q.Project.Name}) {
+		a := &argo.FilterByProjects(appsList.Items, []string{q.Project.Name})[i]
 		if oldProj.IsSourcePermitted(a.Spec.GetSource()) && !q.Project.IsSourcePermitted(a.Spec.GetSource()) {
 			invalidSrcCount++
 		}
@@ -537,12 +538,13 @@ func (s *Server) NormalizeProjs() error {
 	if err != nil {
 		return status.Errorf(codes.Internal, "Error retrieving project list: %s", err.Error())
 	}
-	for _, proj := range projList.Items {
+	for j := range projList.Items {
+		proj := &projList.Items[j]
 		for i := 0; i < 3; i++ {
 			if !proj.NormalizeJWTTokens() {
 				break
 			}
-			_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(context.Background(), &proj, metav1.UpdateOptions{})
+			_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(context.Background(), proj, metav1.UpdateOptions{})
 			if err == nil {
 				log.Infof("Successfully normalized project %s.", proj.Name)
 				break
@@ -555,7 +557,7 @@ func (s *Server) NormalizeProjs() error {
 			if err != nil {
 				return status.Errorf(codes.Internal, "Error retrieving project: %s", err.Error())
 			}
-			proj = *projGet
+			proj = projGet
 			if i == 2 {
 				return status.Errorf(codes.Internal, "Failed normalize project %s", proj.Name)
 			}

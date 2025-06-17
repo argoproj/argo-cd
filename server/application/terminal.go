@@ -215,7 +215,8 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var findContainer bool
-	for _, c := range pod.Spec.Containers {
+	for i := range pod.Spec.Containers {
+		c := &pod.Spec.Containers[i]
 		if container == c.Name {
 			findContainer = true
 			break
@@ -263,7 +264,8 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func podExists(treeNodes []appv1.ResourceNode, podName, namespace string) bool {
-	for _, treeNode := range treeNodes {
+	for i := range treeNodes {
+		treeNode := &treeNodes[i]
 		if treeNode.Kind == kube.PodKind && treeNode.Group == "" && treeNode.UID != "" &&
 			treeNode.Name == podName && treeNode.Namespace == namespace {
 			return true

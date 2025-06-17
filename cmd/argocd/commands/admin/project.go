@@ -203,7 +203,8 @@ func updateProjects(ctx context.Context, projIf appclient.AppProjectInterface, p
 	if err != nil {
 		return fmt.Errorf("error listing the projects: %w", err)
 	}
-	for _, proj := range projects.Items {
+	for i := range projects.Items {
+		proj := projects.Items[i]
 		if !globMatch(projectGlob, proj.Name) {
 			continue
 		}

@@ -23,7 +23,8 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 	var errCount uint
 
 	appHealthStatus := health.HealthStatusHealthy
-	for i, res := range resources {
+	for i := range resources {
+		res := &resources[i]
 		if res.Target != nil && hookutil.Skip(res.Target) {
 			continue
 		}

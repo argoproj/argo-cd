@@ -80,7 +80,8 @@ func (b *BitbucketService) List(_ context.Context) ([]*PullRequest, error) {
 			return nil, fmt.Errorf("error parsing pull request response for %s/%s: %w", b.projectKey, b.repositorySlug, err)
 		}
 
-		for _, pull := range pulls {
+		for i := range pulls {
+			pull := &pulls[i]
 			pullRequests = append(pullRequests, &PullRequest{
 				Number:       pull.ID,
 				Title:        pull.Title,

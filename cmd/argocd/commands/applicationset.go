@@ -386,7 +386,8 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 
 // Print simple list of application names
 func printApplicationSetNames(apps []arogappsetv1.ApplicationSet) {
-	for _, app := range apps {
+	for i := range apps {
+		app := &apps[i]
 		fmt.Println(app.QualifiedName())
 	}
 }
@@ -403,7 +404,8 @@ func printApplicationSetTable(apps []arogappsetv1.ApplicationSet, output *string
 		fmtStr = "%s\t%s\t%s\t%s\n"
 	}
 	_, _ = fmt.Fprintf(w, fmtStr, headers...)
-	for _, app := range apps {
+	for i := range apps {
+		app := &apps[i]
 		conditions := make([]arogappsetv1.ApplicationSetCondition, 0)
 		for _, condition := range app.Status.Conditions {
 			if condition.Status == arogappsetv1.ApplicationSetConditionStatusTrue {
@@ -449,8 +451,9 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 		printAppSourceDetails(&src)
 	} else {
 		// otherwise range over the sources and print each source details
-		for _, source := range appSet.Spec.Template.Spec.GetSources() {
-			printAppSourceDetails(&source)
+		for i := range appSet.Spec.Template.Spec.GetSources() {
+			source := &appSet.Spec.Template.Spec.GetSources()[i]
+			printAppSourceDetails(source)
 		}
 	}
 

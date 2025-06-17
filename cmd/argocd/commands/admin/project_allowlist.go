@@ -144,7 +144,8 @@ func generateProjectAllowList(serverResources []*metav1.APIResourceList, cluster
 					gv = schema.GroupVersion{}
 				}
 				if ruleAPIGroup == gv.Group {
-					for _, apiResource := range apiResourcesList.APIResources {
+					for i := range apiResourcesList.APIResources {
+						apiResource := &apiResourcesList.APIResources[i]
 						if apiResource.Name == ruleResource {
 							resourceList = append(resourceList, metav1.GroupKind{Group: ruleAPIGroup, Kind: apiResource.Kind})
 						}

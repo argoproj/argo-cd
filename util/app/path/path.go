@@ -108,7 +108,8 @@ func GetAppRefreshPaths(app *v1alpha1.Application) []string {
 			if filepath.IsAbs(item) {
 				paths = append(paths, item[1:])
 			} else {
-				for _, source := range app.Spec.GetSources() {
+				for i := range app.Spec.GetSources() {
+					source := &app.Spec.GetSources()[i]
 					paths = append(paths, filepath.Clean(filepath.Join(source.Path, item)))
 				}
 			}

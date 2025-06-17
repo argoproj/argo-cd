@@ -240,7 +240,8 @@ func initializeClient(appsets []argoappv1.ApplicationSet) ctrlclient.WithWatch {
 
 	var clientObjects []ctrlclient.Object
 
-	for _, appset := range appsets {
+	for i := range appsets {
+		appset := &appsets[i]
 		clientObjects = append(clientObjects, appset.DeepCopy())
 	}
 

@@ -249,7 +249,8 @@ func Pod(predicate func(p corev1.Pod) bool) Expectation {
 		if err != nil {
 			return failed, err.Error()
 		}
-		for _, pod := range pods.Items {
+		for i := range pods.Items {
+			pod := pods.Items[i]
 			if predicate(pod) {
 				return succeeded, fmt.Sprintf("pod predicate matched pod named '%s'", pod.GetName())
 			}
@@ -264,7 +265,8 @@ func NotPod(predicate func(p corev1.Pod) bool) Expectation {
 		if err != nil {
 			return failed, err.Error()
 		}
-		for _, pod := range pods.Items {
+		for i := range pods.Items {
+			pod := pods.Items[i]
 			if predicate(pod) {
 				return pending, fmt.Sprintf("pod predicate matched pod named '%s'", pod.GetName())
 			}

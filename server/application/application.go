@@ -530,7 +530,8 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			return fmt.Errorf("failed to get ref sources: %w", err)
 		}
 
-		for _, source := range sources {
+		for i := range sources {
+			source := sources[i]
 			repo, err := s.db.GetRepository(ctx, source.RepoURL, proj.Name)
 			if err != nil {
 				return fmt.Errorf("error getting repository: %w", err)
@@ -898,7 +899,9 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 			return nil, fmt.Errorf("error getting app resources: %w", err)
 		}
 		found := false
-		for _, n := range append(tree.Nodes, tree.OrphanedNodes...) {
+		nodes := append(tree.Nodes, tree.OrphanedNodes...)
+		for i := range nodes {
+			n := &nodes[i]
 			if n.UID == q.GetResourceUID() && n.Name == q.GetResourceName() && n.Namespace == q.GetResourceNamespace() {
 				found = true
 				break
@@ -1295,7 +1298,8 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *v1alpha1.Appl
 	// ensure sources names are unique
 	if app.Spec.HasMultipleSources() {
 		sourceNames := make(map[string]bool)
-		for _, source := range app.Spec.Sources {
+		for i := range app.Spec.Sources {
+			source := &app.Spec.Sources[i]
 			if source.Name != "" && sourceNames[source.Name] {
 				return fmt.Errorf("application %s has duplicate source name: %s", app.Name, source.Name)
 			}
@@ -1710,7 +1714,8 @@ func getAppSourceBySourceIndexAndVersionId(a *v1alpha1.Application, sourceIndexM
 // getRevisionHistoryByVersionId returns the revision history for a specific version ID.
 // If the version ID is not found, it returns an empty revision history and false.
 func getRevisionHistoryByVersionId(histories v1alpha1.RevisionHistories, versionId int64) (v1alpha1.RevisionHistory, bool) {
-	for _, h := range histories {
+	for i := range histories {
+		h := histories[i]
 		if h.ID == versionId {
 			return h, true
 		}
@@ -1845,7 +1850,8 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 
 	var streams []chan logEntry
 
-	for _, pod := range pods {
+	for i := range pods {
+		pod := &pods[i]
 		stream, err := kubeClientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{
 			Container:    q.GetContainer(),
 			Follow:       q.GetFollow(),
@@ -1942,7 +1948,8 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 func getSelectedPods(treeNodes []v1alpha1.ResourceNode, q *application.ApplicationPodLogsQuery) []v1alpha1.ResourceNode {
 	var pods []v1alpha1.ResourceNode
 	isTheOneMap := make(map[string]bool)
-	for _, treeNode := range treeNodes {
+	for i := range treeNodes {
+		treeNode := treeNodes[i]
 		if treeNode.Kind == kube.PodKind && treeNode.Group == "" && treeNode.UID != "" {
 			if isTheSelectedOne(&treeNode, q, treeNodes, isTheOneMap) {
 				pods = append(pods, treeNode)
@@ -1975,12 +1982,13 @@ func isTheSelectedOne(currentNode *v1alpha1.ResourceNode, q *application.Applica
 	for _, parentResource := range currentNode.ParentRefs {
 		// look up parentResource from resourceNodes
 		// then check if the parent isTheSelectedOne
-		for _, resourceNode := range resourceNodes {
+		for i := range resourceNodes {
+			resourceNode := &resourceNodes[i]
 			if resourceNode.Namespace == parentResource.Namespace &&
 				resourceNode.Name == parentResource.Name &&
 				resourceNode.Group == parentResource.Group &&
 				resourceNode.Kind == parentResource.Kind {
-				if isTheSelectedOne(&resourceNode, q, resourceNodes, isTheOneMap) {
+				if isTheSelectedOne(resourceNode, q, resourceNodes, isTheOneMap) {
 					isTheOneMap[currentNode.UID] = true
 					return true
 				}
@@ -2116,7 +2124,8 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 			}
 			sources[pos-1].TargetRevision = syncReq.Revisions[i]
 		}
-		for index, source := range sources {
+		for index := range sources {
+			source := &sources[index]
 			if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
 				if text.FirstNonEmpty(a.Spec.GetSources()[index].TargetRevision, "HEAD") != text.FirstNonEmpty(source.TargetRevision, "HEAD") {
 					return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, "Cannot sync source %s to %s: auto-sync currently set to %s", source.RepoURL, source.TargetRevision, a.Spec.Sources[index].TargetRevision)
@@ -2160,9 +2169,10 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	}
 
 	var deploymentInfo *v1alpha1.RevisionHistory
-	for _, info := range a.Status.History {
+	for i := range a.Status.History {
+		info := &a.Status.History[i]
 		if info.ID == rollbackReq.GetId() {
-			deploymentInfo = &info
+			deploymentInfo = info
 			break
 		}
 	}
@@ -2743,7 +2753,8 @@ func (s *Server) inferResourcesStatusHealth(app *v1alpha1.Application) {
 		tree := &v1alpha1.ApplicationTree{}
 		if err := s.cache.GetAppResourcesTree(app.InstanceName(s.ns), tree); err == nil {
 			healthByKey := map[kube.ResourceKey]*v1alpha1.HealthStatus{}
-			for _, node := range tree.Nodes {
+			for i := range tree.Nodes {
+				node := &tree.Nodes[i]
 				if node.Health != nil {
 					healthByKey[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = node.Health
 				} else if node.ResourceVersion == "" && node.UID == "" && node.CreatedAt == nil {
@@ -2753,7 +2764,8 @@ func (s *Server) inferResourcesStatusHealth(app *v1alpha1.Application) {
 					}
 				}
 			}
-			for i, res := range app.Status.Resources {
+			for i := range app.Status.Resources {
+				res := app.Status.Resources[i]
 				res.Health = healthByKey[kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)]
 				app.Status.Resources[i] = res
 			}

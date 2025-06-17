@@ -67,7 +67,8 @@ func (h *clusterSecretEventHandler) queueRelatedAppGenerators(ctx context.Contex
 	}
 
 	h.Log.WithField("count", len(appSetList.Items)).Info("listed ApplicationSets")
-	for _, appSet := range appSetList.Items {
+	for i := range appSetList.Items {
+		appSet := &appSetList.Items[i]
 		foundClusterGenerator := false
 		for _, generator := range appSet.Spec.Generators {
 			if generator.Clusters != nil {

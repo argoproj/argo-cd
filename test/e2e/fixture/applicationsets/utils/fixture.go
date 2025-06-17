@@ -195,10 +195,11 @@ func EnsureCleanState(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		for _, app := range appList.Items {
+		for i := range appList.Items {
+			app := &appList.Items[i]
 			t.Log("Removing finalizer for: ", app.Name)
 			app.Finalizers = []string{}
-			_, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).Update(t.Context(), &app, metav1.UpdateOptions{})
+			_, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).Update(t.Context(), app, metav1.UpdateOptions{})
 			if err != nil {
 				return err
 			}

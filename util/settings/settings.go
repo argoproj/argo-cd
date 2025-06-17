@@ -924,7 +924,8 @@ func (mgr *SettingsManager) GetIgnoreResourceUpdatesOverrides() (map[string]v1al
 		return nil, fmt.Errorf("failed to get resource overrides: %w", err)
 	}
 
-	for k, v := range resourceOverrides {
+	for k := range resourceOverrides {
+		v := resourceOverrides[k]
 		resourceUpdates := v.IgnoreResourceUpdates
 		if compareOptions.IgnoreDifferencesOnResourceUpdates {
 			resourceUpdates.JQPathExpressions = append(resourceUpdates.JQPathExpressions, v.IgnoreDifferences.JQPathExpressions...)

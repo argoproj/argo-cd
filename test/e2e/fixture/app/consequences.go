@@ -127,7 +127,8 @@ func (c *Consequences) resource(kind, name, namespace string) v1alpha1.ResourceS
 		AppNamespace: ptr.To(c.context.appNamespace),
 	})
 	require.NoError(c.context.t, err)
-	for _, r := range app.Status.Resources {
+	for i := range app.Status.Resources {
+		r := app.Status.Resources[i]
 		if r.Kind == kind && r.Name == name && (namespace == "" || namespace == r.Namespace) {
 			return r
 		}

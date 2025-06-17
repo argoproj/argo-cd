@@ -345,7 +345,8 @@ func getReconcileResults(ctx context.Context, appClientset appclientset.Interfac
 	}
 
 	var items []appReconcileResult
-	for _, app := range appsList.Items {
+	for i := range appsList.Items {
+		app := &appsList.Items[i]
 		items = append(items, appReconcileResult{
 			Name:       app.Name,
 			Conditions: app.Status.Conditions,
@@ -437,7 +438,8 @@ func reconcileApplications(
 
 	var items []appReconcileResult
 	prevServer := ""
-	for _, app := range appsList.Items {
+	for i := range appsList.Items {
+		app := &appsList.Items[i]
 		destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, argoDB)
 		if err != nil {
 			return nil, fmt.Errorf("error getting destination cluster: %w", err)
@@ -464,7 +466,7 @@ func reconcileApplications(
 		sources = append(sources, app.Spec.GetSource())
 		revisions = append(revisions, app.Spec.GetSource().TargetRevision)
 
-		res, err := appStateManager.CompareAppState(&app, proj, revisions, sources, false, false, nil, false, false)
+		res, err := appStateManager.CompareAppState(app, proj, revisions, sources, false, false, nil, false, false)
 		if err != nil {
 			return nil, fmt.Errorf("error comparing app states: %w", err)
 		}

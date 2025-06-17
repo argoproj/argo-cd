@@ -148,7 +148,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		if apps, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).List(context.Background(), metav1.ListOptions{}); err == nil {
 			applicationSet := argo.FilterByProjects(apps.Items, projects)
-			for _, a := range applicationSet {
+			for i := range applicationSet {
+				a := &applicationSet[i]
 				if a.Status.Sync.Status != appv1.SyncStatusCodeSynced {
 					status = appv1.SyncStatusCodeOutOfSync
 				}

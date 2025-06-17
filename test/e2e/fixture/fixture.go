@@ -517,7 +517,8 @@ func CreateRBACResourcesForImpersonation(serviceAccountName string, policyRules 
 
 func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		for k, v := range overrides {
+		for k := range overrides {
+			v := overrides[k]
 			if v.HealthLua != "" {
 				cm.Data[getResourceOverrideSplitKey(k, "health")] = v.HealthLua
 			}
@@ -721,7 +722,8 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			}
 			if len(namespaces.Items) > 0 {
 				args := []string{"delete", "ns", "--wait=false"}
-				for _, namespace := range namespaces.Items {
+				for i := range namespaces.Items {
+					namespace := &namespaces.Items[i]
 					args = append(args, namespace.Name)
 				}
 				_, err := Run("", "kubectl", args...)
@@ -735,7 +737,8 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				return err
 			}
 			testNamespaceNames := []string{}
-			for _, namespace := range namespaces.Items {
+			for i := range namespaces.Items {
+				namespace := &namespaces.Items[i]
 				if strings.HasPrefix(namespace.Name, E2ETestPrefix) {
 					testNamespaceNames = append(testNamespaceNames, namespace.Name)
 				}
@@ -768,7 +771,8 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			}
 			if len(clusterRoles.Items) > 0 {
 				args := []string{"delete", "clusterrole", "--wait=false"}
-				for _, clusterRole := range clusterRoles.Items {
+				for i := range clusterRoles.Items {
+					clusterRole := &clusterRoles.Items[i]
 					args = append(args, clusterRole.Name)
 				}
 				_, err := Run("", "kubectl", args...)
@@ -782,7 +786,8 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				return err
 			}
 			testClusterRoleNames := []string{}
-			for _, clusterRole := range clusterRoles.Items {
+			for i := range clusterRoles.Items {
+				clusterRole := &clusterRoles.Items[i]
 				if strings.HasPrefix(clusterRole.Name, E2ETestPrefix) {
 					testClusterRoleNames = append(testClusterRoleNames, clusterRole.Name)
 				}
@@ -804,7 +809,8 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				return err
 			}
 			testClusterRoleBindingNames := []string{}
-			for _, clusterRoleBinding := range clusterRoleBindings.Items {
+			for i := range clusterRoleBindings.Items {
+				clusterRoleBinding := &clusterRoleBindings.Items[i]
 				if strings.HasPrefix(clusterRoleBinding.Name, E2ETestPrefix) {
 					testClusterRoleBindingNames = append(testClusterRoleBindingNames, clusterRoleBinding.Name)
 				}

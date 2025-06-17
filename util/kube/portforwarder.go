@@ -30,9 +30,10 @@ func selectPodForPortForward(clientSet kubernetes.Interface, namespace string, p
 			return nil, err
 		}
 
-		for _, po := range pods.Items {
-			if po.Status.Phase == corev1.PodRunning && podutils.IsPodReady(&po) {
-				return &po, nil
+		for i := range pods.Items {
+			po := &pods.Items[i]
+			if po.Status.Phase == corev1.PodRunning && podutils.IsPodReady(po) {
+				return po, nil
 			}
 		}
 	}

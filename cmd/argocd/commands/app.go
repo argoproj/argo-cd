@@ -284,7 +284,8 @@ func parentChildDetails(ctx context.Context, appIf application.ApplicationServic
 	resourceTree, err := appIf.ResourceTree(ctx, &application.ResourcesQuery{Name: &appName, AppNamespace: &appNs, ApplicationName: &appName})
 	errors.CheckError(err)
 
-	for _, node := range resourceTree.Nodes {
+	for i := range resourceTree.Nodes {
+		node := resourceTree.Nodes[i]
 		mapUIDToNode[node.UID] = node
 
 		if len(node.ParentRefs) > 0 {
@@ -324,7 +325,8 @@ func printHeader(ctx context.Context, acdClient argocdclient.Client, app *argoap
 // getSourceNameToPositionMap returns a map of source name to position
 func getSourceNameToPositionMap(app *argoappv1.Application) map[string]int64 {
 	sourceNameToPosition := make(map[string]int64)
-	for i, s := range app.Spec.Sources {
+	for i := range app.Spec.Sources {
+		s := app.Spec.Sources[i]
 		if s.Name != "" {
 			sourceNameToPosition[s.Name] = int64(i + 1)
 		}
@@ -664,8 +666,9 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 	} else {
 		fmt.Println("Sources:")
 	}
-	for _, source := range app.Spec.GetSources() {
-		printAppSourceDetails(&source)
+	for i := range app.Spec.GetSources() {
+		source := &app.Spec.GetSources()[i]
+		printAppSourceDetails(source)
 	}
 	var wds []string
 	var status string
@@ -1663,7 +1666,8 @@ func checkForDeleteEvent(ctx context.Context, acdClient argocdclient.Client, app
 
 // Print simple list of application names
 func printApplicationNames(apps []argoappv1.Application) {
-	for _, app := range apps {
+	for i := range apps {
+		app := &apps[i]
 		fmt.Println(app.QualifiedName())
 	}
 }
@@ -1680,7 +1684,8 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 		fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
 	}
 	_, _ = fmt.Fprintf(w, fmtStr, headers...)
-	for _, app := range apps {
+	for i := range apps {
+		app := apps[i]
 		vals := []any{
 			app.QualifiedName(),
 			getServer(&app),
@@ -1926,8 +1931,9 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if selector != "" {
 				list, err := appIf.List(ctx, &application.ApplicationQuery{Selector: ptr.To(selector)})
 				errors.CheckError(err)
-				for _, i := range list.Items {
-					appNames = append(appNames, i.QualifiedName())
+				for i := range list.Items {
+					item := &list.Items[i]
+					appNames = append(appNames, item.QualifiedName())
 				}
 			}
 			for _, appName := range appNames {
@@ -2123,8 +2129,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					log.Fatal(errMsg)
 				}
 
-				for _, i := range list.Items {
-					appNames = append(appNames, i.QualifiedName())
+				for i := range list.Items {
+					item := &list.Items[i]
+					appNames = append(appNames, item.QualifiedName())
 				}
 			}
 
@@ -2374,8 +2381,9 @@ func getAppNamesBySelector(ctx context.Context, appIf application.ApplicationSer
 		if len(list.Items) == 0 {
 			return []string{}, fmt.Errorf("no apps match selector %v", selector)
 		}
-		for _, i := range list.Items {
-			appNames = append(appNames, i.QualifiedName())
+		for i := range list.Items {
+			item := &list.Items[i]
+			appNames = append(appNames, item.QualifiedName())
 		}
 	}
 	return appNames, nil
@@ -2822,7 +2830,8 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string, sour
 
 // Print list of history ID's for an application.
 func printApplicationHistoryIDs(revHistory []argoappv1.RevisionHistory) {
-	for _, depInfo := range revHistory {
+	for i := range revHistory {
+		depInfo := &revHistory[i]
 		fmt.Println(depInfo.ID)
 	}
 }
@@ -2838,9 +2847,11 @@ func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 	}
 	varHistory := map[string][]history{}
 	varHistoryKeys := []string{}
-	for _, depInfo := range revHistory {
+	for i := range revHistory {
+		depInfo := &revHistory[i]
 		if depInfo.Sources != nil {
-			for i, sourceInfo := range depInfo.Sources {
+			for i := range depInfo.Sources {
+				sourceInfo := &depInfo.Sources[i]
 				rev := sourceInfo.TargetRevision
 				if len(depInfo.Revisions) == len(depInfo.Sources) && len(depInfo.Revisions[i]) >= maxAllowedRevisions {
 					rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revisions[i][0:maxAllowedRevisions])
@@ -2929,9 +2940,10 @@ func findRevisionHistory(application *argoappv1.Application, historyId int64) (*
 		}
 		return &application.Status.History[l-2], nil
 	}
-	for _, di := range application.Status.History {
+	for i := range application.Status.History {
+		di := &application.Status.History[i]
 		if di.ID == historyId {
-			return &di, nil
+			return di, nil
 		}
 	}
 	return nil, fmt.Errorf("application '%s' does not have deployment id '%d' in history", application.Name, historyId)

@@ -200,7 +200,8 @@ func (h *Hydrator) getRelevantAppsForHydration(logCtx *log.Entry, hydrationKey H
 
 	var relevantApps []*appv1.Application
 	uniqueDestinations := make(map[uniqueHydrationDestination]bool, len(apps.Items))
-	for _, app := range apps.Items {
+	for i := range apps.Items {
+		app := &apps.Items[i]
 		if app.Spec.SourceHydrator == nil {
 			continue
 		}
@@ -218,7 +219,7 @@ func (h *Hydrator) getRelevantAppsForHydration(logCtx *log.Entry, hydrationKey H
 		}
 
 		var proj *appv1.AppProject
-		proj, err = h.dependencies.GetProcessableAppProj(&app)
+		proj, err = h.dependencies.GetProcessableAppProj(app)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get project %q for app %q: %w", app.Spec.Project, app.QualifiedName(), err)
 		}
@@ -241,7 +242,7 @@ func (h *Hydrator) getRelevantAppsForHydration(logCtx *log.Entry, hydrationKey H
 		}
 		uniqueDestinations[uniqueDestinationKey] = true
 
-		relevantApps = append(relevantApps, &app)
+		relevantApps = append(relevantApps, app)
 	}
 	return relevantApps, nil
 }

@@ -428,7 +428,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 
 	var apiVersion []kube.APIResourceInfo
-	for _, res := range resState {
+	for i := range resState {
+		res := resState[i]
 		augmentedMsg, err := argo.AugmentSyncMsg(res, func() ([]kube.APIResourceInfo, error) {
 			if apiVersion == nil {
 				_, apiVersion, err = m.liveStateCache.GetVersionsInfo(destCluster)

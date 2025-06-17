@@ -230,7 +230,8 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 
 	keyManifestGenerateAnnotationVal, keyManifestGenerateAnnotationExists := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 
-	for i, source := range sources {
+	for i := range sources {
+		source := sources[i]
 		if len(revisions) < len(sources) || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
 		}
@@ -598,7 +599,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		// we take the revisions from the sources directly for all the sources.
 		if len(revisions) != len(sources) {
 			revisions = make([]string, 0)
-			for _, source := range sources {
+			for i := range sources {
+				source := &sources[i]
 				revisions = append(revisions, source.TargetRevision)
 			}
 		}

@@ -376,7 +376,8 @@ func formatNamespaces(cluster argoappv1.Cluster) string {
 }
 
 func printClusterDetails(clusters []argoappv1.Cluster) {
-	for _, cluster := range clusters {
+	for i := range clusters {
+		cluster := clusters[i]
 		fmt.Printf("Cluster information\n\n")
 		fmt.Printf("  Server URL:            %s\n", cluster.Server)
 		fmt.Printf("  Server Name:           %s\n", strWithDefault(cluster.Name, "-"))
@@ -470,7 +471,8 @@ argocd cluster rm cluster-name`,
 func printClusterTable(clusters []argoappv1.Cluster) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	_, _ = fmt.Fprintf(w, "SERVER\tNAME\tVERSION\tSTATUS\tMESSAGE\tPROJECT\n")
-	for _, c := range clusters {
+	for i := range clusters {
+		c := &clusters[i]
 		server := c.Server
 		if len(c.Namespaces) > 0 {
 			server = fmt.Sprintf("%s (%d namespaces)", c.Server, len(c.Namespaces))
@@ -495,7 +497,8 @@ func getQueryBySelector(clusterSelector string) *clusterpkg.ClusterQuery {
 
 // Print list of cluster servers
 func printClusterServers(clusters []argoappv1.Cluster) {
-	for _, c := range clusters {
+	for i := range clusters {
+		c := &clusters[i]
 		fmt.Println(c.Server)
 	}
 }

@@ -338,10 +338,12 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	}
 
 	imagesSet := make(map[string]bool)
-	for _, container := range pod.Spec.InitContainers {
+	for i := range pod.Spec.InitContainers {
+		container := &pod.Spec.InitContainers[i]
 		imagesSet[container.Image] = true
 	}
-	for _, container := range pod.Spec.Containers {
+	for i := range pod.Spec.Containers {
+		container := &pod.Spec.Containers[i]
 		imagesSet[container.Image] = true
 	}
 

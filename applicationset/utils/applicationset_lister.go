@@ -54,7 +54,8 @@ func clientListAppsets(client ctrlclient.Client, listOptions ctrlclient.ListOpti
 	err = client.List(context.TODO(), &appsetlist, &listOptions)
 
 	if err == nil {
-		for _, appset := range appsetlist.Items {
+		for i := range appsetlist.Items {
+			appset := &appsetlist.Items[i]
 			results = append(results, appset.DeepCopy())
 		}
 	}

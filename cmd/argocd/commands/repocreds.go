@@ -244,7 +244,8 @@ func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 func printRepoCredsTable(repos []appsv1.RepoCreds) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(w, "URL PATTERN\tUSERNAME\tSSH_CREDS\tTLS_CREDS\n")
-	for _, r := range repos {
+	for i := range repos {
+		r := &repos[i]
 		if r.Username == "" {
 			r.Username = "-"
 		}
@@ -255,7 +256,8 @@ func printRepoCredsTable(repos []appsv1.RepoCreds) {
 
 // Print list of repo urls or url patterns for repository credentials
 func printRepoCredsUrls(repos []appsv1.RepoCreds) {
-	for _, r := range repos {
+	for i := range repos {
+		r := &repos[i]
 		fmt.Println(r.URL)
 	}
 }

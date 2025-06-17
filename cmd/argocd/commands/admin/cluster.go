@@ -146,7 +146,8 @@ func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClien
 				return nil
 			}
 			nsSet := map[string]bool{}
-			for _, app := range apps {
+			for i := range apps {
+				app := &apps[i]
 				destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, argoDB)
 				if err != nil {
 					return fmt.Errorf("error validating application destination: %w", err)
@@ -236,7 +237,8 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 func printStatsSummary(clusters []ClusterWithInfo) {
 	totalResourcesCount := int64(0)
 	resourcesCountByShard := map[int]int64{}
-	for _, c := range clusters {
+	for i := range clusters {
+		c := clusters[i]
 		totalResourcesCount += c.Info.CacheInfo.ResourcesCount
 		resourcesCountByShard[c.Shard] += c.Info.CacheInfo.ResourcesCount
 	}
@@ -277,9 +279,11 @@ func runClusterNamespacesCommand(ctx context.Context, clientConfig clientcmd.Cli
 	}
 	apps := appItems.Items
 	clusters := map[string][]string{}
-	for _, cluster := range clustersList.Items {
+	for i := range clustersList.Items {
+		cluster := &clustersList.Items[i]
 		nsSet := map[string]bool{}
-		for _, app := range apps {
+		for i := range apps {
+			app := &apps[i]
 			destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, argoDB)
 			if err != nil {
 				return fmt.Errorf("error validating application destination: %w", err)
@@ -291,7 +295,8 @@ func runClusterNamespacesCommand(ctx context.Context, clientConfig clientcmd.Cli
 			// Use namespaces of actually deployed resources, since some application use dummy target namespace
 			// If resources list is empty then use target namespace
 			if len(app.Status.Resources) != 0 {
-				for _, res := range app.Status.Resources {
+				for i := range app.Status.Resources {
+					res := &app.Status.Resources[i]
 					if res.Namespace != "" {
 						nsSet[res.Namespace] = true
 					}
@@ -499,7 +504,8 @@ argocd admin cluster stats target-cluster`,
 
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			_, _ = fmt.Fprintf(w, "SERVER\tSHARD\tCONNECTION\tNAMESPACES COUNT\tAPPS COUNT\tRESOURCES COUNT\n")
-			for _, cluster := range clusters {
+			for i := range clusters {
+				cluster := &clusters[i]
 				_, _ = fmt.Fprintf(w, "%s\t%d\t%s\t%d\t%d\t%d\n", cluster.Server, cluster.Shard, cluster.Info.ConnectionState.Status, len(cluster.Namespaces), cluster.Info.ApplicationsCount, cluster.Info.CacheInfo.ResourcesCount)
 			}
 			_ = w.Flush()

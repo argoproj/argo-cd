@@ -119,7 +119,8 @@ func (opts *IgnoreNormalizerOpts) getJQExecutionTimeout() time.Duration {
 
 // NewIgnoreNormalizer creates diff normalizer which removes ignored fields according to given application spec and resource overrides
 func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride, opts IgnoreNormalizerOpts) (diff.Normalizer, error) {
-	for key, override := range overrides {
+	for key := range overrides {
+		override := overrides[key]
 		group, kind, err := getGroupKindForOverrideKey(key)
 		if err != nil {
 			log.Warn(err)

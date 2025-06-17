@@ -481,7 +481,8 @@ func GetConfigMapKey(gvk schema.GroupVersionKind) string {
 func getWildcardHealthOverrideLua(overrides map[string]appv1.ResourceOverride, gvk schema.GroupVersionKind) (string, bool) {
 	gvkKeyToMatch := GetConfigMapKey(gvk)
 
-	for key, override := range overrides {
+	for key := range overrides {
+		override := overrides[key]
 		if argoglob.Match(key, gvkKeyToMatch) && override.HealthLua != "" {
 			return override.HealthLua, override.UseOpenLibs
 		}

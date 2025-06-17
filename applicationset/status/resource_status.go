@@ -6,7 +6,8 @@ import (
 
 func BuildResourceStatus(statusMap map[string]argov1alpha1.ResourceStatus, apps []argov1alpha1.Application) map[string]argov1alpha1.ResourceStatus {
 	appMap := map[string]argov1alpha1.Application{}
-	for _, app := range apps {
+	for i := range apps {
+		app := apps[i]
 		appMap[app.Name] = app
 
 		gvk := app.GroupVersionKind()
@@ -28,7 +29,8 @@ func BuildResourceStatus(statusMap map[string]argov1alpha1.ResourceStatus, apps 
 
 func GetResourceStatusMap(appset *argov1alpha1.ApplicationSet) map[string]argov1alpha1.ResourceStatus {
 	statusMap := map[string]argov1alpha1.ResourceStatus{}
-	for _, status := range appset.Status.Resources {
+	for i := range appset.Status.Resources {
+		status := appset.Status.Resources[i]
 		statusMap[status.Name] = status
 	}
 	return statusMap

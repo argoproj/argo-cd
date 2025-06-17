@@ -2005,9 +2005,11 @@ type ApplicationSummary struct {
 // The search includes both directly managed nodes (`Nodes`) and orphaned nodes (`OrphanedNodes`).
 // Returns a pointer to the found node, or nil if no matching node is found.
 func (t *ApplicationTree) FindNode(group string, kind string, namespace string, name string) *ResourceNode {
-	for _, n := range append(t.Nodes, t.OrphanedNodes...) {
+	nodes := append(t.Nodes, t.OrphanedNodes...)
+	for i := range nodes {
+		n := &nodes[i]
 		if n.Group == group && n.Kind == kind && n.Namespace == namespace && n.Name == name {
-			return &n
+			return n
 		}
 	}
 	return nil
@@ -2027,7 +2029,8 @@ func (t *ApplicationTree) GetSummary(app *Application) ApplicationSummary {
 	imagesSet := make(map[string]bool)
 
 	// Collect external URLs and container images from application nodes
-	for _, node := range t.Nodes {
+	for i := range t.Nodes {
+		node := &t.Nodes[i]
 		if node.NetworkingInfo != nil {
 			for _, url := range node.NetworkingInfo.ExternalURLs {
 				urlsSet[url] = true

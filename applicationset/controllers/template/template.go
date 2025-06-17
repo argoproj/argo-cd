@@ -31,7 +31,8 @@ func GenerateApplications(logCtx *log.Entry, applicationSetInfo argov1alpha1.App
 			continue
 		}
 
-		for _, a := range t {
+		for i := range t {
+			a := &t[i]
 			tmplApplication := GetTempApplication(a.Template)
 
 			for _, p := range a.Params {
