@@ -6,4 +6,4 @@ tests:
   - healthStatus:
       status: Healthy
       message: "DatadogMetric is healthy"
-    inputPath: testdata/healthy.yaml 
+    inputPath: testdata/healthy.yaml

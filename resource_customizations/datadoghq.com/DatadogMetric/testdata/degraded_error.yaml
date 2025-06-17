@@ -21,4 +21,4 @@ status:
       reason: Unable to fetch data from Datadog
       status: "True"
       type: Error
-  currentValue: 0 
+  currentValue: 0

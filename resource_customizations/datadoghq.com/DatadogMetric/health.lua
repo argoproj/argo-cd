@@ -29,4 +29,4 @@ end
 -- If no "Degraded" conditions are found, default to Healthy
 hs.status = "Healthy"
 hs.message = "DatadogMetric is healthy"
-return hs 
+return hs
