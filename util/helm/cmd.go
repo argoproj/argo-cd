@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	semver "github.com/Masterminds/semver/v3"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -257,6 +258,12 @@ func safeChartURL(repo, chartName, version string) (string, error) {
 	return url.String(), nil
 }
 
+// check that version is strict for using direct pull
+func isHelmStrictVersion(v string) bool {
+	_, err := semver.NewVersion(v)
+	return err == nil
+}
+
 func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, passCredentials bool, directPull bool) (string, error) {
 	args := []string{"pull", "--destination", destination}
 	if creds.GetUsername() != "" {
@@ -274,11 +281,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 		args = append(args, "--insecure-skip-tls-verify")
 	}
 
-	if directPull {
-		if version == "" {
-			return "", fmt.Errorf("failed to fetch chart '%s': version should be defined fetching by direct url", chartName)
-		}
-
+	if directPull && isHelmStrictVersion(version) {
 		chartURL, err := safeChartURL(repo, chartName, version)
 		if err != nil {
 			return "", err

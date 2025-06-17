@@ -121,8 +121,39 @@ func Test_nativeHelmChart_ExtractChart_DirectPull(t *testing.T) {
 
 func Test_nativeHelmChart_ExtractChart_DirectPullWithoutVersion(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-	_, _, err := client.ExtractChart("argo-cd", "", false, math.MaxInt64, true, true)
-	require.Error(t, err, "failed to fetch chart 'argo-cd': version should be defined fetching by direct url")
+	path, closer, err := client.ExtractChart("argo-cd", "", false, math.MaxInt64, true, true)
+	require.NoError(t, err)
+	defer utilio.Close(closer)
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.True(t, info.IsDir())
+}
+
+func Test_nativeHelmChart_ExtractChart_DirectPull_WildcardVersion(t *testing.T) {
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
+	path, closer, err := client.ExtractChart("argo-cd", ">=0.7.1", false, math.MaxInt64, true, true)
+	require.NoError(t, err)
+	defer utilio.Close(closer)
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.True(t, info.IsDir())
+}
+
+func Test_isHelmStrictVersion(t *testing.T) {
+	t.Run("Test Strict Version", func(t *testing.T) {
+		assert.True(t, isHelmStrictVersion("2.1.0"))
+		assert.True(t, isHelmStrictVersion("2.2.0"))
+		assert.True(t, isHelmStrictVersion("0.0.0-my-custom-version"))
+		assert.True(t, isHelmStrictVersion("0.0.0-v3.4.0-050607"))
+	})
+	t.Run("Test Not Strict Versions", func(t *testing.T) {
+		assert.False(t, isHelmStrictVersion(">=2.1.0"))
+		assert.False(t, isHelmStrictVersion("<2.2.0"))
+		assert.False(t, isHelmStrictVersion("2.2.*"))
+		assert.False(t, isHelmStrictVersion("~2.2.*"))
+		assert.False(t, isHelmStrictVersion("0.0.*-my-custom-version"))
+		assert.False(t, isHelmStrictVersion("0.0.*-v3.4.0-050607"))
+	})
 }
 
 func Test_SafeChartURL(t *testing.T) {
