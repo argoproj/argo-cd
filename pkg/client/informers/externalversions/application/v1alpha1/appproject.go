@@ -46,13 +46,25 @@ func NewFilteredAppProjectInformer(client versioned.Interface, namespace string,
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ArgoprojV1alpha1().AppProjects(namespace).List(context.TODO(), options)
+				return client.ArgoprojV1alpha1().AppProjects(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.ArgoprojV1alpha1().AppProjects(namespace).Watch(context.TODO(), options)
+				return client.ArgoprojV1alpha1().AppProjects(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.ArgoprojV1alpha1().AppProjects(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.ArgoprojV1alpha1().AppProjects(namespace).Watch(ctx, options)
 			},
 		},
 		&apisapplicationv1alpha1.AppProject{},

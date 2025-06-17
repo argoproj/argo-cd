@@ -261,7 +261,7 @@ func (c *Consistent) loadOK(server string) bool {
 		panic(fmt.Sprintf("given host(%s) not in loadsMap", bserver.Name))
 	}
 
-	return float64(bserver.Load)+1 <= avgLoadPerNode
+	return float64(bserver.Load) < avgLoadPerNode
 }
 
 func (c *Consistent) delSlice(val uint64) {

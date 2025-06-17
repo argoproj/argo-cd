@@ -80,9 +80,9 @@ type AWSTaggingClient_GetResourcesWithContext_Call struct {
 }
 
 // GetResourcesWithContext is a helper method to define mock.On call
-//   - v
-//   - getResourcesInput
-//   - options
+//   - v aws.Context
+//   - getResourcesInput *resourcegroupstaggingapi.GetResourcesInput
+//   - options ...request.Option
 func (_e *AWSTaggingClient_Expecter) GetResourcesWithContext(v interface{}, getResourcesInput interface{}, options ...interface{}) *AWSTaggingClient_GetResourcesWithContext_Call {
 	return &AWSTaggingClient_GetResourcesWithContext_Call{Call: _e.mock.On("GetResourcesWithContext",
 		append([]interface{}{v, getResourcesInput}, options...)...)}
@@ -90,13 +90,27 @@ func (_e *AWSTaggingClient_Expecter) GetResourcesWithContext(v interface{}, getR
 
 func (_c *AWSTaggingClient_GetResourcesWithContext_Call) Run(run func(v aws.Context, getResourcesInput *resourcegroupstaggingapi.GetResourcesInput, options ...request.Option)) *AWSTaggingClient_GetResourcesWithContext_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 aws.Context
+		if args[0] != nil {
+			arg0 = args[0].(aws.Context)
+		}
+		var arg1 *resourcegroupstaggingapi.GetResourcesInput
+		if args[1] != nil {
+			arg1 = args[1].(*resourcegroupstaggingapi.GetResourcesInput)
+		}
+		var arg2 []request.Option
 		variadicArgs := make([]request.Option, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(request.Option)
 			}
 		}
-		run(args[0].(aws.Context), args[1].(*resourcegroupstaggingapi.GetResourcesInput), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }

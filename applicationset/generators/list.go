@@ -77,7 +77,7 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 	}
 
 	// Append elements from ElementsYaml to the response
-	if len(appSetGenerator.List.ElementsYaml) > 0 {
+	if appSetGenerator.List.ElementsYaml != "" {
 		var yamlElements []map[string]any
 		err := yaml.Unmarshal([]byte(appSetGenerator.List.ElementsYaml), &yamlElements)
 		if err != nil {

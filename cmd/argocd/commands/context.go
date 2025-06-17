@@ -18,7 +18,7 @@ import (
 
 // NewContextCommand returns a new instance of an `argocd ctx` command
 func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var delete bool
+	var deletion bool
 	command := &cobra.Command{
 		Use:     "context [CONTEXT]",
 		Aliases: []string{"ctx"},
@@ -35,7 +35,7 @@ argocd context cd.argoproj.io --delete`,
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errors.CheckError(err)
 
-			if delete {
+			if deletion {
 				if len(args) == 0 {
 					c.HelpFunc()(c, args)
 					os.Exit(1)
@@ -78,7 +78,7 @@ argocd context cd.argoproj.io --delete`,
 			fmt.Printf("Switched to context '%s'\n", localCfg.CurrentContext)
 		},
 	}
-	command.Flags().BoolVar(&delete, "delete", false, "Delete the context instead of switching to it")
+	command.Flags().BoolVar(&deletion, "delete", false, "Delete the context instead of switching to it")
 	return command
 }
 

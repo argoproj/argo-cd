@@ -24,7 +24,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/dex"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
@@ -286,16 +285,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 // GetLoginFailures retrieves the login failure information from the cache. Any modifications to the LoginAttemps map must be done in a thread-safe manner.
 func (mgr *SessionManager) GetLoginFailures() map[string]LoginAttempts {
 	// Get failures from the cache
-	var failures map[string]LoginAttempts
-	err := mgr.storage.GetLoginAttempts(&failures)
-	if err != nil {
-		if !errors.Is(err, appstate.ErrCacheMiss) {
-			log.Errorf("Could not retrieve login attempts: %v", err)
-		}
-		failures = make(map[string]LoginAttempts)
-	}
-
-	return failures
+	return mgr.storage.GetLoginAttempts()
 }
 
 func expireOldFailedAttempts(maxAge time.Duration, failures map[string]LoginAttempts) int {

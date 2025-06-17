@@ -165,7 +165,7 @@ func ReadAndConfirmPassword(username string) (string, error) {
 			return "", err
 		}
 		fmt.Print("\n")
-		if string(password) == string(confirmPassword) {
+		if bytes.Equal(password, confirmPassword) {
 			return string(password), nil
 		}
 		log.Error("Passwords do not match")
@@ -276,7 +276,7 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 
 		updated, err := os.ReadFile(tempFile)
 		errors.CheckError(err)
-		if string(updated) == "" || string(updated) == string(data) {
+		if len(updated) == 0 || bytes.Equal(updated, data) {
 			errors.CheckError(stderrors.New("edit cancelled, no valid changes were saved"))
 			break
 		}

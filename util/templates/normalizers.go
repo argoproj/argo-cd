@@ -8,7 +8,7 @@ const Indentation = `  `
 
 // Examples normalizes a command's examples to follow the conventions.
 func Examples(s string) string {
-	if len(s) == 0 {
+	if s == "" {
 		return s
 	}
 	return normalizer{s}.trim().indent().string

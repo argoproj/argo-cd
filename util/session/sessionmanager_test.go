@@ -313,7 +313,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			}
 			ts := httptest.NewServer(WithAuthMiddleware(tc.authDisabled, tm, mux))
 			defer ts.Close()
-			req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
+			req, err := http.NewRequest(http.MethodGet, ts.URL, http.NoBody)
 			require.NoErrorf(t, err, "error creating request: %s", err)
 			if tc.cookieHeader {
 				req.Header.Add("Cookie", "argocd.token=123456")
@@ -593,7 +593,7 @@ func getKubeClientWithConfig(config map[string]string, secretConfig map[string][
 }
 
 func TestSessionManager_VerifyToken(t *testing.T) {
-	oidcTestServer := utiltest.GetOIDCTestServer(t)
+	oidcTestServer := utiltest.GetOIDCTestServer(t, nil)
 	t.Cleanup(oidcTestServer.Close)
 
 	dexTestServer := utiltest.GetDexTestServer(t)

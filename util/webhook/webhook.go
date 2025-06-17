@@ -209,7 +209,7 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		// Get DiffSet only for authenticated webhooks.
 		// when WebhookBitbucketUUID is set in argocd-secret, then the payload must be signed and
 		// signature is validated before payload is parsed.
-		if len(a.settings.WebhookBitbucketUUID) > 0 {
+		if a.settings.WebhookBitbucketUUID != "" {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			argoRepo, err := a.lookupRepository(ctx, webURLs[0])

@@ -70,14 +70,20 @@ type ProjectGetter_Get_Call struct {
 }
 
 // Get is a helper method to define mock.On call
-//   - name
+//   - name string
 func (_e *ProjectGetter_Expecter) Get(name interface{}) *ProjectGetter_Get_Call {
 	return &ProjectGetter_Get_Call{Call: _e.mock.On("Get", name)}
 }
 
 func (_c *ProjectGetter_Get_Call) Run(run func(name string)) *ProjectGetter_Get_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -126,14 +132,20 @@ type ProjectGetter_GetClusters_Call struct {
 }
 
 // GetClusters is a helper method to define mock.On call
-//   - project
+//   - project string
 func (_e *ProjectGetter_Expecter) GetClusters(project interface{}) *ProjectGetter_GetClusters_Call {
 	return &ProjectGetter_GetClusters_Call{Call: _e.mock.On("GetClusters", project)}
 }
 
 func (_c *ProjectGetter_GetClusters_Call) Run(run func(project string)) *ProjectGetter_GetClusters_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }

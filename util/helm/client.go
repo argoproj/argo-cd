@@ -312,7 +312,7 @@ func (c *nativeHelmChart) loadRepoIndex(maxIndexSize int64) ([]byte, error) {
 		return nil, fmt.Errorf("error getting index URL: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, indexURL, nil)
+	req, err := http.NewRequest(http.MethodGet, indexURL, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("error creating HTTP request: %w", err)
 	}

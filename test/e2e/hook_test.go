@@ -40,7 +40,7 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 	Given(t).
 		Path("hook").
 		When().
-		PatchFile("hook.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "%s"}}]`, hookType)).
+		PatchFile("hook.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": %q}}]`, hookType)).
 		CreateApp().
 		Sync().
 		Then().
@@ -469,7 +469,7 @@ func testHookFinalizer(t *testing.T, hookType HookType) {
 		}).
 		Path("hook-resource-deleted-externally").
 		When().
-		PatchFile("hook.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "%s"}}]`, hookType)).
+		PatchFile("hook.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": %q}}]`, hookType)).
 		CreateApp().
 		Sync().
 		Then().

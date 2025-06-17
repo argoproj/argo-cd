@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="7 known vulnerabilities found in 26 vulnerable dependency paths.">
+  <meta name="description" content="8 known vulnerabilities found in 28 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">June 8th 2025, 12:23:20 am (UTC+00:00)</p>
+                <p class="timestamp">June 15th 2025, 12:23:32 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -468,9 +468,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>7</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>26 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2094</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>8</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>28 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2104</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -660,7 +660,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        gitlab.com/gitlab-org/api/client-go@0.129.0
+                                        gitlab.com/gitlab-org/api/client-go@0.130.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.7
                                         
@@ -866,7 +866,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        gitlab.com/gitlab-org/api/client-go@0.129.0
+                                        gitlab.com/gitlab-org/api/client-go@0.130.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-cleanhttp@0.5.2
                                         
@@ -877,7 +877,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        gitlab.com/gitlab-org/api/client-go@0.129.0
+                                        gitlab.com/gitlab-org/api/client-go@0.130.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.7
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1260,6 +1260,170 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-JS-FORMIDABLE-9788127">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">Regular Expression Denial of Service (ReDoS)</h2>
+            <div class="card__section">
+        
+                <div class="label label--low">
+                    <span class="label__text">low severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/yarn.lock
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            brace-expansion
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    argo-cd-ui@1.0.0, minimatch@3.1.2 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        minimatch@3.1.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        brace-expansion@1.1.11
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        redoc@2.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        @redocly/openapi-core@1.30.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        minimatch@5.1.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        brace-expansion@2.0.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://github.com/juliangruber/brace-expansion">brace-expansion</a> is a Brace expansion as known from sh/bash</p>
+        <p>Affected versions of this package are vulnerable to Regular Expression Denial of Service (ReDoS) in the <code>expand()</code> function, which is prone to catastrophic backtracking on very long malicious inputs.</p>
+        <h2 id="poc">PoC</h2>
+        <pre><code class="language-js">import index from &quot;./index.js&quot;;
+        
+        let str = &quot;{a}&quot; + &quot;,&quot;.repeat(100000) + &quot;\u0000&quot;;
+        
+        let startTime = performance.now();
+        
+        const result = index(str);
+        
+        let endTime = performance.now();
+        
+        let timeTaken = endTime - startTime;
+        
+        console.log(`匹配耗时: ${timeTaken.toFixed(3)} 毫秒`);
+        </code></pre>
+        <h2 id="details">Details</h2>
+        <p>Denial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its original and legitimate users. There are many types of DoS attacks, ranging from trying to clog the network pipes to the system by generating a large volume of traffic from many machines (a Distributed Denial of Service - DDoS - attack) to sending crafted requests that cause a system to crash or take a disproportional amount of time to process.</p>
+        <p>The Regular expression Denial of Service (ReDoS) is a type of Denial of Service attack. Regular expressions are incredibly powerful, but they aren&#39;t very intuitive and can ultimately end up making it easy for attackers to take your site down.</p>
+        <p>Let’s take the following regular expression as an example:</p>
+        <pre><code class="language-js">regex = /A(B|C+)+D/
+        </code></pre>
+        <p>This regular expression accomplishes the following:</p>
+        <ul>
+        <li><code>A</code> The string must start with the letter &#39;A&#39;</li>
+        <li><code>(B|C+)+</code> The string must then follow the letter A with either the letter &#39;B&#39; or some number of occurrences of the letter &#39;C&#39; (the <code>+</code> matches one or more times). The <code>+</code> at the end of this section states that we can look for one or more matches of this section.</li>
+        <li><code>D</code> Finally, we ensure this section of the string ends with a &#39;D&#39;</li>
+        </ul>
+        <p>The expression would match inputs such as <code>ABBD</code>, <code>ABCCCCD</code>, <code>ABCBCCCD</code> and <code>ACCCCCD</code></p>
+        <p>It most cases, it doesn&#39;t take very long for a regex engine to find a match:</p>
+        <pre><code class="language-bash">$ time node -e &#39;/A(B|C+)+D/.test(&quot;ACCCCCCCCCCCCCCCCCCCCCCCCCCCCD&quot;)&#39;
+        0.04s user 0.01s system 95% cpu 0.052 total
+        
+        $ time node -e &#39;/A(B|C+)+D/.test(&quot;ACCCCCCCCCCCCCCCCCCCCCCCCCCCCX&quot;)&#39;
+        1.79s user 0.02s system 99% cpu 1.812 total
+        </code></pre>
+        <p>The entire process of testing it against a 30 characters long string takes around ~52ms. But when given an invalid string, it takes nearly two seconds to complete the test, over ten times as long as it took to test a valid string. The dramatic difference is due to the way regular expressions get evaluated.</p>
+        <p>Most Regex engines will work very similarly (with minor differences). The engine will match the first possible way to accept the current character and proceed to the next one. If it then fails to match the next one, it will backtrack and see if there was another way to digest the previous character. If it goes too far down the rabbit hole only to find out the string doesn’t match in the end, and if many characters have multiple valid regex paths, the number of backtracking steps can become very large, resulting in what is known as <em>catastrophic backtracking</em>.</p>
+        <p>Let&#39;s look at how our expression runs into this problem, using a shorter string: &quot;ACCCX&quot;. While it seems fairly straightforward, there are still four different ways that the engine could match those three C&#39;s:</p>
+        <ol>
+        <li>CCC</li>
+        <li>CC+C</li>
+        <li>C+CC</li>
+        <li>C+C+C.</li>
+        </ol>
+        <p>The engine has to try each of those combinations to see if any of them potentially match against the expression. When you combine that with the other steps the engine must take, we can use <a href="https://regex101.com/debugger">RegEx 101 debugger</a> to see the engine has to take a total of 38 steps before it can determine the string doesn&#39;t match.</p>
+        <p>From there, the number of steps the engine must use to validate a string just continues to grow.</p>
+        <table>
+        <thead>
+        <tr>
+        <th>String</th>
+        <th align="right">Number of C&#39;s</th>
+        <th align="right">Number of steps</th>
+        </tr>
+        </thead>
+        <tbody><tr>
+        <td>ACCCX</td>
+        <td align="right">3</td>
+        <td align="right">38</td>
+        </tr>
+        <tr>
+        <td>ACCCCX</td>
+        <td align="right">4</td>
+        <td align="right">71</td>
+        </tr>
+        <tr>
+        <td>ACCCCCX</td>
+        <td align="right">5</td>
+        <td align="right">136</td>
+        </tr>
+        <tr>
+        <td>ACCCCCCCCCCCCCCX</td>
+        <td align="right">14</td>
+        <td align="right">65,553</td>
+        </tr>
+        </tbody></table>
+        <p>By the time the string includes 14 C&#39;s, the engine has to take over 65,000 steps just to see if the string is valid. These extreme situations can cause them to work very slowly (exponentially related to input size, as shown above), allowing an attacker to exploit this and can cause the service to excessively consume CPU, resulting in a Denial of Service.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>brace-expansion</code> to version 1.1.12, 2.0.2, 3.0.1, 4.0.1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/advisories/GHSA-v6h2-p8h4-qcjw">GitHub Advisory</a></li>
+        <li><a href="https://github.com/juliangruber/brace-expansion/commit/0b6a9781e18e9d2769bb2931f4856d1360243ed2">GitHub Commit</a></li>
+        <li><a href="https://gist.github.com/mmmsssttt404/37a40ce7d6e5ca604858fe30814d9466">GitHub Gist</a></li>
+        <li><a href="https://github.com/juliangruber/brace-expansion/pull/65">GitHub PR</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-BRACEEXPANSION-9789073">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->

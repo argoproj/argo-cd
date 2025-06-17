@@ -484,35 +484,37 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 		// Validate first to avoid unnecessary DB calls.
 		refKeys := make(map[string]bool)
 		for _, source := range sources {
-			if source.Ref != "" {
-				isValidRefKey := regexp.MustCompile(`^[a-zA-Z0-9_-]+$`).MatchString
-				if !isValidRefKey(source.Ref) {
-					return nil, fmt.Errorf("sources.ref %s cannot contain any special characters except '_' and '-'", source.Ref)
-				}
-				refKey := "$" + source.Ref
-				if _, ok := refKeys[refKey]; ok {
-					return nil, errors.New("invalid sources: multiple sources had the same `ref` key")
-				}
-				refKeys[refKey] = true
+			if source.Ref == "" {
+				continue
 			}
+			isValidRefKey := regexp.MustCompile(`^[a-zA-Z0-9_-]+$`).MatchString
+			if !isValidRefKey(source.Ref) {
+				return nil, fmt.Errorf("sources.ref %s cannot contain any special characters except '_' and '-'", source.Ref)
+			}
+			refKey := "$" + source.Ref
+			if _, ok := refKeys[refKey]; ok {
+				return nil, errors.New("invalid sources: multiple sources had the same `ref` key")
+			}
+			refKeys[refKey] = true
 		}
 		// Get Repositories for all sources before generating Manifests
 		for i, source := range sources {
-			if source.Ref != "" {
-				repo, err := getRepository(ctx, source.RepoURL, project)
-				if err != nil {
-					return nil, fmt.Errorf("failed to get repository %s: %w", source.RepoURL, err)
-				}
-				refKey := "$" + source.Ref
-				revision := source.TargetRevision
-				if isRollback {
-					revision = revisions[i]
-				}
-				refSources[refKey] = &argoappv1.RefTarget{
-					Repo:           *repo,
-					TargetRevision: revision,
-					Chart:          source.Chart,
-				}
+			if source.Ref == "" {
+				continue
+			}
+			repo, err := getRepository(ctx, source.RepoURL, project)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get repository %s: %w", source.RepoURL, err)
+			}
+			refKey := "$" + source.Ref
+			revision := source.TargetRevision
+			if isRollback {
+				revision = revisions[i]
+			}
+			refSources[refKey] = &argoappv1.RefTarget{
+				Repo:           *repo,
+				TargetRevision: revision,
+				Chart:          source.Chart,
 			}
 		}
 	}

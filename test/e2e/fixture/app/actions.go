@@ -104,7 +104,7 @@ func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	a.context.t.Helper()
 	tmpFile, err := os.CreateTemp("", "")
 	require.NoError(a.context.t, err)
-	_, err = tmpFile.Write([]byte(data))
+	_, err = tmpFile.WriteString(data)
 	require.NoError(a.context.t, err)
 
 	args := append([]string{

@@ -340,7 +340,7 @@ func toAbsolutePath(path string) string {
 	if filepath.IsAbs(path) {
 		return path
 	}
-	return filepath.ToSlash(filepath.Join("/", path))
+	return filepath.ToSlash(filepath.Join("/", path)) //nolint:gocritic // Prepend slash to have an absolute path
 }
 
 func createAWSDiscoveryClients(_ context.Context, role string, region string) (*resourcegroupstaggingapi.ResourceGroupsTaggingAPI, *codecommit.CodeCommit, error) {

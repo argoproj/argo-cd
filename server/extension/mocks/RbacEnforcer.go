@@ -60,7 +60,7 @@ type RbacEnforcer_EnforceErr_Call struct {
 }
 
 // EnforceErr is a helper method to define mock.On call
-//   - rvals
+//   - rvals ...any
 func (_e *RbacEnforcer_Expecter) EnforceErr(rvals ...interface{}) *RbacEnforcer_EnforceErr_Call {
 	return &RbacEnforcer_EnforceErr_Call{Call: _e.mock.On("EnforceErr",
 		append([]interface{}{}, rvals...)...)}
@@ -68,13 +68,17 @@ func (_e *RbacEnforcer_Expecter) EnforceErr(rvals ...interface{}) *RbacEnforcer_
 
 func (_c *RbacEnforcer_EnforceErr_Call) Run(run func(rvals ...any)) *RbacEnforcer_EnforceErr_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 []any
 		variadicArgs := make([]any, len(args)-0)
 		for i, a := range args[0:] {
 			if a != nil {
 				variadicArgs[i] = a.(any)
 			}
 		}
-		run(variadicArgs...)
+		arg0 = variadicArgs
+		run(
+			arg0...,
+		)
 	})
 	return _c
 }

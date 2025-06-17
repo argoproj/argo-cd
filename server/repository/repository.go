@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
-	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
@@ -233,7 +232,7 @@ func (s *Server) prepareRepoList(ctx context.Context, resourceType string, repos
 	sort.Slice(items, func(i, j int) bool {
 		first := items[i]
 		second := items[j]
-		return strings.Compare(fmt.Sprintf("%s/%s", first.Project, first.Repo), fmt.Sprintf("%s/%s", second.Project, second.Repo)) < 0
+		return fmt.Sprintf("%s/%s", first.Project, first.Repo) < fmt.Sprintf("%s/%s", second.Project, second.Repo)
 	})
 	return items, nil
 }
@@ -705,6 +704,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		Proxy:                      q.Proxy,
 		GCPServiceAccountKey:       q.GcpServiceAccountKey,
 		InsecureOCIForceHttp:       q.InsecureOciForceHttp,
+		UseAzureWorkloadIdentity:   q.UseAzureWorkloadIdentity,
 	}
 
 	// If repo does not have credentials, check if there are credentials stored
@@ -754,6 +754,7 @@ func (s *Server) ValidateWriteAccess(ctx context.Context, q *repositorypkg.RepoA
 		GitHubAppEnterpriseBaseURL: q.GithubAppEnterpriseBaseUrl,
 		Proxy:                      q.Proxy,
 		GCPServiceAccountKey:       q.GcpServiceAccountKey,
+		UseAzureWorkloadIdentity:   q.UseAzureWorkloadIdentity,
 	}
 
 	err := s.testRepo(ctx, repo)

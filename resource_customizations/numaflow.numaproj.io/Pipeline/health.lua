@@ -20,7 +20,7 @@ if obj.status ~= nil then
       end
       return hs
     elseif obj.status.phase == "Paused" or obj.status.phase == "Pausing" then
-      hs.status = "Suspended"
+      hs.status = "Healthy"
       hs.message = "Pipeline is paused"
       return hs
     elseif obj.status.phase == "Running" then

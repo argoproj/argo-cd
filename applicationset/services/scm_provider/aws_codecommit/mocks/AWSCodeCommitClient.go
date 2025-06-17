@@ -80,9 +80,9 @@ type AWSCodeCommitClient_GetFolderWithContext_Call struct {
 }
 
 // GetFolderWithContext is a helper method to define mock.On call
-//   - v
-//   - getFolderInput
-//   - options
+//   - v aws.Context
+//   - getFolderInput *codecommit.GetFolderInput
+//   - options ...request.Option
 func (_e *AWSCodeCommitClient_Expecter) GetFolderWithContext(v interface{}, getFolderInput interface{}, options ...interface{}) *AWSCodeCommitClient_GetFolderWithContext_Call {
 	return &AWSCodeCommitClient_GetFolderWithContext_Call{Call: _e.mock.On("GetFolderWithContext",
 		append([]interface{}{v, getFolderInput}, options...)...)}
@@ -90,13 +90,27 @@ func (_e *AWSCodeCommitClient_Expecter) GetFolderWithContext(v interface{}, getF
 
 func (_c *AWSCodeCommitClient_GetFolderWithContext_Call) Run(run func(v aws.Context, getFolderInput *codecommit.GetFolderInput, options ...request.Option)) *AWSCodeCommitClient_GetFolderWithContext_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 aws.Context
+		if args[0] != nil {
+			arg0 = args[0].(aws.Context)
+		}
+		var arg1 *codecommit.GetFolderInput
+		if args[1] != nil {
+			arg1 = args[1].(*codecommit.GetFolderInput)
+		}
+		var arg2 []request.Option
 		variadicArgs := make([]request.Option, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(request.Option)
 			}
 		}
-		run(args[0].(aws.Context), args[1].(*codecommit.GetFolderInput), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -153,9 +167,9 @@ type AWSCodeCommitClient_GetRepositoryWithContext_Call struct {
 }
 
 // GetRepositoryWithContext is a helper method to define mock.On call
-//   - v
-//   - getRepositoryInput
-//   - options
+//   - v aws.Context
+//   - getRepositoryInput *codecommit.GetRepositoryInput
+//   - options ...request.Option
 func (_e *AWSCodeCommitClient_Expecter) GetRepositoryWithContext(v interface{}, getRepositoryInput interface{}, options ...interface{}) *AWSCodeCommitClient_GetRepositoryWithContext_Call {
 	return &AWSCodeCommitClient_GetRepositoryWithContext_Call{Call: _e.mock.On("GetRepositoryWithContext",
 		append([]interface{}{v, getRepositoryInput}, options...)...)}
@@ -163,13 +177,27 @@ func (_e *AWSCodeCommitClient_Expecter) GetRepositoryWithContext(v interface{}, 
 
 func (_c *AWSCodeCommitClient_GetRepositoryWithContext_Call) Run(run func(v aws.Context, getRepositoryInput *codecommit.GetRepositoryInput, options ...request.Option)) *AWSCodeCommitClient_GetRepositoryWithContext_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 aws.Context
+		if args[0] != nil {
+			arg0 = args[0].(aws.Context)
+		}
+		var arg1 *codecommit.GetRepositoryInput
+		if args[1] != nil {
+			arg1 = args[1].(*codecommit.GetRepositoryInput)
+		}
+		var arg2 []request.Option
 		variadicArgs := make([]request.Option, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(request.Option)
 			}
 		}
-		run(args[0].(aws.Context), args[1].(*codecommit.GetRepositoryInput), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -226,9 +254,9 @@ type AWSCodeCommitClient_ListBranchesWithContext_Call struct {
 }
 
 // ListBranchesWithContext is a helper method to define mock.On call
-//   - v
-//   - listBranchesInput
-//   - options
+//   - v aws.Context
+//   - listBranchesInput *codecommit.ListBranchesInput
+//   - options ...request.Option
 func (_e *AWSCodeCommitClient_Expecter) ListBranchesWithContext(v interface{}, listBranchesInput interface{}, options ...interface{}) *AWSCodeCommitClient_ListBranchesWithContext_Call {
 	return &AWSCodeCommitClient_ListBranchesWithContext_Call{Call: _e.mock.On("ListBranchesWithContext",
 		append([]interface{}{v, listBranchesInput}, options...)...)}
@@ -236,13 +264,27 @@ func (_e *AWSCodeCommitClient_Expecter) ListBranchesWithContext(v interface{}, l
 
 func (_c *AWSCodeCommitClient_ListBranchesWithContext_Call) Run(run func(v aws.Context, listBranchesInput *codecommit.ListBranchesInput, options ...request.Option)) *AWSCodeCommitClient_ListBranchesWithContext_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 aws.Context
+		if args[0] != nil {
+			arg0 = args[0].(aws.Context)
+		}
+		var arg1 *codecommit.ListBranchesInput
+		if args[1] != nil {
+			arg1 = args[1].(*codecommit.ListBranchesInput)
+		}
+		var arg2 []request.Option
 		variadicArgs := make([]request.Option, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(request.Option)
 			}
 		}
-		run(args[0].(aws.Context), args[1].(*codecommit.ListBranchesInput), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -299,9 +341,9 @@ type AWSCodeCommitClient_ListRepositoriesWithContext_Call struct {
 }
 
 // ListRepositoriesWithContext is a helper method to define mock.On call
-//   - v
-//   - listRepositoriesInput
-//   - options
+//   - v aws.Context
+//   - listRepositoriesInput *codecommit.ListRepositoriesInput
+//   - options ...request.Option
 func (_e *AWSCodeCommitClient_Expecter) ListRepositoriesWithContext(v interface{}, listRepositoriesInput interface{}, options ...interface{}) *AWSCodeCommitClient_ListRepositoriesWithContext_Call {
 	return &AWSCodeCommitClient_ListRepositoriesWithContext_Call{Call: _e.mock.On("ListRepositoriesWithContext",
 		append([]interface{}{v, listRepositoriesInput}, options...)...)}
@@ -309,13 +351,27 @@ func (_e *AWSCodeCommitClient_Expecter) ListRepositoriesWithContext(v interface{
 
 func (_c *AWSCodeCommitClient_ListRepositoriesWithContext_Call) Run(run func(v aws.Context, listRepositoriesInput *codecommit.ListRepositoriesInput, options ...request.Option)) *AWSCodeCommitClient_ListRepositoriesWithContext_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 aws.Context
+		if args[0] != nil {
+			arg0 = args[0].(aws.Context)
+		}
+		var arg1 *codecommit.ListRepositoriesInput
+		if args[1] != nil {
+			arg1 = args[1].(*codecommit.ListRepositoriesInput)
+		}
+		var arg2 []request.Option
 		variadicArgs := make([]request.Option, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(request.Option)
 			}
 		}
-		run(args[0].(aws.Context), args[1].(*codecommit.ListRepositoriesInput), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }

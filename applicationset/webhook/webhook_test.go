@@ -233,7 +233,7 @@ func TestWebhookHandler(t *testing.T) {
 			h, err := NewWebhookHandler(webhookParallelism, set, fc, mockGenerators())
 			require.NoError(t, err)
 
-			req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
+			req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
 			req.Header.Set(test.headerKey, test.headerValue)
 			eventJSON, err := os.ReadFile(filepath.Join("testdata", test.payloadFile))
 			require.NoError(t, err)

@@ -123,7 +123,7 @@ func JoinCookies(key string, cookieList []*http.Cookie) (string, error) {
 }
 
 func maxCookieValueLength(key, attributes string) int {
-	if len(attributes) > 0 {
+	if attributes != "" {
 		return maxCookieLength - (len(key) + 3) - (len(attributes) + 2)
 	}
 	return maxCookieLength - (len(key) + 3)

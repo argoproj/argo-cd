@@ -7110,3 +7110,91 @@ func TestIsRollingSyncStrategy(t *testing.T) {
 		})
 	}
 }
+
+func TestSyncApplication(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    v1alpha1.Application
+		prune    bool
+		expected v1alpha1.Application
+	}{
+		{
+			name: "Default retry limit with no SyncPolicy",
+			input: v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{},
+			},
+			prune: false,
+			expected: v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{},
+				Operation: &v1alpha1.Operation{
+					InitiatedBy: v1alpha1.OperationInitiator{
+						Username:  "applicationset-controller",
+						Automated: true,
+					},
+					Info: []*v1alpha1.Info{
+						{
+							Name:  "Reason",
+							Value: "ApplicationSet RollingSync triggered a sync of this Application resource.",
+						},
+					},
+					Sync: &v1alpha1.SyncOperation{
+						Prune: false,
+					},
+					Retry: v1alpha1.RetryStrategy{
+						Limit: 5,
+					},
+				},
+			},
+		},
+		{
+			name: "Retry and SyncOptions from SyncPolicy are applied",
+			input: v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SyncPolicy: &v1alpha1.SyncPolicy{
+						Retry: &v1alpha1.RetryStrategy{
+							Limit: 10,
+						},
+						SyncOptions: []string{"CreateNamespace=true"},
+					},
+				},
+			},
+			prune: true,
+			expected: v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SyncPolicy: &v1alpha1.SyncPolicy{
+						Retry: &v1alpha1.RetryStrategy{
+							Limit: 10,
+						},
+						SyncOptions: []string{"CreateNamespace=true"},
+					},
+				},
+				Operation: &v1alpha1.Operation{
+					InitiatedBy: v1alpha1.OperationInitiator{
+						Username:  "applicationset-controller",
+						Automated: true,
+					},
+					Info: []*v1alpha1.Info{
+						{
+							Name:  "Reason",
+							Value: "ApplicationSet RollingSync triggered a sync of this Application resource.",
+						},
+					},
+					Sync: &v1alpha1.SyncOperation{
+						SyncOptions: []string{"CreateNamespace=true"},
+						Prune:       true,
+					},
+					Retry: v1alpha1.RetryStrategy{
+						Limit: 10,
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := syncApplication(tt.input, tt.prune)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

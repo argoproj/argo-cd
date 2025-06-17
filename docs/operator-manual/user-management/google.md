@@ -162,7 +162,7 @@ Go through the same steps as in [OpenID Connect using Dex](#openid-connect-using
 ### Set up Directory API access
 
 1. Follow [Google instructions to create a service account with Domain-Wide Delegation](https://developers.google.com/admin-sdk/directory/v1/guides/delegation)
-   - When assigning API scopes to the service account assign **only** the `https://www.googleapis.com/auth/admin.directory.group.readonly` scope and nothing else. If you assign any other scopes, you won't be able to fetch information from the API
+   - When assigning API scopes to the service account, the scope must **strictly include** `https://www.googleapis.com/auth/admin.directory.group.readonly`. If you assign only the [broader scope] (https://www.googleapis.com/auth/admin.directory.group), you will not be able to retrieve data from the API
    - Create the credentials in JSON format and store them in a safe place, we'll need them later
 2. Enable the [Admin SDK](https://console.developers.google.com/apis/library/admin.googleapis.com/)
 

@@ -262,14 +262,20 @@ type RepoServerService_GenerateManifestWithFilesClient_RecvMsg_Call struct {
 }
 
 // RecvMsg is a helper method to define mock.On call
-//   - m
+//   - m any
 func (_e *RepoServerService_GenerateManifestWithFilesClient_Expecter) RecvMsg(m interface{}) *RepoServerService_GenerateManifestWithFilesClient_RecvMsg_Call {
 	return &RepoServerService_GenerateManifestWithFilesClient_RecvMsg_Call{Call: _e.mock.On("RecvMsg", m)}
 }
 
 func (_c *RepoServerService_GenerateManifestWithFilesClient_RecvMsg_Call) Run(run func(m any)) *RepoServerService_GenerateManifestWithFilesClient_RecvMsg_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(any))
+		var arg0 any
+		if args[0] != nil {
+			arg0 = args[0].(any)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -307,14 +313,20 @@ type RepoServerService_GenerateManifestWithFilesClient_Send_Call struct {
 }
 
 // Send is a helper method to define mock.On call
-//   - manifestRequestWithFiles
+//   - manifestRequestWithFiles *apiclient.ManifestRequestWithFiles
 func (_e *RepoServerService_GenerateManifestWithFilesClient_Expecter) Send(manifestRequestWithFiles interface{}) *RepoServerService_GenerateManifestWithFilesClient_Send_Call {
 	return &RepoServerService_GenerateManifestWithFilesClient_Send_Call{Call: _e.mock.On("Send", manifestRequestWithFiles)}
 }
 
 func (_c *RepoServerService_GenerateManifestWithFilesClient_Send_Call) Run(run func(manifestRequestWithFiles *apiclient.ManifestRequestWithFiles)) *RepoServerService_GenerateManifestWithFilesClient_Send_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*apiclient.ManifestRequestWithFiles))
+		var arg0 *apiclient.ManifestRequestWithFiles
+		if args[0] != nil {
+			arg0 = args[0].(*apiclient.ManifestRequestWithFiles)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -352,14 +364,20 @@ type RepoServerService_GenerateManifestWithFilesClient_SendMsg_Call struct {
 }
 
 // SendMsg is a helper method to define mock.On call
-//   - m
+//   - m any
 func (_e *RepoServerService_GenerateManifestWithFilesClient_Expecter) SendMsg(m interface{}) *RepoServerService_GenerateManifestWithFilesClient_SendMsg_Call {
 	return &RepoServerService_GenerateManifestWithFilesClient_SendMsg_Call{Call: _e.mock.On("SendMsg", m)}
 }
 
 func (_c *RepoServerService_GenerateManifestWithFilesClient_SendMsg_Call) Run(run func(m any)) *RepoServerService_GenerateManifestWithFilesClient_SendMsg_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(any))
+		var arg0 any
+		if args[0] != nil {
+			arg0 = args[0].(any)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }

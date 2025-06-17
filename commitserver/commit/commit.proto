@@ -18,6 +18,8 @@ message CommitHydratedManifestsRequest {
   string commitMessage = 5;
   // Paths contains the paths to write hydrated manifests to, along with the manifests and commands to execute.
   repeated PathDetails paths = 6;
+  // DryCommitMetadata contains metadata about the DRY commit, such as the author and committer.
+  github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RevisionMetadata dryCommitMetadata = 7;
 }
 
 // PathDetails holds information about hydrated manifests to be written to a particular path in the hydrated manifests

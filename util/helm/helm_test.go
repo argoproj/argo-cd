@@ -42,14 +42,15 @@ func TestHelmTemplateParams(t *testing.T) {
 	assert.Len(t, objs, 5)
 
 	for _, obj := range objs {
-		if obj.GetKind() == "Service" && obj.GetName() == "test-minio" {
-			var svc corev1.Service
-			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &svc)
-			require.NoError(t, err)
-			assert.Equal(t, corev1.ServiceTypeLoadBalancer, svc.Spec.Type)
-			assert.Equal(t, int32(1234), svc.Spec.Ports[0].TargetPort.IntVal)
-			assert.Equal(t, "true", svc.Annotations["prometheus.io/scrape"])
+		if obj.GetKind() != "Service" || obj.GetName() != "test-minio" {
+			continue
 		}
+		var svc corev1.Service
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &svc)
+		require.NoError(t, err)
+		assert.Equal(t, corev1.ServiceTypeLoadBalancer, svc.Spec.Type)
+		assert.Equal(t, int32(1234), svc.Spec.Ports[0].TargetPort.IntVal)
+		assert.Equal(t, "true", svc.Annotations["prometheus.io/scrape"])
 	}
 }
 

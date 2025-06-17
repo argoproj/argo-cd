@@ -169,6 +169,7 @@ type NodeInfo struct {
 	Name       string
 	Capacity   corev1.ResourceList
 	SystemInfo corev1.NodeSystemInfo
+	Labels     map[string]string
 }
 
 type ResourceInfo struct {
