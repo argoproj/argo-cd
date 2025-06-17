@@ -1039,6 +1039,19 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             iconClassName: ext.iconClassName
         };
     }
+
+    private requiresDeletionConfirmation(app: appModels.Application): boolean {
+        if (app.status.resources.find(r => r.requiresDeletionConfirmation)) {
+            return true;
+        }
+
+        if (app.spec.syncPolicy?.syncOptions?.includes('Delete=confirm') || app.spec.syncPolicy?.syncOptions?.includes('Prune=confirm')) {
+            return true;
+        }
+
+        return false;
+    }
+
     private getApplicationActionMenu(app: appModels.Application, needOverlapLabelOnNarrowScreen: boolean) {
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
@@ -1064,7 +1077,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 action: () => AppUtils.showDeploy('all', null, this.appContext.apis),
                 disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0) && !app.spec.sourceHydrator
             },
-            ...(app.status?.operationState?.phase === 'Running' && app.status.resources.find(r => r.requiresDeletionConfirmation)
+            ...(app.status?.operationState?.phase === 'Running' && this.requiresDeletionConfirmation(app)
                 ? [
                       {
                           iconClassName: 'fa fa-check',
@@ -1087,9 +1100,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 },
                 disabled: !app.status.operationState
             },
-            app.metadata.deletionTimestamp &&
-            app.status.resources.find(r => r.requiresDeletionConfirmation) &&
-            !((app.metadata.annotations || {})[appModels.AppDeletionConfirmedAnnotation] == 'true')
+            app.metadata.deletionTimestamp && this.requiresDeletionConfirmation(app) && !((app.metadata.annotations || {})[appModels.AppDeletionConfirmedAnnotation] == 'true')
                 ? {
                       iconClassName: 'fa fa-check',
                       title: <ActionMenuItem actionLabel='Confirm Deletion' />,
