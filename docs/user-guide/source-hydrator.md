@@ -230,6 +230,9 @@ The commit metadata will appear in the hydrated commit's root hydrator.metadata 
 
 ```json
 {
+  "author": "CI <ci@example.com>",
+  "subject": "chore: bump image to b82add2",
+  "body": "Signed-off-by: CI <ci@example.com>\n",
   "references": [
     {
       "commit": {
@@ -247,6 +250,10 @@ The commit metadata will appear in the hydrated commit's root hydrator.metadata 
   ]
 }
 ```
+
+The top-level "body" field contains the commit message of the DRY commit minus the subject line and any 
+`Argocd-reference-commit-*` trailers that were used in `references`. Unrecognized or invalid trailers are preserved in
+the body.
 
 Although `references` is an array, the source hydrator currently only supports a single related commit. If a trailer is
 specified more than once, the last one will be used.
