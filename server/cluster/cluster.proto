@@ -26,6 +26,11 @@ message ClusterQuery {
 
 message ClusterResponse {}
 
+message ListClusterLinksRequest {
+	string name = 1;
+	string server = 2;
+}
+
 message ClusterCreateRequest {
 	github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Cluster cluster = 1;
 	bool upsert = 2;
@@ -80,5 +85,9 @@ service ClusterService {
 	rpc InvalidateCache(ClusterQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http).post = "/api/v1/clusters/{id.value}/invalidate-cache";
 	}
-	
+
+	// ListLinks returns list of links for a cluster
+	rpc ListLinks(ListClusterLinksRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apiclient.application.LinksResponse) {
+		option (google.api.http).get = "/api/v1/clusters/{name}/links";
+	}
 }
