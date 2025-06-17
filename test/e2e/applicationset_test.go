@@ -60,7 +60,7 @@ func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook",
 			Namespace:  externalNamespace,
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -162,7 +162,7 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook",
 			Namespace:  externalNamespace,
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -186,7 +186,7 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook",
 			Namespace:  externalNamespace2,
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -345,7 +345,7 @@ func TestSimpleListGenerator(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -436,7 +436,7 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -528,7 +528,7 @@ func TestRenderHelmValuesObject(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -603,7 +603,7 @@ func TestTemplatePatch(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Annotations: map[string]string{
 				"annotation-some-key": "annotation-some-value",
 			},
@@ -730,7 +730,7 @@ func TestUpdateHelmValuesObject(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -815,7 +815,7 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook-sync-policy-create-update",
 			Namespace:  utils.ArgoCDNamespace,
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -844,7 +844,7 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
 					Name:       "{{.cluster}}-guestbook-sync-policy-create-update",
-					Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+					Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					Project: "default",
@@ -929,7 +929,7 @@ func TestSyncPolicyCreateDelete(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook-sync-policy-create-delete",
 			Namespace:  utils.ArgoCDNamespace,
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1028,7 +1028,7 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook-sync-policy-create-only",
 			Namespace:  utils.ArgoCDNamespace,
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1056,7 +1056,7 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
 					Name:       "{{.cluster}}-guestbook-sync-policy-create-only",
-					Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+					Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					Project: "default",
@@ -1342,7 +1342,7 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "argo-cd-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1417,7 +1417,7 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "argo-cd-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1487,7 +1487,7 @@ func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "argo-cd-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1563,7 +1563,7 @@ func TestCustomApplicationFinalizers(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
+			Finalizers: []string{v1alpha1.BackgroundPropagationPolicyFinalizer},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1589,7 +1589,7 @@ func TestCustomApplicationFinalizers(t *testing.T) {
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
 					Name:       "{{cluster}}-guestbook",
-					Finalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
+					Finalizers: []string{v1alpha1.BackgroundPropagationPolicyFinalizer},
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					Project: "default",
@@ -1630,7 +1630,7 @@ func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "my-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
+			Finalizers: []string{v1alpha1.BackgroundPropagationPolicyFinalizer},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1657,7 +1657,7 @@ func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
 					Name:       "{{.cluster}}-guestbook",
-					Finalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
+					Finalizers: []string{v1alpha1.BackgroundPropagationPolicyFinalizer},
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					Project: "default",
@@ -1744,7 +1744,7 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictOk(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "argo-cd-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1846,7 +1846,7 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictKo(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "argo-cd-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Labels: map[string]string{
 				common.LabelKeyAppInstance: "simple-scm-provider-generator-strict-ko",
 			},
@@ -1955,7 +1955,7 @@ func TestSimplePullRequestGenerator(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "guestbook-1",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -2033,7 +2033,7 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "guestbook-1",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Labels:     map[string]string{"app": "preview"},
 		},
 		Spec: v1alpha1.ApplicationSpec{
@@ -2109,7 +2109,7 @@ func TestPullRequestGeneratorNotAllowedSCMProvider(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "guestbook-1",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Labels: map[string]string{
 				"app": "preview",
 			},

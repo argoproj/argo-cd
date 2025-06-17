@@ -117,7 +117,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 				os.Exit(1)
 			}
 			if setFinalizer {
-				app.Finalizers = append(app.Finalizers, "resources-finalizer.argocd.argoproj.io")
+				app.Finalizers = append(app.Finalizers, v1alpha1.ResourcesFinalizerName)
 			}
 			out, closer, err := getOutWriter(inline, fileURL)
 			errors.CheckError(err)
