@@ -117,11 +117,14 @@ export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
                 const settings = await services.authService.settings();
                 return settings.syncWithReplaceAllowed;
             }}>
-            {syncWithReplaceAllowed => syncWithReplaceAllowed && (
-                <div className='small-12' style={optionStyle}>
-                    {booleanOption('Replace', 'Replace', false, props, false, REPLACE_WARNING)}
-                </div>
-            ) || null}
+            {syncWithReplaceAllowed =>
+                (syncWithReplaceAllowed && (
+                    <div className='small-12' style={optionStyle}>
+                        {booleanOption('Replace', 'Replace', false, props, false, REPLACE_WARNING)}
+                    </div>
+                )) ||
+                null
+            }
         </DataLoader>
     </div>
 );
