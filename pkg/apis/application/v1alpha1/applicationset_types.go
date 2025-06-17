@@ -19,8 +19,9 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
-	"k8s.io/apimachinery/pkg/watch"
 	"sort"
+
+	"k8s.io/apimachinery/pkg/watch"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/security"
