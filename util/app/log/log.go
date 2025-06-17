@@ -13,6 +13,7 @@ func GetAppLogFields(app *appv1.Application) log.Fields {
 		"project":       app.Spec.Project,
 	}
 }
+
 func GetAppsetLogFields(appset *appv1.ApplicationSet) log.Fields {
 	return log.Fields{
 		"applicationset":   appset.Name,

@@ -11,8 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/server/application"
 	"k8s.io/apimachinery/pkg/watch"
+
+	"github.com/argoproj/argo-cd/v3/server/application"
 
 	"github.com/argoproj/pkg/v2/sync"
 	log "github.com/sirupsen/logrus"

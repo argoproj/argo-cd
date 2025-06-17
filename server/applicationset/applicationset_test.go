@@ -1,10 +1,11 @@
 package applicationset
 
 import (
-	"k8s.io/apimachinery/pkg/watch"
 	"sort"
 	"strconv"
 	"testing"
+
+	"k8s.io/apimachinery/pkg/watch"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/pkg/v2/sync"
