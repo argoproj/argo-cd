@@ -24,7 +24,6 @@ builds:
       - -extldflags="-static"
     goos:
       - linux
-      - darwin
       - windows
     goarch:
       - amd64
@@ -32,16 +31,31 @@ builds:
       - s390x
       - ppc64le
     ignore:
-      - goos: darwin
-        goarch: s390x
-      - goos: darwin
-        goarch: ppc64le
       - goos: windows
         goarch: s390x
       - goos: windows
         goarch: ppc64le
       - goos: windows
         goarch: arm64
+  - id: argocd-cli-darwin
+    main: ./cmd
+    binary: argocd-{{ .Os}}-{{ .Arch}}
+    env:
+      - CGO_ENABLED=1
+    flags:
+      - -v
+    ldflags:
+      - -X github.com/argoproj/argo-cd/v3/common.version={{ .Version }}
+      - -X github.com/argoproj/argo-cd/v3/common.buildDate={{ .Date }}
+      - -X github.com/argoproj/argo-cd/v3/common.gitCommit={{ .FullCommit }}
+      - -X github.com/argoproj/argo-cd/v3/common.gitTreeState={{ .Env.GIT_TREE_STATE }}
+      - -X github.com/argoproj/argo-cd/v3/common.kubectlVersion={{ .Env.KUBECTL_VERSION }}
+      - -extldflags="-static"
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
 
 archives:
   - id: argocd-archive
