@@ -70,13 +70,13 @@ func NewGenRepoSpecCommand() *cobra.Command {
   argocd admin repo generate-spec helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type helm --name stable --enable-oci --username test --password test
 
   # Add a private HTTPS OCI repository named 'stable'
-  argocd repo generate-spec oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test
+  argocd admin repo generate-spec oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test
   
   # Add a private OCI repository named 'stable' without verifying the server's TLS certificate
-  argocd repo generate-spec oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test --insecure-skip-server-verification
+  argocd admin repo generate-spec oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test --insecure-skip-server-verification
   
   # Add a private HTTP OCI repository named 'stable'
-  argocd repo generate-spec oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test --insecure-oci-force-http
+  argocd admin repo generate-spec oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test --insecure-oci-force-http
 `
 
 	command := &cobra.Command{
