@@ -37,13 +37,13 @@ argocd admin repo generate-spec REPOURL [flags]
   argocd admin repo generate-spec helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type helm --name stable --enable-oci --username test --password test
 
   # Add a private HTTPS OCI repository named 'stable'
-  argocd repo generate-spec oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test
+  argocd admin repo generate-spec oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test
   
   # Add a private OCI repository named 'stable' without verifying the server's TLS certificate
-  argocd repo generate-spec oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test --insecure-skip-server-verification
+  argocd admin repo generate-spec oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test --insecure-skip-server-verification
   
   # Add a private HTTP OCI repository named 'stable'
-  argocd repo generate-spec oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test --insecure-oci-force-http
+  argocd admin repo generate-spec oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test --insecure-oci-force-http
 
 ```
 
@@ -70,7 +70,7 @@ argocd admin repo generate-spec REPOURL [flags]
       --project string                          project of the repository
       --proxy string                            use proxy to access repository
       --ssh-private-key-path string             path to the private ssh key (e.g. ~/.ssh/id_rsa)
-      --tls-client-cert-key-path string         path to the TLS client cert's key path (must be PEM format)
+      --tls-client-cert-key-path string         path to the TLS client cert's key (must be PEM format)
       --tls-client-cert-path string             path to the TLS client cert (must be PEM format)
       --type string                             type of the repository, "git", "oci" or "helm" (default "git")
       --use-azure-workload-identity             whether to use azure workload identity for authentication
