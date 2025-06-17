@@ -25,7 +25,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
+	"github.com/argoproj/argo-cd/v3/server/deeplinks"
 	"github.com/argoproj/argo-cd/v3/test"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
@@ -33,6 +35,7 @@ import (
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/settings"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 const (
@@ -230,7 +233,7 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 	_ = enf.SetBuiltinPolicy(`p, role:test, clusters, *, https://127.0.0.1, allow
 p, role:test, clusters, *, allowed-project/*, allow`)
 	enf.SetDefaultRole("role:test")
-	server := NewServer(db, enf, newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace))
+	server := NewServer(db, enf, newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, &settings.SettingsManager{})
 
 	for _, c := range testCases {
 		cc := c
@@ -260,7 +263,7 @@ func TestGetCluster_UrlEncodedName(t *testing.T) {
 
 	db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
 
-	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace))
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, &settings.SettingsManager{})
 
 	localCluster, err := server.Get(t.Context(), &cluster.ClusterQuery{
 		Id: &cluster.ClusterID{
@@ -290,7 +293,7 @@ func TestGetCluster_NameWithUrlEncodingButShouldNotBeUnescaped(t *testing.T) {
 
 	db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
 
-	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace))
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, &settings.SettingsManager{})
 
 	localCluster, err := server.Get(t.Context(), &cluster.ClusterQuery{
 		Id: &cluster.ClusterID{
@@ -320,7 +323,7 @@ func TestGetCluster_CannotSetCADataAndInsecureTrue(t *testing.T) {
 	}
 	clientset := getClientset(nil, testNamespace)
 	db := db.NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
-	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), clientset, testNamespace))
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, &settings.SettingsManager{})
 
 	t.Run("Create Fails When CAData is Set and Insecure is True", func(t *testing.T) {
 		_, err := server.Create(t.Context(), &cluster.ClusterCreateRequest{
@@ -362,7 +365,7 @@ func TestUpdateCluster_NoFieldsPaths(t *testing.T) {
 		return true
 	})).Return(&v1alpha1.Cluster{}, nil)
 
-	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace))
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, &settings.SettingsManager{})
 
 	_, err := server.Update(t.Context(), &cluster.ClusterUpdateRequest{
 		Cluster: &v1alpha1.Cluster{
@@ -390,7 +393,7 @@ func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 		return true
 	})).Return(&v1alpha1.Cluster{}, nil)
 
-	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace))
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, &settings.SettingsManager{})
 
 	_, err := server.Update(t.Context(), &cluster.ClusterUpdateRequest{
 		Cluster: &v1alpha1.Cluster{
@@ -475,7 +478,7 @@ func TestDeleteClusterByName(t *testing.T) {
 		},
 	})
 	db := db.NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
-	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), clientset, testNamespace))
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, &settings.SettingsManager{})
 
 	t.Run("Delete Fails When Deleting by Unknown Name", func(t *testing.T) {
 		_, err := server.Delete(t.Context(), &cluster.ClusterQuery{
@@ -552,7 +555,7 @@ func TestRotateAuth(t *testing.T) {
 		})
 
 	db := db.NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
-	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), clientset, testNamespace))
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, &settings.SettingsManager{})
 
 	t.Run("RotateAuth by Unknown Name", func(t *testing.T) {
 		_, err := server.RotateAuth(t.Context(), &cluster.ClusterQuery{
@@ -634,7 +637,7 @@ func TestListCluster(t *testing.T) {
 
 	db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
 
-	s := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace))
+	s := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, &settings.SettingsManager{})
 
 	tests := []struct {
 		name    string
@@ -737,7 +740,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 
 		db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
 
-		server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace))
+		server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, &settings.SettingsManager{})
 		localCluster, err := server.getClusterAndVerifyAccess(t.Context(), &cluster.ClusterQuery{
 			Name: "test/not-exists",
 		}, rbac.ActionGet)
@@ -763,7 +766,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 
 		db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
 
-		server := NewServer(db, newEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace))
+		server := NewServer(db, newEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, &settings.SettingsManager{})
 		localCluster, err := server.getClusterAndVerifyAccess(t.Context(), &cluster.ClusterQuery{
 			Name: "test/ing",
 		}, rbac.ActionGet)
@@ -791,7 +794,7 @@ func TestNoClusterEnumeration(t *testing.T) {
 	db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
 	db.On("GetCluster", mock.Anything, mock.Anything).Return(&mockCluster, nil)
 
-	server := NewServer(db, newEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, settings.NewSettingsManager(t.Context(), fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace))
+	server := NewServer(db, newEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{}, &settings.SettingsManager{})
 
 	t.Run("Get", func(t *testing.T) {
 		_, err := server.Get(t.Context(), &cluster.ClusterQuery{
@@ -856,4 +859,71 @@ func TestNoClusterEnumeration(t *testing.T) {
 		})
 		assert.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 	})
+}
+
+func TestCreateDeepLinksObject_ManagedByURL(t *testing.T) {
+	t.Run("includes managed-by-url if annotation exists", func(t *testing.T) {
+		app := &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"annotations": map[string]interface{}{
+						"argocd.argoproj.io/managed-by-url": "https://example.com/argo",
+					},
+				},
+			},
+		}
+
+		result := deeplinks.CreateDeepLinksObject(nil, app, nil, nil)
+		require.Equal(t, "https://example.com/argo", result[deeplinks.ManagedByURLKey])
+	})
+
+	t.Run("omits managed-by-url if annotation missing", func(t *testing.T) {
+		app := &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"metadata": map[string]interface{}{},
+			},
+		}
+
+		result := deeplinks.CreateDeepLinksObject(nil, app, nil, nil)
+		_, exists := result[deeplinks.ManagedByURLKey]
+		require.False(t, exists)
+	})
+}
+
+func TestListLinks_UsesSettingsWhenNoAnnotation(t *testing.T) {
+	mockDB := &dbmocks.ArgoDB{}
+	enf := newNoopEnforcer()
+	cache := &servercache.Cache{}
+	kubectl := &kubetest.MockKubectlCmd{}
+
+	// Set up fake configmap and secret to control SettingsManager behavior
+	fakeConfigMap := test.NewFakeConfigMap()
+	fakeSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-secret",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Data: map[string][]byte{
+			"admin.password":   []byte("test"),
+			"server.secretkey": []byte("test"),
+		},
+	}
+	clientset := fake.NewClientset(fakeConfigMap, fakeSecret)
+	settingsMgr := settings.NewSettingsManager(t.Context(), clientset, test.FakeArgoCDNamespace)
+
+	server := NewServer(mockDB, enf, cache, kubectl, settingsMgr)
+
+	// Set up mock expectations
+	mockDB.On("GetCluster", mock.Anything, "https://1.2.3.4").Return(&appv1.Cluster{
+		Server: "https://1.2.3.4",
+		Name:   "test-cluster",
+	}, nil)
+
+	resp, err := server.ListLinks(context.Background(), &cluster.ClusterQuery{
+		Name:   "test-cluster",
+		Server: "https://1.2.3.4",
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 }
