@@ -29,28 +29,26 @@ var (
 	appsetName           = "test-appset"
 	appsetNameLabel      = "appset_name=\"test-appset\""
 	resourceLabel        = "resource=\"core\""
-	credentialTypeLabel  = "credential_type=\"github_app\""
-	credentialType       = "github_app"
 
 	rateLimitMetrics = []Metric{
 		{
 			name:   githubAPIRateLimitRemainingMetricName,
-			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel, resourceLabel, credentialTypeLabel},
+			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel, resourceLabel},
 			value:  "42",
 		},
 		{
 			name:   githubAPIRateLimitLimitMetricName,
-			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel, resourceLabel, credentialTypeLabel},
+			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel, resourceLabel},
 			value:  "100",
 		},
 		{
 			name:   githubAPIRateLimitUsedMetricName,
-			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel, resourceLabel, credentialTypeLabel},
+			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel, resourceLabel},
 			value:  "58",
 		},
 		{
 			name:   githubAPIRateLimitResetMetricName,
-			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel, resourceLabel, credentialTypeLabel},
+			labels: []string{endpointLabel, appsetNamespaceLabel, appsetNameLabel, resourceLabel},
 			value:  "1",
 		},
 	}
@@ -90,7 +88,7 @@ func TestGitHubMetrics_CollectorApproach_Success(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	metricsCtx := &MetricsContext{AppSetNamespace: appsetNamespace, AppSetName: appsetName, CredentialType: credentialType}
+	metricsCtx := &MetricsContext{AppSetNamespace: appsetNamespace, AppSetName: appsetName}
 	client := &http.Client{
 		Transport: NewGitHubMetricsTransport(
 			http.DefaultTransport,

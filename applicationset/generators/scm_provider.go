@@ -281,6 +281,14 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 	var metricsCtx *services.MetricsContext
 	var httpClient *http.Client
 
+	if g.enableGitHubAPIMetrics {
+		metricsCtx = &services.MetricsContext{
+			AppSetNamespace: applicationSetInfo.Namespace,
+			AppSetName:      applicationSetInfo.Name,
+		}
+		httpClient = services.NewGitHubMetricsClient(metricsCtx)
+	}
+
 	if github.AppSecretName != "" {
 		auth, err := g.GitHubApps.GetAuthSecret(ctx, github.AppSecretName)
 		if err != nil {
@@ -288,12 +296,6 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 		}
 
 		if g.enableGitHubAPIMetrics {
-			metricsCtx = &services.MetricsContext{
-				AppSetNamespace: applicationSetInfo.Namespace,
-				AppSetName:      applicationSetInfo.Name,
-				CredentialType:  "github_app",
-			}
-			httpClient = services.NewGitHubMetricsClient(metricsCtx)
 			return scm_provider.NewGithubAppProviderFor(*auth, github.Organization, github.API, github.AllBranches, httpClient)
 		}
 		return scm_provider.NewGithubAppProviderFor(*auth, github.Organization, github.API, github.AllBranches)
@@ -305,16 +307,6 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 	}
 
 	if g.enableGitHubAPIMetrics {
-		credentialType := "token"
-		if token == "" {
-			credentialType = "unauthenticated"
-		}
-		metricsCtx = &services.MetricsContext{
-			AppSetNamespace: applicationSetInfo.Namespace,
-			AppSetName:      applicationSetInfo.Name,
-			CredentialType:  credentialType,
-		}
-		httpClient = services.NewGitHubMetricsClient(metricsCtx)
 		return scm_provider.NewGithubProvider(github.Organization, token, github.API, github.AllBranches, httpClient)
 	}
 	return scm_provider.NewGithubProvider(github.Organization, token, github.API, github.AllBranches)

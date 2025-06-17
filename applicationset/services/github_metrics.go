@@ -73,7 +73,7 @@ func NewGitHubAPIRateLimitRemaining() *prometheus.GaugeVec {
 			Name: githubAPIRateLimitRemainingMetricName,
 			Help: "The number of requests remaining in the current rate limit window",
 		},
-		[]string{"endpoint", "appset_namespace", "appset_name", "resource", "credential_type"},
+		[]string{"endpoint", "appset_namespace", "appset_name", "resource"},
 	)
 }
 
@@ -83,7 +83,7 @@ func NewGitHubAPIRateLimitLimit() *prometheus.GaugeVec {
 			Name: githubAPIRateLimitLimitMetricName,
 			Help: "The maximum number of requests that you can make per hour",
 		},
-		[]string{"endpoint", "appset_namespace", "appset_name", "resource", "credential_type"},
+		[]string{"endpoint", "appset_namespace", "appset_name", "resource"},
 	)
 }
 
@@ -93,7 +93,7 @@ func NewGitHubAPIRateLimitReset() *prometheus.GaugeVec {
 			Name: githubAPIRateLimitResetMetricName,
 			Help: "The time left till the current rate limit window resets, in seconds",
 		},
-		[]string{"endpoint", "appset_namespace", "appset_name", "resource", "credential_type"},
+		[]string{"endpoint", "appset_namespace", "appset_name", "resource"},
 	)
 }
 
@@ -103,7 +103,7 @@ func NewGitHubAPIRateLimitUsed() *prometheus.GaugeVec {
 			Name: githubAPIRateLimitUsedMetricName,
 			Help: "The number of requests used in the current rate limit window",
 		},
-		[]string{"endpoint", "appset_namespace", "appset_name", "resource", "credential_type"},
+		[]string{"endpoint", "appset_namespace", "appset_name", "resource"},
 	)
 }
 
@@ -123,7 +123,6 @@ func init() {
 type MetricsContext struct {
 	AppSetNamespace string
 	AppSetName      string
-	CredentialType  string // e.g., "github_app", "personal_token", "oauth_token"
 }
 
 // GitHubMetricsTransport is a custom http.RoundTripper that collects GitHub API metrics
@@ -171,42 +170,40 @@ func (t *GitHubMetricsTransport) RoundTrip(req *http.Request) (*http.Response, e
 		limitInt := 0
 		usedInt := 0
 		resource := resp.Header.Get("X-RateLimit-Resource")
-		credentialType := t.metricsContext.CredentialType
 
 		// Record rate limit metrics if available
 		if resetTime := resp.Header.Get("X-RateLimit-Reset"); resetTime != "" {
 			if resetUnix, err := strconv.ParseInt(resetTime, 10, 64); err == nil {
 				// Calculate seconds until reset (reset timestamp - current time)
 				secondsUntilReset := resetUnix - time.Now().Unix()
-				t.metrics.RateLimitReset.WithLabelValues(endpoint, appsetNamespace, appsetName, resource, credentialType).Set(float64(secondsUntilReset))
+				t.metrics.RateLimitReset.WithLabelValues(endpoint, appsetNamespace, appsetName, resource).Set(float64(secondsUntilReset))
 				resetHumanReadableTime = time.Unix(resetUnix, 0).Local().Format("2006-01-02 15:04:05 MST")
 			}
 		}
 		if remaining := resp.Header.Get("X-RateLimit-Remaining"); remaining != "" {
 			if remainingInt, err = strconv.Atoi(remaining); err == nil {
-				t.metrics.RateLimitRemaining.WithLabelValues(endpoint, appsetNamespace, appsetName, resource, credentialType).Set(float64(remainingInt))
+				t.metrics.RateLimitRemaining.WithLabelValues(endpoint, appsetNamespace, appsetName, resource).Set(float64(remainingInt))
 			}
 		}
 		if limit := resp.Header.Get("X-RateLimit-Limit"); limit != "" {
 			if limitInt, err = strconv.Atoi(limit); err == nil {
-				t.metrics.RateLimitLimit.WithLabelValues(endpoint, appsetNamespace, appsetName, resource, credentialType).Set(float64(limitInt))
+				t.metrics.RateLimitLimit.WithLabelValues(endpoint, appsetNamespace, appsetName, resource).Set(float64(limitInt))
 			}
 		}
 		if used := resp.Header.Get("X-RateLimit-Used"); used != "" {
 			if usedInt, err = strconv.Atoi(used); err == nil {
-				t.metrics.RateLimitUsed.WithLabelValues(endpoint, appsetNamespace, appsetName, resource, credentialType).Set(float64(usedInt))
+				t.metrics.RateLimitUsed.WithLabelValues(endpoint, appsetNamespace, appsetName, resource).Set(float64(usedInt))
 			}
 		}
 
 		log.WithFields(log.Fields{
-			"endpoint":        endpoint,
-			"reset":           resetHumanReadableTime,
-			"remaining":       remainingInt,
-			"limit":           limitInt,
-			"used":            usedInt,
-			"resource":        resource,
-			"credential_type": credentialType,
-			"applicationset":  map[string]string{"name": appsetName, "namespace": appsetNamespace},
+			"endpoint":       endpoint,
+			"reset":          resetHumanReadableTime,
+			"remaining":      remainingInt,
+			"limit":          limitInt,
+			"used":           usedInt,
+			"resource":       resource,
+			"applicationset": map[string]string{"name": appsetName, "namespace": appsetNamespace},
 		}).Debugf("GitHub API rate limit info")
 	}
 
