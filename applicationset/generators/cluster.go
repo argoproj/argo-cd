@@ -108,7 +108,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 
 	// For each matching cluster secret (non-local clusters only)
 	for _, cluster := range secretsFound {
-		params := g.populateParams(cluster, appSet)
+		params := g.getClusterParameters(cluster, appSet)
 
 		err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 		if err != nil {
@@ -123,9 +123,8 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 }
 
 type paramHolder struct {
-	isFlatMode     bool
-	params         []map[string]any
-	clustersParams []map[string]any
+	isFlatMode bool
+	params     []map[string]any
 }
 
 func newParamHolder(isFlatMode bool) *paramHolder {
@@ -133,23 +132,19 @@ func newParamHolder(isFlatMode bool) *paramHolder {
 }
 
 func (p *paramHolder) append(params map[string]any) {
-	if p.isFlatMode {
-		p.clustersParams = append(p.clustersParams, params)
-	} else {
-		p.params = append(p.params, params)
-	}
+	p.params = append(p.params, params)
 }
 
 func (p *paramHolder) consolidate() []map[string]any {
 	if p.isFlatMode {
-		p.params = append(p.params, map[string]any{
-			"clusters": p.clustersParams,
-		})
+		p.params = []map[string]any{
+			{"clusters": p.params},
+		}
 	}
 	return p.params
 }
 
-func (g *ClusterGenerator) populateParams(cluster corev1.Secret, appSet *argoappsetv1alpha1.ApplicationSet) map[string]any {
+func (g *ClusterGenerator) getClusterParameters(cluster corev1.Secret, appSet *argoappsetv1alpha1.ApplicationSet) map[string]any {
 	params := map[string]any{}
 
 	params["name"] = string(cluster.Data["name"])
