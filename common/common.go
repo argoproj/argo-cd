@@ -247,9 +247,11 @@ const (
 	EnvGitRetryFactor = "ARGOCD_GIT_RETRY_FACTOR"
 	// EnvGitSubmoduleEnabled overrides git submodule support, true by default
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
-	// EnvGitCleanupEnabled enables automatic cleanup of git temporary files on fetch errors
-	EnvGitCleanupEnabled = "ARGOCD_GIT_CLEANUP_ENABLED"
+	// EnvGitCleanupStrategy specifies the cleanup strategy for git temporary files on fetch errors
+	// Valid values: "all", "none", "selective" (default: "none")
+	EnvGitCleanupStrategy = "ARGOCD_GIT_CLEANUP_STRATEGY"
 	// EnvGitCleanupRepos specifies comma-separated list of repository URLs where cleanup should be performed
+	// Only used when EnvGitCleanupStrategy is set to "selective"
 	EnvGitCleanupRepos = "ARGOCD_GIT_CLEANUP_REPOS"
 	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
 	EnvGnuPGHome = "ARGOCD_GNUPGHOME"
@@ -354,6 +356,16 @@ const (
 	DefaultGitRetryMaxDuration time.Duration = time.Second * 5        // 5s
 	DefaultGitRetryDuration    time.Duration = time.Millisecond * 250 // 0.25s
 	DefaultGitRetryFactor                    = int64(2)
+)
+
+// Git cleanup strategies
+const (
+	// GitCleanupStrategyAll enables cleanup for all repositories
+	GitCleanupStrategyAll = "all"
+	// GitCleanupStrategyNone disables cleanup for all repositories (default)
+	GitCleanupStrategyNone = "none"
+	// GitCleanupStrategySelective enables cleanup for specific repositories
+	GitCleanupStrategySelective = "selective"
 )
 
 // Constants represent the pod selector labels of the Argo CD component names. These values are determined by the
