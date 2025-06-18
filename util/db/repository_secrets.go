@@ -365,6 +365,12 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	}
 	repository.EnableOCI = enableOCI
 
+	enableDirectPull, err := boolOrFalse(secret, "enableDirectPull")
+	if err != nil {
+		return repository, err
+	}
+	repository.EnableDirectPull = enableDirectPull
+
 	insecureOCIForceHTTP, err := boolOrFalse(secret, "insecureOCIForceHttp")
 	if err != nil {
 		return repository, err
@@ -427,6 +433,7 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretString(secret, "gcpServiceAccountKey", repository.GCPServiceAccountKey)
 	updateSecretBool(secret, "forceHttpBasicAuth", repository.ForceHttpBasicAuth)
 	updateSecretBool(secret, "useAzureWorkloadIdentity", repository.UseAzureWorkloadIdentity)
+	updateSecretBool(secret, "enableDirectPull", repository.EnableDirectPull)
 	addSecretMetadata(secret, s.getSecretType())
 }
 
@@ -483,6 +490,12 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 	}
 	repository.UseAzureWorkloadIdentity = useAzureWorkloadIdentity
 
+	enableDirectPull, err := boolOrFalse(secret, "enableDirectPull")
+	if err != nil {
+		return repository, err
+	}
+	repository.EnableDirectPull = enableDirectPull
+
 	return repository, nil
 }
 
@@ -510,6 +523,7 @@ func repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
 	updateSecretString(secret, "noProxy", repoCreds.NoProxy)
 	updateSecretBool(secret, "forceHttpBasicAuth", repoCreds.ForceHttpBasicAuth)
 	updateSecretBool(secret, "useAzureWorkloadIdentity", repoCreds.UseAzureWorkloadIdentity)
+	updateSecretBool(secret, "enableDirectPull", repoCreds.EnableDirectPull)
 	addSecretMetadata(secret, common.LabelValueSecretTypeRepoCreds)
 }
 

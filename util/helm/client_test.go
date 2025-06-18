@@ -42,12 +42,12 @@ func (f *fakeIndexCache) GetHelmIndex(_ string, indexData *[]byte) error {
 
 func TestIndex(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
-		client := NewClient("", HelmCreds{}, false, "", "")
+		client := NewClient("", HelmCreds{}, false, "", "", false)
 		_, err := client.GetIndex(false, 10000)
 		require.Error(t, err)
 	})
 	t.Run("Stable", func(t *testing.T) {
-		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
+		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", false)
 		index, err := client.GetIndex(false, 10000)
 		require.NoError(t, err)
 		assert.NotNil(t, index)
@@ -56,7 +56,7 @@ func TestIndex(t *testing.T) {
 		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{
 			Username: "my-password",
 			Password: "my-username",
-		}, false, "", "")
+		}, false, "", "", false)
 		index, err := client.GetIndex(false, 10000)
 		require.NoError(t, err)
 		assert.NotNil(t, index)
@@ -68,7 +68,7 @@ func TestIndex(t *testing.T) {
 		err := yaml.NewEncoder(&data).Encode(fakeIndex)
 		require.NoError(t, err)
 
-		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
+		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", false, WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
 		index, err := client.GetIndex(false, 10000)
 
 		require.NoError(t, err)
@@ -76,7 +76,7 @@ func TestIndex(t *testing.T) {
 	})
 
 	t.Run("Limited", func(t *testing.T) {
-		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
+		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", false)
 		_, err := client.GetIndex(false, 100)
 
 		assert.ErrorContains(t, err, "unexpected end of stream")
@@ -84,8 +84,8 @@ func TestIndex(t *testing.T) {
 }
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true, false)
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", false)
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
 	require.NoError(t, err)
 	defer utilio.Close(closer)
 	info, err := os.Stat(path)
@@ -94,14 +94,14 @@ func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 }
 
 func Test_nativeHelmChart_ExtractChartWithLimiter(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-	_, _, err := client.ExtractChart("argo-cd", "0.7.1", false, 100, false, false)
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", false)
+	_, _, err := client.ExtractChart("argo-cd", "0.7.1", false, 100, false)
 	require.Error(t, err, "error while iterating on tar reader: unexpected EOF")
 }
 
 func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{InsecureSkipVerify: true}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true, false)
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{InsecureSkipVerify: true}, false, "", "", false)
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
 	require.NoError(t, err)
 	defer utilio.Close(closer)
 	info, err := os.Stat(path)
@@ -110,8 +110,8 @@ func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
 }
 
 func Test_nativeHelmChart_ExtractChart_DirectPull(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true, true)
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", true)
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
 	require.NoError(t, err)
 	defer utilio.Close(closer)
 	info, err := os.Stat(path)
@@ -120,8 +120,8 @@ func Test_nativeHelmChart_ExtractChart_DirectPull(t *testing.T) {
 }
 
 func Test_nativeHelmChart_ExtractChart_DirectPullWithoutVersion(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "", false, math.MaxInt64, true, true)
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", true)
+	path, closer, err := client.ExtractChart("argo-cd", "", false, math.MaxInt64, true)
 	require.NoError(t, err)
 	defer utilio.Close(closer)
 	info, err := os.Stat(path)
@@ -130,8 +130,8 @@ func Test_nativeHelmChart_ExtractChart_DirectPullWithoutVersion(t *testing.T) {
 }
 
 func Test_nativeHelmChart_ExtractChart_DirectPull_WildcardVersion(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", ">=0.7.1", false, math.MaxInt64, true, true)
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", true)
+	path, closer, err := client.ExtractChart("argo-cd", ">=0.7.1", false, math.MaxInt64, true)
 	require.NoError(t, err)
 	defer utilio.Close(closer)
 	info, err := os.Stat(path)
@@ -308,7 +308,7 @@ func TestGetTagsFromUrl(t *testing.T) {
 			require.NoError(t, json.NewEncoder(w).Encode(responseTags))
 		}))
 
-		client := NewClient(server.URL, HelmCreds{InsecureSkipVerify: true}, true, "", "")
+		client := NewClient(server.URL, HelmCreds{InsecureSkipVerify: true}, true, "", "", false)
 
 		tags, err := client.GetTags("mychart", true)
 		require.NoError(t, err)
@@ -324,7 +324,7 @@ func TestGetTagsFromUrl(t *testing.T) {
 	})
 
 	t.Run("should return an error not when oci is not enabled", func(t *testing.T) {
-		client := NewClient("example.com", HelmCreds{}, false, "", "")
+		client := NewClient("example.com", HelmCreds{}, false, "", "", false)
 
 		_, err := client.GetTags("my-chart", true)
 		assert.ErrorIs(t, ErrOCINotEnabled, err)
@@ -395,7 +395,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 				InsecureSkipVerify: true,
 				Username:           username,
 				Password:           password,
-			}, true, "", "")
+			}, true, "", "", false)
 
 			tags, err := client.GetTags("mychart", true)
 
@@ -493,7 +493,7 @@ func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *tes
 				repoURL:            mockServer.URL[8:],
 				InsecureSkipVerify: true,
 				tokenProvider:      workloadIdentityMock,
-			}, true, "", "")
+			}, true, "", "", false)
 
 			tags, err := client.GetTags("mychart", true)
 
@@ -576,7 +576,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			client := NewClient(testCase.repoURL, HelmCreds{
 				InsecureSkipVerify: true,
-			}, true, "", "")
+			}, true, "", "", false)
 
 			tags, err := client.GetTags("mychart", true)
 

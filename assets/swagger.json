@@ -3871,6 +3871,12 @@
             "description": "Whether https should be disabled for an OCI repo.",
             "name": "insecureOciForceHttp",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether direct pull should be enabled.",
+            "name": "enableDirectPull",
+            "in": "query"
           }
         ],
         "responses": {
@@ -4714,6 +4720,12 @@
             "type": "boolean",
             "description": "Whether https should be disabled for an OCI repo.",
             "name": "insecureOciForceHttp",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether direct pull should be enabled.",
+            "name": "enableDirectPull",
             "in": "query"
           }
         ],
@@ -9189,6 +9201,10 @@
           "type": "string",
           "title": "BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server"
         },
+        "enableDirectPull": {
+          "type": "boolean",
+          "title": "EnableDirectPull specifies whether direct pull should be enabled"
+        },
         "enableOCI": {
           "type": "boolean",
           "title": "EnableOCI specifies whether helm-oci support should be enabled for this repo"
@@ -9290,6 +9306,10 @@
         },
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
+        },
+        "enableDirectPull": {
+          "type": "boolean",
+          "title": "EnableDirectPull specifies whether direct pull should be enabled"
         },
         "enableLfs": {
           "description": "EnableLFS specifies whether git-lfs support should be enabled for this repo. Only valid for Git repositories.",

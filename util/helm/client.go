@@ -47,7 +47,7 @@ type indexCache interface {
 
 type Client interface {
 	CleanChartCache(chart string, version string) error
-	ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool, directPull bool) (string, utilio.Closer, error)
+	ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, utilio.Closer, error)
 	GetIndex(noCache bool, maxIndexSize int64) (*Index, error)
 	GetTags(chart string, noCache bool) ([]string, error)
 	TestHelmOCI() (bool, error)
@@ -67,19 +67,20 @@ func WithChartPaths(chartPaths utilio.TempPaths) ClientOpts {
 	}
 }
 
-func NewClient(repoURL string, creds Creds, enableOci bool, proxy string, noProxy string, opts ...ClientOpts) Client {
-	return NewClientWithLock(repoURL, creds, globalLock, enableOci, proxy, noProxy, opts...)
+func NewClient(repoURL string, creds Creds, enableOci bool, proxy string, noProxy string, enableDirectPull bool, opts ...ClientOpts) Client {
+	return NewClientWithLock(repoURL, creds, globalLock, enableOci, proxy, noProxy, enableDirectPull, opts...)
 }
 
-func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool, proxy string, noProxy string, opts ...ClientOpts) Client {
+func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool, proxy string, noProxy string, enableDirectPull bool, opts ...ClientOpts) Client {
 	c := &nativeHelmChart{
-		repoURL:         repoURL,
-		creds:           creds,
-		repoLock:        repoLock,
-		enableOci:       enableOci,
-		proxy:           proxy,
-		noProxy:         noProxy,
-		chartCachePaths: utilio.NewRandomizedTempPaths(os.TempDir()),
+		repoURL:          repoURL,
+		creds:            creds,
+		repoLock:         repoLock,
+		enableOci:        enableOci,
+		enableDirectPull: enableDirectPull,
+		proxy:            proxy,
+		noProxy:          noProxy,
+		chartCachePaths:  utilio.NewRandomizedTempPaths(os.TempDir()),
 	}
 	for i := range opts {
 		opts[i](c)
@@ -90,14 +91,15 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enabl
 var _ Client = &nativeHelmChart{}
 
 type nativeHelmChart struct {
-	chartCachePaths utilio.TempPaths
-	repoURL         string
-	creds           Creds
-	repoLock        sync.KeyLock
-	enableOci       bool
-	indexCache      indexCache
-	proxy           string
-	noProxy         string
+	chartCachePaths  utilio.TempPaths
+	repoURL          string
+	creds            Creds
+	repoLock         sync.KeyLock
+	enableOci        bool
+	enableDirectPull bool
+	indexCache       indexCache
+	proxy            string
+	noProxy          string
 }
 
 func fileExist(filePath string) (bool, error) {
@@ -138,7 +140,7 @@ func untarChart(tempDir string, cachedChartPath string, manifestMaxExtractedSize
 	return files.Untgz(tempDir, reader, manifestMaxExtractedSize, false)
 }
 
-func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool, directPull bool) (string, utilio.Closer, error) {
+func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, utilio.Closer, error) {
 	// always use Helm V3 since we don't have chart content to determine correct Helm version
 	helmCmd, err := NewCmdWithVersion("", c.enableOci, c.proxy, c.noProxy)
 	if err != nil {
@@ -201,7 +203,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredent
 				return "", nil, fmt.Errorf("error pulling OCI chart: %w", err)
 			}
 		} else {
-			_, err = helmCmd.Fetch(c.repoURL, chart, version, tempDest, c.creds, passCredentials, directPull)
+			_, err = helmCmd.Fetch(c.repoURL, chart, version, tempDest, c.creds, passCredentials, c.enableDirectPull)
 			if err != nil {
 				_ = os.RemoveAll(tempDir)
 				return "", nil, fmt.Errorf("error fetching chart: %w", err)

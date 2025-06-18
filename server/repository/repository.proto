@@ -95,6 +95,8 @@ message RepoAccessQuery {
 	string bearerToken = 21;
 	// Whether https should be disabled for an OCI repo
 	bool insecureOciForceHttp = 22;
+	// Whether direct pull should be enabled
+	bool enableDirectPull = 23;
 }
 
 message RepoResponse {}

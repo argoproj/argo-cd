@@ -47,6 +47,7 @@ export interface NewHTTPSRepoParams {
     // write should be true if saving as a write credential.
     write: boolean;
     useAzureWorkloadIdentity: boolean;
+    enableDirectPull: boolean;
 }
 
 interface NewGitHubAppRepoParams {
@@ -103,6 +104,7 @@ interface NewHTTPSRepoCredsParams {
     // write should be true if saving as a write credential.
     write: boolean;
     useAzureWorkloadIdentity: boolean;
+    enableDirectPull: boolean;
 }
 
 interface NewGitHubAppRepoCredsParams {
@@ -849,6 +851,13 @@ export class ReposList extends React.Component<
                                                             <FormField formApi={formApi} label='Insecure HTTP Only' field='insecureOCIForceHttp' component={CheckboxField} />
                                                         )}
                                                     </div>
+                                                    {formApi.getFormState().values.type === 'helm' && (
+                                                        <React.Fragment>
+                                                            <div className='argo-form-row'>
+                                                                <FormField formApi={formApi} label='Enable Direct Pull' field='enableDirectPull' component={CheckboxField} />
+                                                            </div>
+                                                        </React.Fragment>
+                                                    )}
                                                     <div className='argo-form-row'>
                                                         <FormField
                                                             formApi={formApi}
@@ -1077,7 +1086,8 @@ export class ReposList extends React.Component<
                 enableOCI: params.enableOCI,
                 write: params.write,
                 useAzureWorkloadIdentity: params.useAzureWorkloadIdentity,
-                insecureOCIForceHttp: params.insecureOCIForceHttp
+                insecureOCIForceHttp: params.insecureOCIForceHttp,
+                enableDirectPull: params.enableDirectPull
             });
         } else {
             this.setState({connecting: true});

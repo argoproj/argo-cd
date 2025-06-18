@@ -95,8 +95,8 @@ func (_c *Client_CleanChartCache_Call) RunAndReturn(run func(chart string, versi
 }
 
 // ExtractChart provides a mock function for the type Client
-func (_mock *Client) ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool, directPull bool) (string, io.Closer, error) {
-	ret := _mock.Called(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize, directPull)
+func (_mock *Client) ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, io.Closer, error) {
+	ret := _mock.Called(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ExtractChart")
@@ -105,23 +105,23 @@ func (_mock *Client) ExtractChart(chart string, version string, passCredentials 
 	var r0 string
 	var r1 io.Closer
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(string, string, bool, int64, bool, bool) (string, io.Closer, error)); ok {
-		return returnFunc(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize, directPull)
+	if returnFunc, ok := ret.Get(0).(func(string, string, bool, int64, bool) (string, io.Closer, error)); ok {
+		return returnFunc(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string, string, bool, int64, bool, bool) string); ok {
-		r0 = returnFunc(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize, directPull)
+	if returnFunc, ok := ret.Get(0).(func(string, string, bool, int64, bool) string); ok {
+		r0 = returnFunc(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(string, string, bool, int64, bool, bool) io.Closer); ok {
-		r1 = returnFunc(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize, directPull)
+	if returnFunc, ok := ret.Get(1).(func(string, string, bool, int64, bool) io.Closer); ok {
+		r1 = returnFunc(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
 	} else {
 		if ret.Get(1) != nil {
 			r1 = ret.Get(1).(io.Closer)
 		}
 	}
-	if returnFunc, ok := ret.Get(2).(func(string, string, bool, int64, bool, bool) error); ok {
-		r2 = returnFunc(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize, directPull)
+	if returnFunc, ok := ret.Get(2).(func(string, string, bool, int64, bool) error); ok {
+		r2 = returnFunc(chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -139,12 +139,11 @@ type Client_ExtractChart_Call struct {
 //   - passCredentials bool
 //   - manifestMaxExtractedSize int64
 //   - disableManifestMaxExtractedSize bool
-//   - directPull bool
-func (_e *Client_Expecter) ExtractChart(chart interface{}, version interface{}, passCredentials interface{}, manifestMaxExtractedSize interface{}, disableManifestMaxExtractedSize interface{}, directPull interface{}) *Client_ExtractChart_Call {
-	return &Client_ExtractChart_Call{Call: _e.mock.On("ExtractChart", chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize, directPull)}
+func (_e *Client_Expecter) ExtractChart(chart interface{}, version interface{}, passCredentials interface{}, manifestMaxExtractedSize interface{}, disableManifestMaxExtractedSize interface{}) *Client_ExtractChart_Call {
+	return &Client_ExtractChart_Call{Call: _e.mock.On("ExtractChart", chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)}
 }
 
-func (_c *Client_ExtractChart_Call) Run(run func(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool, directPull bool)) *Client_ExtractChart_Call {
+func (_c *Client_ExtractChart_Call) Run(run func(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool)) *Client_ExtractChart_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 string
 		if args[0] != nil {
@@ -166,17 +165,12 @@ func (_c *Client_ExtractChart_Call) Run(run func(chart string, version string, p
 		if args[4] != nil {
 			arg4 = args[4].(bool)
 		}
-		var arg5 bool
-		if args[5] != nil {
-			arg5 = args[5].(bool)
-		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
-			arg5,
 		)
 	})
 	return _c
@@ -187,7 +181,7 @@ func (_c *Client_ExtractChart_Call) Return(s string, closer io.Closer, err error
 	return _c
 }
 
-func (_c *Client_ExtractChart_Call) RunAndReturn(run func(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool, directPull bool) (string, io.Closer, error)) *Client_ExtractChart_Call {
+func (_c *Client_ExtractChart_Call) RunAndReturn(run func(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, io.Closer, error)) *Client_ExtractChart_Call {
 	_c.Call.Return(run)
 	return _c
 }

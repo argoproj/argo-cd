@@ -213,8 +213,6 @@ data:
   reposerver.git.request.timeout: "15s"
   # Include hidden directories from Git
   reposerver.include.hidden.directories: "false"
-  # Enabled direct helm pull
-  reposerver.helm.direct.pull: "false"
 
   ## Commit-server properties
   # Listen on given address for incoming connections (default "0.0.0.0")

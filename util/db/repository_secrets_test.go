@@ -589,6 +589,15 @@ func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
 				NoProxy:  ".example.com,127.0.0.1",
 			},
 		},
+		{
+			name: "with_enableDirectPull",
+			repoCreds: appsv1.RepoCreds{
+				URL:              "https://test-helm-repo/charts",
+				Username:         "anotherUsername",
+				Password:         "anotherPassword",
+				EnableDirectPull: false,
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -613,8 +622,11 @@ func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
 			assert.Equal(t, testCase.repoCreds.URL, string(secret.Data["url"]))
 			assert.Equal(t, testCase.repoCreds.Username, string(secret.Data["username"]))
 			assert.Equal(t, testCase.repoCreds.Password, string(secret.Data["password"]))
-			if enableOCI, err := strconv.ParseBool(string(secret.Data["githubAppPrivateKey"])); err == nil {
+			if enableOCI, err := strconv.ParseBool(string(secret.Data["enableOC"])); err == nil {
 				assert.Equal(t, strconv.FormatBool(testCase.repoCreds.EnableOCI), enableOCI)
+			}
+			if enableDirectPull, err := strconv.ParseBool(string(secret.Data["enableDirectPull"])); err == nil {
+				assert.Equal(t, strconv.FormatBool(testCase.repoCreds.EnableDirectPull), enableDirectPull)
 			}
 			assert.Equal(t, testCase.repoCreds.SSHPrivateKey, string(secret.Data["sshPrivateKey"]))
 			assert.Equal(t, testCase.repoCreds.TLSClientCertData, string(secret.Data["tlsClientCertData"]))
@@ -945,6 +957,7 @@ func TestRepoCredsToSecret(t *testing.T) {
 		GithubAppId:                123,
 		GithubAppInstallationId:    456,
 		GitHubAppEnterpriseBaseURL: "GitHubAppEnterpriseBaseURL",
+		EnableDirectPull:           true,
 	}
 	repoCredsToSecret(creds, s)
 	assert.Equal(t, []byte(creds.URL), s.Data["url"])
@@ -959,6 +972,7 @@ func TestRepoCredsToSecret(t *testing.T) {
 	assert.Equal(t, []byte(strconv.FormatInt(creds.GithubAppId, 10)), s.Data["githubAppID"])
 	assert.Equal(t, []byte(strconv.FormatInt(creds.GithubAppInstallationId, 10)), s.Data["githubAppInstallationID"])
 	assert.Equal(t, []byte(creds.GitHubAppEnterpriseBaseURL), s.Data["githubAppEnterpriseBaseUrl"])
+	assert.Equal(t, []byte(strconv.FormatBool(creds.EnableDirectPull)), s.Data["enableDirectPull"])
 	assert.Equal(t, map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD}, s.Annotations)
 	assert.Equal(t, map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds}, s.Labels)
 }

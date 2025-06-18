@@ -21,7 +21,6 @@ argocd-repo-server [flags]
       --disable-helm-manifest-max-extracted-size       Disable maximum size of helm manifest archives when extracted
       --disable-oci-manifest-max-extracted-size        Disable maximum size of oci manifest archives when extracted
       --disable-tls                                    Disable TLS on the gRPC endpoint
-      --helm-direct-pull                               Mode of helm pull by direct url
       --helm-manifest-max-extracted-size string        Maximum size of helm manifest archives when extracted (default "1G")
       --helm-registry-max-index-size string            Maximum size of registry index file (default "1G")
   -h, --help                                           help for argocd-repo-server

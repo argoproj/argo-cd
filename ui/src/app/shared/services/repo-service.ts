@@ -19,6 +19,7 @@ export interface HTTPSQuery {
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
     insecureOCIForceHttp: boolean;
+    enableDirectPull: boolean;
 }
 
 export interface SSHQuery {
@@ -109,7 +110,8 @@ export class RepositoriesService {
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
-                insecureOCIForceHttp: q.insecureOCIForceHttp
+                insecureOCIForceHttp: q.insecureOCIForceHttp,
+                enableDirectPull: q.enableDirectPull
             })
             .then(res => res.body as models.Repository);
     }
@@ -134,7 +136,8 @@ export class RepositoriesService {
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
-                insecureOCIForceHttp: q.insecureOCIForceHttp
+                insecureOCIForceHttp: q.insecureOCIForceHttp,
+                enableDirectPull: q.enableDirectPull
             })
             .then(res => res.body as models.Repository);
     }
@@ -159,7 +162,8 @@ export class RepositoriesService {
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
-                insecureOCIForceHttp: q.insecureOCIForceHttp
+                insecureOCIForceHttp: q.insecureOCIForceHttp,
+                enableDirectPull: q.enableDirectPull
             })
             .then(res => res.body as models.Repository);
     }
@@ -184,7 +188,8 @@ export class RepositoriesService {
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
-                insecureOCIForceHttp: q.insecureOCIForceHttp
+                insecureOCIForceHttp: q.insecureOCIForceHttp,
+                enableDirectPull: q.enableDirectPull
             })
             .then(res => res.body as models.Repository);
     }

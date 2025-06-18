@@ -57,6 +57,8 @@ type RepoCreds struct {
 	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
 	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
 	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
+	// EnableDirectPull specifies whether direct pull should be enabled
+	EnableDirectPull bool `json:"enableDirectPull,omitempty" protobuf:"bytes,27,opt,name=enableDirectPull"`
 }
 
 // Repository is a repository holding application configurations
@@ -114,6 +116,8 @@ type Repository struct {
 	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
 	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
 	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
+	// EnableDirectPull specifies whether direct pull should be enabled
+	EnableDirectPull bool `json:"enableDirectPull,omitempty" protobuf:"bytes,27,opt,name=enableDirectPull"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification or set to HTTP only
@@ -219,6 +223,7 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 			repo.Type = source.Type
 		}
 
+		repo.EnableDirectPull = source.EnableDirectPull
 		repo.EnableOCI = source.EnableOCI
 		repo.InsecureOCIForceHttp = source.InsecureOCIForceHttp
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
@@ -360,6 +365,7 @@ func (repo *Repository) Sanitized() *Repository {
 		GithubAppInstallationId:    repo.GithubAppInstallationId,
 		GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
 		UseAzureWorkloadIdentity:   repo.UseAzureWorkloadIdentity,
+		EnableDirectPull:           repo.EnableDirectPull,
 	}
 }
 

@@ -80,7 +80,6 @@ func NewCommand() *cobra.Command {
 		includeHiddenDirectories           bool
 		cmpUseManifestGeneratePaths        bool
 		ociMediaTypes                      []string
-		helmDirectPull                     bool
 	)
 	command := cobra.Command{
 		Use:               cliName,
@@ -156,7 +155,6 @@ func NewCommand() *cobra.Command {
 				IncludeHiddenDirectories:                     includeHiddenDirectories,
 				CMPUseManifestGeneratePaths:                  cmpUseManifestGeneratePaths,
 				OCIMediaTypes:                                ociMediaTypes,
-				HelmDirectPull:                               helmDirectPull,
 			}, askPassServer)
 			errors.CheckError(err)
 
@@ -266,7 +264,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&includeHiddenDirectories, "include-hidden-directories", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES", false), "Include hidden directories from Git")
 	command.Flags().BoolVar(&cmpUseManifestGeneratePaths, "plugin-use-manifest-generate-paths", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS", false), "Pass the resources described in argocd.argoproj.io/manifest-generate-paths value to the cmpserver to generate the application manifests.")
 	command.Flags().StringSliceVar(&ociMediaTypes, "oci-layer-media-types", env.StringsFromEnv("ARGOCD_REPO_SERVER_OCI_LAYER_MEDIA_TYPES", []string{"application/vnd.oci.image.layer.v1.tar", "application/vnd.oci.image.layer.v1.tar+gzip", "application/vnd.cncf.helm.chart.content.v1.tar+gzip"}, ","), "Comma separated list of allowed media types for OCI media types. This only accounts for media types within layers.")
-	command.Flags().BoolVar(&helmDirectPull, "helm-direct-pull", env.ParseBoolFromEnv("ARGOCD_HELM_DIRECT_PULL", false), "Mode of helm pull by direct url")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {
