@@ -218,7 +218,7 @@ type hydratorMetadataFile struct {
 	Author   string   `json:"author,omitempty"`
 	Date     string   `json:"date,omitempty"`
 	// Subject is the subject line of the DRY commit message, i.e. `git show --format=%s`.
-	Subject string `json:"message,omitempty"`
+	Subject string `json:"subject,omitempty"`
 	// Body is the body of the DRY commit message, excluding the subject line, i.e. `git show --format=%b`.
 	Body       string                       `json:"body,omitempty"`
 	References []v1alpha1.RevisionReference `json:"references,omitempty"`

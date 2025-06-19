@@ -178,6 +178,63 @@ status:
     status: Healthy
 `
 
+const fakeAppOperationRunning = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+  namespace: argocd
+  labels:
+    team-name: my-team
+    team-bu: bu-id
+    argoproj.io/cluster: test-cluster
+spec:
+  destination:
+    namespace: dummy-namespace
+    name: cluster1
+  project: important-project
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+status:
+  sync:
+    status: OutOfSync
+  health:
+    status: Progressing
+  operationState:
+    phase: Running
+    startedAt: "2025-01-29T08:42:34Z"
+`
+
+const fakeAppOperationFinished = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+  namespace: argocd
+  labels:
+    team-name: my-team
+    team-bu: bu-id
+    argoproj.io/cluster: test-cluster
+spec:
+  destination:
+    namespace: dummy-namespace
+    name: cluster1
+  project: important-project
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+status:
+  sync:
+    status: Synced
+  health:
+    status: Healthy
+  operationState:
+    phase: Succeeded
+    startedAt: "2025-01-29T08:42:34Z"
+    finishedAt: "2025-01-29T08:42:35Z"
+`
+
 var noOpHealthCheck = func(_ *http.Request) error {
 	return nil
 }
@@ -276,7 +333,7 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 		metricsServ.registry.MustRegister(collector)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", http.NoBody)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -436,7 +493,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name=
 	metricsServ.IncSync(fakeApp, "https://localhost:6443", &argoappv1.OperationState{Phase: common.OperationSucceeded})
 	metricsServ.IncSync(fakeApp, "https://localhost:6443", &argoappv1.OperationState{Phase: common.OperationSucceeded})
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", http.NoBody)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -468,6 +525,47 @@ func assertMetricsNotPrinted(t *testing.T, expectedLines, body string) {
 	}
 }
 
+func TestMetricsSyncDuration(t *testing.T) {
+	cancel, appLister := newFakeLister()
+	defer cancel()
+	mockDB := mocks.NewArgoDB(t)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	require.NoError(t, err)
+
+	t.Run("metric is not generated during Operation Running.", func(t *testing.T) {
+		fakeAppOperationRunning := newFakeApp(fakeAppOperationRunning)
+		metricsServ.IncAppSyncDuration(fakeAppOperationRunning, "https://localhost:6443", fakeAppOperationRunning.Status.OperationState)
+
+		req, err := http.NewRequest(http.MethodGet, "/metrics", http.NoBody)
+		require.NoError(t, err)
+		rr := httptest.NewRecorder()
+		metricsServ.Handler.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Code)
+		body := rr.Body.String()
+		log.Println(body)
+		assertMetricsNotPrinted(t, "argocd_app_sync_duration_seconds_total", body)
+	})
+
+	t.Run("metric is created when Operation Finished.", func(t *testing.T) {
+		fakeAppOperationFinished := newFakeApp(fakeAppOperationFinished)
+		metricsServ.IncAppSyncDuration(fakeAppOperationFinished, "https://localhost:6443", fakeAppOperationFinished.Status.OperationState)
+
+		req, err := http.NewRequest(http.MethodGet, "/metrics", http.NoBody)
+		require.NoError(t, err)
+		rr := httptest.NewRecorder()
+		metricsServ.Handler.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Code)
+		body := rr.Body.String()
+		appSyncDurationTotal := `
+# HELP argocd_app_sync_duration_seconds_total Application sync performance in seconds total.
+# TYPE argocd_app_sync_duration_seconds_total counter
+argocd_app_sync_duration_seconds_total{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project"} 1
+`
+		log.Println(body)
+		assertMetricsPrinted(t, appSyncDurationTotal, body)
+	})
+}
+
 func TestReconcileMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
@@ -492,7 +590,7 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 	fakeApp := newFakeApp(fakeApp)
 	metricsServ.IncReconcile(fakeApp, "https://localhost:6443", 5*time.Second)
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", http.NoBody)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -518,7 +616,7 @@ argocd_app_orphaned_resources_count{name="my-app-4",namespace="argocd",project="
 	numOrphanedResources := 1
 	metricsServ.SetOrphanedResourcesMetric(app, numOrphanedResources)
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", http.NoBody)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -543,7 +641,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name=
 argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name="my-app",namespace="argocd",phase="Succeeded",project="important-project"} 2
 `
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", http.NoBody)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -554,7 +652,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name=
 	err = metricsServ.SetExpiration(time.Second)
 	require.NoError(t, err)
 	time.Sleep(2 * time.Second)
-	req, err = http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err = http.NewRequest(http.MethodGet, "/metrics", http.NoBody)
 	require.NoError(t, err)
 	rr = httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -587,7 +685,7 @@ workqueue_unfinished_work_seconds{controller="test",name="test"}
 `
 	workqueue.NewNamed("test")
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", http.NoBody)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
@@ -620,7 +718,7 @@ go_memstats_sys_bytes
 go_threads
 `
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest(http.MethodGet, "/metrics", http.NoBody)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)

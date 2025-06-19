@@ -507,19 +507,19 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		require.Len(t, patchedTargets, 1)
 
 		// live should have 1 entry
-		require.Len(t, dig[[]any](f.comparisonResult.reconciliationResult.Live[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"}), 1)
+		require.Len(t, dig(f.comparisonResult.reconciliationResult.Live[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"), 1)
 		// assert some arbitrary field to show `entries[0]` is not an empty object
-		require.Equal(t, "sample-header", dig[string](f.comparisonResult.reconciliationResult.Live[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeader", "headerName"}))
+		require.Equal(t, "sample-header", dig(f.comparisonResult.reconciliationResult.Live[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeader", "headerName"))
 
 		// target has 2 entries
-		require.Len(t, dig[[]any](f.comparisonResult.reconciliationResult.Target[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries"}), 2)
+		require.Len(t, dig(f.comparisonResult.reconciliationResult.Target[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries"), 2)
 		// assert some arbitrary field to show `entries[0]` is not an empty object
-		require.Equal(t, "sample-header", dig[string](f.comparisonResult.reconciliationResult.Target[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeaderValueMatch", "headers", 0, "name"}))
+		require.Equal(t, "sample-header", dig(f.comparisonResult.reconciliationResult.Target[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeaderValueMatch", "headers", 0, "name"))
 
 		// It should be *1* entries in the array
-		require.Len(t, dig[[]any](patchedTargets[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"}), 1)
+		require.Len(t, dig(patchedTargets[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"), 1)
 		// and it should NOT equal an empty object
-		require.Len(t, dig[any](patchedTargets[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0}), 1)
+		require.Len(t, dig(patchedTargets[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0), 1)
 	})
 	t.Run("will correctly set array entries if new entries have been added", func(t *testing.T) {
 		// given
@@ -1286,8 +1286,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 				Name:      "default",
 			},
 			Spec: v1alpha1.AppProjectSpec{
-				DestinationServiceAccounts: []v1alpha1.
-					ApplicationDestinationServiceAccount{
+				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
 					{
 						Server:                "https://localhost:6443",
 						Namespace:             destinationNamespace,
@@ -1516,19 +1515,19 @@ func TestClientSideApplyMigration(t *testing.T) {
 	})
 }
 
-func dig[T any](obj any, path []any) T {
+func dig(obj any, path ...any) any {
 	i := obj
 
 	for _, segment := range path {
-		switch segment.(type) {
+		switch segment := segment.(type) {
 		case int:
-			i = i.([]any)[segment.(int)]
+			i = i.([]any)[segment]
 		case string:
-			i = i.(map[string]any)[segment.(string)]
+			i = i.(map[string]any)[segment]
 		default:
 			panic("invalid path for object")
 		}
 	}
 
-	return i.(T)
+	return i
 }
