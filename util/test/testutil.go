@@ -215,13 +215,13 @@ func oidcMockHandler(t *testing.T, url string, tokenRequestPreHandler func(r *ht
 	}
 }
 
-func GetOIDCTestServer(t *testing.T) *httptest.Server {
+func GetOIDCTestServer(t *testing.T, tokenRequestPreHandler func(r *http.Request)) *httptest.Server {
 	t.Helper()
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		// Start with a placeholder. We need the server URL before setting up the real handler.
 	}))
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		oidcMockHandler(t, ts.URL, nil)(w, r)
+		oidcMockHandler(t, ts.URL, tokenRequestPreHandler)(w, r)
 	})
 	return ts
 }
@@ -258,14 +258,19 @@ func mockTokenEndpointResponse(issuer string) (TokenResponse, error) {
 
 // Helper function to generate a JWT token
 func generateJWTToken(issuer string) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+	token := jwt.NewWithClaims(jwt.SigningMethodRS512, jwt.MapClaims{
 		"sub":  "1234567890",
+		"aud":  "test-client-id",
 		"name": "John Doe",
 		"iat":  time.Now().Unix(),
 		"iss":  issuer,
 		"exp":  time.Now().Add(time.Hour).Unix(), // Set the expiration time
 	})
-	tokenString, err := token.SignedString([]byte("secret"))
+	key, err := jwt.ParseRSAPrivateKeyFromPEM(PrivateKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse RSA private key: %w", err)
+	}
+	tokenString, err := token.SignedString(key)
 	if err != nil {
 		return "", err
 	}

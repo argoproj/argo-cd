@@ -276,7 +276,7 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 	// See TestRenderTemplateParamsFinalizers in util_test.go for test-based definition of behaviour
 	if (syncPolicy == nil || !syncPolicy.PreserveResourcesOnDeletion) &&
 		len(replacedTmpl.Finalizers) == 0 {
-		replacedTmpl.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
+		replacedTmpl.Finalizers = []string{argoappsv1.ResourcesFinalizerName}
 	}
 
 	return replacedTmpl, nil

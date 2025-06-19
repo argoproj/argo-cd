@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -29,6 +28,7 @@ import (
 	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
+	"github.com/argoproj/argo-cd/v3/controller/syncid"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	listersv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
@@ -38,10 +38,7 @@ import (
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
 	"github.com/argoproj/argo-cd/v3/util/lua"
-	"github.com/argoproj/argo-cd/v3/util/rand"
 )
-
-var syncIdPrefix uint64
 
 const (
 	// EnvVarSyncWaveDelay is an environment variable which controls the delay in seconds between
@@ -96,6 +93,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult field.
 	// This ensures that when resuming an operation, we sync to the same revision that we initially
 	// started with.
+
 	var revision string
 	var syncOp v1alpha1.SyncOperation
 	var syncRes *v1alpha1.SyncOperationResult
@@ -248,15 +246,12 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	atomic.AddUint64(&syncIdPrefix, 1)
-	randSuffix, err := rand.String(5)
+	syncId, err := syncid.Generate()
 	if err != nil {
 		state.Phase = common.OperationError
-		state.Message = fmt.Sprintf("Failed generate random sync ID: %v", err)
+		state.Message = fmt.Sprintf("Failed to generate sync ID: %v", err)
 		return
 	}
-	syncId := fmt.Sprintf("%05d-%s", syncIdPrefix, randSuffix)
-
 	logEntry := log.WithFields(applog.GetAppLogFields(app)).WithField("syncId", syncId)
 	initialResourcesRes := make([]common.ResourceSyncResult, len(syncRes.Resources))
 	for i, res := range syncRes.Resources {

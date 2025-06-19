@@ -180,7 +180,8 @@ func (db *db) listRepositories(ctx context.Context, repoType *string, writeCreds
 	if err != nil {
 		return nil, err
 	}
-	if err = db.enrichCredsToRepos(ctx, repositories); err != nil {
+	err = db.enrichCredsToRepos(ctx, repositories)
+	if err != nil {
 		return nil, err
 	}
 

@@ -752,35 +752,35 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 		},
 		{
 			testName:           "background finalizer should be preserved",
-			existingFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
+			existingFinalizers: []string{argoappsv1.BackgroundPropagationPolicyFinalizer},
 			syncPolicy:         nil,
-			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
+			expectedFinalizers: []string{argoappsv1.BackgroundPropagationPolicyFinalizer},
 		},
 
 		{
 			testName:           "empty finalizer and empty sync should use standard finalizer",
 			existingFinalizers: nil,
 			syncPolicy:         nil,
-			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			expectedFinalizers: []string{argoappsv1.ResourcesFinalizerName},
 		},
 
 		{
 			testName:           "standard finalizer should be preserved",
-			existingFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			existingFinalizers: []string{argoappsv1.ResourcesFinalizerName},
 			syncPolicy:         nil,
-			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			expectedFinalizers: []string{argoappsv1.ResourcesFinalizerName},
 		},
 		{
 			testName:           "empty array finalizers should use standard finalizer",
 			existingFinalizers: []string{},
 			syncPolicy:         nil,
-			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			expectedFinalizers: []string{argoappsv1.ResourcesFinalizerName},
 		},
 		{
 			testName:           "non-nil sync policy should use standard finalizer",
 			existingFinalizers: nil,
 			syncPolicy:         &argoappsv1.ApplicationSetSyncPolicy{},
-			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			expectedFinalizers: []string{argoappsv1.ResourcesFinalizerName},
 		},
 		{
 			testName:           "preserveResourcesOnDeletion should not have a finalizer",
@@ -792,11 +792,11 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 		},
 		{
 			testName:           "user-specified finalizer should overwrite preserveResourcesOnDeletion",
-			existingFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
+			existingFinalizers: []string{argoappsv1.BackgroundPropagationPolicyFinalizer},
 			syncPolicy: &argoappsv1.ApplicationSetSyncPolicy{
 				PreserveResourcesOnDeletion: true,
 			},
-			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
+			expectedFinalizers: []string{argoappsv1.BackgroundPropagationPolicyFinalizer},
 		},
 	} {
 		t.Run(c.testName, func(t *testing.T) {
