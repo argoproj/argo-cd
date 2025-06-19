@@ -103,9 +103,47 @@ func TestLoadRedisCredsFromFile(t *testing.T) {
 	writeFile("sentinel_username", "sentineluser")
 	writeFile("sentinel_auth", "sentinelpass")
 
-	creds := loadRedisCredsFromFile(dir)
+	creds := loadRedisCredsFromSecret(dir, Options{})
 	assert.Equal(t, "mypassword", creds.password)
 	assert.Equal(t, "myuser", creds.username)
 	assert.Equal(t, "sentineluser", creds.sentinelUsername)
 	assert.Equal(t, "sentinelpass", creds.sentinelPassword)
+}
+func TestLoadRedisCredsFromEnv(t *testing.T) {
+	// Set environment variables
+	t.Setenv(envRedisPassword, "mypassword")
+	t.Setenv(envRedisUsername, "myuser")
+	t.Setenv(envRedisSentinelUsername, "sentineluser")
+	t.Setenv(envRedisSentinelPassword, "sentinelpass")
+
+	creds := loadRedisCredsFromSecret("", Options{})
+	assert.Equal(t, "mypassword", creds.password)
+	assert.Equal(t, "myuser", creds.username)
+	assert.Equal(t, "sentineluser", creds.sentinelUsername)
+	assert.Equal(t, "sentinelpass", creds.sentinelPassword)
+}
+
+func TestLoadRedisCredsFromBothEnvAndFile(t *testing.T) {
+	// Set environment variables
+	t.Setenv(envRedisPassword, "mypassword")
+	t.Setenv(envRedisUsername, "myuser")
+	t.Setenv(envRedisSentinelUsername, "sentineluser")
+	t.Setenv(envRedisSentinelPassword, "sentinelpass")
+
+	dir := t.TempDir()
+	// Helper to write a file
+	writeFile := func(name, content string) {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0600))
+	}
+	// Write all files
+	writeFile("auth", "filepassword\n")
+	writeFile("auth_username", "fileuser")
+	writeFile("sentinel_username", "filesentineluser")
+	writeFile("sentinel_auth", "filesentinelpass")
+
+	creds := loadRedisCredsFromSecret(dir, Options{})
+	assert.Equal(t, "filepassword", creds.password)
+	assert.Equal(t, "fileuser", creds.username)
+	assert.Equal(t, "filesentineluser", creds.sentinelUsername)
+	assert.Equal(t, "filesentinelpass", creds.sentinelPassword)
 }
