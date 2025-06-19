@@ -21,11 +21,11 @@ builds:
       - -X github.com/argoproj/argo-cd/v3/common.gitCommit={{ .FullCommit }}
       - -X github.com/argoproj/argo-cd/v3/common.gitTreeState={{ .Env.GIT_TREE_STATE }}
       - -X github.com/argoproj/argo-cd/v3/common.kubectlVersion={{ .Env.KUBECTL_VERSION }}
-      - -extldflags="-static"
+      - '{{ if or (eq .Runtime.Goos "linux") (eq .Runtime.Goos "windows") }}-extldflags="-static"{{ end }}'
     goos:
       - linux
-      - darwin
       - windows
+      - darwin
     goarch:
       - amd64
       - arm64
@@ -42,6 +42,15 @@ builds:
         goarch: ppc64le
       - goos: windows
         goarch: arm64
+    overrides:
+      - goos: darwin
+        goarch: amd64
+        env:
+          - CGO_ENABLED=1
+      - goos: darwin
+        goarch: arm64
+        env:
+          - CGO_ENABLED=1
 
 archives:
   - id: argocd-archive
@@ -49,7 +58,7 @@ archives:
       - argocd-cli
     name_template: |-
       {{ .ProjectName }}-{{ .Os }}-{{ .Arch }}
-    formats: [binary]
+    formats: [ binary ]
 
 checksum:
   name_template: 'cli_checksums.txt'

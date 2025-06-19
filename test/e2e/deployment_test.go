@@ -238,18 +238,18 @@ func buildArgoCDClusterSecret(secretName, secretNamespace, clusterName, clusterS
 			},
 		},
 		Data: map[string][]byte{
-			"name":   ([]byte)(clusterName),
-			"server": ([]byte)(clusterServer),
-			"config": ([]byte)(string(clusterConfigJSON)),
+			"name":   []byte(clusterName),
+			"server": []byte(clusterServer),
+			"config": []byte(string(clusterConfigJSON)),
 		},
 	}
 
 	if clusterResources != "" {
-		res.Data["clusterResources"] = ([]byte)(clusterResources)
+		res.Data["clusterResources"] = []byte(clusterResources)
 	}
 
 	if clusterNamespaces != "" {
-		res.Data["namespaces"] = ([]byte)(clusterNamespaces)
+		res.Data["namespaces"] = []byte(clusterNamespaces)
 	}
 
 	return res
@@ -393,20 +393,18 @@ func extractKubeConfigValues() (string, string, error) {
 	var kubeConfigDefault string
 
 	paths := loadingRules.Precedence
-	{
-		// For all the kubeconfig paths, look for one that exists
-		for _, path := range paths {
-			_, err = os.Stat(path)
-			if err == nil {
-				// Success
-				kubeConfigDefault = path
-				break
-			} // Otherwise, continue.
-		}
+	// For all the kubeconfig paths, look for one that exists
+	for _, path := range paths {
+		_, err = os.Stat(path)
+		if err == nil {
+			// Success
+			kubeConfigDefault = path
+			break
+		} // Otherwise, continue.
+	}
 
-		if kubeConfigDefault == "" {
-			return "", "", stderrors.New("unable to retrieve kube config path")
-		}
+	if kubeConfigDefault == "" {
+		return "", "", stderrors.New("unable to retrieve kube config path")
 	}
 
 	kubeConfigContents, err := os.ReadFile(kubeConfigDefault)

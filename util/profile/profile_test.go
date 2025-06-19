@@ -40,9 +40,7 @@ func TestRegisterProfile_FileExist(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
-	defer func() {
-		enableProfilerFilePath = oldVal
-		_ = f.Close()
-		_ = os.Remove(f.Name())
-	}()
+	enableProfilerFilePath = oldVal
+	_ = f.Close()
+	_ = os.Remove(f.Name())
 }
