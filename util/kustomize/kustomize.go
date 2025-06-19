@@ -24,8 +24,6 @@ import (
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
-
-	securejoin "github.com/cyphar/filepath-securejoin"
 )
 
 // Image represents a Docker image in the format NAME[:TAG].
@@ -346,12 +344,18 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			foundComponents := opts.Components
 			if opts.IgnoreMissingComponents {
 				foundComponents = make([]string, 0)
+				root, err := os.OpenRoot(k.repoRoot)
+				if err != nil {
+					return nil, nil, nil, fmt.Errorf("failed to open the repo folder: %w", err)
+				}
+
 				for _, c := range opts.Components {
-					resolvedPath, err := securejoin.SecureJoin(k.path, c)
+					resolvedPath, err := filepath.Rel(k.repoRoot, filepath.Join(k.path, c))
 					if err != nil {
-						return nil, nil, nil, fmt.Errorf("Kustomize components path failed: %w", err)
+						log.Debugf("failed to relativize path: %s", err)
+						continue
 					}
-					_, err = os.Stat(resolvedPath)
+					_, err = root.Stat(resolvedPath)
 					if err != nil {
 						log.Debugf("%s component directory does not exist", resolvedPath)
 						continue
