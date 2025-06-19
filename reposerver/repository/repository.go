@@ -175,6 +175,28 @@ func (s *Service) Init() error {
 		fullPath := filepath.Join(s.rootDir, file.Name())
 		closer := s.gitRepoInitializer(fullPath)
 		if repo, err := gogit.PlainOpen(fullPath); err == nil {
+			indexFile := filepath.Join(fullPath, ".git", "index")
+			indexLockFile := filepath.Join(fullPath, ".git", "index.lock")
+			if _, err = os.Stat(indexLockFile); err == nil {
+				log.Warnf("Lock file present in git repository %s, removing it", fullPath)
+				if err = os.Remove(indexLockFile); err != nil {
+					log.Errorf("Failed to remove lock file %s: %v", indexLockFile, err)
+				}
+				if err = os.Remove(indexFile); err != nil {
+					log.Errorf("Failed to remove index file %s: %v", indexFile, err)
+				}
+
+				wt, _ := repo.Worktree()
+				headRef, _ := repo.Head()
+				err = wt.Reset(&gogit.ResetOptions{
+					Mode:   gogit.MixedReset,
+					Commit: headRef.Hash(),
+				})
+				if err != nil {
+					log.Errorf("Failed to reset git repo %s: %v", fullPath, err)
+				}
+			}
+
 			if remotes, err := repo.Remotes(); err == nil && len(remotes) > 0 && len(remotes[0].Config().URLs) > 0 {
 				s.gitRepoPaths.Add(git.NormalizeGitURL(remotes[0].Config().URLs[0]), fullPath)
 			}

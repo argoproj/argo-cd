@@ -3050,6 +3050,21 @@ func TestInit(t *testing.T) {
 	_, err := os.ReadDir(dir)
 	require.Error(t, err)
 	initGitRepo(t, newGitRepoOptions{path: path.Join(dir, "repo2"), remote: "https://github.com/argo-cd/test-repo2", createPath: true, addEmptyCommit: false})
+
+	repoPath = path.Join(dir, "repo3")
+	lockFile := path.Join(repoPath, ".git", "index.lock")
+	initGitRepo(t, newGitRepoOptions{path: repoPath, remote: "https://github.com/argo-cd/test-repo3", createPath: true, addEmptyCommit: false})
+	require.NoError(t, os.WriteFile(lockFile, []byte("test"), 0o644))
+
+	service = newService(t, ".")
+	service.rootDir = dir
+
+	_, err = os.Stat(lockFile)
+	require.NoError(t, err)
+	require.NoError(t, service.Init())
+	_, err = os.Stat(lockFile)
+	require.Error(t, err, "lock file should be removed after Init()")
+	require.ErrorContains(t, err, ".git/index.lock: no such file or directory")
 }
 
 // TestCheckoutRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
