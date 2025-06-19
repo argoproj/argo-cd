@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/argoproj/argo-cd/v3/util/io"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -345,6 +346,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			if opts.IgnoreMissingComponents {
 				foundComponents = make([]string, 0)
 				root, err := os.OpenRoot(k.repoRoot)
+				defer io.Close(root)
 				if err != nil {
 					return nil, nil, nil, fmt.Errorf("failed to open the repo folder: %w", err)
 				}
