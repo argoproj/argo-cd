@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -24,7 +25,7 @@ const (
 	// envRedisPassword is an env variable name which stores redis password
 	envRedisPassword = "REDIS_PASSWORD"
 	// envRedisUsername is an env variable name which stores redis username (for acl setup)
-	envRedisUsername = "REDIS_USERNAME"
+	envRedisUsername = "REDIS_PASSWORD"
 	// envRedisRetryCount is an env variable name which stores redis retry count
 	envRedisRetryCount = "REDIS_RETRY_COUNT"
 	// defaultRedisRetryCount holds default number of retries
@@ -33,12 +34,21 @@ const (
 	envRedisSentinelPassword = "REDIS_SENTINEL_PASSWORD"
 	// envRedisSentinelUsername is an env variable name which stores redis sentinel username
 	envRedisSentinelUsername = "REDIS_SENTINEL_USERNAME"
+	// envRedisCredsFilePath is an env variable name which stores path to redis credentials file
+	envRedisCredsFilePath = "REDIS_CREDS_FILE_PATH"
 )
 
 const (
 	// CLIFlagRedisCompress is a cli flag name to define the redis compression setting for data sent to redis
 	CLIFlagRedisCompress = "redis-compress"
 )
+
+type RedisCreds struct {
+	Password         string
+	Username         string
+	SentinelUsername string
+	SentinelPassword string
+}
 
 func NewCache(client CacheClient) *Cache {
 	return &Cache{client}
@@ -129,6 +139,27 @@ func getFlagVal[T any](cmd *cobra.Command, o Options, name string, getVal func(n
 	}
 }
 
+// loadRedisCredsFromSecret loads Redis credentials from a file mounted at the specified path.
+func loadRedisCredsFromSecret(mountPath string) *RedisCreds {
+	creds := &RedisCreds{}
+	readAuthDetailsFromFile := func(filename string) string {
+		data, err := os.ReadFile(filepath.Join(mountPath, filename))
+		if err != nil {
+			log.WithFields(log.Fields{
+				"file":  filename,
+				"error": err,
+			}).Warn("Unable to read Redis credential from file; falling back to environment variables")
+			return ""
+		}
+		return strings.TrimSpace(string(data))
+	}
+	creds.Password = readAuthDetailsFromFile("auth")
+	creds.Username = readAuthDetailsFromFile("auth_username")
+	creds.SentinelUsername = readAuthDetailsFromFile("sentinel_username")
+	creds.SentinelPassword = readAuthDetailsFromFile("sentinel_auth")
+	return creds
+}
+
 // AddCacheFlagsToCmd adds flags which control caching to the specified command
 func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, error) {
 	redisAddress := ""
@@ -206,25 +237,56 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 				}
 			}
 		}
-		password := os.Getenv(envRedisPassword)
-		username := os.Getenv(envRedisUsername)
-		sentinelUsername := os.Getenv(envRedisSentinelUsername)
-		sentinelPassword := os.Getenv(envRedisSentinelPassword)
+		var password, username, sentinelUsername, sentinelPassword string
+		credsFilePath := os.Getenv(envRedisCredsFilePath)
 		if opt.FlagPrefix != "" {
-			if val := os.Getenv(opt.getEnvPrefix() + envRedisUsername); val != "" {
-				username = val
-			}
-			if val := os.Getenv(opt.getEnvPrefix() + envRedisPassword); val != "" {
-				password = val
-			}
-			if val := os.Getenv(opt.getEnvPrefix() + envRedisSentinelUsername); val != "" {
-				sentinelUsername = val
-			}
-			if val := os.Getenv(opt.getEnvPrefix() + envRedisSentinelPassword); val != "" {
-				sentinelPassword = val
+			if val := os.Getenv(opt.getEnvPrefix() + envRedisCredsFilePath); val != "" {
+				credsFilePath = val
 			}
 		}
-
+		// Try to read credentials from the file first
+		if credsFilePath != "" {
+			log.Info("Loading Redis credentials from file: ", credsFilePath)
+			creds := loadRedisCredsFromSecret(credsFilePath)
+			password = creds.Password
+			username = creds.Username
+			sentinelUsername = creds.SentinelUsername
+			sentinelPassword = creds.SentinelPassword
+		}
+		// If credentials were not successfully loaded from file, or if file path was not provided,
+		// then read from individual environment variables. Environment variables also override file if specified via flag.
+		if username == "" { // Only fall back if not set by file
+			username = os.Getenv(envRedisUsername)
+			if opt.FlagPrefix != "" {
+				if val := os.Getenv(opt.getEnvPrefix() + envRedisUsername); val != "" {
+					username = val
+				}
+			}
+		}
+		if password == "" { // Only fall back if not set by file
+			password = os.Getenv(envRedisPassword)
+			if opt.FlagPrefix != "" {
+				if val := os.Getenv(opt.getEnvPrefix() + envRedisPassword); val != "" {
+					password = val
+				}
+			}
+		}
+		if sentinelUsername == "" { // Only fall back if not set by file
+			sentinelUsername = os.Getenv(envRedisSentinelUsername)
+			if opt.FlagPrefix != "" {
+				if val := os.Getenv(opt.getEnvPrefix() + envRedisSentinelUsername); val != "" {
+					sentinelUsername = val
+				}
+			}
+		}
+		if sentinelPassword == "" { // Only fall back if not set by file
+			sentinelPassword = os.Getenv(envRedisSentinelPassword)
+			if opt.FlagPrefix != "" {
+				if val := os.Getenv(opt.getEnvPrefix() + envRedisSentinelPassword); val != "" {
+					sentinelPassword = val
+				}
+			}
+		}
 		maxRetries := env.ParseNumFromEnv(envRedisRetryCount, defaultRedisRetryCount, 0, math.MaxInt32)
 		compression, err := CompressionTypeFromString(compressionStr)
 		if err != nil {
