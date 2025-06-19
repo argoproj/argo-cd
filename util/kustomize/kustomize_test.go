@@ -533,7 +533,7 @@ func TestKustomizeBuildComponentsMonoRepo(t *testing.T) {
 	replicas, ok, err := unstructured.NestedSlice(obj.Object, "spec", "template", "spec", "tolerations")
 	require.NoError(t, err)
 	require.True(t, ok)
-	require.Equal(t, 1, len(replicas))
+	require.Len(t, replicas, 1)
 	require.Equal(t, "my-special-toleration", replicas[0].(map[string]any)["key"])
 	require.Equal(t, "Exists", replicas[0].(map[string]any)["operator"])
 }
