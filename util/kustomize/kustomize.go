@@ -13,8 +13,9 @@ import (
 	"sync"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/argoproj/argo-cd/v3/util/io"
 	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-cd/v3/util/io"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
