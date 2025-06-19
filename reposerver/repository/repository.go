@@ -186,12 +186,15 @@ func (s *Service) Init() error {
 					log.Errorf("Failed to remove index file %s: %v", indexFile, err)
 				}
 
-				wt, _ := repo.Worktree()
-				headRef, _ := repo.Head()
-				err = wt.Reset(&gogit.ResetOptions{
-					Mode:   gogit.MixedReset,
-					Commit: headRef.Hash(),
-				})
+				if err == nil {
+					wt, _ := repo.Worktree()
+					headRef, _ := repo.Head()
+					err = wt.Reset(&gogit.ResetOptions{
+						Mode:   gogit.MixedReset,
+						Commit: headRef.Hash(),
+					})
+				}
+
 				if err != nil {
 					log.Errorf("Failed to reset git repo %s: %v", fullPath, err)
 				}
