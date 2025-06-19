@@ -95,7 +95,7 @@ func TestLoadRedisCredsFromFile(t *testing.T) {
 	dir := t.TempDir()
 	// Helper to write a file
 	writeFile := func(name, content string) {
-		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0600))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o400))
 	}
 	// Write all files
 	writeFile("auth", "mypassword\n")
@@ -109,6 +109,7 @@ func TestLoadRedisCredsFromFile(t *testing.T) {
 	assert.Equal(t, "sentineluser", creds.sentinelUsername)
 	assert.Equal(t, "sentinelpass", creds.sentinelPassword)
 }
+
 func TestLoadRedisCredsFromEnv(t *testing.T) {
 	// Set environment variables
 	t.Setenv(envRedisPassword, "mypassword")
@@ -133,7 +134,7 @@ func TestLoadRedisCredsFromBothEnvAndFile(t *testing.T) {
 	dir := t.TempDir()
 	// Helper to write a file
 	writeFile := func(name, content string) {
-		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0600))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o400))
 	}
 	// Write all files
 	writeFile("auth", "filepassword\n")
