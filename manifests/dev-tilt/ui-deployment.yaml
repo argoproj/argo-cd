@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-ui
+spec:
+  selector:
+    matchLabels:
+      app: argocd-ui
+  template:
+    metadata:
+      labels:
+        app: argocd-ui
+    spec:
+      containers:
+        - name: argocd-ui
+          image: argocd-ui
+          env:
+            - name: ARGOCD_API_URL
+              value: https://argocd-server
+            - name: ARGOCD_E2E_YARN_HOST
+              value: "0.0.0.0"
+          ports:
+            - containerPort: 4000
+              name: http

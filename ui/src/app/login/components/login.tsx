@@ -1,4 +1,4 @@
-import {FormField, NotificationType} from 'argo-ui';
+import {FormField} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Form, Text} from 'react-form';
@@ -7,7 +7,6 @@ import {RouteComponentProps} from 'react-router';
 import {AppContext} from '../../shared/context';
 import {AuthSettings} from '../../shared/models';
 import {services} from '../../shared/services';
-import {getPKCERedirectURI, pkceLogin} from './utils';
 
 require('./login.scss');
 
@@ -62,18 +61,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                     </div>
                     {ssoConfigured && (
                         <div className='login__box_saml width-control'>
-                            <a
-                                {...(authSettings?.oidcConfig?.enablePKCEAuthentication
-                                    ? {
-                                          onClick: () =>
-                                              pkceLogin(authSettings.oidcConfig, getPKCERedirectURI().toString()).catch(err => {
-                                                  this.appContext.apis.notifications.show({
-                                                      type: NotificationType.Error,
-                                                      content: err?.message || JSON.stringify(err)
-                                                  });
-                                              })
-                                      }
-                                    : {href: `auth/login?return_url=${encodeURIComponent(this.state.returnUrl)}`})}>
+                            <a href={`auth/login?return_url=${encodeURIComponent(this.state.returnUrl)}`}>
                                 <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
                                     {(authSettings.oidcConfig && <span>Log in via {authSettings.oidcConfig.name}</span>) ||
                                         (authSettings.dexConfig.connectors.length === 1 && <span>Log in via {authSettings.dexConfig.connectors[0].name}</span>) || (
