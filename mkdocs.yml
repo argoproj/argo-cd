@@ -39,6 +39,7 @@ nav:
     - operator-manual/user-management/onelogin.md
     - operator-manual/user-management/keycloak.md
     - operator-manual/user-management/openunison.md
+    - operator-manual/user-management/github-actions.md
     - operator-manual/user-management/google.md
     - operator-manual/user-management/zitadel.md
     - operator-manual/user-management/identity-center.md
