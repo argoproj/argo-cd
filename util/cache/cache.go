@@ -43,11 +43,11 @@ const (
 	CLIFlagRedisCompress = "redis-compress"
 )
 
-type RedisCreds struct {
-	Password         string
-	Username         string
-	SentinelUsername string
-	SentinelPassword string
+type redisCreds struct {
+	password         string
+	username         string
+	sentinelUsername string
+	sentinelPassword string
 }
 
 func NewCache(client CacheClient) *Cache {
@@ -139,24 +139,20 @@ func getFlagVal[T any](cmd *cobra.Command, o Options, name string, getVal func(n
 	}
 }
 
-// loadRedisCredsFromSecret loads Redis credentials from a file mounted at the specified path.
-func loadRedisCredsFromSecret(mountPath string) *RedisCreds {
-	creds := &RedisCreds{}
+// loadRedisCredsFromFile loads Redis credentials from a file mounted at the specified path.
+func loadRedisCredsFromFile(mountPath string) *redisCreds {
+	creds := &redisCreds{}
 	readAuthDetailsFromFile := func(filename string) string {
 		data, err := os.ReadFile(filepath.Join(mountPath, filename))
 		if err != nil {
-			log.WithFields(log.Fields{
-				"file":  filename,
-				"error": err,
-			}).Warn("Unable to read Redis credential from file; falling back to environment variables")
 			return ""
 		}
 		return strings.TrimSpace(string(data))
 	}
-	creds.Password = readAuthDetailsFromFile("auth")
-	creds.Username = readAuthDetailsFromFile("auth_username")
-	creds.SentinelUsername = readAuthDetailsFromFile("sentinel_username")
-	creds.SentinelPassword = readAuthDetailsFromFile("sentinel_auth")
+	creds.password = readAuthDetailsFromFile("auth")
+	creds.username = readAuthDetailsFromFile("auth_username")
+	creds.sentinelUsername = readAuthDetailsFromFile("sentinel_username")
+	creds.sentinelPassword = readAuthDetailsFromFile("sentinel_auth")
 	return creds
 }
 
@@ -247,11 +243,11 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 		// Try to read credentials from the file first
 		if credsFilePath != "" {
 			log.Info("Loading Redis credentials from file: ", credsFilePath)
-			creds := loadRedisCredsFromSecret(credsFilePath)
-			password = creds.Password
-			username = creds.Username
-			sentinelUsername = creds.SentinelUsername
-			sentinelPassword = creds.SentinelPassword
+			creds := loadRedisCredsFromFile(credsFilePath)
+			password = creds.password
+			username = creds.username
+			sentinelUsername = creds.sentinelUsername
+			sentinelPassword = creds.sentinelPassword
 		}
 		// If credentials were not successfully loaded from file, or if file path was not provided,
 		// then read from individual environment variables. Environment variables also override file if specified via flag.
