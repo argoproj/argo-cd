@@ -352,8 +352,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				for _, c := range opts.Components {
 					resolvedPath, err := filepath.Rel(k.repoRoot, filepath.Join(k.path, c))
 					if err != nil {
-						log.Debugf("failed to relativize path: %s", err)
-						continue
+						return nil, nil, nil, fmt.Errorf("kustomize components path failed: %w", err)
 					}
 					_, err = root.Stat(resolvedPath)
 					if err != nil {
