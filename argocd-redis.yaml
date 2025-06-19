@@ -1,0 +1,156 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis
+  namespace: argocd
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-redis
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app.kubernetes.io/name: argocd-redis
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-redis
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
+            weight: 5
+      containers:
+      - name: redis
+        image: redis:7.0.15-alpine # Your specified image version
+        imagePullPolicy: Always
+        command: ["sh", "-c"]
+        args:
+          - |
+            mkdir -p /var/redis-config-temp/config
+            cat <<EOF > /var/redis-config-temp/config/redis.conf
+            # General Redis Configuration
+            port 6379
+            bind 0.0.0.0
+
+            # Security: Require password for client connections.
+            # The password is read from the 'auth' key of the 'argocd-redis' Secret,
+            # which is mounted as a file at /etc/redis-secret/auth.
+            requirepass $(cat /etc/redis-secret/auth)
+
+            # Example RDB snapshot persistence:
+            # save 900 1    # Save if 1 key changes in 15 minutes
+            # save 300 10   # Save if 10 keys change in 5 minutes
+            # save 60 10000 # Save if 10000 keys change in 1 minute
+        
+            # Example AOF (Append Only File) persistence:
+            # appendonly yes        # Enable AOF persistence
+            # appendfsync everysec  # Sync AOF to disk every second (good balance of performance/safety)
+
+            EOF
+
+            # Start the Redis server using the dynamically generated configuration file.
+            redis-server /var/redis-config-temp/config/redis.conf
+        ports:
+        - containerPort: 6379
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 100m # Request 100 millicores of CPU
+            memory: 128Mi # Request 128 MiB of memory (should be less than maxmemory)
+          limits:
+            cpu: 200m # Limit to 200 millicores of CPU
+            memory: 512Mi # Limit to 512 MiB of memory (should be >= maxmemory + overhead)
+          # ----------------------------------------------------
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true # Retains your existing security context
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+          # Mount the Kubernetes Secret containing the Redis password.
+          # This provides read-only access to the password file.
+          - name: redis-password-volume
+            mountPath: /etc/redis-secret # The directory where the secret's data will appear as files
+            readOnly: true # Crucially, this mount is read-only for security.
+          # Mount a temporary, writable volume. This is where the redis.conf will be
+          # dynamically generated and where Redis might store temporary files.
+          # Data in an emptyDir is lost when the pod is restarted or deleted.
+          - name: redis-temp-volume
+            mountPath: /var/redis-config-temp # Ensure this path is writable by the container's user
+          # If you require persistent storage for Redis data (e.g., for RDB/AOF files),
+          # you would uncomment and configure a PersistentVolumeClaim here.
+          # The mountPath here must match the 'dir' specified in your redis.conf.
+          # - name: redis-data-pvc-volume
+          #   mountPath: /data # Example: Mount a PVC to /data for persistence
+      # --- END OF MODIFIED SECTION ---
+      dnsPolicy: ClusterFirst
+      initContainers:
+      - command:
+        - argocd
+        - admin
+        - redis-initial-password
+        image: quay.io/argoproj/argocd:v2.12.0
+        imagePullPolicy: IfNotPresent
+        name: secret-init
+        resources: {}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccount: argocd-redis
+      serviceAccountName: argocd-redis
+      terminationGracePeriodSeconds: 30
+      volumes:
+        # Define the volume that mounts the Secret containing the Redis password.
+        - name: redis-password-volume
+          secret:
+            secretName: argocd-redis # This must match your existing Secret name
+            items:
+              - key: auth # This is the key within your Secret that holds the password
+                path: auth # The filename it will appear as inside the mounted directory (/etc/redis-secret/auth)
+        # Define the temporary writable volume (emptyDir) for dynamic config and temporary files.
+        - name: redis-temp-volume
+          emptyDir: {} # Data in this volume is temporary and will be lost on pod restart.
+        # If you need persistent storage for Redis data (e.g., RDB/AOF files),
+        # define the PersistentVolumeClaim (PVC) volume here.
+        # - name: redis-data-pvc-volume
+        #   persistentVolumeClaim:
+        #     claimName: your-redis-pvc-name # Replace with the actual name of your PVC
