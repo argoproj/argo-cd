@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -86,4 +88,24 @@ func TestGenerateCacheKey(t *testing.T) {
 	cache := NewCache(client)
 	testKey := cache.generateFullKey("testkey")
 	assert.Equal(t, "testkey|"+common.CacheVersion, testKey)
+}
+
+// Test loading Redis credentials from a file
+func TestLoadRedisCredsFromFile(t *testing.T) {
+	dir := t.TempDir()
+	// Helper to write a file
+	writeFile := func(name, content string) {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0600))
+	}
+	// Write all files
+	writeFile("auth", "mypassword\n")
+	writeFile("auth_username", "myuser")
+	writeFile("sentinel_username", "sentineluser")
+	writeFile("sentinel_auth", "sentinelpass")
+
+	creds := loadRedisCredsFromFile(dir)
+	assert.Equal(t, "mypassword", creds.password)
+	assert.Equal(t, "myuser", creds.username)
+	assert.Equal(t, "sentineluser", creds.sentinelUsername)
+	assert.Equal(t, "sentinelpass", creds.sentinelPassword)
 }
