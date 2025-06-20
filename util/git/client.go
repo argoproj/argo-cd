@@ -176,6 +176,16 @@ var (
 	factor           int64
 )
 
+// Git cleanup configuration constants
+const (
+	// cleanupGracePeriodMultiplier is the multiplier applied to base grace period for network delays and cleanup overhead
+	cleanupGracePeriodMultiplier = 1.2
+	// cleanupMinGracePeriod is the minimum grace period to handle edge cases
+	cleanupMinGracePeriod = 3 * time.Minute
+	// cleanupTimeoutBufferMultiplier is the multiplier applied to exec timeout to account for normal operations
+	cleanupTimeoutBufferMultiplier = 2
+)
+
 func init() {
 	if countStr := os.Getenv(common.EnvGitAttemptsCount); countStr != "" {
 		cnt, err := strconv.Atoi(countStr)
@@ -438,6 +448,169 @@ func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 	return false
 }
 
+// extractRepoNameFromURL extracts the repository name from a git URL
+// Examples:
+// - "https://github.com/argoproj/argo-cd.git" -> "argo-cd"
+// - "git@github.com:argoproj/argo-cd.git" -> "argo-cd"
+// - "https://gitlab.com/group/subgroup/repo-name" -> "repo-name"
+func extractRepoNameFromURL(repoURL string) string {
+	// Remove trailing .git if present
+	repoURL = strings.TrimSuffix(repoURL, ".git")
+	
+	// Handle SSH URLs (git@host:path)
+	if strings.Contains(repoURL, "@") && strings.Contains(repoURL, ":") {
+		parts := strings.Split(repoURL, ":")
+		if len(parts) >= 2 {
+			repoURL = parts[1]
+		}
+	} else if strings.Contains(repoURL, "://") {
+		// Handle HTTPS URLs (https://host/path)
+		parts := strings.Split(repoURL, "://")
+		if len(parts) >= 2 {
+			pathPart := parts[1]
+			// Remove host part
+			if idx := strings.Index(pathPart, "/"); idx != -1 {
+				repoURL = pathPart[idx+1:]
+			}
+		}
+	}
+	
+	// Extract the last part as repository name
+	parts := strings.Split(repoURL, "/")
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+	
+	return ""
+}
+
+// isCleanupEnabled checks if cleanup is enabled for this repository
+func (m *nativeGitClient) isCleanupEnabled() bool {
+	// Get the cleanup strategy (default: none)
+	strategy := strings.ToLower(strings.TrimSpace(os.Getenv(common.EnvGitCleanupStrategy)))
+	if strategy == "" {
+		strategy = common.GitCleanupStrategyNone
+	}
+
+	switch strategy {
+	case common.GitCleanupStrategyAll:
+		// Cleanup enabled for all repositories
+		log.Debugf("Cleanup enabled for all repositories (strategy: %s)", strategy)
+		return true
+
+	case common.GitCleanupStrategyNone:
+		// Cleanup disabled for all repositories
+		return false
+
+	case common.GitCleanupStrategySelective:
+		// Check if specific repositories are configured
+		cleanupRepos := os.Getenv(common.EnvGitCleanupRepos)
+		if cleanupRepos == "" {
+			// If no specific repos configured with selective strategy, cleanup is disabled
+			log.Warnf("Cleanup strategy is 'selective' but %s is not set", common.EnvGitCleanupRepos)
+			return false
+		}
+
+		// Extract repository name from URL for exact matching
+		// Example: "https://github.com/argoproj/argo-cd.git" -> "argo-cd"
+		// Example: "git@github.com:argoproj/argo-cd.git" -> "argo-cd"
+		repoName := extractRepoNameFromURL(m.repoURL)
+		if repoName == "" {
+			log.Debugf("Could not extract repository name from URL: %s", m.repoURL)
+			return false
+		}
+
+		// Check if this repository name exactly matches any of the configured repositories
+		repos := strings.Split(cleanupRepos, ",")
+		for _, configuredRepo := range repos {
+			configuredRepo = strings.TrimSpace(configuredRepo)
+			if configuredRepo != "" && repoName == configuredRepo {
+				log.Debugf("Cleanup enabled for repository %s (exact match: %s, strategy: %s)", m.repoURL, repoName, strategy)
+				return true
+			}
+		}
+		return false
+
+	default:
+		// Invalid strategy, log warning and disable cleanup
+		log.Warnf("Invalid cleanup strategy '%s', valid values are: %s, %s, %s", 
+			strategy, common.GitCleanupStrategyAll, common.GitCleanupStrategyNone, common.GitCleanupStrategySelective)
+		return false
+	}
+}
+
+// getCleanupGracePeriod returns the grace period before cleaning up temporary files
+// It dynamically calculates based on git operation timeouts to avoid interrupting active operations
+func (m *nativeGitClient) getCleanupGracePeriod() time.Duration {
+	// Get the exec timeout used for git operations
+	execTimeout := env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", 90*time.Second, 0, math.MaxInt64)
+
+	// Calculate grace period based on:
+	// 1. Base timeout multiplier for normal operations
+	// 2. Additional buffer for retries (maxAttemptsCount)
+	// 3. Network and process cleanup overhead
+
+	// Base grace period: timeout * buffer * maxAttempts
+	// This accounts for worst-case scenario with retries
+	baseGracePeriod := execTimeout * time.Duration(cleanupTimeoutBufferMultiplier*maxAttemptsCount)
+
+	// Add configured buffer for network delays and cleanup
+	gracePeriod := time.Duration(float64(baseGracePeriod) * cleanupGracePeriodMultiplier)
+
+	// Ensure minimum grace period to handle edge cases
+	if gracePeriod < cleanupMinGracePeriod {
+		gracePeriod = cleanupMinGracePeriod
+	}
+
+	return gracePeriod
+}
+
+// garbageCollection cleans up temporary objects and files from git repository to prevent disk usage buildup
+func (m *nativeGitClient) garbageCollection() error {
+	log.Debugf("Running git cleanup for repository %s", m.repoURL)
+
+	gracePeriod := m.getCleanupGracePeriod()
+	log.Debugf("Using cleanup grace period of %v", gracePeriod)
+
+	// Clean up temporary pack files left by interrupted git operations
+	// These files are not cleaned by git gc and can accumulate to significant sizes
+	// Reference: GitLab Gitaly issue #1656, Gitea issue #21578
+	packDir := filepath.Join(m.root, ".git", "objects", "pack")
+	if entries, err := os.ReadDir(packDir); err == nil {
+		for _, entry := range entries {
+			name := entry.Name()
+			// Match tmp_pack_* and *.pack.temp patterns used by git during fetch/gc
+			if strings.HasPrefix(name, "tmp_pack_") || strings.HasSuffix(name, ".pack.temp") {
+				filePath := filepath.Join(packDir, name)
+				if info, err := entry.Info(); err == nil {
+					age := time.Since(info.ModTime())
+					// Only remove files older than the grace period
+					if age > gracePeriod {
+						log.Debugf("Removing stale temporary pack file: %s (age: %v, size: %d bytes)", name, age, info.Size())
+						if err := os.Remove(filePath); err != nil {
+							log.Warnf("Failed to remove temporary pack file %s: %v", name, err)
+						}
+					} else {
+						log.Debugf("Keeping recent temporary pack file: %s (age: %v)", name, age)
+					}
+				}
+			}
+		}
+	}
+
+	// Clean up temporary object directories
+	tmpObjDir := filepath.Join(m.root, ".git", "objects", "tmp")
+	if _, err := os.Stat(tmpObjDir); err == nil {
+		log.Debugf("Removing temporary objects directory: %s", tmpObjDir)
+		if err := os.RemoveAll(tmpObjDir); err != nil {
+			log.Warnf("Failed to remove temporary objects directory %s: %v", tmpObjDir, err)
+			return fmt.Errorf("failed to remove temporary objects directory: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch(revision string) error {
 	if m.OnFetch != nil {
@@ -446,9 +619,19 @@ func (m *nativeGitClient) Fetch(revision string) error {
 	}
 
 	err := m.fetch(revision)
+	if err != nil {
+		// Run garbage collection only when an error occurs and cleanup is enabled
+		if m.isCleanupEnabled() {
+			log.Warnf("Fetch failed for %s, running cleanup to prevent disk space issues", m.repoURL)
+			if cleanupErr := m.garbageCollection(); cleanupErr != nil {
+				log.Warnf("Cleanup failed for %s: %v", m.repoURL, cleanupErr)
+			}
+		}
+		return err
+	}
 
 	// When we have LFS support enabled, check for large files and fetch them too.
-	if err == nil && m.IsLFSEnabled() {
+	if m.IsLFSEnabled() {
 		largeFiles, err := m.LsLargeFiles()
 		if err == nil && len(largeFiles) > 0 {
 			err = m.runCredentialedCmd("lfs", "fetch", "--all")
@@ -557,8 +740,8 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (stri
 		}
 	}
 	// NOTE
-	// The double “f” in the arguments is not a typo: the first “f” tells
-	// `git clean` to delete untracked files and directories, and the second “f”
+	// The double "f" in the arguments is not a typo: the first "f" tells
+	// `git clean` to delete untracked files and directories, and the second "f"
 	// tells it to clean untracked nested Git repositories (for example a
 	// submodule which has since been removed).
 	if out, err := m.runCmd("clean", "-ffdx"); err != nil {
