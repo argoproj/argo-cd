@@ -324,7 +324,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 	if impersonationEnabled {
-		serviceAccountToImpersonate, err := deriveServiceAccountToImpersonate(proj, app)
+		serviceAccountToImpersonate, err := deriveServiceAccountToImpersonate(proj, app, destCluster)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to find a matching service account to impersonate: %v", err)
@@ -607,7 +607,7 @@ func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject
 
 // deriveServiceAccountToImpersonate determines the service account to be used for impersonation for the sync operation.
 // The returned service account will be fully qualified including namespace and the service account name in the format system:serviceaccount:<namespace>:<service_account>
-func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application *v1alpha1.Application) (string, error) {
+func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application *v1alpha1.Application, destCluster *v1alpha1.Cluster) (string, error) {
 	// spec.Destination.Namespace is optional. If not specified, use the Application's
 	// namespace
 	serviceAccountNamespace := application.Spec.Destination.Namespace
@@ -617,7 +617,7 @@ func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application
 	// Loop through the destinationServiceAccounts and see if there is any destination that is a candidate.
 	// if so, return the service account specified for that destination.
 	for _, item := range project.Spec.DestinationServiceAccounts {
-		dstServerMatched, err := glob.MatchWithError(item.Server, application.Spec.Destination.Server)
+		dstServerMatched, err := glob.MatchWithError(item.Server, destCluster.Server)
 		if err != nil {
 			return "", fmt.Errorf("invalid glob pattern for destination server: %w", err)
 		}
