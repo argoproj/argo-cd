@@ -790,7 +790,7 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to interpret trailers for revision %q in repo %q: %w", revision, m.repoURL, err)
 	}
-	relatedCommits := getReferences(log.WithFields(log.Fields{"repo": m.repoURL, "revision": revision}), out)
+	relatedCommits, _ := GetReferences(log.WithFields(log.Fields{"repo": m.repoURL, "revision": revision}), out)
 
 	out, err = m.runCmd("tag", "--points-at", revision)
 	if err != nil {
@@ -816,65 +816,23 @@ func truncate(str string) string {
 
 var shaRegex = regexp.MustCompile(`^[0-9a-f]{5,40}$`)
 
-// getReferences extracts related commit metadata from the commit message trailers. If referenced commit
+// GetReferences extracts related commit metadata from the commit message trailers. If referenced commit
 // metadata is present, we return a slice containing a single metadata object. If no related commit metadata is found,
 // we return a nil slice.
 //
 // If a trailer fails validation, we log an error and skip that trailer. We truncate the trailer values to 100
 // characters to avoid excessively long log messages.
-func getReferences(logCtx *log.Entry, commitMessageBody string) []RevisionReference {
+//
+// We also return the commit message body with all valid Argocd-reference-commit-* trailers removed.
+func GetReferences(logCtx *log.Entry, commitMessageBody string) ([]RevisionReference, string) {
+	unrelatedLines := strings.Builder{}
 	var relatedCommit CommitMetadata
 	scanner := bufio.NewScanner(strings.NewReader(commitMessageBody))
 	for scanner.Scan() {
 		line := scanner.Text()
-		if !strings.HasPrefix(line, "Argocd-reference-commit-") {
-			continue
-		}
-		parts := strings.SplitN(line, ": ", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		trailerKey := parts[0]
-		trailerValue := parts[1]
-		switch trailerKey {
-		case "Argocd-reference-commit-repourl":
-			_, err := url.Parse(trailerValue)
-			if err != nil {
-				logCtx.Errorf("failed to parse repo URL %q: %v", truncate(trailerValue), err)
-				continue
-			}
-			relatedCommit.RepoURL = trailerValue
-		case "Argocd-reference-commit-author":
-			address, err := mail.ParseAddress(trailerValue)
-			if err != nil || address == nil {
-				logCtx.Errorf("failed to parse author email %q: %v", truncate(trailerValue), err)
-				continue
-			}
-			relatedCommit.Author = *address
-		case "Argocd-reference-commit-date":
-			// Validate that it's the correct date format.
-			t, err := time.Parse(time.RFC3339, trailerValue)
-			if err != nil {
-				logCtx.Errorf("failed to parse date %q with RFC3339 format: %v", truncate(trailerValue), err)
-				continue
-			}
-			relatedCommit.Date = t.Format(time.RFC3339)
-		case "Argocd-reference-commit-subject":
-			relatedCommit.Subject = trailerValue
-		case "Argocd-reference-commit-body":
-			body := ""
-			err := json.Unmarshal([]byte(trailerValue), &body)
-			if err != nil {
-				logCtx.Errorf("failed to parse body %q as JSON: %v", truncate(trailerValue), err)
-				continue
-			}
-			relatedCommit.Body = body
-		case "Argocd-reference-commit-sha":
-			if !shaRegex.MatchString(trailerValue) {
-				logCtx.Errorf("invalid commit SHA %q in trailer %s: must be a lowercase hex string 5-40 characters long", truncate(trailerValue), trailerKey)
-				continue
-			}
-			relatedCommit.SHA = trailerValue
+		updated := updateCommitMetadata(logCtx, &relatedCommit, line)
+		if !updated {
+			unrelatedLines.WriteString(line + "\n")
 		}
 	}
 	var relatedCommits []RevisionReference
@@ -883,7 +841,64 @@ func getReferences(logCtx *log.Entry, commitMessageBody string) []RevisionRefere
 			Commit: &relatedCommit,
 		})
 	}
-	return relatedCommits
+	return relatedCommits, unrelatedLines.String()
+}
+
+// updateCommitMetadata checks if the line is a valid Argocd-reference-commit-* trailer. If so, it updates
+// the relatedCommit object and returns true. If the line is not a valid trailer, it returns false.
+func updateCommitMetadata(logCtx *log.Entry, relatedCommit *CommitMetadata, line string) bool {
+	if !strings.HasPrefix(line, "Argocd-reference-commit-") {
+		return false
+	}
+	parts := strings.SplitN(line, ": ", 2)
+	if len(parts) != 2 {
+		return false
+	}
+	trailerKey := parts[0]
+	trailerValue := parts[1]
+	switch trailerKey {
+	case "Argocd-reference-commit-repourl":
+		_, err := url.Parse(trailerValue)
+		if err != nil {
+			logCtx.Errorf("failed to parse repo URL %q: %v", truncate(trailerValue), err)
+			return false
+		}
+		relatedCommit.RepoURL = trailerValue
+	case "Argocd-reference-commit-author":
+		address, err := mail.ParseAddress(trailerValue)
+		if err != nil || address == nil {
+			logCtx.Errorf("failed to parse author email %q: %v", truncate(trailerValue), err)
+			return false
+		}
+		relatedCommit.Author = *address
+	case "Argocd-reference-commit-date":
+		// Validate that it's the correct date format.
+		t, err := time.Parse(time.RFC3339, trailerValue)
+		if err != nil {
+			logCtx.Errorf("failed to parse date %q with RFC3339 format: %v", truncate(trailerValue), err)
+			return false
+		}
+		relatedCommit.Date = t.Format(time.RFC3339)
+	case "Argocd-reference-commit-subject":
+		relatedCommit.Subject = trailerValue
+	case "Argocd-reference-commit-body":
+		body := ""
+		err := json.Unmarshal([]byte(trailerValue), &body)
+		if err != nil {
+			logCtx.Errorf("failed to parse body %q as JSON: %v", truncate(trailerValue), err)
+			return false
+		}
+		relatedCommit.Body = body
+	case "Argocd-reference-commit-sha":
+		if !shaRegex.MatchString(trailerValue) {
+			logCtx.Errorf("invalid commit SHA %q in trailer %s: must be a lowercase hex string 5-40 characters long", truncate(trailerValue), trailerKey)
+			return false
+		}
+		relatedCommit.SHA = trailerValue
+	default:
+		return false
+	}
+	return true
 }
 
 // VerifyCommitSignature Runs verify-commit on a given revision and returns the output
