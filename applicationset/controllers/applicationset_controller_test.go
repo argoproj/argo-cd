@@ -7134,7 +7134,7 @@ func TestSyncApplication(t *testing.T) {
 					Info: []*v1alpha1.Info{
 						{
 							Name:  "Reason",
-							Value: "ApplicationSet RollingSync triggered a sync of this Application resource.",
+							Value: "ApplicationSet RollingSync triggered a sync of this Application resource",
 						},
 					},
 					Sync: &v1alpha1.SyncOperation{
@@ -7176,7 +7176,7 @@ func TestSyncApplication(t *testing.T) {
 					Info: []*v1alpha1.Info{
 						{
 							Name:  "Reason",
-							Value: "ApplicationSet RollingSync triggered a sync of this Application resource.",
+							Value: "ApplicationSet RollingSync triggered a sync of this Application resource",
 						},
 					},
 					Sync: &v1alpha1.SyncOperation{
