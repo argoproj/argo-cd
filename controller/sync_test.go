@@ -1033,7 +1033,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 	type fixture struct {
 		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
-		cluster    *v1alpha1.Cluster
+		cluster     *v1alpha1.Cluster
 	}
 
 	setup := func(destinationServiceAccounts []v1alpha1.ApplicationDestinationServiceAccount, destinationNamespace, destinationServerURL, applicationNamespace string) *fixture {
@@ -1066,7 +1066,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 		return &fixture{
 			project:     project,
 			application: app,
-			cluster: cluster,
+			cluster:     cluster,
 		}
 	}
 
