@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# Write value from environment variable to a test file for later test verification.
+# The examined variables name is passed in TEST_VAR_NAME variable.
+
+current_dir=$(dirname "$0")
+output="$current_dir/env_output"
+
+env | grep "$TEST_VAR_NAME=" > "$output"
+
+kustomize "$@"
