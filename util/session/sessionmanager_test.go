@@ -30,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+	"github.com/argoproj/argo-cd/v3/util/oidc"
 	"github.com/argoproj/argo-cd/v3/util/password"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	utiltest "github.com/argoproj/argo-cd/v3/util/test"
@@ -311,7 +312,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 				claims: tc.verifiedClaims,
 				err:    tc.verifyTokenErr,
 			}
-			ts := httptest.NewServer(WithAuthMiddleware(tc.authDisabled, tm, mux))
+			ts := httptest.NewServer(WithAuthMiddleware(tc.authDisabled, &oidc.ClientApp{}, &settings.ArgoCDSettings{}, tm, mux))
 			defer ts.Close()
 			req, err := http.NewRequest(http.MethodGet, ts.URL, http.NoBody)
 			require.NoErrorf(t, err, "error creating request: %s", err)
