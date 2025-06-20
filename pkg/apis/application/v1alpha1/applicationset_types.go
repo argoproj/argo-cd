@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	"encoding/json"
-	"fmt"
 	"sort"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -955,7 +954,20 @@ func (status *ApplicationSetStatus) SetConditions(conditions []ApplicationSetCon
 	sort.Slice(newConditions, func(i, j int) bool {
 		left := newConditions[i]
 		right := newConditions[j]
-		return fmt.Sprintf("%s/%s/%s/%s/%v", left.Type, left.Message, left.Status, left.Reason, left.LastTransitionTime) < fmt.Sprintf("%s/%s/%s/%s/%v", right.Type, right.Message, right.Status, right.Reason, right.LastTransitionTime)
+
+		if left.Type != right.Type {
+			return left.Type < right.Type
+		}
+		if left.Message != right.Message {
+			return left.Message < right.Message
+		}
+		if left.Status != right.Status {
+			return left.Status < right.Status
+		}
+		if left.Reason != right.Reason {
+			return left.Reason < right.Reason
+		}
+		return left.LastTransitionTime.Before(right.LastTransitionTime)
 	})
 	status.Conditions = newConditions
 }
