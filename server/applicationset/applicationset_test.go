@@ -2,7 +2,10 @@ package applicationset
 
 import (
 	"sort"
+	"strconv"
 	"testing"
+
+	"k8s.io/apimachinery/pkg/watch"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/pkg/v2/sync"
@@ -34,6 +37,35 @@ const (
 )
 
 var testEnableEventList []string = argo.DefaultEnableEventList()
+
+type broadcasterMock struct {
+	objects []runtime.Object
+}
+
+func (b broadcasterMock) Subscribe(ch chan *appsv1.ApplicationSetWatchEvent, _ ...func(event *appsv1.ApplicationSetWatchEvent) bool) func() {
+	// Simulate the broadcaster notifying the subscriber of an application update.
+	// The second parameter to Subscribe is filters. For the purposes of tests, we ignore the filters. Future tests
+	// might require implementing those.
+	go func() {
+		for _, obj := range b.objects {
+			appset, ok := obj.(*appsv1.ApplicationSet)
+			if ok {
+				oldVersion, err := strconv.Atoi(appset.ResourceVersion)
+				if err != nil {
+					oldVersion = 0
+				}
+				clonedApp := appset.DeepCopy()
+				clonedApp.ResourceVersion = strconv.Itoa(oldVersion + 1)
+				ch <- &appsv1.ApplicationSetWatchEvent{Type: watch.Added, ApplicationSet: *clonedApp}
+			}
+		}
+	}()
+	return func() {}
+}
+
+func (broadcasterMock) OnAdd(any, bool)   {}
+func (broadcasterMock) OnUpdate(any, any) {}
+func (broadcasterMock) OnDelete(any)      {}
 
 func fakeRepo() *appsv1.Repository {
 	return &appsv1.Repository{
@@ -144,6 +176,9 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		panic("Timed out waiting for caches to sync")
 	}
 
+	broadcaster := broadcasterMock{
+		objects: objects,
+	}
 	server := NewServer(
 		db,
 		kubeclientset,
@@ -154,6 +189,7 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		fakeAppsClientset,
 		appInformer,
 		factory.Argoproj().V1alpha1().ApplicationSets().Lister(),
+		broadcaster,
 		testNamespace,
 		sync.NewKeyLock(),
 		[]string{testNamespace, "external-namespace"},

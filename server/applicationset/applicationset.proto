@@ -16,6 +16,7 @@ message ApplicationSetGetQuery {
 	string name = 1;
 	// The application set namespace. Default empty is argocd control plane namespace
 	string appsetNamespace = 2;
+	string resourceVersion = 3;
 }
 
 message ApplicationSetListQuery {
@@ -45,6 +46,17 @@ message ApplicationSetDeleteRequest {
 	string name = 1;
 	// The application set namespace. Default empty is argocd control plane namespace
 	string appsetNamespace = 2;
+}
+
+message ApplicationSetWatchQuery {
+	// The name of the ApplicationSet
+	 string name = 1;
+	// The application set namespace. Default empty is argocd control plane namespace
+	 string appsetNamespace = 2;
+	repeated string projects = 3;
+	 string resourceVersion = 4;
+	 string selector = 5;
+	repeated string project = 7;
 }
 
 message ApplicationSetTreeQuery {
@@ -95,6 +107,10 @@ service ApplicationSetService {
 	// Delete deletes an application set
 	rpc Delete(ApplicationSetDeleteRequest) returns (ApplicationSetResponse) {
 		option (google.api.http).delete = "/api/v1/applicationsets/{name}";
+	}
+
+	rpc Watch(ApplicationSetWatchQuery) returns (stream github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationSetWatchEvent) {
+		option (google.api.http).get = "/api/v1/stream/applicationsets";
 	}
 
   // ResourceTree returns resource tree
