@@ -4,7 +4,7 @@ name: Sync to GitLab
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   mirror:
