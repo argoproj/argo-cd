@@ -640,6 +640,37 @@ func createClaimsAuthenticationRequestParameter(requestedClaims map[string]*oidc
 	return oauth2.SetAuthURLParam("claims", string(claimsRequestRAW)), nil
 }
 
+// AddGroupsFromUserInfo takes a claims object and adds groups claim from userinfo endpoint if available
+// This is required by some SSO implementations as they don't provide the groups claim in the ID token
+// If querying the UserInfo endpoint fails, we return an error to indicate the session is invalid
+// we assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
+// otherwise this would cause a panic
+func (a *ClientApp) AddGroupsFromUserInfo(claims jwt.Claims, sessionManagerClaimsIssuer string) (jwt.MapClaims, error) {
+	var groupClaims jwt.MapClaims
+	var ok bool
+	if groupClaims, ok = claims.(jwt.MapClaims); !ok {
+		if tmpClaims, ok := claims.(*jwt.MapClaims); ok {
+			groupClaims = *tmpClaims
+		}
+	}
+	iss := jwtutil.StringField(groupClaims, "iss")
+	if iss != sessionManagerClaimsIssuer && a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
+		userInfo, unauthorized, err := a.GetUserInfo(groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
+		if unauthorized {
+			return groupClaims, fmt.Errorf("error while quering userinfo endpoint: %w", err)
+		}
+		if err != nil {
+			return groupClaims, fmt.Errorf("error fetching user info endpoint: %w", err)
+		}
+		if groupClaims["sub"] != userInfo["sub"] {
+			return groupClaims, errors.New("subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
+		}
+		groupClaims["groups"] = userInfo["groups"]
+	}
+
+	return groupClaims, nil
+}
+
 // GetUserInfo queries the IDP userinfo endpoint for claims
 func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoPath string) (jwt.MapClaims, bool, error) {
 	sub := jwtutil.StringField(actualClaims, "sub")
