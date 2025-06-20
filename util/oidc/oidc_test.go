@@ -908,6 +908,81 @@ func TestGenerateAppState_NoReturnURL(t *testing.T) {
 	assert.Equal(t, "/argo-cd", returnURL)
 }
 
+// func TestAddGroupsFromUserInfo(t *testing.T) {
+// 	tests := []struct {
+// 		name             string
+// 		userInfoResponse []struct {
+// 			key             string
+// 			value           string
+// 			expectEncrypted bool
+// 			expectError     bool
+// 		}
+// 		claims         jwt.MapClaims
+// 		expectedClaims jwt.MapClaims
+// 	}{
+// 		{
+// 			name: "assume groups provided on userinfo endpoint",
+// 		},
+// 		{
+// 			name: "assume no groups provided on userinfo endpoint",
+// 		},
+// 		{
+// 			name: "assume userinfo provided no response, claims as inputted",
+// 		},
+// 	}
+
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			ts := httptest.NewServer(http.HandlerFunc(tt.idpHandler))
+// 			defer ts.Close()
+
+// 			signature, err := util.MakeSignature(32)
+// 			require.NoError(t, err)
+// 			cdSettings := &settings.ArgoCDSettings{ServerSignature: signature}
+// 			encryptionKey, err := cdSettings.GetServerEncryptionKey()
+// 			require.NoError(t, err)
+// 			a, _ := NewClientApp(cdSettings, "", nil, "/argo-cd", tt.cache)
+
+// 			for _, item := range tt.cacheItems {
+// 				var newValue []byte
+// 				newValue = []byte(item.value)
+// 				if item.encrypt {
+// 					newValue, err = crypto.Encrypt([]byte(item.value), encryptionKey)
+// 					require.NoError(t, err)
+// 				}
+// 				err := a.clientCache.Set(&cache.Item{
+// 					Key:    item.key,
+// 					Object: newValue,
+// 				})
+// 				require.NoError(t, err)
+// 			}
+
+// 			got, unauthenticated, err := a.GetUserInfo(tt.idpClaims, ts.URL, tt.userInfoPath)
+// 			assert.Equal(t, tt.expectedOutput, got)
+// 			assert.Equal(t, tt.expectUnauthenticated, unauthenticated)
+// 			if tt.expectError {
+// 				require.Error(t, err)
+// 			} else {
+// 				require.NoError(t, err)
+// 			}
+// 			for _, item := range tt.expectedCacheItems {
+// 				var tmpValue []byte
+// 				err := a.clientCache.Get(item.key, &tmpValue)
+// 				if item.expectError {
+// 					require.Error(t, err)
+// 				} else {
+// 					require.NoError(t, err)
+// 					if item.expectEncrypted {
+// 						tmpValue, err = crypto.Decrypt(tmpValue, encryptionKey)
+// 						require.NoError(t, err)
+// 					}
+// 					assert.Equal(t, item.value, string(tmpValue))
+// 				}
+// 			}
+// 		})
+// 	}
+// }
+
 func TestGetUserInfo(t *testing.T) {
 	tests := []struct {
 		name                  string
