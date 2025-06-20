@@ -1,0 +1,70 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  interval: 10m
+  timeout: 5m
+  chart:
+    spec:
+      chart: podinfo
+      version: '6.5.*'
+      sourceRef:
+        kind: HelmRepository
+        name: podinfo
+      interval: 5m
+  releaseName: podinfo
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  test:
+    enable: true
+  driftDetection:
+    mode: enabled
+    ignore:
+    - paths: ["/spec/replicas"]
+      target:
+        kind: Deployment
+  values:
+    replicaCount: 2
+status:
+  conditions:
+  - lastTransitionTime: "2024-07-16T12:00:00Z"
+    message: Helm rollback to previous release default/podinfo.v24 with
+      chart podinfo@6.5.4 succeeded
+    observedGeneration: 5
+    reason: ProgressingWithRetry
+    status: "True"
+    type: Reconciling
+  - lastTransitionTime: "2024-07-16T12:00:00Z"
+    message: Helm rollback to previous release default/podinfo.v24 with
+      chart podinfo@6.5.4 succeeded
+    observedGeneration: 5
+    reason: RollbackSucceeded
+    status: "False"
+    type: Ready
+  - lastTransitionTime: "2024-07-16T12:00:00Z"
+    message: "Helm upgrade failed for release default/podinfo with chart
+      podinfo@6.5.4: cannot patch \"podinfo\" with kind Deployment: admission webhook
+      \"validate.kyverno.svc-fail\" denied the request: \n\nresource Deployment/default/podinfo
+      was blocked due to the following policies \n\ndisallow-privilege-escalation:\n
+      \ autogen-privilege-escalation: 'validation error: Privilege escalation is disallowed.\n
+      \   The fields spec.containers[*].securityContext.allowPrivilegeEscalation,
+      spec.initContainers[*].securityContext.allowPrivilegeEscalation,\n    and spec.ephemeralContainers[*].securityContext.allowPrivilegeEscalation
+      must\n    be set to `false`. rule autogen-privilege-escalation failed at path
+      /spec/template/spec/containers/0/securityContext/allowPrivilegeEscalation/'"
+    observedGeneration: 5
+    reason: UpgradeFailed
+    status: "False"
+    type: Released
+  - lastTransitionTime: "2024-07-16T12:00:00Z"
+    message: Helm rollback to previous release default/podinfo.v24 with
+      chart podinfo@6.5.4 succeeded
+    observedGeneration: 5
+    reason: RollbackSucceeded
+    status: "True"
+    type: Remediated

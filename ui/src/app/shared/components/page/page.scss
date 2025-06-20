@@ -1,0 +1,96 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
+@import '../../config.scss';
+
+.page-wrapper {
+    width: 100%;
+    padding-left: $sidebar-width;
+    .page {
+        @media (max-width: map-get($breakpoints, medium)) {
+            &--has-toolbar {
+                padding-top: 0;
+            }
+
+            &--has-toolbar &__top-bar {
+                height: auto;
+                position: initial;
+
+                .top-bar.row > div {
+                    max-width: 100%;
+                    flex: 0 0 100%;
+                    text-align: center;
+
+                    &.top-bar__right-side > div {
+                        display: inline-block;
+                    }
+
+                    & > div {
+                        display: flex;
+                        flex-wrap: wrap;
+                        justify-content: center;
+
+                        button {
+                            margin-bottom: 2px;
+                        }
+                    }
+                }
+            }
+        }
+        $single-toolbar-height: 50px;
+
+        &--has-toolbar {
+            padding-top: $single-toolbar-height;
+        }
+        &__top-bar {
+            height: $single-toolbar-height;
+            left: $sidebar-width;
+        }
+    }
+}
+
+.login-logout-button {
+    border-radius: 3px;
+    @include themify($themes) {
+        color: themed('light-argo-teal-7');
+    }
+    padding: 3px;
+    cursor: pointer;
+
+    &:focus {
+        color: $argo-color-teal-5;
+        box-shadow: 0 0 0 0.1em $argo-color-teal-5;
+    }
+    &:hover {
+        @include themify($themes) {
+            color: themed('light-argo-teal-5');
+        }
+    }
+}
+
+.page {
+    padding-left: 0 !important;
+    &__top-bar {
+        left: $sidebar-width !important;
+    }
+}
+
+.sb-page-wrapper {
+    padding-left: $sidebar-width;
+
+    &__sidebar-collapsed {
+        padding-left: $collapsed-sidebar-width;
+        .flex-top-bar {
+            left: $collapsed-sidebar-width;
+        }
+
+        .page {
+            &__top-bar {
+                left: $collapsed-sidebar-width !important;
+            }
+        }
+
+        .application-details__status-panel {
+            left: $collapsed-sidebar-width;
+        }
+    }
+}

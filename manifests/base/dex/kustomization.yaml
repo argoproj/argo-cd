@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- argocd-dex-server-deployment.yaml
+- argocd-dex-server-role.yaml
+- argocd-dex-server-rolebinding.yaml
+- argocd-dex-server-sa.yaml
+- argocd-dex-server-service.yaml
+- argocd-dex-server-network-policy.yaml

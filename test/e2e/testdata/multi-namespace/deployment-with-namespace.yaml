@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helm-guestbook
+  namespace: kube-system
+  labels:
+    app: helm-guestbook
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: helm-guestbook
+  template:
+    metadata:
+      labels:
+        app: helm-guestbook
+    spec:
+      containers:
+        - name: helm-guestbook
+          image: quay.io/argoprojlabs/argocd-e2e-container:0.2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http

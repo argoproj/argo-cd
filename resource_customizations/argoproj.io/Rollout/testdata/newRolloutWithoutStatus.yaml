@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  creationTimestamp: "2020-11-13T00:44:55Z"
+  generation: 1
+  name: basic
+  namespace: argocd-e2e
+  resourceVersion: "181938"
+  selfLink: /apis/argoproj.io/v1alpha1/namespaces/argocd-e2e/rollouts/basic
+  uid: 34e4bbfc-222c-4968-bd60-2b30ae81110d
+spec:
+  selector:
+    matchLabels:
+      app: basic
+  strategy:
+    canary:
+      steps:
+      - setWeight: 50
+      - pause: {}
+  template:
+    metadata:
+      labels:
+        app: basic
+    spec:
+      containers:
+      - image: nginx:1.19-alpine
+        name: basic
+        resources:
+          requests:
+            cpu: 1m
+            memory: 16Mi

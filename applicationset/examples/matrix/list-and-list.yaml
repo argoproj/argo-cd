@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: list-and-list
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - cluster: engineering-dev
+                  url: https://kubernetes.default.svc
+                  values:
+                    project: default
+                - cluster: engineering-prod
+                  url: https://kubernetes.default.svc
+                  values:
+                    project: default
+          - list:
+              elements:
+                - values:
+                    suffix: '1'
+                - values:
+                    suffix: '2'
+  template:
+    metadata:
+      name: '{{.cluster}}-{{.values.suffix}}'
+    spec:
+      project: '{{.values.project}}'
+      source:
+        repoURL: https://github.com/argoproj/argo-cd.git
+        targetRevision: HEAD
+        path: '{{.path.path}}'
+      destination:
+        server: '{{.url}}'
+        namespace: '{{.path.basename}}'

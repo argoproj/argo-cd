@@ -1,0 +1,54 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-server
+spec:
+  template:
+    spec:
+      containers:
+      - name: argocd-server
+        volumeMounts:
+        - name: known-hosts
+          mountPath: /etc/ssh/ssh_known_hosts
+          subPath: known_hosts
+      volumes:
+      - name: known-hosts
+        configMap:
+          name: argocd-known-hosts
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-repo-server
+spec:
+  template:
+    spec:
+      containers:
+      - name: argocd-repo-server
+        volumeMounts:
+        - name: known-hosts
+          mountPath: /etc/ssh/ssh_known_hosts
+          subPath: known_hosts
+      volumes:
+      - name: known-hosts
+        configMap:
+          name: argocd-known-hosts
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-application-controller
+spec:
+  template:
+    spec:
+      containers:
+      - name: argocd-application-controller
+        volumeMounts:
+        - name: known-hosts
+          mountPath: /etc/ssh/ssh_known_hosts
+          subPath: known_hosts
+      volumes:
+      - name: known-hosts
+        configMap:
+          name: argocd-known-hosts

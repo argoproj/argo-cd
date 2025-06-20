@@ -1,0 +1,36 @@
+name: Snyk report update
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0 0 * * 0' # midnight every Sunday
+
+permissions:
+  contents: read
+
+jobs:
+  snyk-report:
+    permissions:
+      contents: write
+      pull-requests: write
+    if: github.repository == 'argoproj/argo-cd'
+    name: Update Snyk report in the docs directory
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build reports
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          make snyk-report
+          pr_branch="snyk-update-$(echo $RANDOM | md5sum | head -c 20)"
+          git checkout -b "$pr_branch"
+          git config --global user.email 'ci@argoproj.com'
+          git config --global user.name 'CI'
+          git add docs/snyk
+          git commit -m "[Bot] docs: Update Snyk reports" --signoff
+          git push --set-upstream origin "$pr_branch"
+          gh pr create -B master -H "$pr_branch" --title '[Bot] docs: Update Snyk report' --body ''

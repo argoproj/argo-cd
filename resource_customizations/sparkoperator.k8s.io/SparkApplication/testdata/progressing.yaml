@@ -1,0 +1,32 @@
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  generation: 4
+  labels:
+    argocd.argoproj.io/instance: spark-job
+  name: spark-job-app
+  namespace: spark-cluster
+  resourceVersion: "31812990"
+  uid: bfee52b0-74ca-4465-8005-f6643097ed64
+spec:
+  executor:
+    instances: 4
+status:
+  applicationState:
+    state: PENDING_RERUN
+  driverInfo:
+    podName: ingestion-datalake-news-app-driver
+    webUIAddress: 172.20.207.161:4040
+    webUIPort: 4040
+    webUIServiceName: ingestion-datalake-news-app-ui-svc
+  executionAttempts: 13
+  executorState:
+    ingestion-datalake-news-app-1591613851251-exec-1: PENDING_RERUN
+    ingestion-datalake-news-app-1591613851251-exec-2: RUNNING
+    ingestion-datalake-news-app-1591613851251-exec-4: PENDING_RERUN
+    ingestion-datalake-news-app-1591613851251-exec-5: RUNNING
+  lastSubmissionAttemptTime: "2020-06-08T10:57:32Z"
+  sparkApplicationId: spark-a5920b2a5aa04d22a737c60759b5bf82
+  submissionAttempts: 1
+  submissionID: 3e713ec8-9f6c-4e78-ac28-749797c846f0
+  terminationTime: null

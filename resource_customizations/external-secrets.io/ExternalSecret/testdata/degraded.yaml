@@ -1,0 +1,52 @@
+apiVersion: external-secrets.io/v1alpha1
+kind: ExternalSecret
+metadata:
+  creationTimestamp: '2021-11-16T21:59:33Z'
+  generation: 1
+  name: test-degraded
+  namespace: argocd
+  resourceVersion: '136487331'
+  selfLink: /apis/external-secrets.io/v1alpha1/namespaces/argocd/externalsecrets/test-degraded
+  uid: 1e754a7e-0781-4d57-932d-4651d5b19586
+spec:
+  data:
+    - remoteRef:
+        key: secret/sa/example
+        property: api.address
+      secretKey: url
+    - remoteRef:
+        key: secret/sa/example
+        property: ca.crt
+      secretKey: ca
+    - remoteRef:
+        key: secret/sa/example
+        property: token
+      secretKey: token
+  refreshInterval: 1m
+  secretStoreRef:
+    kind: SecretStore
+    name: example
+  target:
+    creationPolicy: Owner
+    template:
+      data:
+        config: |
+          {
+            "bearerToken": "{{ .token | base64decode | toString }}",
+            "tlsClientConfig": {
+              "insecure": false,
+              "caData": "{{ .ca | toString }}"
+            }
+          }
+        name: cluster-test
+        server: '{{ .url | toString }}'
+      metadata:
+        labels:
+          argocd.argoproj.io/secret-type: cluster
+status:
+  conditions:
+    - lastTransitionTime: '2021-11-16T21:59:34Z'
+      message: 'could not get secret data from provider: key "secret/sa/example" from ExternalSecret "test-degraded"'
+      reason: SecretSyncedError
+      status: 'False'
+      type: Ready

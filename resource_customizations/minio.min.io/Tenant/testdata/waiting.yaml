@@ -1,0 +1,13 @@
+apiVersion: minio.min.io/v2
+kind: Tenant
+metadata:
+  name: minio-tenant
+spec:
+  image: minio/minio:latest
+  pools:
+    - name: pool-0
+      servers: 1
+      volumesPerServer: 4
+status:
+  revision: 0
+  currentState: Waiting for Pods to be ready

@@ -1,0 +1,16 @@
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  labels:
+    app.kubernetes.io/instance: sealed-secrets
+  name: test
+  namespace: test
+spec:
+  encryptedData:
+    .dockerconfigjson: xyz
+  template:
+    metadata:
+      creationTimestamp: null
+      name: test
+      namespace: test
+    type: kubernetes.io/dockerconfigjson

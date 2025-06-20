@@ -1,0 +1,18 @@
+.yaml-editor {
+    position: relative;
+
+    &__error {
+        display: block;
+        word-wrap: break-word;
+        width: 290px;
+        overflow-y: scroll;
+        max-height: 500px;
+    }
+
+    &__buttons {
+        position: absolute;
+        right: 1em;
+        top: 1em;
+        z-index: 1;
+    }
+}

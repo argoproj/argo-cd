@@ -1,0 +1,81 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  annotations:
+    rollout.argoproj.io/revision: '4'
+  creationTimestamp: '2020-11-06T09:09:54Z'
+  generation: 76
+  labels:
+    app.kubernetes.io/instance: rollouts-demo
+  name: rollout-canary
+  namespace: default
+  resourceVersion: '4977'
+  selfLink: /apis/argoproj.io/v1alpha1/namespaces/default/rollouts/rollout-canary
+  uid: a5047899-8288-43c2-95d7-a8e0a8b45ed6
+spec:
+  replicas: 2
+  restartAt: '2020-11-06T10:03:31Z'
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: rollout-canary
+  strategy:
+    canary:
+      steps:
+        - setWeight: 1
+        - pause: {}
+  template:
+    metadata:
+      annotations:
+        restart: asdfaaa
+      labels:
+        app: rollout-canary
+    spec:
+      containers:
+        - image: 'nginx:1.19-alpine'
+          imagePullPolicy: Always
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - sleep
+                  - '30'
+            preStop:
+              exec:
+                command:
+                  - sleep
+                  - '30'
+          name: rollouts-demo
+          ports:
+            - containerPort: 8080
+          resources: {}
+status:
+  HPAReplicas: 2
+  abort: null
+  abortedAt: '2020-11-06T10:08:32Z'
+  availableReplicas: 2
+  blueGreen: {}
+  canary:
+    stableRS: 69d59f5445
+  conditions:
+    - lastTransitionTime: '2020-11-06T10:06:38Z'
+      lastUpdateTime: '2020-11-06T10:06:38Z'
+      message: Rollout has minimum availability
+      reason: AvailableReason
+      status: 'True'
+      type: Available
+    - lastTransitionTime: '2020-11-06T10:08:32Z'
+      lastUpdateTime: '2020-11-06T10:08:32Z'
+      message: Rollout is aborted
+      reason: RolloutAborted
+      status: 'False'
+      type: Progressing
+  currentPodHash: 7797495b94
+  currentStepHash: 566d47875b
+  currentStepIndex: 2
+  observedGeneration: 74dbb4676d
+  readyReplicas: 2
+  replicas: 2
+  restartedAt: '2020-11-06T10:03:31Z'
+  selector: app=rollout-canary
+  stableRS: 69d59f5445

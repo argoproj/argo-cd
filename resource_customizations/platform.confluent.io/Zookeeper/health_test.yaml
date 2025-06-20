@@ -1,0 +1,9 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: Zookeeper provisioning
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Healthy
+      message: Zookeeper running
+    inputPath: testdata/healthy.yaml

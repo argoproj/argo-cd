@@ -1,0 +1,166 @@
+apiVersion: apps/v1beta2
+kind: StatefulSet
+metadata:
+  name: {{ template "redis.fullname" . }}-master
+  labels:
+    app: {{ template "redis.name" . }}
+    chart: {{ template "redis.chart" . }}
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+spec:
+  selector:
+    matchLabels:
+      release: "{{ .Release.Name }}"
+      role: master
+      app: {{ template "redis.name" . }}
+  serviceName: "redis-master"
+  template:
+    metadata:
+      labels:
+        release: "{{ .Release.Name }}"
+        role: master
+        app: {{ template "redis.name" . }}
+{{- if .Values.master.podLabels }}
+{{ toYaml .Values.master.podLabels | indent 8 }}
+{{- end }}
+      {{- if .Values.master.podAnnotations }}
+      annotations:
+{{ toYaml .Values.master.podAnnotations | indent 8 }}
+      {{- end }}
+    spec:
+      {{- if .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- range .Values.image.pullSecrets }}
+        - name: {{ . }}
+        {{- end}}
+      {{- end}}
+      {{- if .Values.master.securityContext.enabled }}
+      securityContext:
+        fsGroup: {{ .Values.master.securityContext.fsGroup }}
+        runAsUser: {{ .Values.master.securityContext.runAsUser }}
+      {{- end }}
+      serviceAccountName: "{{ template "redis.serviceAccountName" . }}"
+      {{- with .Values.master.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- if .Values.master.nodeSelector }}
+      nodeSelector:
+{{ toYaml .Values.master.nodeSelector | indent 8 }}
+      {{- end }}
+      {{- if .Values.master.tolerations }}
+      tolerations:
+{{ toYaml .Values.master.tolerations | indent 8 }}
+      {{- end }}
+      {{- if .Values.master.schedulerName }}
+      schedulerName: "{{ .Values.master.schedulerName }}"
+      {{- end }}
+      containers:
+      - name: {{ template "redis.fullname" . }}
+        image: "{{ template "redis.image" . }}"
+        imagePullPolicy: {{ default "" .Values.image.pullPolicy | quote }}
+        {{- if .Values.master.args }}
+        args:
+{{ toYaml .Values.master.args | indent 10 }}
+        {{- end }}
+        env:
+        - name: REDIS_REPLICATION_MODE
+          value: master
+        {{- if .Values.usePassword }}
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+            {{- if .Values.existingSecret }}
+              name: {{ .Values.existingSecret }}
+            {{- else }}
+              name: {{ template "redis.fullname" . }}
+            {{- end }}
+              key: redis-password
+        {{- else }}
+        - name: ALLOW_EMPTY_PASSWORD
+          value: "yes"
+        - name: REDIS_PORT
+          value: {{ .Values.master.port | quote }}
+        {{- end }}
+        - name: REDIS_DISABLE_COMMANDS
+          value: {{ .Values.master.disableCommands }}
+        {{- if .Values.master.extraFlags }}
+        - name: REDIS_EXTRA_FLAGS
+          value: {{ .Values.master.extraFlags | join " " }}
+        {{- end }}
+        ports:
+        - name: redis
+          containerPort: {{ .Values.master.port }}
+        {{- if .Values.master.livenessProbe.enabled }}
+        livenessProbe:
+          initialDelaySeconds: {{ .Values.master.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.master.livenessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.master.livenessProbe.timeoutSeconds }}
+          successThreshold: {{ .Values.master.livenessProbe.successThreshold }}
+          failureThreshold: {{ .Values.master.livenessProbe.failureThreshold }}
+          exec:
+            command:
+            - redis-cli
+            - ping
+        {{- end }}
+        {{- if .Values.master.readinessProbe.enabled}}
+        readinessProbe:
+          initialDelaySeconds: {{ .Values.master.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.master.readinessProbe.periodSeconds }}
+          timeoutSeconds: {{ .Values.master.readinessProbe.timeoutSeconds }}
+          successThreshold: {{ .Values.master.readinessProbe.successThreshold }}
+          failureThreshold: {{ .Values.master.readinessProbe.failureThreshold }}
+          exec:
+            command:
+            - redis-cli
+            - ping
+        {{- end }}
+        resources:
+{{ toYaml .Values.master.resources | indent 10 }}
+        volumeMounts:
+        - name: redis-data
+          mountPath: {{ .Values.master.persistence.path }}
+          subPath: {{ .Values.master.persistence.subPath }}
+  {{- if not .Values.master.persistence.enabled }}
+      volumes:
+      - name: "redis-data"
+        emptyDir: {}
+  {{- else }}
+    {{- if .Values.persistence.existingClaim }}
+      volumes:
+      - name: "redis-data"
+        persistentVolumeClaim:
+          claimName: {{ .Values.persistence.existingClaim }}
+    {{- else }}
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+        labels:
+          app: "{{ template "redis.name" . }}"
+          chart: {{ template "redis.chart" . }}
+          component: "master"
+          release: {{ .Release.Name | quote }}
+          heritage: {{ .Release.Service | quote }}
+      spec:
+        accessModes:
+        {{- range .Values.master.persistence.accessModes }}
+          - {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.master.persistence.size | quote }}
+      {{- if .Values.master.persistence.storageClass }}
+      {{- if (eq "-" .Values.master.persistence.storageClass) }}
+        storageClassName: ""
+      {{- else }}
+        storageClassName: {{ .Values.master.persistence.storageClass | quote }}
+      {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  updateStrategy:
+    type: {{ .Values.master.statefulset.updateStrategy }}
+    {{- if .Values.master.statefulset.rollingUpdatePartition }}
+    rollingUpdate:
+      partition: {{ .Values.master.statefulset.rollingUpdatePartition }}
+    {{- end }}

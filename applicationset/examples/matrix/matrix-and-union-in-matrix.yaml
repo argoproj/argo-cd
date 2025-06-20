@@ -1,0 +1,69 @@
+# The matrix generator can contain other combination-type generators (matrix and union). But nested matrix and union
+# generators cannot contain further-nested matrix or union generators.
+#
+# The generators are evaluated from most-nested to least-nested. In this case:
+#  1. The union generator joins two lists to make 3 parameter sets.
+#  2. The inner matrix generator takes the cartesian product of the two lists to make 4 parameters sets.
+#  3. The outer matrix generator takes the cartesian product of the 3 union and the 4 inner matrix parameter sets to
+#     make 3*4=12 final parameter sets.
+#  4. The 12 final parameter sets are evaluated against the top-level template to generate 12 Applications.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: matrix-and-union-in-matrix
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - union:
+              mergeKeys:
+                - cluster
+              generators:
+                - list:
+                    elements:
+                      - cluster: engineering-dev
+                        url: https://kubernetes.default.svc
+                        values:
+                          project: default
+                      - cluster: engineering-prod
+                        url: https://kubernetes.default.svc
+                        values:
+                          project: default
+                - list:
+                    elements:
+                      - cluster: engineering-dev
+                        url: https://kubernetes.default.svc
+                        values:
+                          project: default
+                      - cluster: engineering-test
+                        url: https://kubernetes.default.svc
+                        values:
+                          project: default
+          - matrix:
+              generators:
+                - list:
+                    elements:
+                      - values:
+                          suffix: '1'
+                      - values:
+                          suffix: '2'
+                - list:
+                    elements:
+                      - values:
+                          prefix: 'first'
+                      - values:
+                          prefix: 'second'
+  template:
+    metadata:
+      name: '{{.values.prefix}}-{{.cluster}}-{{.values.suffix}}'
+    spec:
+      project: '{{.values.project}}'
+      source:
+        repoURL: https://github.com/argoproj/argo-cd.git
+        targetRevision: HEAD
+        path: '{{.path.path}}'
+      destination:
+        server: '{{.url}}'
+        namespace: '{{.path.basename}}'

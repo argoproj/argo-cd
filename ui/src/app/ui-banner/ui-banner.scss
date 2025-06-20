@@ -1,0 +1,61 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.ui-banner {
+    background: $argo-color-gray-5;
+    position: fixed;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    text-align: center;
+    color: $argo-color-teal-8;
+    font-weight: 500;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 10px 5px 70px;
+
+    a {
+        text-decoration: underline;
+        color: $argo-color-teal-8;
+    }
+}
+
+.ui-banner-top {
+    $banner-height: 70px;
+    height: $banner-height;
+    top: 0;
+    &--wrapper {
+        margin-top: $banner-height;
+        .page__top-bar {
+            top: $banner-height;
+        }
+    }
+
+    &--wrapper-multiline {
+        .page__top-bar {
+            top: $banner-height;
+        }
+    }
+
+    &--wrapper-singleline {
+        margin-top: 28px;
+        .page__top-bar {
+            top: 28px;
+        }
+    }
+}
+
+.ui-banner-bottom {
+    bottom: 0%;
+}
+
+.ui-banner-text {
+    margin-right: 15px;
+    overflow-y: auto;
+    max-height: 50px;
+}
+
+.ui-banner-button {
+    line-height: 1.1;
+}

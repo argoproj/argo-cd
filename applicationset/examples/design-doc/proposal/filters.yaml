@@ -1,0 +1,48 @@
+# For all generators, filters can be applied to reduce the generated items to a smaller subset.
+# A powerful set of filter expressions are supported using syntax provided by the
+# https://github.com/antonmedv/expr library. Examples expressions are demonstrated below
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+spec:
+  generators:
+  # Match all clusters who meet ALL of the following conditions:
+  #  1. name matches the regex `sales-.*`
+  #  2. environment label is either 'staging' or 'prod'
+  - clusters:
+      filters:
+      - expr: '{{name}} matches "sales-.*"'
+      - expr: '{{metadata.labels.environment}} in [staging, prod]'
+      values:
+        version: '2.0.0'
+  # Filter items from `config/clusters.json` in the `cluster-deployments` git repo,
+  # to only those having the `cluster.enabled == true` property. e.g.:
+  # {
+  #    ...
+  #    "cluster": {
+  #        "enabled": true,
+  #        ...
+  #    }
+  # }
+  - git:
+      repoURL: https://github.com/infra-team/cluster-deployments.git
+      files:
+      - path: config/clusters.json
+      filters:
+      - expr: '{{cluster.enabled}} == true'
+  template:
+    metadata:
+      name: '{{name}}-guestbook'
+    spec:
+      source:
+        repoURL: https://github.com/infra-team/cluster-deployments.git
+        targetRevision: "{{values.version}}"
+        chart: guestbook
+        helm:
+          parameters:
+          - name: foo
+            value: "{{metadata.annotations.foo}}"
+      destination:
+        server: '{{server}}'
+        namespace: guestbook

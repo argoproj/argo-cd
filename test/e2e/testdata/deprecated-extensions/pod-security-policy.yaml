@@ -1,0 +1,17 @@
+apiVersion: extensions/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: pod-security-example
+spec:
+  privileged: false  # Don't allow privileged pods!
+  # The rest fills in some required fields.
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  runAsUser:
+    rule: RunAsAny
+  fsGroup:
+    rule: RunAsAny
+  volumes:
+    - '*'

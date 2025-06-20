@@ -1,0 +1,91 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: >
+      {"apiVersion":"admissionregistration.k8s.io/v1","kind":"ValidatingWebhookConfiguration","metadata":{"annotations":{},"labels":{"app.kubernetes.io/instance":"external-secrets","external-secrets.io/component":"webhook"},"name":"externalsecret-validate"},"webhooks":[{"admissionReviewVersions":["v1","v1beta1"],"clientConfig":{"caBundle":"Cg==","service":{"name":"external-secrets-webhook","namespace":"external-secrets","path":"/validate-external-secrets-io-v1beta1-externalsecret"}},"name":"validate.externalsecret.external-secrets.io","rules":[{"apiGroups":["external-secrets.io"],"apiVersions":["v1beta1"],"operations":["CREATE","UPDATE","DELETE"],"resources":["externalsecrets"],"scope":"Namespaced"}],"sideEffects":"None","timeoutSeconds":5}]}
+  creationTimestamp: '2022-04-12T14:17:35Z'
+  generation: 2
+  labels:
+    app.kubernetes.io/instance: external-secrets
+    external-secrets.io/component: webhook
+  managedFields:
+    - apiVersion: admissionregistration.k8s.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:metadata':
+          'f:annotations':
+            .: {}
+            'f:kubectl.kubernetes.io/last-applied-configuration': {}
+          'f:labels':
+            .: {}
+            'f:app.kubernetes.io/instance': {}
+            'f:external-secrets.io/component': {}
+        'f:webhooks':
+          .: {}
+          'k:{"name":"validate.externalsecret.external-secrets.io"}':
+            .: {}
+            'f:admissionReviewVersions': {}
+            'f:clientConfig':
+              .: {}
+              'f:service':
+                .: {}
+                'f:name': {}
+                'f:namespace': {}
+                'f:path': {}
+                'f:port': {}
+            'f:failurePolicy': {}
+            'f:matchPolicy': {}
+            'f:name': {}
+            'f:namespaceSelector': {}
+            'f:objectSelector': {}
+            'f:rules': {}
+            'f:sideEffects': {}
+            'f:timeoutSeconds': {}
+      manager: argocd
+      operation: Update
+      time: '2022-04-12T14:17:35Z'
+    - apiVersion: admissionregistration.k8s.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:webhooks':
+          'k:{"name":"validate.externalsecret.external-secrets.io"}':
+            'f:clientConfig':
+              'f:caBundle': {}
+      manager: external-secrets
+      operation: Update
+      time: '2022-04-12T14:17:37Z'
+  name: externalsecret-validate
+  resourceVersion: '1644596'
+  uid: b56ccc4e-30d6-4b32-8a6e-7eae41ab3155
+webhooks:
+  - admissionReviewVersions:
+      - v1
+      - v1beta1
+    clientConfig:
+      caBundle: >-
+        LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURSakNDQWk2Z0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREEyTVJrd0Z3WURWUVFLRXhCbGVIUmwKY201aGJDMXpaV055WlhSek1Sa3dGd1lEVlFRREV4QmxlSFJsY201aGJDMXpaV055WlhSek1CNFhEVEl5TURReApNakV6TVRjek4xb1hEVE15TURRd09URTBNVGN6TjFvd05qRVpNQmNHQTFVRUNoTVFaWGgwWlhKdVlXd3RjMlZqCmNtVjBjekVaTUJjR0ExVUVBeE1RWlhoMFpYSnVZV3d0YzJWamNtVjBjekNDQVNJd0RRWUpLb1pJaHZjTkFRRUIKQlFBRGdnRVBBRENDQVFvQ2dnRUJBTU9RQmR2Z210RE1aVjRhNGQ2dUw5ZGNzT3c4SXRnbW9zZ3R1MGplTlF2Ygo4a291TmdRMVpxMlFSVFVNTTVCYlpNRTNGWHM3aWxwNVZVbzN3SnZsaVdVVHhxb3lIMUY2VUszbUsyYmp2aHRrCnVEYWVnNkh4ZzNjRlVybXRvNCtyVHNTT1BlN3ZRajVNbWZzeVEzb1BXamxFbExyMEE5b3RScGZnZGZtNWxncHgKVkE0SFdGeWZmQ3hpUEFaamNYNFdjd1hOdzJSN21aQnNNSW1xTk1YOUhzUEVOdTdzdk1DeXEzU0pvdzNqTXFpNgpHUFZaUmh2ZlRSY2hDcmV2UVE3OTRPNGkrSVk3ZVdvV00yZDgweVM3V09LcUUvNEE1SU9tNWVJK1BhNUlvd3E1CnppckxxU3lsYW15bzZxbWN3TDFEbFpiM2RmSE9GVUx0cFM1YkhTSzQyTWNDQXdFQUFhTmZNRjB3RGdZRFZSMFAKQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCL3dRRk1BTUJBZjh3SFFZRFZSME9CQllFRk1QMkF1aUh1d2FsczlTcgpYWk1XODdyb2l0UElNQnNHQTFVZEVRUVVNQktDRUdWNGRHVnlibUZzTFhObFkzSmxkSE13RFFZSktvWklodmNOCkFRRUxCUUFEZ2dFQkFMek5BczhnS2FqYjc1N3pyMjdHRzBMVzkxVG1ab1dPQ0ZHMXFrUWJ3T2U0d25kV2NiT08KbThsYkx6a291Wlo5d1I0aXN2OVFHYnNlS0V1UXpyWlZzZXlJTHZoUGVWcGZGd1ZkcVFsQ0laRXM5SSswd0hXawplblFWWGNEamZMTk9zdDhFcDlKVktwSkJwODRIY1NvZkJMY1RPcFdqdGZtZnNudmlzbU5ha2hGNzM2SmJrQUdmClZvdUJDQlU5Z3g2SGI5T2FDaDdpekZLMnVyWHo1NkV5eXhhUUlsckRyYVlZV3Mrb3ZhTlJwdEltKytqcnFBdUkKV0xxdWQvU0tQMy9Fc3o3cmVWb2xGODFIYmdEMEQ0RWlmZWJZeXpnWEJMcVlZcUxUZXIzQzVONFRwcGpJSi82NgpERVBNZ0xUaG9jRkpZNVFBYy9rbGl5Q2VnN3VoWSs5TnFLRT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+      service:
+        name: external-secrets-webhook
+        namespace: external-secrets
+        path: /validate-external-secrets-io-v1beta1-externalsecret
+        port: 443
+    failurePolicy: Fail
+    matchPolicy: Equivalent
+    name: validate.externalsecret.external-secrets.io
+    namespaceSelector: {}
+    objectSelector: {}
+    rules:
+      - apiGroups:
+          - external-secrets.io
+        apiVersions:
+          - v1beta1
+        operations:
+          - CREATE
+          - UPDATE
+          - DELETE
+        resources:
+          - externalsecrets
+        scope: Namespaced
+    sideEffects: None
+    timeoutSeconds: 5

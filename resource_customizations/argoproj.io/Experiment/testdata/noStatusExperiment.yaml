@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Experiment
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: >
+      {"apiVersion":"argoproj.io/v1alpha1","kind":"Experiment","metadata":{"annotations":{},"labels":{"app.kubernetes.io/instance":"rollouts-canary"},"name":"example-experiment","namespace":"argo-rollouts"},"spec":{"duration":60,"templates":[{"name":"baseline","selector":{"matchLabels":{"app":"rollouts-demo","color":"blue"}},"template":{"metadata":{"labels":{"app":"rollouts-demo","color":"blue"}},"spec":{"containers":[{"image":"argoproj/rollouts-demo:blue","name":"guestbook"}]}}},{"name":"canary","selector":{"matchLabels":{"app":"rollouts-demo","color":"yellow"}},"template":{"metadata":{"labels":{"app":"rollouts-demo","color":"yellow"}},"spec":{"containers":[{"image":"argoproj/rollouts-demo:yellow","name":"guestbook"}]}}}]}}
+  creationTimestamp: '2019-10-28T20:13:28Z'
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: rollouts-canary
+  name: example-experiment
+  namespace: argo-rollouts
+  resourceVersion: '28562006'
+  selfLink: >-
+    /apis/argoproj.io/v1alpha1/namespaces/argo-rollouts/experiments/example-experiment
+  uid: 67792f8a-f9bf-11e9-a15b-42010aa80033
+spec:
+  duration: 60
+  templates:
+    - name: baseline
+      selector:
+        matchLabels:
+          app: rollouts-demo
+          color: blue
+      template:
+        metadata:
+          labels:
+            app: rollouts-demo
+            color: blue
+        spec:
+          containers:
+            - image: 'argoproj/rollouts-demo:blue'
+              name: guestbook

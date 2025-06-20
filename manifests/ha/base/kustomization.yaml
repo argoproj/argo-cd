@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+
+patches:
+- path: overlays/argocd-repo-server-deployment.yaml
+- path: overlays/argocd-server-deployment.yaml
+- path: overlays/argocd-application-controller-statefulset.yaml
+- path: overlays/argocd-cmd-params-cm.yaml
+
+
+images:
+- name: quay.io/argoproj/argocd
+  newName: quay.io/argoproj/argocd
+  newTag: latest
+resources:
+- ../../base/application-controller
+- ../../base/applicationset-controller
+- ../../base/dex
+- ../../base/repo-server
+- ../../base/server
+- ../../base/config
+- ../../base/notification
+- ./redis-ha

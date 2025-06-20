@@ -1,0 +1,32 @@
+apiVersion: operator.knative.dev/v1alpha1
+kind: KnativeServing
+metadata:
+  finalizers:
+  - knativeservings.operator.knative.dev
+  - delete-knative-serving-manifest
+  generation: 2
+  labels:
+    app: knative-serving
+    argocd.argoproj.io/instance: knative-serving
+    version: 0.14.1
+  name: knative-serving
+  namespace: knative-serving
+  resourceVersion: "31845507"
+  selfLink: /apis/operator.knative.dev/v1alpha1/namespaces/knative-serving/knativeservings/knative-serving
+  uid: ccbe43aa-ad72-4c2b-a5bb-21b3815d8a9b
+spec: {}
+status:
+  conditions:
+  - lastTransitionTime: "2020-05-18T18:21:29Z"
+    status: "True"
+    type: DependenciesInstalled
+  - lastTransitionTime: "2020-06-08T15:28:11Z"
+    status: "True"
+    type: DeploymentsAvailable
+  - lastTransitionTime: "2020-05-18T18:21:29Z"
+    status: "True"
+    type: InstallSucceeded
+  - lastTransitionTime: "2020-06-08T15:28:11Z"
+    status: "Unknown"
+    type: Ready
+  version: 0.14.0

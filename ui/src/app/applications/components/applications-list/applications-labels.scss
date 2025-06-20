@@ -1,0 +1,23 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.application-labels, .application-labels-tooltip {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.application-labels {
+    .application-labels__item {
+        background-color: $argo-color-gray-4;
+        color: $argo-color-gray-8;
+        border-radius: 5px;
+        padding: 0 2px;
+        margin-right: 2px;
+    }
+}
+
+.application-labels-tooltip {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}

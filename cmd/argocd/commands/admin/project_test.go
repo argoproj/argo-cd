@@ -1,0 +1,83 @@
+package admin
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
+)
+
+const (
+	namespace = "default"
+)
+
+func newProj(name string, roleNames ...string) *v1alpha1.AppProject {
+	var roles []v1alpha1.ProjectRole
+	for i := range roleNames {
+		roles = append(roles, v1alpha1.ProjectRole{Name: roleNames[i]})
+	}
+	return &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{
+		Name:      name,
+		Namespace: namespace,
+	}, Spec: v1alpha1.AppProjectSpec{
+		Roles: roles,
+	}}
+}
+
+func TestUpdateProjects_FindMatchingProject(t *testing.T) {
+	ctx := t.Context()
+
+	clientset := fake.NewSimpleClientset(newProj("foo", "test"), newProj("bar", "test"))
+
+	modification, err := getModification("set", "*", "*", "allow")
+	require.NoError(t, err)
+	err = updateProjects(ctx, clientset.ArgoprojV1alpha1().AppProjects(namespace), "ba*", "*", "set", modification, false)
+	require.NoError(t, err)
+
+	fooProj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "foo", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Empty(t, fooProj.Spec.Roles[0].Policies)
+
+	barProj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "bar", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"p, proj:bar:test, *, set, bar/*, allow"}, barProj.Spec.Roles[0].Policies)
+}
+
+func TestUpdateProjects_FindMatchingRole(t *testing.T) {
+	ctx := t.Context()
+
+	clientset := fake.NewSimpleClientset(newProj("proj", "foo", "bar"))
+
+	modification, err := getModification("set", "*", "*", "allow")
+	require.NoError(t, err)
+	err = updateProjects(ctx, clientset.ArgoprojV1alpha1().AppProjects(namespace), "*", "fo*", "set", modification, false)
+	require.NoError(t, err)
+
+	proj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "proj", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"p, proj:proj:foo, *, set, proj/*, allow"}, proj.Spec.Roles[0].Policies)
+	assert.Empty(t, proj.Spec.Roles[1].Policies)
+}
+
+func TestGetModification_SetPolicy(t *testing.T) {
+	modification, err := getModification("set", "*", "*", "allow")
+	require.NoError(t, err)
+	policy := modification("proj", "myaction")
+	assert.Equal(t, "*, myaction, proj/*, allow", policy)
+}
+
+func TestGetModification_RemovePolicy(t *testing.T) {
+	modification, err := getModification("remove", "*", "*", "allow")
+	require.NoError(t, err)
+	policy := modification("proj", "myaction")
+	assert.Empty(t, policy)
+}
+
+func TestGetModification_NotSupported(t *testing.T) {
+	_, err := getModification("bar", "*", "*", "allow")
+	assert.Errorf(t, err, "modification bar is not supported")
+}

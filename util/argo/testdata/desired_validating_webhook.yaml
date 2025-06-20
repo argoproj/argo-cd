@@ -1,0 +1,32 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  labels:
+    app.kubernetes.io/instance: external-secrets
+    external-secrets.io/component: webhook
+  name: externalsecret-validate
+webhooks:
+  - admissionReviewVersions:
+      - v1
+      - v1beta1
+    clientConfig:
+      caBundle: Cg==
+      service:
+        name: external-secrets-webhook
+        namespace: external-secrets
+        path: /validate-external-secrets-io-v1beta1-externalsecret
+    name: validate.externalsecret.external-secrets.io
+    rules:
+      - apiGroups:
+          - external-secrets.io
+        apiVersions:
+          - v1beta1
+        operations:
+          - CREATE
+          - UPDATE
+          - DELETE
+        resources:
+          - externalsecrets
+        scope: Namespaced
+    sideEffects: None
+    timeoutSeconds: 5

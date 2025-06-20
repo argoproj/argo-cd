@@ -1,0 +1,13 @@
+discoveryTests:
+- inputPath: testdata/runningAnalysisRun.yaml
+  result:
+  - name: terminate
+    disabled: false
+- inputPath: testdata/failedAnalysisRun.yaml
+  result:
+  - name: terminate
+    disabled: true
+actionTests:
+- action: terminate
+  inputPath: testdata/runningAnalysisRun.yaml
+  expectedOutputPath: testdata/runningAnalysisRun_terminated.yaml

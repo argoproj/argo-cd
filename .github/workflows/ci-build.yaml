@@ -1,0 +1,562 @@
+name: Integration tests
+on:
+  push:
+    branches:
+      - 'master'
+      - 'release-*'
+      - '!release-1.4'
+      - '!release-1.5'
+  pull_request:
+    branches:
+      - 'master'
+      - 'release-*'
+
+env:
+  # Golang version to use across CI steps
+  # renovate: datasource=golang-version packageName=golang
+  GOLANG_VERSION: '1.24.4'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend_any_changed }}
+      frontend: ${{ steps.filter.outputs.frontend_any_changed }}
+      docs: ${{ steps.filter.outputs.docs_any_changed }}
+    steps:
+      - uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+      - uses: tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c # v46.0.5
+        id: filter
+        with:
+          # Any file which is not under docs/, ui/ or is not a markdown file is counted as a backend file
+          files_yaml: |
+            backend:
+              - '!ui/**'
+              - '!**.md'
+              - '!**/*.md'
+              - '!docs/**'
+            frontend:
+              - 'ui/**'
+              - Dockerfile
+            docs:
+              - 'docs/**'
+  check-go:
+    name: Ensure Go modules synchronicity
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-22.04
+    needs:
+      - changes
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+      - name: Setup Golang
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+      - name: Download all Go modules
+        run: |
+          go mod download
+      - name: Check for tidiness of go.mod and go.sum
+        run: |
+          go mod tidy
+          git diff --exit-code -- .
+
+  build-go:
+    name: Build & cache Go code
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-22.04
+    needs:
+      - changes
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+      - name: Setup Golang
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+      - name: Restore go build cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/go-build
+          key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
+      - name: Download all Go modules
+        run: |
+          go mod download
+      - name: Compile all packages
+        run: make build-local
+
+  lint-go:
+    permissions:
+      contents: read # for actions/checkout to fetch code
+      pull-requests: read # for golangci/golangci-lint-action to fetch pull requests
+    name: Lint Go code
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-22.04
+    needs:
+      - changes
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+      - name: Setup Golang
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8.0.0
+        with:
+          # renovate: datasource=go packageName=github.com/golangci/golangci-lint versioning=regex:^v(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)?$
+          version: v2.1.6
+          args: --verbose
+
+  test-go:
+    name: Run unit tests for Go packages
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-22.04
+    needs:
+      - build-go
+      - changes
+    env:
+      GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+      GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}
+    steps:
+      - name: Create checkout directory
+        run: mkdir -p ~/go/src/github.com/argoproj
+      - name: Checkout code
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+      - name: Create symlink in GOPATH
+        run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
+      - name: Setup Golang
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+      - name: Install required packages
+        run: |
+          sudo apt-get install git -y
+      - name: Switch to temporal branch so we re-attach head
+        run: |
+          git switch -c temporal-pr-branch
+          git status
+      - name: Fetch complete history for blame information
+        run: |
+          git fetch --prune --no-tags --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+      - name: Add ~/go/bin to PATH
+        run: |
+          echo "/home/runner/go/bin" >> $GITHUB_PATH
+      - name: Add /usr/local/bin to PATH
+        run: |
+          echo "/usr/local/bin" >> $GITHUB_PATH
+      - name: Restore go build cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/go-build
+          key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
+      - name: Install all tools required for building & testing
+        run: |
+          make install-test-tools-local
+        # We install kustomize in the dist directory
+      - name: Add dist to PATH
+        run: |
+          echo "/home/runner/work/argo-cd/argo-cd/dist" >> $GITHUB_PATH
+      - name: Setup git username and email
+        run: |
+          git config --global user.name "John Doe"
+          git config --global user.email "john.doe@example.com"
+      - name: Download and vendor all required packages
+        run: |
+          go mod download
+      - name: Run all unit tests
+        run: make test-local
+      - name: Generate test results artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-results
+          path: test-results
+
+  test-go-race:
+    name: Run unit tests with -race for Go packages
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-22.04
+    needs:
+      - build-go
+      - changes
+    env:
+      GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+      GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}
+    steps:
+      - name: Create checkout directory
+        run: mkdir -p ~/go/src/github.com/argoproj
+      - name: Checkout code
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+      - name: Create symlink in GOPATH
+        run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
+      - name: Setup Golang
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+      - name: Install required packages
+        run: |
+          sudo apt-get install git -y
+      - name: Switch to temporal branch so we re-attach head
+        run: |
+          git switch -c temporal-pr-branch
+          git status
+      - name: Fetch complete history for blame information
+        run: |
+          git fetch --prune --no-tags --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+      - name: Add ~/go/bin to PATH
+        run: |
+          echo "/home/runner/go/bin" >> $GITHUB_PATH
+      - name: Add /usr/local/bin to PATH
+        run: |
+          echo "/usr/local/bin" >> $GITHUB_PATH
+      - name: Restore go build cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/go-build
+          key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
+      - name: Install all tools required for building & testing
+        run: |
+          make install-test-tools-local
+        # We install kustomize in the dist directory
+      - name: Add dist to PATH
+        run: |
+          echo "/home/runner/work/argo-cd/argo-cd/dist" >> $GITHUB_PATH
+      - name: Setup git username and email
+        run: |
+          git config --global user.name "John Doe"
+          git config --global user.email "john.doe@example.com"
+      - name: Download and vendor all required packages
+        run: |
+          go mod download
+      - name: Run all unit tests
+        run: make test-race-local
+      - name: Generate test results artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: race-results
+          path: test-results/
+
+  codegen:
+    name: Check changes to generated code
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.docs == 'true'}}
+    runs-on: ubuntu-22.04
+    needs:
+      - changes
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+      - name: Setup Golang
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+      - name: Create symlink in GOPATH
+        run: |
+          mkdir -p ~/go/src/github.com/argoproj
+          cp -a ../argo-cd ~/go/src/github.com/argoproj
+      - name: Add ~/go/bin to PATH
+        run: |
+          echo "/home/runner/go/bin" >> $GITHUB_PATH
+      - name: Add /usr/local/bin to PATH
+        run: |
+          echo "/usr/local/bin" >> $GITHUB_PATH
+      - name: Download & vendor dependencies
+        run: |
+          # We need to vendor go modules for codegen yet
+          go mod download
+          go mod vendor -v
+        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+      - name: Install toolchain for codegen
+        run: |
+          make install-codegen-tools-local
+          make install-go-tools-local
+        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+        # We install kustomize in the dist directory
+      - name: Add dist to PATH
+        run: |
+          echo "/home/runner/work/argo-cd/argo-cd/dist" >> $GITHUB_PATH
+      - name: Run codegen
+        run: |
+          set -x
+          export GOPATH=$(go env GOPATH)
+          git checkout -- go.mod go.sum
+          make codegen-local
+        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+      - name: Check nothing has changed
+        run: |
+          set -xo pipefail
+          git diff --exit-code -- . ':!go.sum' ':!go.mod' ':!assets/swagger.json' | tee codegen.patch
+        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+
+  build-ui:
+    name: Build, test & lint UI code
+    # We run UI logic for backend changes so that we have a complete set of coverage documents to send to codecov.
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
+    runs-on: ubuntu-22.04
+    needs:
+      - changes
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+      - name: Setup NodeJS
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          # renovate: datasource=node-version packageName=node versioning=node
+          node-version: '22.9.0'
+      - name: Restore node dependency cache
+        id: cache-dependencies
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ui/node_modules
+          key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
+      - name: Install node dependencies
+        run: |
+          cd ui && yarn install --frozen-lockfile --ignore-optional --non-interactive
+      - name: Build UI code
+        run: |
+          yarn test
+          yarn build
+        env:
+          NODE_ENV: production
+          NODE_ONLINE_ENV: online
+          HOST_ARCH: amd64
+          # If we're on the master branch, set the codecov token so that we upload bundle analysis
+          CODECOV_TOKEN: ${{ github.ref == 'refs/heads/master' && secrets.CODECOV_TOKEN || '' }}
+        working-directory: ui/
+      - name: Run ESLint
+        run: yarn lint
+        working-directory: ui/
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+      - run: |
+          sudo apt-get install shellcheck
+          shellcheck -e SC2086 -e SC2046 -e SC2068 -e SC2206 -e SC2048 -e SC2059 -e SC2154 -e SC2034 -e SC2016 -e SC2128 -e SC1091 -e SC2207  $(find . -type f -name '*.sh') | tee sc.log
+          test ! -s sc.log
+
+  analyze:
+    name: Process & analyze test artifacts
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
+    runs-on: ubuntu-22.04
+    needs:
+      - test-go
+      - build-ui
+      - changes
+      - test-e2e
+    env:
+      sonar_secret: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+        with:
+          fetch-depth: 0
+      - name: Restore node dependency cache
+        id: cache-dependencies
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ui/node_modules
+          key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
+      - name: Remove other node_modules directory
+        run: |
+          rm -rf ui/node_modules/argo-ui/node_modules
+      - name: Get e2e code coverage
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: e2e-code-coverage
+          path: e2e-code-coverage
+      - name: Get unit test code coverage
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: test-results
+          path: test-results
+      - name: combine-go-coverage
+        # We generate coverage reports for all Argo CD components, but only the applicationset-controller,
+        # app-controller, repo-server, and commit-server report contain coverage data. The other components currently
+        # don't shut down gracefully, so no coverage data is produced. Once those components are fixed, we can add
+        # references to their coverage output directories.
+        run: |
+          go tool covdata percent -i=test-results,e2e-code-coverage/applicationset-controller,e2e-code-coverage/repo-server,e2e-code-coverage/app-controller,e2e-code-coverage/commit-server -o test-results/full-coverage.out
+      - name: Upload code coverage information to codecov.io
+        uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
+        with:
+          files: test-results/full-coverage.out
+          fail_ci_if_error: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push' && github.repository == 'argoproj/argo-cd'
+        uses: codecov/test-results-action@47f89e9acb64b76debcd5ea40642d25a4adced9f # v1.1.1
+        with:
+          file: test-results/junit.xml
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Perform static code analysis using SonarCloud
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        uses: SonarSource/sonarqube-scan-action@2500896589ef8f7247069a56136f8dc177c27ccf # v5.2.0
+        if: env.sonar_secret != ''
+  test-e2e:
+    name: Run end-to-end tests
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # latest: true means that this version mush upload the coverage report to codecov.io
+        # We designate the latest version because we only collect code coverage for that version.
+        k3s:
+          - version: v1.33.1
+            latest: true
+          - version: v1.32.1
+            latest: false
+          - version: v1.31.0
+            latest: false
+          - version: v1.30.4
+            latest: false
+    needs:
+      - build-go
+      - changes
+    env:
+      GOPATH: /home/runner/go
+      ARGOCD_FAKE_IN_CLUSTER: 'true'
+      ARGOCD_SSH_DATA_PATH: '/tmp/argo-e2e/app/config/ssh'
+      ARGOCD_TLS_DATA_PATH: '/tmp/argo-e2e/app/config/tls'
+      ARGOCD_E2E_SSH_KNOWN_HOSTS: '../fixture/certs/ssh_known_hosts'
+      ARGOCD_E2E_K3S: 'true'
+      ARGOCD_IN_CI: 'true'
+      ARGOCD_E2E_APISERVER_PORT: '8088'
+      ARGOCD_APPLICATION_NAMESPACES: 'argocd-e2e-external,argocd-e2e-external-2'
+      ARGOCD_SERVER: '127.0.0.1:8088'
+      GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+      GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+          tool-cache: false
+      - name: Checkout code
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+      - name: Setup Golang
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+      - name: GH actions workaround - Kill XSP4 process
+        run: |
+          sudo pkill mono || true
+      - name: Install K3S
+        env:
+          INSTALL_K3S_VERSION: ${{ matrix.k3s.version }}+k3s1
+        run: |
+          set -x
+          curl -sfL https://get.k3s.io | sh -
+          sudo chmod -R a+rw /etc/rancher/k3s
+          sudo mkdir -p $HOME/.kube && sudo chown -R runner $HOME/.kube
+          sudo k3s kubectl config view --raw > $HOME/.kube/config
+          sudo chown runner $HOME/.kube/config
+          sudo chmod go-r $HOME/.kube/config
+          kubectl version
+      - name: Restore go build cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/go-build
+          key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
+      - name: Add ~/go/bin to PATH
+        run: |
+          echo "/home/runner/go/bin" >> $GITHUB_PATH
+      - name: Add /usr/local/bin to PATH
+        run: |
+          echo "/usr/local/bin" >> $GITHUB_PATH
+      - name: Add ./dist to PATH
+        run: |
+          echo "$(pwd)/dist" >> $GITHUB_PATH
+      - name: Download Go dependencies
+        run: |
+          go mod download
+          go install github.com/mattn/goreman@latest
+      - name: Install all tools required for building & testing
+        run: |
+          make install-test-tools-local
+      - name: Setup git username and email
+        run: |
+          git config --global user.name "John Doe"
+          git config --global user.email "john.doe@example.com"
+      - name: Pull Docker image required for tests
+        run: |
+          docker pull ghcr.io/dexidp/dex:v2.43.0
+          docker pull argoproj/argo-cd-ci-builder:v1.0.0
+          docker pull redis:7.2.7-alpine
+      - name: Create target directory for binaries in the build-process
+        run: |
+          mkdir -p dist
+          chown runner dist
+      - name: Run E2E server and wait for it being available
+        timeout-minutes: 30
+        run: |
+          set -x
+          # Something is weird in GH runners -- there's a phantom listener for
+          # port 8080 which is not visible in netstat -tulpen, but still there
+          # with a HTTP listener. We have API server listening on port 8088
+          # instead.
+          make start-e2e-local COVERAGE_ENABLED=true 2>&1 | sed -r "s/[[:cntrl:]]\[[0-9]{1,3}m//g" > /tmp/e2e-server.log &
+          count=1
+          until curl -f http://127.0.0.1:8088/healthz; do
+            sleep 10;
+            if test $count -ge 180; then
+              echo "Timeout"
+              exit 1
+            fi
+            count=$((count+1))
+          done
+      - name: Run E2E testsuite
+        run: |
+          set -x
+          make test-e2e-local
+          goreman run stop-all || echo "goreman trouble"
+          sleep 30
+      - name: Upload e2e coverage report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: e2e-code-coverage
+          path: /tmp/coverage
+        if: ${{ matrix.k3s.latest }}
+      - name: Upload e2e-server logs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: e2e-server-k8s${{ matrix.k3s.version }}.log
+          path: /tmp/e2e-server.log
+        if: ${{ failure() }}
+
+  # workaround for status checks -- check this one job instead of each individual E2E job in the matrix
+  # this allows us to skip the entire matrix when it doesn't need to run while still having accurate status checks
+  # see:
+  # https://github.com/argoproj/argo-workflows/pull/12006
+  # https://github.com/orgs/community/discussions/9141#discussioncomment-2296809
+  # https://github.com/orgs/community/discussions/26822#discussioncomment-3305794
+  test-e2e-composite-result:
+    name: E2E Tests - Composite result
+    if: ${{ always() }}
+    needs:
+      - test-e2e
+      - changes
+    runs-on: ubuntu-22.04
+    steps:
+      - run: |
+          result="${{ needs.test-e2e.result }}"
+          # mark as successful even if skipped
+          if [[ $result == "success" || $result == "skipped" ]]; then
+            exit 0
+          else
+            exit 1
+          fi

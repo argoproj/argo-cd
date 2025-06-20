@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guestbook-ui
+spec:
+  replicas: 0
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: guestbook-ui
+  template:
+    metadata:
+      labels:
+        app: guestbook-ui
+    spec:
+      containers:
+      - image: quay.io/argoprojlabs/argocd-e2e-container:0.2
+        imagePullPolicy: IfNotPresent
+        name: guestbook-ui
+        ports:
+        - containerPort: 80

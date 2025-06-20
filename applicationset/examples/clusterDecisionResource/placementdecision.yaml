@@ -1,0 +1,18 @@
+---
+apiVersion: apps.open-cluster-management.io/v1
+kind: PlacementRule
+metadata:
+  name: test-placement
+spec:
+  clusterReplicas: 1   # Availability choice, maximum number of clusters to provision at once
+  clusterSelector:
+    matchLabels:
+      'usage': 'development'
+  clusterConditions:
+    - type: ManagedClusterConditionAvailable
+      status: "True"
+# Below is sample output the generator can consume.
+status:
+  decisions:
+  - clusterName: cluster-01
+  - clusterName: cluster-02

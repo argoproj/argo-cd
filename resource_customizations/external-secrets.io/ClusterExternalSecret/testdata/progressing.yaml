@@ -1,0 +1,30 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ClusterExternalSecret
+metadata:
+  name: ces
+spec:
+  externalSecretName: hello-world-es
+  externalSecretSpec:
+    data:
+    - remoteRef:
+        conversionStrategy: Default
+        decodingStrategy: None
+        key: /foo
+        property: key
+      secretKey: mykey
+    refreshInterval: 1h
+    secretStoreRef:
+      kind: ClusterSecretStore
+      name: secretmanager
+    target:
+      creationPolicy: Owner
+      deletionPolicy: Retain
+      name: mysecret
+      template:
+        data:
+          somekey: '{{ .somecreds }}'
+        engineVersion: v2
+        type: Opaque
+  namespaceSelector:
+    matchLabels:
+      cool: label

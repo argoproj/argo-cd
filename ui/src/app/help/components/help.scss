@@ -1,0 +1,68 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
+
+.help-box {
+    min-height: 170px;
+    margin: 30px 10px;
+    padding: 30px 30px;
+    text-align: center;
+    @include themify($themes) {
+        background-color: themed('background-2');  
+        color: themed('text-1');      
+    }
+    box-shadow: 0 0 3px rgba(#000,.3);
+
+    &__ico {
+        width: 180px;
+        height: 180px;
+        margin: 0 auto;
+        background-size: 100%;
+        opacity: .5;
+
+        &--manual {
+            background-image: url('assets/images/User-Manual-200.png');
+        }
+
+        &--email {
+            background-image: url('assets/images/Message-200.png');
+        }
+
+        &--download {
+            background-image: url('assets/images/Download-200.png');
+        }
+    }
+
+    &__docker-logo {
+        width: 23px;
+        height: 23px;
+        vertical-align: baseline;
+    }
+
+    h3 {
+        margin: 40px 0 60px;
+        font-size: 22px;
+    }
+
+    a {
+        font-size: 18px;
+        font-weight: bold;
+    }
+
+    &__link {
+        display: block;
+    }
+
+    &__download {
+        i {
+            width: 30px;
+            font-size: 24px;
+        }
+    }
+
+    .user-info-panel-buttons {
+        margin-top: 10px;
+        &:focus {
+            background-color: $argo-color-gray-4;
+        }
+    }
+}

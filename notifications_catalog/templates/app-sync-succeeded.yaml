@@ -1,0 +1,73 @@
+message: |
+    {{if eq .serviceType "slack"}}:white_check_mark:{{end}} Application {{.app.metadata.name}} has been successfully synced at {{.app.status.operationState.finishedAt}}.
+    Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .
+email:
+    subject: Application {{.app.metadata.name}} has been successfully synced.
+slack:
+    attachments: |
+        [{
+          "title": "{{ .app.metadata.name}}",
+          "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+          "color": "#18be52",
+          "fields": [
+          {
+            "title": "Sync Status",
+            "value": "{{.app.status.sync.status}}",
+            "short": true
+          },
+          {
+            "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+            "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
+            "short": true
+          }
+          {{range $index, $c := .app.status.conditions}}
+          ,
+          {
+            "title": "{{$c.type}}",
+            "value": "{{$c.message}}",
+            "short": true
+          }
+          {{end}}
+          ]
+        }]
+teams:
+    themeColor: "#000080"
+    title: Application {{.app.metadata.name}} has been successfully synced
+    facts: |
+        [{
+          "name": "Sync Status",
+          "value": "{{.app.status.sync.status}}"
+        },
+        {
+          "name": "Synced at",
+          "value": "{{.app.status.operationState.finishedAt}}"
+        },
+        {
+          "name": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+          "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }}
+        }
+        {{range $index, $c := .app.status.conditions}}
+          ,
+          {
+            "name": "{{$c.type}}",
+            "value": "{{$c.message}}"
+          }
+        {{end}}
+        ]
+    potentialAction: |
+        [{
+          "@type":"OpenUri",
+          "name":"Operation Details",
+          "targets":[{
+            "os":"default",
+            "uri":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true"
+          }]
+        },
+        {
+          "@type":"OpenUri",
+          "name":"Open Repository",
+          "targets":[{
+            "os":"default",
+            "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }}
+          }]
+        }]

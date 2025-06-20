@@ -1,0 +1,23 @@
+apiVersion: pkg.crossplane.io/v1alpha1
+kind: Provider
+metadata:
+  creationTimestamp: "2020-10-28T15:25:56Z"
+  generation: 2
+  name: provider-helm
+  resourceVersion: "1664592"
+  selfLink: /apis/pkg.crossplane.io/v1alpha1/providers/provider-helm
+  uid: 6ce16954-64f1-48c5-8a80-e29af37fc736
+spec:
+  package: crossplane/provider-helm:v0.3.5error
+  revisionActivationPolicy: Automatic
+status:
+  conditions:
+  - lastTransitionTime: "2020-11-06T12:37:16Z"
+    reason: UnpackingPackage
+    status: "False"
+    type: Installed
+  - lastTransitionTime: "2020-11-06T10:19:07Z"
+    reason: HealthyPackageRevision
+    status: "True"
+    type: Healthy
+  currentRevision: provider-helm-7f275162c62e

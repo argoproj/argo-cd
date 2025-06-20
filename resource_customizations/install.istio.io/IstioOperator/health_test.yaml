@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Component is being updated to a different version."
+  inputPath: testdata/progressing_updating.yaml
+- healthStatus:
+    status: Progressing
+    message: "Controller has started but not yet completed reconciliation loop for the component."
+  inputPath: testdata/progressing_reconciling.yaml
+- healthStatus:
+    status: Degraded
+    message: "Component is in an error state."
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: "Component is healthy."
+  inputPath: testdata/healthy.yaml

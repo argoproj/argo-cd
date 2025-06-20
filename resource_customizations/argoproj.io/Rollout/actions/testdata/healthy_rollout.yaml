@@ -1,0 +1,64 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  annotations:
+    rollout.argoproj.io/revision: '2'
+  creationTimestamp: '2020-11-06T09:09:54Z'
+  generation: 12
+  labels:
+    app.kubernetes.io/instance: rollouts-demo
+  name: rollout-bluegreen
+  namespace: default
+  resourceVersion: '2232'
+  selfLink: /apis/argoproj.io/v1alpha1/namespaces/default/rollouts/rollout-bluegreen
+  uid: a5047899-8288-43c2-95d7-a8e0a8b45ed6
+spec:
+  replicas: 2
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: rollout-bluegreen
+  strategy:
+    blueGreen:
+      activeService: rollout-bluegreen-active
+      previewService: rollout-bluegreen-preview
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: rollout-bluegreen
+    spec:
+      containers:
+        - image: 'nginx:1.19-alpine'
+          imagePullPolicy: Always
+          name: rollouts-demo
+          ports:
+            - containerPort: 8080
+          resources: {}
+status:
+  HPAReplicas: 2
+  availableReplicas: 2
+  blueGreen:
+    activeSelector: '8576595585'
+    previewSelector: '8576595585'
+  canary: {}
+  conditions:
+    - lastTransitionTime: '2020-11-06T09:10:35Z'
+      lastUpdateTime: '2020-11-06T09:10:35Z'
+      message: Rollout has minimum availability
+      reason: AvailableReason
+      status: 'True'
+      type: Available
+    - lastTransitionTime: '2020-11-06T09:09:54Z'
+      lastUpdateTime: '2020-11-06T09:13:09Z'
+      message: ReplicaSet "rollout-bluegreen-8576595585" has successfully progressed.
+      reason: NewReplicaSetAvailable
+      status: 'True'
+      type: Progressing
+  currentPodHash: '8576595585'
+  observedGeneration: 7b965d5d74
+  readyReplicas: 2
+  replicas: 2
+  selector: 'app=rollout-bluegreen,rollouts-pod-template-hash=8576595585'
+  stableRS: '8576595585'
+  updatedReplicas: 2

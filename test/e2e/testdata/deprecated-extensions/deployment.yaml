@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: extensions-deployment
+  labels:
+    app: extensions-deployment
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: extensions-deployment
+  template:
+    metadata:
+      labels:
+        app: extensions-deployment
+    spec:
+      containers:
+        - name: extensions-deployment
+          image: quay.io/argoprojlabs/argocd-e2e-container:0.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http

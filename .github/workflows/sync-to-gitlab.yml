@@ -1,0 +1,34 @@
+name: Sync to GitLab
+
+# Trigger on pushes to your main branch (or change "main" to your default branch)
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Check out the GitHub repo code
+      - name: Checkout GitHub repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # fetch all history for full mirror
+
+      # 2. Configure Git with a bot identity
+      - name: Set up Git user
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      # 3. Add GitLab as a new remote, authenticating via the secret
+      - name: Add GitLab remote
+        run: |
+          git remote add gitlab \
+            https://oauth2:${{ secrets.GITLAB_TOKEN }}@gitlab.com/bootcamp00/argo-cd.git
+
+      # 4. Push *all* branches and tags to GitLab
+      - name: Mirror push to GitLab
+        run: git push --all gitlab && git push --tags gitlab

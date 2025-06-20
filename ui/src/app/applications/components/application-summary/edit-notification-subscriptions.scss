@@ -1,0 +1,28 @@
+.edit-notification-subscriptions {
+    border-bottom: none;
+
+    &__subscription {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    &__autocomplete-wrapper {
+        border-bottom: none;
+    }
+
+    &__input-prefix {
+        font-size: 12px;
+        width: fit-content !important;
+    }
+
+    input.argo-field + div {
+        z-index: 100 !important;
+    }
+
+    .button-close {
+        margin-top: auto !important;
+        margin-bottom: auto !important;
+    }
+}

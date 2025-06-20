@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for Jaeger"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: "Jaeger Failed For Some Reason"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: "Jaeger is Running"
+  inputPath: testdata/healthy.yaml
