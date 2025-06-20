@@ -28,7 +28,10 @@ func NewGiteaService(token, url, owner, repo string, labels []string, insecure b
 		cookieJar, _ := cookiejar.New(nil)
 
 		tr := http.DefaultTransport.(*http.Transport).Clone()
-		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		tr.TLSClientConfig = &tls.Config{
+			// Silencing Sonar - user explicitly asked for insecure
+			InsecureSkipVerify: true, //nolint //NOSONAR
+		}
 
 		httpClient = &http.Client{
 			Jar:       cookieJar,
