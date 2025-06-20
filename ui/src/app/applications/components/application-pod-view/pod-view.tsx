@@ -126,11 +126,10 @@ export class PodView extends React.Component<PodViewProps> {
                                         }
                                         return (
                                             <div className={`pod-view__node white-box ${group.kind === 'node' && 'pod-view__node--large'}`} key={group.fullName || group.name}>
-                                                <div
-                                                    className='pod-view__node__container--header'
-                                                    onClick={() => this.props.onItemClick(group.fullName)}
-                                                    style={group.kind === 'node' ? {} : {cursor: 'pointer'}}>
-                                                    <div style={{display: 'flex', alignItems: 'center'}}>
+                                                <div className='pod-view__node__container--header'>
+                                                    <div
+                                                        style={{display: 'flex', alignItems: 'center', ...(group.kind !== 'node' && {cursor: 'pointer'})}}
+                                                        onClick={() => this.props.onItemClick(group.fullName)}>
                                                         <div style={{marginRight: '10px'}}>
                                                             <ResourceIcon kind={group.kind || 'Unknown'} />
                                                             <br />
@@ -442,7 +441,7 @@ const labelForSortMode = {
 };
 
 const sizes = ['Bytes', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi', 'Yi'];
-function formatSize(bytes: number) {
+export function formatSize(bytes: number) {
     if (!bytes) {
         return '0 Bytes';
     }
