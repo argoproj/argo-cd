@@ -1,0 +1,141 @@
+# This manifest is used by Tilt to deploy the argocd resources to the cluster.
+namespace: argocd
+
+resources:
+  - namespace.yaml
+  - ui-deployment.yaml
+  - ../cluster-install-with-hydrator
+
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-server
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: argocd
+      - op: remove
+        path: /spec/template/spec/containers/0/securityContext
+      - op: add
+        path: /spec/template/spec/containers/0/ports/0
+        value:
+          name: debug
+          containerPort: 2345
+
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-repo-server
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: argocd
+      - op: replace
+        path: /spec/template/spec/initContainers/0/image
+        value: argocd-job
+      - op: remove
+        path: /spec/template/spec/containers/0/securityContext
+      - op: remove
+        path: /spec/template/spec/initContainers/0/securityContext
+      - op: add
+        path: /spec/template/spec/containers/0/ports/0
+        value:
+          name: debug
+          containerPort: 2345
+
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-commit-server
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: argocd
+      - op: remove
+        path: /spec/template/spec/containers/0/securityContext
+      - op: add
+        path: /spec/template/spec/containers/0/ports/0
+        value:
+          name: debug
+          containerPort: 2345
+
+  - target:
+      group: apps
+      version: v1
+      kind: StatefulSet
+      name: argocd-application-controller
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: argocd
+      - op: remove
+        path: /spec/template/spec/containers/0/securityContext
+      - op: add
+        path: /spec/template/spec/containers/0/ports/0
+        value:
+          name: debug
+          containerPort: 2345
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-dex-server
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/initContainers/0/image
+        value: argocd-job
+      - op: remove
+        path: /spec/template/spec/initContainers/0/securityContext
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-notifications-controller
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: argocd
+      - op: remove
+        path: /spec/template/spec/containers/0/securityContext
+      - op: remove
+        path: /spec/template/spec/securityContext
+      - op: add
+        path: /spec/template/spec/containers/0/ports
+        value:
+          - name: debug
+            containerPort: 2345
+          - name: metrics
+            containerPort: 9001
+
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-applicationset-controller
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: argocd
+      - op: remove
+        path: /spec/template/spec/containers/0/securityContext
+      - op: add
+        path: /spec/template/spec/containers/0/ports/0
+        value:
+          name: debug
+          containerPort: 2345
+
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: argocd-redis
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/initContainers/0/image
+        value: argocd-job
+      - op: remove
+        path: /spec/template/spec/initContainers/0/securityContext
