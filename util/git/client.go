@@ -448,41 +448,6 @@ func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 	return false
 }
 
-// extractRepoNameFromURL extracts the repository name from a git URL
-// Examples:
-// - "https://github.com/argoproj/argo-cd.git" -> "argo-cd"
-// - "git@github.com:argoproj/argo-cd.git" -> "argo-cd"
-// - "https://gitlab.com/group/subgroup/repo-name" -> "repo-name"
-func extractRepoNameFromURL(repoURL string) string {
-	// Remove trailing .git if present
-	repoURL = strings.TrimSuffix(repoURL, ".git")
-	
-	// Handle SSH URLs (git@host:path)
-	if strings.Contains(repoURL, "@") && strings.Contains(repoURL, ":") {
-		parts := strings.Split(repoURL, ":")
-		if len(parts) >= 2 {
-			repoURL = parts[1]
-		}
-	} else if strings.Contains(repoURL, "://") {
-		// Handle HTTPS URLs (https://host/path)
-		parts := strings.Split(repoURL, "://")
-		if len(parts) >= 2 {
-			pathPart := parts[1]
-			// Remove host part
-			if idx := strings.Index(pathPart, "/"); idx != -1 {
-				repoURL = pathPart[idx+1:]
-			}
-		}
-	}
-	
-	// Extract the last part as repository name
-	parts := strings.Split(repoURL, "/")
-	if len(parts) > 0 {
-		return parts[len(parts)-1]
-	}
-	
-	return ""
-}
 
 // isCleanupEnabled checks if cleanup is enabled for this repository
 func (m *nativeGitClient) isCleanupEnabled() bool {
@@ -502,39 +467,10 @@ func (m *nativeGitClient) isCleanupEnabled() bool {
 		// Cleanup disabled for all repositories
 		return false
 
-	case common.GitCleanupStrategySelective:
-		// Check if specific repositories are configured
-		cleanupRepos := os.Getenv(common.EnvGitCleanupRepos)
-		if cleanupRepos == "" {
-			// If no specific repos configured with selective strategy, cleanup is disabled
-			log.Warnf("Cleanup strategy is 'selective' but %s is not set", common.EnvGitCleanupRepos)
-			return false
-		}
-
-		// Extract repository name from URL for exact matching
-		// Example: "https://github.com/argoproj/argo-cd.git" -> "argo-cd"
-		// Example: "git@github.com:argoproj/argo-cd.git" -> "argo-cd"
-		repoName := extractRepoNameFromURL(m.repoURL)
-		if repoName == "" {
-			log.Debugf("Could not extract repository name from URL: %s", m.repoURL)
-			return false
-		}
-
-		// Check if this repository name exactly matches any of the configured repositories
-		repos := strings.Split(cleanupRepos, ",")
-		for _, configuredRepo := range repos {
-			configuredRepo = strings.TrimSpace(configuredRepo)
-			if configuredRepo != "" && repoName == configuredRepo {
-				log.Debugf("Cleanup enabled for repository %s (exact match: %s, strategy: %s)", m.repoURL, repoName, strategy)
-				return true
-			}
-		}
-		return false
-
 	default:
 		// Invalid strategy, log warning and disable cleanup
-		log.Warnf("Invalid cleanup strategy '%s', valid values are: %s, %s, %s", 
-			strategy, common.GitCleanupStrategyAll, common.GitCleanupStrategyNone, common.GitCleanupStrategySelective)
+		log.Warnf("Invalid cleanup strategy '%s', valid values are: %s, %s", 
+			strategy, common.GitCleanupStrategyAll, common.GitCleanupStrategyNone)
 		return false
 	}
 }

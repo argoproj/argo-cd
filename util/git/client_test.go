@@ -1199,8 +1199,7 @@ Argocd-reference-commit-repourl: https://github.com/another/repo.git`,
 func Test_nativeGitClient_garbageCollection(t *testing.T) {
 	tempDir := t.TempDir()
 
-	t.Setenv("ARGOCD_GIT_CLEANUP_STRATEGY", "selective")
-	t.Setenv("ARGOCD_GIT_CLEANUP_REPOS", "test-repo")
+	t.Setenv("ARGOCD_GIT_CLEANUP_STRATEGY", "all")
 	// Set a short timeout for testing (30 seconds)
 	t.Setenv("ARGOCD_EXEC_TIMEOUT", "30s")
 
@@ -1261,37 +1260,20 @@ func Test_nativeGitClient_Fetch_CleanupOnError(t *testing.T) {
 	tests := []struct {
 		name            string
 		cleanupStrategy string
-		cleanupRepos    string
 		repoURL         string
 		wantCleanup     bool
 	}{
 		{
 			name:            "cleanup disabled with none strategy",
 			cleanupStrategy: "none",
-			cleanupRepos:    "test-repo",
 			repoURL:         "https://github.com/argoproj/test-repo.git",
 			wantCleanup:     false,
 		},
 		{
 			name:            "cleanup enabled with all strategy",
 			cleanupStrategy: "all",
-			cleanupRepos:    "",
 			repoURL:         "https://github.com/argoproj/test-repo.git",
 			wantCleanup:     true,
-		},
-		{
-			name:            "cleanup enabled with selective strategy for matching repo",
-			cleanupStrategy: "selective",
-			cleanupRepos:    "test-repo",
-			repoURL:         "https://github.com/argoproj/test-repo.git",
-			wantCleanup:     true,
-		},
-		{
-			name:            "cleanup with selective strategy but repo not in list",
-			cleanupStrategy: "selective",
-			cleanupRepos:    "other-repo",
-			repoURL:         "https://github.com/argoproj/test-repo.git",
-			wantCleanup:     false,
 		},
 	}
 
@@ -1300,7 +1282,6 @@ func Test_nativeGitClient_Fetch_CleanupOnError(t *testing.T) {
 			// Setup
 			tempDir := t.TempDir()
 			t.Setenv("ARGOCD_GIT_CLEANUP_STRATEGY", tt.cleanupStrategy)
-			t.Setenv("ARGOCD_GIT_CLEANUP_REPOS", tt.cleanupRepos)
 
 			// Create git client with invalid remote to ensure fetch fails
 			gitClient := &nativeGitClient{
@@ -1356,112 +1337,42 @@ func Test_nativeGitClient_isCleanupEnabled(t *testing.T) {
 		name            string
 		repoURL         string
 		cleanupStrategy string
-		cleanupRepos    string
 		want            bool
 	}{
 		{
 			name:            "strategy none (default)",
 			repoURL:         "https://github.com/argoproj/argo-cd.git",
 			cleanupStrategy: "none",
-			cleanupRepos:    "argo-cd",
 			want:            false,
 		},
 		{
 			name:            "strategy empty (defaults to none)",
 			repoURL:         "https://github.com/argoproj/argo-cd.git",
 			cleanupStrategy: "",
-			cleanupRepos:    "argo-cd",
 			want:            false,
 		},
 		{
 			name:            "strategy all",
 			repoURL:         "https://github.com/argoproj/argo-cd.git",
 			cleanupStrategy: "all",
-			cleanupRepos:    "",
 			want:            true,
 		},
 		{
-			name:            "strategy all - ignores repo list",
+			name:            "strategy all - different repo",
 			repoURL:         "https://github.com/different/repo.git",
 			cleanupStrategy: "all",
-			cleanupRepos:    "argo-cd",
-			want:            true,
-		},
-		{
-			name:            "strategy selective - matching repo",
-			repoURL:         "https://github.com/argoproj/argo-cd.git",
-			cleanupStrategy: "selective",
-			cleanupRepos:    "argo-cd",
-			want:            true,
-		},
-		{
-			name:            "strategy selective - multiple repos",
-			repoURL:         "https://github.com/example/test-repo-2.git",
-			cleanupStrategy: "selective",
-			cleanupRepos:    "argo-cd,test-repo-2,another-repo",
-			want:            true,
-		},
-		{
-			name:            "strategy selective - non-matching repo",
-			repoURL:         "https://github.com/argoproj/argo-cd.git",
-			cleanupStrategy: "selective",
-			cleanupRepos:    "different-repo,another-repo",
-			want:            false,
-		},
-		{
-			name:            "strategy selective - no repos specified",
-			repoURL:         "https://github.com/argoproj/argo-cd.git",
-			cleanupStrategy: "selective",
-			cleanupRepos:    "",
-			want:            false,
-		},
-		{
-			name:            "strategy selective - whitespace in repo list",
-			repoURL:         "https://github.com/argoproj/argo-cd.git",
-			cleanupStrategy: "selective",
-			cleanupRepos:    " argo-cd , another-repo ",
-			want:            true,
-		},
-		{
-			name:            "strategy selective - SSH URL",
-			repoURL:         "git@github.com:argoproj/argo-cd.git",
-			cleanupStrategy: "selective",
-			cleanupRepos:    "argo-cd",
-			want:            true,
-		},
-		{
-			name:            "strategy selective - no match with partial name",
-			repoURL:         "https://github.com/example/prefix-test-repo-suffix.git",
-			cleanupStrategy: "selective",
-			cleanupRepos:    "test-repo",
-			want:            false,
-		},
-		{
-			name:            "strategy selective - exact match required",
-			repoURL:         "https://github.com/example/prefix-test-repo-suffix.git",
-			cleanupStrategy: "selective",
-			cleanupRepos:    "prefix-test-repo-suffix",
 			want:            true,
 		},
 		{
 			name:            "invalid strategy",
 			repoURL:         "https://github.com/argoproj/argo-cd.git",
 			cleanupStrategy: "invalid",
-			cleanupRepos:    "argo-cd",
 			want:            false,
 		},
 		{
 			name:            "strategy case insensitive",
 			repoURL:         "https://github.com/argoproj/argo-cd.git",
 			cleanupStrategy: "ALL",
-			cleanupRepos:    "",
-			want:            true,
-		},
-		{
-			name:            "strategy with spaces",
-			repoURL:         "https://github.com/argoproj/argo-cd.git",
-			cleanupStrategy: "  selective  ",
-			cleanupRepos:    "argo-cd",
 			want:            true,
 		},
 	}
@@ -1469,7 +1380,6 @@ func Test_nativeGitClient_isCleanupEnabled(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("ARGOCD_GIT_CLEANUP_STRATEGY", tt.cleanupStrategy)
-			t.Setenv("ARGOCD_GIT_CLEANUP_REPOS", tt.cleanupRepos)
 
 			client, err := NewClient(tt.repoURL, NopCreds{}, true, false, "", "")
 			require.NoError(t, err)
@@ -1483,71 +1393,6 @@ func Test_nativeGitClient_isCleanupEnabled(t *testing.T) {
 	}
 }
 
-func Test_extractRepoNameFromURL(t *testing.T) {
-	tests := []struct {
-		name    string
-		repoURL string
-		want    string
-	}{
-		{
-			name:    "HTTPS URL with .git",
-			repoURL: "https://github.com/argoproj/argo-cd.git",
-			want:    "argo-cd",
-		},
-		{
-			name:    "HTTPS URL without .git",
-			repoURL: "https://github.com/argoproj/argo-cd",
-			want:    "argo-cd",
-		},
-		{
-			name:    "SSH URL with .git",
-			repoURL: "git@github.com:argoproj/argo-cd.git",
-			want:    "argo-cd",
-		},
-		{
-			name:    "SSH URL without .git",
-			repoURL: "git@github.com:argoproj/argo-cd",
-			want:    "argo-cd",
-		},
-		{
-			name:    "GitLab nested groups",
-			repoURL: "https://gitlab.com/group/subgroup/repo-name.git",
-			want:    "repo-name",
-		},
-		{
-			name:    "SSH GitLab nested groups",
-			repoURL: "git@gitlab.com:group/subgroup/repo-name.git",
-			want:    "repo-name",
-		},
-		{
-			name:    "Simple repo name",
-			repoURL: "https://example.com/simple.git",
-			want:    "simple",
-		},
-		{
-			name:    "Complex repo name with hyphens",
-			repoURL: "https://github.com/org/complex-repo-name-123.git",
-			want:    "complex-repo-name-123",
-		},
-		{
-			name:    "Invalid URL",
-			repoURL: "not-a-valid-url",
-			want:    "not-a-valid-url",
-		},
-		{
-			name:    "Empty URL",
-			repoURL: "",
-			want:    "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := extractRepoNameFromURL(tt.repoURL)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
 
 func Test_nativeGitClient_getCleanupGracePeriod(t *testing.T) {
 	tests := []struct {

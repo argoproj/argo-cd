@@ -248,11 +248,8 @@ const (
 	// EnvGitSubmoduleEnabled overrides git submodule support, true by default
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
 	// EnvGitCleanupStrategy specifies the cleanup strategy for git temporary files on fetch errors
-	// Valid values: "all", "none", "selective" (default: "none")
+	// Valid values: "all", "none" (default: "none")
 	EnvGitCleanupStrategy = "ARGOCD_GIT_CLEANUP_STRATEGY"
-	// EnvGitCleanupRepos specifies comma-separated list of repository URLs where cleanup should be performed
-	// Only used when EnvGitCleanupStrategy is set to "selective"
-	EnvGitCleanupRepos = "ARGOCD_GIT_CLEANUP_REPOS"
 	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
 	EnvGnuPGHome = "ARGOCD_GNUPGHOME"
 	// EnvWatchAPIBufferSize is the buffer size used to transfer K8S watch events to watch API consumer
@@ -364,8 +361,6 @@ const (
 	GitCleanupStrategyAll = "all"
 	// GitCleanupStrategyNone disables cleanup for all repositories (default)
 	GitCleanupStrategyNone = "none"
-	// GitCleanupStrategySelective enables cleanup for specific repositories
-	GitCleanupStrategySelective = "selective"
 )
 
 // Constants represent the pod selector labels of the Argo CD component names. These values are determined by the
