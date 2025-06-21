@@ -1199,7 +1199,7 @@ Argocd-reference-commit-repourl: https://github.com/another/repo.git`,
 func Test_nativeGitClient_garbageCollection(t *testing.T) {
 	tempDir := t.TempDir()
 
-	t.Setenv("ARGOCD_GIT_CLEANUP_STRATEGY", "all")
+	t.Setenv("ARGOCD_GIT_CLEANUP_ENABLED", "true")
 	// Set a short timeout for testing (30 seconds)
 	t.Setenv("ARGOCD_EXEC_TIMEOUT", "30s")
 
@@ -1258,22 +1258,22 @@ func Test_nativeGitClient_garbageCollection(t *testing.T) {
 
 func Test_nativeGitClient_Fetch_CleanupOnError(t *testing.T) {
 	tests := []struct {
-		name            string
-		cleanupStrategy string
-		repoURL         string
-		wantCleanup     bool
+		name           string
+		cleanupEnabled string
+		repoURL        string
+		wantCleanup    bool
 	}{
 		{
-			name:            "cleanup disabled with none strategy",
-			cleanupStrategy: "none",
-			repoURL:         "https://github.com/argoproj/test-repo.git",
-			wantCleanup:     false,
+			name:           "cleanup disabled",
+			cleanupEnabled: "false",
+			repoURL:        "https://github.com/argoproj/test-repo.git",
+			wantCleanup:    false,
 		},
 		{
-			name:            "cleanup enabled with all strategy",
-			cleanupStrategy: "all",
-			repoURL:         "https://github.com/argoproj/test-repo.git",
-			wantCleanup:     true,
+			name:           "cleanup enabled",
+			cleanupEnabled: "true",
+			repoURL:        "https://github.com/argoproj/test-repo.git",
+			wantCleanup:    true,
 		},
 	}
 
@@ -1281,7 +1281,7 @@ func Test_nativeGitClient_Fetch_CleanupOnError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup
 			tempDir := t.TempDir()
-			t.Setenv("ARGOCD_GIT_CLEANUP_STRATEGY", tt.cleanupStrategy)
+			t.Setenv("ARGOCD_GIT_CLEANUP_ENABLED", tt.cleanupEnabled)
 
 			// Create git client with invalid remote to ensure fetch fails
 			gitClient := &nativeGitClient{
@@ -1334,52 +1334,46 @@ func Test_nativeGitClient_Fetch_CleanupOnError(t *testing.T) {
 
 func Test_nativeGitClient_isCleanupEnabled(t *testing.T) {
 	tests := []struct {
-		name            string
-		repoURL         string
-		cleanupStrategy string
-		want            bool
+		name           string
+		repoURL        string
+		cleanupEnabled string
+		want           bool
 	}{
 		{
-			name:            "strategy none (default)",
-			repoURL:         "https://github.com/argoproj/argo-cd.git",
-			cleanupStrategy: "none",
-			want:            false,
+			name:           "cleanup enabled true",
+			repoURL:        "https://github.com/argoproj/argo-cd.git",
+			cleanupEnabled: "true",
+			want:           true,
 		},
 		{
-			name:            "strategy empty (defaults to none)",
-			repoURL:         "https://github.com/argoproj/argo-cd.git",
-			cleanupStrategy: "",
-			want:            false,
+			name:           "cleanup disabled false",
+			repoURL:        "https://github.com/argoproj/argo-cd.git",
+			cleanupEnabled: "false",
+			want:           false,
 		},
 		{
-			name:            "strategy all",
-			repoURL:         "https://github.com/argoproj/argo-cd.git",
-			cleanupStrategy: "all",
-			want:            true,
+			name:           "cleanup empty (defaults to false)",
+			repoURL:        "https://github.com/argoproj/argo-cd.git",
+			cleanupEnabled: "",
+			want:           false,
 		},
 		{
-			name:            "strategy all - different repo",
-			repoURL:         "https://github.com/different/repo.git",
-			cleanupStrategy: "all",
-			want:            true,
+			name:           "invalid value (defaults to false)",
+			repoURL:        "https://github.com/argoproj/argo-cd.git",
+			cleanupEnabled: "invalid",
+			want:           false,
 		},
 		{
-			name:            "invalid strategy",
-			repoURL:         "https://github.com/argoproj/argo-cd.git",
-			cleanupStrategy: "invalid",
-			want:            false,
-		},
-		{
-			name:            "strategy case insensitive",
-			repoURL:         "https://github.com/argoproj/argo-cd.git",
-			cleanupStrategy: "ALL",
-			want:            true,
+			name:           "case insensitive true",
+			repoURL:        "https://github.com/argoproj/argo-cd.git",
+			cleanupEnabled: "TRUE",
+			want:           true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("ARGOCD_GIT_CLEANUP_STRATEGY", tt.cleanupStrategy)
+			t.Setenv("ARGOCD_GIT_CLEANUP_ENABLED", tt.cleanupEnabled)
 
 			client, err := NewClient(tt.repoURL, NopCreds{}, true, false, "", "")
 			require.NoError(t, err)

@@ -448,29 +448,19 @@ func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 	return false
 }
 
-
 // isCleanupEnabled checks if cleanup is enabled for this repository
 func (m *nativeGitClient) isCleanupEnabled() bool {
-	// Get the cleanup strategy (default: none)
-	strategy := strings.ToLower(strings.TrimSpace(os.Getenv(common.EnvGitCleanupStrategy)))
-	if strategy == "" {
-		strategy = common.GitCleanupStrategyNone
-	}
+	// Get the cleanup enabled setting (default: false)
+	enabled := strings.ToLower(strings.TrimSpace(os.Getenv(common.EnvGitCleanupEnabled)))
 
-	switch strategy {
-	case common.GitCleanupStrategyAll:
-		// Cleanup enabled for all repositories
-		log.Debugf("Cleanup enabled for all repositories (strategy: %s)", strategy)
+	switch enabled {
+	case "true":
+		log.Debugf("Cleanup enabled for all repositories")
 		return true
-
-	case common.GitCleanupStrategyNone:
-		// Cleanup disabled for all repositories
+	case "false":
 		return false
-
 	default:
-		// Invalid strategy, log warning and disable cleanup
-		log.Warnf("Invalid cleanup strategy '%s', valid values are: %s, %s", 
-			strategy, common.GitCleanupStrategyAll, common.GitCleanupStrategyNone)
+		log.Warnf("Invalid cleanup enabled value '%s', valid values are: true, false. Defaulting to false.", enabled)
 		return false
 	}
 }
