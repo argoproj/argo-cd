@@ -66,7 +66,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
         keys: Key.ENTER,
         action: () => {
             if (selectedApp > -1) {
-                ctxh.navigation.goto(AppUtils.getAppUrl(applications[selectedApp]));
+                ctxh.navigation.goto(`/${AppUtils.getAppUrl(applications[selectedApp])}`);
                 return true;
             }
             return false;
@@ -119,7 +119,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                             }`}>
                                             <div
                                                 className='row applications-tiles__wrapper'
-                                                onClick={e => ctx.navigation.goto(AppUtils.getAppUrl(app), {view: pref.appDetails.view}, {event: e})}>
+                                                onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {view: pref.appDetails.view}, {event: e})}>
                                                 <div
                                                     className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(
                                                         app
