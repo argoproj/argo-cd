@@ -43,9 +43,9 @@ func (has CustomHelmAppSpec) GetParameterValueByName(name string) string {
 		}
 	}
 
-	for i := range has.HelmAppSpec.Parameters {
-		if has.HelmAppSpec.Parameters[i].Name == name {
-			return has.HelmAppSpec.Parameters[i].Value
+	for i := range has.Parameters {
+		if has.Parameters[i].Name == name {
+			return has.Parameters[i].Value
 		}
 	}
 	return ""
@@ -53,9 +53,9 @@ func (has CustomHelmAppSpec) GetParameterValueByName(name string) string {
 
 func (has CustomHelmAppSpec) GetFileParameterPathByName(name string) string {
 	var path string
-	for i := range has.HelmAppSpec.FileParameters {
-		if has.HelmAppSpec.FileParameters[i].Name == name {
-			path = has.HelmAppSpec.FileParameters[i].Path
+	for i := range has.FileParameters {
+		if has.FileParameters[i].Name == name {
+			path = has.FileParameters[i].Path
 			break
 		}
 	}
