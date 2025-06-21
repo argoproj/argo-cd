@@ -690,10 +690,22 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(destCluster, app, targetObjs)
 	if err != nil {
-		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
-		msg := "Failed to load live state: " + err.Error()
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-		failedToLoadObjs = true
+		// CONVERSION WEBHOOK FIX: Handle conversion webhook errors gracefully
+		if isConversionWebhookError(err) {
+			logCtx.Warnf("Conversion webhook error while getting managed live objects, continuing with empty live state: %v", err)
+			liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
+			conditions = append(conditions, v1alpha1.ApplicationCondition{
+				Type:               v1alpha1.ApplicationConditionComparisonError,
+				Message:            fmt.Sprintf("Conversion webhook error while retrieving live state: %v", err),
+				LastTransitionTime: &now,
+			})
+			// Don't set failedToLoadObjs = true here to allow processing to continue
+		} else {
+			liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
+			msg := "Failed to load live state: " + err.Error()
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+			failedToLoadObjs = true
+		}
 	}
 
 	logCtx.Debugf("Retrieved live manifests")
@@ -1225,4 +1237,13 @@ func isSelfReferencedObj(obj *unstructured.Unstructured, aiv argo.AppInstanceVal
 		obj.GetName() == aiv.Name &&
 		obj.GetObjectKind().GroupVersionKind().Group == aiv.Group &&
 		obj.GetObjectKind().GroupVersionKind().Kind == aiv.Kind
+}
+
+// Helper function to check if an error is related to conversion webhooks
+func isConversionWebhookError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "conversion webhook")
 }
