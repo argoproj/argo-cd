@@ -70,6 +70,17 @@ spec:
 
 The above configuration will ignore differences from all fields owned by `kube-controller-manager` for all resources belonging to this application.
 
+To ignore `nodePort` field defined in your `Service` resources:
+
+```yaml
+spec:
+  ignoreDifferences:
+  - group: ""
+    kind: Service
+    jqPathExpressions:
+    - .spec.ports.[].nodePort
+```
+
 If you have a slash `/` in your pointer path, you need to replace it with the `~1` character. For example:
 
 ```yaml
