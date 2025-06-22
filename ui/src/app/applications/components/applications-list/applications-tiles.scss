@@ -13,6 +13,10 @@
     &__item {
         display: flex;
         flex-direction: column;
+        &__small {
+            font-size: 14px;
+            margin-bottom: 3px;
+        }
     }
 
     &__actions {

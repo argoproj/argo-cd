@@ -267,6 +267,14 @@ func TestGithubListRepos(t *testing.T) {
 	}
 }
 
+/*
+	metricsCtx := &services.MetricsContext{
+		AppSetNamespace: "test-ns",
+		AppSetName:      "test-appset",
+	}
+
+httpClient := services.NewGitHubMetricsClient(metricsCtx)
+*/
 func TestGithubHasPath(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		githubMockHandler(t)(w, r)

@@ -21,7 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
-	argoio "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 )
 
@@ -80,7 +80,7 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			}
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationSetClientOrDie()
-			defer argoio.Close(conn)
+			defer utilio.Close(conn)
 
 			appSetName, appSetNs := argo.ParseFromQualifiedName(args[0], "")
 
@@ -150,7 +150,7 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 				}
 
 				conn, appIf := argocdClient.NewApplicationSetClientOrDie()
-				defer argoio.Close(conn)
+				defer utilio.Close(conn)
 
 				// Get app before creating to see if it is being updated or no change
 				existing, err := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{Name: appset.Name, AppsetNamespace: appset.Namespace})
@@ -241,7 +241,7 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 			}
 
 			conn, appIf := argocdClient.NewApplicationSetClientOrDie()
-			defer argoio.Close(conn)
+			defer utilio.Close(conn)
 
 			req := applicationset.ApplicationSetGenerateRequest{
 				ApplicationSet: appset,
@@ -296,7 +296,7 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			ctx := c.Context()
 
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie()
-			defer argoio.Close(conn)
+			defer utilio.Close(conn)
 			appsets, err := appIf.List(ctx, &applicationset.ApplicationSetListQuery{Selector: selector, Projects: projects, AppsetNamespace: appSetNamespace})
 			errors.CheckError(err)
 
@@ -341,7 +341,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 				os.Exit(1)
 			}
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie()
-			defer argoio.Close(conn)
+			defer utilio.Close(conn)
 			isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 			numOfApps := len(args)
 			promptFlag := c.Flag("yes")

@@ -27,7 +27,7 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "cluster1-guestbook",
 			Namespace:  externalNamespace,
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -135,7 +135,7 @@ func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "cluster1-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -237,7 +237,7 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "{{name}}-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -332,7 +332,7 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "{{name}}-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -429,7 +429,7 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *te
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "{{name}}-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",

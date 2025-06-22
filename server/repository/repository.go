@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
-	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
@@ -26,7 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/git"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -233,9 +232,30 @@ func (s *Server) prepareRepoList(ctx context.Context, resourceType string, repos
 	sort.Slice(items, func(i, j int) bool {
 		first := items[i]
 		second := items[j]
-		return strings.Compare(fmt.Sprintf("%s/%s", first.Project, first.Repo), fmt.Sprintf("%s/%s", second.Project, second.Repo)) < 0
+		return fmt.Sprintf("%s/%s", first.Project, first.Repo) < fmt.Sprintf("%s/%s", second.Project, second.Repo)
 	})
 	return items, nil
+}
+
+func (s *Server) ListOCITags(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.Refs, error) {
+	repo, err := s.getRepo(ctx, q.Repo, q.GetAppProject())
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceRepositories, rbac.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
+		return nil, err
+	}
+
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return nil, err
+	}
+	defer utilio.Close(conn)
+
+	return repoClient.ListOCITags(ctx, &apiclient.ListRefsRequest{
+		Repo: repo,
+	})
 }
 
 func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.Refs, error) {
@@ -252,7 +272,7 @@ func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*api
 	if err != nil {
 		return nil, err
 	}
-	defer io.Close(conn)
+	defer utilio.Close(conn)
 
 	return repoClient.ListRefs(ctx, &apiclient.ListRefsRequest{
 		Repo: repo,
@@ -290,7 +310,7 @@ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (
 	if err != nil {
 		return nil, err
 	}
-	defer io.Close(conn)
+	defer utilio.Close(conn)
 
 	apps, err := repoClient.ListApps(ctx, &apiclient.ListAppsRequest{
 		Repo:     repo,
@@ -353,7 +373,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err != nil {
 		return nil, err
 	}
-	defer io.Close(conn)
+	defer utilio.Close(conn)
 	helmRepos, err := s.db.ListHelmRepositories(ctx)
 	if err != nil {
 		return nil, err
@@ -404,7 +424,7 @@ func (s *Server) GetHelmCharts(ctx context.Context, q *repositorypkg.RepoQuery) 
 	if err != nil {
 		return nil, err
 	}
-	defer io.Close(conn)
+	defer utilio.Close(conn)
 	return repoClient.GetHelmCharts(ctx, &apiclient.HelmChartsRequest{Repo: repo})
 }
 
@@ -683,6 +703,8 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		GitHubAppEnterpriseBaseURL: q.GithubAppEnterpriseBaseUrl,
 		Proxy:                      q.Proxy,
 		GCPServiceAccountKey:       q.GcpServiceAccountKey,
+		InsecureOCIForceHttp:       q.InsecureOciForceHttp,
+		UseAzureWorkloadIdentity:   q.UseAzureWorkloadIdentity,
 	}
 
 	// If repo does not have credentials, check if there are credentials stored
@@ -732,6 +754,7 @@ func (s *Server) ValidateWriteAccess(ctx context.Context, q *repositorypkg.RepoA
 		GitHubAppEnterpriseBaseURL: q.GithubAppEnterpriseBaseUrl,
 		Proxy:                      q.Proxy,
 		GCPServiceAccountKey:       q.GcpServiceAccountKey,
+		UseAzureWorkloadIdentity:   q.UseAzureWorkloadIdentity,
 	}
 
 	err := s.testRepo(ctx, repo)
@@ -746,7 +769,7 @@ func (s *Server) testRepo(ctx context.Context, repo *v1alpha1.Repository) error 
 	if err != nil {
 		return fmt.Errorf("failed to connect to repo-server: %w", err)
 	}
-	defer io.Close(conn)
+	defer utilio.Close(conn)
 
 	_, err = repoClient.TestRepository(ctx, &apiclient.TestRepositoryRequest{
 		Repo: repo,

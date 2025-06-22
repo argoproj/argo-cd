@@ -588,3 +588,44 @@ func TestFailKustomizeBuildPatches(t *testing.T) {
 	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil)
 	require.EqualError(t, err, "kustomization file not found in the path")
 }
+
+func Test_getImageParameters_sorted(t *testing.T) {
+	apps := []*unstructured.Unstructured{
+		{
+			Object: map[string]any{
+				"kind": "Deployment",
+				"spec": map[string]any{
+					"template": map[string]any{
+						"spec": map[string]any{
+							"containers": []any{
+								map[string]any{
+									"name":  "nginx",
+									"image": "nginx:1.15.6",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Object: map[string]any{
+				"kind": "Deployment",
+				"spec": map[string]any{
+					"template": map[string]any{
+						"spec": map[string]any{
+							"containers": []any{
+								map[string]any{
+									"name":  "nginx",
+									"image": "nginx:1.15.5",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	params := getImageParameters(apps)
+	assert.Equal(t, []string{"nginx:1.15.5", "nginx:1.15.6"}, params)
+}

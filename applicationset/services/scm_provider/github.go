@@ -7,6 +7,8 @@ import (
 	"os"
 
 	"github.com/google/go-github/v69/github"
+
+	appsetutils "github.com/argoproj/argo-cd/v3/applicationset/utils"
 )
 
 type GithubProvider struct {
@@ -17,13 +19,15 @@ type GithubProvider struct {
 
 var _ SCMProviderService = &GithubProvider{}
 
-func NewGithubProvider(organization string, token string, url string, allBranches bool) (*GithubProvider, error) {
+func NewGithubProvider(organization string, token string, url string, allBranches bool, optionalHTTPClient ...*http.Client) (*GithubProvider, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
 	}
-	httpClient := &http.Client{}
+
 	var client *github.Client
+	httpClient := appsetutils.GetOptionalHTTPClient(optionalHTTPClient...)
+
 	if url == "" {
 		if token == "" {
 			client = github.NewClient(httpClient)
@@ -32,7 +36,11 @@ func NewGithubProvider(organization string, token string, url string, allBranche
 		}
 	} else {
 		var err error
-		client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)
+		if token == "" {
+			client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)
+		} else {
+			client, err = github.NewClient(httpClient).WithAuthToken(token).WithEnterpriseURLs(url, url)
+		}
 		if err != nil {
 			return nil, err
 		}

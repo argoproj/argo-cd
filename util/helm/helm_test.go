@@ -42,14 +42,15 @@ func TestHelmTemplateParams(t *testing.T) {
 	assert.Len(t, objs, 5)
 
 	for _, obj := range objs {
-		if obj.GetKind() == "Service" && obj.GetName() == "test-minio" {
-			var svc corev1.Service
-			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &svc)
-			require.NoError(t, err)
-			assert.Equal(t, corev1.ServiceTypeLoadBalancer, svc.Spec.Type)
-			assert.Equal(t, int32(1234), svc.Spec.Ports[0].TargetPort.IntVal)
-			assert.Equal(t, "true", svc.Annotations["prometheus.io/scrape"])
+		if obj.GetKind() != "Service" || obj.GetName() != "test-minio" {
+			continue
 		}
+		var svc corev1.Service
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &svc)
+		require.NoError(t, err)
+		assert.Equal(t, corev1.ServiceTypeLoadBalancer, svc.Spec.Type)
+		assert.Equal(t, int32(1234), svc.Spec.Ports[0].TargetPort.IntVal)
+		assert.Equal(t, "true", svc.Annotations["prometheus.io/scrape"])
 	}
 }
 
@@ -219,6 +220,29 @@ func TestAPIVersions(t *testing.T) {
 	assert.Equal(t, "sample/v2", objs[0].GetAPIVersion())
 }
 
+func TestKubeVersionWithSymbol(t *testing.T) {
+	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false)
+	require.NoError(t, err)
+
+	objs, err := template(h, &TemplateOpts{KubeVersion: "1.30.11+IKS"})
+	require.NoError(t, err)
+	require.Len(t, objs, 2)
+
+	for _, obj := range objs {
+		if obj.GetKind() != "ConfigMap" {
+			continue
+		}
+		var configMap corev1.ConfigMap
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &configMap)
+		require.NoError(t, err)
+		if data, ok := configMap.Data["kubeVersion"]; ok {
+			assert.Equal(t, "v1.30.11+IKS", data)
+			return
+		}
+		t.Fatal("expected kubeVersion key not found in configMap")
+	}
+}
+
 func TestSkipCrds(t *testing.T) {
 	h, err := NewHelmApp("./testdata/crds", nil, false, "", "", "", false)
 	require.NoError(t, err)
@@ -242,11 +266,11 @@ func TestSkipTests(t *testing.T) {
 
 	objs, err := template(h, &TemplateOpts{SkipTests: false})
 	require.NoError(t, err)
-	require.Len(t, objs, 1)
+	require.Len(t, objs, 2)
 
 	objs, err = template(h, &TemplateOpts{})
 	require.NoError(t, err)
-	require.Len(t, objs, 1)
+	require.Len(t, objs, 2)
 
 	objs, err = template(h, &TemplateOpts{SkipTests: true})
 	require.NoError(t, err)

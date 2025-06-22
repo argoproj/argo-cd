@@ -95,10 +95,10 @@ func (m *MockKubectl) DeleteResource(ctx context.Context, config *rest.Config, g
 }
 
 func newFakeController(data *fakeData, repoErr error) *ApplicationController {
-	return newFakeControllerWithResync(data, time.Minute, repoErr)
+	return newFakeControllerWithResync(data, time.Minute, repoErr, nil)
 }
 
-func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, repoErr error) *ApplicationController {
+func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, repoErr, revisionPathsErr error) *ApplicationController {
 	var clust corev1.Secret
 	err := yaml.Unmarshal([]byte(fakeCluster), &clust)
 	if err != nil {
@@ -124,7 +124,11 @@ func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, 
 		}
 	}
 
-	mockRepoClient.On("UpdateRevisionForPaths", mock.Anything, mock.Anything).Return(data.updateRevisionForPathsResponse, nil)
+	if revisionPathsErr != nil {
+		mockRepoClient.On("UpdateRevisionForPaths", mock.Anything, mock.Anything).Return(nil, revisionPathsErr)
+	} else {
+		mockRepoClient.On("UpdateRevisionForPaths", mock.Anything, mock.Anything).Return(data.updateRevisionForPathsResponse, nil)
+	}
 
 	mockRepoClientset := mockrepoclient.Clientset{RepoServerServiceClient: &mockRepoClient}
 
@@ -172,6 +176,7 @@ func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, 
 		time.Second,
 		time.Minute,
 		nil,
+		time.Minute,
 		0,
 		time.Second*10,
 		common.DefaultPortArgoCDMetrics,
@@ -517,7 +522,7 @@ func newFakeMultiSourceApp() *v1alpha1.Application {
 
 func createFakeAppWithHealthAndTime(testApp string, status health.HealthStatusCode, timestamp metav1.Time) *v1alpha1.Application {
 	app := createFakeApp(testApp)
-	app.Status.Health = v1alpha1.HealthStatus{
+	app.Status.Health = v1alpha1.AppHealthStatus{
 		Status:             status,
 		LastTransitionTime: &timestamp,
 	}
@@ -1897,7 +1902,7 @@ apps/Deployment:
 			{},
 			{},
 		},
-	}, time.Millisecond*10, nil)
+	}, time.Millisecond*10, nil, nil)
 
 	testCases := []struct {
 		name           string
@@ -2202,6 +2207,9 @@ func TestGetAppHosts(t *testing.T) {
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
 		},
+		configMapData: map[string]string{
+			"application.allowedNodeLabels": "label1,label2",
+		},
 	}
 	ctrl := newFakeController(data, nil)
 	mockStateCache := &mockstatecache.LiveStateCache{}
@@ -2213,6 +2221,7 @@ func TestGetAppHosts(t *testing.T) {
 			Name:       "minikube",
 			SystemInfo: corev1.NodeSystemInfo{OSImage: "debian"},
 			Capacity:   map[corev1.ResourceName]resource.Quantity{corev1.ResourceCPU: resource.MustParse("5")},
+			Labels:     map[string]string{"label1": "value1", "label2": "value2"},
 		}})
 
 		// app pod
@@ -2250,6 +2259,7 @@ func TestGetAppHosts(t *testing.T) {
 				ResourceName: corev1.ResourceCPU, Capacity: 5000, RequestedByApp: 1000, RequestedByNeighbors: 2000,
 			},
 		},
+		Labels: map[string]string{"label1": "value1", "label2": "value2"},
 	}}, hosts)
 }
 
@@ -2340,20 +2350,17 @@ func Test_syncDeleteOption(t *testing.T) {
 	cm := newFakeCM()
 	t.Run("without delete option object is deleted", func(t *testing.T) {
 		cmObj := kube.MustToUnstructured(&cm)
-		delete := ctrl.shouldBeDeleted(app, cmObj)
-		assert.True(t, delete)
+		assert.True(t, ctrl.shouldBeDeleted(app, cmObj))
 	})
 	t.Run("with delete set to false object is retained", func(t *testing.T) {
 		cmObj := kube.MustToUnstructured(&cm)
 		cmObj.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": "Delete=false"})
-		delete := ctrl.shouldBeDeleted(app, cmObj)
-		assert.False(t, delete)
+		assert.False(t, ctrl.shouldBeDeleted(app, cmObj))
 	})
 	t.Run("with delete set to false object is retained", func(t *testing.T) {
 		cmObj := kube.MustToUnstructured(&cm)
 		cmObj.SetAnnotations(map[string]string{"helm.sh/resource-policy": "keep"})
-		delete := ctrl.shouldBeDeleted(app, cmObj)
-		assert.False(t, delete)
+		assert.False(t, ctrl.shouldBeDeleted(app, cmObj))
 	})
 }
 
@@ -2642,10 +2649,18 @@ func TestSelfHealExponentialBackoff(t *testing.T) {
 		alreadyAttempted: false,
 		expectedAttempts: 0,
 		syncStatus:       v1alpha1.SyncStatusCodeOutOfSync,
-	}, {
+	}, { // backoff will not reset as finished tme isn't >= cooldown
 		attempts:         6,
-		finishedAt:       nil,
-		expectedDuration: 0,
+		finishedAt:       ptr.To(metav1.Now()),
+		expectedDuration: 120 * time.Second,
+		shouldSelfHeal:   false,
+		alreadyAttempted: true,
+		expectedAttempts: 6,
+		syncStatus:       v1alpha1.SyncStatusCodeSynced,
+	}, { // backoff will reset as finished time is >= cooldown
+		attempts:         40,
+		finishedAt:       &metav1.Time{Time: time.Now().Add(-(1 * time.Minute))},
+		expectedDuration: -60 * time.Second,
 		shouldSelfHeal:   true,
 		alreadyAttempted: true,
 		expectedAttempts: 0,

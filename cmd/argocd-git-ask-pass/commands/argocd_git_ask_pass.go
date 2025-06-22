@@ -12,7 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/askpass"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 const (
@@ -37,7 +37,7 @@ func NewCommand() *cobra.Command {
 			}
 			conn, err := grpc_util.BlockingDial(ctx, "unix", askpass.SocketPath, nil, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			errors.CheckError(err)
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 			client := askpass.NewAskPassServiceClient(conn)
 
 			creds, err := client.GetCredentials(ctx, &askpass.CredentialsRequest{Nonce: nonce})

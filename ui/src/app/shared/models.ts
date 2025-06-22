@@ -62,14 +62,17 @@ export interface Operation {
     initiatedBy: OperationInitiator;
 }
 
-export type OperationPhase = 'Running' | 'Error' | 'Failed' | 'Succeeded' | 'Terminating';
+export type OperationPhase = 'Running' | 'Error' | 'Failed' | 'Succeeded' | 'Terminating' | 'Progressing' | 'Pending' | 'Waiting';
 
 export const OperationPhases = {
     Running: 'Running' as OperationPhase,
     Failed: 'Failed' as OperationPhase,
     Error: 'Error' as OperationPhase,
     Succeeded: 'Succeeded' as OperationPhase,
-    Terminating: 'Terminating' as OperationPhase
+    Terminating: 'Terminating' as OperationPhase,
+    Progressing: 'Progressing' as OperationPhase,
+    Pending: 'Pending' as OperationPhase,
+    Waiting: 'Waiting' as OperationPhase
 };
 
 /**
@@ -92,6 +95,15 @@ export interface RevisionMetadata {
     tags?: string[];
     message?: string;
     signatureInfo?: string;
+}
+
+export interface OCIMetadata {
+    createdAt: string;
+    authors: string;
+    docsUrl: string;
+    sourceUrl: string;
+    version: string;
+    description: string;
 }
 
 export interface ChartDetails {
@@ -539,10 +551,6 @@ export interface AuthSettings {
     };
     oidcConfig: {
         name: string;
-        issuer: string;
-        clientID: string;
-        scopes: string[];
-        enablePKCEAuthentication: boolean;
     };
     help: {
         chatUrl: string;
@@ -609,6 +617,7 @@ export interface Repository {
     enableLfs?: boolean;
     githubAppId?: string;
     forceHttpBasicAuth?: boolean;
+    insecureOCIForceHttp?: boolean;
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
 }
@@ -992,6 +1001,7 @@ export interface Node {
     name: string;
     systemInfo: NodeSystemInfo;
     resourcesInfo: HostResourceInfo[];
+    labels: {[name: string]: string};
 }
 
 export interface NodeSystemInfo {
@@ -1050,3 +1060,60 @@ export interface UserMessages {
 }
 
 export const AppDeletionConfirmedAnnotation = 'argocd.argoproj.io/deletion-approved';
+
+export interface ApplicationSetSpec {
+    strategy?: {
+        type: 'AllAtOnce' | 'RollingSync';
+        rollingSync?: {
+            steps: Array<{
+                matchExpressions: Array<{
+                    key: string;
+                    operator: string;
+                    values: string[];
+                }>;
+                maxUpdate: number;
+            }>;
+        };
+    };
+}
+
+export interface ApplicationSetCondition {
+    type: string;
+    status: string;
+    message: string;
+    lastTransitionTime: string;
+    reason: string;
+}
+
+export interface ApplicationSetResource {
+    group: string;
+    version: string;
+    kind: string;
+    name: string;
+    namespace: string;
+    status: string;
+    health?: {
+        status: string;
+        lastTransitionTime: models.Time;
+    };
+    labels?: {[key: string]: string};
+}
+
+export interface ApplicationSet {
+    apiVersion?: string;
+    kind?: string;
+    metadata: models.ObjectMeta;
+    spec: ApplicationSetSpec;
+    status?: {
+        conditions?: ApplicationSetCondition[];
+        applicationStatus?: Array<{
+            application: string;
+            status: 'Waiting' | 'Pending' | 'Progressing' | 'Healthy';
+            message?: string;
+            lastTransitionTime?: string;
+            step?: string;
+            targetRevisions?: string[];
+        }>;
+        resources?: ApplicationSetResource[];
+    };
+}

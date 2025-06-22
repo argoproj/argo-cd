@@ -429,7 +429,7 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	if opts.ignoreMissingValueFiles {
 		src.Helm.IgnoreMissingValueFiles = opts.ignoreMissingValueFiles
 	}
-	if len(opts.values) > 0 {
+	if opts.values != "" {
 		err := src.Helm.SetValuesString(opts.values)
 		if err != nil {
 			log.Fatal(err)

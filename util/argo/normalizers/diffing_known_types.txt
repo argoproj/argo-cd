@@ -111,6 +111,7 @@ core/v1/NodeSelectorRequirement
 core/v1/NodeSelectorTerm
 core/v1/NodeSpec
 core/v1/NodeStatus
+core/v1/NodeSwapStatus
 core/v1/NodeSystemInfo
 core/v1/ObjectFieldSelector
 core/v1/ObjectReference

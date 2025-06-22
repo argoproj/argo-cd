@@ -193,7 +193,7 @@ func TestGetKubePublicEndpoint(t *testing.T) {
 
 func kubeconfigFixture(endpoint string, certificateAuthorityData []byte) string {
 	kubeconfig := &clientcmdapiv1.Config{}
-	if len(endpoint) > 0 {
+	if endpoint != "" {
 		kubeconfig.Clusters = []clientcmdapiv1.NamedCluster{
 			{
 				Name: "test-kube",

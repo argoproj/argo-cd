@@ -841,7 +841,16 @@ export function syncStatusMessage(app: appModels.Application) {
         if (source.chart) {
             message += ' (' + revision + ')';
         } else if (revision.length >= 7 && !revision.startsWith(source.targetRevision)) {
-            message += ' (' + revision.substr(0, 7) + ')';
+            if (source.repoURL.startsWith('oci://')) {
+                // Show "sha256: " plus the first 7 actual characters of the digest.
+                if (revision.startsWith('sha256:')) {
+                    message += ' (' + revision.substring(0, 14) + ')';
+                } else {
+                    message += ' (' + revision.substring(0, 7) + ')';
+                }
+            } else {
+                message += ' (' + revision.substring(0, 7) + ')';
+            }
         }
     }
 
@@ -1685,3 +1694,43 @@ export function getAppUrl(app: appModels.Application): string {
     }
     return `applications/${app.metadata.namespace}/${app.metadata.name}`;
 }
+
+export const getProgressiveSyncStatusIcon = ({status, isButton}: {status: string; isButton?: boolean}) => {
+    const getIconProps = () => {
+        switch (status) {
+            case 'Healthy':
+                return {icon: 'fa-check-circle', color: COLORS.health.healthy};
+            case 'Progressing':
+                return {icon: 'fa-circle-notch fa-spin', color: COLORS.health.progressing};
+            case 'Pending':
+                return {icon: 'fa-clock', color: COLORS.health.degraded};
+            case 'Waiting':
+                return {icon: 'fa-clock', color: COLORS.sync.out_of_sync};
+            case 'Error':
+                return {icon: 'fa-times-circle', color: COLORS.health.degraded};
+            default:
+                return {icon: 'fa-question-circle', color: COLORS.sync.unknown};
+        }
+    };
+
+    const {icon, color} = getIconProps();
+    const className = `fa ${icon}${isButton ? ' application-status-panel__item-value__status-button' : ''}`;
+    return <i className={className} style={{color}} />;
+};
+
+export const getProgressiveSyncStatusColor = (status: string): string => {
+    switch (status) {
+        case 'Waiting':
+            return COLORS.sync.out_of_sync;
+        case 'Pending':
+            return COLORS.health.degraded;
+        case 'Progressing':
+            return COLORS.health.progressing;
+        case 'Healthy':
+            return COLORS.health.healthy;
+        case 'Error':
+            return COLORS.health.degraded;
+        default:
+            return COLORS.sync.unknown;
+    }
+};

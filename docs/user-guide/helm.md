@@ -45,7 +45,7 @@ spec:
 !!! note "When using Helm there are multiple ways to provide values"
     Order of precedence is `parameters > valuesObject > values > valueFiles > helm repository values.yaml` (see [Here](./helm.md#helm-value-precedence) for a more detailed example)
 
-See [here](../operator-manual/declarative-setup.md#helm-chart-repositories) for more info about how to configure private Helm repositories.
+See [here](../operator-manual/declarative-setup.md#helm) for more info about how to configure private Helm repositories and private OCI registries.
 
 ## Values Files
 
@@ -318,7 +318,7 @@ The Argo CD application controller periodically compares Git state against the l
 the `helm template <CHART>` command to generate the helm manifests. Because the random value is
 regenerated every time the comparison is made, any application which makes use of the `randAlphaNum`
 function will always be in an `OutOfSync` state. This can be mitigated by explicitly setting a
-value in the values.yaml or using `argocd app set` command to overide the value such that the value
+value in the values.yaml or using `argocd app set` command to override the value such that the value
 is stable between each comparison. For example:
 
 ```bash

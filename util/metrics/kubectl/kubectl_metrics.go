@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -163,69 +164,30 @@ func ResetAll() {
 	transportCreateCallsCounter.Reset()
 }
 
-type KubectlMetrics struct {
-	clientCertRotationAgeMetric kubectlClientCertRotationAgeMetric
-	requestLatencyMetric        kubectlRequestLatencyMetric
-	resolverLatencyMetric       kubectlResolverLatencyMetric
-	requestSizeMetric           kubectlRequestSizeMetric
-	responseSizeMetric          kubectlResponseSizeMetric
-	rateLimiterLatencyMetric    kubectlRateLimiterLatencyMetric
-	requestResultMetric         kubectlRequestResultMetric
-	execPluginCallsMetric       kubectlExecPluginCallsMetric
-	requestRetryMetric          kubectlRequestRetryMetric
-	transportCacheEntriesMetric kubectlTransportCacheEntriesMetric
-	transportCreateCallsMetric  kubectlTransportCreateCallsMetric
-}
-
-// NewKubectlMetrics returns a new KubectlMetrics instance with the given initiator, which should be the name of the
-// Argo CD component that is producing the metrics.
-//
-// After initializing the KubectlMetrics instance, you must call RegisterWithClientGo to register the metrics with the
-// client-go metrics library.
-//
-// You must also call RegisterWithPrometheus to register the metrics with the metrics server's prometheus registry.
-//
-// So these three lines should be enough to set up kubectl metrics in your metrics server:
-//
-//	kubectlMetricsServer := metricsutil.NewKubectlMetrics("your-component-name")
-//	kubectlMetricsServer.RegisterWithClientGo()
-//	metricsutil.RegisterWithPrometheus(registry)
-//
-// Once those functions have been called, everything else should happen automatically. client-go will send observations
-// to the handlers in this struct, and your metrics server will collect and expose the metrics.
-func NewKubectlMetrics() *KubectlMetrics {
-	return &KubectlMetrics{
-		clientCertRotationAgeMetric: kubectlClientCertRotationAgeMetric{},
-		requestLatencyMetric:        kubectlRequestLatencyMetric{},
-		resolverLatencyMetric:       kubectlResolverLatencyMetric{},
-		requestSizeMetric:           kubectlRequestSizeMetric{},
-		responseSizeMetric:          kubectlResponseSizeMetric{},
-		rateLimiterLatencyMetric:    kubectlRateLimiterLatencyMetric{},
-		requestResultMetric:         kubectlRequestResultMetric{},
-		execPluginCallsMetric:       kubectlExecPluginCallsMetric{},
-		requestRetryMetric:          kubectlRequestRetryMetric{},
-		transportCacheEntriesMetric: kubectlTransportCacheEntriesMetric{},
-		transportCreateCallsMetric:  kubectlTransportCreateCallsMetric{},
-	}
-}
+var newKubectlMetricsOnce sync.Once
 
 // RegisterWithClientGo sets the metrics handlers for the go-client library. We do not use the metrics library's `RegisterWithClientGo` method,
 // because it is protected by a sync.Once. controller-runtime registers a single handler, which blocks our registration
 // of our own handlers. So we must rudely set them all directly.
 //
-// Since the metrics are global, this function should only be called once for a given Argo CD component.
-func (k *KubectlMetrics) RegisterWithClientGo() {
-	metrics.ClientCertRotationAge = &k.clientCertRotationAgeMetric
-	metrics.RequestLatency = &k.requestLatencyMetric
-	metrics.ResolverLatency = &k.resolverLatencyMetric
-	metrics.RequestSize = &k.requestSizeMetric
-	metrics.ResponseSize = &k.responseSizeMetric
-	metrics.RateLimiterLatency = &k.rateLimiterLatencyMetric
-	metrics.RequestResult = &k.requestResultMetric
-	metrics.ExecPluginCalls = &k.execPluginCallsMetric
-	metrics.RequestRetry = &k.requestRetryMetric
-	metrics.TransportCacheEntries = &k.transportCacheEntriesMetric
-	metrics.TransportCreateCalls = &k.transportCreateCallsMetric
+// Since the metrics are global, this function only needs to be called once for a given Argo CD component.
+//
+// You must also call RegisterWithPrometheus to register the metrics with the metrics server's prometheus registry.
+func RegisterWithClientGo() {
+	// Do once to avoid races in unit tests that call this function.
+	newKubectlMetricsOnce.Do(func() {
+		metrics.ClientCertRotationAge = &kubectlClientCertRotationAgeMetric{}
+		metrics.RequestLatency = &kubectlRequestLatencyMetric{}
+		metrics.ResolverLatency = &kubectlResolverLatencyMetric{}
+		metrics.RequestSize = &kubectlRequestSizeMetric{}
+		metrics.ResponseSize = &kubectlResponseSizeMetric{}
+		metrics.RateLimiterLatency = &kubectlRateLimiterLatencyMetric{}
+		metrics.RequestResult = &kubectlRequestResultMetric{}
+		metrics.ExecPluginCalls = &kubectlExecPluginCallsMetric{}
+		metrics.RequestRetry = &kubectlRequestRetryMetric{}
+		metrics.TransportCacheEntries = &kubectlTransportCacheEntriesMetric{}
+		metrics.TransportCreateCalls = &kubectlTransportCreateCallsMetric{}
+	})
 }
 
 type kubectlClientCertRotationAgeMetric struct{}

@@ -178,7 +178,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 			return nil, fmt.Errorf("invalid hostname in request: %s", certificate.ServerName)
 		} else if certificate.CertType == "ssh" {
 			// Matches "[hostname]:port" format
-			reExtract := regexp.MustCompile(`^\[(.*)\]\:[0-9]+$`)
+			reExtract := regexp.MustCompile(`^\[(.*)\]:\d+$`)
 			matches := reExtract.FindStringSubmatch(certificate.ServerName)
 			var hostnameToCheck string
 			if len(matches) == 0 {

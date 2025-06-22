@@ -3,7 +3,7 @@ title: Neat-enhancement-idea
 authors:
   - "@ishitasequeira" # Authors' github accounts here.
 sponsors:
-  - TBD        # List all intereste parties here.
+  - TBD        # List all interested parties here.
 reviewers:
   - "@jannfis"
   - "@crenshaw-dev"
@@ -201,7 +201,7 @@ To avoid complexity on the deciding the list of sources, if both `source` and `s
 
 Argo CD benefits from the assumption of a single repo per application to detect changes and to cache the results. But this enhancement now requires us to look at all the source repo "HEAD"s and invalidate the cache if any one of them changes.
 
-#### Reconcilation of the Application
+#### Reconciliation of the Application
 
 As we would have multiple sources as part of the same Application, we would need to track updates to each source and reconcile the Application for each source. When one of the sources change, we would need to ensure that target revisions of other sources are up-to-date, e.g. force a simple refresh to see if target revision of the source (e.g. HEAD), still points to revisionX for example.
 

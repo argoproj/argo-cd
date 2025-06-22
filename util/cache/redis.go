@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	ioutil "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 
 	rediscache "github.com/go-redis/cache/v9"
 	"github.com/redis/go-redis/v9"
@@ -149,7 +149,7 @@ func (r *redisCache) Delete(key string) error {
 
 func (r *redisCache) OnUpdated(ctx context.Context, key string, callback func() error) error {
 	pubsub := r.client.Subscribe(ctx, key)
-	defer ioutil.Close(pubsub)
+	defer utilio.Close(pubsub)
 
 	ch := pubsub.Channel()
 	for {

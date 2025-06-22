@@ -161,6 +161,7 @@ nav:
   - user-guide/application_sources.md
   - user-guide/kustomize.md
   - user-guide/helm.md
+  - user-guide/oci.md
   - user-guide/import.md
   - user-guide/jsonnet.md
   - user-guide/directory.md
@@ -210,7 +211,6 @@ nav:
   - developer-guide/release-process-and-cadence.md
   - developer-guide/running-locally.md
   - developer-guide/debugging-remote-environment.md
-  - developer-guide/use-gitpod.md
   - developer-guide/api-docs.md
   - developer-guide/test-e2e.md
   - developer-guide/dependencies.md
@@ -222,6 +222,7 @@ nav:
     - developer-guide/extensions/ui-extensions.md
     - developer-guide/extensions/proxy-extensions.md
   - developer-guide/faq.md
+  - developer-guide/tilt.md
 - faq.md
 - security_considerations.md
 - Support: SUPPORT.md

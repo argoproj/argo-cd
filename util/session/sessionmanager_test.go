@@ -29,7 +29,6 @@ import (
 	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test"
-	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/password"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -98,12 +97,11 @@ func TestSessionManager_AdminToken(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, newToken)
 
-	mapClaims, err := jwtutil.MapClaims(claims)
-	require.NoError(t, err)
-	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
-	require.NoError(t, err)
-
-	assert.Equal(t, "admin", argoClaims.Subject)
+	mapClaims := *(claims.(*jwt.MapClaims))
+	subject := mapClaims["sub"].(string)
+	if subject != "admin" {
+		t.Errorf("Token claim subject %q does not match expected subject %q.", subject, "admin")
+	}
 }
 
 func TestSessionManager_AdminToken_ExpiringSoon(t *testing.T) {
@@ -125,13 +123,9 @@ func TestSessionManager_AdminToken_ExpiringSoon(t *testing.T) {
 	claims, _, err := mgr.Parse(newToken)
 	require.NoError(t, err)
 
-	mapClaims, err := jwtutil.MapClaims(claims)
-	require.NoError(t, err)
-
-	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
-	require.NoError(t, err)
-
-	assert.Equal(t, "admin", argoClaims.Subject)
+	mapClaims := *(claims.(*jwt.MapClaims))
+	subject := mapClaims["sub"].(string)
+	assert.Equal(t, "admin", subject)
 }
 
 func TestSessionManager_AdminToken_Revoked(t *testing.T) {
@@ -202,10 +196,7 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 		mapClaims, err := jwtutil.MapClaims(claims)
 		require.NoError(t, err)
 
-		argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
-		require.NoError(t, err)
-
-		assert.Equal(t, "proj:default:test", argoClaims.Subject)
+		assert.Equal(t, "proj:default:test", mapClaims["sub"])
 	})
 
 	t.Run("Token Revoked", func(t *testing.T) {
@@ -322,7 +313,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			}
 			ts := httptest.NewServer(WithAuthMiddleware(tc.authDisabled, tm, mux))
 			defer ts.Close()
-			req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
+			req, err := http.NewRequest(http.MethodGet, ts.URL, http.NoBody)
 			require.NoErrorf(t, err, "error creating request: %s", err)
 			if tc.cookieHeader {
 				req.Header.Add("Cookie", "argocd.token=123456")
@@ -602,7 +593,7 @@ func getKubeClientWithConfig(config map[string]string, secretConfig map[string][
 }
 
 func TestSessionManager_VerifyToken(t *testing.T) {
-	oidcTestServer := utiltest.GetOIDCTestServer(t)
+	oidcTestServer := utiltest.GetOIDCTestServer(t, nil)
 	t.Cleanup(oidcTestServer.Close)
 
 	dexTestServer := utiltest.GetDexTestServer(t)

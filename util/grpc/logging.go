@@ -22,13 +22,13 @@ func logRequest(ctx context.Context, entry *logrus.Entry, info string, pbMsg any
 		claims := ctx.Value("claims")
 		mapClaims, ok := claims.(jwt.MapClaims)
 		if ok {
-			copy := make(map[string]any)
+			claimsCopy := make(map[string]any)
 			for k, v := range mapClaims {
 				if k != "groups" || entry.Logger.IsLevelEnabled(logrus.DebugLevel) {
-					copy[k] = v
+					claimsCopy[k] = v
 				}
 			}
-			if data, err := json.Marshal(copy); err == nil {
+			if data, err := json.Marshal(claimsCopy); err == nil {
 				entry = entry.WithField("grpc.request.claims", string(data))
 			}
 		}

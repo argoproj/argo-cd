@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
@@ -23,11 +25,10 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
-	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/v3/util/oidc"
 	"github.com/argoproj/argo-cd/v3/util/rand"
@@ -126,7 +127,7 @@ argocd login cd.argoproj.io --core`,
 			if !globalClientOpts.Core {
 				acdClient := headless.NewClientOrDie(&clientOpts, c)
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
-				defer io.Close(setConn)
+				defer utilio.Close(setConn)
 				if !sso {
 					tokenString = passwordLogin(ctx, acdClient, username, password)
 				} else {
@@ -143,9 +144,7 @@ argocd login cd.argoproj.io --core`,
 				claims := jwt.MapClaims{}
 				_, _, err := parser.ParseUnverified(tokenString, &claims)
 				errors.CheckError(err)
-				argoClaims, err := claimsutil.MapClaimsToArgoClaims(claims)
-				errors.CheckError(err)
-				fmt.Printf("'%s' logged in successfully\n", userDisplayName(argoClaims))
+				fmt.Printf("'%s' logged in successfully\n", userDisplayName(claims))
 			}
 
 			// login successful. Persist the config
@@ -192,17 +191,14 @@ argocd login cd.argoproj.io --core`,
 	return command
 }
 
-func userDisplayName(claims *claimsutil.ArgoClaims) string {
-	if claims == nil {
-		return ""
+func userDisplayName(claims jwt.MapClaims) string {
+	if email := jwtutil.StringField(claims, "email"); email != "" {
+		return email
 	}
-	if claims.Email != "" {
-		return claims.Email
+	if name := jwtutil.StringField(claims, "name"); name != "" {
+		return name
 	}
-	if claims.Name != "" {
-		return claims.Name
-	}
-	return claims.GetUserIdentifier()
+	return jwtutil.GetUserIdentifier(claims)
 }
 
 // oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and
@@ -360,7 +356,7 @@ func oauth2Login(
 func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username, password string) string {
 	username, password = cli.PromptCredentials(username, password)
 	sessConn, sessionIf := acdClient.NewSessionClientOrDie()
-	defer io.Close(sessConn)
+	defer utilio.Close(sessConn)
 	sessionRequest := sessionpkg.SessionCreateRequest{
 		Username: username,
 		Password: password,

@@ -21,11 +21,11 @@ builds:
       - -X github.com/argoproj/argo-cd/v3/common.gitCommit={{ .FullCommit }}
       - -X github.com/argoproj/argo-cd/v3/common.gitTreeState={{ .Env.GIT_TREE_STATE }}
       - -X github.com/argoproj/argo-cd/v3/common.kubectlVersion={{ .Env.KUBECTL_VERSION }}
-      - -extldflags="-static"
+      - '{{ if or (eq .Runtime.Goos "linux") (eq .Runtime.Goos "windows") }}-extldflags="-static"{{ end }}'
     goos:
       - linux
-      - darwin
       - windows
+      - darwin
     goarch:
       - amd64
       - arm64
@@ -42,6 +42,15 @@ builds:
         goarch: ppc64le
       - goos: windows
         goarch: arm64
+    overrides:
+      - goos: darwin
+        goarch: amd64
+        env:
+          - CGO_ENABLED=1
+      - goos: darwin
+        goarch: arm64
+        env:
+          - CGO_ENABLED=1
 
 archives:
   - id: argocd-archive
@@ -49,7 +58,7 @@ archives:
       - argocd-cli
     name_template: |-
       {{ .ProjectName }}-{{ .Os }}-{{ .Arch }}
-    formats: [binary]
+    formats: [ binary ]
 
 checksum:
   name_template: 'cli_checksums.txt'
@@ -80,7 +89,7 @@ release:
     All Argo CD container images are signed by cosign.  A Provenance is generated for container images and CLI binaries which meet the SLSA Level 3 specifications. See the [documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/signed-release-assets) on how to verify.
 
     ## Release Notes Blog Post
-    For a detailed breakdown of the key changes and improvements in this release, check out the [official blog post](https://blog.argoproj.io/argo-cd-v2-14-release-candidate-57a664791e2a)
+    For a detailed breakdown of the key changes and improvements in this release, check out the [official blog post](https://blog.argoproj.io/argo-cd-v3-0-release-candidate-a0b933f4e58f)
 
     ## Upgrading
 

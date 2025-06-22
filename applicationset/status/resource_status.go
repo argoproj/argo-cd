@@ -17,7 +17,7 @@ func BuildResourceStatus(statusMap map[string]argov1alpha1.ResourceStatus, apps 
 		status.Name = app.Name
 		status.Namespace = app.Namespace
 		status.Status = app.Status.Sync.Status
-		status.Health = app.Status.Health.DeepCopy()
+		status.Health = &argov1alpha1.HealthStatus{Status: app.Status.Health.Status}
 
 		statusMap[app.Name] = status
 	}

@@ -74,7 +74,8 @@ func ReadPluginConfig(filePath string) (*PluginConfig, error) {
 		return nil, err
 	}
 
-	if err = ValidatePluginConfig(config); err != nil {
+	err = ValidatePluginConfig(config)
+	if err != nil {
 		return nil, err
 	}
 

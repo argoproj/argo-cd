@@ -67,6 +67,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
 
     const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
 
+    const repoType = source.repoURL.startsWith('oci://') ? 'oci' : (source.hasOwnProperty('chart') && 'helm') || 'git';
+
     const attributes = [
         {
             title: 'PROJECT',
@@ -235,7 +237,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                               hasMultipleSources ? (
                                   helpTip('TARGET REVISION is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
                               ) : (
-                                  <RevisionFormField helpIconTop={'0'} hideLabel={true} formApi={formApi} repoURL={source.repoURL} />
+                                  <RevisionFormField helpIconTop={'0'} hideLabel={true} formApi={formApi} repoURL={source.repoURL} repoType={repoType} />
                               )
                       },
                       {

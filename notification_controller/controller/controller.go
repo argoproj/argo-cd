@@ -54,6 +54,14 @@ type NotificationController interface {
 	Init(ctx context.Context) error
 }
 
+type notificationController struct {
+	ctrl              controller.NotificationController
+	appInformer       cache.SharedIndexInformer
+	appProjInformer   cache.SharedIndexInformer
+	secretInformer    cache.SharedIndexInformer
+	configMapInformer cache.SharedIndexInformer
+}
+
 func NewController(
 	k8sClient kubernetes.Interface,
 	client dynamic.Interface,
@@ -91,7 +99,6 @@ func NewController(
 		configMapInformer: configMapInformer,
 		appInformer:       appInformer,
 		appProjInformer:   appProjInformer,
-		apiFactory:        apiFactory,
 	}
 	skipProcessingOpt := controller.WithSkipProcessing(func(obj metav1.Object) (bool, string) {
 		app, ok := (obj).(*unstructured.Unstructured)
@@ -170,15 +177,6 @@ func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string
 		},
 	)
 	return informer
-}
-
-type notificationController struct {
-	apiFactory        api.Factory
-	ctrl              controller.NotificationController
-	appInformer       cache.SharedIndexInformer
-	appProjInformer   cache.SharedIndexInformer
-	secretInformer    cache.SharedIndexInformer
-	configMapInformer cache.SharedIndexInformer
 }
 
 func (c *notificationController) Init(ctx context.Context) error {

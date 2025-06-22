@@ -77,7 +77,7 @@ func updateSecretInt(secret *corev1.Secret, key string, value int64) {
 }
 
 func updateSecretString(secret *corev1.Secret, key, value string) {
-	if _, present := secret.Data[key]; present || len(value) > 0 {
+	if _, present := secret.Data[key]; present || value != "" {
 		secret.Data[key] = []byte(value)
 	}
 }
