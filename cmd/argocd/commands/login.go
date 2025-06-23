@@ -89,7 +89,7 @@ argocd login cd.argoproj.io --core`,
 							// Prompting in this case would result in an EOF or hang.
 							// To proceed securely in scripts, the user must explicitly pass --insecure.
 							if passwordStdin {
-								errors.CheckError(fmt.Errorf("--password-stdin used, but cannot prompt for TLS confirmation. Use --insecure to skip confirmation"))
+								errors.CheckError(errors.New("--password-stdin used, but cannot prompt for TLS confirmation. Use --insecure to skip confirmation"))
 							}
 							if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
 								os.Exit(1)
@@ -103,7 +103,7 @@ argocd login cd.argoproj.io --core`,
 							// Prompting in this case would result in an EOF or hang.
 							// To proceed securely in scripts, the user must explicitly pass --insecure.
 							if passwordStdin {
-								errors.CheckError(fmt.Errorf("--password-stdin used, but cannot prompt for TLS confirmation. Use --insecure to skip confirmation"))
+								errors.CheckError(errors.New("--password-stdin used, but cannot prompt for TLS confirmation. Use --insecure to skip confirmation"))
 							}
 							if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
 								os.Exit(1)
