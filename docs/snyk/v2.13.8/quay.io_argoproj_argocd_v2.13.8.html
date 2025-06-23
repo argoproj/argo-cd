@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="30 known vulnerabilities found in 108 vulnerable dependency paths.">
+  <meta name="description" content="31 known vulnerabilities found in 122 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -141,7 +141,7 @@
       padding-top: 2em;
     }
     .project__header {
-      background-color: #4b45a9;
+      background-color: #030328;
       color: #fff;
       margin-bottom: -1px;
       padding-top: 1em;
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">June 15th 2025, 12:32:07 am (UTC+00:00)</p>
+                <p class="timestamp">June 22nd 2025, 12:34:23 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -470,8 +470,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>30</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>108 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>31</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>122 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2361</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -995,6 +995,243 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-SYSTEMD-10285338">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Directory Traversal</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v2.13.8/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            pam/libpam0g
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v2.13.8 and pam/libpam0g@1.5.3-5ubuntu5.1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.13.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam0g@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.13.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/login@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam0g@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.13.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        util-linux@2.39.3-9ubuntu6.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam0g@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.13.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.7.14build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        adduser@3.137ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam0g@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.13.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.7.14build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        adduser@3.137ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam0g@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.13.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.7.14build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        adduser@3.137ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules-bin@1.5.3-5ubuntu5.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam0g@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.13.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules-bin@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.13.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.7.14build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        adduser@3.137ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules-bin@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.13.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.13.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-runtime@1.5.3-5ubuntu5.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.13.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/login@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.13.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.7.14build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        adduser@3.137ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.13.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-runtime@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.13.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/login@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-runtime@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>pam</code> package and not the <code>pam</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>A flaw was found in linux-pam. The module pam_namespace may use access user-controlled paths without proper protection, allowing local users to elevate their privileges to root via multiple symlink attacks and race conditions.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>pam</code> to version 1.5.3-5ubuntu5.4 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-6020">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-6020</a></li>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2025-6020">https://access.redhat.com/security/cve/CVE-2025-6020</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2372512">https://bugzilla.redhat.com/show_bug.cgi?id=2372512</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2025/06/17/1">http://www.openwall.com/lists/oss-security/2025/06/17/1</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-PAM-10379114">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1813,7 +2050,7 @@
         <p><a href="https://pkg.go.dev/golang.org/x/net/html">golang.org/x/net/html</a> is a package that implements an HTML5-compliant tokenizer and parser.</p>
         <p>Affected versions of this package are vulnerable to Improper Validation of Syntactic Correctness of Input in the tokenizer in <code>token.go</code>, which incorrectly interprets tags as closing tags, allowing malicious input to be incorrectly processed and the DOM to be corrupted.</p>
         <h2 id="details">Details</h2>
-        <p>A cross-site scripting attack occurs when the attacker tricks a legitimate web-based application or site to accept a request as originating from a trusted source.</p>
+        <p>Cross-site scripting (or XSS) is a code vulnerability that occurs when an attacker “injects” a malicious script into an otherwise trusted website. The injected script gets downloaded and executed by the end user’s browser when the user interacts with the compromised website.</p>
         <p>This is done by escaping the context of the web application; the web application then delivers that data to its users along with other trusted dynamic content, without validating it. The browser unknowingly executes malicious script on the client side (through client-side languages; usually JavaScript or HTML)  in order to perform actions that are otherwise typically blocked by the browser’s Same Origin Policy.</p>
         <p>Injecting malicious code is the most prevalent manner by which XSS is exploited; for this reason, escaping characters in order to prevent this manipulation is the top method for securing code against this vulnerability.</p>
         <p>Escaping means that the application is coded to mark key characters, and particularly key characters included in user input, to prevent those characters from being interpreted in a dangerous context. For example, in HTML, <code>&lt;</code> can be coded as  <code>&amp;lt</code>; and <code>&gt;</code> can be coded as <code>&amp;gt</code>; in order to be interpreted and displayed as themselves in text, while within the code itself, they are used for HTML tags. If malicious content is injected into an application that escapes special characters and that malicious content uses <code>&lt;</code> and <code>&gt;</code> as HTML tags, those characters are nonetheless not interpreted as HTML tags by the browser if they’ve been correctly escaped in the application code and in this way the attempted attack is diverted.</p>

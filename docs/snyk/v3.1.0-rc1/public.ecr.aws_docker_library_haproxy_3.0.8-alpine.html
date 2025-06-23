@@ -141,7 +141,7 @@
       padding-top: 2em;
     }
     .project__header {
-      background-color: #4b45a9;
+      background-color: #030328;
       color: #fff;
       margin-bottom: -1px;
       padding-top: 1em;
@@ -456,13 +456,12 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">June 15th 2025, 12:26:52 am (UTC+00:00)</p>
+                <p class="timestamp">June 22nd 2025, 12:26:07 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
-                <span>Scanned the following paths:</span>
+                <span>Scanned the following path:</span>
                 <ul>
-                  <li class="paths">redis:7.2.7-alpine (apk)</li>
-                  <li class="paths">redis:7.2.7-alpine/tianon/gosu//usr/local/bin/gosu (gomodules)</li>
+                  <li class="paths">public.ecr.aws/docker/library/haproxy:3.0.8-alpine/docker/library/haproxy (apk)</li>
                 </ul>
               </div>
     
@@ -474,7 +473,16 @@
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
         </div><!-- .layout-stacked__header -->
-
+      <section class="layout-container">
+          <table class="metatable">
+              <tbody>
+              <tr class="meta-row"><th class="meta-row-label">Project</th> <td class="meta-row-value">docker-image|public.ecr.aws/docker/library/haproxy</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Path</th> <td class="meta-row-value">public.ecr.aws/docker/library/haproxy:3.0.8-alpine/docker/library/haproxy</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Package Manager</th> <td class="meta-row-value">apk</td></tr>
+              
+              </tbody>
+          </table>
+      </section>
     <div class="layout-container" style="padding-top: 35px;">
       No known vulnerabilities detected.
     </div>
