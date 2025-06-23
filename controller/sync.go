@@ -93,6 +93,13 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult field.
 	// This ensures that when resuming an operation, we sync to the same revision that we initially
 	// started with.
+	syncId, err := syncid.Generate()
+	if err != nil {
+		state.Phase = common.OperationError
+		state.Message = fmt.Sprintf("Failed to generate sync ID: %v", err)
+		return
+	}
+	logEntry := log.WithFields(applog.GetAppLogFields(app)).WithField("syncId", syncId)
 
 	var revision string
 	var syncOp v1alpha1.SyncOperation
@@ -246,13 +253,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	syncId, err := syncid.Generate()
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = fmt.Sprintf("Failed to generate sync ID: %v", err)
-		return
-	}
-	logEntry := log.WithFields(applog.GetAppLogFields(app)).WithField("syncId", syncId)
 	initialResourcesRes := make([]common.ResourceSyncResult, len(syncRes.Resources))
 	for i, res := range syncRes.Resources {
 		key := kube.ResourceKey{Group: res.Group, Kind: res.Kind, Namespace: res.Namespace, Name: res.Name}
