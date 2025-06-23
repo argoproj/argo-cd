@@ -377,7 +377,6 @@ message ApplicationSetStrategy {
 
   optional ApplicationSetRolloutStrategy rollingSync = 2;
 
-  // RollingUpdate *ApplicationSetRolloutStrategy `json:"rollingUpdate,omitempty" protobuf:"bytes,3,opt,name=rollingUpdate"`
   optional string deletionOrder = 3;
 }
 

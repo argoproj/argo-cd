@@ -7186,8 +7186,7 @@
       "type": "object",
       "properties": {
         "deletionOrder": {
-          "type": "string",
-          "title": "RollingUpdate *ApplicationSetRolloutStrategy `json:\"rollingUpdate,omitempty\" protobuf:\"bytes,3,opt,name=rollingUpdate\"`"
+          "type": "string"
         },
         "rollingSync": {
           "$ref": "#/definitions/v1alpha1ApplicationSetRolloutStrategy"
