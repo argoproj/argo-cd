@@ -81,26 +81,15 @@ type ArgoDB_AddGPGPublicKey_Call struct {
 }
 
 // AddGPGPublicKey is a helper method to define mock.On call
-//   - ctx context.Context
-//   - keyData string
+//   - ctx
+//   - keyData
 func (_e *ArgoDB_Expecter) AddGPGPublicKey(ctx interface{}, keyData interface{}) *ArgoDB_AddGPGPublicKey_Call {
 	return &ArgoDB_AddGPGPublicKey_Call{Call: _e.mock.On("AddGPGPublicKey", ctx, keyData)}
 }
 
 func (_c *ArgoDB_AddGPGPublicKey_Call) Run(run func(ctx context.Context, keyData string)) *ArgoDB_AddGPGPublicKey_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -149,26 +138,15 @@ type ArgoDB_CreateCluster_Call struct {
 }
 
 // CreateCluster is a helper method to define mock.On call
-//   - ctx context.Context
-//   - c *v1alpha1.Cluster
+//   - ctx
+//   - c
 func (_e *ArgoDB_Expecter) CreateCluster(ctx interface{}, c interface{}) *ArgoDB_CreateCluster_Call {
 	return &ArgoDB_CreateCluster_Call{Call: _e.mock.On("CreateCluster", ctx, c)}
 }
 
 func (_c *ArgoDB_CreateCluster_Call) Run(run func(ctx context.Context, c *v1alpha1.Cluster)) *ArgoDB_CreateCluster_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *v1alpha1.Cluster
-		if args[1] != nil {
-			arg1 = args[1].(*v1alpha1.Cluster)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*v1alpha1.Cluster))
 	})
 	return _c
 }
@@ -217,32 +195,16 @@ type ArgoDB_CreateRepoCertificate_Call struct {
 }
 
 // CreateRepoCertificate is a helper method to define mock.On call
-//   - ctx context.Context
-//   - certificate *v1alpha1.RepositoryCertificateList
-//   - upsert bool
+//   - ctx
+//   - certificate
+//   - upsert
 func (_e *ArgoDB_Expecter) CreateRepoCertificate(ctx interface{}, certificate interface{}, upsert interface{}) *ArgoDB_CreateRepoCertificate_Call {
 	return &ArgoDB_CreateRepoCertificate_Call{Call: _e.mock.On("CreateRepoCertificate", ctx, certificate, upsert)}
 }
 
 func (_c *ArgoDB_CreateRepoCertificate_Call) Run(run func(ctx context.Context, certificate *v1alpha1.RepositoryCertificateList, upsert bool)) *ArgoDB_CreateRepoCertificate_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *v1alpha1.RepositoryCertificateList
-		if args[1] != nil {
-			arg1 = args[1].(*v1alpha1.RepositoryCertificateList)
-		}
-		var arg2 bool
-		if args[2] != nil {
-			arg2 = args[2].(bool)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
+		run(args[0].(context.Context), args[1].(*v1alpha1.RepositoryCertificateList), args[2].(bool))
 	})
 	return _c
 }
@@ -291,26 +253,15 @@ type ArgoDB_CreateRepository_Call struct {
 }
 
 // CreateRepository is a helper method to define mock.On call
-//   - ctx context.Context
-//   - r *v1alpha1.Repository
+//   - ctx
+//   - r
 func (_e *ArgoDB_Expecter) CreateRepository(ctx interface{}, r interface{}) *ArgoDB_CreateRepository_Call {
 	return &ArgoDB_CreateRepository_Call{Call: _e.mock.On("CreateRepository", ctx, r)}
 }
 
 func (_c *ArgoDB_CreateRepository_Call) Run(run func(ctx context.Context, r *v1alpha1.Repository)) *ArgoDB_CreateRepository_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *v1alpha1.Repository
-		if args[1] != nil {
-			arg1 = args[1].(*v1alpha1.Repository)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*v1alpha1.Repository))
 	})
 	return _c
 }
@@ -359,26 +310,15 @@ type ArgoDB_CreateRepositoryCredentials_Call struct {
 }
 
 // CreateRepositoryCredentials is a helper method to define mock.On call
-//   - ctx context.Context
-//   - r *v1alpha1.RepoCreds
+//   - ctx
+//   - r
 func (_e *ArgoDB_Expecter) CreateRepositoryCredentials(ctx interface{}, r interface{}) *ArgoDB_CreateRepositoryCredentials_Call {
 	return &ArgoDB_CreateRepositoryCredentials_Call{Call: _e.mock.On("CreateRepositoryCredentials", ctx, r)}
 }
 
 func (_c *ArgoDB_CreateRepositoryCredentials_Call) Run(run func(ctx context.Context, r *v1alpha1.RepoCreds)) *ArgoDB_CreateRepositoryCredentials_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *v1alpha1.RepoCreds
-		if args[1] != nil {
-			arg1 = args[1].(*v1alpha1.RepoCreds)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*v1alpha1.RepoCreds))
 	})
 	return _c
 }
@@ -427,26 +367,15 @@ type ArgoDB_CreateWriteRepository_Call struct {
 }
 
 // CreateWriteRepository is a helper method to define mock.On call
-//   - ctx context.Context
-//   - r *v1alpha1.Repository
+//   - ctx
+//   - r
 func (_e *ArgoDB_Expecter) CreateWriteRepository(ctx interface{}, r interface{}) *ArgoDB_CreateWriteRepository_Call {
 	return &ArgoDB_CreateWriteRepository_Call{Call: _e.mock.On("CreateWriteRepository", ctx, r)}
 }
 
 func (_c *ArgoDB_CreateWriteRepository_Call) Run(run func(ctx context.Context, r *v1alpha1.Repository)) *ArgoDB_CreateWriteRepository_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *v1alpha1.Repository
-		if args[1] != nil {
-			arg1 = args[1].(*v1alpha1.Repository)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*v1alpha1.Repository))
 	})
 	return _c
 }
@@ -495,26 +424,15 @@ type ArgoDB_CreateWriteRepositoryCredentials_Call struct {
 }
 
 // CreateWriteRepositoryCredentials is a helper method to define mock.On call
-//   - ctx context.Context
-//   - r *v1alpha1.RepoCreds
+//   - ctx
+//   - r
 func (_e *ArgoDB_Expecter) CreateWriteRepositoryCredentials(ctx interface{}, r interface{}) *ArgoDB_CreateWriteRepositoryCredentials_Call {
 	return &ArgoDB_CreateWriteRepositoryCredentials_Call{Call: _e.mock.On("CreateWriteRepositoryCredentials", ctx, r)}
 }
 
 func (_c *ArgoDB_CreateWriteRepositoryCredentials_Call) Run(run func(ctx context.Context, r *v1alpha1.RepoCreds)) *ArgoDB_CreateWriteRepositoryCredentials_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *v1alpha1.RepoCreds
-		if args[1] != nil {
-			arg1 = args[1].(*v1alpha1.RepoCreds)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*v1alpha1.RepoCreds))
 	})
 	return _c
 }
@@ -552,26 +470,15 @@ type ArgoDB_DeleteCluster_Call struct {
 }
 
 // DeleteCluster is a helper method to define mock.On call
-//   - ctx context.Context
-//   - server string
+//   - ctx
+//   - server
 func (_e *ArgoDB_Expecter) DeleteCluster(ctx interface{}, server interface{}) *ArgoDB_DeleteCluster_Call {
 	return &ArgoDB_DeleteCluster_Call{Call: _e.mock.On("DeleteCluster", ctx, server)}
 }
 
 func (_c *ArgoDB_DeleteCluster_Call) Run(run func(ctx context.Context, server string)) *ArgoDB_DeleteCluster_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -609,26 +516,15 @@ type ArgoDB_DeleteGPGPublicKey_Call struct {
 }
 
 // DeleteGPGPublicKey is a helper method to define mock.On call
-//   - ctx context.Context
-//   - keyID string
+//   - ctx
+//   - keyID
 func (_e *ArgoDB_Expecter) DeleteGPGPublicKey(ctx interface{}, keyID interface{}) *ArgoDB_DeleteGPGPublicKey_Call {
 	return &ArgoDB_DeleteGPGPublicKey_Call{Call: _e.mock.On("DeleteGPGPublicKey", ctx, keyID)}
 }
 
 func (_c *ArgoDB_DeleteGPGPublicKey_Call) Run(run func(ctx context.Context, keyID string)) *ArgoDB_DeleteGPGPublicKey_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -666,32 +562,16 @@ type ArgoDB_DeleteRepository_Call struct {
 }
 
 // DeleteRepository is a helper method to define mock.On call
-//   - ctx context.Context
-//   - name string
-//   - project string
+//   - ctx
+//   - name
+//   - project
 func (_e *ArgoDB_Expecter) DeleteRepository(ctx interface{}, name interface{}, project interface{}) *ArgoDB_DeleteRepository_Call {
 	return &ArgoDB_DeleteRepository_Call{Call: _e.mock.On("DeleteRepository", ctx, name, project)}
 }
 
 func (_c *ArgoDB_DeleteRepository_Call) Run(run func(ctx context.Context, name string, project string)) *ArgoDB_DeleteRepository_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
 	})
 	return _c
 }
@@ -729,26 +609,15 @@ type ArgoDB_DeleteRepositoryCredentials_Call struct {
 }
 
 // DeleteRepositoryCredentials is a helper method to define mock.On call
-//   - ctx context.Context
-//   - name string
+//   - ctx
+//   - name
 func (_e *ArgoDB_Expecter) DeleteRepositoryCredentials(ctx interface{}, name interface{}) *ArgoDB_DeleteRepositoryCredentials_Call {
 	return &ArgoDB_DeleteRepositoryCredentials_Call{Call: _e.mock.On("DeleteRepositoryCredentials", ctx, name)}
 }
 
 func (_c *ArgoDB_DeleteRepositoryCredentials_Call) Run(run func(ctx context.Context, name string)) *ArgoDB_DeleteRepositoryCredentials_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -786,32 +655,16 @@ type ArgoDB_DeleteWriteRepository_Call struct {
 }
 
 // DeleteWriteRepository is a helper method to define mock.On call
-//   - ctx context.Context
-//   - name string
-//   - project string
+//   - ctx
+//   - name
+//   - project
 func (_e *ArgoDB_Expecter) DeleteWriteRepository(ctx interface{}, name interface{}, project interface{}) *ArgoDB_DeleteWriteRepository_Call {
 	return &ArgoDB_DeleteWriteRepository_Call{Call: _e.mock.On("DeleteWriteRepository", ctx, name, project)}
 }
 
 func (_c *ArgoDB_DeleteWriteRepository_Call) Run(run func(ctx context.Context, name string, project string)) *ArgoDB_DeleteWriteRepository_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
 	})
 	return _c
 }
@@ -849,26 +702,15 @@ type ArgoDB_DeleteWriteRepositoryCredentials_Call struct {
 }
 
 // DeleteWriteRepositoryCredentials is a helper method to define mock.On call
-//   - ctx context.Context
-//   - name string
+//   - ctx
+//   - name
 func (_e *ArgoDB_Expecter) DeleteWriteRepositoryCredentials(ctx interface{}, name interface{}) *ArgoDB_DeleteWriteRepositoryCredentials_Call {
 	return &ArgoDB_DeleteWriteRepositoryCredentials_Call{Call: _e.mock.On("DeleteWriteRepositoryCredentials", ctx, name)}
 }
 
 func (_c *ArgoDB_DeleteWriteRepositoryCredentials_Call) Run(run func(ctx context.Context, name string)) *ArgoDB_DeleteWriteRepositoryCredentials_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -917,20 +759,14 @@ type ArgoDB_GetAllHelmRepositoryCredentials_Call struct {
 }
 
 // GetAllHelmRepositoryCredentials is a helper method to define mock.On call
-//   - ctx context.Context
+//   - ctx
 func (_e *ArgoDB_Expecter) GetAllHelmRepositoryCredentials(ctx interface{}) *ArgoDB_GetAllHelmRepositoryCredentials_Call {
 	return &ArgoDB_GetAllHelmRepositoryCredentials_Call{Call: _e.mock.On("GetAllHelmRepositoryCredentials", ctx)}
 }
 
 func (_c *ArgoDB_GetAllHelmRepositoryCredentials_Call) Run(run func(ctx context.Context)) *ArgoDB_GetAllHelmRepositoryCredentials_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
+		run(args[0].(context.Context))
 	})
 	return _c
 }
@@ -979,20 +815,14 @@ type ArgoDB_GetAllOCIRepositoryCredentials_Call struct {
 }
 
 // GetAllOCIRepositoryCredentials is a helper method to define mock.On call
-//   - ctx context.Context
+//   - ctx
 func (_e *ArgoDB_Expecter) GetAllOCIRepositoryCredentials(ctx interface{}) *ArgoDB_GetAllOCIRepositoryCredentials_Call {
 	return &ArgoDB_GetAllOCIRepositoryCredentials_Call{Call: _e.mock.On("GetAllOCIRepositoryCredentials", ctx)}
 }
 
 func (_c *ArgoDB_GetAllOCIRepositoryCredentials_Call) Run(run func(ctx context.Context)) *ArgoDB_GetAllOCIRepositoryCredentials_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
+		run(args[0].(context.Context))
 	})
 	return _c
 }
@@ -1085,26 +915,15 @@ type ArgoDB_GetCluster_Call struct {
 }
 
 // GetCluster is a helper method to define mock.On call
-//   - ctx context.Context
-//   - server string
+//   - ctx
+//   - server
 func (_e *ArgoDB_Expecter) GetCluster(ctx interface{}, server interface{}) *ArgoDB_GetCluster_Call {
 	return &ArgoDB_GetCluster_Call{Call: _e.mock.On("GetCluster", ctx, server)}
 }
 
 func (_c *ArgoDB_GetCluster_Call) Run(run func(ctx context.Context, server string)) *ArgoDB_GetCluster_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -1153,26 +972,15 @@ type ArgoDB_GetClusterServersByName_Call struct {
 }
 
 // GetClusterServersByName is a helper method to define mock.On call
-//   - ctx context.Context
-//   - name string
+//   - ctx
+//   - name
 func (_e *ArgoDB_Expecter) GetClusterServersByName(ctx interface{}, name interface{}) *ArgoDB_GetClusterServersByName_Call {
 	return &ArgoDB_GetClusterServersByName_Call{Call: _e.mock.On("GetClusterServersByName", ctx, name)}
 }
 
 func (_c *ArgoDB_GetClusterServersByName_Call) Run(run func(ctx context.Context, name string)) *ArgoDB_GetClusterServersByName_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -1221,26 +1029,15 @@ type ArgoDB_GetProjectClusters_Call struct {
 }
 
 // GetProjectClusters is a helper method to define mock.On call
-//   - ctx context.Context
-//   - project string
+//   - ctx
+//   - project
 func (_e *ArgoDB_Expecter) GetProjectClusters(ctx interface{}, project interface{}) *ArgoDB_GetProjectClusters_Call {
 	return &ArgoDB_GetProjectClusters_Call{Call: _e.mock.On("GetProjectClusters", ctx, project)}
 }
 
 func (_c *ArgoDB_GetProjectClusters_Call) Run(run func(ctx context.Context, project string)) *ArgoDB_GetProjectClusters_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -1289,20 +1086,14 @@ type ArgoDB_GetProjectRepositories_Call struct {
 }
 
 // GetProjectRepositories is a helper method to define mock.On call
-//   - project string
+//   - project
 func (_e *ArgoDB_Expecter) GetProjectRepositories(project interface{}) *ArgoDB_GetProjectRepositories_Call {
 	return &ArgoDB_GetProjectRepositories_Call{Call: _e.mock.On("GetProjectRepositories", project)}
 }
 
 func (_c *ArgoDB_GetProjectRepositories_Call) Run(run func(project string)) *ArgoDB_GetProjectRepositories_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
-		if args[0] != nil {
-			arg0 = args[0].(string)
-		}
-		run(
-			arg0,
-		)
+		run(args[0].(string))
 	})
 	return _c
 }
@@ -1351,20 +1142,14 @@ type ArgoDB_GetProjectWriteRepositories_Call struct {
 }
 
 // GetProjectWriteRepositories is a helper method to define mock.On call
-//   - project string
+//   - project
 func (_e *ArgoDB_Expecter) GetProjectWriteRepositories(project interface{}) *ArgoDB_GetProjectWriteRepositories_Call {
 	return &ArgoDB_GetProjectWriteRepositories_Call{Call: _e.mock.On("GetProjectWriteRepositories", project)}
 }
 
 func (_c *ArgoDB_GetProjectWriteRepositories_Call) Run(run func(project string)) *ArgoDB_GetProjectWriteRepositories_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
-		if args[0] != nil {
-			arg0 = args[0].(string)
-		}
-		run(
-			arg0,
-		)
+		run(args[0].(string))
 	})
 	return _c
 }
@@ -1413,32 +1198,16 @@ type ArgoDB_GetRepository_Call struct {
 }
 
 // GetRepository is a helper method to define mock.On call
-//   - ctx context.Context
-//   - url string
-//   - project string
+//   - ctx
+//   - url
+//   - project
 func (_e *ArgoDB_Expecter) GetRepository(ctx interface{}, url interface{}, project interface{}) *ArgoDB_GetRepository_Call {
 	return &ArgoDB_GetRepository_Call{Call: _e.mock.On("GetRepository", ctx, url, project)}
 }
 
 func (_c *ArgoDB_GetRepository_Call) Run(run func(ctx context.Context, url string, project string)) *ArgoDB_GetRepository_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
 	})
 	return _c
 }
@@ -1487,26 +1256,15 @@ type ArgoDB_GetRepositoryCredentials_Call struct {
 }
 
 // GetRepositoryCredentials is a helper method to define mock.On call
-//   - ctx context.Context
-//   - name string
+//   - ctx
+//   - name
 func (_e *ArgoDB_Expecter) GetRepositoryCredentials(ctx interface{}, name interface{}) *ArgoDB_GetRepositoryCredentials_Call {
 	return &ArgoDB_GetRepositoryCredentials_Call{Call: _e.mock.On("GetRepositoryCredentials", ctx, name)}
 }
 
 func (_c *ArgoDB_GetRepositoryCredentials_Call) Run(run func(ctx context.Context, name string)) *ArgoDB_GetRepositoryCredentials_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -1555,32 +1313,16 @@ type ArgoDB_GetWriteRepository_Call struct {
 }
 
 // GetWriteRepository is a helper method to define mock.On call
-//   - ctx context.Context
-//   - url string
-//   - project string
+//   - ctx
+//   - url
+//   - project
 func (_e *ArgoDB_Expecter) GetWriteRepository(ctx interface{}, url interface{}, project interface{}) *ArgoDB_GetWriteRepository_Call {
 	return &ArgoDB_GetWriteRepository_Call{Call: _e.mock.On("GetWriteRepository", ctx, url, project)}
 }
 
 func (_c *ArgoDB_GetWriteRepository_Call) Run(run func(ctx context.Context, url string, project string)) *ArgoDB_GetWriteRepository_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
 	})
 	return _c
 }
@@ -1629,26 +1371,15 @@ type ArgoDB_GetWriteRepositoryCredentials_Call struct {
 }
 
 // GetWriteRepositoryCredentials is a helper method to define mock.On call
-//   - ctx context.Context
-//   - name string
+//   - ctx
+//   - name
 func (_e *ArgoDB_Expecter) GetWriteRepositoryCredentials(ctx interface{}, name interface{}) *ArgoDB_GetWriteRepositoryCredentials_Call {
 	return &ArgoDB_GetWriteRepositoryCredentials_Call{Call: _e.mock.On("GetWriteRepositoryCredentials", ctx, name)}
 }
 
 func (_c *ArgoDB_GetWriteRepositoryCredentials_Call) Run(run func(ctx context.Context, name string)) *ArgoDB_GetWriteRepositoryCredentials_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -1697,20 +1428,14 @@ type ArgoDB_ListClusters_Call struct {
 }
 
 // ListClusters is a helper method to define mock.On call
-//   - ctx context.Context
+//   - ctx
 func (_e *ArgoDB_Expecter) ListClusters(ctx interface{}) *ArgoDB_ListClusters_Call {
 	return &ArgoDB_ListClusters_Call{Call: _e.mock.On("ListClusters", ctx)}
 }
 
 func (_c *ArgoDB_ListClusters_Call) Run(run func(ctx context.Context)) *ArgoDB_ListClusters_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
+		run(args[0].(context.Context))
 	})
 	return _c
 }
@@ -1759,20 +1484,14 @@ type ArgoDB_ListConfiguredGPGPublicKeys_Call struct {
 }
 
 // ListConfiguredGPGPublicKeys is a helper method to define mock.On call
-//   - ctx context.Context
+//   - ctx
 func (_e *ArgoDB_Expecter) ListConfiguredGPGPublicKeys(ctx interface{}) *ArgoDB_ListConfiguredGPGPublicKeys_Call {
 	return &ArgoDB_ListConfiguredGPGPublicKeys_Call{Call: _e.mock.On("ListConfiguredGPGPublicKeys", ctx)}
 }
 
 func (_c *ArgoDB_ListConfiguredGPGPublicKeys_Call) Run(run func(ctx context.Context)) *ArgoDB_ListConfiguredGPGPublicKeys_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
+		run(args[0].(context.Context))
 	})
 	return _c
 }
@@ -1821,20 +1540,14 @@ type ArgoDB_ListHelmRepositories_Call struct {
 }
 
 // ListHelmRepositories is a helper method to define mock.On call
-//   - ctx context.Context
+//   - ctx
 func (_e *ArgoDB_Expecter) ListHelmRepositories(ctx interface{}) *ArgoDB_ListHelmRepositories_Call {
 	return &ArgoDB_ListHelmRepositories_Call{Call: _e.mock.On("ListHelmRepositories", ctx)}
 }
 
 func (_c *ArgoDB_ListHelmRepositories_Call) Run(run func(ctx context.Context)) *ArgoDB_ListHelmRepositories_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
+		run(args[0].(context.Context))
 	})
 	return _c
 }
@@ -1883,20 +1596,14 @@ type ArgoDB_ListOCIRepositories_Call struct {
 }
 
 // ListOCIRepositories is a helper method to define mock.On call
-//   - ctx context.Context
+//   - ctx
 func (_e *ArgoDB_Expecter) ListOCIRepositories(ctx interface{}) *ArgoDB_ListOCIRepositories_Call {
 	return &ArgoDB_ListOCIRepositories_Call{Call: _e.mock.On("ListOCIRepositories", ctx)}
 }
 
 func (_c *ArgoDB_ListOCIRepositories_Call) Run(run func(ctx context.Context)) *ArgoDB_ListOCIRepositories_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
+		run(args[0].(context.Context))
 	})
 	return _c
 }
@@ -1945,26 +1652,15 @@ type ArgoDB_ListRepoCertificates_Call struct {
 }
 
 // ListRepoCertificates is a helper method to define mock.On call
-//   - ctx context.Context
-//   - selector *db.CertificateListSelector
+//   - ctx
+//   - selector
 func (_e *ArgoDB_Expecter) ListRepoCertificates(ctx interface{}, selector interface{}) *ArgoDB_ListRepoCertificates_Call {
 	return &ArgoDB_ListRepoCertificates_Call{Call: _e.mock.On("ListRepoCertificates", ctx, selector)}
 }
 
 func (_c *ArgoDB_ListRepoCertificates_Call) Run(run func(ctx context.Context, selector *db.CertificateListSelector)) *ArgoDB_ListRepoCertificates_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *db.CertificateListSelector
-		if args[1] != nil {
-			arg1 = args[1].(*db.CertificateListSelector)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*db.CertificateListSelector))
 	})
 	return _c
 }
@@ -2013,20 +1709,14 @@ type ArgoDB_ListRepositories_Call struct {
 }
 
 // ListRepositories is a helper method to define mock.On call
-//   - ctx context.Context
+//   - ctx
 func (_e *ArgoDB_Expecter) ListRepositories(ctx interface{}) *ArgoDB_ListRepositories_Call {
 	return &ArgoDB_ListRepositories_Call{Call: _e.mock.On("ListRepositories", ctx)}
 }
 
 func (_c *ArgoDB_ListRepositories_Call) Run(run func(ctx context.Context)) *ArgoDB_ListRepositories_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
+		run(args[0].(context.Context))
 	})
 	return _c
 }
@@ -2075,20 +1765,14 @@ type ArgoDB_ListRepositoryCredentials_Call struct {
 }
 
 // ListRepositoryCredentials is a helper method to define mock.On call
-//   - ctx context.Context
+//   - ctx
 func (_e *ArgoDB_Expecter) ListRepositoryCredentials(ctx interface{}) *ArgoDB_ListRepositoryCredentials_Call {
 	return &ArgoDB_ListRepositoryCredentials_Call{Call: _e.mock.On("ListRepositoryCredentials", ctx)}
 }
 
 func (_c *ArgoDB_ListRepositoryCredentials_Call) Run(run func(ctx context.Context)) *ArgoDB_ListRepositoryCredentials_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
+		run(args[0].(context.Context))
 	})
 	return _c
 }
@@ -2137,20 +1821,14 @@ type ArgoDB_ListWriteRepositories_Call struct {
 }
 
 // ListWriteRepositories is a helper method to define mock.On call
-//   - ctx context.Context
+//   - ctx
 func (_e *ArgoDB_Expecter) ListWriteRepositories(ctx interface{}) *ArgoDB_ListWriteRepositories_Call {
 	return &ArgoDB_ListWriteRepositories_Call{Call: _e.mock.On("ListWriteRepositories", ctx)}
 }
 
 func (_c *ArgoDB_ListWriteRepositories_Call) Run(run func(ctx context.Context)) *ArgoDB_ListWriteRepositories_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
+		run(args[0].(context.Context))
 	})
 	return _c
 }
@@ -2199,20 +1877,14 @@ type ArgoDB_ListWriteRepositoryCredentials_Call struct {
 }
 
 // ListWriteRepositoryCredentials is a helper method to define mock.On call
-//   - ctx context.Context
+//   - ctx
 func (_e *ArgoDB_Expecter) ListWriteRepositoryCredentials(ctx interface{}) *ArgoDB_ListWriteRepositoryCredentials_Call {
 	return &ArgoDB_ListWriteRepositoryCredentials_Call{Call: _e.mock.On("ListWriteRepositoryCredentials", ctx)}
 }
 
 func (_c *ArgoDB_ListWriteRepositoryCredentials_Call) Run(run func(ctx context.Context)) *ArgoDB_ListWriteRepositoryCredentials_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
+		run(args[0].(context.Context))
 	})
 	return _c
 }
@@ -2261,26 +1933,15 @@ type ArgoDB_RemoveRepoCertificates_Call struct {
 }
 
 // RemoveRepoCertificates is a helper method to define mock.On call
-//   - ctx context.Context
-//   - selector *db.CertificateListSelector
+//   - ctx
+//   - selector
 func (_e *ArgoDB_Expecter) RemoveRepoCertificates(ctx interface{}, selector interface{}) *ArgoDB_RemoveRepoCertificates_Call {
 	return &ArgoDB_RemoveRepoCertificates_Call{Call: _e.mock.On("RemoveRepoCertificates", ctx, selector)}
 }
 
 func (_c *ArgoDB_RemoveRepoCertificates_Call) Run(run func(ctx context.Context, selector *db.CertificateListSelector)) *ArgoDB_RemoveRepoCertificates_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *db.CertificateListSelector
-		if args[1] != nil {
-			arg1 = args[1].(*db.CertificateListSelector)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*db.CertificateListSelector))
 	})
 	return _c
 }
@@ -2327,32 +1988,16 @@ type ArgoDB_RepositoryExists_Call struct {
 }
 
 // RepositoryExists is a helper method to define mock.On call
-//   - ctx context.Context
-//   - repoURL string
-//   - project string
+//   - ctx
+//   - repoURL
+//   - project
 func (_e *ArgoDB_Expecter) RepositoryExists(ctx interface{}, repoURL interface{}, project interface{}) *ArgoDB_RepositoryExists_Call {
 	return &ArgoDB_RepositoryExists_Call{Call: _e.mock.On("RepositoryExists", ctx, repoURL, project)}
 }
 
 func (_c *ArgoDB_RepositoryExists_Call) Run(run func(ctx context.Context, repoURL string, project string)) *ArgoDB_RepositoryExists_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
 	})
 	return _c
 }
@@ -2401,26 +2046,15 @@ type ArgoDB_UpdateCluster_Call struct {
 }
 
 // UpdateCluster is a helper method to define mock.On call
-//   - ctx context.Context
-//   - c *v1alpha1.Cluster
+//   - ctx
+//   - c
 func (_e *ArgoDB_Expecter) UpdateCluster(ctx interface{}, c interface{}) *ArgoDB_UpdateCluster_Call {
 	return &ArgoDB_UpdateCluster_Call{Call: _e.mock.On("UpdateCluster", ctx, c)}
 }
 
 func (_c *ArgoDB_UpdateCluster_Call) Run(run func(ctx context.Context, c *v1alpha1.Cluster)) *ArgoDB_UpdateCluster_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *v1alpha1.Cluster
-		if args[1] != nil {
-			arg1 = args[1].(*v1alpha1.Cluster)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*v1alpha1.Cluster))
 	})
 	return _c
 }
@@ -2469,26 +2103,15 @@ type ArgoDB_UpdateRepository_Call struct {
 }
 
 // UpdateRepository is a helper method to define mock.On call
-//   - ctx context.Context
-//   - r *v1alpha1.Repository
+//   - ctx
+//   - r
 func (_e *ArgoDB_Expecter) UpdateRepository(ctx interface{}, r interface{}) *ArgoDB_UpdateRepository_Call {
 	return &ArgoDB_UpdateRepository_Call{Call: _e.mock.On("UpdateRepository", ctx, r)}
 }
 
 func (_c *ArgoDB_UpdateRepository_Call) Run(run func(ctx context.Context, r *v1alpha1.Repository)) *ArgoDB_UpdateRepository_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *v1alpha1.Repository
-		if args[1] != nil {
-			arg1 = args[1].(*v1alpha1.Repository)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*v1alpha1.Repository))
 	})
 	return _c
 }
@@ -2537,26 +2160,15 @@ type ArgoDB_UpdateRepositoryCredentials_Call struct {
 }
 
 // UpdateRepositoryCredentials is a helper method to define mock.On call
-//   - ctx context.Context
-//   - r *v1alpha1.RepoCreds
+//   - ctx
+//   - r
 func (_e *ArgoDB_Expecter) UpdateRepositoryCredentials(ctx interface{}, r interface{}) *ArgoDB_UpdateRepositoryCredentials_Call {
 	return &ArgoDB_UpdateRepositoryCredentials_Call{Call: _e.mock.On("UpdateRepositoryCredentials", ctx, r)}
 }
 
 func (_c *ArgoDB_UpdateRepositoryCredentials_Call) Run(run func(ctx context.Context, r *v1alpha1.RepoCreds)) *ArgoDB_UpdateRepositoryCredentials_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *v1alpha1.RepoCreds
-		if args[1] != nil {
-			arg1 = args[1].(*v1alpha1.RepoCreds)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*v1alpha1.RepoCreds))
 	})
 	return _c
 }
@@ -2605,26 +2217,15 @@ type ArgoDB_UpdateWriteRepository_Call struct {
 }
 
 // UpdateWriteRepository is a helper method to define mock.On call
-//   - ctx context.Context
-//   - r *v1alpha1.Repository
+//   - ctx
+//   - r
 func (_e *ArgoDB_Expecter) UpdateWriteRepository(ctx interface{}, r interface{}) *ArgoDB_UpdateWriteRepository_Call {
 	return &ArgoDB_UpdateWriteRepository_Call{Call: _e.mock.On("UpdateWriteRepository", ctx, r)}
 }
 
 func (_c *ArgoDB_UpdateWriteRepository_Call) Run(run func(ctx context.Context, r *v1alpha1.Repository)) *ArgoDB_UpdateWriteRepository_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *v1alpha1.Repository
-		if args[1] != nil {
-			arg1 = args[1].(*v1alpha1.Repository)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*v1alpha1.Repository))
 	})
 	return _c
 }
@@ -2673,26 +2274,15 @@ type ArgoDB_UpdateWriteRepositoryCredentials_Call struct {
 }
 
 // UpdateWriteRepositoryCredentials is a helper method to define mock.On call
-//   - ctx context.Context
-//   - r *v1alpha1.RepoCreds
+//   - ctx
+//   - r
 func (_e *ArgoDB_Expecter) UpdateWriteRepositoryCredentials(ctx interface{}, r interface{}) *ArgoDB_UpdateWriteRepositoryCredentials_Call {
 	return &ArgoDB_UpdateWriteRepositoryCredentials_Call{Call: _e.mock.On("UpdateWriteRepositoryCredentials", ctx, r)}
 }
 
 func (_c *ArgoDB_UpdateWriteRepositoryCredentials_Call) Run(run func(ctx context.Context, r *v1alpha1.RepoCreds)) *ArgoDB_UpdateWriteRepositoryCredentials_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *v1alpha1.RepoCreds
-		if args[1] != nil {
-			arg1 = args[1].(*v1alpha1.RepoCreds)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*v1alpha1.RepoCreds))
 	})
 	return _c
 }
@@ -2730,38 +2320,17 @@ type ArgoDB_WatchClusters_Call struct {
 }
 
 // WatchClusters is a helper method to define mock.On call
-//   - ctx context.Context
-//   - handleAddEvent func(cluster *v1alpha1.Cluster)
-//   - handleModEvent func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster)
-//   - handleDeleteEvent func(clusterServer string)
+//   - ctx
+//   - handleAddEvent
+//   - handleModEvent
+//   - handleDeleteEvent
 func (_e *ArgoDB_Expecter) WatchClusters(ctx interface{}, handleAddEvent interface{}, handleModEvent interface{}, handleDeleteEvent interface{}) *ArgoDB_WatchClusters_Call {
 	return &ArgoDB_WatchClusters_Call{Call: _e.mock.On("WatchClusters", ctx, handleAddEvent, handleModEvent, handleDeleteEvent)}
 }
 
 func (_c *ArgoDB_WatchClusters_Call) Run(run func(ctx context.Context, handleAddEvent func(cluster *v1alpha1.Cluster), handleModEvent func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster), handleDeleteEvent func(clusterServer string))) *ArgoDB_WatchClusters_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 func(cluster *v1alpha1.Cluster)
-		if args[1] != nil {
-			arg1 = args[1].(func(cluster *v1alpha1.Cluster))
-		}
-		var arg2 func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster)
-		if args[2] != nil {
-			arg2 = args[2].(func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster))
-		}
-		var arg3 func(clusterServer string)
-		if args[3] != nil {
-			arg3 = args[3].(func(clusterServer string))
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-		)
+		run(args[0].(context.Context), args[1].(func(cluster *v1alpha1.Cluster)), args[2].(func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster)), args[3].(func(clusterServer string)))
 	})
 	return _c
 }
@@ -2808,32 +2377,16 @@ type ArgoDB_WriteRepositoryExists_Call struct {
 }
 
 // WriteRepositoryExists is a helper method to define mock.On call
-//   - ctx context.Context
-//   - repoURL string
-//   - project string
+//   - ctx
+//   - repoURL
+//   - project
 func (_e *ArgoDB_Expecter) WriteRepositoryExists(ctx interface{}, repoURL interface{}, project interface{}) *ArgoDB_WriteRepositoryExists_Call {
 	return &ArgoDB_WriteRepositoryExists_Call{Call: _e.mock.On("WriteRepositoryExists", ctx, repoURL, project)}
 }
 
 func (_c *ArgoDB_WriteRepositoryExists_Call) Run(run func(ctx context.Context, repoURL string, project string)) *ArgoDB_WriteRepositoryExists_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
 	})
 	return _c
 }

@@ -2,7 +2,9 @@ package commands
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	log "github.com/sirupsen/logrus"
@@ -23,6 +25,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 		password         string
 		ssoPort          int
 		ssoLaunchBrowser bool
+		passwordStdin    bool
 	)
 	command := &cobra.Command{
 		Use:   "relogin",
@@ -59,6 +62,11 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			acdClient := headless.NewClientOrDie(&clientOpts, c)
 			claims, err := configCtx.User.Claims()
 			errors.CheckError(err)
+			if passwordStdin {
+				input, err := io.ReadAll(os.Stdin)
+				errors.CheckError(err)
+				password = strings.TrimSpace(string(input))
+			}
 			if claims.Issuer == session.SessionManagerClaimsIssuer {
 				fmt.Printf("Relogging in as '%s'\n", localconfig.GetUsername(claims.Subject))
 				tokenString = passwordLogin(ctx, acdClient, localconfig.GetUsername(claims.Subject), password)
@@ -101,5 +109,6 @@ argocd login cd.argoproj.io --core
 	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
 	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the default browser when performing SSO login")
+	command.Flags().BoolVar(&passwordStdin, "password-stdin", false, "Read password from stdin")
 	return command
 }

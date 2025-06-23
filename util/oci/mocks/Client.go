@@ -62,20 +62,14 @@ type Client_CleanCache_Call struct {
 }
 
 // CleanCache is a helper method to define mock.On call
-//   - revision string
+//   - revision
 func (_e *Client_Expecter) CleanCache(revision interface{}) *Client_CleanCache_Call {
 	return &Client_CleanCache_Call{Call: _e.mock.On("CleanCache", revision)}
 }
 
 func (_c *Client_CleanCache_Call) Run(run func(revision string)) *Client_CleanCache_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
-		if args[0] != nil {
-			arg0 = args[0].(string)
-		}
-		run(
-			arg0,
-		)
+		run(args[0].(string))
 	})
 	return _c
 }
@@ -124,26 +118,15 @@ type Client_DigestMetadata_Call struct {
 }
 
 // DigestMetadata is a helper method to define mock.On call
-//   - ctx context.Context
-//   - digest string
+//   - ctx
+//   - digest
 func (_e *Client_Expecter) DigestMetadata(ctx interface{}, digest interface{}) *Client_DigestMetadata_Call {
 	return &Client_DigestMetadata_Call{Call: _e.mock.On("DigestMetadata", ctx, digest)}
 }
 
 func (_c *Client_DigestMetadata_Call) Run(run func(ctx context.Context, digest string)) *Client_DigestMetadata_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -198,26 +181,15 @@ type Client_Extract_Call struct {
 }
 
 // Extract is a helper method to define mock.On call
-//   - ctx context.Context
-//   - revision string
+//   - ctx
+//   - revision
 func (_e *Client_Expecter) Extract(ctx interface{}, revision interface{}) *Client_Extract_Call {
 	return &Client_Extract_Call{Call: _e.mock.On("Extract", ctx, revision)}
 }
 
 func (_c *Client_Extract_Call) Run(run func(ctx context.Context, revision string)) *Client_Extract_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -266,26 +238,15 @@ type Client_GetTags_Call struct {
 }
 
 // GetTags is a helper method to define mock.On call
-//   - ctx context.Context
-//   - noCache bool
+//   - ctx
+//   - noCache
 func (_e *Client_Expecter) GetTags(ctx interface{}, noCache interface{}) *Client_GetTags_Call {
 	return &Client_GetTags_Call{Call: _e.mock.On("GetTags", ctx, noCache)}
 }
 
 func (_c *Client_GetTags_Call) Run(run func(ctx context.Context, noCache bool)) *Client_GetTags_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 bool
-		if args[1] != nil {
-			arg1 = args[1].(bool)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(bool))
 	})
 	return _c
 }
@@ -332,32 +293,16 @@ type Client_ResolveRevision_Call struct {
 }
 
 // ResolveRevision is a helper method to define mock.On call
-//   - ctx context.Context
-//   - revision string
-//   - noCache bool
+//   - ctx
+//   - revision
+//   - noCache
 func (_e *Client_Expecter) ResolveRevision(ctx interface{}, revision interface{}, noCache interface{}) *Client_ResolveRevision_Call {
 	return &Client_ResolveRevision_Call{Call: _e.mock.On("ResolveRevision", ctx, revision, noCache)}
 }
 
 func (_c *Client_ResolveRevision_Call) Run(run func(ctx context.Context, revision string, noCache bool)) *Client_ResolveRevision_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 bool
-		if args[2] != nil {
-			arg2 = args[2].(bool)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
+		run(args[0].(context.Context), args[1].(string), args[2].(bool))
 	})
 	return _c
 }
@@ -404,20 +349,14 @@ type Client_TestRepo_Call struct {
 }
 
 // TestRepo is a helper method to define mock.On call
-//   - ctx context.Context
+//   - ctx
 func (_e *Client_Expecter) TestRepo(ctx interface{}) *Client_TestRepo_Call {
 	return &Client_TestRepo_Call{Call: _e.mock.On("TestRepo", ctx)}
 }
 
 func (_c *Client_TestRepo_Call) Run(run func(ctx context.Context)) *Client_TestRepo_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
+		run(args[0].(context.Context))
 	})
 	return _c
 }

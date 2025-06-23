@@ -31,6 +31,7 @@ argocd login cd.argoproj.io --core
   -h, --help                 help for login
       --name string          Name to use for the context
       --password string      The password of an account to authenticate
+      --password-stdin       Read password from stdin
       --skip-test-tls        Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)
       --sso                  Perform SSO login
       --sso-launch-browser   Automatically launch the system default browser when performing SSO login (default true)
