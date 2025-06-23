@@ -377,6 +377,8 @@ message ApplicationSetStrategy {
 
   optional ApplicationSetRolloutStrategy rollingSync = 2;
 
+  // DeletionOrder allows specifying the order for deleting generated apps when progressive sync is enabled.
+  // accepts values "AllAtOnce" and "Reverse"
   optional string deletionOrder = 3;
 }
 
