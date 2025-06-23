@@ -148,7 +148,8 @@ argocd login cd.argoproj.io --core`,
 					if passwordStdin {
 						input, err := io.ReadAll(os.Stdin)
 						errors.CheckError(err)
-						password = strings.TrimSpace(string(input))
+						password = strings.TrimSuffix(string(input), "\n")
+						password = strings.TrimSuffix(password, "\r")
 					}
 					tokenString = passwordLogin(ctx, acdClient, username, password)
 				} else {

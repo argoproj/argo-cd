@@ -65,7 +65,8 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			if passwordStdin {
 				input, err := io.ReadAll(os.Stdin)
 				errors.CheckError(err)
-				password = strings.TrimSpace(string(input))
+				password = strings.TrimSuffix(string(input), "\n")
+				password = strings.TrimSuffix(password, "\r")
 			}
 			if claims.Issuer == session.SessionManagerClaimsIssuer {
 				fmt.Printf("Relogging in as '%s'\n", localconfig.GetUsername(claims.Subject))
