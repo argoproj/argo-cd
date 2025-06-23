@@ -71,19 +71,50 @@ type Repos_GetDirectories_Call struct {
 }
 
 // GetDirectories is a helper method to define mock.On call
-//   - ctx
-//   - repoURL
-//   - revision
-//   - project
-//   - noRevisionCache
-//   - verifyCommit
+//   - ctx context.Context
+//   - repoURL string
+//   - revision string
+//   - project string
+//   - noRevisionCache bool
+//   - verifyCommit bool
 func (_e *Repos_Expecter) GetDirectories(ctx interface{}, repoURL interface{}, revision interface{}, project interface{}, noRevisionCache interface{}, verifyCommit interface{}) *Repos_GetDirectories_Call {
 	return &Repos_GetDirectories_Call{Call: _e.mock.On("GetDirectories", ctx, repoURL, revision, project, noRevisionCache, verifyCommit)}
 }
 
 func (_c *Repos_GetDirectories_Call) Run(run func(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, verifyCommit bool)) *Repos_GetDirectories_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(bool), args[5].(bool))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 bool
+		if args[4] != nil {
+			arg4 = args[4].(bool)
+		}
+		var arg5 bool
+		if args[5] != nil {
+			arg5 = args[5].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+		)
 	})
 	return _c
 }
@@ -132,20 +163,56 @@ type Repos_GetFiles_Call struct {
 }
 
 // GetFiles is a helper method to define mock.On call
-//   - ctx
-//   - repoURL
-//   - revision
-//   - project
-//   - pattern
-//   - noRevisionCache
-//   - verifyCommit
+//   - ctx context.Context
+//   - repoURL string
+//   - revision string
+//   - project string
+//   - pattern string
+//   - noRevisionCache bool
+//   - verifyCommit bool
 func (_e *Repos_Expecter) GetFiles(ctx interface{}, repoURL interface{}, revision interface{}, project interface{}, pattern interface{}, noRevisionCache interface{}, verifyCommit interface{}) *Repos_GetFiles_Call {
 	return &Repos_GetFiles_Call{Call: _e.mock.On("GetFiles", ctx, repoURL, revision, project, pattern, noRevisionCache, verifyCommit)}
 }
 
 func (_c *Repos_GetFiles_Call) Run(run func(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool, verifyCommit bool)) *Repos_GetFiles_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(string), args[5].(bool), args[6].(bool))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 bool
+		if args[5] != nil {
+			arg5 = args[5].(bool)
+		}
+		var arg6 bool
+		if args[6] != nil {
+			arg6 = args[6].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+			arg6,
+		)
 	})
 	return _c
 }
