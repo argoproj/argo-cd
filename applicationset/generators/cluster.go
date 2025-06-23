@@ -79,7 +79,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 		return nil, fmt.Errorf("error getting cluster secrets: %w", err)
 	}
 
-	paramHolder := newParamHolder(appSetGenerator.Clusters.FlatList)
+	paramHolder := &paramHolder{isFlatMode: appSetGenerator.Clusters.FlatList}
 	logCtx.Debugf("Using flat mode = %t for cluster generator", paramHolder.isFlatMode)
 
 	secretsFound := []corev1.Secret{}
@@ -125,10 +125,6 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 type paramHolder struct {
 	isFlatMode bool
 	params     []map[string]any
-}
-
-func newParamHolder(isFlatMode bool) *paramHolder {
-	return &paramHolder{isFlatMode: isFlatMode}
 }
 
 func (p *paramHolder) append(params map[string]any) {
