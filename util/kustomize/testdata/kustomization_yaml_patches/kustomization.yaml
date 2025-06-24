@@ -1,2 +1,10 @@
 resources:
   - ./deployment.yaml
+patches:
+  - target:
+      kind: Deployment
+      name: nginx-deployment
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 443
