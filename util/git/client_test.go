@@ -1249,7 +1249,7 @@ func Test_nativeGitClient_garbageCollection(t *testing.T) {
 
 	// Verify recent pack file still exists
 	_, err = os.Stat(recentPackFile)
-	assert.NoError(t, err, "recent temporary pack file should still exist")
+	require.NoError(t, err, "recent temporary pack file should still exist")
 
 	// Verify tmp objects directory was removed
 	_, err = os.Stat(tmpObjDir)
@@ -1319,7 +1319,7 @@ func Test_nativeGitClient_Fetch_CleanupOnError(t *testing.T) {
 
 			// Execute fetch (will fail due to invalid remote)
 			err = gitClient.Fetch("")
-			assert.Error(t, err, "fetch should fail with invalid remote")
+			require.Error(t, err, "fetch should fail with invalid remote")
 
 			// Verify cleanup behavior
 			_, err = os.Stat(oldPackFile)
@@ -1386,7 +1386,6 @@ func Test_nativeGitClient_isCleanupEnabled(t *testing.T) {
 		})
 	}
 }
-
 
 func Test_nativeGitClient_getCleanupGracePeriod(t *testing.T) {
 	tests := []struct {
