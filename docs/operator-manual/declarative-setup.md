@@ -271,7 +271,7 @@ stringData:
 ```
 
 !!! tip
-The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets).
+    The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets).
 
 #### Google Cloud Source Repositories
 
