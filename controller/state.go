@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	goSync "sync"
 	"time"
@@ -138,6 +139,15 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		return nil, nil, false, fmt.Errorf("failed to get permitted Helm repositories for project %q: %w", proj.Name, err)
 	}
 
+	ociRepos, err := m.db.ListOCIRepositories(context.Background())
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("failed to list OCI repositories: %w", err)
+	}
+	permittedOCIRepos, err := argo.GetPermittedRepos(proj, ociRepos)
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("failed to get permitted OCI repositories for project %q: %w", proj.Name, err)
+	}
+
 	ts.AddCheckpoint("repo_ms")
 	helmRepositoryCredentials, err := m.db.GetAllHelmRepositoryCredentials(context.Background())
 	if err != nil {
@@ -146,6 +156,15 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	permittedHelmCredentials, err := argo.GetPermittedReposCredentials(proj, helmRepositoryCredentials)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get permitted Helm credentials for project %q: %w", proj.Name, err)
+	}
+
+	ociRepositoryCredentials, err := m.db.GetAllOCIRepositoryCredentials(context.Background())
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("failed to get OCI credentials: %w", err)
+	}
+	permittedOCICredentials, err := argo.GetPermittedReposCredentials(proj, ociRepositoryCredentials)
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("failed to get permitted OCI credentials for project %q: %w", proj.Name, err)
 	}
 
 	enabledSourceTypes, err := m.settingsMgr.GetEnabledSourceTypes()
@@ -241,7 +260,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			appNamespace = ""
 		}
 
-		if !source.IsHelm() && syncedRevision != "" && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
+		if !source.IsHelm() && !source.IsOCI() && syncedRevision != "" && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
 			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
 			updateRevisionResult, err := repoClient.UpdateRevisionForPaths(context.Background(), &apiclient.UpdateRevisionForPathsRequest{
 				Repo:               repo,
@@ -276,10 +295,22 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			atLeastOneRevisionIsNotPossibleToBeUpdated = true
 		}
 
+		repos := permittedHelmRepos
+		helmRepoCreds := permittedHelmCredentials
+		// If the source is OCI, there is a potential for an OCI image to be a Helm chart and that said chart in
+		// turn would have OCI dependencies. To ensure that those dependencies can be resolved, add them to the repos
+		// list.
+		if source.IsOCI() {
+			repos = slices.Clone(permittedHelmRepos)
+			helmRepoCreds = slices.Clone(permittedHelmCredentials)
+			repos = append(repos, permittedOCIRepos...)
+			helmRepoCreds = append(helmRepoCreds, permittedOCICredentials...)
+		}
+
 		log.Debugf("Generating Manifest for source %s revision %s", source, revision)
 		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 			Repo:                            repo,
-			Repos:                           permittedHelmRepos,
+			Repos:                           repos,
 			Revision:                        revision,
 			NoCache:                         noCache,
 			NoRevisionCache:                 noRevisionCache,
@@ -291,7 +322,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			KubeVersion:                     serverVersion,
 			ApiVersions:                     apiVersions,
 			VerifySignature:                 verifySignature,
-			HelmRepoCreds:                   permittedHelmCredentials,
+			HelmRepoCreds:                   helmRepoCreds,
 			TrackingMethod:                  trackingMethod,
 			EnabledSourceTypes:              enabledSourceTypes,
 			HelmOptions:                     helmOptions,

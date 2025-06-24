@@ -23,9 +23,10 @@ const appTypes = new Array<{field: string; type: models.AppSourceType}>(
 function normalizeAppSource(app: models.Application, type: string): boolean {
     const source = app.spec.source;
     // eslint-disable-next-line no-prototype-builtins
-    const repoType = (source.hasOwnProperty('chart') && 'helm') || 'git';
+    const repoType = source.repoURL.startsWith('oci://') ? 'oci' : (source.hasOwnProperty('chart') && 'helm') || 'git';
+
     if (repoType !== type) {
-        if (type === 'git') {
+        if (type === 'git' || type === 'oci') {
             source.path = source.chart;
             delete source.chart;
             source.targetRevision = 'HEAD';
@@ -157,8 +158,9 @@ export const SourcePanel = (props: {
                                 }}
                                 getApi={props.getFormApi}>
                                 {api => {
-                                    // eslint-disable-next-line no-prototype-builtins
-                                    const repoType = (api.getFormState().values.spec?.source?.hasOwnProperty('chart') && 'helm') || 'git';
+                                    const repoType = api.getFormState().values.spec?.source?.repoURL.startsWith('oci://')
+                                        ? 'oci'
+                                        : (api.getFormState().values.spec?.source?.chart && 'helm') || 'git';
                                     const repoInfo = reposInfo.find(info => info.repo === api.getFormState().values.spec?.source?.repoURL);
                                     if (repoInfo) {
                                         normalizeAppSource(appInEdit, repoInfo.type || 'git');
@@ -189,7 +191,7 @@ export const SourcePanel = (props: {
                                                                         {repoType.toUpperCase()} <i className='fa fa-caret-down' />
                                                                     </p>
                                                                 )}
-                                                                items={['git', 'helm'].map((type: 'git' | 'helm') => ({
+                                                                items={['git', 'helm', 'oci'].map((type: 'git' | 'helm' | 'oci') => ({
                                                                     title: type.toUpperCase(),
                                                                     action: () => {
                                                                         if (repoType !== type) {
@@ -210,9 +212,14 @@ export const SourcePanel = (props: {
                                                     <FormField formApi={api} label='Name' field={'spec.source.name'} component={Text}></FormField>
                                                 </div>
                                             </div>
-                                            {(repoType === 'git' && (
+                                            {(repoType === 'oci' && (
                                                 <React.Fragment>
-                                                    <RevisionFormField formApi={api} helpIconTop={'2.5em'} repoURL={api.getFormState().values.spec?.source?.repoURL} />
+                                                    <RevisionFormField
+                                                        formApi={api}
+                                                        helpIconTop={'2.5em'}
+                                                        repoURL={api.getFormState().values.spec?.source?.repoURL}
+                                                        repoType={repoType}
+                                                    />
                                                     <div className='argo-form-row'>
                                                         <DataLoader
                                                             input={{
@@ -220,21 +227,18 @@ export const SourcePanel = (props: {
                                                                 revision: api.getFormState().values.spec?.source?.targetRevision
                                                             }}
                                                             load={async src =>
-                                                                (src.repoURL &&
-                                                                    (await services.repos
-                                                                        .apps(src.repoURL, src.revision, appInEdit.metadata.name, props.appCurrent.spec.project)
-                                                                        .then(apps => Array.from(new Set(apps.map(item => item.path))).sort())
-                                                                        .catch(() => new Array<string>()))) ||
+                                                                src.repoURL &&
+                                                                // TODO: for autocomplete we need to fetch paths that are used by other apps within the same project making use of the same OCI repo
                                                                 new Array<string>()
                                                             }>
-                                                            {(apps: string[]) => (
+                                                            {(paths: string[]) => (
                                                                 <FormField
                                                                     formApi={api}
                                                                     label='Path'
                                                                     field='spec.source.path'
                                                                     component={AutocompleteField}
                                                                     componentProps={{
-                                                                        items: apps,
+                                                                        items: paths,
                                                                         filterSuggestions: true
                                                                     }}
                                                                 />
@@ -245,45 +249,86 @@ export const SourcePanel = (props: {
                                                         <FormField formApi={api} label='Ref' field={'spec.source.ref'} component={Text}></FormField>
                                                     </div>
                                                 </React.Fragment>
-                                            )) || (
-                                                <DataLoader
-                                                    input={{repoURL: api.getFormState().values.spec.source.repoURL}}
-                                                    load={async src =>
-                                                        (src.repoURL && services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())) ||
-                                                        new Array<models.HelmChart>()
-                                                    }>
-                                                    {(charts: models.HelmChart[]) => {
-                                                        const selectedChart = charts.find(chart => chart.name === api.getFormState().values.spec?.source?.chart);
-                                                        return (
-                                                            <div className='row argo-form-row'>
-                                                                <div className='columns small-10'>
+                                            )) ||
+                                                (repoType === 'git' && (
+                                                    <React.Fragment>
+                                                        <RevisionFormField
+                                                            formApi={api}
+                                                            helpIconTop={'2.5em'}
+                                                            repoURL={api.getFormState().values.spec?.source?.repoURL}
+                                                            repoType={repoType}
+                                                        />
+                                                        <div className='argo-form-row'>
+                                                            <DataLoader
+                                                                input={{
+                                                                    repoURL: api.getFormState().values.spec?.source?.repoURL,
+                                                                    revision: api.getFormState().values.spec?.source?.targetRevision
+                                                                }}
+                                                                load={async src =>
+                                                                    (src.repoURL &&
+                                                                        (await services.repos
+                                                                            .apps(src.repoURL, src.revision, appInEdit.metadata.name, props.appCurrent.spec.project)
+                                                                            .then(apps => Array.from(new Set(apps.map(item => item.path))).sort())
+                                                                            .catch(() => new Array<string>()))) ||
+                                                                    new Array<string>()
+                                                                }>
+                                                                {(apps: string[]) => (
                                                                     <FormField
                                                                         formApi={api}
-                                                                        label='Chart'
-                                                                        field='spec.source.chart'
+                                                                        label='Path'
+                                                                        field='spec.source.path'
                                                                         component={AutocompleteField}
                                                                         componentProps={{
-                                                                            items: charts.map(chart => chart.name),
+                                                                            items: apps,
                                                                             filterSuggestions: true
                                                                         }}
                                                                     />
+                                                                )}
+                                                            </DataLoader>
+                                                        </div>
+                                                        <div className='argo-form-row'>
+                                                            <FormField formApi={api} label='Ref' field={'spec.source.ref'} component={Text}></FormField>
+                                                        </div>
+                                                    </React.Fragment>
+                                                )) || (
+                                                    <DataLoader
+                                                        input={{repoURL: api.getFormState().values.spec.source.repoURL}}
+                                                        load={async src =>
+                                                            (src.repoURL && services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())) ||
+                                                            new Array<models.HelmChart>()
+                                                        }>
+                                                        {(charts: models.HelmChart[]) => {
+                                                            const selectedChart = charts.find(chart => chart.name === api.getFormState().values.spec?.source?.chart);
+                                                            return (
+                                                                <div className='row argo-form-row'>
+                                                                    <div className='columns small-10'>
+                                                                        <FormField
+                                                                            formApi={api}
+                                                                            label='Chart'
+                                                                            field='spec.source.chart'
+                                                                            component={AutocompleteField}
+                                                                            componentProps={{
+                                                                                items: charts.map(chart => chart.name),
+                                                                                filterSuggestions: true
+                                                                            }}
+                                                                        />
+                                                                    </div>
+                                                                    <div className='columns small-2'>
+                                                                        <FormField
+                                                                            formApi={api}
+                                                                            field='spec.source.targetRevision'
+                                                                            component={AutocompleteField}
+                                                                            componentProps={{
+                                                                                items: (selectedChart && selectedChart.versions) || []
+                                                                            }}
+                                                                        />
+                                                                        <RevisionHelpIcon type='helm' />
+                                                                    </div>
                                                                 </div>
-                                                                <div className='columns small-2'>
-                                                                    <FormField
-                                                                        formApi={api}
-                                                                        field='spec.source.targetRevision'
-                                                                        component={AutocompleteField}
-                                                                        componentProps={{
-                                                                            items: (selectedChart && selectedChart.versions) || []
-                                                                        }}
-                                                                    />
-                                                                    <RevisionHelpIcon type='helm' />
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    }}
-                                                </DataLoader>
-                                            )}
+                                                            );
+                                                        }}
+                                                    </DataLoader>
+                                                )}
                                         </div>
                                     );
 

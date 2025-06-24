@@ -60,15 +60,26 @@ type Client_CleanChartCache_Call struct {
 }
 
 // CleanChartCache is a helper method to define mock.On call
-//   - chart
-//   - version
+//   - chart string
+//   - version string
 func (_e *Client_Expecter) CleanChartCache(chart interface{}, version interface{}) *Client_CleanChartCache_Call {
 	return &Client_CleanChartCache_Call{Call: _e.mock.On("CleanChartCache", chart, version)}
 }
 
 func (_c *Client_CleanChartCache_Call) Run(run func(chart string, version string)) *Client_CleanChartCache_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string))
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -123,18 +134,44 @@ type Client_ExtractChart_Call struct {
 }
 
 // ExtractChart is a helper method to define mock.On call
-//   - chart
-//   - version
-//   - passCredentials
-//   - manifestMaxExtractedSize
-//   - disableManifestMaxExtractedSize
+//   - chart string
+//   - version string
+//   - passCredentials bool
+//   - manifestMaxExtractedSize int64
+//   - disableManifestMaxExtractedSize bool
 func (_e *Client_Expecter) ExtractChart(chart interface{}, version interface{}, passCredentials interface{}, manifestMaxExtractedSize interface{}, disableManifestMaxExtractedSize interface{}) *Client_ExtractChart_Call {
 	return &Client_ExtractChart_Call{Call: _e.mock.On("ExtractChart", chart, version, passCredentials, manifestMaxExtractedSize, disableManifestMaxExtractedSize)}
 }
 
 func (_c *Client_ExtractChart_Call) Run(run func(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool)) *Client_ExtractChart_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string), args[2].(bool), args[3].(int64), args[4].(bool))
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 bool
+		if args[2] != nil {
+			arg2 = args[2].(bool)
+		}
+		var arg3 int64
+		if args[3] != nil {
+			arg3 = args[3].(int64)
+		}
+		var arg4 bool
+		if args[4] != nil {
+			arg4 = args[4].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
 	})
 	return _c
 }
@@ -183,15 +220,26 @@ type Client_GetIndex_Call struct {
 }
 
 // GetIndex is a helper method to define mock.On call
-//   - noCache
-//   - maxIndexSize
+//   - noCache bool
+//   - maxIndexSize int64
 func (_e *Client_Expecter) GetIndex(noCache interface{}, maxIndexSize interface{}) *Client_GetIndex_Call {
 	return &Client_GetIndex_Call{Call: _e.mock.On("GetIndex", noCache, maxIndexSize)}
 }
 
 func (_c *Client_GetIndex_Call) Run(run func(noCache bool, maxIndexSize int64)) *Client_GetIndex_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(bool), args[1].(int64))
+		var arg0 bool
+		if args[0] != nil {
+			arg0 = args[0].(bool)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -240,15 +288,26 @@ type Client_GetTags_Call struct {
 }
 
 // GetTags is a helper method to define mock.On call
-//   - chart
-//   - noCache
+//   - chart string
+//   - noCache bool
 func (_e *Client_Expecter) GetTags(chart interface{}, noCache interface{}) *Client_GetTags_Call {
 	return &Client_GetTags_Call{Call: _e.mock.On("GetTags", chart, noCache)}
 }
 
 func (_c *Client_GetTags_Call) Run(run func(chart string, noCache bool)) *Client_GetTags_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(bool))
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 bool
+		if args[1] != nil {
+			arg1 = args[1].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }

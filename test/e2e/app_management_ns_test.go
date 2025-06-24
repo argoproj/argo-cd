@@ -1337,7 +1337,7 @@ func TestNamespacedSelfManagedApps(t *testing.T) {
 		SetTrackingMethod("annotation").
 		SetAppNamespace(fixture.AppNamespace()).
 		When().
-		PatchFile("resources.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/spec/source/repoURL", "value": "%s"}]`, fixture.RepoURL(fixture.RepoURLTypeFile))).
+		PatchFile("resources.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/spec/source/repoURL", "value": %q}]`, fixture.RepoURL(fixture.RepoURLTypeFile))).
 		CreateApp().
 		Sync().
 		Then().
@@ -1975,7 +1975,7 @@ metadata:
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "")
 	require.NoError(t, err)
-	_, err = tmpFile.Write([]byte(s))
+	_, err = tmpFile.WriteString(s)
 	require.NoError(t, err)
 
 	_, err = fixture.Run("", "kubectl", "apply", "-f", tmpFile.Name())
@@ -2131,7 +2131,7 @@ spec:
 		And(func(app *Application) {
 			assert.Equal(t, map[string]string{"labels.local/from-file": "file", "labels.local/from-args": "args"}, app.Labels)
 			assert.Equal(t, map[string]string{"annotations.local/from-file": "file"}, app.Annotations)
-			assert.Equal(t, []string{"resources-finalizer.argocd.argoproj.io"}, app.Finalizers)
+			assert.Equal(t, []string{ResourcesFinalizerName}, app.Finalizers)
 			assert.Equal(t, path, app.Spec.GetSource().Path)
 			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.GetSource().Helm.Parameters)
 		})

@@ -8,7 +8,6 @@ import (
 
 	gpgkeypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/gpg"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
@@ -16,21 +15,15 @@ import (
 
 // Server provides a service of type GPGKeyService
 type Server struct {
-	db            db.ArgoDB
-	repoClientset apiclient.Clientset
-	enf           *rbac.Enforcer
+	db  db.ArgoDB
+	enf *rbac.Enforcer
 }
 
 // NewServer returns a new instance of the service with type GPGKeyService
-func NewServer(
-	repoClientset apiclient.Clientset,
-	db db.ArgoDB,
-	enf *rbac.Enforcer,
-) *Server {
+func NewServer(db db.ArgoDB, enf *rbac.Enforcer) *Server {
 	return &Server{
-		db:            db,
-		repoClientset: repoClientset,
-		enf:           enf,
+		db:  db,
+		enf: enf,
 	}
 }
 

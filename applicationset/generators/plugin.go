@@ -10,7 +10,6 @@ import (
 
 	"github.com/jeremywohl/flatten"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -27,16 +26,12 @@ var _ Generator = (*PluginGenerator)(nil)
 
 type PluginGenerator struct {
 	client    client.Client
-	ctx       context.Context
-	clientset kubernetes.Interface
 	namespace string
 }
 
-func NewPluginGenerator(ctx context.Context, client client.Client, clientset kubernetes.Interface, namespace string) Generator {
+func NewPluginGenerator(client client.Client, namespace string) Generator {
 	g := &PluginGenerator{
 		client:    client,
-		ctx:       ctx,
-		clientset: clientset,
 		namespace: namespace,
 	}
 	return g

@@ -1,11 +1,13 @@
 package tls
 
 import (
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"strings"
 	"testing"
@@ -456,5 +458,76 @@ func TestLoadX509CertPool(t *testing.T) {
 		p, err := LoadX509CertPool("testdata/empty_tls.crt", "testdata/valid_tls2.crt")
 		require.Error(t, err)
 		require.Nil(t, p)
+	})
+}
+
+func TestEncodeX509KeyPair_InvalidRSAKey(t *testing.T) {
+	t.Run("Nil RSA private key", func(t *testing.T) {
+		cert := tls.Certificate{
+			Certificate: [][]byte{{0x30, 0x82}}, // minimal DER certificate bytes
+			PrivateKey:  (*rsa.PrivateKey)(nil),
+		}
+		certPEM, keyPEM := EncodeX509KeyPair(cert)
+		assert.NotEmpty(t, certPEM)
+		assert.Empty(t, keyPEM)
+	})
+
+	t.Run("RSA private key that fails validation", func(t *testing.T) {
+		// Create an RSA key with invalid parameters that will fail Validate()
+		invalidKey := &rsa.PrivateKey{
+			PublicKey: rsa.PublicKey{
+				N: big.NewInt(1), // Too small modulus, will fail validation
+				E: 65537,
+			},
+			D: big.NewInt(1), // Invalid private exponent
+		}
+		cert := tls.Certificate{
+			Certificate: [][]byte{{0x30, 0x82}}, // minimal DER certificate bytes
+			PrivateKey:  invalidKey,
+		}
+		certPEM, keyPEM := EncodeX509KeyPair(cert)
+		assert.NotEmpty(t, certPEM)
+		assert.Empty(t, keyPEM)
+	})
+
+	t.Run("RSA private key with inconsistent parameters", func(t *testing.T) {
+		invalidKey := &rsa.PrivateKey{
+			PublicKey: rsa.PublicKey{
+				N: big.NewInt(35),
+				E: 65537,
+			},
+			D: big.NewInt(99999),
+		}
+		cert := tls.Certificate{
+			Certificate: [][]byte{{0x30, 0x82}}, // minimal DER certificate bytes
+			PrivateKey:  invalidKey,
+		}
+		certPEM, keyPEM := EncodeX509KeyPair(cert)
+		assert.NotEmpty(t, certPEM)
+		assert.Empty(t, keyPEM)
+	})
+
+	t.Run("Unsupported private key type", func(t *testing.T) {
+		// Use a type that's not *rsa.PrivateKey or *ecdsa.PrivateKey
+		cert := tls.Certificate{
+			Certificate: [][]byte{{0x30, 0x82}}, // minimal DER certificate bytes
+			PrivateKey:  "not a private key",    // Unsupported type
+		}
+		certPEM, keyPEM := EncodeX509KeyPair(cert)
+		assert.NotEmpty(t, certPEM)
+		assert.Empty(t, keyPEM)
+	})
+
+	t.Run("Valid RSA private key should work", func(t *testing.T) {
+		// Generate a valid RSA key for testing
+		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Test"}
+		validCert, err := GenerateX509KeyPair(opts)
+		require.NoError(t, err)
+
+		certPEM, keyPEM := EncodeX509KeyPair(*validCert)
+		assert.NotEmpty(t, certPEM)
+		assert.NotEmpty(t, keyPEM)
+		assert.Contains(t, string(keyPEM), "-----BEGIN RSA PRIVATE KEY-----")
+		assert.Contains(t, string(keyPEM), "-----END RSA PRIVATE KEY-----")
 	})
 }
