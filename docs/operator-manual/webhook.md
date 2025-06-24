@@ -21,14 +21,14 @@ arbitrary value in the secret. This value will be used when configuring the webh
 
 To prevent DDoS attacks with unauthenticated webhook events (the `/api/webhook` endpoint currently lacks rate limiting protection), it is recommended to limit the payload size. You can achieve this by configuring the `argocd-cm` ConfigMap with the `webhook.maxPayloadSizeMB` attribute. The default value is 50MB.
 
-## Github
+### Github
 
 ![Add Webhook](../assets/webhook-config.png "Add Webhook")
 
 !!! note
     When creating the webhook in GitHub, the "Content type" needs to be set to "application/json". The default value "application/x-www-form-urlencoded" is not supported by the library used to handle the hooks
 
-## Azure DevOps
+### Azure DevOps
 
 ![Add Webhook](../assets/azure-devops-webhook-config.png "Add Webhook")
 

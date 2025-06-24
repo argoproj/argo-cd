@@ -6,6 +6,7 @@ import (
 	"hash/fnv"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -47,6 +48,7 @@ type repositoryBackend interface {
 	RepoCredsExists(ctx context.Context, repoURL string) (bool, error)
 
 	GetAllHelmRepoCreds(ctx context.Context) ([]*v1alpha1.RepoCreds, error)
+	GetAllOCIRepoCreds(ctx context.Context) ([]*v1alpha1.RepoCreds, error)
 }
 
 func (db *db) CreateRepository(ctx context.Context, r *v1alpha1.Repository) (*v1alpha1.Repository, error) {
@@ -178,11 +180,24 @@ func (db *db) listRepositories(ctx context.Context, repoType *string, writeCreds
 	if err != nil {
 		return nil, err
 	}
-	if err = db.enrichCredsToRepos(ctx, repositories); err != nil {
+	err = db.enrichCredsToRepos(ctx, repositories)
+	if err != nil {
 		return nil, err
 	}
 
 	return repositories, nil
+}
+
+func (db *db) ListOCIRepositories(ctx context.Context) ([]*v1alpha1.Repository, error) {
+	var result []*v1alpha1.Repository
+	repos, err := db.listRepositories(ctx, ptr.To("oci"), false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list OCI repositories: %w", err)
+	}
+	result = append(result, v1alpha1.Repositories(repos).Filter(func(r *v1alpha1.Repository) bool {
+		return r.Type == "oci"
+	})...)
+	return result, nil
 }
 
 // UpdateRepository updates a repository
@@ -302,6 +317,16 @@ func (db *db) GetWriteRepositoryCredentials(ctx context.Context, repoURL string)
 // GetAllHelmRepositoryCredentials retrieves all repository credentials
 func (db *db) GetAllHelmRepositoryCredentials(ctx context.Context) ([]*v1alpha1.RepoCreds, error) {
 	secretRepoCreds, err := db.repoBackend().GetAllHelmRepoCreds(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all Helm repo creds: %w", err)
+	}
+
+	return secretRepoCreds, nil
+}
+
+// GetAllOCIRepositoryCredentials retrieves all repository credentials
+func (db *db) GetAllOCIRepositoryCredentials(ctx context.Context) ([]*v1alpha1.RepoCreds, error) {
+	secretRepoCreds, err := db.repoBackend().GetAllOCIRepoCreds(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all Helm repo creds: %w", err)
 	}

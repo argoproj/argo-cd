@@ -1,0 +1,25 @@
+apiVersion: rabbitmq.com/v1beta1
+kind: User
+metadata:
+  generation: 1
+  name: example-rabbit
+  namespace: exmple-rabbit
+spec:
+  importCredentialsSecret:
+    name: example-rabbit
+  rabbitmqClusterReference:
+    name: example-rabbit
+    namespace: exmple-rabbit
+  tags:
+    - administrator
+status:
+  conditions:
+    - lastTransitionTime: 2025-02-24T17:51:10Z
+      reason: FailedCreateOrUpdate
+      status: "False"
+      type: Ready
+  credentials:
+    name: example-rabbit-user-credentials
+  observedGeneration: 1
+  username: example_user
+status: {}

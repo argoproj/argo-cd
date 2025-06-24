@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -29,18 +28,17 @@ import (
 	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
+	"github.com/argoproj/argo-cd/v3/controller/syncid"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	listersv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
 	"github.com/argoproj/argo-cd/v3/util/lua"
-	"github.com/argoproj/argo-cd/v3/util/rand"
 )
-
-var syncIdPrefix uint64
 
 const (
 	// EnvVarSyncWaveDelay is an environment variable which controls the delay in seconds between
@@ -95,6 +93,14 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult field.
 	// This ensures that when resuming an operation, we sync to the same revision that we initially
 	// started with.
+	syncId, err := syncid.Generate()
+	if err != nil {
+		state.Phase = common.OperationError
+		state.Message = fmt.Sprintf("Failed to generate sync ID: %v", err)
+		return
+	}
+	logEntry := log.WithFields(applog.GetAppLogFields(app)).WithField("syncId", syncId)
+
 	var revision string
 	var syncOp v1alpha1.SyncOperation
 	var syncRes *v1alpha1.SyncOperationResult
@@ -247,20 +253,10 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	atomic.AddUint64(&syncIdPrefix, 1)
-	randSuffix, err := rand.String(5)
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = fmt.Sprintf("Failed generate random sync ID: %v", err)
-		return
-	}
-	syncId := fmt.Sprintf("%05d-%s", syncIdPrefix, randSuffix)
-
-	logEntry := log.WithFields(log.Fields{"application": app.QualifiedName(), "syncId": syncId})
-	initialResourcesRes := make([]common.ResourceSyncResult, 0)
+	initialResourcesRes := make([]common.ResourceSyncResult, len(syncRes.Resources))
 	for i, res := range syncRes.Resources {
 		key := kube.ResourceKey{Group: res.Group, Kind: res.Kind, Namespace: res.Namespace, Name: res.Name}
-		initialResourcesRes = append(initialResourcesRes, common.ResourceSyncResult{
+		initialResourcesRes[i] = common.ResourceSyncResult{
 			ResourceKey: key,
 			Message:     res.Message,
 			Status:      res.Status,
@@ -268,8 +264,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			HookType:    res.HookType,
 			SyncPhase:   res.SyncPhase,
 			Version:     res.Version,
+			Images:      res.Images,
 			Order:       i + 1,
-		})
+		}
 	}
 
 	prunePropagationPolicy := metav1.DeletePropagationForeground
@@ -280,6 +277,12 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		prunePropagationPolicy = metav1.DeletePropagationForeground
 	case syncOp.SyncOptions.HasOption("PrunePropagationPolicy=orphan"):
 		prunePropagationPolicy = metav1.DeletePropagationOrphan
+	}
+
+	clientSideApplyManager := common.DefaultClientSideApplyMigrationManager
+	// Check for custom field manager from application annotation
+	if managerValue := app.GetAnnotation(cdcommon.AnnotationClientSideApplyMigrationManager); managerValue != "" {
+		clientSideApplyManager = managerValue
 	}
 
 	openAPISchema, err := m.getOpenAPISchema(destCluster)
@@ -309,7 +312,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		log.Errorf("Could not get installation ID: %v", err)
 		return
 	}
-	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
+	trackingMethod, err := m.settingsMgr.GetTrackingMethod()
+	if err != nil {
+		log.Errorf("Could not get trackingMethod: %v", err)
+		return
+	}
 
 	impersonationEnabled, err := m.settingsMgr.IsImpersonationEnabled()
 	if err != nil {
@@ -317,7 +324,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 	if impersonationEnabled {
-		serviceAccountToImpersonate, err := deriveServiceAccountToImpersonate(proj, app)
+		serviceAccountToImpersonate, err := deriveServiceAccountToImpersonate(proj, app, destCluster)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to find a matching service account to impersonate: %v", err)
@@ -360,7 +367,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			return (len(syncOp.Resources) == 0 ||
 				isPostDeleteHook(target) ||
 				argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)) &&
-				m.isSelfReferencedObj(live, target, app.GetName(), trackingMethod, installationID)
+				m.isSelfReferencedObj(live, target, app.GetName(), v1alpha1.TrackingMethod(trackingMethod), installationID)
 		}),
 		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
 		sync.WithSyncWaveHook(delayBetweenSyncWaves),
@@ -370,6 +377,10 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		sync.WithReplace(syncOp.SyncOptions.HasOption(common.SyncOptionReplace)),
 		sync.WithServerSideApply(syncOp.SyncOptions.HasOption(common.SyncOptionServerSideApply)),
 		sync.WithServerSideApplyManager(cdcommon.ArgoCDSSAManager),
+		sync.WithClientSideApplyMigration(
+			!syncOp.SyncOptions.HasOption(common.SyncOptionDisableClientSideApplyMigration),
+			clientSideApplyManager,
+		),
 		sync.WithPruneConfirmed(app.IsDeletionConfirmed(state.StartedAt.Time)),
 		sync.WithSkipDryRunOnMissingResource(syncOp.SyncOptions.HasOption(common.SyncOptionSkipDryRunOnMissingResource)),
 	}
@@ -440,6 +451,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			HookPhase: res.HookPhase,
 			Status:    res.Status,
 			Message:   res.Message,
+			Images:    res.Images,
 		})
 	}
 
@@ -595,7 +607,7 @@ func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject
 
 // deriveServiceAccountToImpersonate determines the service account to be used for impersonation for the sync operation.
 // The returned service account will be fully qualified including namespace and the service account name in the format system:serviceaccount:<namespace>:<service_account>
-func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application *v1alpha1.Application) (string, error) {
+func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application *v1alpha1.Application, destCluster *v1alpha1.Cluster) (string, error) {
 	// spec.Destination.Namespace is optional. If not specified, use the Application's
 	// namespace
 	serviceAccountNamespace := application.Spec.Destination.Namespace
@@ -605,7 +617,7 @@ func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application
 	// Loop through the destinationServiceAccounts and see if there is any destination that is a candidate.
 	// if so, return the service account specified for that destination.
 	for _, item := range project.Spec.DestinationServiceAccounts {
-		dstServerMatched, err := glob.MatchWithError(item.Server, application.Spec.Destination.Server)
+		dstServerMatched, err := glob.MatchWithError(item.Server, destCluster.Server)
 		if err != nil {
 			return "", fmt.Errorf("invalid glob pattern for destination server: %w", err)
 		}

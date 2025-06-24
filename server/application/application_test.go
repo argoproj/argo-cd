@@ -285,7 +285,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 			require.NoError(t, err)
 		}
 	}
-	appCache := servercache.NewCache(appStateCache, time.Hour, time.Hour, time.Hour)
+	appCache := servercache.NewCache(appStateCache, time.Hour, time.Hour)
 
 	kubectl := &kubetest.MockKubectlCmd{}
 	kubectl = kubectl.WithGetResourceFunc(func(_ context.Context, _ *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
@@ -448,7 +448,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 			require.NoError(b, err)
 		}
 	}
-	appCache := servercache.NewCache(appStateCache, time.Hour, time.Hour, time.Hour)
+	appCache := servercache.NewCache(appStateCache, time.Hour, time.Hour)
 
 	kubectl := &kubetest.MockKubectlCmd{}
 	kubectl = kubectl.WithGetResourceFunc(func(_ context.Context, _ *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
@@ -2087,25 +2087,23 @@ func TestGetCachedAppState(t *testing.T) {
 		watcher := watch.NewFakeWithChanSize(1, true)
 
 		// Configure fakeClientSet within lock, before requesting cached app state, to avoid data race
-		{
-			fakeClientSet.Lock()
-			fakeClientSet.ReactionChain = nil
-			fakeClientSet.WatchReactionChain = nil
-			fakeClientSet.AddReactor("patch", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-				patched = true
-				updated := testApp.DeepCopy()
-				updated.ResourceVersion = "2"
-				appServer.appBroadcaster.OnUpdate(testApp, updated)
-				return true, testApp, nil
-			})
-			fakeClientSet.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-				return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
-			})
-			fakeClientSet.Unlock()
-			fakeClientSet.AddWatchReactor("applications", func(_ kubetesting.Action) (handled bool, ret watch.Interface, err error) {
-				return true, watcher, nil
-			})
-		}
+		fakeClientSet.Lock()
+		fakeClientSet.ReactionChain = nil
+		fakeClientSet.WatchReactionChain = nil
+		fakeClientSet.AddReactor("patch", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			updated := testApp.DeepCopy()
+			updated.ResourceVersion = "2"
+			appServer.appBroadcaster.OnUpdate(testApp, updated)
+			return true, testApp, nil
+		})
+		fakeClientSet.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
+		})
+		fakeClientSet.Unlock()
+		fakeClientSet.AddWatchReactor("applications", func(_ kubetesting.Action) (handled bool, ret watch.Interface, err error) {
+			return true, watcher, nil
+		})
 
 		err := appServer.getCachedAppState(t.Context(), testApp, func() error {
 			res := cache.ErrCacheMiss
@@ -2443,7 +2441,7 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 
 	require.NoError(t, err)
 
-	appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
+	appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute)
 
 	appServer.inferResourcesStatusHealth(testApp)
 
@@ -2533,7 +2531,7 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 		testApp.Status.Resources = resources
 
 		appServer := newTestAppServer(t, testApp, createJobDenyingProj, kube.MustToUnstructured(&cronJob))
-		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
+		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute)
 
 		err := appStateCache.SetAppResourcesTree(testApp.Name, &v1alpha1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
@@ -2559,7 +2557,7 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 		testApp.Status.Resources = resources
 
 		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&cronJob))
-		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
+		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute)
 
 		err := appStateCache.SetAppResourcesTree(testApp.Name, &v1alpha1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
@@ -2630,7 +2628,7 @@ func TestRunOldStyleResourceAction(t *testing.T) {
 
 		// appServer := newTestAppServer(t, testApp, returnDeployment())
 		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&deployment))
-		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
+		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute)
 
 		err := appStateCache.SetAppResourcesTree(testApp.Name, &v1alpha1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
@@ -3082,8 +3080,8 @@ func TestServer_ResolveSourceRevisions_SingleSource(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, fakeResolveRevisionResponse().Revision, revision)
 	assert.Equal(t, fakeResolveRevisionResponse().AmbiguousRevision, displayRevision)
-	assert.Equal(t, ([]string)(nil), sourceRevisions)
-	assert.Equal(t, ([]string)(nil), displayRevisions)
+	assert.Equal(t, []string(nil), sourceRevisions)
+	assert.Equal(t, []string(nil), displayRevisions)
 }
 
 func Test_RevisionMetadata(t *testing.T) {

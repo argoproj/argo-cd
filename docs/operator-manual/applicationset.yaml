@@ -5,31 +5,66 @@ metadata:
   namespace: argocd
 spec:
   generators:
+    # The list generator generates a set of two application which then filter by the key value to only select the env with value staging
+    - list:
+        elements:
+          - cluster: engineering-dev
+            url: https://kubernetes.default.svc
+            env: staging
+          - cluster: engineering-prod
+            url: https://kubernetes.default.svc
+            env: prod
+        # The generator's template field takes precedence over the spec's template fields
+        template:
+          metadata: {}
+          spec:
+            project: "default"
+            source:
+              revision: HEAD
+              repoURL: https://github.com/argoproj/argo-cd.git
+              # New path value is generated here:
+              path: 'applicationset/examples/template-override/{{cluster}}-override'
+            destination: {}
 
-    # Using a generator plugin without combining it with Matrix or Merge
-    # Plugins allow you to provide your own generator
-    - plugin:
-      # Specify the configMap where the plugin configuration is located.
-      configMapRef:
-        name: my-plugin
-      # You can pass arbitrary parameters to the plugin. `input.parameters` is a map, but values may be any type.
-      # These parameters will also be available on the generator's output under the `generator.input.parameters` key.
-      input:
-        parameters:
-          key1: "value1"
-          key2: "value2"
-          list: ["list", "of", "values"]
-          boolean: true
-          map:
-            key1: "value1"
-            key2: "value2"
-            key3: "value3"
-        # You can also attach arbitrary values to the generator's output under the `values` key. These values will be
-        # available in templates under the `values` key.
+      # Selector allows to post-filter all generator.
+      selector:
+        matchLabels:
+          env: staging
+          
+    # It is also possible to use matchExpressions for more powerful selectors
+    - clusters: {}
+      selector:
+        matchExpressions:
+          - key: server
+            operator: In
+            values:
+              - https://kubernetes.default.svc
+              - https://some-other-cluster
+
+    # Git generator generates parametes either from directory structure of files within a git repo
+    - git:
+        repoURL: https://github.com/argoproj/argo-cd.git
+        # OPTIONAL: use directory structure of git repo to generate parameters
+        directories:
+        - path: applicationset/examples/git-generator-directory/excludes/cluster-addons/*
+        - path: applicationset/examples/git-generator-directory/excludes/cluster-addons/exclude-helm-guestbook
+          exclude: true # Exclude directory when generating parameters
+        # OPTIONAL: generates parameters using the contents of JSON/YAML files found in git repo
+        files:
+        - path: "applicationset/examples/git-generator-files-discovery/cluster-config/**/config.json"
+        - path: "applicationset/examples/git-generator-files-discovery/cluster-config/*/dev/config.json"
+          exclude: true # Exclude file when generating parameters
+        revision: HEAD
+        # OPTIONAL: Checks for changes every 60sec (default 3min)
+        requeueAfterSeconds: 60
+        # The generator's template field takes precedence over the spec's template fields
+        template:
+        # OPTIONAL: all path-related parameter names will be prefixed with the specified value and a dot separator
+        pathParamPrefix: myRepo
+        # OPTIONAL: Values contains key/value pairs which are passed directly as parameters to the template
         values:
-          value1: something
-        # When using a Plugin generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
-        requeueAfterSeconds: 30
+          cluster: '{{.path.basename}}'
+
 
     # to automatically discover repositories within an organization
     - scmProvider:
@@ -76,6 +111,65 @@ spec:
         - repositoryMatch: ^otherapp
           pathsExist: [helm]
           pathsDoNotExist: [disabledrepo.txt]
+
+    # Cluster-decision-resource-based ApplicationSet generator
+    - clusterDecisionResource:
+      # ConfigMap with GVK information for the duck type resource
+      configMapRef: my-configmap  
+      name: quak           # Choose either "name" of the resource or "labelSelector"
+      labelSelector:
+        matchLabels:       # OPTIONAL
+          duck: spotted
+        matchExpressions:  # OPTIONAL
+        - key: duck
+          operator: In
+          values:
+          - "spotted"
+          - "canvasback"   
+      # OPTIONAL: Checks for changes every 60sec (default 3min)
+      requeueAfterSeconds: 60
+  
+    # The Pull Request generator uses the API of an SCMaaS provider to automatically discover open pull requests within a repository
+    - pullRequest:
+        # When using a Pull Request generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
+        requeueAfterSeconds: 1800
+        # See below for provider specific options.
+        # Specify the repository from which to fetch the GitHub Pull requests.
+        github:
+          # The GitHub organization or user.
+          owner: myorg
+          # The Github repository
+          repo: myrepository
+          # For GitHub Enterprise (optional)
+          api: https://git.example.com/
+          # Reference to a Secret containing an access token. (optional)
+          tokenRef:
+            secretName: github-token
+            key: token
+          # (optional) use a GitHub App to access the API instead of a PAT.
+          appSecretName: github-app-repo-creds
+          # Labels is used to filter the PRs that you want to target. (optional)
+          labels:
+          - preview
+
+        # Filters allow selecting which pull requests to generate for
+        # Include any pull request ending with "argocd". (optional)
+        filters:
+        - branchMatch: ".*-argocd"
+
+        # Specify the project from which to fetch the GitLab merge requests.
+        gitlab:
+        # Specify the repository from which to fetch the Gitea Pull requests.
+        gitea:
+        # Fetch pull requests from a repo hosted on a Bitbucket Server (not the same as Bitbucket Cloud).
+        bitbucketServer:
+        # Fetch pull requests from a repo hosted on a Bitbucket Cloud.
+        bitbucket:
+        # Specify the organization, project and repository from which you want to fetch pull requests.
+        azuredevops:
+        # Fetch pull requests from AWS CodeCommit repositories.
+        awsCodeCommit:
+   
     # matrix 'parent' generator
     - matrix:
         generators:
@@ -106,6 +200,31 @@ spec:
               elements: 
                 - server: https://2.4.6.8
                   values.redis: 'true'
+
+    # Using a generator plugin without combining it with Matrix or Merge
+    # Plugins allow you to provide your own generator
+    - plugin:
+      # Specify the configMap where the plugin configuration is located.
+      configMapRef:
+        name: my-plugin
+      # You can pass arbitrary parameters to the plugin. `input.parameters` is a map, but values may be any type.
+      # These parameters will also be available on the generator's output under the `generator.input.parameters` key.
+      input:
+        parameters:
+          key1: "value1"
+          key2: "value2"
+          list: ["list", "of", "values"]
+          boolean: true
+          map:
+            key1: "value1"
+            key2: "value2"
+            key3: "value3"
+        # You can also attach arbitrary values to the generator's output under the `values` key. These values will be
+        # available in templates under the `values` key.
+        values:
+          value1: something
+        # When using a Plugin generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
+        requeueAfterSeconds: 30
                 
               
   # Determines whether go templating will be used in the `template` field below.
@@ -206,94 +325,4 @@ spec:
     jqPathExpressions:
     - .spec.source.helm.values
 
-  # Cluster-decision-resource-based ApplicationSet generator
-  - clusterDecisionResource:
-    # ConfigMap with GVK information for the duck type resource
-    configMapRef: my-configmap  
-    name: quak           # Choose either "name" of the resource or "labelSelector"
-    labelSelector:
-      matchLabels:       # OPTIONAL
-        duck: spotted
-      matchExpressions:  # OPTIONAL
-      - key: duck
-        operator: In
-        values:
-        - "spotted"
-        - "canvasback"   
-    # OPTIONAL: Checks for changes every 60sec (default 3min)
-    requeueAfterSeconds: 60
   
-  # The Pull Request generator uses the API of an SCMaaS provider to automatically discover open pull requests within a repository
-  - pullRequest:
-      # When using a Pull Request generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
-      requeueAfterSeconds: 1800
-      # See below for provider specific options.
-      # Specify the repository from which to fetch the GitHub Pull requests.
-      github:
-        # The GitHub organization or user.
-        owner: myorg
-        # The Github repository
-        repo: myrepository
-        # For GitHub Enterprise (optional)
-        api: https://git.example.com/
-        # Reference to a Secret containing an access token. (optional)
-        tokenRef:
-          secretName: github-token
-          key: token
-        # (optional) use a GitHub App to access the API instead of a PAT.
-        appSecretName: github-app-repo-creds
-        # Labels is used to filter the PRs that you want to target. (optional)
-        labels:
-        - preview
-
-      # Filters allow selecting which pull requests to generate for
-      # Include any pull request ending with "argocd". (optional)
-      filters:
-      - branchMatch: ".*-argocd"
-
-      # Specify the project from which to fetch the GitLab merge requests.
-      gitlab:
-      # Specify the repository from which to fetch the Gitea Pull requests.
-      gitea:
-      # Fetch pull requests from a repo hosted on a Bitbucket Server (not the same as Bitbucket Cloud).
-      bitbucketServer:
-      # Fetch pull requests from a repo hosted on a Bitbucket Cloud.
-      bitbucket:
-      # Specify the organization, project and repository from which you want to fetch pull requests.
-      azuredevops:
-      # Fetch pull requests from AWS CodeCommit repositories.
-      awsCodeCommit:
-
-# The list generator generates a set of two application which then filter by the key value to only select the env with value staging
-  - list:
-      elements:
-        - cluster: engineering-dev
-          url: https://kubernetes.default.svc
-          env: staging
-        - cluster: engineering-prod
-          url: https://kubernetes.default.svc
-          env: prod
-      # The generator's template field takes precedence over the spec's template fields
-      template:
-        metadata: {}
-        spec:
-          project: "default"
-          source:
-            revision: HEAD
-            repoURL: https://github.com/argoproj/argo-cd.git
-            # New path value is generated here:
-            path: 'applicationset/examples/template-override/{{cluster}}-override'
-          destination: {}
-
-    selector:
-      matchLabels:
-        env: staging
-  # It is also possible to use matchExpressions for more powerful selectors
-  - clusters: {}
-    selector:
-      matchExpressions:
-        - key: server
-          operator: In
-          values:
-            - https://kubernetes.default.svc
-            - https://some-other-cluster

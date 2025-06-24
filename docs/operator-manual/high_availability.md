@@ -4,8 +4,10 @@ Argo CD is largely stateless. All data is persisted as Kubernetes objects, which
 
 A set of [HA manifests](https://github.com/argoproj/argo-cd/tree/master/manifests/ha) are provided for users who wish to run Argo CD in a highly available manner. This runs more containers, and runs Redis in HA mode.
 
-> **NOTE:** The HA installation will require at least three different nodes due to pod anti-affinity roles in the
-> specs. Additionally, IPv6 only clusters are not supported.
+!!! note
+
+    The HA installation will require at least three different nodes due to pod anti-affinity roles in the
+    specs. Additionally, IPv6 only clusters are not supported.
 
 ## Scaling Up
 
@@ -28,13 +30,17 @@ or if the repositories have a lot of files. To avoid this problem mount a persis
 * `argocd-repo-server` uses `git ls-remote` to resolve ambiguous revisions such as `HEAD`, a branch or a tag name. This operation happens frequently
 and might fail. To avoid failed syncs use the `ARGOCD_GIT_ATTEMPTS_COUNT` environment variable to retry failed requests.
 
-* `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default that manifests only change when the repo changes, so it caches the generated manifests (for 24h by default). With Kustomize remote bases, or in case a Helm chart gets changed without bumping its version number, the expected manifests can change even though the repo has not changed. By reducing the cache time, you can get the changes without waiting for 24h. Use `--repo-cache-expiration duration`, and we'd suggest in low volume environments you try '1h'. Bear in mind that this will negate the benefits of caching if set too low.
+* `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default that manifests only change when the repo changes, so it caches the generated manifests (for 24h by default). With Kustomize remote bases, or in case a Helm chart gets changed without bumping its version number, the expected manifests can change even though the repo has not changed. By reducing the cache time, you can get the changes without waiting for 24h. Use `--repo-cache-expiration duration`, and we'd suggest in low volume environments you try `1h`. Bear in mind that this will negate the benefits of caching if set too low.
 
 * `argocd-repo-server` executes config management tools such as `helm` or `kustomize` and enforces a 90 second timeout. This timeout can be changed by using the `ARGOCD_EXEC_TIMEOUT` env variable. The value should be in the Go time duration string format, for example, `2m30s`.
 
+* `argocd-repo-server` will issue a `SIGTERM` signal to a command that has elapsed the `ARGOCD_EXEC_TIMEOUT`. In most cases, well-behaved commands will exit immediately when receiving the signal. However, if this does not happen, `argocd-repo-server` will wait an additional timeout of `ARGOCD_EXEC_FATAL_TIMEOUT` and then forcefully exit the command with a `SIGKILL` to prevent stalling. Note that a failure to exit with `SIGTERM` is usually a bug in either the offending command or in the way `argocd-repo-server` calls it and should be reported to the issue tracker for further investigation.
+
 **metrics:**
 
-* `argocd_git_request_total` - Number of git requests. This metric provides two tags: `repo` - Git repo URL; `request_type` - `ls-remote` or `fetch`.
+* `argocd_git_request_total` - Number of git requests. This metric provides two tags:
+    - `repo` - Git repo URL
+    - `request_type` - `ls-remote` or `fetch`.
 
 * `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM` - Is an environment variable that enables collecting RPC performance metrics. Enable it if you need to troubleshoot performance issues. Note: This metric is expensive to both query and store!
 
@@ -80,14 +86,14 @@ spec:
         - name: ARGOCD_CONTROLLER_REPLICAS
           value: "2"
 ```
+
 * In order to manually set the cluster's shard number, specify the optional `shard` property when creating a cluster. If not specified, it will be calculated on the fly by the application controller.
+* The shard distribution algorithm of the `argocd-application-controller` can be set by using the `--sharding-method` parameter. Supported sharding methods are:
+    - `legacy` mode uses an `uid` based distribution (non-uniform).
+    - `round-robin` uses an equal distribution across all shards.
+    - `consistent-hashing` uses the consistent hashing with bounded loads algorithm which tends to equal distribution and also reduces cluster or application reshuffling in case of additions or removals of shards or clusters. 
 
-* The shard distribution algorithm of the `argocd-application-controller` can be set by using the `--sharding-method` parameter. Supported sharding methods are : [legacy (default), round-robin, consistent-hashing]:
-- `legacy` mode uses an `uid` based distribution (non-uniform).
-- `round-robin` uses an equal distribution across all shards.
-- `consistent-hashing` uses the consistent hashing with bounded loads algorithm which tends to equal distribution and also reduces cluster or application reshuffling in case of additions or removals of shards or clusters. 
-
-The `--sharding-method` parameter can also be overridden by setting the key `controller.sharding.algorithm` in the `argocd-cmd-params-cm` `configMap` (preferably) or by setting the `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` environment variable and by specifiying the same possible values.
+The `--sharding-method` parameter can also be overridden by setting the key `controller.sharding.algorithm` in the `argocd-cmd-params-cm` `configMap` (preferably) or by setting the `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` environment variable and by specifying the same possible values.
 
 !!! warning "Alpha Features"
     The `round-robin` shard distribution algorithm is an experimental feature. Reshuffling is known to occur in certain scenarios with cluster removal. If the cluster at rank-0 is removed, reshuffling all clusters across shards will occur and may temporarily have negative performance impacts.
@@ -297,7 +303,7 @@ The jitter is the maximum duration that can be added to the sync timeout, so if 
 
 To configure the jitter you can set the following environment variables:
 
-* `ARGOCD_RECONCILIATION_JITTER` - The jitter to apply to the sync timeout. Disabled when value is 0. Defaults to 0.
+* `ARGOCD_RECONCILIATION_JITTER` - The jitter to apply to the sync timeout. Disabled when value is 0. Defaults to 60.
 
 ## Rate Limiting Application Reconciliations
 
@@ -378,7 +384,7 @@ Where `retryAttempt` starts at 0 and increments by 1 for each subsequent retry.
 
 There is a cap on the backoff time to prevent excessive wait times between retries. This cap is defined by:
 
-`retryWaitMax` - The maximum duration to wait before retrying. This ensures that retries happen within a reasonable timeframe. Defaults to 10 seconds.
+* `retryWaitMax` - The maximum duration to wait before retrying. This ensures that retries happen within a reasonable timeframe. Defaults to 10 seconds.
 
 ### Non-Retriable Conditions
 
