@@ -210,7 +210,7 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
-  type: "git"
+  type: git
   url: "https://github.com/argoproj/private-repo"
   password: "my-password"
   username: "my-username"
@@ -232,8 +232,8 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
-  type: "git"
-  url: "git@github.com:argoproj/my-private-repository.git"
+  type: git
+  url: 'git@github.com:argoproj/my-private-repository.git'
   sshPrivateKey: |
     -----BEGIN OPENSSH PRIVATE KEY-----
     ...
@@ -259,11 +259,11 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
-  type: "git"
-  url: "https://ghe.example.com/argoproj/my-private-repository"
-  githubAppID: "1"
-  githubAppInstallationID: "2"
-  githubAppEnterpriseBaseUrl: "https://ghe.example.com/api/v3"
+  type: git
+  url: 'https://ghe.example.com/argoproj/my-private-repository'
+  githubAppID: '1'
+  githubAppInstallationID: '2'
+  githubAppEnterpriseBaseUrl: 'https://ghe.example.com/api/v3'
   githubAppPrivateKey: |
     -----BEGIN OPENSSH PRIVATE KEY-----
     ...
@@ -336,10 +336,10 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
-  type: "git"
-  url: "https://github.com/argoproj/special-repo"
-  username: "my-special-username"
-  password: "my-special-password"
+  type: git
+  url: 'https://github.com/argoproj/special-repo'
+  username: 'my-special-username'
+  password: 'my-special-password'
 ---
 apiVersion: v1
 kind: Secret
@@ -349,10 +349,10 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repo-creds
 stringData:
-  type: "git"
-  url: "https://github.com/argoproj"
-  username: "my-template-username"
-  password: "my-template-password"
+  type: git
+  url: 'https://github.com/argoproj'
+  username: 'my-template-username'
+  password: 'my-template-password'
 ```
 
 In this example, the repo...
@@ -380,12 +380,12 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 stringData:
-  type: "git"
-  url: "https://github.com/argoproj/private-repo"
-  proxy: "https://proxy-server-url:8888"
-  noProxy: ".internal.example.com,company.org,10.123.0.0/16"
-  username: "my-username"
-  password: "my-password"
+  type: git
+  url: 'https://github.com/argoproj/private-repo'
+  proxy: 'https://proxy-server-url:8888'
+  noProxy: '.internal.example.com,company.org,10.123.0.0/16'
+  username: 'my-username'
+  password: 'my-password'
 ```
 
 !!! warning
