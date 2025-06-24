@@ -87,7 +87,41 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 
 			appSetName, appSetNs := argo.ParseFromQualifiedName(args[0], "")
 
-			appSet, err := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{Name: appSetName, AppsetNamespace: appSetNs})
+			getAppSetStateWithRetry := func() (*arogappsetv1.ApplicationSet, error) {
+				type getResponse struct {
+					appset *arogappsetv1.ApplicationSet
+					err    error
+				}
+
+				ch := make(chan getResponse, 1)
+
+				go func() {
+					appset, err := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{
+						Name:            appSetName,
+						AppsetNamespace: appSetNs,
+					})
+					ch <- getResponse{
+						appset: appset,
+						err:    err,
+					}
+				}()
+
+				select {
+				case result := <-ch:
+					return result.appset, result.err
+				case <-ctx.Done():
+					// Timeout occurred, try again without refresh flag
+					// Create new context for retry request
+					ctx := context.Background()
+					appSet, err := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{
+						Name:            appSetName,
+						AppsetNamespace: appSetNs,
+					})
+					return appSet, err
+				}
+			}
+
+			appSet, err := getAppSetStateWithRetry()
 			errors.CheckError(err)
 
 			switch output {

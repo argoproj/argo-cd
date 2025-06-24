@@ -126,6 +126,7 @@ func NewServer(
 }
 
 func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*v1alpha1.ApplicationSet, error) {
+
 	appSetName := q.GetName()
 	appSetNamespace := s.appsetNamespaceOrDefault(q.GetAppsetNamespace())
 
@@ -148,14 +149,7 @@ func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetGetQue
 		return nil, err
 	}
 
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, errors.New("applicationset deadline exceeded")
-		case event := <-events:
-			return event.ApplicationSet.DeepCopy(), nil
-		}
-	}
+	return a.DeepCopy(), nil
 }
 
 // List returns list of ApplicationSets
