@@ -1630,7 +1630,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				if !confirmAll {
 					confirm, confirmAll = promptUtil.ConfirmBaseOnCount(messageForSingle, messageForAll, numOfApps)
 				}
-				if confirm || confirmAll {
+				if confirm == "y" || confirmAll == "a" {
 					_, err := appIf.Delete(ctx, &appDeleteReq)
 					errors.CheckError(err)
 					if wait {
