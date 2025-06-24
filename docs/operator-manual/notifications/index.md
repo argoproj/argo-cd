@@ -113,3 +113,7 @@ metadata:
     both notifications will be sent according to its own configuration.
 
 [Defining and using secrets within notification templates](templates/#defining-and-using-secrets-within-notification-templates) function is not available when flag `--self-service-notification-enable` is on.
+
+## Namespace Scoped installation to observer multiple namespaces
+
+If notifications controller is installed in namespaced mode then using flag `--namespaced-mode-multi-namespace-enabled` as true, would enable this controller to start watching configmap named `argocd-notifications-cm` and secret `argocd-notifications-secret` in the namespace where the Argo CD application lives, across namespaces defined in `--application-namespaces`. To use this featue flag `--self-service-notification-enable` should be off.
