@@ -270,6 +270,9 @@ stringData:
     -----END OPENSSH PRIVATE KEY-----
 ```
 
+!!! tip
+The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#ssh-authentication-secrets).
+
 #### Google Cloud Source Repositories
 
 * `gcpServiceAccountKey` - a GCP Service Account access key
@@ -304,9 +307,6 @@ stringData:
 #### Azure Container Registry/Azure Repos using Azure Workload Identity
 
 Refer to [Azure Container Registry/Azure Repos using Azure Workload Identity](../user-guide/private-repositories.md#azure-container-registryazure-repos-using-azure-workload-identity).
-
-!!! tip
-    The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys).
 
 ### Credential templates
 
