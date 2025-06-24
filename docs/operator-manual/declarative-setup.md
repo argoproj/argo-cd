@@ -211,10 +211,10 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   type: git
-  url: "https://github.com/argoproj/private-repo"
-  password: "my-password"
-  username: "my-username"
-  project: "my-project"
+  url: https://github.com/argoproj/private-repo
+  password: my-password
+  username: my-username
+  project: my-project
 ```
 
 #### SSH
@@ -233,7 +233,7 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   type: git
-  url: 'git@github.com:argoproj/my-private-repository.git'
+  url: git@github.com:argoproj/my-private-repository.git
   sshPrivateKey: |
     -----BEGIN OPENSSH PRIVATE KEY-----
     ...
@@ -260,10 +260,10 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   type: git
-  url: 'https://ghe.example.com/argoproj/my-private-repository'
+  url: https://ghe.example.com/argoproj/my-private-repository
   githubAppID: '1'
   githubAppInstallationID: '2'
-  githubAppEnterpriseBaseUrl: 'https://ghe.example.com/api/v3'
+  githubAppEnterpriseBaseUrl: https://ghe.example.com/api/v3
   githubAppPrivateKey: |
     -----BEGIN OPENSSH PRIVATE KEY-----
     ...
