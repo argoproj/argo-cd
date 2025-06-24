@@ -337,9 +337,9 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   type: git
-  url: 'https://github.com/argoproj/special-repo'
-  username: 'my-special-username'
-  password: 'my-special-password'
+  url: https://github.com/argoproj/special-repo
+  username: my-special-username
+  password: my-special-password
 ---
 apiVersion: v1
 kind: Secret
@@ -350,9 +350,9 @@ metadata:
     argocd.argoproj.io/secret-type: repo-creds
 stringData:
   type: git
-  url: 'https://github.com/argoproj'
-  username: 'my-template-username'
-  password: 'my-template-password'
+  url: https://github.com/argoproj
+  username: my-template-username
+  password: my-template-password
 ```
 
 In this example, the repo...
@@ -381,11 +381,11 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   type: git
-  url: 'https://github.com/argoproj/private-repo'
-  proxy: 'https://proxy-server-url:8888'
+  url: https://github.com/argoproj/private-repo
+  proxy: https://proxy-server-url:8888
   noProxy: '.internal.example.com,company.org,10.123.0.0/16'
-  username: 'my-username'
-  password: 'my-password'
+  username: my-username
+  password: my-password
 ```
 
 !!! warning
