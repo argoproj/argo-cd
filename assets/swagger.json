@@ -6733,7 +6733,7 @@
         },
         "roles": {
           "type": "array",
-          "title": "Roles are user defined RBAC roles associated with this project",
+          "title": "Roles are user defined RBAC roles associated with this project\n+patchMergeKey=name\n+patchStrategy=merge",
           "items": {
             "$ref": "#/definitions/v1alpha1ProjectRole"
           }
@@ -7338,7 +7338,7 @@
         },
         "fileParameters": {
           "type": "array",
-          "title": "FileParameters are file parameters to the helm template",
+          "title": "FileParameters are file parameters to the helm template\n+patchMergeKey=name\n+patchStrategy=merge",
           "items": {
             "$ref": "#/definitions/v1alpha1HelmFileParameter"
           }
@@ -7357,7 +7357,7 @@
         },
         "parameters": {
           "type": "array",
-          "title": "Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation",
+          "title": "Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation\n+patchMergeKey=name\n+patchStrategy=merge",
           "items": {
             "$ref": "#/definitions/v1alpha1HelmParameter"
           }
@@ -7408,7 +7408,7 @@
       "properties": {
         "extVars": {
           "type": "array",
-          "title": "ExtVars is a list of Jsonnet External Variables",
+          "title": "ExtVars is a list of Jsonnet External Variables\n+patchMergeKey=name\n+patchStrategy=merge",
           "items": {
             "$ref": "#/definitions/v1alpha1JsonnetVar"
           }
@@ -7422,7 +7422,7 @@
         },
         "tlas": {
           "type": "array",
-          "title": "TLAS is a list of Jsonnet Top-level Arguments",
+          "title": "TLAS is a list of Jsonnet Top-level Arguments\n+patchMergeKey=name\n+patchStrategy=merge",
           "items": {
             "$ref": "#/definitions/v1alpha1JsonnetVar"
           }
@@ -7592,7 +7592,7 @@
         },
         "info": {
           "type": "array",
-          "title": "Info contains a list of information (URLs, email addresses, and plain text) that relates to the application",
+          "title": "Info contains a list of information (URLs, email addresses, and plain text) that relates to the application\n+patchMergeKey=name\n+patchStrategy=merge",
           "items": {
             "$ref": "#/definitions/v1alpha1Info"
           }
@@ -8506,6 +8506,7 @@
       "properties": {
         "items": {
           "type": "array",
+          "title": "+patchMergeKey=id\n+patchStrategy=merge",
           "items": {
             "$ref": "#/definitions/v1alpha1JWTToken"
           }
