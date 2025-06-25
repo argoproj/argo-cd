@@ -1628,9 +1628,11 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				messageForAll := "Are you sure you want to delete '" + appFullName + "' and all its resources? [y/n/a] where 'a' is to delete all specified apps and their resources without prompting "
 
 				if !confirmAll {
-					confirm, confirmAll = promptUtil.ConfirmBaseOnCount(messageForSingle, messageForAll, numOfApps)
+					confirmResult := promptUtil.ConfirmBaseOnCount(messageForSingle, messageForAll, numOfApps)
+            		confirm = confirmResult.Confirm
+            		confirmAll = confirmResult.ConfirmAll
 				}
-				if confirm == "y" || confirmAll == "a" {
+				if confirm || confirmAll {
 					_, err := appIf.Delete(ctx, &appDeleteReq)
 					errors.CheckError(err)
 					if wait {
