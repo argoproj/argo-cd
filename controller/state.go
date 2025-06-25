@@ -664,6 +664,20 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	return &compRes, nil
 }
 
+type appStateCmp struct {
+	now              metav1.Time
+	logCtx           *log.Entry
+	app              *v1alpha1.Application
+	project          *v1alpha1.AppProject
+	noCache          bool
+	cmpSettings      *comparisonSettings
+	verifySignature  bool
+	targetObjs       []*unstructured.Unstructured
+	manifestInfos    []*apiclient.ManifestResponse
+	failedToLoadObjs bool
+	conditions       []v1alpha1.ApplicationCondition
+}
+
 func (cmp *appStateCmp) amendComparisonResults(compRes comparisonResult, hasMultipleSources bool) {
 	if hasMultipleSources {
 		for _, manifestInfo := range cmp.manifestInfos {
@@ -700,20 +714,20 @@ func (cmp *appStateCmp) syncStatus(hasMultipleSources bool, sources []v1alpha1.A
 			Status:    syncCode,
 			Revisions: manifestRevisions,
 		}
-	} else {
-		var revision string
-		if len(manifestRevisions) > 0 {
-			revision = manifestRevisions[0]
-		}
-		return v1alpha1.SyncStatus{
-			ComparedTo: v1alpha1.ComparedTo{
-				Destination:       cmp.app.Spec.Destination,
-				Source:            cmp.app.Spec.GetSource(),
-				IgnoreDifferences: cmp.app.Spec.IgnoreDifferences,
-			},
-			Status:   syncCode,
-			Revision: revision,
-		}
+	}
+
+	var revision string
+	if len(manifestRevisions) > 0 {
+		revision = manifestRevisions[0]
+	}
+	return v1alpha1.SyncStatus{
+		ComparedTo: v1alpha1.ComparedTo{
+			Destination:       cmp.app.Spec.Destination,
+			Source:            cmp.app.Spec.GetSource(),
+			IgnoreDifferences: cmp.app.Spec.IgnoreDifferences,
+		},
+		Status:   syncCode,
+		Revision: revision,
 	}
 }
 
@@ -982,20 +996,6 @@ func (m *appStateManager) getLiveManifests(cmp *appStateCmp, destCluster *v1alph
 	}
 
 	return liveObjByKey
-}
-
-type appStateCmp struct {
-	now              metav1.Time
-	logCtx           *log.Entry
-	app              *v1alpha1.Application
-	project          *v1alpha1.AppProject
-	noCache          bool
-	cmpSettings      *comparisonSettings
-	verifySignature  bool
-	targetObjs       []*unstructured.Unstructured
-	manifestInfos    []*apiclient.ManifestResponse
-	failedToLoadObjs bool
-	conditions       []v1alpha1.ApplicationCondition
 }
 
 func (cmp *appStateCmp) addConditions(condition ...v1alpha1.ApplicationCondition) {
