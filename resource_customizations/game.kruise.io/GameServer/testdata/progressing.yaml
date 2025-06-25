@@ -1,0 +1,7 @@
+apiVersion: game.kruise.io/v1alpha1
+kind: GameServer
+metadata:
+  name: gs-progressing
+status:
+  currentState: "Creating"
+  desiredState: "Ready"
