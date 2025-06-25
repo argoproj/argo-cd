@@ -41,7 +41,7 @@ func SameURL(leftRepo, rightRepo string) bool {
 	return normalLeft != "" && normalRight != "" && normalLeft == normalRight
 }
 
-// Similar to NormalizeGitURL, except returning an original url if the url is invalid.
+// NormalizeGitURLAllowInvalid is similar to NormalizeGitURL, except returning an original url if the url is invalid.
 // Needed to allow a deletion of repos with invalid urls. See https://github.com/argoproj/argo-cd/issues/20921.
 func NormalizeGitURLAllowInvalid(repo string) string {
 	normalized := NormalizeGitURL(repo)

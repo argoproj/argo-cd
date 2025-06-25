@@ -1,6 +1,10 @@
 package hydrator
 
 import (
+	"github.com/argoproj/argo-cd/v3/controller/hydrator/mocks"
+	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
+	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/mock"
 	"testing"
 	"time"
 
@@ -100,4 +104,65 @@ func Test_appNeedsHydration(t *testing.T) {
 			assert.Equal(t, tc.expectedMessage, message)
 		})
 	}
+}
+
+func Test_getRelevantAppsForHydration_RepoURLNormalization(t *testing.T) {
+	t.Parallel()
+
+	d := mocks.NewDependencies(t)
+	d.On("GetProcessableApps").Return(&v1alpha1.ApplicationList{
+		Items: []v1alpha1.Application{
+			{
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "project",
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        "https://example.com/repo.git",
+							TargetRevision: "main",
+							Path: "app1",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							TargetBranch: "main",
+							Path:         "app1",
+						},
+					},
+				},
+			},
+			{
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "project",
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        "https://example.com/repo",
+							TargetRevision: "main",
+							Path: "app2",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							TargetBranch: "main",
+							Path:         "app2",
+						},
+					},
+				},
+			},
+		},
+	}, nil)
+	d.On("GetProcessableAppProj", mock.Anything).Return(&v1alpha1.AppProject{
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos: []string{"https://example.com/*"},
+		},
+	}, nil)
+
+	hydrator := &Hydrator{dependencies: d}
+
+	hydrationKey := types.HydrationQueueKey{
+		SourceRepoURL:        "https://example.com/repo",
+		SourceTargetRevision: "main",
+		DestinationBranch:    "main",
+	}
+
+	logCtx := log.WithField("test", "RepoURLNormalization")
+	relevantApps, err := hydrator.getRelevantAppsForHydration(logCtx, hydrationKey)
+
+	assert.NoError(t, err)
+	assert.Len(t, relevantApps, 2, "Expected both apps to be considered relevant despite URL differences")
 }

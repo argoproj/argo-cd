@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -35,7 +37,7 @@ type Dependencies interface {
 	RequestAppRefresh(appName string, appNamespace string) error
 	// TODO: only allow access to the hydrator status
 	PersistAppHydratorStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus)
-	AddHydrationQueueItem(key HydrationQueueKey)
+	AddHydrationQueueItem(key types.HydrationQueueKey)
 }
 
 type Hydrator struct {
@@ -89,27 +91,24 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	logCtx.Debug("Successfully processed app hydrate queue item")
 }
 
-func getHydrationQueueKey(app *appv1.Application) HydrationQueueKey {
+func getHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {
 	destinationBranch := app.Spec.SourceHydrator.SyncSource.TargetBranch
 	if app.Spec.SourceHydrator.HydrateTo != nil {
 		destinationBranch = app.Spec.SourceHydrator.HydrateTo.TargetBranch
 	}
-	key := HydrationQueueKey{
-		SourceRepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
+	key := types.HydrationQueueKey{
+		SourceRepoURL:        git.NormalizeGitURLAllowInvalid(app.Spec.SourceHydrator.DrySource.RepoURL),
 		SourceTargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
 		DestinationBranch:    destinationBranch,
 	}
 	return key
 }
 
-type HydrationQueueKey struct {
-	SourceRepoURL        string
-	SourceTargetRevision string
-	DestinationBranch    string
-}
-
 // uniqueHydrationDestination is used to detect duplicate hydrate destinations.
 type uniqueHydrationDestination struct {
+	// sourceRepoURL must be normalized with git.NormalizeGitURL to ensure that two apps with different URL formats
+	// don't end up in two different hydration queue items. Failing to normalize would result in one hydrated commit for
+	// each unique URL.
 	//nolint:unused // used as part of a map key
 	sourceRepoURL string
 	//nolint:unused // used as part of a map key
@@ -120,7 +119,7 @@ type uniqueHydrationDestination struct {
 	destinationPath string
 }
 
-func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey HydrationQueueKey) (processNext bool) {
+func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKey) (processNext bool) {
 	logCtx := log.WithFields(log.Fields{
 		"sourceRepoURL":        hydrationKey.SourceRepoURL,
 		"sourceTargetRevision": hydrationKey.SourceTargetRevision,
@@ -177,7 +176,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey HydrationQueueKey) (pr
 	return
 }
 
-func (h *Hydrator) hydrateAppsLatestCommit(logCtx *log.Entry, hydrationKey HydrationQueueKey) ([]*appv1.Application, string, string, error) {
+func (h *Hydrator) hydrateAppsLatestCommit(logCtx *log.Entry, hydrationKey types.HydrationQueueKey) ([]*appv1.Application, string, string, error) {
 	relevantApps, err := h.getRelevantAppsForHydration(logCtx, hydrationKey)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to get relevant apps for hydration: %w", err)
@@ -191,7 +190,7 @@ func (h *Hydrator) hydrateAppsLatestCommit(logCtx *log.Entry, hydrationKey Hydra
 	return relevantApps, dryRevision, hydratedRevision, nil
 }
 
-func (h *Hydrator) getRelevantAppsForHydration(logCtx *log.Entry, hydrationKey HydrationQueueKey) ([]*appv1.Application, error) {
+func (h *Hydrator) getRelevantAppsForHydration(logCtx *log.Entry, hydrationKey types.HydrationQueueKey) ([]*appv1.Application, error) {
 	// Get all apps
 	apps, err := h.dependencies.GetProcessableApps()
 	if err != nil {
@@ -205,7 +204,7 @@ func (h *Hydrator) getRelevantAppsForHydration(logCtx *log.Entry, hydrationKey H
 			continue
 		}
 
-		if app.Spec.SourceHydrator.DrySource.RepoURL != hydrationKey.SourceRepoURL ||
+		if !git.SameURL(app.Spec.SourceHydrator.DrySource.RepoURL, hydrationKey.SourceRepoURL) ||
 			app.Spec.SourceHydrator.DrySource.TargetRevision != hydrationKey.SourceTargetRevision {
 			continue
 		}
@@ -230,7 +229,7 @@ func (h *Hydrator) getRelevantAppsForHydration(logCtx *log.Entry, hydrationKey H
 		}
 
 		uniqueDestinationKey := uniqueHydrationDestination{
-			sourceRepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
+			sourceRepoURL:        git.NormalizeGitURLAllowInvalid(app.Spec.SourceHydrator.DrySource.RepoURL),
 			sourceTargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
 			destinationBranch:    destinationBranch,
 			destinationPath:      app.Spec.SourceHydrator.SyncSource.Path,
