@@ -621,14 +621,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	syncCode, managedResources, resourceSummaries := m.evaluateReconciliation(
 		cmp, reconciliation, trackingMethod, installationID, diffResults, destCluster,
 	)
-	if cmp.failedToLoadObjs {
-		syncCode = v1alpha1.SyncStatusCodeUnknown
-	} else if app.HasChangedManagedNamespaceMetadata() {
-		syncCode = v1alpha1.SyncStatusCodeOutOfSync
-	}
 
 	syncStatus := cmp.syncStatus(hasMultipleSources, sources, syncCode)
-
 	ts.AddCheckpoint("sync_ms")
 
 	healthStatus, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth)
@@ -636,14 +630,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, "error setting app health: "+err.Error())
 	}
 
-	// Git has already performed the signature verification via its GPG interface, and the result is available
-	// in the manifest info received from the repository server. We now need to form our opinion about the result
-	// and stop processing if we do not agree about the outcome.
-	for _, manifestInfo := range cmp.manifestInfos {
-		if gpg.IsGPGEnabled() && cmp.verifySignature && manifestInfo != nil {
-			cmp.addConditions(verifyGnuPGSignature(manifestInfo.Revision, project, manifestInfo)...)
-		}
-	}
+	cmp.verifyGnuPGSignatures()
 
 	compRes := comparisonResult{
 		syncStatus:              &syncStatus,
@@ -656,17 +643,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		hasPostDeleteHooks:      cmp.hasPostDeleteHooks(),
 		revisionsMayHaveChanges: revisionsMayHaveChanges,
 	}
-
-	if hasMultipleSources {
-		for _, manifestInfo := range cmp.manifestInfos {
-			compRes.appSourceTypes = append(compRes.appSourceTypes, v1alpha1.ApplicationSourceType(manifestInfo.SourceType))
-		}
-	} else {
-		for _, manifestInfo := range cmp.manifestInfos {
-			compRes.appSourceType = v1alpha1.ApplicationSourceType(manifestInfo.SourceType)
-			break
-		}
-	}
+	cmp.amendComparisonResults(compRes, hasMultipleSources)
 
 	app.Status.SetConditions(cmp.conditions, map[v1alpha1.ApplicationConditionType]bool{
 		v1alpha1.ApplicationConditionComparisonError:         true,
@@ -677,6 +654,30 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	ts.AddCheckpoint("health_ms")
 	compRes.timings = ts.Timings()
 	return &compRes, nil
+}
+
+func (cmp *appStateCmp) amendComparisonResults(compRes comparisonResult, hasMultipleSources bool) {
+	if hasMultipleSources {
+		for _, manifestInfo := range cmp.manifestInfos {
+			compRes.appSourceTypes = append(compRes.appSourceTypes, v1alpha1.ApplicationSourceType(manifestInfo.SourceType))
+		}
+	} else {
+		for _, manifestInfo := range cmp.manifestInfos {
+			compRes.appSourceType = v1alpha1.ApplicationSourceType(manifestInfo.SourceType)
+			break
+		}
+	}
+}
+
+func (cmp *appStateCmp) verifyGnuPGSignatures() {
+	// Git has already performed the signature verification via its GPG interface, and the result is available
+	// in the manifest info received from the repository server. We now need to form our opinion about the result
+	// and stop processing if we do not agree about the outcome.
+	for _, manifestInfo := range cmp.manifestInfos {
+		if gpg.IsGPGEnabled() && cmp.verifySignature && manifestInfo != nil {
+			cmp.addConditions(verifyGnuPGSignature(manifestInfo.Revision, cmp.project, manifestInfo)...)
+		}
+	}
 }
 
 func (cmp *appStateCmp) syncStatus(hasMultipleSources bool, sources []v1alpha1.ApplicationSource, syncCode v1alpha1.SyncStatusCode) v1alpha1.SyncStatus {
@@ -811,6 +812,13 @@ func (m *appStateManager) evaluateReconciliation(cmp *appStateCmp, reconciliatio
 		}
 		resourceSummaries[i] = resState
 	}
+
+	if cmp.failedToLoadObjs {
+		syncCode = v1alpha1.SyncStatusCodeUnknown
+	} else if cmp.app.HasChangedManagedNamespaceMetadata() {
+		syncCode = v1alpha1.SyncStatusCodeOutOfSync
+	}
+
 	return syncCode, managedResources, resourceSummaries
 }
 
