@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -29,6 +28,7 @@ import (
 	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
+	"github.com/argoproj/argo-cd/v3/controller/syncid"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	listersv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
@@ -38,10 +38,7 @@ import (
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
 	"github.com/argoproj/argo-cd/v3/util/lua"
-	"github.com/argoproj/argo-cd/v3/util/rand"
 )
-
-var syncIdPrefix uint64
 
 const (
 	// EnvVarSyncWaveDelay is an environment variable which controls the delay in seconds between
@@ -96,6 +93,14 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult field.
 	// This ensures that when resuming an operation, we sync to the same revision that we initially
 	// started with.
+	syncId, err := syncid.Generate()
+	if err != nil {
+		state.Phase = common.OperationError
+		state.Message = fmt.Sprintf("Failed to generate sync ID: %v", err)
+		return
+	}
+	logEntry := log.WithFields(applog.GetAppLogFields(app)).WithField("syncId", syncId)
+
 	var revision string
 	var syncOp v1alpha1.SyncOperation
 	var syncRes *v1alpha1.SyncOperationResult
@@ -248,16 +253,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	atomic.AddUint64(&syncIdPrefix, 1)
-	randSuffix, err := rand.String(5)
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = fmt.Sprintf("Failed generate random sync ID: %v", err)
-		return
-	}
-	syncId := fmt.Sprintf("%05d-%s", syncIdPrefix, randSuffix)
-
-	logEntry := log.WithFields(applog.GetAppLogFields(app)).WithField("syncId", syncId)
 	initialResourcesRes := make([]common.ResourceSyncResult, len(syncRes.Resources))
 	for i, res := range syncRes.Resources {
 		key := kube.ResourceKey{Group: res.Group, Kind: res.Kind, Namespace: res.Namespace, Name: res.Name}
@@ -329,7 +324,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 	if impersonationEnabled {
-		serviceAccountToImpersonate, err := deriveServiceAccountToImpersonate(proj, app)
+		serviceAccountToImpersonate, err := deriveServiceAccountToImpersonate(proj, app, destCluster)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to find a matching service account to impersonate: %v", err)
@@ -612,7 +607,7 @@ func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject
 
 // deriveServiceAccountToImpersonate determines the service account to be used for impersonation for the sync operation.
 // The returned service account will be fully qualified including namespace and the service account name in the format system:serviceaccount:<namespace>:<service_account>
-func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application *v1alpha1.Application) (string, error) {
+func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application *v1alpha1.Application, destCluster *v1alpha1.Cluster) (string, error) {
 	// spec.Destination.Namespace is optional. If not specified, use the Application's
 	// namespace
 	serviceAccountNamespace := application.Spec.Destination.Namespace
@@ -622,7 +617,7 @@ func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application
 	// Loop through the destinationServiceAccounts and see if there is any destination that is a candidate.
 	// if so, return the service account specified for that destination.
 	for _, item := range project.Spec.DestinationServiceAccounts {
-		dstServerMatched, err := glob.MatchWithError(item.Server, application.Spec.Destination.Server)
+		dstServerMatched, err := glob.MatchWithError(item.Server, destCluster.Server)
 		if err != nil {
 			return "", fmt.Errorf("invalid glob pattern for destination server: %w", err)
 		}
