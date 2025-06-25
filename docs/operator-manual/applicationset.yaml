@@ -227,6 +227,9 @@ spec:
   - pullRequest:
       # When using a Pull Request generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
       requeueAfterSeconds: 1800
+      # When set to true, the ApplicationSet controller will continue to generate Applications even if the repository is not found, and will not enter a failed state.
+      # One example use case is when a pull request generator is combined with a Git generator in a matrix generator.
+      continueOnRepoNotFoundError: false
       # See below for provider specific options.
       # Specify the repository from which to fetch the GitHub Pull requests.
       github:
