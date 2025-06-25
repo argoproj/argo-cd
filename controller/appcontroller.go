@@ -1397,7 +1397,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		terminating = state.Phase == synccommon.OperationTerminating
 		switch {
 		case state.FinishedAt != nil && !terminating:
-			// Failed operation with retry strategy might have be in-progress and has completion time
+			// Failed operation with retry strategy might be in-progress and has completion time
 			retryAt, err := app.Status.OperationState.Operation.Retry.NextRetryAt(state.FinishedAt.Time, state.RetryCount)
 			if err != nil {
 				state.Phase = synccommon.OperationError
