@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"html"
-	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -46,7 +45,6 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 		ssoPort          int
 		skipTestTLS      bool
 		ssoLaunchBrowser bool
-		passwordStdin    bool
 	)
 	command := &cobra.Command{
 		Use:   "login SERVER",
@@ -84,13 +82,6 @@ argocd login cd.argoproj.io --core`,
 					errors.CheckError(err)
 					if !tlsTestResult.TLS {
 						if !globalClientOpts.PlainText {
-							// If --password-stdin is used, we cannot prompt the user for TLS confirmation
-							// because stdin is already being consumed by the password input.
-							// Prompting in this case would result in an EOF or hang.
-							// To proceed securely in scripts, the user must explicitly pass --insecure.
-							if passwordStdin {
-								errors.CheckError(fmt.Errorf("--password-stdin used, but cannot prompt for TLS confirmation. Use --insecure to skip confirmation"))
-							}
 							if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
 								os.Exit(1)
 							}
@@ -98,13 +89,6 @@ argocd login cd.argoproj.io --core`,
 						}
 					} else if tlsTestResult.InsecureErr != nil {
 						if !globalClientOpts.Insecure {
-							// If --password-stdin is used, we cannot prompt the user for TLS confirmation
-							// because stdin is already being consumed by the password input.
-							// Prompting in this case would result in an EOF or hang.
-							// To proceed securely in scripts, the user must explicitly pass --insecure.
-							if passwordStdin {
-								errors.CheckError(fmt.Errorf("--password-stdin used, but cannot prompt for TLS confirmation. Use --insecure to skip confirmation"))
-							}
 							if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
 								os.Exit(1)
 							}
@@ -145,12 +129,6 @@ argocd login cd.argoproj.io --core`,
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
 				defer utilio.Close(setConn)
 				if !sso {
-					if passwordStdin {
-						input, err := io.ReadAll(os.Stdin)
-						errors.CheckError(err)
-						password = strings.TrimSuffix(string(input), "\n")
-						password = strings.TrimSuffix(password, "\r")
-					}
 					tokenString = passwordLogin(ctx, acdClient, username, password)
 				} else {
 					httpClient, err := acdClient.HTTPClient()
@@ -209,7 +187,6 @@ argocd login cd.argoproj.io --core`,
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
 	command.Flags().BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
 	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the system default browser when performing SSO login")
-	command.Flags().BoolVar(&passwordStdin, "password-stdin", false, "Read password from stdin")
 	return command
 }
 
