@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRepositoryNotFoundError(t *testing.T) {
@@ -12,7 +13,7 @@ func TestRepositoryNotFoundError(t *testing.T) {
 		originalErr := errors.New("repository does not exist")
 		repoNotFoundErr := NewRepositoryNotFoundError(originalErr)
 
-		assert.Error(t, repoNotFoundErr)
+		require.Error(t, repoNotFoundErr)
 		assert.Equal(t, "repository does not exist", repoNotFoundErr.Error())
 	})
 

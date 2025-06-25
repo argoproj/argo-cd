@@ -518,7 +518,7 @@ func TestBitbucketServerListReturnsRepositoryNotFoundError(t *testing.T) {
 
 	path := "/rest/api/1.0/projects/nonexistent/repos/nonexistent/pull-requests?limit=100"
 
-	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(path, func(w http.ResponseWriter, _ *http.Request) {
 		// Return 404 status to simulate repository not found
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
@@ -533,6 +533,6 @@ func TestBitbucketServerListReturnsRepositoryNotFoundError(t *testing.T) {
 	assert.Empty(t, prs)
 
 	// Should return RepositoryNotFoundError
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
 }

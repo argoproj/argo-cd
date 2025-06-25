@@ -346,14 +346,14 @@ func TestGiteaListReturnsRepositoryNotFoundError(t *testing.T) {
 	defer server.Close()
 
 	// Handle version endpoint that Gitea client calls first
-	mux.HandleFunc("/api/v1/version", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/version", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"version":"1.17.0+dev-452-g1f0541780"}`))
 	})
 
 	path := "/api/v1/repos/nonexistent/nonexistent/pulls?limit=0&page=1&state=open"
 
-	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(path, func(w http.ResponseWriter, _ *http.Request) {
 		// Return 404 status to simulate repository not found
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
@@ -368,6 +368,6 @@ func TestGiteaListReturnsRepositoryNotFoundError(t *testing.T) {
 	assert.Empty(t, prs)
 
 	// Should return RepositoryNotFoundError
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
 }

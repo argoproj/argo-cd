@@ -500,7 +500,7 @@ func TestBitbucketCloudListReturnsRepositoryNotFoundError(t *testing.T) {
 
 	path := "/repositories/nonexistent/nonexistent/pullrequests/"
 
-	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(path, func(w http.ResponseWriter, _ *http.Request) {
 		// Return 404 status to simulate repository not found
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
@@ -515,6 +515,6 @@ func TestBitbucketCloudListReturnsRepositoryNotFoundError(t *testing.T) {
 	assert.Empty(t, prs)
 
 	// Should return RepositoryNotFoundError
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
 }

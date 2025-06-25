@@ -2,7 +2,7 @@ package pull_request
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
@@ -251,7 +251,7 @@ func TestAzureDevOpsListReturnsRepositoryNotFoundError(t *testing.T) {
 
 	// Mock the GetPullRequestsByProject to return an error containing "404"
 	gitClientMock.On("GetPullRequestsByProject", t.Context(), args).Return(&pullRequestMock,
-		fmt.Errorf("404 Project Not Found"))
+		errors.New("404 Project Not Found"))
 
 	provider := AzureDevOpsService{
 		clientFactory: clientFactoryMock,
@@ -266,6 +266,6 @@ func TestAzureDevOpsListReturnsRepositoryNotFoundError(t *testing.T) {
 	assert.Empty(t, prs)
 
 	// Should return RepositoryNotFoundError
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
 }

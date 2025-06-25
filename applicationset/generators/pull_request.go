@@ -80,10 +80,8 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			log.WithError(err).WithField("generator", g).
 				Warn("Skipping params generation for this repository since it was not found.")
 			return params, nil
-		} else {
-			return nil, fmt.Errorf("error listing repos: %w", err)
 		}
-
+		return nil, fmt.Errorf("error listing repos: %w", err)
 	}
 
 	// In order to follow the DNS label standard as defined in RFC 1123,
