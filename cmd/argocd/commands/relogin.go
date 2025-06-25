@@ -2,10 +2,11 @@ package commands
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/coreos/go-oidc/v3/oidc"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"os"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"

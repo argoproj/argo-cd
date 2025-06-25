@@ -34,7 +34,6 @@ argocd login cd.argoproj.io --core
 ```
   -h, --help                 help for relogin
       --password string      The password of an account to authenticate
-      --password-stdin       Read password from stdin
       --sso-launch-browser   Automatically launch the default browser when performing SSO login (default true)
       --sso-port int         Port to run local OAuth2 login application (default 8085)
 ```
