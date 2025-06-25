@@ -2,6 +2,7 @@ package pull_request
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
@@ -234,4 +235,37 @@ func TestBuildURL(t *testing.T) {
 			assert.Equal(t, tc.expected, result)
 		})
 	}
+}
+
+func TestAzureDevOpsListReturnsRepositoryNotFoundError(t *testing.T) {
+	args := git.GetPullRequestsByProjectArgs{
+		Project:        createStringPtr("nonexistent"),
+		SearchCriteria: &git.GitPullRequestSearchCriteria{},
+	}
+
+	pullRequestMock := []git.GitPullRequest{}
+
+	gitClientMock := azureMock.Client{}
+	clientFactoryMock := &AzureClientFactoryMock{mock: &mock.Mock{}}
+	clientFactoryMock.mock.On("GetClient", mock.Anything).Return(&gitClientMock, nil)
+
+	// Mock the GetPullRequestsByProject to return an error containing "404"
+	gitClientMock.On("GetPullRequestsByProject", t.Context(), args).Return(&pullRequestMock,
+		fmt.Errorf("404 Project Not Found"))
+
+	provider := AzureDevOpsService{
+		clientFactory: clientFactoryMock,
+		project:       "nonexistent",
+		repo:          "nonexistent",
+		labels:        nil,
+	}
+
+	prs, err := provider.List(t.Context())
+
+	// Should return empty pull requests list
+	assert.Empty(t, prs)
+
+	// Should return RepositoryNotFoundError
+	assert.Error(t, err)
+	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
 }

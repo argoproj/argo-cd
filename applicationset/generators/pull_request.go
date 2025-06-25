@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -77,11 +76,9 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	pulls, err := pullrequest.ListPullRequests(ctx, svc, appSetGenerator.PullRequest.Filters)
 	params := make([]map[string]any, 0, len(pulls))
 	if err != nil {
-		errStr := strings.ToLower(err.Error())
-		if (strings.Contains(errStr, "404") ||
-			strings.Contains(strings.ToLower(errStr), "not found")) && g.GetContinueOnRepoNotFoundError(appSetGenerator) {
+		if pullrequest.IsRepositoryNotFoundError(err) && g.GetContinueOnRepoNotFoundError(appSetGenerator) {
 			log.WithError(err).WithField("generator", g).
-				Warn("Skipping params generation for this repository since it was not found. Some")
+				Warn("Skipping params generation for this repository since it was not found.")
 			return params, nil
 		} else {
 			return nil, fmt.Errorf("error listing repos: %w", err)
