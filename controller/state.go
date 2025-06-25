@@ -549,15 +549,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	ts := stats.NewTimingStats()
 
 	cmpSettings, err := m.getComparisonSettings()
-
 	ts.AddCheckpoint("settings_ms")
-
-	// return unknown comparison result if basic comparison settings cannot be loaded
 	if err != nil {
 		return unknownComparisonResults(app, hasMultipleSources, revisions, sources), nil
 	}
 
-	// do best effort loading live and target state to present as much information about app state as possible
 	cmp := &appStateCmp{
 		metav1.Now(),
 		log.WithFields(applog.GetAppLogFields(app)),
@@ -579,7 +575,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	if err != nil {
 		return nil, err
 	}
-
 	cmp.logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
 
 	revisionsMayHaveChanges, err := m.fetchManifests(cmp, revisions, sources, noRevisionCache, localManifests)
@@ -616,7 +611,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	ts.AddCheckpoint("dedup_ms")
 
 	liveObjByKey := m.getLiveManifests(cmp, destCluster)
-
 	m.addManagedNamespaces(cmp, liveObjByKey, targetNsExists)
 	reconciliation := sync.Reconcile(cmp.targetObjs, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 	ts.AddCheckpoint("live_ms")
@@ -636,7 +630,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	syncCode, managedResources, resourceSummaries := m.evaluateReconciliation(
 		cmp, reconciliation, diffResults, destCluster,
 	)
-
 	syncStatus := cmp.syncStatus(hasMultipleSources, sources, syncCode)
 	ts.AddCheckpoint("sync_ms")
 
