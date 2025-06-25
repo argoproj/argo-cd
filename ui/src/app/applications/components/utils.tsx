@@ -1415,8 +1415,8 @@ export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {
     if (spec.sourceHydrator) {
         return {
             repoURL: spec.sourceHydrator.drySource.repoURL,
-            targetRevision: spec.sourceHydrator.syncSource.targetBranch,
-            path: spec.sourceHydrator.syncSource.path
+            targetRevision: spec.sourceHydrator.syncSource?.targetBranch,
+            path: spec.sourceHydrator.syncSource?.path
         };
     }
     return spec.sources && spec.sources.length > 0 ? spec.sources[0] : spec.source;
