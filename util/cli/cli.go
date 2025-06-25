@@ -115,7 +115,6 @@ func PromptPassword(password string) string {
 			input, err := reader.ReadString('\n')
 			errors.CheckError(err)
 			password = strings.TrimSpace(input)
-			fmt.Println("password is", password)
 			return password
 		}
 		password = string(passwordRaw)
