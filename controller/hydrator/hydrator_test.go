@@ -1,16 +1,16 @@
 package hydrator
 
 import (
-	"github.com/argoproj/argo-cd/v3/controller/hydrator/mocks"
-	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
-	log "github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/mock"
 	"testing"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/v3/controller/hydrator/mocks"
+	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
@@ -119,7 +119,7 @@ func Test_getRelevantAppsForHydration_RepoURLNormalization(t *testing.T) {
 						DrySource: v1alpha1.DrySource{
 							RepoURL:        "https://example.com/repo.git",
 							TargetRevision: "main",
-							Path: "app1",
+							Path:           "app1",
 						},
 						SyncSource: v1alpha1.SyncSource{
 							TargetBranch: "main",
@@ -135,7 +135,7 @@ func Test_getRelevantAppsForHydration_RepoURLNormalization(t *testing.T) {
 						DrySource: v1alpha1.DrySource{
 							RepoURL:        "https://example.com/repo",
 							TargetRevision: "main",
-							Path: "app2",
+							Path:           "app2",
 						},
 						SyncSource: v1alpha1.SyncSource{
 							TargetBranch: "main",
@@ -163,6 +163,6 @@ func Test_getRelevantAppsForHydration_RepoURLNormalization(t *testing.T) {
 	logCtx := log.WithField("test", "RepoURLNormalization")
 	relevantApps, err := hydrator.getRelevantAppsForHydration(logCtx, hydrationKey)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, relevantApps, 2, "Expected both apps to be considered relevant despite URL differences")
 }
