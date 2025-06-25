@@ -4,14 +4,14 @@ if obj.status then
     local cur  = obj.status.currentState
     local dest = obj.status.desiredState
 
-    -- 1) 当前状态与期望状态不一致 → Progressing
+    -- 1) Check cur and dest status: Progressing
     if cur ~= dest then
     hs.status = "Progressing"
     hs.message = "State change: " .. (cur or "Unknown") .. " → " .. (dest or "Unknown")
     return hs
     end
 
-    -- 2) Pod 级别检查：关注 KruisePodReady
+    -- 2) Check pod: KruisePodReady
     local podCond = obj.status.podStatus or {}
     for _, c in ipairs(podCond.conditions or {}) do
         if c.type == "KruisePodReady" and c.status ~= "True" then
@@ -21,7 +21,7 @@ if obj.status then
         end
     end
 
-    -- 3) 当前状态与期望均为 Ready → Healthy
+    -- 3) Both ready: Healthy
     if cur == "Ready" and dest == "Ready" then
     hs.status = "Healthy"
     hs.message = "GameServer is Ready"
