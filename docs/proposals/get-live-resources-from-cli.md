@@ -19,7 +19,7 @@ Add the ability to get the live manifest of a resource from the ArgoCD CLI.
 
 ## Open Questions [optional]
 
-- Command sepcific naming convention. (See Implementation Details for what I'm thinking)
+- Command specific naming convention. (See Implementation Details for what I'm thinking)
 
 ## Summary
 
@@ -35,8 +35,8 @@ functionality wrapped into the CLI as well.
 There also already exists CLI commands for deleting and patching a resource. I could not find 
 a specific reason for a get command not existing either.
 
-In inital discussion in the above issues it was decided that there should be two commands. 
-One that gets the live manifest of aresource and the other that displays the IPs of Pods 
+In initial discussion in the above issues it was decided that there should be two commands. 
+One that gets the live manifest of a resource and the other that displays the IPs of Pods 
 in an application. 
 
 This proposal will describe the outline for these commands.
