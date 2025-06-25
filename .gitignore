@@ -8,6 +8,7 @@ ui/dist/app/*
 !ui/dist/app/gitkeep
 site/
 *.iml
+.tilt-bin/
 # delve debug binaries
 cmd/**/debug
 debug.test

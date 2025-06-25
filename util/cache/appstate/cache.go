@@ -88,7 +88,8 @@ func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) 
 	if res.ShardsCount > 1 {
 		for i := int64(1); i < res.ShardsCount; i++ {
 			var shard appv1.ApplicationTree
-			if err = c.GetItem(appResourcesTreeKey(appName, i), &shard); err != nil {
+			err = c.GetItem(appResourcesTreeKey(appName, i), &shard)
+			if err != nil {
 				return err
 			}
 			res.Merge(&shard)

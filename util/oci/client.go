@@ -434,7 +434,8 @@ func saveCompressedImageToPath(ctx context.Context, digest string, repo oras.Rea
 	}
 
 	// Remove redundant ingest folder; this is an artifact from the oras.Copy call above
-	if err = os.RemoveAll(path.Join(tempDir, "ingest")); err != nil {
+	err = os.RemoveAll(path.Join(tempDir, "ingest"))
+	if err != nil {
 		return err
 	}
 

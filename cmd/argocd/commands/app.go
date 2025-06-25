@@ -167,7 +167,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					app.Namespace = appNamespace
 				}
 				if setFinalizer {
-					app.Finalizers = append(app.Finalizers, "resources-finalizer.argocd.argoproj.io")
+					app.Finalizers = append(app.Finalizers, argoappv1.ResourcesFinalizerName)
 				}
 				conn, appIf := argocdClient.NewApplicationClientOrDie()
 				defer utilio.Close(conn)
