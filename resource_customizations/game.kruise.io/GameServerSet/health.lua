@@ -27,7 +27,7 @@ if obj.status and obj.metadata.generation == obj.status.observedGeneration then
 
   -- 4) 就绪不足
   if (obj.status.readyReplicas or 0) < (obj.status.replicas or 0) then
-    hs.status  = "Degraded"
+    hs.status  = "Progressing"
     hs.message = "ReadyReplicas " ..
                  (obj.status.readyReplicas or 0) .. "/" ..
                  (obj.status.replicas or 0) .. ", still progressing"
