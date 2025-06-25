@@ -1750,7 +1750,7 @@ func TestUseDiffCache(t *testing.T) {
 			logger, _ := logrustest.NewNullLogger()
 			log := logrus.NewEntry(logger)
 
-			cmp := &appStateCmp{metav1.Now(), log, tc.app, nil, tc.noCache, false, nil, tc.manifestInfos, false, nil}
+			cmp := &appStateCmp{metav1.Now(), log, tc.app, nil, tc.noCache, nil, false, nil, tc.manifestInfos, false, nil}
 			// When
 			useDiffCache := cmp.useDiffCache(tc.sources, tc.manifestRevisions, tc.statusRefreshTimeout, tc.serverSideDiff)
 
