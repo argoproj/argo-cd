@@ -15,11 +15,11 @@ tests:
   inputPath: testdata/suspended-partition.yaml
 
 - healthStatus:
-    status: Degraded
+    status: Progressing
     message: 'ReadyReplicas 2/3, still progressing'
-  inputPath: testdata/degraded.yaml
+  inputPath: testdata/progressing.yaml
 
 - healthStatus:
     status: Progressing
     message: Waiting for GameServerSet initialization
-  inputPath: testdata/progressing.yaml
+  inputPath: testdata/progressing-init.yaml
