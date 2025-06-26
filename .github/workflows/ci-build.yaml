@@ -25,7 +25,7 @@ permissions:
 
 jobs:
   changes:
-    runs-on: oracle-4cpu-16gb-x86-64
+    runs-on: ubuntu-latest-16-cores
     outputs:
       backend: ${{ steps.filter.outputs.backend_any_changed }}
       frontend: ${{ steps.filter.outputs.frontend_any_changed }}
@@ -50,7 +50,7 @@ jobs:
   check-go:
     name: Ensure Go modules synchronicity
     if: ${{ needs.changes.outputs.backend == 'true' }}
-    runs-on: oracle-4cpu-16gb-x86-64
+    runs-on: ubuntu-latest-16-cores
     needs:
       - changes
     steps:
@@ -71,7 +71,7 @@ jobs:
   build-go:
     name: Build & cache Go code
     if: ${{ needs.changes.outputs.backend == 'true' }}
-    runs-on: oracle-4cpu-16gb-x86-64
+    runs-on: ubuntu-latest-16-cores
     needs:
       - changes
     steps:
@@ -98,7 +98,7 @@ jobs:
       pull-requests: read # for golangci/golangci-lint-action to fetch pull requests
     name: Lint Go code
     if: ${{ needs.changes.outputs.backend == 'true' }}
-    runs-on: oracle-4cpu-16gb-x86-64
+    runs-on: ubuntu-latest-16-cores
     needs:
       - changes
     steps:
@@ -118,7 +118,7 @@ jobs:
   test-go:
     name: Run unit tests for Go packages
     if: ${{ needs.changes.outputs.backend == 'true' }}
-    runs-on: oracle-4cpu-16gb-x86-64
+    runs-on: ubuntu-latest-16-cores
     needs:
       - build-go
       - changes
@@ -182,7 +182,7 @@ jobs:
   test-go-race:
     name: Run unit tests with -race for Go packages
     if: ${{ needs.changes.outputs.backend == 'true' }}
-    runs-on: oracle-4cpu-16gb-x86-64
+    runs-on: ubuntu-latest-16-cores
     needs:
       - build-go
       - changes
@@ -246,7 +246,7 @@ jobs:
   codegen:
     name: Check changes to generated code
     if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.docs == 'true'}}
-    runs-on: oracle-4cpu-16gb-x86-64
+    runs-on: ubuntu-latest-16-cores
     needs:
       - changes
     steps:
@@ -298,7 +298,7 @@ jobs:
     name: Build, test & lint UI code
     # We run UI logic for backend changes so that we have a complete set of coverage documents to send to codecov.
     if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
-    runs-on: oracle-4cpu-16gb-x86-64
+    runs-on: ubuntu-latest-16-cores
     needs:
       - changes
     steps:
@@ -334,7 +334,7 @@ jobs:
         working-directory: ui/
 
   shellcheck:
-    runs-on: oracle-4cpu-16gb-x86-64
+    runs-on: ubuntu-latest-16-cores
     steps:
       - uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
       - run: |
@@ -345,7 +345,7 @@ jobs:
   analyze:
     name: Process & analyze test artifacts
     if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
-    runs-on: oracle-4cpu-16gb-x86-64
+    runs-on: ubuntu-latest-16-cores
     needs:
       - test-go
       - build-ui
@@ -407,7 +407,7 @@ jobs:
   test-e2e:
     name: Run end-to-end tests
     if: ${{ needs.changes.outputs.backend == 'true' }}
-    runs-on: oracle-4cpu-16gb-x86-64
+    runs-on: ubuntu-latest-16-cores
     strategy:
       fail-fast: false
       matrix:
@@ -550,7 +550,7 @@ jobs:
     needs:
       - test-e2e
       - changes
-    runs-on: oracle-4cpu-16gb-x86-64
+    runs-on: ubuntu-latest-16-cores
     steps:
       - run: |
           result="${{ needs.test-e2e.result }}"
