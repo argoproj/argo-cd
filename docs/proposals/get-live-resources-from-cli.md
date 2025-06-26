@@ -103,13 +103,14 @@ To Get Something Else
 
 ```
 Flag | Type | Description
--r, --resourcename | string | The name of the resource [REQUIRED]
+-r, --resource-name | string | The name of the resource [REQUIRED]
 -k, --kind | string | The kind of the resource [REQUIRED]
 -n, --namespace | string | The namespace of the resource if none is provided will default to that of the application
--a, --appnamespace | string | The namespace of the parent app if none is provided will default to `argocd` namespace
+-N, --app-namespace | string | The namespace of the parent app if none is provided will default to `argocd` namespace
 -o, --output | string | yaml or json, will default to yaml
 -g, --group | string | The group of the resource, if none is provided will default to being empty 
 -p, --project | string | The project of the resource, if none is provided will default to being empty
+-h, --hide-managed-fields | bool | Whether or not to show managed fields, will default to true to match UI behavior
 ```
 
 #### Output
