@@ -10,7 +10,7 @@ approvers:
   - TBD
 
 creation-date: 2025-06-17
-last-updated: 2025-06-17
+last-updated: 2025-06-26
 ---
 
 # Get Live Resources from the ArgoCD CLI
@@ -35,9 +35,9 @@ functionality wrapped into the CLI as well.
 There also already exists CLI commands for deleting and patching a resource. I could not find 
 a specific reason for a get command not existing either.
 
-In initial discussion in the above issues it was decided that there should be two commands. 
-One that gets the live manifest of a resource and the other that displays the IPs of Pods 
-in an application. 
+In initial discussion in the above issues it was decided that there should be an
+application pods command. However it was decided that just a command for live
+manifests of a resource is needed.
 
 This proposal will describe the outline for these commands.
 
@@ -116,33 +116,6 @@ Flag | Type | Description
 #### Output
 
 Would output the live manifest of a resource in an application in YAML or JSON.
-
-#### Get Pod Command Syntax
-
-Contributed by @nitishfy in issue [#23196](https://github.com/argoproj/argo-cd/issues/23196)
-
-`argocd app pods <APPNAME> [flags]`
-#### Example Usage
-
-```
-argocd app pods guestbook
-argocd app pods guestbook -n dev
-argocd app pods guestbook --output json
-argocd app pods guestbook --watch
-```
-
-#### Flags
-```
-Flag | Type | Description
-|       |    
--n, --namespace | string | Filter pods by a specific namespace. Defaults to the namespace(s) defined in the app spec.
--l, --selector | string | Label selector to filter pods.
--o, --output | string | Output format: wide, json, yaml (default: wide)
-```
-
-#### Output 
-
-Would be similar to `kubectl get pods`
 
 ### Security Considerations
 
