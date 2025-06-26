@@ -171,7 +171,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				clst.Server = argoappv1.KubernetesInternalAPIServerAddr
 			} else if clusterOpts.ClusterEndpoint == string(cmdutil.KubePublicEndpoint) {
 				endpoint, caData, err := cmdutil.GetKubePublicEndpoint(clientset)
-				if err != nil || len(endpoint) == 0 {
+				if err != nil || endpoint == "" {
 					log.Warnf("Failed to find the cluster endpoint from kube-public data: %v", err)
 					log.Infof("Falling back to the endpoint '%s' as listed in the kubeconfig context", clst.Server)
 					endpoint = clst.Server
@@ -384,7 +384,7 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 		fmt.Printf("  Server Version:        %s\n", cluster.ServerVersion)
 		fmt.Printf("  Namespaces:        	 %s\n", formatNamespaces(cluster))
 		fmt.Printf("\nTLS configuration\n\n")
-		fmt.Printf("  Client cert:           %v\n", string(cluster.Config.CertData) != "")
+		fmt.Printf("  Client cert:           %v\n", len(cluster.Config.CertData) != 0)
 		fmt.Printf("  Cert validation:       %v\n", !cluster.Config.Insecure)
 		fmt.Printf("\nAuthentication\n\n")
 		fmt.Printf("  Basic authentication:  %v\n", cluster.Config.Username != "")

@@ -88,9 +88,9 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
 
 function normalizeAppSource(app: models.Application, type: string): boolean {
     const source = getAppDefaultSource(app);
-    const repoType = (source.hasOwnProperty('chart') && 'helm') || 'git';
+    const repoType = source.repoURL.startsWith('oci://') ? 'oci' : (source.hasOwnProperty('chart') && 'helm') || 'git';
     if (repoType !== type) {
-        if (type === 'git') {
+        if (type === 'git' || type === 'oci') {
             source.path = source.chart;
             delete source.chart;
             source.targetRevision = 'HEAD';
@@ -306,7 +306,9 @@ export const ApplicationCreatePanel = (props: {
                                             </div>
                                         );
 
-                                        const repoType = (api.getFormState().values.spec.source.hasOwnProperty('chart') && 'helm') || 'git';
+                                        const repoType = api.getFormState().values.spec.source.repoURL.startsWith('oci://')
+                                            ? 'oci'
+                                            : (api.getFormState().values.spec.source.hasOwnProperty('chart') && 'helm') || 'git';
                                         const sourcePanel = () => (
                                             <div className='white-box'>
                                                 <p>SOURCE</p>
@@ -338,7 +340,7 @@ export const ApplicationCreatePanel = (props: {
                                                                         </p>
                                                                     )}
                                                                     qeId='application-create-dropdown-source-repository'
-                                                                    items={['git', 'helm'].map((type: 'git' | 'helm') => ({
+                                                                    items={['git', 'helm', 'oci'].map((type: 'git' | 'helm' | 'oci') => ({
                                                                         title: type.toUpperCase(),
                                                                         action: () => {
                                                                             if (repoType !== type) {
@@ -354,21 +356,18 @@ export const ApplicationCreatePanel = (props: {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                {(repoType === 'git' && (
+                                                {(repoType === 'oci' && (
                                                     <React.Fragment>
-                                                        <RevisionFormField formApi={api} helpIconTop={'2.5em'} repoURL={app.spec.source.repoURL} />
+                                                        <RevisionFormField formApi={api} helpIconTop={'2.5em'} repoURL={app.spec.source.repoURL} repoType={repoType} />
                                                         <div className='argo-form-row'>
                                                             <DataLoader
                                                                 input={{repoURL: app.spec.source.repoURL, revision: app.spec.source.targetRevision}}
                                                                 load={async src =>
-                                                                    (src.repoURL &&
-                                                                        services.repos
-                                                                            .apps(src.repoURL, src.revision, app.metadata.name, app.spec.project)
-                                                                            .then(apps => Array.from(new Set(apps.map(item => item.path))).sort())
-                                                                            .catch(() => new Array<string>())) ||
+                                                                    src.repoURL &&
+                                                                    // TODO: for autocomplete we need to fetch paths that are used by other apps within the same project making use of the same OCI repo
                                                                     new Array<string>()
                                                                 }>
-                                                                {(apps: string[]) => (
+                                                                {(paths: string[]) => (
                                                                     <FormField
                                                                         formApi={api}
                                                                         label='Path'
@@ -376,7 +375,7 @@ export const ApplicationCreatePanel = (props: {
                                                                         field='spec.source.path'
                                                                         component={AutocompleteField}
                                                                         componentProps={{
-                                                                            items: apps,
+                                                                            items: paths,
                                                                             filterSuggestions: true
                                                                         }}
                                                                     />
@@ -384,46 +383,77 @@ export const ApplicationCreatePanel = (props: {
                                                             </DataLoader>
                                                         </div>
                                                     </React.Fragment>
-                                                )) || (
-                                                    <DataLoader
-                                                        input={{repoURL: app.spec.source.repoURL}}
-                                                        load={async src =>
-                                                            (src.repoURL && services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())) ||
-                                                            new Array<models.HelmChart>()
-                                                        }>
-                                                        {(charts: models.HelmChart[]) => {
-                                                            const selectedChart = charts.find(chart => chart.name === api.getFormState().values.spec.source.chart);
-                                                            return (
-                                                                <div className='row argo-form-row'>
-                                                                    <div className='columns small-10'>
+                                                )) ||
+                                                    (repoType === 'git' && (
+                                                        <React.Fragment>
+                                                            <RevisionFormField formApi={api} helpIconTop={'2.5em'} repoURL={app.spec.source.repoURL} repoType={repoType} />
+                                                            <div className='argo-form-row'>
+                                                                <DataLoader
+                                                                    input={{repoURL: app.spec.source.repoURL, revision: app.spec.source.targetRevision}}
+                                                                    load={async src =>
+                                                                        (src.repoURL &&
+                                                                            services.repos
+                                                                                .apps(src.repoURL, src.revision, app.metadata.name, app.spec.project)
+                                                                                .then(apps => Array.from(new Set(apps.map(item => item.path))).sort())
+                                                                                .catch(() => new Array<string>())) ||
+                                                                        new Array<string>()
+                                                                    }>
+                                                                    {(apps: string[]) => (
                                                                         <FormField
                                                                             formApi={api}
-                                                                            label='Chart'
-                                                                            field='spec.source.chart'
+                                                                            label='Path'
+                                                                            qeId='application-create-field-path'
+                                                                            field='spec.source.path'
                                                                             component={AutocompleteField}
                                                                             componentProps={{
-                                                                                items: charts.map(chart => chart.name),
+                                                                                items: apps,
                                                                                 filterSuggestions: true
                                                                             }}
                                                                         />
+                                                                    )}
+                                                                </DataLoader>
+                                                            </div>
+                                                        </React.Fragment>
+                                                    )) || (
+                                                        <DataLoader
+                                                            input={{repoURL: app.spec.source.repoURL}}
+                                                            load={async src =>
+                                                                (src.repoURL && services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())) ||
+                                                                new Array<models.HelmChart>()
+                                                            }>
+                                                            {(charts: models.HelmChart[]) => {
+                                                                const selectedChart = charts.find(chart => chart.name === api.getFormState().values.spec.source.chart);
+                                                                return (
+                                                                    <div className='row argo-form-row'>
+                                                                        <div className='columns small-10'>
+                                                                            <FormField
+                                                                                formApi={api}
+                                                                                label='Chart'
+                                                                                field='spec.source.chart'
+                                                                                component={AutocompleteField}
+                                                                                componentProps={{
+                                                                                    items: charts.map(chart => chart.name),
+                                                                                    filterSuggestions: true
+                                                                                }}
+                                                                            />
+                                                                        </div>
+                                                                        <div className='columns small-2'>
+                                                                            <FormField
+                                                                                formApi={api}
+                                                                                field='spec.source.targetRevision'
+                                                                                component={AutocompleteField}
+                                                                                componentProps={{
+                                                                                    items: (selectedChart && selectedChart.versions) || [],
+                                                                                    filterSuggestions: true
+                                                                                }}
+                                                                            />
+                                                                            <RevisionHelpIcon type='helm' />
+                                                                        </div>
                                                                     </div>
-                                                                    <div className='columns small-2'>
-                                                                        <FormField
-                                                                            formApi={api}
-                                                                            field='spec.source.targetRevision'
-                                                                            component={AutocompleteField}
-                                                                            componentProps={{
-                                                                                items: (selectedChart && selectedChart.versions) || [],
-                                                                                filterSuggestions: true
-                                                                            }}
-                                                                        />
-                                                                        <RevisionHelpIcon type='helm' />
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        }}
-                                                    </DataLoader>
-                                                )}
+                                                                );
+                                                            }}
+                                                        </DataLoader>
+                                                    )}
                                             </div>
                                         );
                                         const destinationPanel = () => (

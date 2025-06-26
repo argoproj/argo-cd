@@ -21,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
@@ -32,6 +33,7 @@ import (
 type MetricsServer struct {
 	*http.Server
 	syncCounter                       *prometheus.CounterVec
+	syncDuration                      *prometheus.CounterVec
 	kubectlExecCounter                *prometheus.CounterVec
 	kubectlExecPendingGauge           *prometheus.GaugeVec
 	orphanedResourcesGauge            *prometheus.GaugeVec
@@ -73,6 +75,14 @@ var (
 			Help: "Number of application syncs.",
 		},
 		append(descAppDefaultLabels, "dest_server", "phase", "dry_run"),
+	)
+
+	syncDuration = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_app_sync_duration_seconds_total",
+			Help: "Application sync performance in seconds total.",
+		},
+		append(descAppDefaultLabels, "dest_server"),
 	)
 
 	k8sRequestCounter = prometheus.NewCounterVec(
@@ -149,7 +159,7 @@ var (
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
-func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj any) bool, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string) (*MetricsServer, error) {
+func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj any) bool, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string, db db.ArgoDB) (*MetricsServer, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
@@ -175,7 +185,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	}
 
 	mux := http.NewServeMux()
-	registry := NewAppRegistry(appLister, appFilter, appLabels, appConditions)
+	registry := NewAppRegistry(appLister, appFilter, appLabels, appConditions, db)
 
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
@@ -187,6 +197,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	healthz.ServeHealthCheck(mux, healthCheck)
 
 	registry.MustRegister(syncCounter)
+	registry.MustRegister(syncDuration)
 	registry.MustRegister(k8sRequestCounter)
 	registry.MustRegister(kubectlExecCounter)
 	registry.MustRegister(kubectlExecPendingGauge)
@@ -198,8 +209,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	registry.MustRegister(resourceEventsProcessingHistogram)
 	registry.MustRegister(resourceEventsNumberGauge)
 
-	kubectlMetricsServer := kubectl.NewKubectlMetrics()
-	kubectlMetricsServer.RegisterWithClientGo()
+	kubectl.RegisterWithClientGo()
 	kubectl.RegisterWithPrometheus(registry)
 
 	metricsServer := &MetricsServer{
@@ -209,6 +219,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 			Handler: mux,
 		},
 		syncCounter:                       syncCounter,
+		syncDuration:                      syncDuration,
 		k8sRequestCounter:                 k8sRequestCounter,
 		kubectlExecCounter:                kubectlExecCounter,
 		kubectlExecPendingGauge:           kubectlExecPendingGauge,
@@ -235,12 +246,20 @@ func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source H
 }
 
 // IncSync increments the sync counter for an application
-func (m *MetricsServer) IncSync(app *argoappv1.Application, state *argoappv1.OperationState) {
+func (m *MetricsServer) IncSync(app *argoappv1.Application, destServer string, state *argoappv1.OperationState) {
 	if !state.Phase.Completed() {
 		return
 	}
 	isDryRun := app.Operation != nil && app.Operation.DryRun()
-	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), app.Spec.Destination.Server, string(state.Phase), strconv.FormatBool(isDryRun)).Inc()
+	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), destServer, string(state.Phase), strconv.FormatBool(isDryRun)).Inc()
+}
+
+// IncAppSyncDuration observes app sync duration
+func (m *MetricsServer) IncAppSyncDuration(app *argoappv1.Application, destServer string, state *argoappv1.OperationState) {
+	if state.FinishedAt != nil {
+		m.syncDuration.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), destServer).
+			Add(float64(time.Duration(state.FinishedAt.Unix() - state.StartedAt.Unix())))
+	}
 }
 
 func (m *MetricsServer) IncKubectlExec(command string) {
@@ -296,8 +315,8 @@ func (m *MetricsServer) ObserveResourceEventsProcessingDuration(server string, d
 }
 
 // IncReconcile increments the reconcile counter for an application
-func (m *MetricsServer) IncReconcile(app *argoappv1.Application, duration time.Duration) {
-	m.reconcileHistogram.WithLabelValues(app.Namespace, app.Spec.Destination.Server).Observe(duration.Seconds())
+func (m *MetricsServer) IncReconcile(app *argoappv1.Application, destServer string, duration time.Duration) {
+	m.reconcileHistogram.WithLabelValues(app.Namespace, destServer).Observe(duration.Seconds())
 }
 
 // HasExpiration return true if expiration is set
@@ -314,6 +333,7 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 	_, err := m.cron.AddFunc(fmt.Sprintf("@every %s", cacheExpiration), func() {
 		log.Infof("Reset Prometheus metrics based on existing expiration '%v'", cacheExpiration)
 		m.syncCounter.Reset()
+		m.syncDuration.Reset()
 		m.kubectlExecCounter.Reset()
 		m.kubectlExecPendingGauge.Reset()
 		m.orphanedResourcesGauge.Reset()
@@ -339,22 +359,24 @@ type appCollector struct {
 	appFilter     func(obj any) bool
 	appLabels     []string
 	appConditions []string
+	db            db.ArgoDB
 }
 
 // NewAppCollector returns a prometheus collector for application metrics
-func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string) prometheus.Collector {
+func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) prometheus.Collector {
 	return &appCollector{
 		store:         appLister,
 		appFilter:     appFilter,
 		appLabels:     appLabels,
 		appConditions: appConditions,
+		db:            db,
 	}
 }
 
 // NewAppRegistry creates a new prometheus registry that collects applications
-func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string) *prometheus.Registry {
+func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) *prometheus.Registry {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions))
+	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions, db))
 	return registry
 }
 
@@ -377,9 +399,18 @@ func (c *appCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 	for _, app := range apps {
-		if c.appFilter(app) {
-			c.collectApps(ch, app)
+		if !c.appFilter(app) {
+			continue
 		}
+		destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, c.db)
+		if err != nil {
+			log.Warnf("Failed to get destination cluster for application %s: %v", app.Name, err)
+		}
+		destServer := ""
+		if destCluster != nil {
+			destServer = destCluster.Server
+		}
+		c.collectApps(ch, app, destServer)
 	}
 }
 
@@ -390,7 +421,7 @@ func boolFloat64(b bool) float64 {
 	return 0
 }
 
-func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application) {
+func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application, destServer string) {
 	addConstMetric := func(desc *prometheus.Desc, t prometheus.ValueType, v float64, lv ...string) {
 		project := app.Spec.GetProject()
 		lv = append([]string{app.Namespace, app.Name, project}, lv...)
@@ -417,7 +448,7 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 
 	autoSyncEnabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled()
 
-	addGauge(descAppInfo, 1, strconv.FormatBool(autoSyncEnabled), git.NormalizeGitURL(app.Spec.GetSource().RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation)
+	addGauge(descAppInfo, 1, strconv.FormatBool(autoSyncEnabled), git.NormalizeGitURL(app.Spec.GetSource().RepoURL), destServer, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation)
 
 	if len(c.appLabels) > 0 {
 		labelValues := []string{}

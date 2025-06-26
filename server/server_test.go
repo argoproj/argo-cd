@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -549,7 +548,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
 		case "/api/dex/.well-known/openid-configuration":
-			_, err := io.WriteString(w, fmt.Sprintf(`
+			_, err := fmt.Fprintf(w, `
 {
   "issuer": "%[1]s/api/dex",
   "authorization_endpoint": "%[1]s/api/dex/auth",
@@ -599,7 +598,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
     "preferred_username",
     "at_hash"
   ]
-}`, url))
+}`, url)
 			if err != nil {
 				t.Fail()
 			}
@@ -623,7 +622,7 @@ func getTestServer(t *testing.T, anonymousEnabled bool, withFakeSSO bool, useDex
 	})
 	oidcServer := ts
 	if !useDexForSSO {
-		oidcServer = testutil.GetOIDCTestServer(t)
+		oidcServer = testutil.GetOIDCTestServer(t, nil)
 	}
 	if withFakeSSO {
 		cm.Data["url"] = ts.URL
@@ -672,6 +671,8 @@ connectors:
 }
 
 func TestGetClaims(t *testing.T) {
+	t.Parallel()
+
 	defaultExpiry := jwt.NewNumericDate(time.Now().Add(time.Hour * 24))
 	defaultExpiryUnix := float64(defaultExpiry.Unix())
 
@@ -784,6 +785,8 @@ func TestGetClaims(t *testing.T) {
 }
 
 func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
+	t.Parallel()
+
 	// Marshaling single strings to strings is typical, so we test for this relatively common behavior.
 	jwt.MarshalSingleStringAsArray = false
 
@@ -943,6 +946,8 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 }
 
 func TestAuthenticate_no_request_metadata(t *testing.T) {
+	t.Parallel()
+
 	type testData struct {
 		test                  string
 		anonymousEnabled      bool
@@ -986,6 +991,8 @@ func TestAuthenticate_no_request_metadata(t *testing.T) {
 }
 
 func TestAuthenticate_no_SSO(t *testing.T) {
+	t.Parallel()
+
 	type testData struct {
 		test                 string
 		anonymousEnabled     bool
@@ -1035,6 +1042,8 @@ func TestAuthenticate_no_SSO(t *testing.T) {
 }
 
 func TestAuthenticate_bad_request_metadata(t *testing.T) {
+	t.Parallel()
+
 	type testData struct {
 		test                 string
 		anonymousEnabled     bool
@@ -1381,6 +1390,8 @@ func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
 }
 
 func TestIsMainJsBundle(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name           string
 		url            string
@@ -1474,7 +1485,7 @@ func TestCacheControlHeaders(t *testing.T) {
 			handler := argocd.newStaticAssetsHandler()
 
 			rr := httptest.NewRecorder()
-			req := httptest.NewRequest("", "/"+testCase.filename, nil)
+			req := httptest.NewRequest("", "/"+testCase.filename, http.NoBody)
 
 			fp := filepath.Join(argocd.TmpAssetsDir, testCase.filename)
 
@@ -1616,6 +1627,8 @@ func TestReplaceBaseHRef(t *testing.T) {
 }
 
 func Test_enforceContentTypes(t *testing.T) {
+	t.Parallel()
+
 	getBaseHandler := func(t *testing.T, allow bool) http.Handler {
 		t.Helper()
 		return http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
@@ -1624,11 +1637,11 @@ func Test_enforceContentTypes(t *testing.T) {
 		})
 	}
 
-	t.Parallel()
-
 	t.Run("GET - not providing a content type, should still succeed", func(t *testing.T) {
+		t.Parallel()
+
 		handler := enforceContentTypes(getBaseHandler(t, true), []string{"application/json"}).(http.HandlerFunc)
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 		w := httptest.NewRecorder()
 		handler(w, req)
 		resp := w.Result()
@@ -1636,21 +1649,23 @@ func Test_enforceContentTypes(t *testing.T) {
 	})
 
 	t.Run("POST", func(t *testing.T) {
+		t.Parallel()
+
 		handler := enforceContentTypes(getBaseHandler(t, true), []string{"application/json"}).(http.HandlerFunc)
-		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		req := httptest.NewRequest(http.MethodPost, "/", http.NoBody)
 		w := httptest.NewRecorder()
 		handler(w, req)
 		resp := w.Result()
 		assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode, "didn't provide a content type, should have gotten an error")
 
-		req = httptest.NewRequest(http.MethodPost, "/", nil)
+		req = httptest.NewRequest(http.MethodPost, "/", http.NoBody)
 		req.Header = map[string][]string{"Content-Type": {"application/json"}}
 		w = httptest.NewRecorder()
 		handler(w, req)
 		resp = w.Result()
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "should have passed, since an allowed content type was provided")
 
-		req = httptest.NewRequest(http.MethodPost, "/", nil)
+		req = httptest.NewRequest(http.MethodPost, "/", http.NoBody)
 		req.Header = map[string][]string{"Content-Type": {"not-allowed"}}
 		w = httptest.NewRecorder()
 		handler(w, req)
@@ -1679,7 +1694,7 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	require.NoError(t, err)
 
 	// Make a request to get the file from the /assets endpoint
-	req := httptest.NewRequest(http.MethodGet, "/link.txt", nil)
+	req := httptest.NewRequest(http.MethodGet, "/link.txt", http.NoBody)
 	w := httptest.NewRecorder()
 	argocd.newStaticAssetsHandler()(w, req)
 	resp := w.Result()
@@ -1689,7 +1704,7 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	normalFilePath := filepath.Join(argocd.StaticAssetsDir, "normal.txt")
 	err = os.WriteFile(normalFilePath, []byte("normal"), 0o644)
 	require.NoError(t, err)
-	req = httptest.NewRequest(http.MethodGet, "/normal.txt", nil)
+	req = httptest.NewRequest(http.MethodGet, "/normal.txt", http.NoBody)
 	w = httptest.NewRecorder()
 	argocd.newStaticAssetsHandler()(w, req)
 	resp = w.Result()
