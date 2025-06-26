@@ -295,6 +295,11 @@ func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest string) (*i
 func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
 	digest, err := c.resolveDigest(ctx, revision) // Lookup explicit revision
 	if err != nil {
+		// If the revision is not a semver constraint, just return the error
+		if !versions.IsConstraint(revision) {
+			return digest, err
+		}
+
 		tags, err := c.GetTags(ctx, noCache)
 		if err != nil {
 			return "", fmt.Errorf("error fetching tags: %w", err)
