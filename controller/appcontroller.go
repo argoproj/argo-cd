@@ -1574,6 +1574,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			destServer = destCluster.Server
 		}
 		ctrl.metricsServer.IncSync(app, destServer, state)
+		ctrl.metricsServer.IncAppSyncDuration(app, destServer, state)
 	}
 }
 

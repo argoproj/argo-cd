@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"reflect"
 	"regexp"
@@ -275,7 +276,7 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 	// See TestRenderTemplateParamsFinalizers in util_test.go for test-based definition of behaviour
 	if (syncPolicy == nil || !syncPolicy.PreserveResourcesOnDeletion) &&
 		len(replacedTmpl.Finalizers) == 0 {
-		replacedTmpl.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
+		replacedTmpl.Finalizers = []string{argoappsv1.ResourcesFinalizerName}
 	}
 
 	return replacedTmpl, nil
@@ -525,4 +526,11 @@ func GetTlsConfig(scmRootCAPath string, insecure bool, caCerts []byte) *tls.Conf
 		tlsConfig.InsecureSkipVerify = true
 	}
 	return tlsConfig
+}
+
+func GetOptionalHTTPClient(optionalHTTPClient ...*http.Client) *http.Client {
+	if len(optionalHTTPClient) > 0 && optionalHTTPClient[0] != nil {
+		return optionalHTTPClient[0]
+	}
+	return &http.Client{}
 }

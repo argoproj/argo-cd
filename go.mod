@@ -7,12 +7,12 @@ require (
 	dario.cat/mergo v1.0.2
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.18.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.10.1
-	github.com/Azure/kubelogin v0.2.8
+	github.com/Azure/kubelogin v0.2.9
 	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/TomOnTime/utfutil v1.0.0
 	github.com/alicebob/miniredis/v2 v2.35.0
-	github.com/argoproj/gitops-engine v0.7.1-0.20250613154745-f8f1b61ba3fd
+	github.com/argoproj/gitops-engine v0.7.1-0.20250617174952-093aef0dad58
 	github.com/argoproj/notifications-engine v0.4.1-0.20250309174002-87bf0576a872
 	github.com/argoproj/pkg v0.13.6
 	github.com/argoproj/pkg/v2 v2.0.1
@@ -20,7 +20,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.16.0
-	github.com/casbin/casbin/v2 v2.107.0
+	github.com/casbin/casbin/v2 v2.108.0
 	github.com/casbin/govaluate v1.7.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/chainguard-dev/git-urls v1.0.2
@@ -54,10 +54,10 @@ require (
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/gosimple/slug v1.15.0
-	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.0.1
+	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.1.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.2
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
-	github.com/hashicorp/go-retryablehttp v0.7.7
+	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/improbable-eng/grpc-web v0.15.1-0.20230209220825-1d9bbb09a099
 	github.com/itchyny/gojq v0.12.17
 	github.com/jarcoal/httpmock v1.4.0
@@ -115,7 +115,7 @@ require (
 	oras.land/oras-go/v2 v2.6.0
 	sigs.k8s.io/controller-runtime v0.21.0
 	sigs.k8s.io/structured-merge-diff/v4 v4.7.0
-	sigs.k8s.io/yaml v1.4.0
+	sigs.k8s.io/yaml v1.5.0
 )
 
 require (
@@ -265,6 +265,8 @@ require (
 	go.opentelemetry.io/otel/metric v1.36.0 // indirect
 	go.opentelemetry.io/otel/trace v1.36.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.6.0 // indirect
+	go.yaml.in/yaml/v2 v2.4.2 // indirect
+	go.yaml.in/yaml/v3 v3.0.3 // indirect
 	golang.org/x/mod v0.25.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.26.0 // indirect

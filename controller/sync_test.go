@@ -676,6 +676,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 	type fixture struct {
 		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
+		cluster     *v1alpha1.Cluster
 	}
 
 	setup := func(destinationServiceAccounts []v1alpha1.ApplicationDestinationServiceAccount, destinationNamespace, destinationServerURL, applicationNamespace string) *fixture {
@@ -701,9 +702,14 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 				},
 			},
 		}
+		cluster := &v1alpha1.Cluster{
+			Server: "https://kubernetes.svc.local",
+			Name:   "test-cluster",
+		}
 		return &fixture{
 			project:     project,
 			application: app,
+			cluster:     cluster,
 		}
 	}
 
@@ -719,7 +725,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 		assert.Equal(t, expectedSA, sa)
 
 		// then, there should be an error saying no valid match was found
@@ -743,7 +749,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should be no error and should use the right service account for impersonation
 		require.NoError(t, err)
@@ -782,7 +788,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should be no error and should use the right service account for impersonation
 		require.NoError(t, err)
@@ -821,7 +827,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should be no error and it should use the first matching service account for impersonation
 		require.NoError(t, err)
@@ -855,7 +861,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should not be any error and should use the first matching glob pattern service account for impersonation
 		require.NoError(t, err)
@@ -890,7 +896,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should be an error saying no match was found
 		require.EqualError(t, err, expectedErrMsg)
@@ -918,7 +924,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should not be any error and the service account configured for with empty namespace should be used.
 		require.NoError(t, err)
@@ -952,7 +958,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should not be any error and the catch all service account should be returned
 		require.NoError(t, err)
@@ -976,7 +982,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there must be an error as the glob pattern is invalid.
 		require.ErrorContains(t, err, "invalid glob pattern for destination namespace")
@@ -1010,7 +1016,35 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, there should not be any error and the service account with its namespace should be returned.
+		require.NoError(t, err)
+	})
+
+	t.Run("app destination name instead of server URL", func(t *testing.T) {
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "*",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+
+		// Use destination name instead of server URL
+		f.application.Spec.Destination.Server = ""
+		f.application.Spec.Destination.Name = f.cluster.Name
+
+		// when
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 		assert.Equal(t, expectedSA, sa)
 
 		// then, there should not be any error and the service account with its namespace should be returned.
@@ -1024,6 +1058,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 	type fixture struct {
 		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
+		cluster     *v1alpha1.Cluster
 	}
 
 	setup := func(destinationServiceAccounts []v1alpha1.ApplicationDestinationServiceAccount, destinationNamespace, destinationServerURL, applicationNamespace string) *fixture {
@@ -1049,9 +1084,14 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 				},
 			},
 		}
+		cluster := &v1alpha1.Cluster{
+			Server: "https://kubernetes.svc.local",
+			Name:   "test-cluster",
+		}
 		return &fixture{
 			project:     project,
 			application: app,
+			cluster:     cluster,
 		}
 	}
 
@@ -1087,7 +1127,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should not be any error and the right service account must be returned.
 		require.NoError(t, err)
@@ -1126,7 +1166,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should not be any error and first matching service account should be used
 		require.NoError(t, err)
@@ -1160,7 +1200,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 		assert.Equal(t, expectedSA, sa)
 
 		// then, there should not be any error and the service account of the glob pattern, being the first match should be returned.
@@ -1195,7 +1235,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, &v1alpha1.Cluster{Server: destinationServerURL})
 
 		// then, there an error with appropriate message must be returned
 		require.EqualError(t, err, expectedErr)
@@ -1229,7 +1269,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should not be any error and the service account of the glob pattern match must be returned.
 		require.NoError(t, err)
@@ -1253,7 +1293,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there must be an error as the glob pattern is invalid.
 		require.ErrorContains(t, err, "invalid glob pattern for destination server")
@@ -1287,11 +1327,39 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, &v1alpha1.Cluster{Server: destinationServerURL})
 
 		// then, there should not be any error and the service account with the given namespace prefix must be returned.
 		require.NoError(t, err)
 		assert.Equal(t, expectedSA, sa)
+	})
+
+	t.Run("app destination name instead of server URL", func(t *testing.T) {
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "*",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+
+		// Use destination name instead of server URL
+		f.application.Spec.Destination.Server = ""
+		f.application.Spec.Destination.Name = f.cluster.Name
+
+		// when
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, there should not be any error and the service account with its namespace should be returned.
+		require.NoError(t, err)
 	})
 }
 
@@ -1434,6 +1502,31 @@ func TestSyncWithImpersonate(t *testing.T) {
 
 		// then application sync should pass using the control plane service account
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, opMessage)
+	})
+
+	t.Run("app destination name instead of server URL", func(t *testing.T) {
+		// given app sync impersonation feature is enabled with an application referring a project matching service account
+		f := setup(true, test.FakeDestNamespace, "test-sa")
+		opMessage := "successfully synced (no more tasks)"
+
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+				},
+			},
+			Phase: common.OperationRunning,
+		}
+
+		f.application.Spec.Destination.Server = ""
+		f.application.Spec.Destination.Name = "minikube"
+
+		// when
+		f.controller.appStateManager.SyncAppState(f.application, opState)
+
+		// then app sync should not fail
+		assert.Equal(t, common.OperationSucceeded, opState.Phase)
 		assert.Contains(t, opState.Message, opMessage)
 	})
 }

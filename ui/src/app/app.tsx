@@ -1,4 +1,4 @@
-import {DataLoader, NavigationManager, NotificationType, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
+import {DataLoader, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
 import {createBrowserHistory} from 'history';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -19,8 +19,6 @@ import {hashCode} from './shared/utils';
 import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 import {AuthSettings} from './shared/models';
-import {PKCEVerification} from './login/components/pkce-verify';
-import {getPKCERedirectURI, pkceLogin} from './login/components/utils';
 import {SystemLevelExtension} from './shared/services/extensions-service';
 
 services.viewPreferences.init();
@@ -36,8 +34,7 @@ const routes: Routes = {
     '/applications': {component: applications.component},
     '/settings': {component: settings.component},
     '/user-info': {component: userInfo.component},
-    '/help': {component: help.component},
-    '/pkce/verify': {component: PKCEVerification, noLayout: true}
+    '/help': {component: help.component}
 };
 
 interface NavItem {
@@ -250,18 +247,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                 // If basehref is the default `/` it will become an empty string.
                 const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
                 if (isSSO) {
-                    const authSettings = await services.authService.settings();
-
-                    if (authSettings?.oidcConfig?.enablePKCEAuthentication) {
-                        pkceLogin(authSettings.oidcConfig, getPKCERedirectURI().toString()).catch(err => {
-                            this.getChildContext().apis.notifications.show({
-                                type: NotificationType.Error,
-                                content: err?.message || JSON.stringify(err)
-                            });
-                        });
-                    } else {
-                        window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
-                    }
+                    window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
                 } else {
                     history.push(`/login?return_url=${encodeURIComponent(location.href)}`);
                 }
