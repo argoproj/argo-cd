@@ -36,6 +36,8 @@ Display revision targeted by the application.
 
 It will also extend the badge width to 192px.
 
+In multiple sources setup, revision of first defined source will be displayed.
+
 Available values: `true/false`
 
 Default value: `false`
