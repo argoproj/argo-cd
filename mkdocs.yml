@@ -131,6 +131,7 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/3.0-3.1.md
     - operator-manual/upgrading/2.14-3.0.md
     - operator-manual/upgrading/2.13-2.14.md
     - operator-manual/upgrading/2.12-2.13.md
