@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
@@ -112,6 +113,70 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 		}
 	}
 	return items
+}
+
+func FilterByPath(apps []argoappv1.Application, path string) []argoappv1.Application {
+	if path == "" {
+		return apps
+	}
+
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		absPath = path
+	}
+	absPath = filepath.ToSlash(filepath.Clean(absPath))
+	relPath := filepath.ToSlash(filepath.Clean(path))
+
+	items := make([]argoappv1.Application, 0)
+
+	for _, app := range apps {
+		if app.Spec.Source != nil {
+			appPath := filepath.ToSlash(filepath.Clean(app.Spec.Source.Path))
+			if appPath == absPath || appPath == relPath {
+				items = append(items, app)
+				continue
+			}
+		}
+
+		if app.Spec.Sources != nil {
+			for _, source := range app.Spec.Sources {
+				appPath := filepath.ToSlash(filepath.Clean(source.Path))
+				if appPath == absPath || appPath == relPath {
+					items = append(items, app)
+					break
+				}
+			}
+		}
+	}
+
+	return items
+}
+
+func FilterByFiles(apps []argoappv1.Application, files []string) []argoappv1.Application {
+	fileSet := make(map[string]bool)
+	for _, file := range files {
+		fileSet[file] = true
+	}
+	var filteredApps []argoappv1.Application
+	for _, app := range apps {
+		annotationPaths := strings.Split(app.Annotations["argocd.argoproj.io/manifest-generate-paths"], ";")
+		matches := false
+		for _, annotationPath := range annotationPaths {
+			for file := range fileSet {
+				if strings.HasPrefix(file, annotationPath) {
+					matches = true
+					break
+				}
+			}
+			if matches {
+				break
+			}
+		}
+		if matches {
+			filteredApps = append(filteredApps, app)
+		}
+	}
+	return filteredApps
 }
 
 // FilterByProjectsP returns application pointers which belongs to the specified project
