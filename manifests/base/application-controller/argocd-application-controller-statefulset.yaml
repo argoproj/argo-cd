@@ -268,6 +268,12 @@ spec:
               name: argocd-cmd-params-cm
               key: controller.cluster.cache.events.processing.interval
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_COMMIT_SERVER
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: commit.server
+              optional: true
         - name: KUBECACHEDIR
           value: /tmp/kubecache
         image: quay.io/argoproj/argocd:latest

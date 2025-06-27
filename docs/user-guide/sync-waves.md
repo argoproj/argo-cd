@@ -106,6 +106,8 @@ Hooks and resources are assigned to wave zero by default. The wave can be negati
 
 ## Examples
 
+### Send message to Slack when sync completes
+
 The following example uses the Slack API to send a a Slack message when sync completes:
 
 ```yaml
@@ -166,3 +168,34 @@ spec:
       restartPolicy: Never
   backoffLimit: 1
 ```
+
+### Work around ArgoCD sync failure
+
+Upgrading ingress-nginx controller (managed by helm) with ArgoCD 2.x sometimes fails to work resulting in:
+
+.|.
+-|-
+OPERATION|Sync
+PHASE|Running
+MESSAGE|waiting for completion of hook batch/Job/ingress-nginx-admission-create
+
+.|.
+-|-
+KIND     |batch/v1/Job
+NAMESPACE|ingress-nginx
+NAME     |ingress-nginx-admission-create
+STATUS   |Running
+HOOK     |PreSync
+MESSAGE  |Pending deletion
+
+To work around this, a helm user can add:
+
+```yaml
+ingress-nginx:
+  controller:
+    admissionWebhooks:
+      annotations:
+        argocd.argoproj.io/hook: Skip
+```
+
+Which results in a successful sync.
