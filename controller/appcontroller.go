@@ -2007,6 +2007,23 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		message := fmt.Sprintf("Updated sync status: %s -> %s", orig.Status.Sync.Status, newStatus.Sync.Status)
 		ctrl.logAppEvent(context.TODO(), orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: corev1.EventTypeNormal}, message)
 	}
+	sourceHydratorCurrentOperation := newStatus.SourceHydrator.CurrentOperation
+	if sourceHydratorCurrentOperation != nil && orig.Status.SourceHydrator.CurrentOperation != nil &&
+		orig.Status.SourceHydrator.CurrentOperation.Phase != sourceHydratorCurrentOperation.Phase {
+		switch sourceHydratorCurrentOperation.Phase {
+		case appv1.HydrateOperationPhaseHydrating:
+			message := "Source hydrator started"
+			ctrl.logAppEvent(context.TODO(), orig, argo.EventInfo{Reason: argo.EventReasonHydrationStarted, Type: corev1.EventTypeNormal}, message)
+		case appv1.HydrateOperationPhaseHydrated:
+			if sourceHydratorCurrentOperation.DrySHA != "" && sourceHydratorCurrentOperation.HydratedSHA != "" {
+				message := fmt.Sprintf("Source hydrator completed, hydrated commit: %s", sourceHydratorCurrentOperation.HydratedSHA)
+				ctrl.logAppEvent(context.TODO(), orig, argo.EventInfo{Reason: argo.EventReasonHydrationCompleted, Type: corev1.EventTypeNormal}, message)
+			}
+		case appv1.HydrateOperationPhaseFailed:
+			message := fmt.Sprintf("Source hydrator failed: %s", sourceHydratorCurrentOperation.Message)
+			ctrl.logAppEvent(context.TODO(), orig, argo.EventInfo{Reason: argo.EventReasonHydrationCompleted, Type: corev1.EventTypeNormal}, message)
+		}
+	}
 	if orig.Status.Health.Status != newStatus.Health.Status {
 		// Update the last transition time to now. This should be the ONLY place in code where this is set, because it's
 		// the only place that is reliably aware of the previous and updated health statuses.
