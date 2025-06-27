@@ -89,7 +89,8 @@ func TestWriteForPaths(t *testing.T) {
 		},
 	}
 
-	err := WriteForPaths(root, repoURL, drySha, metadata, paths)
+	m := getHydratorMetadataFile(repoURL, drySha, metadata)
+	err := WriteForPaths(root, repoURL, drySha, m, paths)
 	require.NoError(t, err)
 
 	// Check if the top-level hydrator.metadata exists and contains the repo URL and dry SHA

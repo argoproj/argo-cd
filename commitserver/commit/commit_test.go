@@ -22,9 +22,10 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		Repo: &v1alpha1.Repository{
 			Repo: "https://github.com/argoproj/argocd-example-apps.git",
 		},
-		TargetBranch:  "main",
-		SyncBranch:    "env/test",
-		CommitMessage: "test commit message",
+		TargetBranch:          "main",
+		SyncBranch:            "env/test",
+		CommitSubjectTemplate: "`{{.DrySHA}}`: test commit message",
+		DrySha:                "dry-sha",
 	}
 
 	t.Run("missing repo", func(t *testing.T) {
@@ -89,6 +90,18 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		assert.ErrorIs(t, err, assert.AnError)
 	})
 
+	t.Run("using deprecated CommitMessage field", func(t *testing.T) {
+		t.Parallel()
+
+		service, _ := newServiceWithMocks(t)
+		request := &apiclient.CommitHydratedManifestsRequest{
+			CommitMessage: "test commit message",
+		}
+
+		_, err := service.CommitHydratedManifests(t.Context(), request)
+		require.Error(t, err)
+	})
+
 	t.Run("happy path", func(t *testing.T) {
 		t.Parallel()
 
@@ -100,7 +113,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockGitClient.On("CheckoutOrOrphan", "env/test", false).Return("", nil).Once()
 		mockGitClient.On("CheckoutOrNew", "main", "env/test", false).Return("", nil).Once()
 		mockGitClient.On("RemoveContents").Return("", nil).Once()
-		mockGitClient.On("CommitAndPush", "main", "test commit message").Return("", nil).Once()
+		mockGitClient.On("CommitAndPush", "main", "`dry-sha`: test commit message").Return("", nil).Once()
 		mockGitClient.On("CommitSHA").Return("it-worked!", nil).Once()
 		mockRepoClientFactory.On("NewClient", mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
 

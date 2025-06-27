@@ -11,7 +11,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/Masterminds/sprig/v3"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -21,35 +20,11 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
-var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
-
-func init() {
-	// Avoid allowing the user to learn things about the environment.
-	delete(sprigFuncMap, "env")
-	delete(sprigFuncMap, "expandenv")
-	delete(sprigFuncMap, "getHostByName")
-}
-
 // WriteForPaths writes the manifests, hydrator.metadata, and README.md files for each path in the provided paths. It
 // also writes a root-level hydrator.metadata file containing the repo URL and dry SHA.
-func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails) error { //nolint:revive //FIXME(var-naming)
-	author := ""
-	message := ""
-	date := ""
-	var references []appv1.RevisionReference
-	if dryCommitMetadata != nil {
-		author = dryCommitMetadata.Author
-		message = dryCommitMetadata.Message
-		if dryCommitMetadata.Date != nil {
-			date = dryCommitMetadata.Date.Format(time.RFC3339)
-		}
-		references = dryCommitMetadata.References
-	}
-
-	subject, body, _ := strings.Cut(message, "\n\n")
-
+func WriteForPaths(root *os.Root, repoUrl, drySha string, m hydratorMetadataFile, paths []*apiclient.PathDetails) error { //nolint:revive //FIXME(var-naming)
 	// Write the top-level readme.
-	err := writeMetadata(root, "", hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl, Author: author, Subject: subject, Body: body, Date: date, References: references})
+	err := writeMetadata(root, "", m)
 	if err != nil {
 		return fmt.Errorf("failed to write top-level hydrator metadata: %w", err)
 	}
@@ -89,6 +64,26 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 		}
 	}
 	return nil
+}
+
+func getHydratorMetadataFile(repoURL string, drySha string, dryCommitMetadata *appv1.RevisionMetadata) hydratorMetadataFile {
+	author := ""
+	message := ""
+	date := ""
+	var references []appv1.RevisionReference
+	if dryCommitMetadata != nil {
+		author = dryCommitMetadata.Author
+		message = dryCommitMetadata.Message
+		if dryCommitMetadata.Date != nil {
+			date = dryCommitMetadata.Date.Format(time.RFC3339)
+		}
+		references = dryCommitMetadata.References
+	}
+
+	subject, body, _ := strings.Cut(message, "\n\n")
+
+	m := hydratorMetadataFile{DrySHA: drySha, RepoURL: repoURL, Author: author, Subject: subject, Body: body, Date: date, References: references}
+	return m
 }
 
 // writeMetadata writes the metadata to the hydrator.metadata file.
