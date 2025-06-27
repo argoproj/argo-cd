@@ -2,7 +2,7 @@
 
 ## argocd repo add
 
-Add git repository connection parameters
+Add git, oci or helm repository connection parameters
 
 ```
 argocd repo add REPOURL [flags]
@@ -37,6 +37,15 @@ argocd repo add REPOURL [flags]
 
   # Add a private Helm OCI-based repository named 'stable' via HTTPS
   argocd repo add helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type helm --name stable --enable-oci --username test --password test
+  
+  # Add a private HTTPS OCI repository named 'stable'
+  argocd repo add oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test
+  
+  # Add a private OCI repository named 'stable' without verifying the server's TLS certificate
+  argocd repo add oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test --insecure-skip-server-verification
+  
+  # Add a private HTTP OCI repository named 'stable'
+  argocd repo add oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test --insecure-oci-force-http
 
   # Add a private Git repository on GitHub.com via GitHub App
   argocd repo add https://git.example.com/repos/repo --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem
@@ -54,7 +63,7 @@ argocd repo add REPOURL [flags]
 ```
       --bearer-token string                     bearer token to the Git BitBucket Data Center repository
       --enable-lfs                              enable git-lfs (Large File Support) on this repository
-      --enable-oci                              enable helm-oci (Helm OCI-Based Repository)
+      --enable-oci                              enable helm-oci (Helm OCI-Based Repository) (only valid for helm type repositories)
       --force-http-basic-auth                   whether to force use of basic auth when connecting repository via HTTP
       --gcp-service-account-key-path string     service account key for the Google Cloud Platform
       --github-app-enterprise-base-url string   base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3
@@ -63,6 +72,7 @@ argocd repo add REPOURL [flags]
       --github-app-private-key-path string      private key of the GitHub Application
   -h, --help                                    help for add
       --insecure-ignore-host-key                disables SSH strict host key checking (deprecated, use --insecure-skip-server-verification instead)
+      --insecure-oci-force-http                 Use http when accessing an OCI repository
       --insecure-skip-server-verification       disables server certificate and host key checks
       --name string                             name of the repository, mandatory for repositories of type helm
       --no-proxy string                         don't access these targets via proxy
@@ -70,9 +80,9 @@ argocd repo add REPOURL [flags]
       --project string                          project of the repository
       --proxy string                            use proxy to access repository
       --ssh-private-key-path string             path to the private ssh key (e.g. ~/.ssh/id_rsa)
-      --tls-client-cert-key-path string         path to the TLS client cert's key path (must be PEM format)
+      --tls-client-cert-key-path string         path to the TLS client cert's key (must be PEM format)
       --tls-client-cert-path string             path to the TLS client cert (must be PEM format)
-      --type string                             type of the repository, "git" or "helm" (default "git")
+      --type string                             type of the repository, "git", "oci" or "helm" (default "git")
       --upsert                                  Override an existing repository with the same name even if the spec differs
       --use-azure-workload-identity             whether to use azure workload identity for authentication
       --username string                         username to the repository

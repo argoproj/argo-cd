@@ -2,7 +2,11 @@
 
 ## argocd app actions run
 
-Runs an available action on resource(s)
+Runs an available action on resource(s) matching the specified filters.
+
+### Synopsis
+
+All filters except --kind are optional. Use --all to run the action on all matching resources if more than one resource matches the filters. Actions may only be run on resources that are represented in git and cannot be run on child resources.
 
 ```
 argocd app actions run APPNAME ACTION [flags]
@@ -19,11 +23,11 @@ argocd app actions run APPNAME ACTION [flags]
 
 ```
       --all                    Indicates whether to run the action on multiple matching resources
-      --group string           Group
+      --group string           Group of the resource on which the action should be run
   -h, --help                   help for run
-      --kind string            Kind
-      --namespace string       Namespace
-      --resource-name string   Name of resource
+      --kind string            Kind of the resource on which the action should be run
+      --namespace string       Namespace of the resource on which the action should be run
+      --resource-name string   Name of resource on which the action should be run
 ```
 
 ### Options inherited from parent commands

@@ -14,8 +14,8 @@ from your application source code, is highly recommended for the following reaso
    cleaner Git history of what changes were made, without the noise coming from check-ins due to
    normal development activity.
 
-3. Your application may be comprised of services built from multiple Git repositories, but is
-   deployed as a single unit. Oftentimes, microservices applications are comprised of services
+3. Your application may comprise services built from multiple Git repositories, but is
+   deployed as a single unit. Oftentimes, microservices applications comprise services
    with different versioning schemes, and release cycles (e.g. ELK, Kafka + ZooKeeper). It may not
    make sense to store the manifests in one of the source code repositories of a single component.
 

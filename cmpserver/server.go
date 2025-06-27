@@ -30,7 +30,6 @@ import (
 
 // ArgoCDCMPServer is the config management plugin server implementation
 type ArgoCDCMPServer struct {
-	log           *log.Entry
 	opts          []grpc.ServerOption
 	initConstants plugin.CMPServerInitConstants
 	stopCh        chan os.Signal
@@ -75,7 +74,6 @@ func NewServer(initConstants plugin.CMPServerInitConstants) (*ArgoCDCMPServer, e
 	}
 
 	return &ArgoCDCMPServer{
-		log:           serverLog,
 		opts:          serverOpts,
 		stopCh:        make(chan os.Signal),
 		doneCh:        make(chan any),
