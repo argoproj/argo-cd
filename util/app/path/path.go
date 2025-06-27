@@ -3,11 +3,13 @@ package path
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 	"github.com/argoproj/argo-cd/v3/util/security"
 )
@@ -43,13 +45,20 @@ func (e *OutOfBoundsSymlinkError) Error() string {
 }
 
 // CheckOutOfBoundsSymlinks determines if basePath contains any symlinks that
-// are absolute or point to a path outside of the basePath. If found, an
+// are absolute or point to a path outside the basePath. If found, an
 // OutOfBoundsSymlinkError is returned.
 func CheckOutOfBoundsSymlinks(basePath string) error {
 	absBasePath, err := filepath.Abs(basePath)
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
+
+	root, err := os.OpenRoot(absBasePath)
+	if err != nil {
+		return fmt.Errorf("failed to open dir: %w", err)
+	}
+	defer io.Close(root)
+
 	return filepath.Walk(absBasePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			// Ignore "no such file or directory" errors than can happen with
@@ -75,22 +84,18 @@ func CheckOutOfBoundsSymlinks(basePath string) error {
 			if filepath.IsAbs(linkTarget) {
 				return &OutOfBoundsSymlinkError{File: linkRelPath}
 			}
-			// get the parent directory of the symlink
-			currentDir := filepath.Dir(path)
 
-			// walk each part of the symlink target to make sure it never leaves basePath
-			parts := strings.Split(linkTarget, string(os.PathSeparator))
-			for _, part := range parts {
-				newDir := filepath.Join(currentDir, part)
-				rel, err := filepath.Rel(absBasePath, newDir)
-				if err != nil {
-					return fmt.Errorf("failed to get relative path for symlink target: %w", err)
+			_, err = root.Stat(linkRelPath)
+			if err != nil {
+				if errors.Is(err, os.ErrNotExist) {
+					return nil
 				}
-				if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
-					// return an error so we don't keep traversing the tree
+
+				var pathErr *fs.PathError
+				if errors.As(err, &pathErr) {
 					return &OutOfBoundsSymlinkError{File: linkRelPath}
 				}
-				currentDir = newDir
+				return fmt.Errorf("failed to stat %s: %w", path, err)
 			}
 		}
 		return nil
