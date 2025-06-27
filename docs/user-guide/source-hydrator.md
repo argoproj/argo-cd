@@ -253,6 +253,11 @@ specified more than once, the last one will be used.
 
 All trailers are optional. If a trailer is not specified, the corresponding field in the metadata will be omitted.
 
+### Co-Author
+
+The hydrator will always add the DRY source commit author as well as any referenced commit authors as co-authors of the
+hydrated commit.
+
 ## Limitations
 
 ### Signature Verification
