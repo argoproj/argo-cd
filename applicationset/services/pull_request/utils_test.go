@@ -332,6 +332,14 @@ func TestMultiFilterOrWithTargetBranchFilterOrWithTitleFilter(t *testing.T) {
 				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
 				Author:       "name4",
 			},
+			{
+				Number:       5,
+				Title:        "PR title is different than branch name",
+				Branch:       "five",
+				TargetBranch: "branch3",
+				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name5",
+			},
 		},
 		nil,
 	)
@@ -347,12 +355,18 @@ func TestMultiFilterOrWithTargetBranchFilterOrWithTitleFilter(t *testing.T) {
 		{
 			TitleMatch: strp("two"),
 		},
+		{
+			BranchMatch: strp("five"),
+			TitleMatch:  strp("PR title is different than branch name"),
+		},
 	}
 	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
 	require.NoError(t, err)
-	assert.Len(t, pullRequests, 2)
+	assert.Len(t, pullRequests, 3)
 	assert.Equal(t, "two", pullRequests[0].Branch)
 	assert.Equal(t, "four", pullRequests[1].Branch)
+	assert.Equal(t, "five", pullRequests[2].Branch)
+	assert.Equal(t, "PR title is different than branch name", pullRequests[2].Title)
 }
 
 func TestNoFilters(t *testing.T) {
