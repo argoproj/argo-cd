@@ -87,11 +87,12 @@ func TestUpdateProjects_MultiplePolicies(t *testing.T) {
 	modification, err = getModification("remove", "logs", "*", "allow")
 	require.NoError(t, err)
 	err = updateProjects(ctx, clientset.ArgoprojV1alpha1().AppProjects(namespace), "*", "fo*", "get", "logs", modification, false)
+	require.NoError(t, err)
 
 	proj, err = clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "proj", metav1.GetOptions{})
 	require.NoError(t, err)
 
-	assert.Equal(t, 2, len(proj.Spec.Roles[0].Policies))
+	assert.Len(t, proj.Spec.Roles[0].Policies, 2)
 	// update policy
 
 	modification, err = getModification("set", "applications", "*", "deny")
@@ -123,6 +124,7 @@ func TestGetModification_NotSupported(t *testing.T) {
 	_, err := getModification("bar", "logs", "*", "allow")
 	assert.Errorf(t, err, "modification bar is not supported")
 }
+
 func TestGetModification_ResourceNotSupported(t *testing.T) {
 	_, err := getModification("set", "dummy", "*", "allow")
 	assert.Errorf(t, err, "flag --resource should be project scoped resource, e.g. 'applications, logs, exec, etc.'")
