@@ -44,7 +44,9 @@ func TestKustomizeBuild(t *testing.T) {
 	namePrefix := "namePrefix-"
 	nameSuffix := "-nameSuffix"
 	namespace := "custom-namespace"
-	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+	repoRoot, err := os.OpenRoot(appPath)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(repoRoot, appPath, git.NopCreds{}, "", "", "", "")
 	env := &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: "argo-cd-tests"},
 	}
@@ -128,7 +130,9 @@ func TestKustomizeBuild(t *testing.T) {
 func TestFailKustomizeBuild(t *testing.T) {
 	appPath, err := testDataDir(t, kustomization1)
 	require.NoError(t, err)
-	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+	repoRoot, err := os.OpenRoot(appPath)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(repoRoot, appPath, git.NopCreds{}, "", "", "", "")
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		Replicas: []v1alpha1.KustomizeReplica{
 			{
@@ -237,7 +241,9 @@ func TestKustomizeBuildForceCommonLabels(t *testing.T) {
 	for _, tc := range testCases {
 		appPath, err := testDataDir(t, tc.TestData)
 		require.NoError(t, err)
-		kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+		repoRoot, err := os.OpenRoot(appPath)
+		require.NoError(t, err)
+		kustomize := NewKustomizeApp(repoRoot, appPath, git.NopCreds{}, "", "", "", "")
 		objs, _, _, err := kustomize.Build(&tc.KustomizeSource, nil, tc.Env, nil)
 		switch tc.ExpectErr {
 		case true:
@@ -329,7 +335,9 @@ func TestKustomizeBuildForceCommonAnnotations(t *testing.T) {
 	for _, tc := range testCases {
 		appPath, err := testDataDir(t, tc.TestData)
 		require.NoError(t, err)
-		kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+		repoRoot, err := os.OpenRoot(appPath)
+		require.NoError(t, err)
+		kustomize := NewKustomizeApp(repoRoot, appPath, git.NopCreds{}, "", "", "", "")
 		objs, _, _, err := kustomize.Build(&tc.KustomizeSource, nil, tc.Env, nil)
 		switch tc.ExpectErr {
 		case true:
@@ -435,7 +443,9 @@ func TestKustomizeLabelWithoutSelector(t *testing.T) {
 	for _, tc := range testCases {
 		appPath, err := testDataDir(t, tc.TestData)
 		require.NoError(t, err)
-		kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+		repoRoot, err := os.OpenRoot(appPath)
+		require.NoError(t, err)
+		kustomize := NewKustomizeApp(repoRoot, appPath, git.NopCreds{}, "", "", "", "")
 		objs, _, _, err := kustomize.Build(&tc.KustomizeSource, nil, tc.Env, nil)
 
 		switch tc.ExpectErr {
@@ -465,7 +475,9 @@ func TestKustomizeCustomVersion(t *testing.T) {
 	kustomizePath, err := testDataDir(t, kustomization4)
 	require.NoError(t, err)
 	envOutputFile := kustomizePath + "/env_output"
-	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", kustomizePath+"/kustomize.special", "", "")
+	repoRoot, err := os.OpenRoot(appPath)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(repoRoot, appPath, git.NopCreds{}, "", kustomizePath+"/kustomize.special", "", "")
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		Version: "special",
 	}
@@ -487,7 +499,9 @@ func TestKustomizeCustomVersion(t *testing.T) {
 func TestKustomizeBuildComponents(t *testing.T) {
 	appPath, err := testDataDir(t, kustomization6)
 	require.NoError(t, err)
-	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+	repoRoot, err := os.OpenRoot(appPath)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(repoRoot, appPath, git.NopCreds{}, "", "", "", "")
 
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		Components:              []string{"./components", "./missing-components"},
@@ -517,7 +531,9 @@ func TestKustomizeBuildComponentsMonoRepo(t *testing.T) {
 	rootPath, err := testDataDir(t, kustomization9)
 	require.NoError(t, err)
 	appPath := path.Join(rootPath, "envs/inseng-pdx-egert-sandbox/namespaces/inst-system/apps/hello-world")
-	kustomize := NewKustomizeApp(rootPath, appPath, git.NopCreds{}, "", "", "", "")
+	repoRoot, err := os.OpenRoot(rootPath)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(repoRoot, appPath, git.NopCreds{}, "", "", "", "")
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		Components:              []string{"../../../../../../kustomize/components/all"},
 		IgnoreMissingComponents: true,
@@ -541,7 +557,9 @@ func TestKustomizeBuildComponentsMonoRepo(t *testing.T) {
 func TestKustomizeBuildPatches(t *testing.T) {
 	appPath, err := testDataDir(t, kustomization5)
 	require.NoError(t, err)
-	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+	repoRoot, err := os.OpenRoot(appPath)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(repoRoot, appPath, git.NopCreds{}, "", "", "", "")
 
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		Patches: []v1alpha1.KustomizePatch{
@@ -593,7 +611,9 @@ func TestKustomizeBuildPatches(t *testing.T) {
 func TestFailKustomizeBuildPatches(t *testing.T) {
 	appPath, err := testDataDir(t, kustomization8)
 	require.NoError(t, err)
-	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+	repoRoot, err := os.OpenRoot(appPath)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(repoRoot, appPath, git.NopCreds{}, "", "", "", "")
 
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		Patches: []v1alpha1.KustomizePatch{
@@ -618,7 +638,9 @@ func TestFailKustomizeBuildPatches(t *testing.T) {
 func TestKustomizeBuildComponentsNoFoundComponents(t *testing.T) {
 	appPath, err := testDataDir(t, kustomization6)
 	require.NoError(t, err)
-	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+	repoRoot, err := os.OpenRoot(appPath)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(repoRoot, appPath, git.NopCreds{}, "", "", "", "")
 
 	// Test with non-existent components and IgnoreMissingComponents = true
 	// This should result in foundComponents being empty, so no "edit add component" command should be executed

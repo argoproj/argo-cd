@@ -34,7 +34,7 @@ func IsManifestGenerationEnabled(sourceType v1alpha1.ApplicationSourceType, enab
 	return enabled
 }
 
-func Discover(ctx context.Context, appPath, repoPath string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string, env []string) (map[string]string, error) {
+func Discover(ctx context.Context, appPath string, repoPath *os.Root, enableGenerateManifests map[string]bool, tarExcludedGlobs []string, env []string) (map[string]string, error) {
 	apps := make(map[string]string)
 
 	// Check if it is CMP
@@ -70,7 +70,7 @@ func Discover(ctx context.Context, appPath, repoPath string, enableGenerateManif
 	return apps, err
 }
 
-func AppType(ctx context.Context, appPath, repoPath string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string, env []string) (string, error) {
+func AppType(ctx context.Context, appPath string, repoPath *os.Root, enableGenerateManifests map[string]bool, tarExcludedGlobs, env []string) (string, error) {
 	apps, err := Discover(ctx, appPath, repoPath, enableGenerateManifests, tarExcludedGlobs, env)
 	if err != nil {
 		return "", err
@@ -88,7 +88,7 @@ func AppType(ctx context.Context, appPath, repoPath string, enableGenerateManife
 // check cmpSupports()
 // if supported return conn for the cmp-server
 
-func DetectConfigManagementPlugin(ctx context.Context, appPath, repoPath, pluginName string, env []string, tarExcludedGlobs []string) (utilio.Closer, pluginclient.ConfigManagementPluginServiceClient, error) {
+func DetectConfigManagementPlugin(ctx context.Context, appPath string, repoPath *os.Root, pluginName string, env, tarExcludedGlobs []string) (utilio.Closer, pluginclient.ConfigManagementPluginServiceClient, error) {
 	var conn utilio.Closer
 	var cmpClient pluginclient.ConfigManagementPluginServiceClient
 	var connFound bool
@@ -128,7 +128,7 @@ func DetectConfigManagementPlugin(ctx context.Context, appPath, repoPath, plugin
 // matchRepositoryCMP will send the repoPath to the cmp-server. The cmp-server will
 // inspect the files and return true if the repo is supported for manifest generation.
 // Will return false otherwise.
-func matchRepositoryCMP(ctx context.Context, appPath, repoPath string, client pluginclient.ConfigManagementPluginServiceClient, env []string, tarExcludedGlobs []string) (bool, bool, error) {
+func matchRepositoryCMP(ctx context.Context, appPath string, repoPath *os.Root, client pluginclient.ConfigManagementPluginServiceClient, env, tarExcludedGlobs []string) (bool, bool, error) {
 	matchRepoStream, err := client.MatchRepository(ctx, grpc_retry.Disable())
 	if err != nil {
 		return false, false, fmt.Errorf("error getting stream client: %w", err)
@@ -145,7 +145,7 @@ func matchRepositoryCMP(ctx context.Context, appPath, repoPath string, client pl
 	return resp.GetIsSupported(), resp.GetIsDiscoveryEnabled(), nil
 }
 
-func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fileName string, env []string, tarExcludedGlobs []string, namedPlugin bool) (utilio.Closer, pluginclient.ConfigManagementPluginServiceClient, bool) {
+func cmpSupports(ctx context.Context, pluginSockFilePath string, appPath string, repoPath *os.Root, fileName string, env []string, tarExcludedGlobs []string, namedPlugin bool) (utilio.Closer, pluginclient.ConfigManagementPluginServiceClient, bool) {
 	absPluginSockFilePath, err := filepath.Abs(pluginSockFilePath)
 	if err != nil {
 		log.Errorf("error getting absolute path for plugin socket dir %v, %v", pluginSockFilePath, err)
@@ -189,7 +189,7 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 		log.WithFields(log.Fields{
 			common.SecurityField:    common.SecurityMedium,
 			common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
-		}).Errorf("repository %s is not the match because %v", repoPath, err)
+		}).Errorf("repository %s is not the match because %v", repoPath.Name(), err)
 		utilio.Close(conn)
 		return nil, nil, false
 	}
@@ -202,7 +202,7 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 		log.WithFields(log.Fields{
 			common.SecurityField:    common.SecurityLow,
 			common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
-		}).Debugf("Response from socket file %s does not support %v", fileName, repoPath)
+		}).Debugf("Response from socket file %s does not support %v", fileName, repoPath.Name())
 		utilio.Close(conn)
 		return nil, nil, false
 	}

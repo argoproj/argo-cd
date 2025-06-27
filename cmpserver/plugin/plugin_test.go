@@ -610,7 +610,12 @@ type MockGenerateManifestStream struct {
 }
 
 func NewMockGenerateManifestStream(repoPath, appPath string, env []string) (*MockGenerateManifestStream, error) {
-	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil, nil)
+	repoRoot, err := os.OpenRoot(repoPath)
+	if err != nil {
+		return nil, err
+	}
+	defer repoRoot.Close()
+	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoRoot, appPath, env, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -684,7 +689,12 @@ type MockMatchRepositoryStream struct {
 }
 
 func NewMockMatchRepositoryStream(repoPath, appPath string, env []string) (*MockMatchRepositoryStream, error) {
-	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil, nil)
+	repoRoot, err := os.OpenRoot(repoPath)
+	if err != nil {
+		return nil, err
+	}
+	defer repoRoot.Close()
+	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoRoot, appPath, env, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -757,7 +767,13 @@ type MockParametersAnnouncementStream struct {
 }
 
 func NewMockParametersAnnouncementStream(repoPath, appPath string, env []string) (*MockParametersAnnouncementStream, error) {
-	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoPath, appPath, env, nil, nil)
+	repoRoot, err := os.OpenRoot(repoPath)
+	if err != nil {
+		return nil, err
+	}
+	defer repoRoot.Close()
+
+	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(repoRoot, appPath, env, nil, nil)
 	if err != nil {
 		return nil, err
 	}
