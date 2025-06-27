@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -8,9 +9,11 @@ import (
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"gopkg.in/yaml.v3"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
@@ -21,6 +24,103 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
+
+func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var resourceName string
+	var namespace string
+	var kind string
+	var group string
+	var project string
+	var output string
+	var showManagedFields bool
+	command := &cobra.Command{
+		Use:   "get-resource APPNAME",
+		Short: "Get live manifest of an application's resource",
+	}
+
+	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource [REQUIRED]")
+	err := command.MarkFlagRequired("resource-name")
+	errors.CheckError(err)
+	command.Flags().StringVar(&namespace, "namespace", "", "Namespace, if none is provided will default to that of the resource")
+	command.Flags().StringVar(&kind, "kind", "", "Kind of resource [REQUIRED]")
+	err = command.MarkFlagRequired("kind")
+	errors.CheckError(err)
+	command.Flags().StringVar(&group, "group", "", "Group, if none is provided will default to nothing")
+	command.Flags().StringVar(&project, "project", "", "Project of resource")
+	command.Flags().StringVar(&output, "output", "yaml", "Format of the output, yaml or json")
+	command.Flags().BoolVar(&showManagedFields, "show-managed-fields", false, "Show managed fields in the output manifest")
+
+	command.Run = func(c *cobra.Command, args []string) {
+		ctx := c.Context()
+
+		if len(args) != 1 {
+			c.HelpFunc()(c, args)
+			os.Exit(1)
+		}
+
+		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+
+		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
+		defer utilio.Close(conn)
+
+		tree, err := appIf.ResourceTree(ctx, &applicationpkg.ResourcesQuery{
+			ApplicationName: &appName,
+			AppNamespace:    &appNs,
+		})
+		errors.CheckError(err)
+
+		// Search for resource to fill in potentially missing information
+		var version string
+		for _, r := range tree.Nodes {
+			if r.Name == resourceName {
+				version = r.Version
+				group = r.Group
+				kind = r.Kind
+				namespace = r.Namespace
+				break
+			}
+		}
+
+		resource, err := appIf.GetResource(ctx, &applicationpkg.ApplicationResourceRequest{
+			Name:         &appName,
+			AppNamespace: &appNs,
+			Group:        &group,
+			Kind:         &kind,
+			Namespace:    &namespace,
+			Project:      &project,
+			ResourceName: &resourceName,
+			Version:      &version,
+		})
+		errors.CheckError(err)
+		manifest := resource.GetManifest()
+
+		var obj unstructured.Unstructured
+		err = json.Unmarshal([]byte(manifest), &obj)
+		errors.CheckError(err)
+
+		printManifest(&obj, showManagedFields, output)
+	}
+
+	return command
+}
+
+func printManifest(obj *unstructured.Unstructured, showManagedFields bool, output string) {
+	if !showManagedFields {
+		unstructured.RemoveNestedField(obj.Object, "metadata", "managedFields")
+	}
+
+	var formattedManifest []byte
+	var err error
+	if output == "json" {
+		formattedManifest, err = json.MarshalIndent(obj.Object, "", " ")
+	} else {
+		formattedManifest, err = yaml.Marshal(obj.Object)
+	}
+	errors.CheckError(err)
+	fmt.Println(string(formattedManifest))
+	log.Infof("Resource '%s' fetched", obj.GetName())
+
+}
 
 func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var patch string
