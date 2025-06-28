@@ -32,6 +32,9 @@ packages:
   github.com/argoproj/argo-cd/v3/controller/cache:
     interfaces:
       LiveStateCache: {}
+  github.com/argoproj/argo-cd/v3/controller/hydrator:
+    interfaces:
+      Dependencies: {}
   github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster:
     interfaces:
       ClusterServiceServer: {}

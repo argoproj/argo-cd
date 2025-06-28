@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/argoproj/argo-cd/v3/controller/hydrator"
+	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	argoutil "github.com/argoproj/argo-cd/v3/util/argo"
@@ -85,6 +85,6 @@ func (ctrl *ApplicationController) PersistAppHydratorStatus(orig *appv1.Applicat
 	ctrl.persistAppStatus(orig, status)
 }
 
-func (ctrl *ApplicationController) AddHydrationQueueItem(key hydrator.HydrationQueueKey) {
+func (ctrl *ApplicationController) AddHydrationQueueItem(key types.HydrationQueueKey) {
 	ctrl.hydrationQueue.AddRateLimited(key)
 }
