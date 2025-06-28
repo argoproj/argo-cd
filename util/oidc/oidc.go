@@ -727,7 +727,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	// but first let's determine the expiry of the cache
 	var cacheExpiry time.Duration
 	settingExpiry := a.settings.UserInfoCacheExpiration()
-	tokenExpiry := getTokenExpiration(claims)
+	tokenExpiry := getTokenExpiration(actualClaims)
 
 	// only use configured expiry if the token lives longer and the expiry is configured
 	// if the token has no expiry, use the expiry of the actual token
