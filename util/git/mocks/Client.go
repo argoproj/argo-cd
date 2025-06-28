@@ -309,8 +309,8 @@ func (_c *Client_CheckoutOrOrphan_Call) RunAndReturn(run func(branch string, sub
 }
 
 // CommitAndPush provides a mock function for the type Client
-func (_mock *Client) CommitAndPush(branch string, message string) (string, error) {
-	ret := _mock.Called(branch, message)
+func (_mock *Client) CommitAndPush(branch string, message string, trailers []string) (string, error) {
+	ret := _mock.Called(branch, message, trailers)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CommitAndPush")
@@ -318,16 +318,16 @@ func (_mock *Client) CommitAndPush(branch string, message string) (string, error
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string, string) (string, error)); ok {
-		return returnFunc(branch, message)
+	if returnFunc, ok := ret.Get(0).(func(string, string, []string) (string, error)); ok {
+		return returnFunc(branch, message, trailers)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string, string) string); ok {
-		r0 = returnFunc(branch, message)
+	if returnFunc, ok := ret.Get(0).(func(string, string, []string) string); ok {
+		r0 = returnFunc(branch, message, trailers)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = returnFunc(branch, message)
+	if returnFunc, ok := ret.Get(1).(func(string, string, []string) error); ok {
+		r1 = returnFunc(branch, message, trailers)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -342,11 +342,12 @@ type Client_CommitAndPush_Call struct {
 // CommitAndPush is a helper method to define mock.On call
 //   - branch string
 //   - message string
-func (_e *Client_Expecter) CommitAndPush(branch interface{}, message interface{}) *Client_CommitAndPush_Call {
-	return &Client_CommitAndPush_Call{Call: _e.mock.On("CommitAndPush", branch, message)}
+//   - trailers []string
+func (_e *Client_Expecter) CommitAndPush(branch interface{}, message interface{}, trailers interface{}) *Client_CommitAndPush_Call {
+	return &Client_CommitAndPush_Call{Call: _e.mock.On("CommitAndPush", branch, message, trailers)}
 }
 
-func (_c *Client_CommitAndPush_Call) Run(run func(branch string, message string)) *Client_CommitAndPush_Call {
+func (_c *Client_CommitAndPush_Call) Run(run func(branch string, message string, trailers []string)) *Client_CommitAndPush_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 string
 		if args[0] != nil {
@@ -356,9 +357,14 @@ func (_c *Client_CommitAndPush_Call) Run(run func(branch string, message string)
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 []string
+		if args[2] != nil {
+			arg2 = args[2].([]string)
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -369,7 +375,7 @@ func (_c *Client_CommitAndPush_Call) Return(s string, err error) *Client_CommitA
 	return _c
 }
 
-func (_c *Client_CommitAndPush_Call) RunAndReturn(run func(branch string, message string) (string, error)) *Client_CommitAndPush_Call {
+func (_c *Client_CommitAndPush_Call) RunAndReturn(run func(branch string, message string, trailers []string) (string, error)) *Client_CommitAndPush_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -879,7 +879,7 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 	err = runCmd(client.Root(), "touch", "README.md")
 	require.NoError(t, err)
 
-	out, err = client.CommitAndPush(branch, "docs: README")
+	out, err = client.CommitAndPush(branch, "docs: README", "")
 	require.NoError(t, err, "error output: %s", out)
 
 	// get current commit hash of the cloned repository

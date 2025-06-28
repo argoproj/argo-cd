@@ -131,7 +131,8 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 
 	logCtx.Debug("Committing and pushing changes")
-	out, err = gitClient.CommitAndPush(r.TargetBranch, r.CommitMessage)
+	trailers := getCoAuthorTrailers(r.DryCommitMetadata)
+	out, err = gitClient.CommitAndPush(r.TargetBranch, r.CommitMessage, trailers)
 	if err != nil {
 		return out, "", fmt.Errorf("failed to commit and push: %w", err)
 	}
@@ -143,6 +144,25 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 
 	return "", sha, nil
+}
+
+// getCoAuthorTrailers returns the co-author trailers for the given revision metadata.
+func getCoAuthorTrailers(metadata *v1alpha1.RevisionMetadata) []string {
+	if metadata == nil {
+		return nil
+	}
+	var trailers []string
+	// Add authors from referenced commits first, as they're more likely to be relevant. The DRY commit author will
+	// often just be some bot account.
+	for i := range metadata.References {
+		if metadata.References[i].Commit != nil && metadata.References[i].Commit.Author != "" {
+			trailers = append(trailers, "Co-Authored-By: "+metadata.References[i].Commit.Author)
+		}
+	}
+	if metadata.Author != "" {
+		trailers = append(trailers, "Co-Authored-By: "+metadata.Author)
+	}
+	return trailers
 }
 
 // initGitClient initializes a git client for the given repository and returns the client, the path to the directory where

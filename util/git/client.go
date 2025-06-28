@@ -131,7 +131,7 @@ type Client interface {
 	// RemoveContents removes all files from the git repository.
 	RemoveContents() (string, error)
 	// CommitAndPush commits and pushes changes to the target branch.
-	CommitAndPush(branch, message string) (string, error)
+	CommitAndPush(branch, message string, trailers []string) (string, error)
 }
 
 type EventHandlers struct {
@@ -1017,13 +1017,17 @@ func (m *nativeGitClient) RemoveContents() (string, error) {
 }
 
 // CommitAndPush commits and pushes changes to the target branch.
-func (m *nativeGitClient) CommitAndPush(branch, message string) (string, error) {
+func (m *nativeGitClient) CommitAndPush(branch, message string, trailers []string) (string, error) {
 	out, err := m.runCmd("add", ".")
 	if err != nil {
 		return out, fmt.Errorf("failed to add files: %w", err)
 	}
 
-	out, err = m.runCmd("commit", "-m", message)
+	args := []string{"commit", "-m", message}
+	for _, trailer := range trailers {
+		args = append(args, "--trailer", trailer)
+	}
+	out, err = m.runCmd(args...)
 	if err != nil {
 		if strings.Contains(out, "nothing to commit, working tree clean") {
 			return out, nil
