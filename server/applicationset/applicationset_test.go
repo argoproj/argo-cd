@@ -1,6 +1,7 @@
 package applicationset
 
 import (
+	"encoding/json"
 	"sort"
 	"testing"
 
@@ -639,4 +640,73 @@ func TestResourceTree(t *testing.T) {
 		_, err := appSetServer.ResourceTree(t.Context(), &appsetQuery)
 		assert.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
 	})
+}
+
+func TestGetApplicationPatch(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name         string
+		original     *appsv1.ApplicationSet
+		updated      *appsv1.ApplicationSet
+		testMutation func(original, updated *appsv1.ApplicationSet)
+		expectedDiff string
+	}{
+		{
+			name:         "Test that identical apps show no difference",
+			original:     newTestAppSet(),
+			updated:      newTestAppSet(),
+			testMutation: func(_, _ *appsv1.ApplicationSet) {},
+			expectedDiff: "{\"metadata\": {}, \"spec\": {}}",
+		},
+		{
+			name:     "Test that project displays correctly",
+			original: newTestAppSet(),
+			updated:  newTestAppSet(),
+			testMutation: func(_, updated *appsv1.ApplicationSet) {
+				updated.Spec.Template.Spec.Project = "Foo"
+			},
+			expectedDiff: "{\"metadata\": {}, \"spec\": {\"template\": {\"spec\": {\"project\": \"Foo\"}}}}",
+		},
+		{
+			name:     "Test that Metadata updates displays correctly",
+			original: newTestAppSet(),
+			updated:  newTestAppSet(),
+			testMutation: func(_, updated *appsv1.ApplicationSet) {
+				updated.SetAnnotations(map[string]string{"foo": "bar"})
+			},
+			expectedDiff: "{\"metadata\": {\"annotations\":{\"foo\": \"bar\"}}, \"spec\": {}}",
+		},
+		{
+			name:     "Test that Metadata removals displays correctly",
+			original: newTestAppSet(),
+			updated:  newTestAppSet(),
+			testMutation: func(original, _ *appsv1.ApplicationSet) {
+				original.SetAnnotations(map[string]string{"foo": "bar"})
+			},
+			expectedDiff: "{\"metadata\": {\"annotations\": null}, \"spec\": {}}",
+		},
+		{
+			name:     "Test that Metadata partial removals displays correctly",
+			original: newTestAppSet(),
+			updated:  newTestAppSet(),
+			testMutation: func(original, modified *appsv1.ApplicationSet) {
+				original.SetAnnotations(map[string]string{"foo": "bar", "baz": "foobar"})
+				modified.SetAnnotations(map[string]string{"foo": "bar"})
+			},
+			expectedDiff: "{\"metadata\": {\"annotations\": {\"baz\": null}}, \"spec\": {}}",
+		},
+	}
+	for _, tc := range testCases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			tcc.testMutation(tcc.original, tcc.updated)
+			diff, err := getApplicationSetPatch(tcc.original, tcc.updated)
+			require.NoError(t, err)
+
+			actual, err := json.Marshal(diff)
+			require.NoError(t, err)
+			assert.JSONEq(t, string(tcc.expectedDiff), string(actual))
+		})
+	}
 }
