@@ -2043,11 +2043,11 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 			ctrl.logAppEvent(context.TODO(), orig, argo.EventInfo{Reason: argo.EventReasonHydrationStarted, Type: corev1.EventTypeNormal}, message)
 		case appv1.HydrateOperationPhaseHydrated:
 			if sourceHydratorCurrentOperation.DrySHA != "" && sourceHydratorCurrentOperation.HydratedSHA != "" {
-				message := fmt.Sprintf("Source hydrator completed, hydrated commit: %s", sourceHydratorCurrentOperation.HydratedSHA)
+				message := "Source hydrator completed, hydrated commit: " + sourceHydratorCurrentOperation.HydratedSHA
 				ctrl.logAppEvent(context.TODO(), orig, argo.EventInfo{Reason: argo.EventReasonHydrationCompleted, Type: corev1.EventTypeNormal}, message)
 			}
 		case appv1.HydrateOperationPhaseFailed:
-			message := fmt.Sprintf("Source hydrator failed: %s", sourceHydratorCurrentOperation.Message)
+			message := "Source hydrator failed: " + sourceHydratorCurrentOperation.Message
 			ctrl.logAppEvent(context.TODO(), orig, argo.EventInfo{Reason: argo.EventReasonHydrationCompleted, Type: corev1.EventTypeNormal}, message)
 		}
 	}
