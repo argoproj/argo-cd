@@ -17,6 +17,12 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
+// commitSubjectTemplate is the template used to generate commit subjects. It uses sprig functions. It starts with the
+// first 7 characters of the dry run commit SHA, followed by the first 41 characters of the commit subject. We use 41
+// characters for the subject because GitHub shows 50 characters in the UI, and we want to leave room for the 7-character
+// SHA, the backticks, and the ": " separator.
+var commitSubjectTemplate = "`{{.DrySHA | trunc 7}}`: {{.Subject | abbrev 41}}"
+
 type RepoGetter interface {
 	// GetRepository returns a repository by its URL and project name.
 	GetRepository(ctx context.Context, repoURL, project string) (*appv1.Repository, error)
@@ -327,13 +333,13 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 	}
 
 	manifestsRequest := commitclient.CommitHydratedManifestsRequest{
-		Repo:              repo,
-		SyncBranch:        syncBranch,
-		TargetBranch:      targetBranch,
-		DrySha:            targetRevision,
-		CommitMessage:     "[Argo CD Bot] hydrate " + targetRevision,
-		Paths:             paths,
-		DryCommitMetadata: revisionMetadata,
+		Repo:                  repo,
+		SyncBranch:            syncBranch,
+		TargetBranch:          targetBranch,
+		DrySha:                targetRevision,
+		Paths:                 paths,
+		DryCommitMetadata:     revisionMetadata,
+		CommitSubjectTemplate: commitSubjectTemplate,
 	}
 
 	closer, commitService, err := h.commitClientset.NewCommitServerClient()
