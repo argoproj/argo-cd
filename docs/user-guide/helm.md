@@ -214,8 +214,9 @@ the result will be param1=value5
 ```
 
 !!! note "When valueFiles or values is used"
-    The list of parameters seen in the ui is not what is used for resources, rather it is the values/valuesObject merged with parameters (see [this issue](https://github.com/argoproj/argo-cd/issues/9213) incase it has been resolved)
-    As a workaround using parameters instead of values/valuesObject will provide a better overview of what will be used for resources
+    The chart is rendered correctly using the set of values from the different possible sources plus any parameters, merged in the expected order as documented here.
+    There is a bug (see [this issue](https://github.com/argoproj/argo-cd/issues/9213) in the UI that only shows the parameters, i.e. it does not represent the complete set of values.
+    As a workaround, using parameters instead of values/valuesObject will provide a better overview of what will be used for resources.
 
 ## Helm --set-file support
 
