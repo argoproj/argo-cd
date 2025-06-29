@@ -1,7 +1,7 @@
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
-  generation: 1
+  generation: 2
   name: basic
 spec:
   virtualhost:
