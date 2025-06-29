@@ -1186,6 +1186,28 @@ stringData:
   enableOCI: "true"
 ```
 
+To enable direct chart download (bypassing index.yaml), configure the Helm repository Secret as follows:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: direct-pull-helm-chart
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  name: direct-pull-helm-chart
+  url: https://charts.example.com
+  type: helm
+  enableDirectPull: "true"
+```
+
+Limitations of enableDirectPull:
+* Wildcard versions are not supported. You must use exact targetRevision, like 1.2.3. Constructs such as >=1.0.0, ~2.1, or 2.3.* will not work.
+* Chart must be stored at a predictable URL (`<repo_url>/<chart_name>-<version>.tgz`)
+* If the chart or version is missing at the expected location, the operation will fail without attempting to read index.yaml.
+
 ## Resource Exclusion/Inclusion
 
 Resources can be excluded from discovery and sync so that Argo CD is unaware of them. For example, the apiGroup/kind `events.k8s.io/*`, `metrics.k8s.io/*` and `coordination.k8s.io/Lease` are always excluded. Use cases:
