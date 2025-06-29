@@ -70,12 +70,20 @@ func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
 		SearchCriteria: &git.GitPullRequestSearchCriteria{},
 	}
 
+	pullRequests := []*PullRequest{}
+
 	azurePullRequests, err := client.GetPullRequestsByProject(ctx, args)
 	if err != nil {
+		// A standard Http 404 error is not returned for Azure DevOps,
+		// so checking the error message for a specific pattern. Also please note that the repos are filtered later,
+		// so what is relevant for AzureDevOps is the existence of the project.
+		if strings.Contains(err.Error(), "The following project does not exist") {
+			// return a custom error indicating that the repository is not found,
+			// but also return the empty result since the decision to continue or not in this case is made by the caller
+			return pullRequests, NewRepositoryNotFoundError(err)
+		}
 		return nil, fmt.Errorf("failed to get pull requests by project: %w", err)
 	}
-
-	pullRequests := []*PullRequest{}
 
 	for _, pr := range *azurePullRequests {
 		if pr.Repository == nil ||
