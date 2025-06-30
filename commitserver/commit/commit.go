@@ -78,6 +78,9 @@ func (s *Service) CommitHydratedManifests(_ context.Context, r *apiclient.Commit
 // target branch, clears the repository contents, writes the manifests to the repository, commits the changes, and pushes
 // the changes. It returns the output of the git commands and an error if one occurred.
 func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydratedManifestsRequest) (string, string, error) {
+	if r.CommitMessage != "" {
+		return "", "", errors.New("the CommitMessage field is deprecated, please use CommitSubjectTemplate instead")
+	}
 	if r.Repo == nil {
 		return "", "", errors.New("repo is required")
 	}
@@ -125,13 +128,18 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 
 	logCtx.Debug("Writing manifests")
-	err = WriteForPaths(root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths)
+	m := getHydratorMetadataFile(r.Repo.Repo, r.DrySha, r.DryCommitMetadata)
+	err = WriteForPaths(root, r.Repo.Repo, r.DrySha, m, r.Paths)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}
 
 	logCtx.Debug("Committing and pushing changes")
-	out, err = gitClient.CommitAndPush(r.TargetBranch, r.CommitMessage)
+	commitMessage, err := generateCommitMessage(r.CommitSubjectTemplate, m)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to generate commit message: %w", err)
+	}
+	out, err = gitClient.CommitAndPush(r.TargetBranch, commitMessage)
 	if err != nil {
 		return out, "", fmt.Errorf("failed to commit and push: %w", err)
 	}

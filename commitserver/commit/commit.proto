@@ -15,11 +15,15 @@ message CommitHydratedManifestsRequest {
   // DrySha is the commit SHA from the dry branch, i.e. pre-rendered manifest branch.
   string drySha = 4;
   // CommitMessage is the commit message to use when committing changes.
-  string commitMessage = 5;
+  // Deprecated: use commitSubjectTemplate instead.
+  string commitMessage = 5 [deprecated=true];
   // Paths contains the paths to write hydrated manifests to, along with the manifests and commands to execute.
   repeated PathDetails paths = 6;
   // DryCommitMetadata contains metadata about the DRY commit, such as the author and committer.
   github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RevisionMetadata dryCommitMetadata = 7;
+  // CommitSubjectTemplate is a template for the subject line of the message to use when committing changes. It supports
+  // Go text template syntax, the Sprig template library, and fields from the hydrator.metadata file.
+  string commitSubjectTemplate = 8;
 }
 
 // PathDetails holds information about hydrated manifests to be written to a particular path in the hydrated manifests
