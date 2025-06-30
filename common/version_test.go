@@ -1,9 +1,10 @@
 package common
 
 import (
-	"github.com/stretchr/testify/assert"
 	"runtime"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetVersion(t *testing.T) {
