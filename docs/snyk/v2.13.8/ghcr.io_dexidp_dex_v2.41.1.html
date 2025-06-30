@@ -201,6 +201,15 @@
       padding: 1.5em;
     }
   
+    .card__labels {
+      position: absolute;
+      top: 1.1em;
+      left: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  
     .card .label {
       background-color: #767676;
       border: 2px solid #767676;
@@ -258,10 +267,7 @@
       padding-top: 4em;
     }
   
-    .card--vuln .label {
-      left: 0;
-      position: absolute;
-      top: 1.1em;
+    .card--vuln .card__labels > .label:first-child {
       padding-left: 1.9em;
       padding-right: 1.9em;
       border-radius: 0 0.25rem 0.25rem 0;
@@ -289,11 +295,36 @@
     .card--vuln .card__title {
       font-size: 28px;
       margin-top: 0;
+      margin-right: 100px; /* Ensure space for the risk score */
     }
   
     .card--vuln .card__cta p {
       margin: 0;
       text-align: right;
+    }
+  
+    .risk-score-display {
+      position: absolute;
+      top: 1.5em;
+      right: 1.5em;
+      text-align: right;
+      z-index: 10;
+    }
+  
+    .risk-score-display__label {
+      font-size: 0.7em;
+      font-weight: bold;
+      color: #586069;
+      text-transform: uppercase;
+      line-height: 1;
+      margin-bottom: 3px;
+    }
+  
+    .risk-score-display__value {
+      font-size: 1.9em;
+      font-weight: 600;
+      color: #24292e;
+      line-height: 1;
     }
   
     .source-panel {
@@ -456,7 +487,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">June 22nd 2025, 12:33:54 am (UTC+00:00)</p>
+                <p class="timestamp">June 29th 2025, 12:35:21 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -483,8 +514,10 @@
             <h2 class="card__title">Incorrect Implementation of Authentication Algorithm</h2>
             <div class="card__section">
         
-                <div class="label label--critical">
-                    <span class="label__text">critical severity</span>
+                <div class="card__labels">
+                    <div class="label label--critical">
+                        <span class="label__text">critical severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -558,8 +591,10 @@
             <h2 class="card__title">Access of Resource Using Incompatible Type (&#x27;Type Confusion&#x27;)</h2>
             <div class="card__section">
         
-                <div class="label label--high">
-                    <span class="label__text">high severity</span>
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -715,8 +750,10 @@
             <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
             <div class="card__section">
         
-                <div class="label label--high">
-                    <span class="label__text">high severity</span>
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -795,8 +832,10 @@
             <h2 class="card__title">Server-side Request Forgery (SSRF)</h2>
             <div class="card__section">
         
-                <div class="label label--high">
-                    <span class="label__text">high severity</span>
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -875,8 +914,10 @@
             <h2 class="card__title">Denial of Service (DoS)</h2>
             <div class="card__section">
         
-                <div class="label label--high">
-                    <span class="label__text">high severity</span>
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -958,8 +999,10 @@
             <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
             <div class="card__section">
         
-                <div class="label label--high">
-                    <span class="label__text">high severity</span>
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -1028,8 +1071,10 @@
             <h2 class="card__title">Asymmetric Resource Consumption (Amplification)</h2>
             <div class="card__section">
         
-                <div class="label label--high">
-                    <span class="label__text">high severity</span>
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -1097,8 +1142,10 @@
             <h2 class="card__title">Insertion of Sensitive Information into Log File</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -1165,8 +1212,10 @@
             <h2 class="card__title">Improper Validation of Syntactic Correctness of Input</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -1290,8 +1339,10 @@
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -1350,8 +1401,10 @@
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -1410,8 +1463,10 @@
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -1533,8 +1588,10 @@
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -1602,8 +1659,10 @@
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -1662,8 +1721,10 @@
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -1722,8 +1783,10 @@
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -1791,8 +1854,10 @@
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -1851,8 +1916,10 @@
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -1911,8 +1978,10 @@
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -1971,8 +2040,10 @@
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -2031,8 +2102,10 @@
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -2091,8 +2164,10 @@
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -2151,8 +2226,10 @@
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -2211,8 +2288,10 @@
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -2271,8 +2350,10 @@
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -2331,8 +2412,10 @@
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -2391,8 +2474,10 @@
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -2451,8 +2536,10 @@
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -2511,8 +2598,10 @@
             <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
             <div class="card__section">
         
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -2590,8 +2679,10 @@
             <h2 class="card__title">CVE-2024-9143</h2>
             <div class="card__section">
         
-                <div class="label label--low">
-                    <span class="label__text">low severity</span>
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -2753,8 +2844,10 @@
             <h2 class="card__title">CVE-2024-13176</h2>
             <div class="card__section">
         
-                <div class="label label--low">
-                    <span class="label__text">low severity</span>
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -2909,8 +3002,10 @@
             <h2 class="card__title">CVE-2024-12797</h2>
             <div class="card__section">
         
-                <div class="label label--low">
-                    <span class="label__text">low severity</span>
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
                 </div>
         
                 <hr/>
@@ -3064,8 +3159,10 @@
             <h2 class="card__title">CVE-2025-26519</h2>
             <div class="card__section">
         
-                <div class="label label--low">
-                    <span class="label__text">low severity</span>
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
                 </div>
         
                 <hr/>
