@@ -107,7 +107,7 @@ func (k *kustomize) getBinaryPath() string {
 // https://github.com/kubernetes-sigs/kustomize/commit/b214fa7d5aa51d7c2ae306ec15115bf1c044fed8#diff-0328c59bcd29799e365ff0647653b886f17c8853df008cd54e7981db882c1b36
 func mapToEditAddArgs(val map[string]string) []string {
 	var args []string
-	if getSemverSafe(&kustomize{}).LessThan(semver.MustParse("v3.8.5")) {
+	if getSemverSafe().LessThan(semver.MustParse("v3.8.5")) {
 		arg := ""
 		for labelName, labelValue := range val {
 			if arg != "" {
@@ -338,7 +338,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		if len(opts.Components) > 0 {
 			// components only supported in kustomize >= v3.7.0
 			// https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md
-			if getSemverSafe(k).LessThan(semver.MustParse("v3.7.0")) {
+			if getSemverSafe().LessThan(semver.MustParse("v3.7.0")) {
 				return nil, nil, nil, errors.New("kustomize components require kustomize v3.7.0 and above")
 			}
 
@@ -380,7 +380,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 
 	var cmd *exec.Cmd
 	if kustomizeOptions != nil && kustomizeOptions.BuildOptions != "" {
-		params := parseKustomizeBuildOptions(k, kustomizeOptions.BuildOptions, buildOpts)
+		params := parseKustomizeBuildOptions(k.path, kustomizeOptions.BuildOptions, buildOpts)
 		cmd = exec.Command(k.getBinaryPath(), params...)
 	} else {
 		cmd = exec.Command(k.getBinaryPath(), "build", k.path)
@@ -407,10 +407,10 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	return objs, getImageParameters(objs), redactedCommands, nil
 }
 
-func parseKustomizeBuildOptions(k *kustomize, buildOptions string, buildOpts *BuildOpts) []string {
-	buildOptsParams := append([]string{"build", k.path}, strings.Fields(buildOptions)...)
+func parseKustomizeBuildOptions(path string, buildOptions string, buildOpts *BuildOpts) []string {
+	buildOptsParams := append([]string{"build", path}, strings.Fields(buildOptions)...)
 
-	if buildOpts != nil && !getSemverSafe(k).LessThan(semver.MustParse("v5.3.0")) && isHelmEnabled(buildOptions) {
+	if buildOpts != nil && !getSemverSafe().LessThan(semver.MustParse("v5.3.0")) && isHelmEnabled(buildOptions) {
 		if buildOpts.KubeVersion != "" {
 			buildOptsParams = append(buildOptsParams, "--helm-kube-version", buildOpts.KubeVersion)
 		}
@@ -441,8 +441,8 @@ var (
 )
 
 // getSemver returns parsed kustomize version
-func getSemver(k *kustomize) (*semver.Version, error) {
-	verStr, err := versionWithBinaryPath(k)
+func getSemver() (*semver.Version, error) {
+	verStr, err := Version()
 	if err != nil {
 		return nil, err
 	}
@@ -458,12 +458,12 @@ func getSemver(k *kustomize) (*semver.Version, error) {
 // getSemverSafe returns parsed kustomize version;
 // if version cannot be parsed assumes that "kustomize version" output format changed again
 // and fallback to latest ( v99.99.99 )
-func getSemverSafe(k *kustomize) *semver.Version {
+func getSemverSafe() *semver.Version {
 	if semVer == nil {
 		semVerLock.Lock()
 		defer semVerLock.Unlock()
 
-		if ver, err := getSemver(k); err != nil {
+		if ver, err := getSemver(); err != nil {
 			semVer = unknownVersion
 			log.Warnf("Failed to parse kustomize version: %v", err)
 		} else {
@@ -474,12 +474,7 @@ func getSemverSafe(k *kustomize) *semver.Version {
 }
 
 func Version() (string, error) {
-	return versionWithBinaryPath(&kustomize{})
-}
-
-func versionWithBinaryPath(k *kustomize) (string, error) {
-	executable := k.getBinaryPath()
-	cmd := exec.Command(executable, "version", "--short")
+	cmd := exec.Command("kustomize", "version", "--short")
 	// example version output:
 	// short: "{kustomize/v3.8.1  2020-07-16T00:58:46Z  }"
 	version, err := executil.Run(cmd)
@@ -505,17 +500,18 @@ func getImageParameters(objs []*unstructured.Unstructured) []Image {
 	for _, obj := range objs {
 		images = append(images, getImages(obj.Object)...)
 	}
-	sort.Strings(images)
+	sort.Slice(images, func(i, j int) bool {
+		return i < j
+	})
 	return images
 }
 
 func getImages(object map[string]any) []Image {
 	var images []Image
 	for k, v := range object {
-		switch v := v.(type) {
-		case []any:
+		if array, ok := v.([]any); ok {
 			if k == "containers" || k == "initContainers" {
-				for _, obj := range v {
+				for _, obj := range array {
 					if mapObj, isMapObj := obj.(map[string]any); isMapObj {
 						if image, hasImage := mapObj["image"]; hasImage {
 							images = append(images, fmt.Sprintf("%s", image))
@@ -523,14 +519,14 @@ func getImages(object map[string]any) []Image {
 					}
 				}
 			} else {
-				for i := range v {
-					if mapObj, isMapObj := v[i].(map[string]any); isMapObj {
+				for i := range array {
+					if mapObj, isMapObj := array[i].(map[string]any); isMapObj {
 						images = append(images, getImages(mapObj)...)
 					}
 				}
 			}
-		case map[string]any:
-			images = append(images, getImages(v)...)
+		} else if objMap, ok := v.(map[string]any); ok {
+			images = append(images, getImages(objMap)...)
 		}
 	}
 	return images

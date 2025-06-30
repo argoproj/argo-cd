@@ -7,13 +7,13 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/git"
 )
 
@@ -149,7 +149,7 @@ func TestIsKustomization(t *testing.T) {
 }
 
 func TestParseKustomizeBuildOptions(t *testing.T) {
-	built := parseKustomizeBuildOptions(&kustomize{path: "guestbook"}, "-v 6 --logtostderr", &BuildOpts{
+	built := parseKustomizeBuildOptions("guestbook", "-v 6 --logtostderr", &BuildOpts{
 		KubeVersion: "1.27", APIVersions: []string{"foo", "bar"},
 	})
 	// Helm is not enabled so helm options are not in the params
@@ -157,7 +157,7 @@ func TestParseKustomizeBuildOptions(t *testing.T) {
 }
 
 func TestParseKustomizeBuildHelmOptions(t *testing.T) {
-	built := parseKustomizeBuildOptions(&kustomize{path: "guestbook"}, "-v 6 --logtostderr --enable-helm", &BuildOpts{
+	built := parseKustomizeBuildOptions("guestbook", "-v 6 --logtostderr --enable-helm", &BuildOpts{
 		KubeVersion: "1.27",
 		APIVersions: []string{"foo", "bar"},
 	})
@@ -175,14 +175,8 @@ func TestVersion(t *testing.T) {
 	assert.NotEmpty(t, ver)
 }
 
-func TestVersionWithBinaryPath(t *testing.T) {
-	ver, err := versionWithBinaryPath(&kustomize{binaryPath: "kustomize"})
-	require.NoError(t, err)
-	assert.NotEmpty(t, ver)
-}
-
 func TestGetSemver(t *testing.T) {
-	ver, err := getSemver(&kustomize{})
+	ver, err := getSemver()
 	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
@@ -613,45 +607,4 @@ func TestFailKustomizeBuildPatches(t *testing.T) {
 
 	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil)
 	require.EqualError(t, err, "kustomization file not found in the path")
-}
-
-func Test_getImageParameters_sorted(t *testing.T) {
-	apps := []*unstructured.Unstructured{
-		{
-			Object: map[string]any{
-				"kind": "Deployment",
-				"spec": map[string]any{
-					"template": map[string]any{
-						"spec": map[string]any{
-							"containers": []any{
-								map[string]any{
-									"name":  "nginx",
-									"image": "nginx:1.15.6",
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			Object: map[string]any{
-				"kind": "Deployment",
-				"spec": map[string]any{
-					"template": map[string]any{
-						"spec": map[string]any{
-							"containers": []any{
-								map[string]any{
-									"name":  "nginx",
-									"image": "nginx:1.15.5",
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-	params := getImageParameters(apps)
-	assert.Equal(t, []string{"nginx:1.15.5", "nginx:1.15.6"}, params)
 }

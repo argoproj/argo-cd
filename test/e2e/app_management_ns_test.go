@@ -37,7 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	. "github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -544,7 +544,7 @@ func TestNamespacedManipulateApplicationResources(t *testing.T) {
 
 			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
-			defer utilio.Close(closer)
+			defer io.Close(closer)
 
 			_, err = client.DeleteResource(t.Context(), &applicationpkg.ApplicationResourceDeleteRequest{
 				Name:         &app.Name,
@@ -563,7 +563,7 @@ func TestNamespacedManipulateApplicationResources(t *testing.T) {
 func TestNamespacedAppWithSecrets(t *testing.T) {
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	require.NoError(t, err)
-	defer utilio.Close(closer)
+	defer io.Close(closer)
 
 	ctx := Given(t)
 	ctx.
@@ -861,7 +861,7 @@ func TestNamespacedResourceAction(t *testing.T) {
 		And(func(app *Application) {
 			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
-			defer utilio.Close(closer)
+			defer io.Close(closer)
 
 			actions, err := client.ListResourceActions(t.Context(), &applicationpkg.ApplicationResourceRequest{
 				Name:         &app.Name,
@@ -1034,7 +1034,7 @@ func assertNSResourceActions(t *testing.T, appName string, successful bool) {
 	}
 
 	closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie()
-	defer utilio.Close(closer)
+	defer io.Close(closer)
 
 	deploymentResource, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -1154,7 +1154,7 @@ func TestNamespacedPermissions(t *testing.T) {
 		Expect(Condition(ApplicationConditionInvalidSpecError, sourceError)).
 		And(func(app *Application) {
 			closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie()
-			defer utilio.Close(closer)
+			defer io.Close(closer)
 			tree, err := cdClient.ResourceTree(t.Context(), &applicationpkg.ResourcesQuery{ApplicationName: &app.Name, AppNamespace: &app.Namespace})
 			require.NoError(t, err)
 			assert.Empty(t, tree.Nodes)
@@ -1337,7 +1337,7 @@ func TestNamespacedSelfManagedApps(t *testing.T) {
 		SetTrackingMethod("annotation").
 		SetAppNamespace(fixture.AppNamespace()).
 		When().
-		PatchFile("resources.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/spec/source/repoURL", "value": %q}]`, fixture.RepoURL(fixture.RepoURLTypeFile))).
+		PatchFile("resources.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/spec/source/repoURL", "value": "%s"}]`, fixture.RepoURL(fixture.RepoURLTypeFile))).
 		CreateApp().
 		Sync().
 		Then().
@@ -1975,7 +1975,7 @@ metadata:
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "")
 	require.NoError(t, err)
-	_, err = tmpFile.WriteString(s)
+	_, err = tmpFile.Write([]byte(s))
 	require.NoError(t, err)
 
 	_, err = fixture.Run("", "kubectl", "apply", "-f", tmpFile.Name())
@@ -2129,9 +2129,9 @@ spec:
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(NoConditions()).
 		And(func(app *Application) {
-			assert.Equal(t, map[string]string{"labels.local/from-file": "file", "labels.local/from-args": "args"}, app.Labels)
-			assert.Equal(t, map[string]string{"annotations.local/from-file": "file"}, app.Annotations)
-			assert.Equal(t, []string{ResourcesFinalizerName}, app.Finalizers)
+			assert.Equal(t, map[string]string{"labels.local/from-file": "file", "labels.local/from-args": "args"}, app.ObjectMeta.Labels)
+			assert.Equal(t, map[string]string{"annotations.local/from-file": "file"}, app.ObjectMeta.Annotations)
+			assert.Equal(t, []string{"resources-finalizer.argocd.argoproj.io"}, app.ObjectMeta.Finalizers)
 			assert.Equal(t, path, app.Spec.GetSource().Path)
 			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.GetSource().Helm.Parameters)
 		})

@@ -32,17 +32,17 @@ func NewKubeUtil(ctx context.Context, client kubernetes.Interface) *kubeUtil {
 func (ku *kubeUtil) CreateOrUpdateSecret(ns string, name string, update updateFn) error {
 	var s *corev1.Secret
 	var err error
-	var create bool
+	var new bool
 
 	s, err = ku.client.CoreV1().Secrets(ns).Get(ku.ctx, name, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
-		create = true
+		new = true
 	}
 
-	if create {
+	if new {
 		s = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        name,
@@ -54,12 +54,12 @@ func (ku *kubeUtil) CreateOrUpdateSecret(ns string, name string, update updateFn
 		s.Data = make(map[string][]byte)
 	}
 
-	err = update(s, create)
+	err = update(s, new)
 	if err != nil {
 		return err
 	}
 
-	if create {
+	if new {
 		_, err = ku.client.CoreV1().Secrets(ns).Create(ku.ctx, s, metav1.CreateOptions{})
 	} else {
 		_, err = ku.client.CoreV1().Secrets(ns).Update(ku.ctx, s, metav1.UpdateOptions{})

@@ -14,6 +14,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -626,6 +628,8 @@ func TestPluginGenerateParams(t *testing.T) {
 		},
 	}
 
+	ctx := t.Context()
+
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			generatorConfig := argoprojiov1alpha1.ApplicationSetGenerator{
@@ -662,9 +666,11 @@ func TestPluginGenerateParams(t *testing.T) {
 				testCase.configmap.Data["baseUrl"] = fakeServer.URL
 			}
 
+			fakeClient := kubefake.NewSimpleClientset(append([]runtime.Object{}, testCase.configmap, testCase.secret)...)
+
 			fakeClientWithCache := fake.NewClientBuilder().WithObjects([]client.Object{testCase.configmap, testCase.secret}...).Build()
 
-			pluginGenerator := NewPluginGenerator(fakeClientWithCache, "default")
+			pluginGenerator := NewPluginGenerator(ctx, fakeClientWithCache, fakeClient, "default")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{

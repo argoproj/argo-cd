@@ -20,6 +20,7 @@ type MetricsServer struct {
 	redisRequestHistogram    *prometheus.HistogramVec
 	extensionRequestCounter  *prometheus.CounterVec
 	extensionRequestDuration *prometheus.HistogramVec
+	argoVersion              *prometheus.GaugeVec
 }
 
 var (
@@ -80,7 +81,8 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 	registry.MustRegister(extensionRequestDuration)
 	registry.MustRegister(argoVersion)
 
-	kubectl.RegisterWithClientGo()
+	kubectlMetricsServer := kubectl.NewKubectlMetrics()
+	kubectlMetricsServer.RegisterWithClientGo()
 	kubectl.RegisterWithPrometheus(registry)
 
 	return &MetricsServer{
@@ -92,6 +94,7 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 		redisRequestHistogram:    redisRequestHistogram,
 		extensionRequestCounter:  extensionRequestCounter,
 		extensionRequestDuration: extensionRequestDuration,
+		argoVersion:              argoVersion,
 	}
 }
 

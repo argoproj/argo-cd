@@ -3,16 +3,7 @@ CURRENT_DIR=$(shell pwd)
 DIST_DIR=${CURRENT_DIR}/dist
 CLI_NAME=argocd
 BIN_NAME=argocd
-
-UNAME_S:=$(shell uname)
-IS_DARWIN:=$(if $(filter Darwin, $(UNAME_S)),true,false)
-
-# When using OSX/Darwin, you might need to enable CGO for local builds
-DEFAULT_CGO_FLAG:=0
-ifeq ($(IS_DARWIN),true)
-    DEFAULT_CGO_FLAG:=1
-endif
-CGO_FLAG?=${DEFAULT_CGO_FLAG}
+CGO_FLAG=0
 
 GEN_RESOURCES_CLI_NAME=argocd-resources-gen
 
@@ -156,11 +147,7 @@ PATH:=$(PATH):$(PWD)/hack
 DOCKER_PUSH?=false
 IMAGE_NAMESPACE?=
 # perform static compilation
-DEFAULT_STATIC_BUILD:=true
-ifeq ($(IS_DARWIN),true)
-    DEFAULT_STATIC_BUILD:=false
-endif
-STATIC_BUILD?=${DEFAULT_STATIC_BUILD}
+STATIC_BUILD?=true
 # build development images
 DEV_IMAGE?=false
 ARGOCD_GPG_ENABLED?=true
@@ -598,7 +585,6 @@ install-test-tools-local:
 	./hack/install.sh kustomize
 	./hack/install.sh helm
 	./hack/install.sh gotestsum
-	./hack/install.sh oras
 
 # Installs all tools required for running codegen (Linux packages)
 .PHONY: install-codegen-tools-local

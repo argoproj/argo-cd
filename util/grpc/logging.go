@@ -10,6 +10,7 @@ import (
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang-jwt/jwt/v5"
+	ctx_logrus "github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/selector"
@@ -22,13 +23,13 @@ func logRequest(ctx context.Context, entry *logrus.Entry, info string, pbMsg any
 		claims := ctx.Value("claims")
 		mapClaims, ok := claims.(jwt.MapClaims)
 		if ok {
-			claimsCopy := make(map[string]any)
+			copy := make(map[string]any)
 			for k, v := range mapClaims {
 				if k != "groups" || entry.Logger.IsLevelEnabled(logrus.DebugLevel) {
-					claimsCopy[k] = v
+					copy[k] = v
 				}
 			}
-			if data, err := json.Marshal(claimsCopy); err == nil {
+			if data, err := json.Marshal(copy); err == nil {
 				entry = entry.WithField("grpc.request.claims", string(data))
 			}
 		}
@@ -82,7 +83,7 @@ func reportable(entry *logrus.Entry, callType string, logClaims bool) intercepto
 	return func(ctx context.Context, c interceptors.CallMeta) (interceptors.Reporter, context.Context) {
 		return &reporter{
 			ctx:       ctx,
-			entry:     entry,
+			entry:     entry.WithFields(ctx_logrus.Extract(ctx).Data),
 			info:      fmt.Sprintf("received %s call %s", callType, c.FullMethod()),
 			logClaims: logClaims,
 		}, ctx

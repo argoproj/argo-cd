@@ -8,7 +8,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/argoproj/pkg/v2/stats"
+	"github.com/argoproj/pkg/stats"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -47,10 +47,6 @@ import (
 
 var gitSubmoduleEnabled = env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
 
-const (
-	cliName = common.ApplicationSetController
-)
-
 func NewCommand() *cobra.Command {
 	var (
 		clientConfig                 clientcmd.ClientConfig
@@ -74,7 +70,6 @@ func NewCommand() *cobra.Command {
 		allowedScmProviders          []string
 		globalPreservedAnnotations   []string
 		globalPreservedLabels        []string
-		enableGitHubAPIMetrics       bool
 		metricsAplicationsetLabels   []string
 		enableScmProviders           bool
 		webhookParallelism           int
@@ -84,9 +79,8 @@ func NewCommand() *cobra.Command {
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = appv1alpha1.AddToScheme(scheme)
 	command := cobra.Command{
-		Use:               cliName,
-		Short:             "Starts Argo CD ApplicationSet controller",
-		DisableAutoGenTag: true,
+		Use:   "controller",
+		Short: "Starts Argo CD ApplicationSet controller",
 		RunE: func(c *cobra.Command, _ []string) error {
 			ctx := c.Context()
 
@@ -177,7 +171,7 @@ func NewCommand() *cobra.Command {
 			argoSettingsMgr := argosettings.NewSettingsManager(ctx, k8sClient, namespace)
 			argoCDDB := db.NewDB(namespace, argoSettingsMgr, k8sClient)
 
-			scmConfig := generators.NewSCMConfig(scmRootCAPath, allowedScmProviders, enableScmProviders, enableGitHubAPIMetrics, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), tokenRefStrictMode)
+			scmConfig := generators.NewSCMConfig(scmRootCAPath, allowedScmProviders, enableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), tokenRefStrictMode)
 
 			tlsConfig := apiclient.TLSConfiguration{
 				DisableTLS:       repoServerPlaintext,
@@ -199,7 +193,7 @@ func NewCommand() *cobra.Command {
 			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig)
 
 			// start a webhook server that listens to incoming webhook payloads
-			webhookHandler, err := webhook.NewWebhookHandler(webhookParallelism, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
+			webhookHandler, err := webhook.NewWebhookHandler(namespace, webhookParallelism, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
 			if err != nil {
 				log.Error(err, "failed to create webhook handler")
 			}
@@ -274,8 +268,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&globalPreservedLabels, "preserved-labels", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS", []string{}, ","), "Sets global preserved field values for labels")
 	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
 	command.Flags().StringSliceVar(&metricsAplicationsetLabels, "metrics-applicationset-labels", []string{}, "List of Application labels that will be added to the argocd_applicationset_labels metric")
-	command.Flags().BoolVar(&enableGitHubAPIMetrics, "enable-github-api-metrics", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS", false), "Enable GitHub API metrics for generators that use the GitHub API")
-
 	return &command
 }
 

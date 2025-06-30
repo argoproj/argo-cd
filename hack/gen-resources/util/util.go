@@ -15,7 +15,7 @@ func GetRandomString() string {
 	return string(b)
 }
 
-func cryptoRandSecure(maximum int64) int64 {
-	nBig, _ := rand.Int(rand.Reader, big.NewInt(maximum))
+func cryptoRandSecure(max int64) int64 {
+	nBig, _ := rand.Int(rand.Reader, big.NewInt(max))
 	return nBig.Int64()
 }

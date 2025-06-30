@@ -58,7 +58,8 @@ func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, apps
 	metrics.Registry.MustRegister(reconcileHistogram)
 	metrics.Registry.MustRegister(appsetCollector)
 
-	kubectl.RegisterWithClientGo()
+	kubectlMetricsServer := kubectl.NewKubectlMetrics()
+	kubectlMetricsServer.RegisterWithClientGo()
 	kubectl.RegisterWithPrometheus(metrics.Registry)
 
 	return ApplicationsetMetrics{

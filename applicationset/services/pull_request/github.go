@@ -6,9 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/google/go-github/v69/github"
-
-	appsetutils "github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/google/go-github/v66/github"
 )
 
 type GithubService struct {
@@ -20,15 +18,13 @@ type GithubService struct {
 
 var _ PullRequestService = (*GithubService)(nil)
 
-func NewGithubService(token, url, owner, repo string, labels []string, optionalHTTPClient ...*http.Client) (PullRequestService, error) {
+func NewGithubService(token, url, owner, repo string, labels []string) (PullRequestService, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
 	}
-
+	httpClient := &http.Client{}
 	var client *github.Client
-	httpClient := appsetutils.GetOptionalHTTPClient(optionalHTTPClient...)
-
 	if url == "" {
 		if token == "" {
 			client = github.NewClient(httpClient)

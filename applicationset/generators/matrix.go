@@ -34,7 +34,7 @@ func NewMatrixGenerator(supportedGenerators map[string]Generator) Generator {
 
 func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]any, error) {
 	if appSetGenerator.Matrix == nil {
-		return nil, ErrEmptyAppSetGenerator
+		return nil, EmptyAppSetGeneratorError
 	}
 
 	if len(appSetGenerator.Matrix.Generators) < 2 {
@@ -71,7 +71,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 				if err != nil {
 					return nil, fmt.Errorf("failed to combine string maps with merging params for the matrix generator: %w", err)
 				}
-				res = append(res, val)
+				res = append(res, utils.ConvertToMapStringInterface(val))
 			}
 		}
 	}

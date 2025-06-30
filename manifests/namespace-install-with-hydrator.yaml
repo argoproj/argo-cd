@@ -944,12 +944,6 @@ spec:
               key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.enable.github.api.metrics
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT
           valueFrom:
             configMapKeyRef:
@@ -962,7 +956,7 @@ spec:
               key: applicationsetcontroller.requeue.after
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.0.9
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -1088,7 +1082,7 @@ spec:
               key: log.format.timestamp
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.0.9
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -1128,6 +1122,26 @@ spec:
           name: gpg-keyring
         - mountPath: /tmp
           name: tmp
+      initContainers:
+      - command:
+        - /bin/cp
+        - -n
+        - /usr/local/bin/argocd
+        - /var/run/argocd/argocd-cmp-server
+        image: quay.io/argoproj/argocd:v3.0.9
+        name: copyutil
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - mountPath: /var/run/argocd
+          name: var-files
       serviceAccountName: argocd-commit-server
       volumes:
       - configMap:
@@ -1154,6 +1168,8 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-commit-server-tls
+      - emptyDir: {}
+        name: var-files
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -1210,7 +1226,7 @@ spec:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.43.0
+        image: ghcr.io/dexidp/dex:v2.41.1
         imagePullPolicy: Always
         name: dex
         ports:
@@ -1239,7 +1255,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.0.9
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -1335,7 +1351,7 @@ spec:
               key: notificationscontroller.repo.server.plaintext
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.0.9
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
@@ -1421,7 +1437,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image: redis:7.2.7-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -1437,7 +1453,7 @@ spec:
         - argocd
         - admin
         - redis-initial-password
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.0.9
         imagePullPolicy: IfNotPresent
         name: secret-init
         securityContext:
@@ -1710,7 +1726,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.0.9
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -1762,7 +1778,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.0.9
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -1978,6 +1994,12 @@ spec:
               key: server.oidc.cache.expiration
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_LOGIN_ATTEMPTS_EXPIRATION
+          valueFrom:
+            configMapKeyRef:
+              key: server.login.attempts.expiration
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_SERVER_STATIC_ASSETS
           valueFrom:
             configMapKeyRef:
@@ -2116,12 +2138,6 @@ spec:
               key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.enable.github.api.metrics
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_HYDRATOR_ENABLED
           valueFrom:
             configMapKeyRef:
@@ -2134,7 +2150,7 @@ spec:
               key: server.sync.replace.allowed
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.0.9
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -2512,7 +2528,7 @@ spec:
               optional: true
         - name: KUBECACHEDIR
           value: /tmp/kubecache
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.0.9
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
@@ -2572,10 +2588,6 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  labels:
-    app.kubernetes.io/component: application-controller
-    app.kubernetes.io/name: argocd-application-controller
-    app.kubernetes.io/part-of: argocd
   name: argocd-application-controller-network-policy
 spec:
   ingress:
@@ -2592,10 +2604,6 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  labels:
-    app.kubernetes.io/component: applicationset-controller
-    app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller-network-policy
 spec:
   ingress:
@@ -2615,10 +2623,6 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  labels:
-    app.kubernetes.io/component: commit-server
-    app.kubernetes.io/name: argocd-commit-server
-    app.kubernetes.io/part-of: argocd
   name: argocd-commit-server-network-policy
 spec:
   ingress:
@@ -2642,10 +2646,6 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  labels:
-    app.kubernetes.io/component: dex-server
-    app.kubernetes.io/name: argocd-dex-server
-    app.kubernetes.io/part-of: argocd
   name: argocd-dex-server-network-policy
 spec:
   ingress:
@@ -2693,10 +2693,6 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  labels:
-    app.kubernetes.io/component: redis
-    app.kubernetes.io/name: argocd-redis
-    app.kubernetes.io/part-of: argocd
   name: argocd-redis-network-policy
 spec:
   ingress:
@@ -2722,10 +2718,6 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  labels:
-    app.kubernetes.io/component: repo-server
-    app.kubernetes.io/name: argocd-repo-server
-    app.kubernetes.io/part-of: argocd
   name: argocd-repo-server-network-policy
 spec:
   ingress:
@@ -2758,10 +2750,6 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  labels:
-    app.kubernetes.io/component: server
-    app.kubernetes.io/name: argocd-server
-    app.kubernetes.io/part-of: argocd
   name: argocd-server-network-policy
 spec:
   ingress:

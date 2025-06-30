@@ -737,7 +737,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 		}
 		sortVersionsByName(want.Versions)
 		sortVersionsByName(got.Versions)
-		assert.Equal(t, want, got)
+		assert.EqualValues(t, want, got)
 	})
 
 	t.Run("Kustomize settings per-version with duplicate versions", func(t *testing.T) {
@@ -825,7 +825,7 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 	t.Run("DefaultBuildOptions", func(t *testing.T) {
 		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{})
 		require.NoError(t, err)
-		assert.Empty(t, ver.BinaryPath)
+		assert.Equal(t, "", ver.BinaryPath)
 		assert.Equal(t, "--opt1 val1", ver.BuildOptions)
 	})
 
@@ -835,7 +835,7 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "path_v2", ver.BinaryPath)
-		assert.Empty(t, ver.BuildOptions)
+		assert.Equal(t, "", ver.BuildOptions)
 	})
 
 	t.Run("VersionExistsWithBuildOption", func(t *testing.T) {
@@ -1578,8 +1578,6 @@ rootCA: "invalid"`},
 }
 
 func Test_OAuth2AllowedAudiences(t *testing.T) {
-	t.Parallel()
-
 	testCases := []struct {
 		name     string
 		settings *ArgoCDSettings
@@ -1653,7 +1651,7 @@ func TestReplaceStringSecret(t *testing.T) {
 	assert.Equal(t, "$invalid-secret-key", result)
 
 	result = ReplaceStringSecret("", secretValues)
-	assert.Empty(t, result)
+	assert.Equal(t, "", result)
 
 	result = ReplaceStringSecret("my-value", secretValues)
 	assert.Equal(t, "my-value", result)
@@ -1661,7 +1659,7 @@ func TestReplaceStringSecret(t *testing.T) {
 
 func TestRedirectURLForRequest(t *testing.T) {
 	generateRequest := func(url string) *http.Request {
-		r, err := http.NewRequest(http.MethodPost, url, http.NoBody)
+		r, err := http.NewRequest(http.MethodPost, url, nil)
 		require.NoError(t, err)
 		return r
 	}
@@ -1888,45 +1886,6 @@ func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {
 				resourceSensitiveAnnotationsKey: tt.input,
 			})
 			keys := settingsManager.GetSensitiveAnnotations()
-			assert.Len(t, keys, len(tt.output))
-			assert.Equal(t, tt.output, keys)
-		})
-	}
-}
-
-func TestSettingsManager_GetAllowedNodeLabels(t *testing.T) {
-	tests := []struct {
-		name   string
-		input  string
-		output []string
-	}{
-		{
-			name:   "Empty input",
-			input:  "",
-			output: []string{},
-		},
-		{
-			name:   "Comma separated data",
-			input:  "example.com/label,label1,label2",
-			output: []string{"example.com/label", "label1", "label2"},
-		},
-		{
-			name:   "Comma separated data with space",
-			input:  "example.com/label, label1,    label2",
-			output: []string{"example.com/label", "label1", "label2"},
-		},
-		{
-			name:   "Comma separated data with invalid label",
-			input:  "example.com/label,_invalid,label1,label2",
-			output: []string{"example.com/label", "label1", "label2"},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, settingsManager := fixtures(map[string]string{
-				allowedNodeLabelsKey: tt.input,
-			})
-			keys := settingsManager.GetAllowedNodeLabels()
 			assert.Len(t, keys, len(tt.output))
 			assert.Equal(t, tt.output, keys)
 		})

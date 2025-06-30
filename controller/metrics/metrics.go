@@ -33,7 +33,6 @@ import (
 type MetricsServer struct {
 	*http.Server
 	syncCounter                       *prometheus.CounterVec
-	syncDuration                      *prometheus.CounterVec
 	kubectlExecCounter                *prometheus.CounterVec
 	kubectlExecPendingGauge           *prometheus.GaugeVec
 	orphanedResourcesGauge            *prometheus.GaugeVec
@@ -74,15 +73,7 @@ var (
 			Name: "argocd_app_sync_total",
 			Help: "Number of application syncs.",
 		},
-		append(descAppDefaultLabels, "dest_server", "phase", "dry_run"),
-	)
-
-	syncDuration = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "argocd_app_sync_duration_seconds_total",
-			Help: "Application sync performance in seconds total.",
-		},
-		append(descAppDefaultLabels, "dest_server"),
+		append(descAppDefaultLabels, "dest_server", "phase"),
 	)
 
 	k8sRequestCounter = prometheus.NewCounterVec(
@@ -90,7 +81,7 @@ var (
 			Name: "argocd_app_k8s_request_total",
 			Help: "Number of kubernetes requests executed during application reconciliation.",
 		},
-		append(descAppDefaultLabels, "server", "response_code", "verb", "resource_kind", "resource_namespace", "dry_run"),
+		append(descAppDefaultLabels, "server", "response_code", "verb", "resource_kind", "resource_namespace"),
 	)
 
 	kubectlExecCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -197,7 +188,6 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	healthz.ServeHealthCheck(mux, healthCheck)
 
 	registry.MustRegister(syncCounter)
-	registry.MustRegister(syncDuration)
 	registry.MustRegister(k8sRequestCounter)
 	registry.MustRegister(kubectlExecCounter)
 	registry.MustRegister(kubectlExecPendingGauge)
@@ -209,7 +199,8 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	registry.MustRegister(resourceEventsProcessingHistogram)
 	registry.MustRegister(resourceEventsNumberGauge)
 
-	kubectl.RegisterWithClientGo()
+	kubectlMetricsServer := kubectl.NewKubectlMetrics()
+	kubectlMetricsServer.RegisterWithClientGo()
 	kubectl.RegisterWithPrometheus(registry)
 
 	metricsServer := &MetricsServer{
@@ -219,7 +210,6 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 			Handler: mux,
 		},
 		syncCounter:                       syncCounter,
-		syncDuration:                      syncDuration,
 		k8sRequestCounter:                 k8sRequestCounter,
 		kubectlExecCounter:                kubectlExecCounter,
 		kubectlExecPendingGauge:           kubectlExecPendingGauge,
@@ -250,16 +240,7 @@ func (m *MetricsServer) IncSync(app *argoappv1.Application, destServer string, s
 	if !state.Phase.Completed() {
 		return
 	}
-	isDryRun := app.Operation != nil && app.Operation.DryRun()
-	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), destServer, string(state.Phase), strconv.FormatBool(isDryRun)).Inc()
-}
-
-// IncAppSyncDuration observes app sync duration
-func (m *MetricsServer) IncAppSyncDuration(app *argoappv1.Application, destServer string, state *argoappv1.OperationState) {
-	if state.FinishedAt != nil {
-		m.syncDuration.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), destServer).
-			Add(float64(time.Duration(state.FinishedAt.Unix() - state.StartedAt.Unix())))
-	}
+	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), destServer, string(state.Phase)).Inc()
 }
 
 func (m *MetricsServer) IncKubectlExec(command string) {
@@ -286,16 +267,14 @@ func (m *MetricsServer) IncClusterEventsCount(server, group, kind string) {
 // IncKubernetesRequest increments the kubernetes requests counter for an application
 func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, server, statusCode, verb, resourceKind, resourceNamespace string) {
 	var namespace, name, project string
-	isDryRun := false
 	if app != nil {
 		namespace = app.Namespace
 		name = app.Name
 		project = app.Spec.GetProject()
-		isDryRun = app.Operation != nil && app.Operation.DryRun()
 	}
 	m.k8sRequestCounter.WithLabelValues(
 		namespace, name, project, server, statusCode,
-		verb, resourceKind, resourceNamespace, strconv.FormatBool(isDryRun),
+		verb, resourceKind, resourceNamespace,
 	).Inc()
 }
 
@@ -327,13 +306,12 @@ func (m *MetricsServer) HasExpiration() bool {
 // SetExpiration reset Prometheus metrics based on time duration interval
 func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 	if m.HasExpiration() {
-		return errors.New("expiration is already set")
+		return errors.New("Expiration is already set")
 	}
 
 	_, err := m.cron.AddFunc(fmt.Sprintf("@every %s", cacheExpiration), func() {
 		log.Infof("Reset Prometheus metrics based on existing expiration '%v'", cacheExpiration)
 		m.syncCounter.Reset()
-		m.syncDuration.Reset()
 		m.kubectlExecCounter.Reset()
 		m.kubectlExecPendingGauge.Reset()
 		m.orphanedResourcesGauge.Reset()
@@ -399,18 +377,17 @@ func (c *appCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 	for _, app := range apps {
-		if !c.appFilter(app) {
-			continue
+		if c.appFilter(app) {
+			destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, c.db)
+			if err != nil {
+				log.Warnf("Failed to get destination cluster for application %s: %v", app.Name, err)
+			}
+			destServer := ""
+			if destCluster != nil {
+				destServer = destCluster.Server
+			}
+			c.collectApps(ch, app, destServer)
 		}
-		destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, c.db)
-		if err != nil {
-			log.Warnf("Failed to get destination cluster for application %s: %v", app.Name, err)
-		}
-		destServer := ""
-		if destCluster != nil {
-			destServer = destCluster.Server
-		}
-		c.collectApps(ch, app, destServer)
 	}
 }
 
@@ -446,7 +423,7 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 		healthStatus = health.HealthStatusUnknown
 	}
 
-	autoSyncEnabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled()
+	autoSyncEnabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil
 
 	addGauge(descAppInfo, 1, strconv.FormatBool(autoSyncEnabled), git.NormalizeGitURL(app.Spec.GetSource().RepoURL), destServer, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation)
 

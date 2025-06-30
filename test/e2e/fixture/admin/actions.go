@@ -11,9 +11,10 @@ import (
 // none of the func implement error checks, and that is complete intended, you should check for errors
 // using the Then()
 type Actions struct {
-	context    *Context
-	lastOutput string
-	lastError  error
+	context      *Context
+	ignoreErrors bool
+	lastOutput   string
+	lastError    error
 }
 
 func (a *Actions) prepareExportCommand() []string {
@@ -39,6 +40,16 @@ func (a *Actions) RunExport() *Actions {
 func (a *Actions) RunImport(stdin string) *Actions {
 	a.context.t.Helper()
 	a.runCliWithStdin(stdin, a.prepareImportCommand()...)
+	return a
+}
+
+func (a *Actions) IgnoreErrors() *Actions {
+	a.ignoreErrors = true
+	return a
+}
+
+func (a *Actions) DoNotIgnoreErrors() *Actions {
+	a.ignoreErrors = false
 	return a
 }
 
