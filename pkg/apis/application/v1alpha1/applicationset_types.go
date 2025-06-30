@@ -958,14 +958,14 @@ func (status *ApplicationSetStatus) SetConditions(conditions []ApplicationSetCon
 		if left.Type != right.Type {
 			return left.Type < right.Type
 		}
-		if left.Message != right.Message {
-			return left.Message < right.Message
-		}
 		if left.Status != right.Status {
 			return left.Status < right.Status
 		}
 		if left.Reason != right.Reason {
 			return left.Reason < right.Reason
+		}
+		if left.Message != right.Message {
+			return left.Message < right.Message
 		}
 		return left.LastTransitionTime.Before(right.LastTransitionTime)
 	})
