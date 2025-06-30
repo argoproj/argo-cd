@@ -3,12 +3,10 @@ package pull_request
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 
-	"github.com/google/go-github/v69/github"
-
-	appsetutils "github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/google/go-github/v66/github"
+	"golang.org/x/oauth2"
 )
 
 type GithubService struct {
@@ -20,28 +18,24 @@ type GithubService struct {
 
 var _ PullRequestService = (*GithubService)(nil)
 
-func NewGithubService(token, url, owner, repo string, labels []string, optionalHTTPClient ...*http.Client) (PullRequestService, error) {
+func NewGithubService(ctx context.Context, token, url, owner, repo string, labels []string) (PullRequestService, error) {
+	var ts oauth2.TokenSource
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
 	}
-
+	if token != "" {
+		ts = oauth2.StaticTokenSource(
+			&oauth2.Token{AccessToken: token},
+		)
+	}
+	httpClient := oauth2.NewClient(ctx, ts)
 	var client *github.Client
-	httpClient := appsetutils.GetOptionalHTTPClient(optionalHTTPClient...)
-
 	if url == "" {
-		if token == "" {
-			client = github.NewClient(httpClient)
-		} else {
-			client = github.NewClient(httpClient).WithAuthToken(token)
-		}
+		client = github.NewClient(httpClient)
 	} else {
 		var err error
-		if token == "" {
-			client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)
-		} else {
-			client, err = github.NewClient(httpClient).WithAuthToken(token).WithEnterpriseURLs(url, url)
-		}
+		client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)
 		if err != nil {
 			return nil, err
 		}

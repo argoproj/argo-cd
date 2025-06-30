@@ -5,14 +5,10 @@ export interface HTTPSCreds {
     url: string;
     username: string;
     password: string;
-    bearerToken: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
-    type: string;
     proxy: string;
     noProxy: string;
-    enableOCI: boolean;
-    insecureOCIForceHttp: boolean;
 }
 
 export interface SSHCreds {

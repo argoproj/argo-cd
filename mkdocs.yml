@@ -74,7 +74,6 @@ nav:
     - operator-manual/notifications/troubleshooting.md
     - operator-manual/notifications/troubleshooting-commands.md
     - operator-manual/notifications/troubleshooting-errors.md
-    - operator-manual/notifications/examples.md
     - Notification Services:
       - operator-manual/notifications/services/alertmanager.md
       - operator-manual/notifications/services/awssqs.md
@@ -131,9 +130,6 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
-    - operator-manual/upgrading/3.0-3.1.md
-    - operator-manual/upgrading/2.14-3.0.md
-    - operator-manual/upgrading/2.13-2.14.md
     - operator-manual/upgrading/2.12-2.13.md
     - operator-manual/upgrading/2.11-2.12.md
     - operator-manual/upgrading/2.10-2.11.md
@@ -162,14 +158,12 @@ nav:
   - user-guide/application_sources.md
   - user-guide/kustomize.md
   - user-guide/helm.md
-  - user-guide/oci.md
   - user-guide/import.md
   - user-guide/jsonnet.md
   - user-guide/directory.md
   - user-guide/tool_detection.md
   - user-guide/projects.md
   - user-guide/private-repositories.md
-  - user-guide/plugins.md
   - user-guide/multiple_sources.md
   - GnuPG verification: user-guide/gpg-verification.md
   - user-guide/auto_sync.md
@@ -212,6 +206,7 @@ nav:
   - developer-guide/release-process-and-cadence.md
   - developer-guide/running-locally.md
   - developer-guide/debugging-remote-environment.md
+  - developer-guide/use-gitpod.md
   - developer-guide/api-docs.md
   - developer-guide/test-e2e.md
   - developer-guide/dependencies.md
@@ -223,7 +218,6 @@ nav:
     - developer-guide/extensions/ui-extensions.md
     - developer-guide/extensions/proxy-extensions.md
   - developer-guide/faq.md
-  - developer-guide/tilt.md
 - faq.md
 - security_considerations.md
 - Support: SUPPORT.md

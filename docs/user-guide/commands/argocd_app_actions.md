@@ -40,7 +40,7 @@ argocd app actions [flags]
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: json|text (default "json")
+      --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
@@ -59,5 +59,5 @@ argocd app actions [flags]
 
 * [argocd app](argocd_app.md)	 - Manage applications
 * [argocd app actions list](argocd_app_actions_list.md)	 - Lists available actions on a resource
-* [argocd app actions run](argocd_app_actions_run.md)	 - Runs an available action on resource(s) matching the specified filters.
+* [argocd app actions run](argocd_app_actions_run.md)	 - Runs an available action on resource(s)
 

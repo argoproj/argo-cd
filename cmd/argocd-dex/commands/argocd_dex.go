@@ -1,14 +1,13 @@
 package commands
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"runtime/debug"
 	"syscall"
 
-	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v2/common"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -16,13 +15,13 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
-	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
-	"github.com/argoproj/argo-cd/v3/util/cli"
-	"github.com/argoproj/argo-cd/v3/util/dex"
-	"github.com/argoproj/argo-cd/v3/util/env"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/settings"
-	"github.com/argoproj/argo-cd/v3/util/tls"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/dex"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v2/util/tls"
 )
 
 const (
@@ -53,7 +52,7 @@ func NewRunDexCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   "rundex",
 		Short: "Runs dex generating a config using settings from the Argo CD configmap and secret",
-		RunE: func(c *cobra.Command, _ []string) error {
+		RunE: func(c *cobra.Command, args []string) error {
 			ctx := c.Context()
 
 			vers := common.GetVersion()
@@ -127,7 +126,7 @@ func NewRunDexCommand() *cobra.Command {
 					newSettings := <-updateCh
 					newDexCfgBytes, err := dex.GenerateDexConfigYAML(newSettings, disableTLS)
 					errors.CheckError(err)
-					if !bytes.Equal(newDexCfgBytes, dexCfgBytes) {
+					if string(newDexCfgBytes) != string(dexCfgBytes) {
 						prevSettings = newSettings
 						log.Infof("dex config modified. restarting dex")
 						if cmd != nil && cmd.Process != nil {
@@ -137,15 +136,16 @@ func NewRunDexCommand() *cobra.Command {
 							errors.CheckError(err)
 						}
 						break
+					} else {
+						log.Infof("dex config unmodified")
 					}
-					log.Infof("dex config unmodified")
 				}
 			}
 		},
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
-	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_DEX_SERVER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_DEX_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_DEX_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_DEX_SERVER_DISABLE_TLS", false), "Disable TLS on the HTTP endpoint")
 	return &command
@@ -160,7 +160,7 @@ func NewGenDexConfigCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   "gendexcfg",
 		Short: "Generates a dex config from Argo CD settings",
-		RunE: func(c *cobra.Command, _ []string) error {
+		RunE: func(c *cobra.Command, args []string) error {
 			ctx := c.Context()
 
 			cli.SetLogFormat(cmdutil.LogFormat)
@@ -181,14 +181,14 @@ func NewGenDexConfigCommand() *cobra.Command {
 				return nil
 			}
 			if out == "" {
-				dexCfg := make(map[string]any)
+				dexCfg := make(map[string]interface{})
 				err := yaml.Unmarshal(dexCfgBytes, &dexCfg)
 				errors.CheckError(err)
 				if staticClientsInterface, ok := dexCfg["staticClients"]; ok {
-					if staticClients, ok := staticClientsInterface.([]any); ok {
+					if staticClients, ok := staticClientsInterface.([]interface{}); ok {
 						for i := range staticClients {
 							staticClient := staticClients[i]
-							if mappings, ok := staticClient.(map[string]any); ok {
+							if mappings, ok := staticClient.(map[string]interface{}); ok {
 								for key := range mappings {
 									if key == "secret" {
 										mappings[key] = "******"
@@ -213,39 +213,39 @@ func NewGenDexConfigCommand() *cobra.Command {
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
-	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_DEX_SERVER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_DEX_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_DEX_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVarP(&out, "out", "o", "", "Output to the specified file instead of stdout")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_DEX_SERVER_DISABLE_TLS", false), "Disable TLS on the HTTP endpoint")
 	return &command
 }
 
-func iterateStringFields(obj any, callback func(name string, val string) string) {
-	switch obj := obj.(type) {
-	case map[string]any:
-		for field, val := range obj {
+func iterateStringFields(obj interface{}, callback func(name string, val string) string) {
+	if mapField, ok := obj.(map[string]interface{}); ok {
+		for field, val := range mapField {
 			if strVal, ok := val.(string); ok {
-				obj[field] = callback(field, strVal)
+				mapField[field] = callback(field, strVal)
 			} else {
 				iterateStringFields(val, callback)
 			}
 		}
-	case []any:
-		for i := range obj {
-			iterateStringFields(obj[i], callback)
+	} else if arrayField, ok := obj.([]interface{}); ok {
+		for i := range arrayField {
+			iterateStringFields(arrayField[i], callback)
 		}
 	}
 }
 
 func redactor(dirtyString string) string {
-	config := make(map[string]any)
+	config := make(map[string]interface{})
 	err := yaml.Unmarshal([]byte(dirtyString), &config)
 	errors.CheckError(err)
 	iterateStringFields(config, func(name string, val string) string {
 		if name == "clientSecret" || name == "secret" || name == "bindPW" {
 			return "********"
+		} else {
+			return val
 		}
-		return val
 	})
 	data, err := yaml.Marshal(config)
 	errors.CheckError(err)

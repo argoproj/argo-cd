@@ -9,13 +9,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
-	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
-	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
 // NewProjectWindowsCommand returns a new instance of the `argocd proj windows` command
@@ -30,7 +30,7 @@ argocd proj windows add my-project \
 --duration 3600 \
 --prune
 
-#Delete a sync window from a project
+#Delete a sync window from a project 
 argocd proj windows delete <project-name> <window-id>
 
 #List project sync windows
@@ -56,8 +56,8 @@ func NewProjectWindowsDisableManualSyncCommand(clientOpts *argocdclient.ClientOp
 		Short: "Disable manual sync for a sync window",
 		Long:  "Disable manual sync for a sync window. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
 		Example: `
-#Disable manual sync for a sync window for the Project
-argocd proj windows disable-manual-sync PROJECT ID
+#Disable manual sync for a sync window for the Project 
+argocd proj windows disable-manual-sync PROJECT ID 
 
 #Disabling manual sync for a windows set on the default project with Id 0
 argocd proj windows disable-manual-sync default 0`,
@@ -74,7 +74,7 @@ argocd proj windows disable-manual-sync default 0`,
 			errors.CheckError(err)
 
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -100,7 +100,7 @@ func NewProjectWindowsEnableManualSyncCommand(clientOpts *argocdclient.ClientOpt
 		Long:  "Enable manual sync for a sync window. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
 		Example: `
 #Enabling manual sync for a general case
-argocd proj windows enable-manual-sync PROJECT ID
+argocd proj windows enable-manual-sync PROJECT ID 
 
 #Enabling manual sync for a windows set on the default project with Id 2
 argocd proj windows enable-manual-sync default 2
@@ -120,7 +120,7 @@ argocd proj windows enable-manual-sync my-app-project --message "Manual sync ini
 			errors.CheckError(err)
 
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -149,8 +149,6 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 		clusters     []string
 		manualSync   bool
 		timeZone     string
-		andOperator  bool
-		description  string
 	)
 	command := &cobra.Command{
 		Use:   "add PROJECT",
@@ -161,8 +159,7 @@ argocd proj windows add PROJECT \
     --kind allow \
     --schedule "0 22 * * *" \
     --duration 1h \
-    --applications "*" \
-    --description "Ticket 123"
+    --applications "*"
 
 #Add a deny sync window with the ability to manually sync.
 argocd proj windows add PROJECT \
@@ -172,8 +169,7 @@ argocd proj windows add PROJECT \
     --applications "prod-\\*,website" \
     --namespaces "default,\\*-prod" \
     --clusters "prod,staging" \
-    --manual-sync \
-    --description "Ticket 123"
+    --manual-sync
 	`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -184,12 +180,12 @@ argocd proj windows add PROJECT \
 			}
 			projName := args[0]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			err = proj.Spec.AddWindow(kind, schedule, duration, applications, namespaces, clusters, manualSync, timeZone, andOperator, description)
+			err = proj.Spec.AddWindow(kind, schedule, duration, applications, namespaces, clusters, manualSync, timeZone)
 			errors.CheckError(err)
 
 			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
@@ -204,8 +200,6 @@ argocd proj windows add PROJECT \
 	command.Flags().StringSliceVar(&clusters, "clusters", []string{}, "Clusters that the schedule will be applied to. Comma separated, wildcards supported (e.g. --clusters prod,staging)")
 	command.Flags().BoolVar(&manualSync, "manual-sync", false, "Allow manual syncs for both deny and allow windows")
 	command.Flags().StringVar(&timeZone, "time-zone", "UTC", "Time zone of the sync window")
-	command.Flags().BoolVar(&andOperator, "use-and-operator", false, "Use AND operator for matching applications, namespaces and clusters instead of the default OR operator")
-	command.Flags().StringVar(&description, "description", "", `Sync window description`)
 
 	return command
 }
@@ -216,7 +210,7 @@ func NewProjectWindowsDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 		Use:   "delete PROJECT ID",
 		Short: "Delete a sync window from a project. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
 		Example: `
-#Delete a sync window from a project (default) with ID 0
+#Delete a sync window from a project (default) with ID 0 
 argocd proj windows delete default 0
 
 #Delete a sync window from a project (new-project) with ID 1
@@ -234,7 +228,7 @@ argocd proj windows delete new-project 1`,
 			errors.CheckError(err)
 
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -264,7 +258,6 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 		namespaces   []string
 		clusters     []string
 		timeZone     string
-		description  string
 	)
 	command := &cobra.Command{
 		Use:   "update PROJECT ID",
@@ -287,14 +280,14 @@ argocd proj windows update PROJECT ID \
 			errors.CheckError(err)
 
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
 			for i, window := range proj.Spec.SyncWindows {
 				if id == i {
-					err := window.Update(schedule, duration, applications, namespaces, clusters, timeZone, description)
+					err := window.Update(schedule, duration, applications, namespaces, clusters, timeZone)
 					if err != nil {
 						errors.CheckError(err)
 					}
@@ -311,7 +304,6 @@ argocd proj windows update PROJECT ID \
 	command.Flags().StringSliceVar(&namespaces, "namespaces", []string{}, "Namespaces that the schedule will be applied to. Comma separated, wildcards supported (e.g. --namespaces default,\\*-prod)")
 	command.Flags().StringSliceVar(&clusters, "clusters", []string{}, "Clusters that the schedule will be applied to. Comma separated, wildcards supported (e.g. --clusters prod,staging)")
 	command.Flags().StringVar(&timeZone, "time-zone", "UTC", "Time zone of the sync window. (e.g. --time-zone \"America/New_York\")")
-	command.Flags().StringVar(&description, "description", "", "Sync window description")
 	return command
 }
 
@@ -339,7 +331,7 @@ argocd proj windows list test-project`,
 			}
 			projName := args[0]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer utilio.Close(conn)
+			defer io.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -362,13 +354,13 @@ argocd proj windows list test-project`,
 func printSyncWindows(proj *v1alpha1.AppProject) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	var fmtStr string
-	headers := []any{"ID", "STATUS", "KIND", "SCHEDULE", "DURATION", "APPLICATIONS", "NAMESPACES", "CLUSTERS", "MANUALSYNC", "TIMEZONE"}
+	headers := []interface{}{"ID", "STATUS", "KIND", "SCHEDULE", "DURATION", "APPLICATIONS", "NAMESPACES", "CLUSTERS", "MANUALSYNC", "TIMEZONE"}
 	fmtStr = strings.Repeat("%s\t", len(headers)) + "\n"
 	fmt.Fprintf(w, fmtStr, headers...)
 	if proj.Spec.SyncWindows.HasWindows() {
 		for i, window := range proj.Spec.SyncWindows {
 			isActive, _ := window.Active()
-			vals := []any{
+			vals := []interface{}{
 				strconv.Itoa(i),
 				formatBoolOutput(isActive),
 				window.Kind,
@@ -377,9 +369,8 @@ func printSyncWindows(proj *v1alpha1.AppProject) {
 				formatListOutput(window.Applications),
 				formatListOutput(window.Namespaces),
 				formatListOutput(window.Clusters),
-				formatBoolEnabledOutput(window.ManualSync),
+				formatManualOutput(window.ManualSync),
 				window.TimeZone,
-				formatBoolEnabledOutput(window.UseAndOperator),
 			}
 			fmt.Fprintf(w, fmtStr, vals...)
 		}
@@ -407,7 +398,7 @@ func formatBoolOutput(active bool) string {
 	return o
 }
 
-func formatBoolEnabledOutput(active bool) string {
+func formatManualOutput(active bool) string {
 	var o string
 	if active {
 		o = "Enabled"

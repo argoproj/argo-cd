@@ -2,23 +2,21 @@ package commit
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
-	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/git"
-	"github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/io/files"
+	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v2/commitserver/metrics"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 )
 
 // Service is the service that handles commit requests.
 type Service struct {
+	gitCredsStore     git.CredsStore
 	metricsServer     *metrics.Server
 	repoClientFactory RepoClientFactory
 }
@@ -26,6 +24,7 @@ type Service struct {
 // NewService returns a new instance of the commit service.
 func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *Service {
 	return &Service{
+		gitCredsStore:     gitCredsStore,
 		metricsServer:     metricsServer,
 		repoClientFactory: NewRepoClientFactory(gitCredsStore, metricsServer),
 	}
@@ -34,7 +33,7 @@ func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *Se
 // CommitHydratedManifests handles a commit request. It clones the repository, checks out the sync branch, checks out
 // the target branch, clears the repository contents, writes the manifests to the repository, commits the changes, and
 // pushes the changes. It returns the hydrated revision SHA and an error if one occurred.
-func (s *Service) CommitHydratedManifests(_ context.Context, r *apiclient.CommitHydratedManifestsRequest) (*apiclient.CommitHydratedManifestsResponse, error) {
+func (s *Service) CommitHydratedManifests(ctx context.Context, r *apiclient.CommitHydratedManifestsRequest) (*apiclient.CommitHydratedManifestsResponse, error) {
 	// This method is intentionally short. It's a wrapper around handleCommitRequest that adds metrics and logging.
 	// Keep logic here minimal and put most of the logic in handleCommitRequest.
 	startTime := time.Now()
@@ -79,16 +78,16 @@ func (s *Service) CommitHydratedManifests(_ context.Context, r *apiclient.Commit
 // the changes. It returns the output of the git commands and an error if one occurred.
 func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydratedManifestsRequest) (string, string, error) {
 	if r.Repo == nil {
-		return "", "", errors.New("repo is required")
+		return "", "", fmt.Errorf("repo is required")
 	}
 	if r.Repo.Repo == "" {
-		return "", "", errors.New("repo URL is required")
+		return "", "", fmt.Errorf("repo URL is required")
 	}
 	if r.TargetBranch == "" {
-		return "", "", errors.New("target branch is required")
+		return "", "", fmt.Errorf("target branch is required")
 	}
 	if r.SyncBranch == "" {
-		return "", "", errors.New("sync branch is required")
+		return "", "", fmt.Errorf("sync branch is required")
 	}
 
 	logCtx = logCtx.WithField("repo", r.Repo.Repo)
@@ -98,12 +97,6 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 		return "", "", fmt.Errorf("failed to init git client: %w", err)
 	}
 	defer cleanup()
-
-	root, err := os.OpenRoot(dirPath)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to open root dir: %w", err)
-	}
-	defer io.Close(root)
 
 	logCtx.Debugf("Checking out sync branch %s", r.SyncBranch)
 	var out string
@@ -125,7 +118,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 
 	logCtx.Debug("Writing manifests")
-	err = WriteForPaths(root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths)
+	err = WriteForPaths(dirPath, r.Repo.Repo, r.DrySha, r.Paths)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}
@@ -182,15 +175,15 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 	}
 
 	// FIXME: make it work for GHE
-	// logCtx.Debugf("Getting user info for repo credentials")
-	// gitCreds := r.Repo.GetGitCreds(s.gitCredsStore)
-	// startTime := time.Now()
-	// authorName, authorEmail, err := gitCreds.GetUserInfo(ctx)
-	// s.metricsServer.ObserveUserInfoRequestDuration(r.Repo.Repo, getCredentialType(r.Repo), time.Since(startTime))
-	// if err != nil {
-	//	 cleanupOrLog()
-	//	 return nil, "", nil, fmt.Errorf("failed to get github app info: %w", err)
-	// }
+	//logCtx.Debugf("Getting user info for repo credentials")
+	//gitCreds := r.Repo.GetGitCreds(s.gitCredsStore)
+	//startTime := time.Now()
+	//authorName, authorEmail, err := gitCreds.GetUserInfo(ctx)
+	//s.metricsServer.ObserveUserInfoRequestDuration(r.Repo.Repo, getCredentialType(r.Repo), time.Since(startTime))
+	//if err != nil {
+	//	cleanupOrLog()
+	//	return nil, "", nil, fmt.Errorf("failed to get github app info: %w", err)
+	//}
 	var authorName, authorEmail string
 
 	if authorName == "" {
@@ -212,37 +205,21 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 }
 
 type hydratorMetadataFile struct {
-	RepoURL  string   `json:"repoURL,omitempty"`
-	DrySHA   string   `json:"drySha,omitempty"`
-	Commands []string `json:"commands,omitempty"`
-	Author   string   `json:"author,omitempty"`
-	Date     string   `json:"date,omitempty"`
-	// Subject is the subject line of the DRY commit message, i.e. `git show --format=%s`.
-	Subject string `json:"subject,omitempty"`
-	// Body is the body of the DRY commit message, excluding the subject line, i.e. `git show --format=%b`.
-	Body       string                       `json:"body,omitempty"`
-	References []v1alpha1.RevisionReference `json:"references,omitempty"`
+	RepoURL  string   `json:"repoURL"`
+	DrySHA   string   `json:"drySha"`
+	Commands []string `json:"commands"`
 }
 
 // TODO: make this configurable via ConfigMap.
-var manifestHydrationReadmeTemplate = `# Manifest Hydration
+var manifestHydrationReadmeTemplate = `
+# Manifest Hydration
 
 To hydrate the manifests in this repository, run the following commands:
 
-` + "```shell" + `
+` + "```shell\n" + `
 git clone {{ .RepoURL }}
 # cd into the cloned directory
 git checkout {{ .DrySHA }}
 {{ range $command := .Commands -}}
 {{ $command }}
-{{ end -}}` + "```" + `
-{{ if .References -}}
-
-## References
-
-{{ range $ref := .References -}}
-{{ if $ref.Commit -}}
-* [{{ $ref.Commit.SHA | mustRegexFind "[0-9a-f]+" | trunc 7 }}]({{ $ref.Commit.RepoURL }}): {{ $ref.Commit.Subject }} ({{ $ref.Commit.Author }})
-{{ end -}}
-{{ end -}}
-{{ end -}}`
+{{ end -}}` + "```"

@@ -1,22 +1,8 @@
 local actions = {}
-actions["pause"] = {
-  ["disabled"] = true,
-  ["iconClass"] = "fa-solid fa-fw fa-pause"
-}
-actions["unpause"] = {
-  ["disabled"] = true,
-  ["iconClass"] = "fa-solid fa-fw fa-play"
-}
-actions["allow-data-loss"] = {
-  ["disabled"] = true,
-  ["displayName"] = "Allow Data Loss",
-  ["iconClass"] = "fa-solid fa-fw fa-unlock"
-}
-actions["disallow-data-loss"] = {
-  ["disabled"] = true,
-  ["displayName"] = "Disallow Data Loss",
-  ["iconClass"] = "fa-solid fa-fw fa-lock"
-}
+actions["pause"] = {["disabled"] = true}
+actions["unpause"] = {["disabled"] = true}
+actions["allow-data-loss"] = {["disabled"] = true}
+actions["disallow-data-loss"] = {["disabled"] = true}
 
 -- pause/unpause
 local paused = false

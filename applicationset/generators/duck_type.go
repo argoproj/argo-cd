@@ -2,7 +2,6 @@ package generators
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -10,33 +9,38 @@ import (
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/argoproj/argo-cd/v2/util/settings"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/utils"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 var _ Generator = (*DuckTypeGenerator)(nil)
 
 // DuckTypeGenerator generates Applications for some or all clusters registered with ArgoCD.
 type DuckTypeGenerator struct {
-	ctx       context.Context
-	dynClient dynamic.Interface
-	clientset kubernetes.Interface
-	namespace string // namespace is the Argo CD namespace
+	ctx             context.Context
+	dynClient       dynamic.Interface
+	clientset       kubernetes.Interface
+	namespace       string // namespace is the Argo CD namespace
+	settingsManager *settings.SettingsManager
 }
 
 func NewDuckTypeGenerator(ctx context.Context, dynClient dynamic.Interface, clientset kubernetes.Interface, namespace string) Generator {
+	settingsManager := settings.NewSettingsManager(ctx, clientset, namespace)
+
 	g := &DuckTypeGenerator{
-		ctx:       ctx,
-		dynClient: dynClient,
-		clientset: clientset,
-		namespace: namespace,
+		ctx:             ctx,
+		dynClient:       dynClient,
+		clientset:       clientset,
+		namespace:       namespace,
+		settingsManager: settingsManager,
 	}
 	return g
 }
@@ -55,14 +59,14 @@ func (g *DuckTypeGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Appl
 	return &appSetGenerator.ClusterDecisionResource.Template
 }
 
-func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
+func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]interface{}, error) {
 	if appSetGenerator == nil {
-		return nil, ErrEmptyAppSetGenerator
+		return nil, EmptyAppSetGeneratorError
 	}
 
 	// Not likely to happen
 	if appSetGenerator.ClusterDecisionResource == nil {
-		return nil, ErrEmptyAppSetGenerator
+		return nil, EmptyAppSetGeneratorError
 	}
 
 	// ListCluster from Argo CD's util/db package will include the local cluster in the list of clusters
@@ -92,13 +96,13 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 	// Validate the fields
 	if kind == "" || versionIdx < 1 {
 		log.Warningf("kind=%v, resourceName=%v, versionIdx=%v", kind, resourceName, versionIdx)
-		return nil, errors.New("there is a problem with the apiVersion, kind or resourceName provided")
+		return nil, fmt.Errorf("There is a problem with the apiVersion, kind or resourceName provided")
 	}
 
 	if (resourceName == "" && labelSelector.MatchLabels == nil && labelSelector.MatchExpressions == nil) ||
 		(resourceName != "" && (labelSelector.MatchExpressions != nil || labelSelector.MatchLabels != nil)) {
 		log.Warningf("You must choose either resourceName=%v, labelSelector.matchLabels=%v or labelSelect.matchExpressions=%v", resourceName, labelSelector.MatchLabels, labelSelector.MatchExpressions)
-		return nil, errors.New("there is a problem with the definition of the ClusterDecisionResource generator")
+		return nil, fmt.Errorf("There is a problem with the definition of the ClusterDecisionResource generator")
 	}
 
 	// Split up the apiVersion
@@ -126,104 +130,97 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 
 	if len(duckResources.Items) == 0 {
 		log.Warning("no resource found, make sure you clusterDecisionResource is defined correctly")
-		return nil, errors.New("no clusterDecisionResources found")
+		return nil, fmt.Errorf("no clusterDecisionResources found")
 	}
 
 	// Override the duck type in the status of the resource
 	statusListKey := "clusters"
+
+	matchKey := cm.Data["matchKey"]
+
 	if cm.Data["statusListKey"] != "" {
 		statusListKey = cm.Data["statusListKey"]
 	}
-
-	matchKey := cm.Data["matchKey"]
 	if matchKey == "" {
 		log.WithField("matchKey", matchKey).Warning("matchKey not found in " + cm.Name)
 		return nil, nil
 	}
 
-	clusterDecisions := buildClusterDecisions(duckResources, statusListKey)
-	if len(clusterDecisions) == 0 {
-		log.Warningf("clusterDecisionResource status.%s missing", statusListKey)
-		return nil, nil
-	}
-
-	res := []map[string]any{}
-	for _, clusterDecision := range clusterDecisions {
-		cluster := findCluster(clustersFromArgoCD, clusterDecision, matchKey, statusListKey)
-		// if no cluster is found, move to the next cluster
-		if cluster == nil {
-			continue
-		}
-
-		// generated instance of cluster params
-		params := map[string]any{
-			"name":   cluster.Name,
-			"server": cluster.Server,
-		}
-
-		for key, value := range clusterDecision.(map[string]any) {
-			params[key] = value.(string)
-		}
-
-		for key, value := range appSetGenerator.ClusterDecisionResource.Values {
-			collectParams(appSet, params, key, value)
-		}
-
-		res = append(res, params)
-	}
-
-	return res, nil
-}
-
-func buildClusterDecisions(duckResources *unstructured.UnstructuredList, statusListKey string) []any {
-	clusterDecisions := []any{}
+	res := []map[string]interface{}{}
+	clusterDecisions := []interface{}{}
 
 	// Build the decision slice
 	for _, duckResource := range duckResources.Items {
 		log.WithField("duckResourceName", duckResource.GetName()).Debug("found resource")
 
-		if duckResource.Object["status"] == nil || len(duckResource.Object["status"].(map[string]any)) == 0 {
+		if duckResource.Object["status"] == nil || len(duckResource.Object["status"].(map[string]interface{})) == 0 {
 			log.Warningf("clusterDecisionResource: %s, has no status", duckResource.GetName())
 			continue
 		}
 
 		log.WithField("duckResourceStatus", duckResource.Object["status"]).Debug("found resource")
 
-		clusterDecisions = append(clusterDecisions, duckResource.Object["status"].(map[string]any)[statusListKey].([]any)...)
+		clusterDecisions = append(clusterDecisions, duckResource.Object["status"].(map[string]interface{})[statusListKey].([]interface{})...)
 	}
 	log.Infof("Number of decisions found: %v", len(clusterDecisions))
-	return clusterDecisions
-}
 
-func findCluster(clustersFromArgoCD []utils.ClusterSpecifier, cluster any, matchKey string, statusListKey string) *utils.ClusterSpecifier {
-	log.Infof("cluster: %v", cluster)
-	matchValue := cluster.(map[string]any)[matchKey]
-	if matchValue == nil || matchValue.(string) == "" {
-		log.Warningf("matchKey=%v not found in \"%v\" list: %v\n", matchKey, statusListKey, cluster.(map[string]any))
-		return nil // no match
-	}
+	// Read this outside the loop to improve performance
+	argoClusters := clustersFromArgoCD.Items
 
-	strMatchValue := matchValue.(string)
-	log.WithField(matchKey, strMatchValue).Debug("validate against ArgoCD")
+	if len(clusterDecisions) > 0 {
+		for _, cluster := range clusterDecisions {
+			// generated instance of cluster params
+			params := map[string]interface{}{}
 
-	for _, argoCluster := range clustersFromArgoCD {
-		if argoCluster.Name == strMatchValue {
-			log.WithField(matchKey, argoCluster.Name).Info("matched cluster in ArgoCD")
-			return &argoCluster
+			log.Infof("cluster: %v", cluster)
+			matchValue := cluster.(map[string]interface{})[matchKey]
+			if matchValue == nil || matchValue.(string) == "" {
+				log.Warningf("matchKey=%v not found in \"%v\" list: %v\n", matchKey, statusListKey, cluster.(map[string]interface{}))
+				continue
+			}
+
+			strMatchValue := matchValue.(string)
+			log.WithField(matchKey, strMatchValue).Debug("validate against ArgoCD")
+
+			found := false
+
+			for _, argoCluster := range argoClusters {
+				if argoCluster.Name == strMatchValue {
+					log.WithField(matchKey, argoCluster.Name).Info("matched cluster in ArgoCD")
+					params["name"] = argoCluster.Name
+					params["server"] = argoCluster.Server
+
+					found = true
+					break // Stop looking
+				}
+			}
+
+			if !found {
+				log.WithField(matchKey, strMatchValue).Warning("unmatched cluster in ArgoCD")
+				continue
+			}
+
+			for key, value := range cluster.(map[string]interface{}) {
+				params[key] = value.(string)
+			}
+
+			for key, value := range appSetGenerator.ClusterDecisionResource.Values {
+				if appSet.Spec.GoTemplate {
+					if params["values"] == nil {
+						params["values"] = map[string]string{}
+					}
+					params["values"].(map[string]string)[key] = value
+				} else {
+					params[fmt.Sprintf("values.%s", key)] = value
+				}
+			}
+
+			res = append(res, params)
 		}
-	}
-
-	log.WithField(matchKey, strMatchValue).Warning("unmatched cluster in ArgoCD")
-	return nil
-}
-
-func collectParams(appSet *argoprojiov1alpha1.ApplicationSet, params map[string]any, key string, value string) {
-	if appSet.Spec.GoTemplate {
-		if params["values"] == nil {
-			params["values"] = map[string]string{}
-		}
-		params["values"].(map[string]string)[key] = value
 	} else {
-		params["values."+key] = value
+		log.Warningf("clusterDecisionResource status.%s missing", statusListKey)
+		return nil, nil
 	}
+
+	return res, nil
 }

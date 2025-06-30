@@ -1,9 +1,0 @@
-FROM node:20
-
-WORKDIR /app/ui
-
-COPY ui /app/ui
-
-RUN yarn install
-
-ENTRYPOINT ["yarn", "start"]

@@ -3,23 +3,30 @@ package certificate
 import (
 	"context"
 
-	certificatepkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/certificate"
-	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/rbac"
+	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
 )
 
 // Server provides a Certificate service
 type Server struct {
-	db  db.ArgoDB
-	enf *rbac.Enforcer
+	db            db.ArgoDB
+	repoClientset apiclient.Clientset
+	enf           *rbac.Enforcer
 }
 
 // NewServer returns a new instance of the Certificate service
-func NewServer(db db.ArgoDB, enf *rbac.Enforcer) *Server {
+func NewServer(
+	repoClientset apiclient.Clientset,
+	db db.ArgoDB,
+	enf *rbac.Enforcer,
+) *Server {
 	return &Server{
-		db:  db,
-		enf: enf,
+		db:            db,
+		repoClientset: repoClientset,
+		enf:           enf,
 	}
 }
 

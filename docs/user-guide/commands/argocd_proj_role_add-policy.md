@@ -35,21 +35,6 @@ JWT Tokens:
 ID          ISSUED-AT                                EXPIRES-AT
 1696759698  2023-10-08T11:08:18+01:00 (3 hours ago)  <none>
 
-# Add a new policy to allow get logs to the project
-$ argocd proj role add-policy test-project test-role -a get -p allow -o project -r logs
-
-# Policy should be updated
-$  argocd proj role get test-project test-role
-Role Name:     test-role
-Description:
-Policies:
-p, proj:test-project:test-role, projects, get, test-project, allow
-p, proj:test-project:test-role, applications, update, test-project/project, allow
-p, proj:test-project:test-role, logs, get, test-project/project, allow
-JWT Tokens:
-ID          ISSUED-AT                                EXPIRES-AT
-1696759698  2023-10-08T11:08:18+01:00 (3 hours ago)  <none>
-
 ```
 
 ### Options
@@ -59,7 +44,6 @@ ID          ISSUED-AT                                EXPIRES-AT
   -h, --help                help for add-policy
   -o, --object string       Object within the project to grant/deny access.  Use '*' for a wildcard. Will want access to '<project>/<object>'
   -p, --permission string   Whether to allow or deny access to object with the action.  This can only be 'allow' or 'deny' (default "allow")
-  -r, --resource string     Resource e.g. 'applications', 'applicationsets', 'logs', 'exec', etc. (default "applications")
 ```
 
 ### Options inherited from parent commands
@@ -78,7 +62,7 @@ ID          ISSUED-AT                                EXPIRES-AT
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: json|text (default "json")
+      --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding

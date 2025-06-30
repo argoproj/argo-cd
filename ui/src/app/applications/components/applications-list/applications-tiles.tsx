@@ -108,7 +108,6 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                             <div className='applications-tiles argo-table-list argo-table-list--clickable' ref={appContainerRef}>
                                 {applications.map((app, i) => {
                                     const source = getAppDefaultSource(app);
-                                    const isOci = source?.repoURL?.startsWith('oci://');
                                     const targetRevision = source ? source.targetRevision || 'HEAD' : 'Unknown';
                                     return (
                                         <div
@@ -126,11 +125,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                     )} applications-tiles__item`}>
                                                     <div className='row '>
                                                         <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-10' : 'columns small-11'}>
-                                                            <i
-                                                                className={
-                                                                    'icon argo-icon-' + (source?.chart != null ? 'helm' : isOci ? 'oci applications-tiles__item__small' : 'git')
-                                                                }
-                                                            />
+                                                            <i className={'icon argo-icon-' + (source?.chart != null ? 'helm' : 'git')} />
                                                             <Tooltip content={AppUtils.appInstanceName(app)}>
                                                                 <span className='applications-list__title'>
                                                                     {AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
@@ -281,31 +276,27 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                                 <i className='fa fa-sync' /> Sync
                                                             </a>
                                                             &nbsp;
-                                                            <Tooltip className='custom-tooltip' content={'Refresh'}>
-                                                                <a
-                                                                    className='argo-button argo-button--base'
-                                                                    qe-id='applications-tiles-button-refresh'
-                                                                    {...AppUtils.refreshLinkAttrs(app)}
-                                                                    onClick={e => {
-                                                                        e.stopPropagation();
-                                                                        refreshApplication(app.metadata.name, app.metadata.namespace);
-                                                                    }}>
-                                                                    <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppRefreshing(app)})} />{' '}
-                                                                    <span className='show-for-xxlarge'>Refresh</span>
-                                                                </a>
-                                                            </Tooltip>
+                                                            <a
+                                                                className='argo-button argo-button--base'
+                                                                qe-id='applications-tiles-button-refresh'
+                                                                {...AppUtils.refreshLinkAttrs(app)}
+                                                                onClick={e => {
+                                                                    e.stopPropagation();
+                                                                    refreshApplication(app.metadata.name, app.metadata.namespace);
+                                                                }}>
+                                                                <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppRefreshing(app)})} />{' '}
+                                                                <span className='show-for-xxlarge'>Refresh</span>
+                                                            </a>
                                                             &nbsp;
-                                                            <Tooltip className='custom-tooltip' content={'Delete'}>
-                                                                <a
-                                                                    className='argo-button argo-button--base'
-                                                                    qe-id='applications-tiles-button-delete'
-                                                                    onClick={e => {
-                                                                        e.stopPropagation();
-                                                                        deleteApplication(app.metadata.name, app.metadata.namespace);
-                                                                    }}>
-                                                                    <i className='fa fa-times-circle' /> <span className='show-for-xxlarge'>Delete</span>
-                                                                </a>
-                                                            </Tooltip>
+                                                            <a
+                                                                className='argo-button argo-button--base'
+                                                                qe-id='applications-tiles-button-delete'
+                                                                onClick={e => {
+                                                                    e.stopPropagation();
+                                                                    deleteApplication(app.metadata.name, app.metadata.namespace);
+                                                                }}>
+                                                                <i className='fa fa-times-circle' /> <span className='show-for-xxlarge'>Delete</span>
+                                                            </a>
                                                         </div>
                                                     </div>
                                                 </div>

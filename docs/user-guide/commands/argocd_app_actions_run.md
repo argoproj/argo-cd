@@ -2,11 +2,7 @@
 
 ## argocd app actions run
 
-Runs an available action on resource(s) matching the specified filters.
-
-### Synopsis
-
-All filters except --kind are optional. Use --all to run the action on all matching resources if more than one resource matches the filters. Actions may only be run on resources that are represented in git and cannot be run on child resources.
+Runs an available action on resource(s)
 
 ```
 argocd app actions run APPNAME ACTION [flags]
@@ -23,11 +19,11 @@ argocd app actions run APPNAME ACTION [flags]
 
 ```
       --all                    Indicates whether to run the action on multiple matching resources
-      --group string           Group of the resource on which the action should be run
+      --group string           Group
   -h, --help                   help for run
-      --kind string            Kind of the resource on which the action should be run
-      --namespace string       Namespace of the resource on which the action should be run
-      --resource-name string   Name of resource on which the action should be run
+      --kind string            Kind
+      --namespace string       Namespace
+      --resource-name string   Name of resource
 ```
 
 ### Options inherited from parent commands
@@ -46,7 +42,7 @@ argocd app actions run APPNAME ACTION [flags]
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: json|text (default "json")
+      --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding

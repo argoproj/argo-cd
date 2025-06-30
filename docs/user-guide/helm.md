@@ -1,4 +1,4 @@
- # Helm
+# Helm
 
 ## Declarative
 
@@ -42,10 +42,10 @@ spec:
     namespace: nginx
 ```
 
-!!! note "When using Helm there are multiple ways to provide values"
+!!! note "When using multiple ways to provide values"
     Order of precedence is `parameters > valuesObject > values > valueFiles > helm repository values.yaml` (see [Here](./helm.md#helm-value-precedence) for a more detailed example)
 
-See [here](../operator-manual/declarative-setup.md#helm) for more info about how to configure private Helm repositories and private OCI registries.
+See [here](../operator-manual/declarative-setup.md#helm-chart-repositories) for more info about how to configure private Helm repositories.
 
 ## Values Files
 
@@ -170,18 +170,18 @@ Values injections have the following order of precedence
     highest -> parameters
 ```
 
-So valuesObject trumps values - therefore values will be ignored, and both valuesObject and values trump valueFiles.
-Parameters trump all of them.
+so values/valuesObject trumps valueFiles, and parameters trump both.
 
-Precedence of multiple valueFiles:
-When multiple valueFiles are specified, the last file listed has the highest precedence:
+Precedence of valueFiles themselves is the order they are defined in
 
 ```
+if we have
+
 valueFiles:
   - values-file-2.yaml
   - values-file-1.yaml
 
-In this case, values-file-1.yaml will override values from values-file-2.yaml.
+the last values-file i.e. values-file-1.yaml will trump the first
 ```
 
 When multiple of the same key are found the last one wins i.e 
@@ -265,7 +265,7 @@ Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Ar
 
 | Helm Annotation                 | Notes                                                                                         |
 | ------------------------------- |-----------------------------------------------------------------------------------------------|
-| `helm.sh/hook: crd-install`     | Supported as equivalent to normal Argo CD CRD handling.                                |
+| `helm.sh/hook: crd-install`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |
 | `helm.sh/hook: pre-delete`      | Not supported. In Helm stable there are 3 cases used to clean up CRDs and 3 to clean-up jobs. |
 | `helm.sh/hook: pre-rollback`    | Not supported. Never used in Helm stable.                                                     |
 | `helm.sh/hook: pre-install`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |
@@ -292,6 +292,7 @@ Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl a
 ### Hook Tips
 
 * Make your hook idempotent.
+* Annotate `crd-install` with `hook-weight: "-2"` to make sure it runs to success before any install or upgrade hooks.
 * Annotate  `pre-install` and `post-install` with `hook-weight: "-1"`. This will make sure it runs to success before any upgrade hooks.
 * Annotate `pre-upgrade` and `post-upgrade` with `hook-delete-policy: before-hook-creation` to make sure it runs on every sync.
 
@@ -317,7 +318,7 @@ The Argo CD application controller periodically compares Git state against the l
 the `helm template <CHART>` command to generate the helm manifests. Because the random value is
 regenerated every time the comparison is made, any application which makes use of the `randAlphaNum`
 function will always be in an `OutOfSync` state. This can be mitigated by explicitly setting a
-value in the values.yaml or using `argocd app set` command to override the value such that the value
+value in the values.yaml or using `argocd app set` command to overide the value such that the value
 is stable between each comparison. For example:
 
 ```bash
@@ -389,9 +390,9 @@ RUN helm plugin install ${GCS_PLUGIN_REPO} --version ${GCS_PLUGIN_VERSION}
 ENV HELM_PLUGINS="/home/argocd/.local/share/helm/plugins/"
 ```
 
-The `HELM_PLUGINS` environment property required for ArgoCD to locale plugins correctly.
+You have to remember about `HELM_PLUGINS` environment property - this is required for plugins to work correctly.
 
-Once built, use the custom image for ArgoCD installation.
+After that you have to use your custom image for ArgoCD installation.
 
 ### Using `initContainers`
 Another option is to install Helm plugins via Kubernetes `initContainers`.
@@ -516,6 +517,7 @@ spec:
     helm:
       skipSchemaValidation: true
 ```
+
 
 
 ## Helm `--skip-tests`
