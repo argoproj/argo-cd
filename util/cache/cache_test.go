@@ -110,6 +110,7 @@ func TestLoadRedisCredsFromFile(t *testing.T) {
 	assert.Equal(t, "sentinelpass", creds.sentinelPassword)
 }
 
+// Test loading Redis credentials from environment variables
 func TestLoadRedisCredsFromEnv(t *testing.T) {
 	// Set environment variables
 	t.Setenv(envRedisPassword, "mypassword")
@@ -124,6 +125,7 @@ func TestLoadRedisCredsFromEnv(t *testing.T) {
 	assert.Equal(t, "sentinelpass", creds.sentinelPassword)
 }
 
+// Test loading Redis credentials from both environment variables and a file
 func TestLoadRedisCredsFromBothEnvAndFile(t *testing.T) {
 	// Set environment variables
 	t.Setenv(envRedisPassword, "mypassword")
