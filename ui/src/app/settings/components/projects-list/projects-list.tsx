@@ -84,7 +84,7 @@ export const ProjectsList: FC = () => {
                                             ctx.navigation.goto(`./${proj.metadata.name}`, {add: null}, {replace: true});
                                         } catch (e) {
                                             ctx.notifications.show({
-                                                content: <ErrorNotification title='Unable to create project' e={e} />, 
+                                                content: <ErrorNotification title='Unable to create project' e={e} />,
                                                 type: NotificationType.Error
                                             });
                                         }
