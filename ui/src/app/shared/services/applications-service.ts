@@ -547,7 +547,7 @@ export class ApplicationsService {
     public async getApplicationSet(name: string, namespace: string): Promise<models.ApplicationSet> {
         return requests
             .get(`/applicationsets/${name}`)
-            .query({namespace})
+            .query({appsetNamespace: namespace})
             .then(res => res.body as models.ApplicationSet);
     }
 }
