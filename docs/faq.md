@@ -318,22 +318,21 @@ You can config your secret provider to generate Kubernetes secret accordingly.
 
 ## How do I provide Redis credentials using a file mount?
 
-Redis credentials can be injected through mounted volumes instead of environment variables.
+You can inject Redis credentials by mounting files as volumes, instead of using environment variables.
 
-Supported Filenames
+**Supported Filenames**
 
-The following files are expected inside the mounted path:
+Place the following files inside the mounted path:
 
-| Credential type    | File name        |
-|--------------------|------------------|
-| Redis password     | `auth`           |
-| Redis username     | `auth_username`  |
-| Sentinel username  | `sentinel_username` |
-| Sentinel password  | `sentinel_auth`  |
+| **Credential Type**   | **File Name**         |
+|-----------------------|-----------------------|
+| Redis password        | `auth`                |
+| Redis username        | `auth_username`       |
+| Sentinel username     | `sentinel_username`   |
+| Sentinel password     | `sentinel_auth`       |
 
-* Fallback behavior
-
-If a credential file is missing or unreadable, Argo CD falls back to the corresponding environment variable (e.g., REDIS_PASSWORD, REDIS_USERNAME, etc.).
+**Fallback Behavior:**  
+If a credential file is missing or unreadable, Argo CD will fall back to the corresponding environment variable (e.g., `REDIS_PASSWORD`, `REDIS_USERNAME`, etc.).
 
 ## How do I fix `Manifest generation error (cached)`?
 
