@@ -1734,3 +1734,9 @@ export const getProgressiveSyncStatusColor = (status: string): string => {
             return COLORS.sync.unknown;
     }
 };
+
+// constant for podrequests
+export const podRequests = {
+    CPU: 'Requests (CPU)',
+    MEMORY: 'Requests (MEM)'
+} as const;
