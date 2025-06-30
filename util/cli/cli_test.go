@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const pwd = "test-password"
+
 func TestPromptPassword_Fallback(t *testing.T) {
 	oldStdin := os.Stdin
 	defer func() {
@@ -17,7 +19,7 @@ func TestPromptPassword_Fallback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create pipe: %v", err)
 	}
-	_, err = w.WriteString("test-password\n")
+	_, err = w.WriteString(pwd + "\n")
 	if err != nil {
 		t.Fatalf("Failed to write to pipe: %v", err)
 	}
@@ -25,5 +27,5 @@ func TestPromptPassword_Fallback(t *testing.T) {
 
 	os.Stdin = r
 	password := PromptPassword("")
-	require.Equal(t, "test-password", password)
+	require.Equal(t, pwd, password)
 }
