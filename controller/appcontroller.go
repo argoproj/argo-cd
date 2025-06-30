@@ -2050,8 +2050,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 			message := "Source hydrator failed: " + sourceHydratorCurrentOperation.Message
 			ctrl.logAppEvent(context.TODO(), orig, argo.EventInfo{Reason: argo.EventReasonHydrationCompleted, Type: corev1.EventTypeNormal}, message)
 		default:
-			message := "Unknown source hydrator operation phase: " + string(sourceHydratorCurrentOperation.Phase)
-			logCtx.Warnf(message)
+			logCtx.Warnf("Unknown source hydrator operation phase: %s", string(sourceHydratorCurrentOperation.Phase))
 		}
 	}
 	if orig.Status.Health.Status != newStatus.Health.Status {
