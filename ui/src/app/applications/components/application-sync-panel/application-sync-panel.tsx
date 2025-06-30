@@ -23,7 +23,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
     const [form, setForm] = React.useState<FormApi>(null);
     const isVisible = !!(selectedResource && application);
     const appResources = ((application && selectedResource && application.status && application.status.resources) || [])
-        .sort((first, second) => nodeKey(first).localeCompare(nodeKey(second)))
+        .sort((first, second) => nodeKey(first).localeCompare(nodeKey(second), undefined, {numeric: true}))
         .filter(item => !item.hook);
     const syncResIndex = appResources.findIndex(item => nodeKey(item) === selectedResource);
     const syncStrategy = {} as models.SyncStrategy;
