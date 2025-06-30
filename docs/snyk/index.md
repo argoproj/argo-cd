@@ -18,7 +18,7 @@ recent minor releases.
 | [dex:v2.43.0](master/ghcr.io_dexidp_dex_v2.43.0.html) | 0 | 0 | 0 | 0 |
 | [haproxy:3.0.8-alpine](master/public.ecr.aws_docker_library_haproxy_3.0.8-alpine.html) | 0 | 0 | 0 | 0 |
 | [redis:7.2.7-alpine](master/public.ecr.aws_docker_library_redis_7.2.7-alpine.html) | 0 | 0 | 0 | 0 |
-| [argocd:latest](master/quay.io_argoproj_argocd_latest.html) | 0 | 0 | 4 | 9 |
+| [argocd:latest](master/quay.io_argoproj_argocd_latest.html) | 0 | 0 | 4 | 8 |
 | [install.yaml](master/argocd-iac-install.html) | - | - | - | - |
 | [namespace-install.yaml](master/argocd-iac-namespace-install.html) | - | - | - | - |
 
