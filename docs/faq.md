@@ -318,21 +318,31 @@ You can config your secret provider to generate Kubernetes secret accordingly.
 
 ## How do I provide Redis credentials using a file mount?
 
-You can inject Redis credentials by mounting files as volumes, instead of using environment variables.
+Redis credentials can be mounted as files in a specified directory, rather than being set directly as environment variables from a secret.
 
-**Supported Filenames**
+**Set the Environment Variable**
 
-Place the following files inside the mounted path:
+Set the `REDIS_CREDS_FILE_PATH` environment variable to the directory where your credential files are mounted.
 
-| **Credential Type**   | **File Name**         |
-|-----------------------|-----------------------|
-| Redis password        | `auth`                |
-| Redis username        | `auth_username`       |
-| Sentinel username     | `sentinel_username`   |
-| Sentinel password     | `sentinel_auth`       |
+| Variable Name           | Description                                   |
+|-------------------------|-----------------------------------------------|
+| `REDIS_CREDS_FILE_PATH` | Path to the directory containing credential files |
+
+**Provide Credential Files**
+
+Place the following files in the specified directory:
+
+| Credential Type      | File Name           |
+|----------------------|---------------------|
+| Redis password       | `auth`              |
+| Redis username       | `auth_username`     |
+| Sentinel username    | `sentinel_username` |
+| Sentinel password    | `sentinel_auth`     |
 
 **Fallback Behavior:**  
-If a credential file is missing or unreadable, Argo CD will fall back to the corresponding environment variable (e.g., `REDIS_PASSWORD`, `REDIS_USERNAME`, etc.).
+If a credential file is missing or cannot be read, Argo CD will automatically fall back to the corresponding environment variable (such as `REDIS_PASSWORD`, `REDIS_USERNAME`, etc.).
+
+This approach allows for more secure and flexible management of Redis credentials, especially when integrating with external secret management solutions.
 
 ## How do I fix `Manifest generation error (cached)`?
 
