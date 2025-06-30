@@ -21,7 +21,7 @@ builds:
       - -X github.com/argoproj/argo-cd/v3/common.gitCommit={{ .FullCommit }}
       - -X github.com/argoproj/argo-cd/v3/common.gitTreeState={{ .Env.GIT_TREE_STATE }}
       - -X github.com/argoproj/argo-cd/v3/common.kubectlVersion={{ .Env.KUBECTL_VERSION }}
-      - '{{ if or (eq .Runtime.Goos "linux") (eq .Runtime.Goos "windows") }}-extldflags="-static"{{ end }}'
+      - -extldflags="-static"
     goos:
       - linux
       - windows
@@ -42,15 +42,6 @@ builds:
         goarch: ppc64le
       - goos: windows
         goarch: arm64
-    overrides:
-      - goos: darwin
-        goarch: amd64
-        env:
-          - CGO_ENABLED=1
-      - goos: darwin
-        goarch: arm64
-        env:
-          - CGO_ENABLED=1
 
 archives:
   - id: argocd-archive
