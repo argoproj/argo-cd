@@ -128,4 +128,7 @@ func TestGetModification_NotSupported(t *testing.T) {
 func TestGetModification_ResourceNotSupported(t *testing.T) {
 	_, err := getModification("set", "dummy", "*", "allow")
 	assert.Errorf(t, err, "flag --resource should be project scoped resource, e.g. 'applications, logs, exec, etc.'")
+
+	_, err = getModification("set", "*", "*", "allow")
+	assert.Errorf(t, err, "flag --resource should be project scoped resource, e.g. 'applications, logs, exec, etc.'")
 }
