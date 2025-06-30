@@ -36,7 +36,7 @@ metadata:
 stringData:
   grafana-api-key: api-key
 ```
-7. Create a template in `argo-noticiations-cm` Configmap
+7. Create a template in `argo-notifications-cm` Configmap
 This will be used to pass the (required) text of the annocation to Grafana (or re-use an existing one)
 As there is no specific template for Grafana, you must use the generic `message`:
 
