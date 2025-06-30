@@ -47,7 +47,7 @@ Your code failed to lint correctly, or modifications were performed by the `gola
 
 ### Why does the test or e2e steps fail?
 
-You should check for the cause of the failure in the check's detail page as described above. This will give you the name of the test that has failed, and details about why. If your test are passing locally (using the virtualized toolchain), chances are that the test might be flaky and will pass the next time it is run. Please retrigger the CI pipeline as described above and see if the test step now passes.
+You should check for the cause of the failure in the check's detail page as described above. This will give you the name of the test that has failed, and details about why. If your test is passing locally (using the virtualized toolchain), chances are that the test might be flaky and will pass the next time it is run. Please retrigger the CI pipeline as described above and see if the test step now passes.
 
 ## Updating The Builder Image
 

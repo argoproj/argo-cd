@@ -75,15 +75,26 @@ type Client_CreateAnnotatedTag_Call struct {
 }
 
 // CreateAnnotatedTag is a helper method to define mock.On call
-//   - context1
-//   - createAnnotatedTagArgs
+//   - context1 context.Context
+//   - createAnnotatedTagArgs git.CreateAnnotatedTagArgs
 func (_e *Client_Expecter) CreateAnnotatedTag(context1 interface{}, createAnnotatedTagArgs interface{}) *Client_CreateAnnotatedTag_Call {
 	return &Client_CreateAnnotatedTag_Call{Call: _e.mock.On("CreateAnnotatedTag", context1, createAnnotatedTagArgs)}
 }
 
 func (_c *Client_CreateAnnotatedTag_Call) Run(run func(context1 context.Context, createAnnotatedTagArgs git.CreateAnnotatedTagArgs)) *Client_CreateAnnotatedTag_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreateAnnotatedTagArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreateAnnotatedTagArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreateAnnotatedTagArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -132,15 +143,26 @@ type Client_CreateAttachment_Call struct {
 }
 
 // CreateAttachment is a helper method to define mock.On call
-//   - context1
-//   - createAttachmentArgs
+//   - context1 context.Context
+//   - createAttachmentArgs git.CreateAttachmentArgs
 func (_e *Client_Expecter) CreateAttachment(context1 interface{}, createAttachmentArgs interface{}) *Client_CreateAttachment_Call {
 	return &Client_CreateAttachment_Call{Call: _e.mock.On("CreateAttachment", context1, createAttachmentArgs)}
 }
 
 func (_c *Client_CreateAttachment_Call) Run(run func(context1 context.Context, createAttachmentArgs git.CreateAttachmentArgs)) *Client_CreateAttachment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreateAttachmentArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreateAttachmentArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreateAttachmentArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -189,15 +211,26 @@ type Client_CreateCherryPick_Call struct {
 }
 
 // CreateCherryPick is a helper method to define mock.On call
-//   - context1
-//   - createCherryPickArgs
+//   - context1 context.Context
+//   - createCherryPickArgs git.CreateCherryPickArgs
 func (_e *Client_Expecter) CreateCherryPick(context1 interface{}, createCherryPickArgs interface{}) *Client_CreateCherryPick_Call {
 	return &Client_CreateCherryPick_Call{Call: _e.mock.On("CreateCherryPick", context1, createCherryPickArgs)}
 }
 
 func (_c *Client_CreateCherryPick_Call) Run(run func(context1 context.Context, createCherryPickArgs git.CreateCherryPickArgs)) *Client_CreateCherryPick_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreateCherryPickArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreateCherryPickArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreateCherryPickArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -246,15 +279,26 @@ type Client_CreateComment_Call struct {
 }
 
 // CreateComment is a helper method to define mock.On call
-//   - context1
-//   - createCommentArgs
+//   - context1 context.Context
+//   - createCommentArgs git.CreateCommentArgs
 func (_e *Client_Expecter) CreateComment(context1 interface{}, createCommentArgs interface{}) *Client_CreateComment_Call {
 	return &Client_CreateComment_Call{Call: _e.mock.On("CreateComment", context1, createCommentArgs)}
 }
 
 func (_c *Client_CreateComment_Call) Run(run func(context1 context.Context, createCommentArgs git.CreateCommentArgs)) *Client_CreateComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreateCommentArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreateCommentArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreateCommentArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -303,15 +347,26 @@ type Client_CreateCommitStatus_Call struct {
 }
 
 // CreateCommitStatus is a helper method to define mock.On call
-//   - context1
-//   - createCommitStatusArgs
+//   - context1 context.Context
+//   - createCommitStatusArgs git.CreateCommitStatusArgs
 func (_e *Client_Expecter) CreateCommitStatus(context1 interface{}, createCommitStatusArgs interface{}) *Client_CreateCommitStatus_Call {
 	return &Client_CreateCommitStatus_Call{Call: _e.mock.On("CreateCommitStatus", context1, createCommitStatusArgs)}
 }
 
 func (_c *Client_CreateCommitStatus_Call) Run(run func(context1 context.Context, createCommitStatusArgs git.CreateCommitStatusArgs)) *Client_CreateCommitStatus_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreateCommitStatusArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreateCommitStatusArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreateCommitStatusArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -360,15 +415,26 @@ type Client_CreateFavorite_Call struct {
 }
 
 // CreateFavorite is a helper method to define mock.On call
-//   - context1
-//   - createFavoriteArgs
+//   - context1 context.Context
+//   - createFavoriteArgs git.CreateFavoriteArgs
 func (_e *Client_Expecter) CreateFavorite(context1 interface{}, createFavoriteArgs interface{}) *Client_CreateFavorite_Call {
 	return &Client_CreateFavorite_Call{Call: _e.mock.On("CreateFavorite", context1, createFavoriteArgs)}
 }
 
 func (_c *Client_CreateFavorite_Call) Run(run func(context1 context.Context, createFavoriteArgs git.CreateFavoriteArgs)) *Client_CreateFavorite_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreateFavoriteArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreateFavoriteArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreateFavoriteArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -417,15 +483,26 @@ type Client_CreateForkSyncRequest_Call struct {
 }
 
 // CreateForkSyncRequest is a helper method to define mock.On call
-//   - context1
-//   - createForkSyncRequestArgs
+//   - context1 context.Context
+//   - createForkSyncRequestArgs git.CreateForkSyncRequestArgs
 func (_e *Client_Expecter) CreateForkSyncRequest(context1 interface{}, createForkSyncRequestArgs interface{}) *Client_CreateForkSyncRequest_Call {
 	return &Client_CreateForkSyncRequest_Call{Call: _e.mock.On("CreateForkSyncRequest", context1, createForkSyncRequestArgs)}
 }
 
 func (_c *Client_CreateForkSyncRequest_Call) Run(run func(context1 context.Context, createForkSyncRequestArgs git.CreateForkSyncRequestArgs)) *Client_CreateForkSyncRequest_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreateForkSyncRequestArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreateForkSyncRequestArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreateForkSyncRequestArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -474,15 +551,26 @@ type Client_CreateImportRequest_Call struct {
 }
 
 // CreateImportRequest is a helper method to define mock.On call
-//   - context1
-//   - createImportRequestArgs
+//   - context1 context.Context
+//   - createImportRequestArgs git.CreateImportRequestArgs
 func (_e *Client_Expecter) CreateImportRequest(context1 interface{}, createImportRequestArgs interface{}) *Client_CreateImportRequest_Call {
 	return &Client_CreateImportRequest_Call{Call: _e.mock.On("CreateImportRequest", context1, createImportRequestArgs)}
 }
 
 func (_c *Client_CreateImportRequest_Call) Run(run func(context1 context.Context, createImportRequestArgs git.CreateImportRequestArgs)) *Client_CreateImportRequest_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreateImportRequestArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreateImportRequestArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreateImportRequestArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -520,15 +608,26 @@ type Client_CreateLike_Call struct {
 }
 
 // CreateLike is a helper method to define mock.On call
-//   - context1
-//   - createLikeArgs
+//   - context1 context.Context
+//   - createLikeArgs git.CreateLikeArgs
 func (_e *Client_Expecter) CreateLike(context1 interface{}, createLikeArgs interface{}) *Client_CreateLike_Call {
 	return &Client_CreateLike_Call{Call: _e.mock.On("CreateLike", context1, createLikeArgs)}
 }
 
 func (_c *Client_CreateLike_Call) Run(run func(context1 context.Context, createLikeArgs git.CreateLikeArgs)) *Client_CreateLike_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreateLikeArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreateLikeArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreateLikeArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -577,15 +676,26 @@ type Client_CreateMergeRequest_Call struct {
 }
 
 // CreateMergeRequest is a helper method to define mock.On call
-//   - context1
-//   - createMergeRequestArgs
+//   - context1 context.Context
+//   - createMergeRequestArgs git.CreateMergeRequestArgs
 func (_e *Client_Expecter) CreateMergeRequest(context1 interface{}, createMergeRequestArgs interface{}) *Client_CreateMergeRequest_Call {
 	return &Client_CreateMergeRequest_Call{Call: _e.mock.On("CreateMergeRequest", context1, createMergeRequestArgs)}
 }
 
 func (_c *Client_CreateMergeRequest_Call) Run(run func(context1 context.Context, createMergeRequestArgs git.CreateMergeRequestArgs)) *Client_CreateMergeRequest_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreateMergeRequestArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreateMergeRequestArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreateMergeRequestArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -634,15 +744,26 @@ type Client_CreatePullRequest_Call struct {
 }
 
 // CreatePullRequest is a helper method to define mock.On call
-//   - context1
-//   - createPullRequestArgs
+//   - context1 context.Context
+//   - createPullRequestArgs git.CreatePullRequestArgs
 func (_e *Client_Expecter) CreatePullRequest(context1 interface{}, createPullRequestArgs interface{}) *Client_CreatePullRequest_Call {
 	return &Client_CreatePullRequest_Call{Call: _e.mock.On("CreatePullRequest", context1, createPullRequestArgs)}
 }
 
 func (_c *Client_CreatePullRequest_Call) Run(run func(context1 context.Context, createPullRequestArgs git.CreatePullRequestArgs)) *Client_CreatePullRequest_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreatePullRequestArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreatePullRequestArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreatePullRequestArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -691,15 +812,26 @@ type Client_CreatePullRequestIterationStatus_Call struct {
 }
 
 // CreatePullRequestIterationStatus is a helper method to define mock.On call
-//   - context1
-//   - createPullRequestIterationStatusArgs
+//   - context1 context.Context
+//   - createPullRequestIterationStatusArgs git.CreatePullRequestIterationStatusArgs
 func (_e *Client_Expecter) CreatePullRequestIterationStatus(context1 interface{}, createPullRequestIterationStatusArgs interface{}) *Client_CreatePullRequestIterationStatus_Call {
 	return &Client_CreatePullRequestIterationStatus_Call{Call: _e.mock.On("CreatePullRequestIterationStatus", context1, createPullRequestIterationStatusArgs)}
 }
 
 func (_c *Client_CreatePullRequestIterationStatus_Call) Run(run func(context1 context.Context, createPullRequestIterationStatusArgs git.CreatePullRequestIterationStatusArgs)) *Client_CreatePullRequestIterationStatus_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreatePullRequestIterationStatusArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreatePullRequestIterationStatusArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreatePullRequestIterationStatusArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -748,15 +880,26 @@ type Client_CreatePullRequestLabel_Call struct {
 }
 
 // CreatePullRequestLabel is a helper method to define mock.On call
-//   - context1
-//   - createPullRequestLabelArgs
+//   - context1 context.Context
+//   - createPullRequestLabelArgs git.CreatePullRequestLabelArgs
 func (_e *Client_Expecter) CreatePullRequestLabel(context1 interface{}, createPullRequestLabelArgs interface{}) *Client_CreatePullRequestLabel_Call {
 	return &Client_CreatePullRequestLabel_Call{Call: _e.mock.On("CreatePullRequestLabel", context1, createPullRequestLabelArgs)}
 }
 
 func (_c *Client_CreatePullRequestLabel_Call) Run(run func(context1 context.Context, createPullRequestLabelArgs git.CreatePullRequestLabelArgs)) *Client_CreatePullRequestLabel_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreatePullRequestLabelArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreatePullRequestLabelArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreatePullRequestLabelArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -805,15 +948,26 @@ type Client_CreatePullRequestReviewer_Call struct {
 }
 
 // CreatePullRequestReviewer is a helper method to define mock.On call
-//   - context1
-//   - createPullRequestReviewerArgs
+//   - context1 context.Context
+//   - createPullRequestReviewerArgs git.CreatePullRequestReviewerArgs
 func (_e *Client_Expecter) CreatePullRequestReviewer(context1 interface{}, createPullRequestReviewerArgs interface{}) *Client_CreatePullRequestReviewer_Call {
 	return &Client_CreatePullRequestReviewer_Call{Call: _e.mock.On("CreatePullRequestReviewer", context1, createPullRequestReviewerArgs)}
 }
 
 func (_c *Client_CreatePullRequestReviewer_Call) Run(run func(context1 context.Context, createPullRequestReviewerArgs git.CreatePullRequestReviewerArgs)) *Client_CreatePullRequestReviewer_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreatePullRequestReviewerArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreatePullRequestReviewerArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreatePullRequestReviewerArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -862,15 +1016,26 @@ type Client_CreatePullRequestReviewers_Call struct {
 }
 
 // CreatePullRequestReviewers is a helper method to define mock.On call
-//   - context1
-//   - createPullRequestReviewersArgs
+//   - context1 context.Context
+//   - createPullRequestReviewersArgs git.CreatePullRequestReviewersArgs
 func (_e *Client_Expecter) CreatePullRequestReviewers(context1 interface{}, createPullRequestReviewersArgs interface{}) *Client_CreatePullRequestReviewers_Call {
 	return &Client_CreatePullRequestReviewers_Call{Call: _e.mock.On("CreatePullRequestReviewers", context1, createPullRequestReviewersArgs)}
 }
 
 func (_c *Client_CreatePullRequestReviewers_Call) Run(run func(context1 context.Context, createPullRequestReviewersArgs git.CreatePullRequestReviewersArgs)) *Client_CreatePullRequestReviewers_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreatePullRequestReviewersArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreatePullRequestReviewersArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreatePullRequestReviewersArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -919,15 +1084,26 @@ type Client_CreatePullRequestStatus_Call struct {
 }
 
 // CreatePullRequestStatus is a helper method to define mock.On call
-//   - context1
-//   - createPullRequestStatusArgs
+//   - context1 context.Context
+//   - createPullRequestStatusArgs git.CreatePullRequestStatusArgs
 func (_e *Client_Expecter) CreatePullRequestStatus(context1 interface{}, createPullRequestStatusArgs interface{}) *Client_CreatePullRequestStatus_Call {
 	return &Client_CreatePullRequestStatus_Call{Call: _e.mock.On("CreatePullRequestStatus", context1, createPullRequestStatusArgs)}
 }
 
 func (_c *Client_CreatePullRequestStatus_Call) Run(run func(context1 context.Context, createPullRequestStatusArgs git.CreatePullRequestStatusArgs)) *Client_CreatePullRequestStatus_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreatePullRequestStatusArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreatePullRequestStatusArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreatePullRequestStatusArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -976,15 +1152,26 @@ type Client_CreatePush_Call struct {
 }
 
 // CreatePush is a helper method to define mock.On call
-//   - context1
-//   - createPushArgs
+//   - context1 context.Context
+//   - createPushArgs git.CreatePushArgs
 func (_e *Client_Expecter) CreatePush(context1 interface{}, createPushArgs interface{}) *Client_CreatePush_Call {
 	return &Client_CreatePush_Call{Call: _e.mock.On("CreatePush", context1, createPushArgs)}
 }
 
 func (_c *Client_CreatePush_Call) Run(run func(context1 context.Context, createPushArgs git.CreatePushArgs)) *Client_CreatePush_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreatePushArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreatePushArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreatePushArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -1033,15 +1220,26 @@ type Client_CreateRepository_Call struct {
 }
 
 // CreateRepository is a helper method to define mock.On call
-//   - context1
-//   - createRepositoryArgs
+//   - context1 context.Context
+//   - createRepositoryArgs git.CreateRepositoryArgs
 func (_e *Client_Expecter) CreateRepository(context1 interface{}, createRepositoryArgs interface{}) *Client_CreateRepository_Call {
 	return &Client_CreateRepository_Call{Call: _e.mock.On("CreateRepository", context1, createRepositoryArgs)}
 }
 
 func (_c *Client_CreateRepository_Call) Run(run func(context1 context.Context, createRepositoryArgs git.CreateRepositoryArgs)) *Client_CreateRepository_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreateRepositoryArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreateRepositoryArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreateRepositoryArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -1090,15 +1288,26 @@ type Client_CreateRevert_Call struct {
 }
 
 // CreateRevert is a helper method to define mock.On call
-//   - context1
-//   - createRevertArgs
+//   - context1 context.Context
+//   - createRevertArgs git.CreateRevertArgs
 func (_e *Client_Expecter) CreateRevert(context1 interface{}, createRevertArgs interface{}) *Client_CreateRevert_Call {
 	return &Client_CreateRevert_Call{Call: _e.mock.On("CreateRevert", context1, createRevertArgs)}
 }
 
 func (_c *Client_CreateRevert_Call) Run(run func(context1 context.Context, createRevertArgs git.CreateRevertArgs)) *Client_CreateRevert_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreateRevertArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreateRevertArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreateRevertArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -1147,15 +1356,26 @@ type Client_CreateThread_Call struct {
 }
 
 // CreateThread is a helper method to define mock.On call
-//   - context1
-//   - createThreadArgs
+//   - context1 context.Context
+//   - createThreadArgs git.CreateThreadArgs
 func (_e *Client_Expecter) CreateThread(context1 interface{}, createThreadArgs interface{}) *Client_CreateThread_Call {
 	return &Client_CreateThread_Call{Call: _e.mock.On("CreateThread", context1, createThreadArgs)}
 }
 
 func (_c *Client_CreateThread_Call) Run(run func(context1 context.Context, createThreadArgs git.CreateThreadArgs)) *Client_CreateThread_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreateThreadArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreateThreadArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreateThreadArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -1204,15 +1424,26 @@ type Client_CreateUnmaterializedPullRequestReviewer_Call struct {
 }
 
 // CreateUnmaterializedPullRequestReviewer is a helper method to define mock.On call
-//   - context1
-//   - createUnmaterializedPullRequestReviewerArgs
+//   - context1 context.Context
+//   - createUnmaterializedPullRequestReviewerArgs git.CreateUnmaterializedPullRequestReviewerArgs
 func (_e *Client_Expecter) CreateUnmaterializedPullRequestReviewer(context1 interface{}, createUnmaterializedPullRequestReviewerArgs interface{}) *Client_CreateUnmaterializedPullRequestReviewer_Call {
 	return &Client_CreateUnmaterializedPullRequestReviewer_Call{Call: _e.mock.On("CreateUnmaterializedPullRequestReviewer", context1, createUnmaterializedPullRequestReviewerArgs)}
 }
 
 func (_c *Client_CreateUnmaterializedPullRequestReviewer_Call) Run(run func(context1 context.Context, createUnmaterializedPullRequestReviewerArgs git.CreateUnmaterializedPullRequestReviewerArgs)) *Client_CreateUnmaterializedPullRequestReviewer_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.CreateUnmaterializedPullRequestReviewerArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.CreateUnmaterializedPullRequestReviewerArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.CreateUnmaterializedPullRequestReviewerArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -1250,15 +1481,26 @@ type Client_DeleteAttachment_Call struct {
 }
 
 // DeleteAttachment is a helper method to define mock.On call
-//   - context1
-//   - deleteAttachmentArgs
+//   - context1 context.Context
+//   - deleteAttachmentArgs git.DeleteAttachmentArgs
 func (_e *Client_Expecter) DeleteAttachment(context1 interface{}, deleteAttachmentArgs interface{}) *Client_DeleteAttachment_Call {
 	return &Client_DeleteAttachment_Call{Call: _e.mock.On("DeleteAttachment", context1, deleteAttachmentArgs)}
 }
 
 func (_c *Client_DeleteAttachment_Call) Run(run func(context1 context.Context, deleteAttachmentArgs git.DeleteAttachmentArgs)) *Client_DeleteAttachment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.DeleteAttachmentArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.DeleteAttachmentArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.DeleteAttachmentArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -1296,15 +1538,26 @@ type Client_DeleteComment_Call struct {
 }
 
 // DeleteComment is a helper method to define mock.On call
-//   - context1
-//   - deleteCommentArgs
+//   - context1 context.Context
+//   - deleteCommentArgs git.DeleteCommentArgs
 func (_e *Client_Expecter) DeleteComment(context1 interface{}, deleteCommentArgs interface{}) *Client_DeleteComment_Call {
 	return &Client_DeleteComment_Call{Call: _e.mock.On("DeleteComment", context1, deleteCommentArgs)}
 }
 
 func (_c *Client_DeleteComment_Call) Run(run func(context1 context.Context, deleteCommentArgs git.DeleteCommentArgs)) *Client_DeleteComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.DeleteCommentArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.DeleteCommentArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.DeleteCommentArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -1342,15 +1595,26 @@ type Client_DeleteLike_Call struct {
 }
 
 // DeleteLike is a helper method to define mock.On call
-//   - context1
-//   - deleteLikeArgs
+//   - context1 context.Context
+//   - deleteLikeArgs git.DeleteLikeArgs
 func (_e *Client_Expecter) DeleteLike(context1 interface{}, deleteLikeArgs interface{}) *Client_DeleteLike_Call {
 	return &Client_DeleteLike_Call{Call: _e.mock.On("DeleteLike", context1, deleteLikeArgs)}
 }
 
 func (_c *Client_DeleteLike_Call) Run(run func(context1 context.Context, deleteLikeArgs git.DeleteLikeArgs)) *Client_DeleteLike_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.DeleteLikeArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.DeleteLikeArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.DeleteLikeArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -1388,15 +1652,26 @@ type Client_DeletePullRequestIterationStatus_Call struct {
 }
 
 // DeletePullRequestIterationStatus is a helper method to define mock.On call
-//   - context1
-//   - deletePullRequestIterationStatusArgs
+//   - context1 context.Context
+//   - deletePullRequestIterationStatusArgs git.DeletePullRequestIterationStatusArgs
 func (_e *Client_Expecter) DeletePullRequestIterationStatus(context1 interface{}, deletePullRequestIterationStatusArgs interface{}) *Client_DeletePullRequestIterationStatus_Call {
 	return &Client_DeletePullRequestIterationStatus_Call{Call: _e.mock.On("DeletePullRequestIterationStatus", context1, deletePullRequestIterationStatusArgs)}
 }
 
 func (_c *Client_DeletePullRequestIterationStatus_Call) Run(run func(context1 context.Context, deletePullRequestIterationStatusArgs git.DeletePullRequestIterationStatusArgs)) *Client_DeletePullRequestIterationStatus_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.DeletePullRequestIterationStatusArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.DeletePullRequestIterationStatusArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.DeletePullRequestIterationStatusArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -1434,15 +1709,26 @@ type Client_DeletePullRequestLabels_Call struct {
 }
 
 // DeletePullRequestLabels is a helper method to define mock.On call
-//   - context1
-//   - deletePullRequestLabelsArgs
+//   - context1 context.Context
+//   - deletePullRequestLabelsArgs git.DeletePullRequestLabelsArgs
 func (_e *Client_Expecter) DeletePullRequestLabels(context1 interface{}, deletePullRequestLabelsArgs interface{}) *Client_DeletePullRequestLabels_Call {
 	return &Client_DeletePullRequestLabels_Call{Call: _e.mock.On("DeletePullRequestLabels", context1, deletePullRequestLabelsArgs)}
 }
 
 func (_c *Client_DeletePullRequestLabels_Call) Run(run func(context1 context.Context, deletePullRequestLabelsArgs git.DeletePullRequestLabelsArgs)) *Client_DeletePullRequestLabels_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.DeletePullRequestLabelsArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.DeletePullRequestLabelsArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.DeletePullRequestLabelsArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -1480,15 +1766,26 @@ type Client_DeletePullRequestReviewer_Call struct {
 }
 
 // DeletePullRequestReviewer is a helper method to define mock.On call
-//   - context1
-//   - deletePullRequestReviewerArgs
+//   - context1 context.Context
+//   - deletePullRequestReviewerArgs git.DeletePullRequestReviewerArgs
 func (_e *Client_Expecter) DeletePullRequestReviewer(context1 interface{}, deletePullRequestReviewerArgs interface{}) *Client_DeletePullRequestReviewer_Call {
 	return &Client_DeletePullRequestReviewer_Call{Call: _e.mock.On("DeletePullRequestReviewer", context1, deletePullRequestReviewerArgs)}
 }
 
 func (_c *Client_DeletePullRequestReviewer_Call) Run(run func(context1 context.Context, deletePullRequestReviewerArgs git.DeletePullRequestReviewerArgs)) *Client_DeletePullRequestReviewer_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.DeletePullRequestReviewerArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.DeletePullRequestReviewerArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.DeletePullRequestReviewerArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -1526,15 +1823,26 @@ type Client_DeletePullRequestStatus_Call struct {
 }
 
 // DeletePullRequestStatus is a helper method to define mock.On call
-//   - context1
-//   - deletePullRequestStatusArgs
+//   - context1 context.Context
+//   - deletePullRequestStatusArgs git.DeletePullRequestStatusArgs
 func (_e *Client_Expecter) DeletePullRequestStatus(context1 interface{}, deletePullRequestStatusArgs interface{}) *Client_DeletePullRequestStatus_Call {
 	return &Client_DeletePullRequestStatus_Call{Call: _e.mock.On("DeletePullRequestStatus", context1, deletePullRequestStatusArgs)}
 }
 
 func (_c *Client_DeletePullRequestStatus_Call) Run(run func(context1 context.Context, deletePullRequestStatusArgs git.DeletePullRequestStatusArgs)) *Client_DeletePullRequestStatus_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.DeletePullRequestStatusArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.DeletePullRequestStatusArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.DeletePullRequestStatusArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -1572,15 +1880,26 @@ type Client_DeleteRefFavorite_Call struct {
 }
 
 // DeleteRefFavorite is a helper method to define mock.On call
-//   - context1
-//   - deleteRefFavoriteArgs
+//   - context1 context.Context
+//   - deleteRefFavoriteArgs git.DeleteRefFavoriteArgs
 func (_e *Client_Expecter) DeleteRefFavorite(context1 interface{}, deleteRefFavoriteArgs interface{}) *Client_DeleteRefFavorite_Call {
 	return &Client_DeleteRefFavorite_Call{Call: _e.mock.On("DeleteRefFavorite", context1, deleteRefFavoriteArgs)}
 }
 
 func (_c *Client_DeleteRefFavorite_Call) Run(run func(context1 context.Context, deleteRefFavoriteArgs git.DeleteRefFavoriteArgs)) *Client_DeleteRefFavorite_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.DeleteRefFavoriteArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.DeleteRefFavoriteArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.DeleteRefFavoriteArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -1618,15 +1937,26 @@ type Client_DeleteRepository_Call struct {
 }
 
 // DeleteRepository is a helper method to define mock.On call
-//   - context1
-//   - deleteRepositoryArgs
+//   - context1 context.Context
+//   - deleteRepositoryArgs git.DeleteRepositoryArgs
 func (_e *Client_Expecter) DeleteRepository(context1 interface{}, deleteRepositoryArgs interface{}) *Client_DeleteRepository_Call {
 	return &Client_DeleteRepository_Call{Call: _e.mock.On("DeleteRepository", context1, deleteRepositoryArgs)}
 }
 
 func (_c *Client_DeleteRepository_Call) Run(run func(context1 context.Context, deleteRepositoryArgs git.DeleteRepositoryArgs)) *Client_DeleteRepository_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.DeleteRepositoryArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.DeleteRepositoryArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.DeleteRepositoryArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -1664,15 +1994,26 @@ type Client_DeleteRepositoryFromRecycleBin_Call struct {
 }
 
 // DeleteRepositoryFromRecycleBin is a helper method to define mock.On call
-//   - context1
-//   - deleteRepositoryFromRecycleBinArgs
+//   - context1 context.Context
+//   - deleteRepositoryFromRecycleBinArgs git.DeleteRepositoryFromRecycleBinArgs
 func (_e *Client_Expecter) DeleteRepositoryFromRecycleBin(context1 interface{}, deleteRepositoryFromRecycleBinArgs interface{}) *Client_DeleteRepositoryFromRecycleBin_Call {
 	return &Client_DeleteRepositoryFromRecycleBin_Call{Call: _e.mock.On("DeleteRepositoryFromRecycleBin", context1, deleteRepositoryFromRecycleBinArgs)}
 }
 
 func (_c *Client_DeleteRepositoryFromRecycleBin_Call) Run(run func(context1 context.Context, deleteRepositoryFromRecycleBinArgs git.DeleteRepositoryFromRecycleBinArgs)) *Client_DeleteRepositoryFromRecycleBin_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.DeleteRepositoryFromRecycleBinArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.DeleteRepositoryFromRecycleBinArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.DeleteRepositoryFromRecycleBinArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -1721,15 +2062,26 @@ type Client_GetAnnotatedTag_Call struct {
 }
 
 // GetAnnotatedTag is a helper method to define mock.On call
-//   - context1
-//   - getAnnotatedTagArgs
+//   - context1 context.Context
+//   - getAnnotatedTagArgs git.GetAnnotatedTagArgs
 func (_e *Client_Expecter) GetAnnotatedTag(context1 interface{}, getAnnotatedTagArgs interface{}) *Client_GetAnnotatedTag_Call {
 	return &Client_GetAnnotatedTag_Call{Call: _e.mock.On("GetAnnotatedTag", context1, getAnnotatedTagArgs)}
 }
 
 func (_c *Client_GetAnnotatedTag_Call) Run(run func(context1 context.Context, getAnnotatedTagArgs git.GetAnnotatedTagArgs)) *Client_GetAnnotatedTag_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetAnnotatedTagArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetAnnotatedTagArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetAnnotatedTagArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -1778,15 +2130,26 @@ type Client_GetAttachmentContent_Call struct {
 }
 
 // GetAttachmentContent is a helper method to define mock.On call
-//   - context1
-//   - getAttachmentContentArgs
+//   - context1 context.Context
+//   - getAttachmentContentArgs git.GetAttachmentContentArgs
 func (_e *Client_Expecter) GetAttachmentContent(context1 interface{}, getAttachmentContentArgs interface{}) *Client_GetAttachmentContent_Call {
 	return &Client_GetAttachmentContent_Call{Call: _e.mock.On("GetAttachmentContent", context1, getAttachmentContentArgs)}
 }
 
 func (_c *Client_GetAttachmentContent_Call) Run(run func(context1 context.Context, getAttachmentContentArgs git.GetAttachmentContentArgs)) *Client_GetAttachmentContent_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetAttachmentContentArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetAttachmentContentArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetAttachmentContentArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -1835,15 +2198,26 @@ type Client_GetAttachmentZip_Call struct {
 }
 
 // GetAttachmentZip is a helper method to define mock.On call
-//   - context1
-//   - getAttachmentZipArgs
+//   - context1 context.Context
+//   - getAttachmentZipArgs git.GetAttachmentZipArgs
 func (_e *Client_Expecter) GetAttachmentZip(context1 interface{}, getAttachmentZipArgs interface{}) *Client_GetAttachmentZip_Call {
 	return &Client_GetAttachmentZip_Call{Call: _e.mock.On("GetAttachmentZip", context1, getAttachmentZipArgs)}
 }
 
 func (_c *Client_GetAttachmentZip_Call) Run(run func(context1 context.Context, getAttachmentZipArgs git.GetAttachmentZipArgs)) *Client_GetAttachmentZip_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetAttachmentZipArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetAttachmentZipArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetAttachmentZipArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -1892,15 +2266,26 @@ type Client_GetAttachments_Call struct {
 }
 
 // GetAttachments is a helper method to define mock.On call
-//   - context1
-//   - getAttachmentsArgs
+//   - context1 context.Context
+//   - getAttachmentsArgs git.GetAttachmentsArgs
 func (_e *Client_Expecter) GetAttachments(context1 interface{}, getAttachmentsArgs interface{}) *Client_GetAttachments_Call {
 	return &Client_GetAttachments_Call{Call: _e.mock.On("GetAttachments", context1, getAttachmentsArgs)}
 }
 
 func (_c *Client_GetAttachments_Call) Run(run func(context1 context.Context, getAttachmentsArgs git.GetAttachmentsArgs)) *Client_GetAttachments_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetAttachmentsArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetAttachmentsArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetAttachmentsArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -1949,15 +2334,26 @@ type Client_GetBlob_Call struct {
 }
 
 // GetBlob is a helper method to define mock.On call
-//   - context1
-//   - getBlobArgs
+//   - context1 context.Context
+//   - getBlobArgs git.GetBlobArgs
 func (_e *Client_Expecter) GetBlob(context1 interface{}, getBlobArgs interface{}) *Client_GetBlob_Call {
 	return &Client_GetBlob_Call{Call: _e.mock.On("GetBlob", context1, getBlobArgs)}
 }
 
 func (_c *Client_GetBlob_Call) Run(run func(context1 context.Context, getBlobArgs git.GetBlobArgs)) *Client_GetBlob_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetBlobArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetBlobArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetBlobArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -2006,15 +2402,26 @@ type Client_GetBlobContent_Call struct {
 }
 
 // GetBlobContent is a helper method to define mock.On call
-//   - context1
-//   - getBlobContentArgs
+//   - context1 context.Context
+//   - getBlobContentArgs git.GetBlobContentArgs
 func (_e *Client_Expecter) GetBlobContent(context1 interface{}, getBlobContentArgs interface{}) *Client_GetBlobContent_Call {
 	return &Client_GetBlobContent_Call{Call: _e.mock.On("GetBlobContent", context1, getBlobContentArgs)}
 }
 
 func (_c *Client_GetBlobContent_Call) Run(run func(context1 context.Context, getBlobContentArgs git.GetBlobContentArgs)) *Client_GetBlobContent_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetBlobContentArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetBlobContentArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetBlobContentArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -2063,15 +2470,26 @@ type Client_GetBlobZip_Call struct {
 }
 
 // GetBlobZip is a helper method to define mock.On call
-//   - context1
-//   - getBlobZipArgs
+//   - context1 context.Context
+//   - getBlobZipArgs git.GetBlobZipArgs
 func (_e *Client_Expecter) GetBlobZip(context1 interface{}, getBlobZipArgs interface{}) *Client_GetBlobZip_Call {
 	return &Client_GetBlobZip_Call{Call: _e.mock.On("GetBlobZip", context1, getBlobZipArgs)}
 }
 
 func (_c *Client_GetBlobZip_Call) Run(run func(context1 context.Context, getBlobZipArgs git.GetBlobZipArgs)) *Client_GetBlobZip_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetBlobZipArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetBlobZipArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetBlobZipArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -2120,15 +2538,26 @@ type Client_GetBlobsZip_Call struct {
 }
 
 // GetBlobsZip is a helper method to define mock.On call
-//   - context1
-//   - getBlobsZipArgs
+//   - context1 context.Context
+//   - getBlobsZipArgs git.GetBlobsZipArgs
 func (_e *Client_Expecter) GetBlobsZip(context1 interface{}, getBlobsZipArgs interface{}) *Client_GetBlobsZip_Call {
 	return &Client_GetBlobsZip_Call{Call: _e.mock.On("GetBlobsZip", context1, getBlobsZipArgs)}
 }
 
 func (_c *Client_GetBlobsZip_Call) Run(run func(context1 context.Context, getBlobsZipArgs git.GetBlobsZipArgs)) *Client_GetBlobsZip_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetBlobsZipArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetBlobsZipArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetBlobsZipArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -2177,15 +2606,26 @@ type Client_GetBranch_Call struct {
 }
 
 // GetBranch is a helper method to define mock.On call
-//   - context1
-//   - getBranchArgs
+//   - context1 context.Context
+//   - getBranchArgs git.GetBranchArgs
 func (_e *Client_Expecter) GetBranch(context1 interface{}, getBranchArgs interface{}) *Client_GetBranch_Call {
 	return &Client_GetBranch_Call{Call: _e.mock.On("GetBranch", context1, getBranchArgs)}
 }
 
 func (_c *Client_GetBranch_Call) Run(run func(context1 context.Context, getBranchArgs git.GetBranchArgs)) *Client_GetBranch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetBranchArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetBranchArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetBranchArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -2234,15 +2674,26 @@ type Client_GetBranches_Call struct {
 }
 
 // GetBranches is a helper method to define mock.On call
-//   - context1
-//   - getBranchesArgs
+//   - context1 context.Context
+//   - getBranchesArgs git.GetBranchesArgs
 func (_e *Client_Expecter) GetBranches(context1 interface{}, getBranchesArgs interface{}) *Client_GetBranches_Call {
 	return &Client_GetBranches_Call{Call: _e.mock.On("GetBranches", context1, getBranchesArgs)}
 }
 
 func (_c *Client_GetBranches_Call) Run(run func(context1 context.Context, getBranchesArgs git.GetBranchesArgs)) *Client_GetBranches_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetBranchesArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetBranchesArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetBranchesArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -2291,15 +2742,26 @@ type Client_GetChanges_Call struct {
 }
 
 // GetChanges is a helper method to define mock.On call
-//   - context1
-//   - getChangesArgs
+//   - context1 context.Context
+//   - getChangesArgs git.GetChangesArgs
 func (_e *Client_Expecter) GetChanges(context1 interface{}, getChangesArgs interface{}) *Client_GetChanges_Call {
 	return &Client_GetChanges_Call{Call: _e.mock.On("GetChanges", context1, getChangesArgs)}
 }
 
 func (_c *Client_GetChanges_Call) Run(run func(context1 context.Context, getChangesArgs git.GetChangesArgs)) *Client_GetChanges_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetChangesArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetChangesArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetChangesArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -2348,15 +2810,26 @@ type Client_GetCherryPick_Call struct {
 }
 
 // GetCherryPick is a helper method to define mock.On call
-//   - context1
-//   - getCherryPickArgs
+//   - context1 context.Context
+//   - getCherryPickArgs git.GetCherryPickArgs
 func (_e *Client_Expecter) GetCherryPick(context1 interface{}, getCherryPickArgs interface{}) *Client_GetCherryPick_Call {
 	return &Client_GetCherryPick_Call{Call: _e.mock.On("GetCherryPick", context1, getCherryPickArgs)}
 }
 
 func (_c *Client_GetCherryPick_Call) Run(run func(context1 context.Context, getCherryPickArgs git.GetCherryPickArgs)) *Client_GetCherryPick_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetCherryPickArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetCherryPickArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetCherryPickArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -2405,15 +2878,26 @@ type Client_GetCherryPickForRefName_Call struct {
 }
 
 // GetCherryPickForRefName is a helper method to define mock.On call
-//   - context1
-//   - getCherryPickForRefNameArgs
+//   - context1 context.Context
+//   - getCherryPickForRefNameArgs git.GetCherryPickForRefNameArgs
 func (_e *Client_Expecter) GetCherryPickForRefName(context1 interface{}, getCherryPickForRefNameArgs interface{}) *Client_GetCherryPickForRefName_Call {
 	return &Client_GetCherryPickForRefName_Call{Call: _e.mock.On("GetCherryPickForRefName", context1, getCherryPickForRefNameArgs)}
 }
 
 func (_c *Client_GetCherryPickForRefName_Call) Run(run func(context1 context.Context, getCherryPickForRefNameArgs git.GetCherryPickForRefNameArgs)) *Client_GetCherryPickForRefName_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetCherryPickForRefNameArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetCherryPickForRefNameArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetCherryPickForRefNameArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -2462,15 +2946,26 @@ type Client_GetComment_Call struct {
 }
 
 // GetComment is a helper method to define mock.On call
-//   - context1
-//   - getCommentArgs
+//   - context1 context.Context
+//   - getCommentArgs git.GetCommentArgs
 func (_e *Client_Expecter) GetComment(context1 interface{}, getCommentArgs interface{}) *Client_GetComment_Call {
 	return &Client_GetComment_Call{Call: _e.mock.On("GetComment", context1, getCommentArgs)}
 }
 
 func (_c *Client_GetComment_Call) Run(run func(context1 context.Context, getCommentArgs git.GetCommentArgs)) *Client_GetComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetCommentArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetCommentArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetCommentArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -2519,15 +3014,26 @@ type Client_GetComments_Call struct {
 }
 
 // GetComments is a helper method to define mock.On call
-//   - context1
-//   - getCommentsArgs
+//   - context1 context.Context
+//   - getCommentsArgs git.GetCommentsArgs
 func (_e *Client_Expecter) GetComments(context1 interface{}, getCommentsArgs interface{}) *Client_GetComments_Call {
 	return &Client_GetComments_Call{Call: _e.mock.On("GetComments", context1, getCommentsArgs)}
 }
 
 func (_c *Client_GetComments_Call) Run(run func(context1 context.Context, getCommentsArgs git.GetCommentsArgs)) *Client_GetComments_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetCommentsArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetCommentsArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetCommentsArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -2576,15 +3082,26 @@ type Client_GetCommit_Call struct {
 }
 
 // GetCommit is a helper method to define mock.On call
-//   - context1
-//   - getCommitArgs
+//   - context1 context.Context
+//   - getCommitArgs git.GetCommitArgs
 func (_e *Client_Expecter) GetCommit(context1 interface{}, getCommitArgs interface{}) *Client_GetCommit_Call {
 	return &Client_GetCommit_Call{Call: _e.mock.On("GetCommit", context1, getCommitArgs)}
 }
 
 func (_c *Client_GetCommit_Call) Run(run func(context1 context.Context, getCommitArgs git.GetCommitArgs)) *Client_GetCommit_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetCommitArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetCommitArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetCommitArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -2633,15 +3150,26 @@ type Client_GetCommitDiffs_Call struct {
 }
 
 // GetCommitDiffs is a helper method to define mock.On call
-//   - context1
-//   - getCommitDiffsArgs
+//   - context1 context.Context
+//   - getCommitDiffsArgs git.GetCommitDiffsArgs
 func (_e *Client_Expecter) GetCommitDiffs(context1 interface{}, getCommitDiffsArgs interface{}) *Client_GetCommitDiffs_Call {
 	return &Client_GetCommitDiffs_Call{Call: _e.mock.On("GetCommitDiffs", context1, getCommitDiffsArgs)}
 }
 
 func (_c *Client_GetCommitDiffs_Call) Run(run func(context1 context.Context, getCommitDiffsArgs git.GetCommitDiffsArgs)) *Client_GetCommitDiffs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetCommitDiffsArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetCommitDiffsArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetCommitDiffsArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -2690,15 +3218,26 @@ type Client_GetCommits_Call struct {
 }
 
 // GetCommits is a helper method to define mock.On call
-//   - context1
-//   - getCommitsArgs
+//   - context1 context.Context
+//   - getCommitsArgs git.GetCommitsArgs
 func (_e *Client_Expecter) GetCommits(context1 interface{}, getCommitsArgs interface{}) *Client_GetCommits_Call {
 	return &Client_GetCommits_Call{Call: _e.mock.On("GetCommits", context1, getCommitsArgs)}
 }
 
 func (_c *Client_GetCommits_Call) Run(run func(context1 context.Context, getCommitsArgs git.GetCommitsArgs)) *Client_GetCommits_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetCommitsArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetCommitsArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetCommitsArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -2747,15 +3286,26 @@ type Client_GetCommitsBatch_Call struct {
 }
 
 // GetCommitsBatch is a helper method to define mock.On call
-//   - context1
-//   - getCommitsBatchArgs
+//   - context1 context.Context
+//   - getCommitsBatchArgs git.GetCommitsBatchArgs
 func (_e *Client_Expecter) GetCommitsBatch(context1 interface{}, getCommitsBatchArgs interface{}) *Client_GetCommitsBatch_Call {
 	return &Client_GetCommitsBatch_Call{Call: _e.mock.On("GetCommitsBatch", context1, getCommitsBatchArgs)}
 }
 
 func (_c *Client_GetCommitsBatch_Call) Run(run func(context1 context.Context, getCommitsBatchArgs git.GetCommitsBatchArgs)) *Client_GetCommitsBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetCommitsBatchArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetCommitsBatchArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetCommitsBatchArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -2804,15 +3354,26 @@ type Client_GetDeletedRepositories_Call struct {
 }
 
 // GetDeletedRepositories is a helper method to define mock.On call
-//   - context1
-//   - getDeletedRepositoriesArgs
+//   - context1 context.Context
+//   - getDeletedRepositoriesArgs git.GetDeletedRepositoriesArgs
 func (_e *Client_Expecter) GetDeletedRepositories(context1 interface{}, getDeletedRepositoriesArgs interface{}) *Client_GetDeletedRepositories_Call {
 	return &Client_GetDeletedRepositories_Call{Call: _e.mock.On("GetDeletedRepositories", context1, getDeletedRepositoriesArgs)}
 }
 
 func (_c *Client_GetDeletedRepositories_Call) Run(run func(context1 context.Context, getDeletedRepositoriesArgs git.GetDeletedRepositoriesArgs)) *Client_GetDeletedRepositories_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetDeletedRepositoriesArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetDeletedRepositoriesArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetDeletedRepositoriesArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -2861,15 +3422,26 @@ type Client_GetForkSyncRequest_Call struct {
 }
 
 // GetForkSyncRequest is a helper method to define mock.On call
-//   - context1
-//   - getForkSyncRequestArgs
+//   - context1 context.Context
+//   - getForkSyncRequestArgs git.GetForkSyncRequestArgs
 func (_e *Client_Expecter) GetForkSyncRequest(context1 interface{}, getForkSyncRequestArgs interface{}) *Client_GetForkSyncRequest_Call {
 	return &Client_GetForkSyncRequest_Call{Call: _e.mock.On("GetForkSyncRequest", context1, getForkSyncRequestArgs)}
 }
 
 func (_c *Client_GetForkSyncRequest_Call) Run(run func(context1 context.Context, getForkSyncRequestArgs git.GetForkSyncRequestArgs)) *Client_GetForkSyncRequest_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetForkSyncRequestArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetForkSyncRequestArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetForkSyncRequestArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -2918,15 +3490,26 @@ type Client_GetForkSyncRequests_Call struct {
 }
 
 // GetForkSyncRequests is a helper method to define mock.On call
-//   - context1
-//   - getForkSyncRequestsArgs
+//   - context1 context.Context
+//   - getForkSyncRequestsArgs git.GetForkSyncRequestsArgs
 func (_e *Client_Expecter) GetForkSyncRequests(context1 interface{}, getForkSyncRequestsArgs interface{}) *Client_GetForkSyncRequests_Call {
 	return &Client_GetForkSyncRequests_Call{Call: _e.mock.On("GetForkSyncRequests", context1, getForkSyncRequestsArgs)}
 }
 
 func (_c *Client_GetForkSyncRequests_Call) Run(run func(context1 context.Context, getForkSyncRequestsArgs git.GetForkSyncRequestsArgs)) *Client_GetForkSyncRequests_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetForkSyncRequestsArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetForkSyncRequestsArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetForkSyncRequestsArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -2975,15 +3558,26 @@ type Client_GetForks_Call struct {
 }
 
 // GetForks is a helper method to define mock.On call
-//   - context1
-//   - getForksArgs
+//   - context1 context.Context
+//   - getForksArgs git.GetForksArgs
 func (_e *Client_Expecter) GetForks(context1 interface{}, getForksArgs interface{}) *Client_GetForks_Call {
 	return &Client_GetForks_Call{Call: _e.mock.On("GetForks", context1, getForksArgs)}
 }
 
 func (_c *Client_GetForks_Call) Run(run func(context1 context.Context, getForksArgs git.GetForksArgs)) *Client_GetForks_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetForksArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetForksArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetForksArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -3032,15 +3626,26 @@ type Client_GetImportRequest_Call struct {
 }
 
 // GetImportRequest is a helper method to define mock.On call
-//   - context1
-//   - getImportRequestArgs
+//   - context1 context.Context
+//   - getImportRequestArgs git.GetImportRequestArgs
 func (_e *Client_Expecter) GetImportRequest(context1 interface{}, getImportRequestArgs interface{}) *Client_GetImportRequest_Call {
 	return &Client_GetImportRequest_Call{Call: _e.mock.On("GetImportRequest", context1, getImportRequestArgs)}
 }
 
 func (_c *Client_GetImportRequest_Call) Run(run func(context1 context.Context, getImportRequestArgs git.GetImportRequestArgs)) *Client_GetImportRequest_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetImportRequestArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetImportRequestArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetImportRequestArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -3089,15 +3694,26 @@ type Client_GetItem_Call struct {
 }
 
 // GetItem is a helper method to define mock.On call
-//   - context1
-//   - getItemArgs
+//   - context1 context.Context
+//   - getItemArgs git.GetItemArgs
 func (_e *Client_Expecter) GetItem(context1 interface{}, getItemArgs interface{}) *Client_GetItem_Call {
 	return &Client_GetItem_Call{Call: _e.mock.On("GetItem", context1, getItemArgs)}
 }
 
 func (_c *Client_GetItem_Call) Run(run func(context1 context.Context, getItemArgs git.GetItemArgs)) *Client_GetItem_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetItemArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetItemArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetItemArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -3146,15 +3762,26 @@ type Client_GetItemContent_Call struct {
 }
 
 // GetItemContent is a helper method to define mock.On call
-//   - context1
-//   - getItemContentArgs
+//   - context1 context.Context
+//   - getItemContentArgs git.GetItemContentArgs
 func (_e *Client_Expecter) GetItemContent(context1 interface{}, getItemContentArgs interface{}) *Client_GetItemContent_Call {
 	return &Client_GetItemContent_Call{Call: _e.mock.On("GetItemContent", context1, getItemContentArgs)}
 }
 
 func (_c *Client_GetItemContent_Call) Run(run func(context1 context.Context, getItemContentArgs git.GetItemContentArgs)) *Client_GetItemContent_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetItemContentArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetItemContentArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetItemContentArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -3203,15 +3830,26 @@ type Client_GetItemText_Call struct {
 }
 
 // GetItemText is a helper method to define mock.On call
-//   - context1
-//   - getItemTextArgs
+//   - context1 context.Context
+//   - getItemTextArgs git.GetItemTextArgs
 func (_e *Client_Expecter) GetItemText(context1 interface{}, getItemTextArgs interface{}) *Client_GetItemText_Call {
 	return &Client_GetItemText_Call{Call: _e.mock.On("GetItemText", context1, getItemTextArgs)}
 }
 
 func (_c *Client_GetItemText_Call) Run(run func(context1 context.Context, getItemTextArgs git.GetItemTextArgs)) *Client_GetItemText_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetItemTextArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetItemTextArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetItemTextArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -3260,15 +3898,26 @@ type Client_GetItemZip_Call struct {
 }
 
 // GetItemZip is a helper method to define mock.On call
-//   - context1
-//   - getItemZipArgs
+//   - context1 context.Context
+//   - getItemZipArgs git.GetItemZipArgs
 func (_e *Client_Expecter) GetItemZip(context1 interface{}, getItemZipArgs interface{}) *Client_GetItemZip_Call {
 	return &Client_GetItemZip_Call{Call: _e.mock.On("GetItemZip", context1, getItemZipArgs)}
 }
 
 func (_c *Client_GetItemZip_Call) Run(run func(context1 context.Context, getItemZipArgs git.GetItemZipArgs)) *Client_GetItemZip_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetItemZipArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetItemZipArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetItemZipArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -3317,15 +3966,26 @@ type Client_GetItems_Call struct {
 }
 
 // GetItems is a helper method to define mock.On call
-//   - context1
-//   - getItemsArgs
+//   - context1 context.Context
+//   - getItemsArgs git.GetItemsArgs
 func (_e *Client_Expecter) GetItems(context1 interface{}, getItemsArgs interface{}) *Client_GetItems_Call {
 	return &Client_GetItems_Call{Call: _e.mock.On("GetItems", context1, getItemsArgs)}
 }
 
 func (_c *Client_GetItems_Call) Run(run func(context1 context.Context, getItemsArgs git.GetItemsArgs)) *Client_GetItems_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetItemsArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetItemsArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetItemsArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -3374,15 +4034,26 @@ type Client_GetItemsBatch_Call struct {
 }
 
 // GetItemsBatch is a helper method to define mock.On call
-//   - context1
-//   - getItemsBatchArgs
+//   - context1 context.Context
+//   - getItemsBatchArgs git.GetItemsBatchArgs
 func (_e *Client_Expecter) GetItemsBatch(context1 interface{}, getItemsBatchArgs interface{}) *Client_GetItemsBatch_Call {
 	return &Client_GetItemsBatch_Call{Call: _e.mock.On("GetItemsBatch", context1, getItemsBatchArgs)}
 }
 
 func (_c *Client_GetItemsBatch_Call) Run(run func(context1 context.Context, getItemsBatchArgs git.GetItemsBatchArgs)) *Client_GetItemsBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetItemsBatchArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetItemsBatchArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetItemsBatchArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -3431,15 +4102,26 @@ type Client_GetLikes_Call struct {
 }
 
 // GetLikes is a helper method to define mock.On call
-//   - context1
-//   - getLikesArgs
+//   - context1 context.Context
+//   - getLikesArgs git.GetLikesArgs
 func (_e *Client_Expecter) GetLikes(context1 interface{}, getLikesArgs interface{}) *Client_GetLikes_Call {
 	return &Client_GetLikes_Call{Call: _e.mock.On("GetLikes", context1, getLikesArgs)}
 }
 
 func (_c *Client_GetLikes_Call) Run(run func(context1 context.Context, getLikesArgs git.GetLikesArgs)) *Client_GetLikes_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetLikesArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetLikesArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetLikesArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -3488,15 +4170,26 @@ type Client_GetMergeBases_Call struct {
 }
 
 // GetMergeBases is a helper method to define mock.On call
-//   - context1
-//   - getMergeBasesArgs
+//   - context1 context.Context
+//   - getMergeBasesArgs git.GetMergeBasesArgs
 func (_e *Client_Expecter) GetMergeBases(context1 interface{}, getMergeBasesArgs interface{}) *Client_GetMergeBases_Call {
 	return &Client_GetMergeBases_Call{Call: _e.mock.On("GetMergeBases", context1, getMergeBasesArgs)}
 }
 
 func (_c *Client_GetMergeBases_Call) Run(run func(context1 context.Context, getMergeBasesArgs git.GetMergeBasesArgs)) *Client_GetMergeBases_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetMergeBasesArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetMergeBasesArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetMergeBasesArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -3545,15 +4238,26 @@ type Client_GetMergeRequest_Call struct {
 }
 
 // GetMergeRequest is a helper method to define mock.On call
-//   - context1
-//   - getMergeRequestArgs
+//   - context1 context.Context
+//   - getMergeRequestArgs git.GetMergeRequestArgs
 func (_e *Client_Expecter) GetMergeRequest(context1 interface{}, getMergeRequestArgs interface{}) *Client_GetMergeRequest_Call {
 	return &Client_GetMergeRequest_Call{Call: _e.mock.On("GetMergeRequest", context1, getMergeRequestArgs)}
 }
 
 func (_c *Client_GetMergeRequest_Call) Run(run func(context1 context.Context, getMergeRequestArgs git.GetMergeRequestArgs)) *Client_GetMergeRequest_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetMergeRequestArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetMergeRequestArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetMergeRequestArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -3602,15 +4306,26 @@ type Client_GetPermission_Call struct {
 }
 
 // GetPermission is a helper method to define mock.On call
-//   - context1
-//   - getPermissionArgs
+//   - context1 context.Context
+//   - getPermissionArgs git.GetPermissionArgs
 func (_e *Client_Expecter) GetPermission(context1 interface{}, getPermissionArgs interface{}) *Client_GetPermission_Call {
 	return &Client_GetPermission_Call{Call: _e.mock.On("GetPermission", context1, getPermissionArgs)}
 }
 
 func (_c *Client_GetPermission_Call) Run(run func(context1 context.Context, getPermissionArgs git.GetPermissionArgs)) *Client_GetPermission_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPermissionArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPermissionArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPermissionArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -3659,15 +4374,26 @@ type Client_GetPolicyConfigurations_Call struct {
 }
 
 // GetPolicyConfigurations is a helper method to define mock.On call
-//   - context1
-//   - getPolicyConfigurationsArgs
+//   - context1 context.Context
+//   - getPolicyConfigurationsArgs git.GetPolicyConfigurationsArgs
 func (_e *Client_Expecter) GetPolicyConfigurations(context1 interface{}, getPolicyConfigurationsArgs interface{}) *Client_GetPolicyConfigurations_Call {
 	return &Client_GetPolicyConfigurations_Call{Call: _e.mock.On("GetPolicyConfigurations", context1, getPolicyConfigurationsArgs)}
 }
 
 func (_c *Client_GetPolicyConfigurations_Call) Run(run func(context1 context.Context, getPolicyConfigurationsArgs git.GetPolicyConfigurationsArgs)) *Client_GetPolicyConfigurations_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPolicyConfigurationsArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPolicyConfigurationsArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPolicyConfigurationsArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -3716,15 +4442,26 @@ type Client_GetPullRequest_Call struct {
 }
 
 // GetPullRequest is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestArgs
+//   - context1 context.Context
+//   - getPullRequestArgs git.GetPullRequestArgs
 func (_e *Client_Expecter) GetPullRequest(context1 interface{}, getPullRequestArgs interface{}) *Client_GetPullRequest_Call {
 	return &Client_GetPullRequest_Call{Call: _e.mock.On("GetPullRequest", context1, getPullRequestArgs)}
 }
 
 func (_c *Client_GetPullRequest_Call) Run(run func(context1 context.Context, getPullRequestArgs git.GetPullRequestArgs)) *Client_GetPullRequest_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -3773,15 +4510,26 @@ type Client_GetPullRequestById_Call struct {
 }
 
 // GetPullRequestById is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestByIdArgs
+//   - context1 context.Context
+//   - getPullRequestByIdArgs git.GetPullRequestByIdArgs
 func (_e *Client_Expecter) GetPullRequestById(context1 interface{}, getPullRequestByIdArgs interface{}) *Client_GetPullRequestById_Call {
 	return &Client_GetPullRequestById_Call{Call: _e.mock.On("GetPullRequestById", context1, getPullRequestByIdArgs)}
 }
 
 func (_c *Client_GetPullRequestById_Call) Run(run func(context1 context.Context, getPullRequestByIdArgs git.GetPullRequestByIdArgs)) *Client_GetPullRequestById_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestByIdArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestByIdArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestByIdArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -3830,15 +4578,26 @@ type Client_GetPullRequestCommits_Call struct {
 }
 
 // GetPullRequestCommits is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestCommitsArgs
+//   - context1 context.Context
+//   - getPullRequestCommitsArgs git.GetPullRequestCommitsArgs
 func (_e *Client_Expecter) GetPullRequestCommits(context1 interface{}, getPullRequestCommitsArgs interface{}) *Client_GetPullRequestCommits_Call {
 	return &Client_GetPullRequestCommits_Call{Call: _e.mock.On("GetPullRequestCommits", context1, getPullRequestCommitsArgs)}
 }
 
 func (_c *Client_GetPullRequestCommits_Call) Run(run func(context1 context.Context, getPullRequestCommitsArgs git.GetPullRequestCommitsArgs)) *Client_GetPullRequestCommits_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestCommitsArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestCommitsArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestCommitsArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -3887,15 +4646,26 @@ type Client_GetPullRequestIteration_Call struct {
 }
 
 // GetPullRequestIteration is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestIterationArgs
+//   - context1 context.Context
+//   - getPullRequestIterationArgs git.GetPullRequestIterationArgs
 func (_e *Client_Expecter) GetPullRequestIteration(context1 interface{}, getPullRequestIterationArgs interface{}) *Client_GetPullRequestIteration_Call {
 	return &Client_GetPullRequestIteration_Call{Call: _e.mock.On("GetPullRequestIteration", context1, getPullRequestIterationArgs)}
 }
 
 func (_c *Client_GetPullRequestIteration_Call) Run(run func(context1 context.Context, getPullRequestIterationArgs git.GetPullRequestIterationArgs)) *Client_GetPullRequestIteration_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestIterationArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestIterationArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestIterationArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -3944,15 +4714,26 @@ type Client_GetPullRequestIterationChanges_Call struct {
 }
 
 // GetPullRequestIterationChanges is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestIterationChangesArgs
+//   - context1 context.Context
+//   - getPullRequestIterationChangesArgs git.GetPullRequestIterationChangesArgs
 func (_e *Client_Expecter) GetPullRequestIterationChanges(context1 interface{}, getPullRequestIterationChangesArgs interface{}) *Client_GetPullRequestIterationChanges_Call {
 	return &Client_GetPullRequestIterationChanges_Call{Call: _e.mock.On("GetPullRequestIterationChanges", context1, getPullRequestIterationChangesArgs)}
 }
 
 func (_c *Client_GetPullRequestIterationChanges_Call) Run(run func(context1 context.Context, getPullRequestIterationChangesArgs git.GetPullRequestIterationChangesArgs)) *Client_GetPullRequestIterationChanges_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestIterationChangesArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestIterationChangesArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestIterationChangesArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -4001,15 +4782,26 @@ type Client_GetPullRequestIterationCommits_Call struct {
 }
 
 // GetPullRequestIterationCommits is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestIterationCommitsArgs
+//   - context1 context.Context
+//   - getPullRequestIterationCommitsArgs git.GetPullRequestIterationCommitsArgs
 func (_e *Client_Expecter) GetPullRequestIterationCommits(context1 interface{}, getPullRequestIterationCommitsArgs interface{}) *Client_GetPullRequestIterationCommits_Call {
 	return &Client_GetPullRequestIterationCommits_Call{Call: _e.mock.On("GetPullRequestIterationCommits", context1, getPullRequestIterationCommitsArgs)}
 }
 
 func (_c *Client_GetPullRequestIterationCommits_Call) Run(run func(context1 context.Context, getPullRequestIterationCommitsArgs git.GetPullRequestIterationCommitsArgs)) *Client_GetPullRequestIterationCommits_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestIterationCommitsArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestIterationCommitsArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestIterationCommitsArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -4058,15 +4850,26 @@ type Client_GetPullRequestIterationStatus_Call struct {
 }
 
 // GetPullRequestIterationStatus is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestIterationStatusArgs
+//   - context1 context.Context
+//   - getPullRequestIterationStatusArgs git.GetPullRequestIterationStatusArgs
 func (_e *Client_Expecter) GetPullRequestIterationStatus(context1 interface{}, getPullRequestIterationStatusArgs interface{}) *Client_GetPullRequestIterationStatus_Call {
 	return &Client_GetPullRequestIterationStatus_Call{Call: _e.mock.On("GetPullRequestIterationStatus", context1, getPullRequestIterationStatusArgs)}
 }
 
 func (_c *Client_GetPullRequestIterationStatus_Call) Run(run func(context1 context.Context, getPullRequestIterationStatusArgs git.GetPullRequestIterationStatusArgs)) *Client_GetPullRequestIterationStatus_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestIterationStatusArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestIterationStatusArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestIterationStatusArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -4115,15 +4918,26 @@ type Client_GetPullRequestIterationStatuses_Call struct {
 }
 
 // GetPullRequestIterationStatuses is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestIterationStatusesArgs
+//   - context1 context.Context
+//   - getPullRequestIterationStatusesArgs git.GetPullRequestIterationStatusesArgs
 func (_e *Client_Expecter) GetPullRequestIterationStatuses(context1 interface{}, getPullRequestIterationStatusesArgs interface{}) *Client_GetPullRequestIterationStatuses_Call {
 	return &Client_GetPullRequestIterationStatuses_Call{Call: _e.mock.On("GetPullRequestIterationStatuses", context1, getPullRequestIterationStatusesArgs)}
 }
 
 func (_c *Client_GetPullRequestIterationStatuses_Call) Run(run func(context1 context.Context, getPullRequestIterationStatusesArgs git.GetPullRequestIterationStatusesArgs)) *Client_GetPullRequestIterationStatuses_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestIterationStatusesArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestIterationStatusesArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestIterationStatusesArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -4172,15 +4986,26 @@ type Client_GetPullRequestIterations_Call struct {
 }
 
 // GetPullRequestIterations is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestIterationsArgs
+//   - context1 context.Context
+//   - getPullRequestIterationsArgs git.GetPullRequestIterationsArgs
 func (_e *Client_Expecter) GetPullRequestIterations(context1 interface{}, getPullRequestIterationsArgs interface{}) *Client_GetPullRequestIterations_Call {
 	return &Client_GetPullRequestIterations_Call{Call: _e.mock.On("GetPullRequestIterations", context1, getPullRequestIterationsArgs)}
 }
 
 func (_c *Client_GetPullRequestIterations_Call) Run(run func(context1 context.Context, getPullRequestIterationsArgs git.GetPullRequestIterationsArgs)) *Client_GetPullRequestIterations_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestIterationsArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestIterationsArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestIterationsArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -4229,15 +5054,26 @@ type Client_GetPullRequestLabel_Call struct {
 }
 
 // GetPullRequestLabel is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestLabelArgs
+//   - context1 context.Context
+//   - getPullRequestLabelArgs git.GetPullRequestLabelArgs
 func (_e *Client_Expecter) GetPullRequestLabel(context1 interface{}, getPullRequestLabelArgs interface{}) *Client_GetPullRequestLabel_Call {
 	return &Client_GetPullRequestLabel_Call{Call: _e.mock.On("GetPullRequestLabel", context1, getPullRequestLabelArgs)}
 }
 
 func (_c *Client_GetPullRequestLabel_Call) Run(run func(context1 context.Context, getPullRequestLabelArgs git.GetPullRequestLabelArgs)) *Client_GetPullRequestLabel_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestLabelArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestLabelArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestLabelArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -4286,15 +5122,26 @@ type Client_GetPullRequestLabels_Call struct {
 }
 
 // GetPullRequestLabels is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestLabelsArgs
+//   - context1 context.Context
+//   - getPullRequestLabelsArgs git.GetPullRequestLabelsArgs
 func (_e *Client_Expecter) GetPullRequestLabels(context1 interface{}, getPullRequestLabelsArgs interface{}) *Client_GetPullRequestLabels_Call {
 	return &Client_GetPullRequestLabels_Call{Call: _e.mock.On("GetPullRequestLabels", context1, getPullRequestLabelsArgs)}
 }
 
 func (_c *Client_GetPullRequestLabels_Call) Run(run func(context1 context.Context, getPullRequestLabelsArgs git.GetPullRequestLabelsArgs)) *Client_GetPullRequestLabels_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestLabelsArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestLabelsArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestLabelsArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -4343,15 +5190,26 @@ type Client_GetPullRequestProperties_Call struct {
 }
 
 // GetPullRequestProperties is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestPropertiesArgs
+//   - context1 context.Context
+//   - getPullRequestPropertiesArgs git.GetPullRequestPropertiesArgs
 func (_e *Client_Expecter) GetPullRequestProperties(context1 interface{}, getPullRequestPropertiesArgs interface{}) *Client_GetPullRequestProperties_Call {
 	return &Client_GetPullRequestProperties_Call{Call: _e.mock.On("GetPullRequestProperties", context1, getPullRequestPropertiesArgs)}
 }
 
 func (_c *Client_GetPullRequestProperties_Call) Run(run func(context1 context.Context, getPullRequestPropertiesArgs git.GetPullRequestPropertiesArgs)) *Client_GetPullRequestProperties_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestPropertiesArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestPropertiesArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestPropertiesArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -4400,15 +5258,26 @@ type Client_GetPullRequestQuery_Call struct {
 }
 
 // GetPullRequestQuery is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestQueryArgs
+//   - context1 context.Context
+//   - getPullRequestQueryArgs git.GetPullRequestQueryArgs
 func (_e *Client_Expecter) GetPullRequestQuery(context1 interface{}, getPullRequestQueryArgs interface{}) *Client_GetPullRequestQuery_Call {
 	return &Client_GetPullRequestQuery_Call{Call: _e.mock.On("GetPullRequestQuery", context1, getPullRequestQueryArgs)}
 }
 
 func (_c *Client_GetPullRequestQuery_Call) Run(run func(context1 context.Context, getPullRequestQueryArgs git.GetPullRequestQueryArgs)) *Client_GetPullRequestQuery_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestQueryArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestQueryArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestQueryArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -4457,15 +5326,26 @@ type Client_GetPullRequestReviewer_Call struct {
 }
 
 // GetPullRequestReviewer is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestReviewerArgs
+//   - context1 context.Context
+//   - getPullRequestReviewerArgs git.GetPullRequestReviewerArgs
 func (_e *Client_Expecter) GetPullRequestReviewer(context1 interface{}, getPullRequestReviewerArgs interface{}) *Client_GetPullRequestReviewer_Call {
 	return &Client_GetPullRequestReviewer_Call{Call: _e.mock.On("GetPullRequestReviewer", context1, getPullRequestReviewerArgs)}
 }
 
 func (_c *Client_GetPullRequestReviewer_Call) Run(run func(context1 context.Context, getPullRequestReviewerArgs git.GetPullRequestReviewerArgs)) *Client_GetPullRequestReviewer_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestReviewerArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestReviewerArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestReviewerArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -4514,15 +5394,26 @@ type Client_GetPullRequestReviewers_Call struct {
 }
 
 // GetPullRequestReviewers is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestReviewersArgs
+//   - context1 context.Context
+//   - getPullRequestReviewersArgs git.GetPullRequestReviewersArgs
 func (_e *Client_Expecter) GetPullRequestReviewers(context1 interface{}, getPullRequestReviewersArgs interface{}) *Client_GetPullRequestReviewers_Call {
 	return &Client_GetPullRequestReviewers_Call{Call: _e.mock.On("GetPullRequestReviewers", context1, getPullRequestReviewersArgs)}
 }
 
 func (_c *Client_GetPullRequestReviewers_Call) Run(run func(context1 context.Context, getPullRequestReviewersArgs git.GetPullRequestReviewersArgs)) *Client_GetPullRequestReviewers_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestReviewersArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestReviewersArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestReviewersArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -4571,15 +5462,26 @@ type Client_GetPullRequestStatus_Call struct {
 }
 
 // GetPullRequestStatus is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestStatusArgs
+//   - context1 context.Context
+//   - getPullRequestStatusArgs git.GetPullRequestStatusArgs
 func (_e *Client_Expecter) GetPullRequestStatus(context1 interface{}, getPullRequestStatusArgs interface{}) *Client_GetPullRequestStatus_Call {
 	return &Client_GetPullRequestStatus_Call{Call: _e.mock.On("GetPullRequestStatus", context1, getPullRequestStatusArgs)}
 }
 
 func (_c *Client_GetPullRequestStatus_Call) Run(run func(context1 context.Context, getPullRequestStatusArgs git.GetPullRequestStatusArgs)) *Client_GetPullRequestStatus_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestStatusArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestStatusArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestStatusArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -4628,15 +5530,26 @@ type Client_GetPullRequestStatuses_Call struct {
 }
 
 // GetPullRequestStatuses is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestStatusesArgs
+//   - context1 context.Context
+//   - getPullRequestStatusesArgs git.GetPullRequestStatusesArgs
 func (_e *Client_Expecter) GetPullRequestStatuses(context1 interface{}, getPullRequestStatusesArgs interface{}) *Client_GetPullRequestStatuses_Call {
 	return &Client_GetPullRequestStatuses_Call{Call: _e.mock.On("GetPullRequestStatuses", context1, getPullRequestStatusesArgs)}
 }
 
 func (_c *Client_GetPullRequestStatuses_Call) Run(run func(context1 context.Context, getPullRequestStatusesArgs git.GetPullRequestStatusesArgs)) *Client_GetPullRequestStatuses_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestStatusesArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestStatusesArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestStatusesArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -4685,15 +5598,26 @@ type Client_GetPullRequestThread_Call struct {
 }
 
 // GetPullRequestThread is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestThreadArgs
+//   - context1 context.Context
+//   - getPullRequestThreadArgs git.GetPullRequestThreadArgs
 func (_e *Client_Expecter) GetPullRequestThread(context1 interface{}, getPullRequestThreadArgs interface{}) *Client_GetPullRequestThread_Call {
 	return &Client_GetPullRequestThread_Call{Call: _e.mock.On("GetPullRequestThread", context1, getPullRequestThreadArgs)}
 }
 
 func (_c *Client_GetPullRequestThread_Call) Run(run func(context1 context.Context, getPullRequestThreadArgs git.GetPullRequestThreadArgs)) *Client_GetPullRequestThread_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestThreadArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestThreadArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestThreadArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -4742,15 +5666,26 @@ type Client_GetPullRequestWorkItemRefs_Call struct {
 }
 
 // GetPullRequestWorkItemRefs is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestWorkItemRefsArgs
+//   - context1 context.Context
+//   - getPullRequestWorkItemRefsArgs git.GetPullRequestWorkItemRefsArgs
 func (_e *Client_Expecter) GetPullRequestWorkItemRefs(context1 interface{}, getPullRequestWorkItemRefsArgs interface{}) *Client_GetPullRequestWorkItemRefs_Call {
 	return &Client_GetPullRequestWorkItemRefs_Call{Call: _e.mock.On("GetPullRequestWorkItemRefs", context1, getPullRequestWorkItemRefsArgs)}
 }
 
 func (_c *Client_GetPullRequestWorkItemRefs_Call) Run(run func(context1 context.Context, getPullRequestWorkItemRefsArgs git.GetPullRequestWorkItemRefsArgs)) *Client_GetPullRequestWorkItemRefs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestWorkItemRefsArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestWorkItemRefsArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestWorkItemRefsArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -4799,15 +5734,26 @@ type Client_GetPullRequests_Call struct {
 }
 
 // GetPullRequests is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestsArgs
+//   - context1 context.Context
+//   - getPullRequestsArgs git.GetPullRequestsArgs
 func (_e *Client_Expecter) GetPullRequests(context1 interface{}, getPullRequestsArgs interface{}) *Client_GetPullRequests_Call {
 	return &Client_GetPullRequests_Call{Call: _e.mock.On("GetPullRequests", context1, getPullRequestsArgs)}
 }
 
 func (_c *Client_GetPullRequests_Call) Run(run func(context1 context.Context, getPullRequestsArgs git.GetPullRequestsArgs)) *Client_GetPullRequests_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestsArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestsArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestsArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -4856,15 +5802,26 @@ type Client_GetPullRequestsByProject_Call struct {
 }
 
 // GetPullRequestsByProject is a helper method to define mock.On call
-//   - context1
-//   - getPullRequestsByProjectArgs
+//   - context1 context.Context
+//   - getPullRequestsByProjectArgs git.GetPullRequestsByProjectArgs
 func (_e *Client_Expecter) GetPullRequestsByProject(context1 interface{}, getPullRequestsByProjectArgs interface{}) *Client_GetPullRequestsByProject_Call {
 	return &Client_GetPullRequestsByProject_Call{Call: _e.mock.On("GetPullRequestsByProject", context1, getPullRequestsByProjectArgs)}
 }
 
 func (_c *Client_GetPullRequestsByProject_Call) Run(run func(context1 context.Context, getPullRequestsByProjectArgs git.GetPullRequestsByProjectArgs)) *Client_GetPullRequestsByProject_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPullRequestsByProjectArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPullRequestsByProjectArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPullRequestsByProjectArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -4913,15 +5870,26 @@ type Client_GetPush_Call struct {
 }
 
 // GetPush is a helper method to define mock.On call
-//   - context1
-//   - getPushArgs
+//   - context1 context.Context
+//   - getPushArgs git.GetPushArgs
 func (_e *Client_Expecter) GetPush(context1 interface{}, getPushArgs interface{}) *Client_GetPush_Call {
 	return &Client_GetPush_Call{Call: _e.mock.On("GetPush", context1, getPushArgs)}
 }
 
 func (_c *Client_GetPush_Call) Run(run func(context1 context.Context, getPushArgs git.GetPushArgs)) *Client_GetPush_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPushArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPushArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPushArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -4970,15 +5938,26 @@ type Client_GetPushCommits_Call struct {
 }
 
 // GetPushCommits is a helper method to define mock.On call
-//   - context1
-//   - getPushCommitsArgs
+//   - context1 context.Context
+//   - getPushCommitsArgs git.GetPushCommitsArgs
 func (_e *Client_Expecter) GetPushCommits(context1 interface{}, getPushCommitsArgs interface{}) *Client_GetPushCommits_Call {
 	return &Client_GetPushCommits_Call{Call: _e.mock.On("GetPushCommits", context1, getPushCommitsArgs)}
 }
 
 func (_c *Client_GetPushCommits_Call) Run(run func(context1 context.Context, getPushCommitsArgs git.GetPushCommitsArgs)) *Client_GetPushCommits_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPushCommitsArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPushCommitsArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPushCommitsArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -5027,15 +6006,26 @@ type Client_GetPushes_Call struct {
 }
 
 // GetPushes is a helper method to define mock.On call
-//   - context1
-//   - getPushesArgs
+//   - context1 context.Context
+//   - getPushesArgs git.GetPushesArgs
 func (_e *Client_Expecter) GetPushes(context1 interface{}, getPushesArgs interface{}) *Client_GetPushes_Call {
 	return &Client_GetPushes_Call{Call: _e.mock.On("GetPushes", context1, getPushesArgs)}
 }
 
 func (_c *Client_GetPushes_Call) Run(run func(context1 context.Context, getPushesArgs git.GetPushesArgs)) *Client_GetPushes_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetPushesArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetPushesArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetPushesArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -5084,15 +6074,26 @@ type Client_GetRecycleBinRepositories_Call struct {
 }
 
 // GetRecycleBinRepositories is a helper method to define mock.On call
-//   - context1
-//   - getRecycleBinRepositoriesArgs
+//   - context1 context.Context
+//   - getRecycleBinRepositoriesArgs git.GetRecycleBinRepositoriesArgs
 func (_e *Client_Expecter) GetRecycleBinRepositories(context1 interface{}, getRecycleBinRepositoriesArgs interface{}) *Client_GetRecycleBinRepositories_Call {
 	return &Client_GetRecycleBinRepositories_Call{Call: _e.mock.On("GetRecycleBinRepositories", context1, getRecycleBinRepositoriesArgs)}
 }
 
 func (_c *Client_GetRecycleBinRepositories_Call) Run(run func(context1 context.Context, getRecycleBinRepositoriesArgs git.GetRecycleBinRepositoriesArgs)) *Client_GetRecycleBinRepositories_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetRecycleBinRepositoriesArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetRecycleBinRepositoriesArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetRecycleBinRepositoriesArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -5141,15 +6142,26 @@ type Client_GetRefFavorite_Call struct {
 }
 
 // GetRefFavorite is a helper method to define mock.On call
-//   - context1
-//   - getRefFavoriteArgs
+//   - context1 context.Context
+//   - getRefFavoriteArgs git.GetRefFavoriteArgs
 func (_e *Client_Expecter) GetRefFavorite(context1 interface{}, getRefFavoriteArgs interface{}) *Client_GetRefFavorite_Call {
 	return &Client_GetRefFavorite_Call{Call: _e.mock.On("GetRefFavorite", context1, getRefFavoriteArgs)}
 }
 
 func (_c *Client_GetRefFavorite_Call) Run(run func(context1 context.Context, getRefFavoriteArgs git.GetRefFavoriteArgs)) *Client_GetRefFavorite_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetRefFavoriteArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetRefFavoriteArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetRefFavoriteArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -5198,15 +6210,26 @@ type Client_GetRefFavorites_Call struct {
 }
 
 // GetRefFavorites is a helper method to define mock.On call
-//   - context1
-//   - getRefFavoritesArgs
+//   - context1 context.Context
+//   - getRefFavoritesArgs git.GetRefFavoritesArgs
 func (_e *Client_Expecter) GetRefFavorites(context1 interface{}, getRefFavoritesArgs interface{}) *Client_GetRefFavorites_Call {
 	return &Client_GetRefFavorites_Call{Call: _e.mock.On("GetRefFavorites", context1, getRefFavoritesArgs)}
 }
 
 func (_c *Client_GetRefFavorites_Call) Run(run func(context1 context.Context, getRefFavoritesArgs git.GetRefFavoritesArgs)) *Client_GetRefFavorites_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetRefFavoritesArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetRefFavoritesArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetRefFavoritesArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -5255,15 +6278,26 @@ type Client_GetRefs_Call struct {
 }
 
 // GetRefs is a helper method to define mock.On call
-//   - context1
-//   - getRefsArgs
+//   - context1 context.Context
+//   - getRefsArgs git.GetRefsArgs
 func (_e *Client_Expecter) GetRefs(context1 interface{}, getRefsArgs interface{}) *Client_GetRefs_Call {
 	return &Client_GetRefs_Call{Call: _e.mock.On("GetRefs", context1, getRefsArgs)}
 }
 
 func (_c *Client_GetRefs_Call) Run(run func(context1 context.Context, getRefsArgs git.GetRefsArgs)) *Client_GetRefs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetRefsArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetRefsArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetRefsArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -5312,15 +6346,26 @@ type Client_GetRepositories_Call struct {
 }
 
 // GetRepositories is a helper method to define mock.On call
-//   - context1
-//   - getRepositoriesArgs
+//   - context1 context.Context
+//   - getRepositoriesArgs git.GetRepositoriesArgs
 func (_e *Client_Expecter) GetRepositories(context1 interface{}, getRepositoriesArgs interface{}) *Client_GetRepositories_Call {
 	return &Client_GetRepositories_Call{Call: _e.mock.On("GetRepositories", context1, getRepositoriesArgs)}
 }
 
 func (_c *Client_GetRepositories_Call) Run(run func(context1 context.Context, getRepositoriesArgs git.GetRepositoriesArgs)) *Client_GetRepositories_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetRepositoriesArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetRepositoriesArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetRepositoriesArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -5369,15 +6414,26 @@ type Client_GetRepository_Call struct {
 }
 
 // GetRepository is a helper method to define mock.On call
-//   - context1
-//   - getRepositoryArgs
+//   - context1 context.Context
+//   - getRepositoryArgs git.GetRepositoryArgs
 func (_e *Client_Expecter) GetRepository(context1 interface{}, getRepositoryArgs interface{}) *Client_GetRepository_Call {
 	return &Client_GetRepository_Call{Call: _e.mock.On("GetRepository", context1, getRepositoryArgs)}
 }
 
 func (_c *Client_GetRepository_Call) Run(run func(context1 context.Context, getRepositoryArgs git.GetRepositoryArgs)) *Client_GetRepository_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetRepositoryArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetRepositoryArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetRepositoryArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -5426,15 +6482,26 @@ type Client_GetRepositoryWithParent_Call struct {
 }
 
 // GetRepositoryWithParent is a helper method to define mock.On call
-//   - context1
-//   - getRepositoryWithParentArgs
+//   - context1 context.Context
+//   - getRepositoryWithParentArgs git.GetRepositoryWithParentArgs
 func (_e *Client_Expecter) GetRepositoryWithParent(context1 interface{}, getRepositoryWithParentArgs interface{}) *Client_GetRepositoryWithParent_Call {
 	return &Client_GetRepositoryWithParent_Call{Call: _e.mock.On("GetRepositoryWithParent", context1, getRepositoryWithParentArgs)}
 }
 
 func (_c *Client_GetRepositoryWithParent_Call) Run(run func(context1 context.Context, getRepositoryWithParentArgs git.GetRepositoryWithParentArgs)) *Client_GetRepositoryWithParent_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetRepositoryWithParentArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetRepositoryWithParentArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetRepositoryWithParentArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -5483,15 +6550,26 @@ type Client_GetRevert_Call struct {
 }
 
 // GetRevert is a helper method to define mock.On call
-//   - context1
-//   - getRevertArgs
+//   - context1 context.Context
+//   - getRevertArgs git.GetRevertArgs
 func (_e *Client_Expecter) GetRevert(context1 interface{}, getRevertArgs interface{}) *Client_GetRevert_Call {
 	return &Client_GetRevert_Call{Call: _e.mock.On("GetRevert", context1, getRevertArgs)}
 }
 
 func (_c *Client_GetRevert_Call) Run(run func(context1 context.Context, getRevertArgs git.GetRevertArgs)) *Client_GetRevert_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetRevertArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetRevertArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetRevertArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -5540,15 +6618,26 @@ type Client_GetRevertForRefName_Call struct {
 }
 
 // GetRevertForRefName is a helper method to define mock.On call
-//   - context1
-//   - getRevertForRefNameArgs
+//   - context1 context.Context
+//   - getRevertForRefNameArgs git.GetRevertForRefNameArgs
 func (_e *Client_Expecter) GetRevertForRefName(context1 interface{}, getRevertForRefNameArgs interface{}) *Client_GetRevertForRefName_Call {
 	return &Client_GetRevertForRefName_Call{Call: _e.mock.On("GetRevertForRefName", context1, getRevertForRefNameArgs)}
 }
 
 func (_c *Client_GetRevertForRefName_Call) Run(run func(context1 context.Context, getRevertForRefNameArgs git.GetRevertForRefNameArgs)) *Client_GetRevertForRefName_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetRevertForRefNameArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetRevertForRefNameArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetRevertForRefNameArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -5597,15 +6686,26 @@ type Client_GetStatuses_Call struct {
 }
 
 // GetStatuses is a helper method to define mock.On call
-//   - context1
-//   - getStatusesArgs
+//   - context1 context.Context
+//   - getStatusesArgs git.GetStatusesArgs
 func (_e *Client_Expecter) GetStatuses(context1 interface{}, getStatusesArgs interface{}) *Client_GetStatuses_Call {
 	return &Client_GetStatuses_Call{Call: _e.mock.On("GetStatuses", context1, getStatusesArgs)}
 }
 
 func (_c *Client_GetStatuses_Call) Run(run func(context1 context.Context, getStatusesArgs git.GetStatusesArgs)) *Client_GetStatuses_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetStatusesArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetStatusesArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetStatusesArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -5654,15 +6754,26 @@ type Client_GetSuggestions_Call struct {
 }
 
 // GetSuggestions is a helper method to define mock.On call
-//   - context1
-//   - getSuggestionsArgs
+//   - context1 context.Context
+//   - getSuggestionsArgs git.GetSuggestionsArgs
 func (_e *Client_Expecter) GetSuggestions(context1 interface{}, getSuggestionsArgs interface{}) *Client_GetSuggestions_Call {
 	return &Client_GetSuggestions_Call{Call: _e.mock.On("GetSuggestions", context1, getSuggestionsArgs)}
 }
 
 func (_c *Client_GetSuggestions_Call) Run(run func(context1 context.Context, getSuggestionsArgs git.GetSuggestionsArgs)) *Client_GetSuggestions_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetSuggestionsArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetSuggestionsArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetSuggestionsArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -5711,15 +6822,26 @@ type Client_GetThreads_Call struct {
 }
 
 // GetThreads is a helper method to define mock.On call
-//   - context1
-//   - getThreadsArgs
+//   - context1 context.Context
+//   - getThreadsArgs git.GetThreadsArgs
 func (_e *Client_Expecter) GetThreads(context1 interface{}, getThreadsArgs interface{}) *Client_GetThreads_Call {
 	return &Client_GetThreads_Call{Call: _e.mock.On("GetThreads", context1, getThreadsArgs)}
 }
 
 func (_c *Client_GetThreads_Call) Run(run func(context1 context.Context, getThreadsArgs git.GetThreadsArgs)) *Client_GetThreads_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetThreadsArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetThreadsArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetThreadsArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -5768,15 +6890,26 @@ type Client_GetTree_Call struct {
 }
 
 // GetTree is a helper method to define mock.On call
-//   - context1
-//   - getTreeArgs
+//   - context1 context.Context
+//   - getTreeArgs git.GetTreeArgs
 func (_e *Client_Expecter) GetTree(context1 interface{}, getTreeArgs interface{}) *Client_GetTree_Call {
 	return &Client_GetTree_Call{Call: _e.mock.On("GetTree", context1, getTreeArgs)}
 }
 
 func (_c *Client_GetTree_Call) Run(run func(context1 context.Context, getTreeArgs git.GetTreeArgs)) *Client_GetTree_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetTreeArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetTreeArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetTreeArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -5825,15 +6958,26 @@ type Client_GetTreeZip_Call struct {
 }
 
 // GetTreeZip is a helper method to define mock.On call
-//   - context1
-//   - getTreeZipArgs
+//   - context1 context.Context
+//   - getTreeZipArgs git.GetTreeZipArgs
 func (_e *Client_Expecter) GetTreeZip(context1 interface{}, getTreeZipArgs interface{}) *Client_GetTreeZip_Call {
 	return &Client_GetTreeZip_Call{Call: _e.mock.On("GetTreeZip", context1, getTreeZipArgs)}
 }
 
 func (_c *Client_GetTreeZip_Call) Run(run func(context1 context.Context, getTreeZipArgs git.GetTreeZipArgs)) *Client_GetTreeZip_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.GetTreeZipArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.GetTreeZipArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.GetTreeZipArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -5882,15 +7026,26 @@ type Client_QueryImportRequests_Call struct {
 }
 
 // QueryImportRequests is a helper method to define mock.On call
-//   - context1
-//   - queryImportRequestsArgs
+//   - context1 context.Context
+//   - queryImportRequestsArgs git.QueryImportRequestsArgs
 func (_e *Client_Expecter) QueryImportRequests(context1 interface{}, queryImportRequestsArgs interface{}) *Client_QueryImportRequests_Call {
 	return &Client_QueryImportRequests_Call{Call: _e.mock.On("QueryImportRequests", context1, queryImportRequestsArgs)}
 }
 
 func (_c *Client_QueryImportRequests_Call) Run(run func(context1 context.Context, queryImportRequestsArgs git.QueryImportRequestsArgs)) *Client_QueryImportRequests_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.QueryImportRequestsArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.QueryImportRequestsArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.QueryImportRequestsArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -5939,15 +7094,26 @@ type Client_RestoreRepositoryFromRecycleBin_Call struct {
 }
 
 // RestoreRepositoryFromRecycleBin is a helper method to define mock.On call
-//   - context1
-//   - restoreRepositoryFromRecycleBinArgs
+//   - context1 context.Context
+//   - restoreRepositoryFromRecycleBinArgs git.RestoreRepositoryFromRecycleBinArgs
 func (_e *Client_Expecter) RestoreRepositoryFromRecycleBin(context1 interface{}, restoreRepositoryFromRecycleBinArgs interface{}) *Client_RestoreRepositoryFromRecycleBin_Call {
 	return &Client_RestoreRepositoryFromRecycleBin_Call{Call: _e.mock.On("RestoreRepositoryFromRecycleBin", context1, restoreRepositoryFromRecycleBinArgs)}
 }
 
 func (_c *Client_RestoreRepositoryFromRecycleBin_Call) Run(run func(context1 context.Context, restoreRepositoryFromRecycleBinArgs git.RestoreRepositoryFromRecycleBinArgs)) *Client_RestoreRepositoryFromRecycleBin_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.RestoreRepositoryFromRecycleBinArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.RestoreRepositoryFromRecycleBinArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.RestoreRepositoryFromRecycleBinArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -5985,15 +7151,26 @@ type Client_SharePullRequest_Call struct {
 }
 
 // SharePullRequest is a helper method to define mock.On call
-//   - context1
-//   - sharePullRequestArgs
+//   - context1 context.Context
+//   - sharePullRequestArgs git.SharePullRequestArgs
 func (_e *Client_Expecter) SharePullRequest(context1 interface{}, sharePullRequestArgs interface{}) *Client_SharePullRequest_Call {
 	return &Client_SharePullRequest_Call{Call: _e.mock.On("SharePullRequest", context1, sharePullRequestArgs)}
 }
 
 func (_c *Client_SharePullRequest_Call) Run(run func(context1 context.Context, sharePullRequestArgs git.SharePullRequestArgs)) *Client_SharePullRequest_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.SharePullRequestArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.SharePullRequestArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.SharePullRequestArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -6042,15 +7219,26 @@ type Client_UpdateComment_Call struct {
 }
 
 // UpdateComment is a helper method to define mock.On call
-//   - context1
-//   - updateCommentArgs
+//   - context1 context.Context
+//   - updateCommentArgs git.UpdateCommentArgs
 func (_e *Client_Expecter) UpdateComment(context1 interface{}, updateCommentArgs interface{}) *Client_UpdateComment_Call {
 	return &Client_UpdateComment_Call{Call: _e.mock.On("UpdateComment", context1, updateCommentArgs)}
 }
 
 func (_c *Client_UpdateComment_Call) Run(run func(context1 context.Context, updateCommentArgs git.UpdateCommentArgs)) *Client_UpdateComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.UpdateCommentArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.UpdateCommentArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.UpdateCommentArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -6099,15 +7287,26 @@ type Client_UpdateImportRequest_Call struct {
 }
 
 // UpdateImportRequest is a helper method to define mock.On call
-//   - context1
-//   - updateImportRequestArgs
+//   - context1 context.Context
+//   - updateImportRequestArgs git.UpdateImportRequestArgs
 func (_e *Client_Expecter) UpdateImportRequest(context1 interface{}, updateImportRequestArgs interface{}) *Client_UpdateImportRequest_Call {
 	return &Client_UpdateImportRequest_Call{Call: _e.mock.On("UpdateImportRequest", context1, updateImportRequestArgs)}
 }
 
 func (_c *Client_UpdateImportRequest_Call) Run(run func(context1 context.Context, updateImportRequestArgs git.UpdateImportRequestArgs)) *Client_UpdateImportRequest_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.UpdateImportRequestArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.UpdateImportRequestArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.UpdateImportRequestArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -6156,15 +7355,26 @@ type Client_UpdatePullRequest_Call struct {
 }
 
 // UpdatePullRequest is a helper method to define mock.On call
-//   - context1
-//   - updatePullRequestArgs
+//   - context1 context.Context
+//   - updatePullRequestArgs git.UpdatePullRequestArgs
 func (_e *Client_Expecter) UpdatePullRequest(context1 interface{}, updatePullRequestArgs interface{}) *Client_UpdatePullRequest_Call {
 	return &Client_UpdatePullRequest_Call{Call: _e.mock.On("UpdatePullRequest", context1, updatePullRequestArgs)}
 }
 
 func (_c *Client_UpdatePullRequest_Call) Run(run func(context1 context.Context, updatePullRequestArgs git.UpdatePullRequestArgs)) *Client_UpdatePullRequest_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.UpdatePullRequestArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.UpdatePullRequestArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.UpdatePullRequestArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -6202,15 +7412,26 @@ type Client_UpdatePullRequestIterationStatuses_Call struct {
 }
 
 // UpdatePullRequestIterationStatuses is a helper method to define mock.On call
-//   - context1
-//   - updatePullRequestIterationStatusesArgs
+//   - context1 context.Context
+//   - updatePullRequestIterationStatusesArgs git.UpdatePullRequestIterationStatusesArgs
 func (_e *Client_Expecter) UpdatePullRequestIterationStatuses(context1 interface{}, updatePullRequestIterationStatusesArgs interface{}) *Client_UpdatePullRequestIterationStatuses_Call {
 	return &Client_UpdatePullRequestIterationStatuses_Call{Call: _e.mock.On("UpdatePullRequestIterationStatuses", context1, updatePullRequestIterationStatusesArgs)}
 }
 
 func (_c *Client_UpdatePullRequestIterationStatuses_Call) Run(run func(context1 context.Context, updatePullRequestIterationStatusesArgs git.UpdatePullRequestIterationStatusesArgs)) *Client_UpdatePullRequestIterationStatuses_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.UpdatePullRequestIterationStatusesArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.UpdatePullRequestIterationStatusesArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.UpdatePullRequestIterationStatusesArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -6259,15 +7480,26 @@ type Client_UpdatePullRequestProperties_Call struct {
 }
 
 // UpdatePullRequestProperties is a helper method to define mock.On call
-//   - context1
-//   - updatePullRequestPropertiesArgs
+//   - context1 context.Context
+//   - updatePullRequestPropertiesArgs git.UpdatePullRequestPropertiesArgs
 func (_e *Client_Expecter) UpdatePullRequestProperties(context1 interface{}, updatePullRequestPropertiesArgs interface{}) *Client_UpdatePullRequestProperties_Call {
 	return &Client_UpdatePullRequestProperties_Call{Call: _e.mock.On("UpdatePullRequestProperties", context1, updatePullRequestPropertiesArgs)}
 }
 
 func (_c *Client_UpdatePullRequestProperties_Call) Run(run func(context1 context.Context, updatePullRequestPropertiesArgs git.UpdatePullRequestPropertiesArgs)) *Client_UpdatePullRequestProperties_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.UpdatePullRequestPropertiesArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.UpdatePullRequestPropertiesArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.UpdatePullRequestPropertiesArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -6316,15 +7548,26 @@ type Client_UpdatePullRequestReviewer_Call struct {
 }
 
 // UpdatePullRequestReviewer is a helper method to define mock.On call
-//   - context1
-//   - updatePullRequestReviewerArgs
+//   - context1 context.Context
+//   - updatePullRequestReviewerArgs git.UpdatePullRequestReviewerArgs
 func (_e *Client_Expecter) UpdatePullRequestReviewer(context1 interface{}, updatePullRequestReviewerArgs interface{}) *Client_UpdatePullRequestReviewer_Call {
 	return &Client_UpdatePullRequestReviewer_Call{Call: _e.mock.On("UpdatePullRequestReviewer", context1, updatePullRequestReviewerArgs)}
 }
 
 func (_c *Client_UpdatePullRequestReviewer_Call) Run(run func(context1 context.Context, updatePullRequestReviewerArgs git.UpdatePullRequestReviewerArgs)) *Client_UpdatePullRequestReviewer_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.UpdatePullRequestReviewerArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.UpdatePullRequestReviewerArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.UpdatePullRequestReviewerArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -6362,15 +7605,26 @@ type Client_UpdatePullRequestReviewers_Call struct {
 }
 
 // UpdatePullRequestReviewers is a helper method to define mock.On call
-//   - context1
-//   - updatePullRequestReviewersArgs
+//   - context1 context.Context
+//   - updatePullRequestReviewersArgs git.UpdatePullRequestReviewersArgs
 func (_e *Client_Expecter) UpdatePullRequestReviewers(context1 interface{}, updatePullRequestReviewersArgs interface{}) *Client_UpdatePullRequestReviewers_Call {
 	return &Client_UpdatePullRequestReviewers_Call{Call: _e.mock.On("UpdatePullRequestReviewers", context1, updatePullRequestReviewersArgs)}
 }
 
 func (_c *Client_UpdatePullRequestReviewers_Call) Run(run func(context1 context.Context, updatePullRequestReviewersArgs git.UpdatePullRequestReviewersArgs)) *Client_UpdatePullRequestReviewers_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.UpdatePullRequestReviewersArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.UpdatePullRequestReviewersArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.UpdatePullRequestReviewersArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -6408,15 +7662,26 @@ type Client_UpdatePullRequestStatuses_Call struct {
 }
 
 // UpdatePullRequestStatuses is a helper method to define mock.On call
-//   - context1
-//   - updatePullRequestStatusesArgs
+//   - context1 context.Context
+//   - updatePullRequestStatusesArgs git.UpdatePullRequestStatusesArgs
 func (_e *Client_Expecter) UpdatePullRequestStatuses(context1 interface{}, updatePullRequestStatusesArgs interface{}) *Client_UpdatePullRequestStatuses_Call {
 	return &Client_UpdatePullRequestStatuses_Call{Call: _e.mock.On("UpdatePullRequestStatuses", context1, updatePullRequestStatusesArgs)}
 }
 
 func (_c *Client_UpdatePullRequestStatuses_Call) Run(run func(context1 context.Context, updatePullRequestStatusesArgs git.UpdatePullRequestStatusesArgs)) *Client_UpdatePullRequestStatuses_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.UpdatePullRequestStatusesArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.UpdatePullRequestStatusesArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.UpdatePullRequestStatusesArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -6465,15 +7730,26 @@ type Client_UpdateRef_Call struct {
 }
 
 // UpdateRef is a helper method to define mock.On call
-//   - context1
-//   - updateRefArgs
+//   - context1 context.Context
+//   - updateRefArgs git.UpdateRefArgs
 func (_e *Client_Expecter) UpdateRef(context1 interface{}, updateRefArgs interface{}) *Client_UpdateRef_Call {
 	return &Client_UpdateRef_Call{Call: _e.mock.On("UpdateRef", context1, updateRefArgs)}
 }
 
 func (_c *Client_UpdateRef_Call) Run(run func(context1 context.Context, updateRefArgs git.UpdateRefArgs)) *Client_UpdateRef_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.UpdateRefArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.UpdateRefArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.UpdateRefArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -6522,15 +7798,26 @@ type Client_UpdateRefs_Call struct {
 }
 
 // UpdateRefs is a helper method to define mock.On call
-//   - context1
-//   - updateRefsArgs
+//   - context1 context.Context
+//   - updateRefsArgs git.UpdateRefsArgs
 func (_e *Client_Expecter) UpdateRefs(context1 interface{}, updateRefsArgs interface{}) *Client_UpdateRefs_Call {
 	return &Client_UpdateRefs_Call{Call: _e.mock.On("UpdateRefs", context1, updateRefsArgs)}
 }
 
 func (_c *Client_UpdateRefs_Call) Run(run func(context1 context.Context, updateRefsArgs git.UpdateRefsArgs)) *Client_UpdateRefs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.UpdateRefsArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.UpdateRefsArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.UpdateRefsArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -6579,15 +7866,26 @@ type Client_UpdateRepository_Call struct {
 }
 
 // UpdateRepository is a helper method to define mock.On call
-//   - context1
-//   - updateRepositoryArgs
+//   - context1 context.Context
+//   - updateRepositoryArgs git.UpdateRepositoryArgs
 func (_e *Client_Expecter) UpdateRepository(context1 interface{}, updateRepositoryArgs interface{}) *Client_UpdateRepository_Call {
 	return &Client_UpdateRepository_Call{Call: _e.mock.On("UpdateRepository", context1, updateRepositoryArgs)}
 }
 
 func (_c *Client_UpdateRepository_Call) Run(run func(context1 context.Context, updateRepositoryArgs git.UpdateRepositoryArgs)) *Client_UpdateRepository_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.UpdateRepositoryArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.UpdateRepositoryArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.UpdateRepositoryArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -6636,15 +7934,26 @@ type Client_UpdateThread_Call struct {
 }
 
 // UpdateThread is a helper method to define mock.On call
-//   - context1
-//   - updateThreadArgs
+//   - context1 context.Context
+//   - updateThreadArgs git.UpdateThreadArgs
 func (_e *Client_Expecter) UpdateThread(context1 interface{}, updateThreadArgs interface{}) *Client_UpdateThread_Call {
 	return &Client_UpdateThread_Call{Call: _e.mock.On("UpdateThread", context1, updateThreadArgs)}
 }
 
 func (_c *Client_UpdateThread_Call) Run(run func(context1 context.Context, updateThreadArgs git.UpdateThreadArgs)) *Client_UpdateThread_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(git.UpdateThreadArgs))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 git.UpdateThreadArgs
+		if args[1] != nil {
+			arg1 = args[1].(git.UpdateThreadArgs)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }

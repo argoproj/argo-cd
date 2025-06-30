@@ -79,9 +79,9 @@ var validFQDNRegexp = regexp.MustCompile(`^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{
 // If fqdn is true, given string must also be a FQDN representation.
 func IsValidHostname(hostname string, fqdn bool) bool {
 	if !fqdn {
-		return validHostNameRegexp.Match([]byte(hostname)) || validIPv6Regexp.Match([]byte(hostname))
+		return validHostNameRegexp.MatchString(hostname) || validIPv6Regexp.MatchString(hostname)
 	}
-	return validFQDNRegexp.Match([]byte(hostname))
+	return validFQDNRegexp.MatchString(hostname)
 }
 
 // Get the configured path to where TLS certificates are stored on the local
@@ -230,7 +230,7 @@ func IsValidSSHKnownHostsEntry(line string) bool {
 	trimmedEntry := strings.TrimSpace(line)
 	// We ignore commented out lines - usually happens when copy and pasting
 	// to the ConfigMap from a known_hosts file or from ssh-keyscan output.
-	if len(trimmedEntry) == 0 || trimmedEntry[0] == '#' {
+	if trimmedEntry == "" || trimmedEntry[0] == '#' {
 		return false
 	}
 

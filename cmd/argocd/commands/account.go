@@ -25,7 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 	sessionutil "github.com/argoproj/argo-cd/v3/util/session"
 	"github.com/argoproj/argo-cd/v3/util/templates"
@@ -94,7 +94,7 @@ has appropriate RBAC permissions to change other accounts.
 			}
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, usrIf := acdClient.NewAccountClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 
 			userInfo := getCurrentAccount(ctx, acdClient)
 
@@ -155,8 +155,9 @@ has appropriate RBAC permissions to change other accounts.
 func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var output string
 	command := &cobra.Command{
-		Use:   "get-user-info",
-		Short: "Get user info",
+		Use:     "get-user-info",
+		Short:   "Get user info",
+		Aliases: []string{"whoami"},
 		Example: templates.Examples(`
 			# Get User information for the currently logged-in user (see 'argocd login')
 			argocd account get-user-info
@@ -173,7 +174,7 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			}
 
 			conn, client := headless.NewClientOrDie(clientOpts, c).NewSessionClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 
 			response, err := client.GetUserInfo(ctx, &session.GetUserInfoRequest{})
 			errors.CheckError(err)
@@ -229,7 +230,7 @@ Resources: %v
 			}
 
 			conn, client := headless.NewClientOrDie(clientOpts, c).NewAccountClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 
 			response, err := client.CanI(ctx, &accountpkg.CanIRequest{
 				Action:      args[0],
@@ -267,7 +268,7 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			ctx := c.Context()
 
 			conn, client := headless.NewClientOrDie(clientOpts, c).NewAccountClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 
 			response, err := client.ListAccounts(ctx, &accountpkg.ListAccountRequest{})
 
@@ -291,7 +292,7 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 
 func getCurrentAccount(ctx context.Context, clientset argocdclient.Client) session.GetUserInfoResponse {
 	conn, client := clientset.NewSessionClientOrDie()
-	defer io.Close(conn)
+	defer utilio.Close(conn)
 	userInfo, err := client.GetUserInfo(ctx, &session.GetUserInfoRequest{})
 	errors.CheckError(err)
 	return *userInfo
@@ -320,7 +321,7 @@ argocd account get --account <account-name>`,
 			}
 
 			conn, client := clientset.NewAccountClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 
 			acc, err := client.GetAccount(ctx, &accountpkg.GetAccountRequest{Name: account})
 
@@ -388,7 +389,7 @@ argocd account generate-token --account <account-name>`,
 
 			clientset := headless.NewClientOrDie(clientOpts, c)
 			conn, client := clientset.NewAccountClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 			if account == "" {
 				account = getCurrentAccount(ctx, clientset).Username
 			}
@@ -430,7 +431,7 @@ argocd account delete-token --account <account-name> ID`,
 
 			clientset := headless.NewClientOrDie(clientOpts, c)
 			conn, client := clientset.NewAccountClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 			if account == "" {
 				account = getCurrentAccount(ctx, clientset).Username
 			}

@@ -51,6 +51,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/applicationset/status"
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	"github.com/argoproj/argo-cd/v3/common"
+	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/db"
 
 	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -577,7 +578,7 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 	var firstError error
 	// Creates or updates the application in appList
 	for _, generatedApp := range desiredApplications {
-		appLog := logCtx.WithFields(log.Fields{"app": generatedApp.QualifiedName()})
+		appLog := logCtx.WithFields(applog.GetAppLogFields(&generatedApp))
 
 		// Normalize to avoid fighting with the application controller.
 		generatedApp.Spec = *argoutil.NormalizeApplicationSpec(&generatedApp.Spec)
@@ -740,7 +741,7 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 	// Delete apps that are not in m[string]bool
 	var firstError error
 	for _, app := range current {
-		logCtx = logCtx.WithField("app", app.QualifiedName())
+		logCtx = logCtx.WithFields(applog.GetAppLogFields(&app))
 		_, exists := m[app.Name]
 
 		if !exists {
@@ -1440,6 +1441,10 @@ func syncApplication(application argov1alpha1.Application, prune bool) argov1alp
 			},
 		},
 		Sync: &argov1alpha1.SyncOperation{},
+		// Set a retry limit of 5, aligning with the default in Argo CD's appcontroller auto-sync behavior.
+		// This provides consistency for retry behavior across controllers.
+		// See: https://github.com/argoproj/argo-cd/blob/af9ebac0bb35dc16eb034c1cefaf7c92d1029927/controller/appcontroller.go#L2126
+		Retry: argov1alpha1.RetryStrategy{Limit: 5},
 	}
 
 	if application.Spec.SyncPolicy != nil {
@@ -1462,23 +1467,23 @@ func getApplicationOwnsHandler(enableProgressiveSyncs bool) predicate.Funcs {
 			// if we are the owner and there is a create event, we most likely created it and do not need to
 			// re-reconcile
 			if log.IsLevelEnabled(log.DebugLevel) {
-				var appName string
+				logFields := log.Fields{"app": ""}
 				app, isApp := e.Object.(*argov1alpha1.Application)
 				if isApp {
-					appName = app.QualifiedName()
+					logFields = applog.GetAppLogFields(app)
 				}
-				log.WithField("app", appName).Debugln("received create event from owning an application")
+				log.WithFields(logFields).Debugln("received create event from owning an application")
 			}
 			return false
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			if log.IsLevelEnabled(log.DebugLevel) {
-				var appName string
+				logFields := log.Fields{"app": ""}
 				app, isApp := e.Object.(*argov1alpha1.Application)
 				if isApp {
-					appName = app.QualifiedName()
+					logFields = applog.GetAppLogFields(app)
 				}
-				log.WithField("app", appName).Debugln("received delete event from owning an application")
+				log.WithFields(logFields).Debugln("received delete event from owning an application")
 			}
 			return true
 		},
@@ -1487,7 +1492,7 @@ func getApplicationOwnsHandler(enableProgressiveSyncs bool) predicate.Funcs {
 			if !isApp {
 				return false
 			}
-			logCtx := log.WithField("app", appOld.QualifiedName())
+			logCtx := log.WithFields(applog.GetAppLogFields(appOld))
 			logCtx.Debugln("received update event from owning an application")
 			appNew, isApp := e.ObjectNew.(*argov1alpha1.Application)
 			if !isApp {
@@ -1499,12 +1504,12 @@ func getApplicationOwnsHandler(enableProgressiveSyncs bool) predicate.Funcs {
 		},
 		GenericFunc: func(e event.GenericEvent) bool {
 			if log.IsLevelEnabled(log.DebugLevel) {
-				var appName string
+				logFields := log.Fields{}
 				app, isApp := e.Object.(*argov1alpha1.Application)
 				if isApp {
-					appName = app.QualifiedName()
+					logFields = applog.GetAppLogFields(app)
 				}
-				log.WithField("app", appName).Debugln("received generic event from owning an application")
+				log.WithFields(logFields).Debugln("received generic event from owning an application")
 			}
 			return true
 		},

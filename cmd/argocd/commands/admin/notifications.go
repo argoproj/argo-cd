@@ -34,7 +34,7 @@ func NewNotificationsCommand() *cobra.Command {
 		"notifications",
 		"argocd admin notifications",
 		applications,
-		settings.GetFactorySettingsForCLI(&argocdService, "argocd-notifications-secret", "argocd-notifications-cm", false),
+		settings.GetFactorySettingsForCLI(argocdService, "argocd-notifications-secret", "argocd-notifications-cm", false),
 		func(clientConfig clientcmd.ClientConfig) {
 			k8sCfg, err := clientConfig.ClientConfig()
 			if err != nil {
