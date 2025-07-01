@@ -19,6 +19,8 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
+// RepoGetter is an interface that defines methods for getting repository objects. It's a subset of the DB interface to
+// avoid granting access to things we don't need.
 type RepoGetter interface {
 	// GetRepository returns a repository by its URL and project name.
 	GetRepository(ctx context.Context, repoURL, project string) (*appv1.Repository, error)
@@ -30,16 +32,37 @@ type RepoGetter interface {
 type Dependencies interface {
 	// TODO: determine if we actually need to get the app, or if all the stuff we need the app for is done already on
 	//       the app controller side.
+
+	// GetProcessableAppProj returns the AppProject for the given application. It should only return projects that are
+	// processable by the controller, meaning that the project is not deleted and the application is in a namespace
+	// permitted by the project.
 	GetProcessableAppProj(app *appv1.Application) (*appv1.AppProject, error)
+
+	// GetProcessableApps returns a list of applications that are processable by the controller.
 	GetProcessableApps() (*appv1.ApplicationList, error)
+
+	// GetRepoObjs returns the repository objects for the given application, source, and revision. It calls the repo-
+	// server and gets the manifests (objects).
 	GetRepoObjs(app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error)
+
+	// GetWriteCredentials returns the repository credentials for the given repository URL and project. These are to be
+	// sent to the commit server to write the hydrated manifests.
 	GetWriteCredentials(ctx context.Context, repoURL string, project string) (*appv1.Repository, error)
+
+	// RequestAppRefresh requests a refresh of the application with the given name and namespace. This is used to
+	// trigger a refresh after the application has been hydrated and a new commit has been pushed.
 	RequestAppRefresh(appName string, appNamespace string) error
-	// TODO: only allow access to the hydrator status
+
+	// PersistAppHydratorStatus persists the application status for the source hydrator.
 	PersistAppHydratorStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus)
+
+	// AddHydrationQueueItem adds a hydration queue item to the queue. This is used to trigger the hydration process for
+	// a group of applications which are hydrating to the same repo and target branch.
 	AddHydrationQueueItem(key types.HydrationQueueKey)
 }
 
+// Hydrator is the main struct that implements the hydration logic. It uses the Dependencies interface to access the
+// app controller's functionality without directly depending on it.
 type Hydrator struct {
 	dependencies         Dependencies
 	statusRefreshTimeout time.Duration
@@ -48,6 +71,9 @@ type Hydrator struct {
 	repoGetter           RepoGetter
 }
 
+// NewHydrator creates a new Hydrator instance with the given dependencies, status refresh timeout, commit clientset,
+// repo clientset, and repo getter. The refresh timeout determines how often the hydrator checks if an application
+// needs to be hydrated.
 func NewHydrator(dependencies Dependencies, statusRefreshTimeout time.Duration, commitClientset commitclient.Clientset, repoClientset apiclient.Clientset, repoGetter RepoGetter) *Hydrator {
 	return &Hydrator{
 		dependencies:         dependencies,
@@ -58,6 +84,12 @@ func NewHydrator(dependencies Dependencies, statusRefreshTimeout time.Duration, 
 	}
 }
 
+// ProcessAppHydrateQueueItem processes an application hydrate queue item. It checks if the application needs hydration
+// and if so, it updates the application's status to indicate that hydration is in progress. It then adds the
+// hydration queue item to the queue for further processing.
+//
+// It's likely that multiple applications will trigger hydration at the same time. The hydration queue key is meant to
+// dedupe these requests.
 func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	origApp = origApp.DeepCopy()
 	app := origApp.DeepCopy()
@@ -119,6 +151,10 @@ type uniqueHydrationDestination struct {
 	destinationPath string
 }
 
+// ProcessHydrationQueueItem processes a hydration queue item. It retrieves the relevant applications for the given
+// hydration key, hydrates their latest commit, and updates their status accordingly. If the hydration fails, it marks
+// the operation as failed and logs the error. If successful, it updates the operation to indicate that hydration was
+// successful and requests a refresh of the applications to pick up the new hydrated commit.
 func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKey) (processNext bool) {
 	logCtx := log.WithFields(log.Fields{
 		"sourceRepoURL":        hydrationKey.SourceRepoURL,
