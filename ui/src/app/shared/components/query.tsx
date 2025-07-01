@@ -1,49 +1,56 @@
-import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import {BehaviorSubject, Observable} from 'rxjs';
+import {BehaviorSubject, type Observable} from 'rxjs';
 import {map} from 'rxjs/operators';
 
-import {AppContext, Consumer} from '../context';
+import {Context} from '../context';
 
-export const Query = (props: {children: (params: URLSearchParams) => React.ReactNode}) => (
-    <Consumer>{ctx => props.children(new URLSearchParams(ctx.history.location.search))}</Consumer>
-);
+export interface QueryProps {
+    children: (params: URLSearchParams) => React.ReactNode;
+}
 
 export interface ObservableQueryProps {
     children: (params: Observable<URLSearchParams>) => React.ReactNode;
 }
 
-export class ObservableQuery extends React.Component<ObservableQueryProps> {
-    public static contextTypes = {
-        router: PropTypes.object
-    };
+const useQuery = () => {
+    const context = React.useContext(Context);
 
-    private search: BehaviorSubject<string>;
-    private stopListen: () => void;
+    return new URLSearchParams(context?.history?.location.search);
+};
 
-    constructor(props: ObservableQueryProps) {
-        super(props);
-    }
+function useObservableQuery() {
+    const context = React.useContext(Context);
 
-    public componentWillMount() {
-        this.search = new BehaviorSubject(this.appContext.router.history.location.search);
-        this.stopListen = this.appContext.router.history.listen(location => {
-            this.search.next(location.search);
+    const search$ = React.useMemo(() => new BehaviorSubject(context.history.location.search), []);
+
+    const searchParams$ = React.useMemo(() => search$.pipe(map(searchStr => new URLSearchParams(searchStr))), [search$]);
+
+    React.useEffect(() => {
+        const unsubscribe = context.history.listen(location => {
+            search$.next(location.search);
         });
-    }
+        return unsubscribe;
+    }, [context.history, search$]);
 
-    public componentWillUnmount() {
-        if (this.stopListen) {
-            this.stopListen();
-            this.stopListen = null;
-        }
-    }
+    React.useEffect(() => {
+        return () => {
+            search$.complete();
+        };
+    }, [search$]);
 
-    public render() {
-        return this.props.children(this.search.pipe(map(search => new URLSearchParams(search))));
-    }
-
-    private get appContext(): AppContext {
-        return this.context as AppContext;
-    }
+    return searchParams$;
 }
+
+function Query({children}: QueryProps) {
+    const query = useQuery();
+
+    return <>{children(query)}</>;
+}
+
+function ObservableQuery({children}: ObservableQueryProps) {
+    const searchParams$ = useObservableQuery();
+
+    return <>{children(searchParams$)}</>;
+}
+
+export {ObservableQuery, Query, useQuery, useObservableQuery};

@@ -219,7 +219,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             Repository:
                                                         </div>
                                                         <div className='columns small-9'>
-                                                            <Tooltip content={source?.repoURL} zIndex={4}>
+                                                            <Tooltip content={source?.repoURL || ''} zIndex={4}>
                                                                 <span>{source?.repoURL}</span>
                                                             </Tooltip>
                                                         </div>

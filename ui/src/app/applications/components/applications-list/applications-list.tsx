@@ -292,7 +292,7 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
                                 {toolbar.actionMenu && (
                                     <React.Fragment>
                                         {toolbar.actionMenu.items.map((item, i) => (
-                                            <Tooltip className='custom-tooltip' content={item.title}>
+                                            <Tooltip className='custom-tooltip' content={item.title} key={item.qeId || i}>
                                                 <button
                                                     disabled={!!item.disabled}
                                                     qe-id={item.qeId}
