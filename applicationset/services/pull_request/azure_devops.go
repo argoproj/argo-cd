@@ -11,6 +11,7 @@ import (
 )
 
 const AZURE_DEVOPS_DEFAULT_URL = "https://dev.azure.com"
+const AZURE_DEVOPS_PROJECT_NOT_FOUND_ERROR = "The following project does not exist"
 
 type AzureDevOpsClientFactory interface {
 	// Returns an Azure Devops Client interface.
@@ -77,7 +78,7 @@ func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
 		// A standard Http 404 error is not returned for Azure DevOps,
 		// so checking the error message for a specific pattern. Also please note that the repos are filtered later,
 		// so what is relevant for AzureDevOps is the existence of the project.
-		if strings.Contains(err.Error(), "The following project does not exist") {
+		if strings.Contains(err.Error(), AZURE_DEVOPS_PROJECT_NOT_FOUND_ERROR) {
 			// return a custom error indicating that the repository is not found,
 			// but also return the empty result since the decision to continue or not in this case is made by the caller
 			return pullRequests, NewRepositoryNotFoundError(err)
