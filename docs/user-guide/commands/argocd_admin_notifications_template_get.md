@@ -63,7 +63,7 @@ argocd admin notifications template get app-sync-succeeded -o=yaml
       --password string                 Password for basic authentication to the API server
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
-      --port-forward-namespace string   Namespace name which should be used for port forwarding
+      --port-forward-namespace string   Namespace name which should be used for port forwarding (default "argocd")
       --prompts-enabled                 Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --proxy-url string                If provided, this URL will be used to connect via proxy
       --redis-compress string           Enable this if the application controller is configured with redis compression enabled. (possible values: gzip, none) (default "gzip")
