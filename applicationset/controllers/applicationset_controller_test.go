@@ -1954,14 +1954,15 @@ func TestValidateGeneratedApplications(t *testing.T) {
 	for _, cc := range []struct {
 		name             string
 		apps             []v1alpha1.Application
-		validationErrors map[int]error
+		validationErrors map[string]error
 	}{
 		{
 			name: "valid app should return true",
 			apps: []v1alpha1.Application{
 				{
-					TypeMeta:   metav1.TypeMeta{},
-					ObjectMeta: metav1.ObjectMeta{},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app",
+					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
@@ -1976,14 +1977,15 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			validationErrors: map[int]error{},
+			validationErrors: map[string]error{},
 		},
 		{
 			name: "can't have both name and server defined",
 			apps: []v1alpha1.Application{
 				{
-					TypeMeta:   metav1.TypeMeta{},
-					ObjectMeta: metav1.ObjectMeta{},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app",
+					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
@@ -1999,14 +2001,15 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			validationErrors: map[int]error{0: errors.New("application destination spec is invalid: application destination can't have both name and server defined: my-cluster my-server")},
+			validationErrors: map[string]error{"app": errors.New("application destination spec is invalid: application destination can't have both name and server defined: my-cluster my-server")},
 		},
 		{
 			name: "project mismatch should return error",
 			apps: []v1alpha1.Application{
 				{
-					TypeMeta:   metav1.TypeMeta{},
-					ObjectMeta: metav1.ObjectMeta{},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app",
+					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "DOES-NOT-EXIST",
 						Source: &v1alpha1.ApplicationSource{
@@ -2021,14 +2024,15 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			validationErrors: map[int]error{0: errors.New("application references project DOES-NOT-EXIST which does not exist")},
+			validationErrors: map[string]error{"app": errors.New("application references project DOES-NOT-EXIST which does not exist")},
 		},
 		{
 			name: "valid app should return true",
 			apps: []v1alpha1.Application{
 				{
-					TypeMeta:   metav1.TypeMeta{},
-					ObjectMeta: metav1.ObjectMeta{},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app",
+					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
@@ -2043,14 +2047,15 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			validationErrors: map[int]error{},
+			validationErrors: map[string]error{},
 		},
 		{
 			name: "cluster should match",
 			apps: []v1alpha1.Application{
 				{
-					TypeMeta:   metav1.TypeMeta{},
-					ObjectMeta: metav1.ObjectMeta{},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app",
+					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
@@ -2065,7 +2070,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			validationErrors: map[int]error{0: errors.New("application destination spec is invalid: there are no clusters with this name: nonexistent-cluster")},
+			validationErrors: map[string]error{"app": errors.New("application destination spec is invalid: there are no clusters with this name: nonexistent-cluster")},
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
@@ -2198,13 +2203,20 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
+	kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+	someTime := &metav1.Time{Time: time.Now().Add(-5 * time.Minute)}
+	existingParameterGeneratedCondition := getParametersGeneratedCondition(true, "")
+	existingParameterGeneratedCondition.LastTransitionTime = someTime
 
-	testCases := []struct {
-		appset     v1alpha1.ApplicationSet
-		conditions []v1alpha1.ApplicationSetCondition
-		testfunc   func(t *testing.T, appset v1alpha1.ApplicationSet)
+	for _, c := range []struct {
+		name                string
+		appset              v1alpha1.ApplicationSet
+		condition           v1alpha1.ApplicationSetCondition
+		parametersGenerated bool
+		testfunc            func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition)
 	}{
 		{
+			name: "has parameters generated condition when false",
 			appset: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -2221,20 +2233,28 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					Template: v1alpha1.ApplicationSetTemplate{},
 				},
 			},
-			conditions: []v1alpha1.ApplicationSetCondition{
-				{
-					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-					Message: "All applications have been generated successfully",
-					Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-				},
+			condition: v1alpha1.ApplicationSetCondition{
+				Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+				Message: "This is a message",
+				Reason:  "test",
+				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
 			},
-			testfunc: func(t *testing.T, appset v1alpha1.ApplicationSet) {
+			parametersGenerated: false,
+			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
 				t.Helper()
-				assert.Len(t, appset.Status.Conditions, 3)
+				require.Len(t, conditions, 2)
+
+				// Conditions are ordered by type, so the order is deterministic
+				assert.Equal(t, v1alpha1.ApplicationSetConditionParametersGenerated, conditions[0].Type)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusFalse, conditions[0].Status)
+
+				assert.Equal(t, v1alpha1.ApplicationSetConditionResourcesUpToDate, conditions[1].Type)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusFalse, conditions[1].Status)
+				assert.Equal(t, "test", conditions[1].Reason)
 			},
 		},
 		{
+			name: "parameters generated condition is used when specified",
 			appset: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -2251,37 +2271,24 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					Template: v1alpha1.ApplicationSetTemplate{},
 				},
 			},
-			conditions: []v1alpha1.ApplicationSetCondition{
-				{
-					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-					Message: "All applications have been generated successfully",
-					Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-				},
-				{
-					Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
-					Message: "ApplicationSet Rollout Rollout started",
-					Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-				},
+			condition: v1alpha1.ApplicationSetCondition{
+				Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
+				Message: "This is a message",
+				Reason:  "test",
+				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
 			},
-			testfunc: func(t *testing.T, appset v1alpha1.ApplicationSet) {
+			parametersGenerated: true,
+			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
 				t.Helper()
-				assert.Len(t, appset.Status.Conditions, 3)
+				require.Len(t, conditions, 1)
 
-				isProgressingCondition := false
-
-				for _, condition := range appset.Status.Conditions {
-					if condition.Type == v1alpha1.ApplicationSetConditionRolloutProgressing {
-						isProgressingCondition = true
-						break
-					}
-				}
-
-				assert.False(t, isProgressingCondition, "no RolloutProgressing should be set for applicationsets that don't have rolling strategy")
+				assert.Equal(t, v1alpha1.ApplicationSetConditionParametersGenerated, conditions[0].Type)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusFalse, conditions[0].Status)
+				assert.Equal(t, "test", conditions[0].Reason)
 			},
 		},
 		{
+			name: "has parameter conditions when true",
 			appset: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -2296,83 +2303,369 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 						}},
 					},
 					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+			},
+			condition: v1alpha1.ApplicationSetCondition{
+				Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+				Message: "This is a message",
+				Reason:  "test",
+				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			},
+			parametersGenerated: true,
+			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
+				t.Helper()
+				require.Len(t, conditions, 2)
+
+				// Conditions are ordered by type, so the order is deterministic
+				assert.Equal(t, v1alpha1.ApplicationSetConditionParametersGenerated, conditions[0].Type)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusTrue, conditions[0].Status)
+
+				assert.Equal(t, v1alpha1.ApplicationSetConditionResourcesUpToDate, conditions[1].Type)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusFalse, conditions[1].Status)
+				assert.Equal(t, "test", conditions[1].Reason)
+			},
+		},
+		{
+			name: "resource up to date sets error condition to false",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{
+								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+							}},
+						}},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+			},
+			condition: v1alpha1.ApplicationSetCondition{
+				Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+				Message: "Completed",
+				Reason:  "test",
+				Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			},
+			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
+				t.Helper()
+				require.Len(t, conditions, 3)
+
+				assert.Equal(t, v1alpha1.ApplicationSetConditionErrorOccurred, conditions[0].Type)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusFalse, conditions[0].Status)
+				assert.Equal(t, "test", conditions[0].Reason)
+				assert.Equal(t, "Completed", conditions[0].Message)
+
+				assert.Equal(t, v1alpha1.ApplicationSetConditionParametersGenerated, conditions[1].Type)
+
+				assert.Equal(t, v1alpha1.ApplicationSetConditionResourcesUpToDate, conditions[2].Type)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusTrue, conditions[2].Status)
+				assert.Equal(t, "test", conditions[2].Reason)
+				assert.Equal(t, "Completed", conditions[2].Message)
+			},
+		},
+		{
+			name: "error condition sets resource up to date to false",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{
+								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+							}},
+						}},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+			},
+			condition: v1alpha1.ApplicationSetCondition{
+				Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
+				Message: "Error",
+				Reason:  "test",
+				Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			},
+			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
+				t.Helper()
+				require.Len(t, conditions, 3)
+
+				assert.Equal(t, v1alpha1.ApplicationSetConditionErrorOccurred, conditions[0].Type)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusTrue, conditions[0].Status)
+				assert.Equal(t, "test", conditions[0].Reason)
+				assert.Equal(t, "Error", conditions[0].Message)
+
+				assert.Equal(t, v1alpha1.ApplicationSetConditionParametersGenerated, conditions[1].Type)
+
+				assert.Equal(t, v1alpha1.ApplicationSetConditionResourcesUpToDate, conditions[2].Type)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusFalse, conditions[2].Status)
+				assert.Equal(t, v1alpha1.ApplicationSetReasonErrorOccurred, conditions[2].Reason)
+				assert.Equal(t, "Error", conditions[2].Message)
+			},
+		},
+		{
+			name: "updating an unchanged condition does not mutate existing conditions",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{
+								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+							}},
+						}},
+					},
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
-										{
-											Key:      "test",
-											Operator: "In",
-											Values:   []string{"test"},
-										},
-									},
-								},
-							},
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					Conditions: []v1alpha1.ApplicationSetCondition{
+						{
+							Type:               v1alpha1.ApplicationSetConditionErrorOccurred,
+							Message:            "existing",
+							LastTransitionTime: someTime,
+						},
+						existingParameterGeneratedCondition,
+						{
+							Type:               v1alpha1.ApplicationSetConditionResourcesUpToDate,
+							Message:            "existing",
+							Status:             v1alpha1.ApplicationSetConditionStatusFalse,
+							LastTransitionTime: someTime,
+						},
+						{
+							Type:               v1alpha1.ApplicationSetConditionRolloutProgressing,
+							Message:            "existing",
+							LastTransitionTime: someTime,
 						},
 					},
 				},
 			},
-			conditions: []v1alpha1.ApplicationSetCondition{
-				{
-					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-					Message: "All applications have been generated successfully",
-					Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-				},
-				{
-					Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
-					Message: "ApplicationSet Rollout Rollout started",
-					Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-				},
+			condition: v1alpha1.ApplicationSetCondition{
+				Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+				Message: "existing",
+				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
 			},
-			testfunc: func(t *testing.T, appset v1alpha1.ApplicationSet) {
+			parametersGenerated: true,
+			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
 				t.Helper()
-				assert.Len(t, appset.Status.Conditions, 4)
+				require.Len(t, conditions, 4)
 
-				isProgressingCondition := false
+				assert.Equal(t, v1alpha1.ApplicationSetConditionErrorOccurred, conditions[0].Type)
+				assert.Equal(t, someTime, conditions[0].LastTransitionTime)
 
-				for _, condition := range appset.Status.Conditions {
-					if condition.Type == v1alpha1.ApplicationSetConditionRolloutProgressing {
-						isProgressingCondition = true
-						break
-					}
-				}
+				assert.Equal(t, v1alpha1.ApplicationSetConditionParametersGenerated, conditions[1].Type)
+				assert.Equal(t, someTime, conditions[1].LastTransitionTime)
 
-				assert.True(t, isProgressingCondition, "RolloutProgressing should be set for rollout strategy appset")
+				assert.Equal(t, v1alpha1.ApplicationSetConditionResourcesUpToDate, conditions[2].Type)
+				assert.Equal(t, someTime, conditions[2].LastTransitionTime)
+
+				assert.Equal(t, v1alpha1.ApplicationSetConditionRolloutProgressing, conditions[3].Type)
+				assert.Equal(t, someTime, conditions[3].LastTransitionTime)
 			},
 		},
-	}
-
-	kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
-
-	for _, testCase := range testCases {
-		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testCase.appset).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).WithStatusSubresource(&testCase.appset).Build()
-		metrics := appsetmetrics.NewFakeAppsetMetrics()
-
-		argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
-
-		r := ApplicationSetReconciler{
-			Client:   client,
-			Scheme:   scheme,
-			Renderer: &utils.Render{},
-			Recorder: record.NewFakeRecorder(1),
-			Generators: map[string]generators.Generator{
-				"List": generators.NewListGenerator(),
+		{
+			name: "progressing conditions is removed when AppSet is not configured",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{
+								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+							}},
+						}},
+					},
+					// Strategy removed
+					// Strategy: &v1alpha1.ApplicationSetStrategy{
+					// 	Type:        "RollingSync",
+					// 	RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+					// },
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					Conditions: []v1alpha1.ApplicationSetCondition{
+						{
+							Type:               v1alpha1.ApplicationSetConditionErrorOccurred,
+							Message:            "existing",
+							LastTransitionTime: someTime,
+						},
+						existingParameterGeneratedCondition,
+						{
+							Type:               v1alpha1.ApplicationSetConditionResourcesUpToDate,
+							Message:            "existing",
+							Status:             v1alpha1.ApplicationSetConditionStatusFalse,
+							LastTransitionTime: someTime,
+						},
+						{
+							Type:               v1alpha1.ApplicationSetConditionRolloutProgressing,
+							Message:            "existing",
+							LastTransitionTime: someTime,
+						},
+					},
+				},
 			},
-			ArgoDB:        argodb,
-			KubeClientset: kubeclientset,
-			Metrics:       metrics,
-		}
+			condition: v1alpha1.ApplicationSetCondition{
+				Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+				Message: "existing",
+				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			},
+			parametersGenerated: true,
+			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
+				t.Helper()
+				require.Len(t, conditions, 3)
+				for _, c := range conditions {
+					assert.NotEqual(t, v1alpha1.ApplicationSetConditionRolloutProgressing, c.Type)
+				}
+			},
+		},
+		{
+			name: "progressing conditions is ignored when AppSet is not configured",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{
+								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+							}},
+						}},
+					},
+					// Strategy removed
+					// Strategy: &v1alpha1.ApplicationSetStrategy{
+					// 	Type:        "RollingSync",
+					// 	RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+					// },
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					Conditions: []v1alpha1.ApplicationSetCondition{
+						{
+							Type:               v1alpha1.ApplicationSetConditionErrorOccurred,
+							Message:            "existing",
+							LastTransitionTime: someTime,
+						},
+						existingParameterGeneratedCondition,
+						{
+							Type:               v1alpha1.ApplicationSetConditionResourcesUpToDate,
+							Message:            "existing",
+							Status:             v1alpha1.ApplicationSetConditionStatusFalse,
+							LastTransitionTime: someTime,
+						},
+					},
+				},
+			},
+			condition: v1alpha1.ApplicationSetCondition{
+				Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
+				Message: "do not add me",
+				Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			},
+			parametersGenerated: true,
+			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
+				t.Helper()
+				require.Len(t, conditions, 3)
+				for _, c := range conditions {
+					assert.NotEqual(t, v1alpha1.ApplicationSetConditionRolloutProgressing, c.Type)
+				}
+			},
+		},
+		{
+			name: "progressing conditions is updated correctly when configured",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{
+								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+							}},
+						}},
+					},
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					Conditions: []v1alpha1.ApplicationSetCondition{
+						{
+							Type:               v1alpha1.ApplicationSetConditionErrorOccurred,
+							Message:            "existing",
+							LastTransitionTime: someTime,
+						},
+						existingParameterGeneratedCondition,
+						{
+							Type:               v1alpha1.ApplicationSetConditionResourcesUpToDate,
+							Message:            "existing",
+							Status:             v1alpha1.ApplicationSetConditionStatusFalse,
+							LastTransitionTime: someTime,
+						},
+						{
+							Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
+							Message: "old value",
+							Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+						},
+					},
+				},
+			},
+			condition: v1alpha1.ApplicationSetCondition{
+				Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
+				Message: "new value",
+				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			},
+			parametersGenerated: true,
+			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
+				t.Helper()
+				require.Len(t, conditions, 4)
 
-		for _, condition := range testCase.conditions {
-			err = r.setApplicationSetStatusCondition(t.Context(), &testCase.appset, condition, true)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionRolloutProgressing, conditions[3].Type)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusFalse, conditions[3].Status)
+				assert.Equal(t, "new value", conditions[3].Message)
+			},
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&c.appset).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).WithStatusSubresource(&c.appset).Build()
+			metrics := appsetmetrics.NewFakeAppsetMetrics()
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+
+			r := ApplicationSetReconciler{
+				Client:   client,
+				Scheme:   scheme,
+				Renderer: &utils.Render{},
+				Recorder: record.NewFakeRecorder(1),
+				Generators: map[string]generators.Generator{
+					"List": generators.NewListGenerator(),
+				},
+				ArgoDB:        argodb,
+				KubeClientset: kubeclientset,
+				Metrics:       metrics,
+			}
+
+			err = r.setApplicationSetStatusCondition(t.Context(), &c.appset, c.condition, c.parametersGenerated)
 			require.NoError(t, err)
-		}
 
-		testCase.testfunc(t, testCase.appset)
+			c.testfunc(t, c.appset.Status.Conditions)
+		})
 	}
 }
 
@@ -7134,7 +7427,7 @@ func TestSyncApplication(t *testing.T) {
 					Info: []*v1alpha1.Info{
 						{
 							Name:  "Reason",
-							Value: "ApplicationSet RollingSync triggered a sync of this Application resource.",
+							Value: "ApplicationSet RollingSync triggered a sync of this Application resource",
 						},
 					},
 					Sync: &v1alpha1.SyncOperation{
@@ -7176,7 +7469,7 @@ func TestSyncApplication(t *testing.T) {
 					Info: []*v1alpha1.Info{
 						{
 							Name:  "Reason",
-							Value: "ApplicationSet RollingSync triggered a sync of this Application resource.",
+							Value: "ApplicationSet RollingSync triggered a sync of this Application resource",
 						},
 					},
 					Sync: &v1alpha1.SyncOperation{
