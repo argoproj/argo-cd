@@ -238,7 +238,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		var message string
 		for _, appName := range errorApps {
 			message = validateErrors[appName].Error()
-			logCtx.WithField("app", appName).Errorf("validation error found during application validation: %s", message)
+			logCtx.WithField("application", appName).Errorf("validation error found during application validation: %s", message)
 		}
 		if len(validateErrors) > 1 {
 			// Only the last message gets added to the appset status, to keep the size reasonable.
@@ -256,8 +256,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	var validApps []argov1alpha1.Application
-	for i, app := range generatedApplications {
-		if validateErrors[app.QualifiedName()] == nil {
+	for i := range generatedApplications {
+		if validateErrors[generatedApplications[i].QualifiedName()] == nil {
 			validApps = append(validApps, generatedApplications[i])
 		}
 	}
@@ -311,7 +311,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			_ = r.setApplicationSetStatusCondition(ctx,
 				&applicationSetInfo,
 				argov1alpha1.ApplicationSetCondition{
-					Type:    argov1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
 					Message: err.Error(),
 					Reason:  argov1alpha1.ApplicationSetReasonDeleteApplicationError,
 					Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
@@ -386,22 +386,21 @@ func getParametersGeneratedCondition(parametersGenerated bool, message string) a
 }
 
 func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, condition argov1alpha1.ApplicationSetCondition, parametersGenerated bool) error {
-	newConditions := []argov1alpha1.ApplicationSetCondition{}
+	// Initialize the default condition types that this method evaluates
 	evaluatedTypes := map[argov1alpha1.ApplicationSetConditionType]bool{
 		argov1alpha1.ApplicationSetConditionParametersGenerated: true,
 		argov1alpha1.ApplicationSetConditionErrorOccurred:       false,
 		argov1alpha1.ApplicationSetConditionResourcesUpToDate:   false,
 		argov1alpha1.ApplicationSetConditionRolloutProgressing:  false,
 	}
+	// Evaluate current condition
+	evaluatedTypes[condition.Type] = true
+	newConditions := []argov1alpha1.ApplicationSetCondition{condition}
 
 	if !isRollingSyncStrategy(applicationSet) {
 		// Progressing sync is always evaluated so conditions are removed when it is not enabled
 		evaluatedTypes[argov1alpha1.ApplicationSetConditionRolloutProgressing] = true
 	}
-
-	// Evaluate current condition
-	evaluatedTypes[condition.Type] = true
-	newConditions = append(newConditions, condition)
 
 	// Evaluate ParametersGenerated since it is always provided
 	if condition.Type != argov1alpha1.ApplicationSetConditionParametersGenerated {
@@ -455,30 +454,31 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 		}
 	}
 
-	if needToUpdateConditions {
-		// DefaultRetry will retry 5 times with a backoff factor of 1, jitter of 0.1 and a duration of 10ms
-		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			updatedAppset := &argov1alpha1.ApplicationSet{}
-			if err := r.Get(ctx, types.NamespacedName{Namespace: applicationSet.Namespace, Name: applicationSet.Name}, updatedAppset); err != nil {
-				if client.IgnoreNotFound(err) != nil {
-					return nil
-				}
-				return fmt.Errorf("error fetching updated application set: %w", err)
+	if !needToUpdateConditions {
+		return nil
+	}
+	// DefaultRetry will retry 5 times with a backoff factor of 1, jitter of 0.1 and a duration of 10ms
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		updatedAppset := &argov1alpha1.ApplicationSet{}
+		if err := r.Get(ctx, types.NamespacedName{Namespace: applicationSet.Namespace, Name: applicationSet.Name}, updatedAppset); err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				return nil
 			}
-
-			updatedAppset.Status.Conditions = applicationSet.Status.Conditions
-
-			// Update the newly fetched object with new set of conditions
-			err := r.Client.Status().Update(ctx, updatedAppset)
-			if err != nil {
-				return err
-			}
-			updatedAppset.DeepCopyInto(applicationSet)
-			return nil
-		})
-		if err != nil && !apierrors.IsNotFound(err) {
-			return fmt.Errorf("unable to set application set condition: %w", err)
+			return fmt.Errorf("error fetching updated application set: %w", err)
 		}
+
+		updatedAppset.Status.SetConditions(newConditions, evaluatedTypes)
+
+		// Update the newly fetched object with new set of conditions
+		err := r.Client.Status().Update(ctx, updatedAppset)
+		if err != nil {
+			return err
+		}
+		updatedAppset.DeepCopyInto(applicationSet)
+		return nil
+	})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("unable to set application set condition: %w", err)
 	}
 
 	return nil
@@ -489,13 +489,13 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Context, desiredApplications []argov1alpha1.Application, applicationSetInfo argov1alpha1.ApplicationSet) (map[string]error, error) {
 	errorsByApp := map[string]error{}
 	namesSet := map[string]bool{}
-	for _, app := range desiredApplications {
+	for i := range desiredApplications {
+		app := &desiredApplications[i]
 		if namesSet[app.Name] {
 			errorsByApp[app.QualifiedName()] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSetInfo.Name, app.Name)
 			continue
 		}
 		namesSet[app.Name] = true
-
 		appProject := &argov1alpha1.AppProject{}
 		err := r.Get(ctx, types.NamespacedName{Name: app.Spec.Project, Namespace: r.ArgoCDNamespace}, appProject)
 		if err != nil {
@@ -1264,7 +1264,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusConditio
 
 	isProgressing := false
 	progressingStep := ""
-	for i := 0; i < len(applicationSet.Spec.Strategy.RollingSync.Steps); i++ {
+	for i := range applicationSet.Spec.Strategy.RollingSync.Steps {
 		step := strconv.Itoa(i + 1)
 		isCompleted, ok := completedWaves[step]
 		if !ok {
@@ -1299,7 +1299,6 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusConditio
 			}, true,
 		)
 	}
-
 	return applicationSet.Status.Conditions
 }
 
@@ -1419,7 +1418,8 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 
 	if needToUpdateStatus {
 		// sort to make sure the array is always in the same order
-		applicationSet.Status.ApplicationStatus = append(make([]argov1alpha1.ApplicationSetApplicationStatus, 0, len(applicationStatuses)), applicationStatuses...)
+		applicationSet.Status.ApplicationStatus = make([]argov1alpha1.ApplicationSetApplicationStatus, len(applicationStatuses))
+		copy(applicationSet.Status.ApplicationStatus, applicationStatuses)
 		sort.Slice(applicationSet.Status.ApplicationStatus, func(i, j int) bool {
 			return applicationSet.Status.ApplicationStatus[i].Application < applicationSet.Status.ApplicationStatus[j].Application
 		})

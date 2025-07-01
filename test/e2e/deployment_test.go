@@ -393,20 +393,18 @@ func extractKubeConfigValues() (string, string, error) {
 	var kubeConfigDefault string
 
 	paths := loadingRules.Precedence
-	{
-		// For all the kubeconfig paths, look for one that exists
-		for _, path := range paths {
-			_, err = os.Stat(path)
-			if err == nil {
-				// Success
-				kubeConfigDefault = path
-				break
-			} // Otherwise, continue.
-		}
+	// For all the kubeconfig paths, look for one that exists
+	for _, path := range paths {
+		_, err = os.Stat(path)
+		if err == nil {
+			// Success
+			kubeConfigDefault = path
+			break
+		} // Otherwise, continue.
+	}
 
-		if kubeConfigDefault == "" {
-			return "", "", stderrors.New("unable to retrieve kube config path")
-		}
+	if kubeConfigDefault == "" {
+		return "", "", stderrors.New("unable to retrieve kube config path")
 	}
 
 	kubeConfigContents, err := os.ReadFile(kubeConfigDefault)

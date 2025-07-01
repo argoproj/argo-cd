@@ -24,7 +24,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/dex"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
@@ -44,6 +43,7 @@ type SessionManager struct {
 	sleep                         func(d time.Duration)
 	verificationDelayNoiseEnabled bool
 	failedLock                    sync.RWMutex
+	metricsRegistry               MetricsRegistry
 }
 
 // LoginAttempts is a timestamped counter for failed login attempts
@@ -52,6 +52,10 @@ type LoginAttempts struct {
 	LastFailed time.Time `json:"lastFailed"`
 	// Number of consecutive login failures
 	FailCount int `json:"failCount"`
+}
+
+type MetricsRegistry interface {
+	IncLoginRequestCounter(status string)
 }
 
 const (
@@ -173,6 +177,20 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id 
 	return mgr.signClaims(claims)
 }
 
+func (mgr *SessionManager) CollectMetrics(registry MetricsRegistry) {
+	mgr.metricsRegistry = registry
+	if mgr.metricsRegistry == nil {
+		log.Warn("Metrics registry is not set, metrics will not be collected")
+		return
+	}
+}
+
+func (mgr *SessionManager) IncLoginRequestCounter(status string) {
+	if mgr.metricsRegistry != nil {
+		mgr.metricsRegistry.IncLoginRequestCounter(status)
+	}
+}
+
 func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	settings, err := mgr.settingsMgr.GetSettings()
@@ -286,16 +304,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 // GetLoginFailures retrieves the login failure information from the cache. Any modifications to the LoginAttemps map must be done in a thread-safe manner.
 func (mgr *SessionManager) GetLoginFailures() map[string]LoginAttempts {
 	// Get failures from the cache
-	var failures map[string]LoginAttempts
-	err := mgr.storage.GetLoginAttempts(&failures)
-	if err != nil {
-		if !errors.Is(err, appstate.ErrCacheMiss) {
-			log.Errorf("Could not retrieve login attempts: %v", err)
-		}
-		failures = make(map[string]LoginAttempts)
-	}
-
-	return failures
+	return mgr.storage.GetLoginAttempts()
 }
 
 func expireOldFailedAttempts(maxAge time.Duration, failures map[string]LoginAttempts) int {

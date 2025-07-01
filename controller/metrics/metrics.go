@@ -33,6 +33,7 @@ import (
 type MetricsServer struct {
 	*http.Server
 	syncCounter                       *prometheus.CounterVec
+	syncDuration                      *prometheus.CounterVec
 	kubectlExecCounter                *prometheus.CounterVec
 	kubectlExecPendingGauge           *prometheus.GaugeVec
 	orphanedResourcesGauge            *prometheus.GaugeVec
@@ -74,6 +75,14 @@ var (
 			Help: "Number of application syncs.",
 		},
 		append(descAppDefaultLabels, "dest_server", "phase", "dry_run"),
+	)
+
+	syncDuration = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_app_sync_duration_seconds_total",
+			Help: "Application sync performance in seconds total.",
+		},
+		append(descAppDefaultLabels, "dest_server"),
 	)
 
 	k8sRequestCounter = prometheus.NewCounterVec(
@@ -188,6 +197,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	healthz.ServeHealthCheck(mux, healthCheck)
 
 	registry.MustRegister(syncCounter)
+	registry.MustRegister(syncDuration)
 	registry.MustRegister(k8sRequestCounter)
 	registry.MustRegister(kubectlExecCounter)
 	registry.MustRegister(kubectlExecPendingGauge)
@@ -209,6 +219,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 			Handler: mux,
 		},
 		syncCounter:                       syncCounter,
+		syncDuration:                      syncDuration,
 		k8sRequestCounter:                 k8sRequestCounter,
 		kubectlExecCounter:                kubectlExecCounter,
 		kubectlExecPendingGauge:           kubectlExecPendingGauge,
@@ -241,6 +252,14 @@ func (m *MetricsServer) IncSync(app *argoappv1.Application, destServer string, s
 	}
 	isDryRun := app.Operation != nil && app.Operation.DryRun()
 	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), destServer, string(state.Phase), strconv.FormatBool(isDryRun)).Inc()
+}
+
+// IncAppSyncDuration observes app sync duration
+func (m *MetricsServer) IncAppSyncDuration(app *argoappv1.Application, destServer string, state *argoappv1.OperationState) {
+	if state.FinishedAt != nil {
+		m.syncDuration.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), destServer).
+			Add(float64(time.Duration(state.FinishedAt.Unix() - state.StartedAt.Unix())))
+	}
 }
 
 func (m *MetricsServer) IncKubectlExec(command string) {
@@ -314,6 +333,7 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 	_, err := m.cron.AddFunc(fmt.Sprintf("@every %s", cacheExpiration), func() {
 		log.Infof("Reset Prometheus metrics based on existing expiration '%v'", cacheExpiration)
 		m.syncCounter.Reset()
+		m.syncDuration.Reset()
 		m.kubectlExecCounter.Reset()
 		m.kubectlExecPendingGauge.Reset()
 		m.orphanedResourcesGauge.Reset()

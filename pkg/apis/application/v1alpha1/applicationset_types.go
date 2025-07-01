@@ -764,6 +764,7 @@ type BasicAuthBitbucketServer struct {
 type PullRequestGeneratorFilter struct {
 	BranchMatch       *string `json:"branchMatch,omitempty" protobuf:"bytes,1,opt,name=branchMatch"`
 	TargetBranchMatch *string `json:"targetBranchMatch,omitempty" protobuf:"bytes,2,opt,name=targetBranchMatch"`
+	TitleMatch        *string `json:"titleMatch,omitempty" protobuf:"bytes,3,op,name=titleMatch"`
 }
 
 type PluginConfigMapRef struct {
@@ -972,14 +973,14 @@ func (status *ApplicationSetStatus) SetConditions(conditions []ApplicationSetCon
 		if left.Type != right.Type {
 			return left.Type < right.Type
 		}
-		if left.Message != right.Message {
-			return left.Message < right.Message
-		}
 		if left.Status != right.Status {
 			return left.Status < right.Status
 		}
 		if left.Reason != right.Reason {
 			return left.Reason < right.Reason
+		}
+		if left.Message != right.Message {
+			return left.Message < right.Message
 		}
 		return left.LastTransitionTime.Before(right.LastTransitionTime)
 	})
