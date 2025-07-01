@@ -125,7 +125,7 @@ type ApplicationController struct {
 	statusHardRefreshTimeout      time.Duration
 	statusRefreshJitter           time.Duration
 	selfHealTimeout               time.Duration
-	selfHealBackOff               *wait.Backoff
+	selfHealBackoff               *wait.Backoff
 	selfHealBackoffCooldown       time.Duration
 	syncTimeout                   time.Duration
 	db                            db.ArgoDB
@@ -208,7 +208,7 @@ func NewApplicationController(
 		auditLogger:                       argo.NewAuditLogger(kubeClientset, common.ApplicationController, enableK8sEvent),
 		settingsMgr:                       settingsMgr,
 		selfHealTimeout:                   selfHealTimeout,
-		selfHealBackOff:                   selfHealBackoff,
+		selfHealBackoff:                   selfHealBackoff,
 		selfHealBackoffCooldown:           selfHealBackoffCooldown,
 		syncTimeout:                       syncTimeout,
 		clusterSharding:                   clusterSharding,
@@ -2282,14 +2282,14 @@ func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application, alread
 	}
 
 	var retryAfter time.Duration
-	if ctrl.selfHealBackOff == nil {
+	if ctrl.selfHealBackoff == nil {
 		if timeSinceOperation == nil {
 			retryAfter = ctrl.selfHealTimeout
 		} else {
 			retryAfter = ctrl.selfHealTimeout - *timeSinceOperation
 		}
 	} else {
-		backOff := *ctrl.selfHealBackOff
+		backOff := *ctrl.selfHealBackoff
 		backOff.Steps = int(app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount)
 		var delay time.Duration
 		steps := backOff.Steps
