@@ -2193,7 +2193,6 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 				})
 			}
 		}
-
 	}
 	ts.AddCheckpoint("already_attempted_check_ms")
 
