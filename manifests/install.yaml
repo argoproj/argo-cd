@@ -12163,6 +12163,8 @@ spec:
                                           type: string
                                         targetBranchMatch:
                                           type: string
+                                        titleMatch:
+                                          type: string
                                       type: object
                                     type: array
                                   gitea:
@@ -18005,6 +18007,8 @@ spec:
                                           type: string
                                         targetBranchMatch:
                                           type: string
+                                        titleMatch:
+                                          type: string
                                       type: object
                                     type: array
                                   gitea:
@@ -21135,6 +21139,8 @@ spec:
                               branchMatch:
                                 type: string
                               targetBranchMatch:
+                                type: string
+                              titleMatch:
                                 type: string
                             type: object
                           type: array
