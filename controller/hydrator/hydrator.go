@@ -108,18 +108,6 @@ type HydrationQueueKey struct {
 	DestinationBranch    string
 }
 
-// uniqueHydrationDestination is used to detect duplicate hydrate destinations.
-type uniqueHydrationDestination struct {
-	//nolint:unused // used as part of a map key
-	sourceRepoURL string
-	//nolint:unused // used as part of a map key
-	sourceTargetRevision string
-	//nolint:unused // used as part of a map key
-	destinationBranch string
-	//nolint:unused // used as part of a map key
-	destinationPath string
-}
-
 func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey HydrationQueueKey) (processNext bool) {
 	logCtx := log.WithFields(log.Fields{
 		"sourceRepoURL":        hydrationKey.SourceRepoURL,
@@ -199,7 +187,7 @@ func (h *Hydrator) getRelevantAppsForHydration(logCtx *log.Entry, hydrationKey H
 	}
 
 	var relevantApps []*appv1.Application
-	uniqueDestinations := make(map[uniqueHydrationDestination]bool, len(apps.Items))
+	uniquePaths := make(map[string]bool, len(apps.Items))
 	for _, app := range apps.Items {
 		if app.Spec.SourceHydrator == nil {
 			continue
@@ -229,17 +217,12 @@ func (h *Hydrator) getRelevantAppsForHydration(logCtx *log.Entry, hydrationKey H
 			continue
 		}
 
-		uniqueDestinationKey := uniqueHydrationDestination{
-			sourceRepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
-			sourceTargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
-			destinationBranch:    destinationBranch,
-			destinationPath:      app.Spec.SourceHydrator.SyncSource.Path,
-		}
 		// TODO: test the dupe detection
-		if _, ok := uniqueDestinations[uniqueDestinationKey]; ok {
-			return nil, fmt.Errorf("multiple app hydrators use the same destination: %v", uniqueDestinationKey)
+		// TODO: normalize the path to avoid "path/.." from being treated as different from "."
+		if _, ok := uniquePaths[app.Spec.SourceHydrator.SyncSource.Path]; ok {
+			return nil, fmt.Errorf("multiple app hydrators use the same destination: %v", app.Spec.SourceHydrator.SyncSource.Path)
 		}
-		uniqueDestinations[uniqueDestinationKey] = true
+		uniquePaths[app.Spec.SourceHydrator.SyncSource.Path] = true
 
 		relevantApps = append(relevantApps, &app)
 	}
