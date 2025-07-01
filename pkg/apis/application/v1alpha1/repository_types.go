@@ -244,7 +244,7 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey, store)
 	}
 	if repo.UseAzureWorkloadIdentity {
-		return git.NewAzureWorkloadIdentityCreds(store, workloadidentity.NewWorkloadIdentityTokenProvider())
+		return git.NewAzureWorkloadIdentityCreds(workloadidentity.NewWorkloadIdentityTokenProvider())
 	}
 	return git.NopCreds{}
 }
