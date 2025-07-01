@@ -280,10 +280,10 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			_ = r.setApplicationSetStatusCondition(ctx,
 				&applicationSetInfo,
 				argov1alpha1.ApplicationSetCondition{
-					Type:    argov1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
 					Message: err.Error(),
 					Reason:  argov1alpha1.ApplicationSetReasonUpdateApplicationError,
-					Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
+					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 				}, parametersGenerated,
 			)
 			return ctrl.Result{}, err
@@ -294,10 +294,10 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			_ = r.setApplicationSetStatusCondition(ctx,
 				&applicationSetInfo,
 				argov1alpha1.ApplicationSetCondition{
-					Type:    argov1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
 					Message: err.Error(),
 					Reason:  argov1alpha1.ApplicationSetReasonCreateApplicationError,
-					Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
+					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 				}, parametersGenerated,
 			)
 			return ctrl.Result{}, err
@@ -314,7 +314,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
 					Message: err.Error(),
 					Reason:  argov1alpha1.ApplicationSetReasonDeleteApplicationError,
-					Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
+					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 				}, parametersGenerated,
 			)
 			return ctrl.Result{}, err
