@@ -1779,7 +1779,7 @@ func TestCompareAppStateDefaultRevisionUpdated(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
-	assert.True(t, compRes.revisionUpdated)
+	assert.True(t, compRes.revisionsMayHaveChanges)
 }
 
 func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
@@ -1802,7 +1802,7 @@ func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
-	assert.True(t, compRes.revisionUpdated)
+	assert.True(t, compRes.revisionsMayHaveChanges)
 }
 
 func Test_normalizeClusterScopeTracking(t *testing.T) {

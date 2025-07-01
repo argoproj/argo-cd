@@ -1866,7 +1866,7 @@ apps/Deployment:
     hs = {}
     hs.status = ""
     hs.message = ""
-    
+
     if obj.metadata ~= nil then
       if obj.metadata.labels ~= nil then
         current_status = obj.metadata.labels["status"]
@@ -2463,35 +2463,71 @@ func TestAppStatusIsReplaced(t *testing.T) {
 
 func TestAlreadyAttemptSync(t *testing.T) {
 	app := newFakeApp()
+	defaultRevision := app.Status.OperationState.SyncResult.Revision
 
 	t.Run("no operation state", func(t *testing.T) {
 		app := app.DeepCopy()
 		app.Status.OperationState = nil
-		attempted, _ := alreadyAttemptedSync(app, "", []string{}, false, false)
+		attempted, _, _ := alreadyAttemptedSync(app, []string{defaultRevision}, true)
 		assert.False(t, attempted)
 	})
 
-	t.Run("no sync operation", func(t *testing.T) {
-		app := app.DeepCopy()
-		app.Status.OperationState.Operation.Sync = nil
-		attempted, _ := alreadyAttemptedSync(app, "", []string{}, false, false)
-		assert.False(t, attempted)
-	})
-
-	t.Run("no sync result", func(t *testing.T) {
+	t.Run("no sync result for running sync", func(t *testing.T) {
 		app := app.DeepCopy()
 		app.Status.OperationState.SyncResult = nil
-		attempted, _ := alreadyAttemptedSync(app, "", []string{}, false, false)
+		app.Status.OperationState.Phase = synccommon.OperationRunning
+		attempted, _, _ := alreadyAttemptedSync(app, []string{defaultRevision}, true)
 		assert.False(t, attempted)
+	})
+
+	t.Run("no sync result for completed sync", func(t *testing.T) {
+		app := app.DeepCopy()
+		app.Status.OperationState.SyncResult = nil
+		app.Status.OperationState.Phase = synccommon.OperationError
+		attempted, _, _ := alreadyAttemptedSync(app, []string{defaultRevision}, true)
+		assert.True(t, attempted)
 	})
 
 	t.Run("single source", func(t *testing.T) {
-		t.Run("same manifest with sync result", func(t *testing.T) {
-			attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, false)
+		t.Run("no revision", func(t *testing.T) {
+			attempted, _, _ := alreadyAttemptedSync(app, []string{}, true)
+			assert.False(t, attempted)
+		})
+
+		t.Run("empty revision", func(t *testing.T) {
+			attempted, _, _ := alreadyAttemptedSync(app, []string{""}, true)
+			assert.False(t, attempted)
+		})
+
+		t.Run("too many revision", func(t *testing.T) {
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Revision = "sha"
+			attempted, _, _ := alreadyAttemptedSync(app, []string{"sha", "sha2"}, true)
+			assert.False(t, attempted)
+		})
+
+		t.Run("same manifest, same SHA with changes", func(t *testing.T) {
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Revision = "sha"
+			attempted, _, _ := alreadyAttemptedSync(app, []string{"sha"}, true)
 			assert.True(t, attempted)
 		})
 
-		t.Run("same manifest with sync result different targetRevision, same SHA", func(t *testing.T) {
+		t.Run("same manifest, different SHA with changes", func(t *testing.T) {
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Revision = "sha1"
+			attempted, _, _ := alreadyAttemptedSync(app, []string{"sha2"}, true)
+			assert.False(t, attempted)
+		})
+
+		t.Run("same manifest, different SHA without changes", func(t *testing.T) {
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Revision = "sha1"
+			attempted, _, _ := alreadyAttemptedSync(app, []string{"sha2"}, false)
+			assert.True(t, attempted)
+		})
+
+		t.Run("different manifest, same SHA with changes", func(t *testing.T) {
 			// This test represents the case where the user changed a source's target revision to a new branch, but it
 			// points to the same revision as the old branch. We currently do not consider this as having been "already
 			// attempted." In the future we may want to short-circuit the auto-sync in these cases.
@@ -2499,55 +2535,101 @@ func TestAlreadyAttemptSync(t *testing.T) {
 			app.Status.OperationState.SyncResult.Source = v1alpha1.ApplicationSource{TargetRevision: "branch1"}
 			app.Spec.Source = &v1alpha1.ApplicationSource{TargetRevision: "branch2"}
 			app.Status.OperationState.SyncResult.Revision = "sha"
-			attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, false)
+			attempted, _, _ := alreadyAttemptedSync(app, []string{"sha"}, true)
 			assert.False(t, attempted)
 		})
 
-		t.Run("different manifest with sync result, different SHA", func(t *testing.T) {
+		t.Run("different manifest, different SHA with changes", func(t *testing.T) {
 			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Source = v1alpha1.ApplicationSource{Path: "folder1"}
+			app.Spec.Source = &v1alpha1.ApplicationSource{Path: "folder2"}
 			app.Status.OperationState.SyncResult.Revision = "sha1"
-			attempted, _ := alreadyAttemptedSync(app, "sha2", []string{}, false, true)
+			attempted, _, _ := alreadyAttemptedSync(app, []string{"sha2"}, true)
 			assert.False(t, attempted)
 		})
 
-		t.Run("different manifest with sync result, same SHA", func(t *testing.T) {
+		t.Run("different manifest, different SHA without changes", func(t *testing.T) {
 			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Source = v1alpha1.ApplicationSource{Path: "folder1"}
+			app.Spec.Source = &v1alpha1.ApplicationSource{Path: "folder2"}
+			app.Status.OperationState.SyncResult.Revision = "sha1"
+			attempted, _, _ := alreadyAttemptedSync(app, []string{"sha2"}, false)
+			assert.False(t, attempted)
+		})
+
+		t.Run("different manifest, same SHA without changes", func(t *testing.T) {
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Source = v1alpha1.ApplicationSource{Path: "folder1"}
+			app.Spec.Source = &v1alpha1.ApplicationSource{Path: "folder2"}
 			app.Status.OperationState.SyncResult.Revision = "sha"
-			attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, true)
-			assert.True(t, attempted)
+			attempted, _, _ := alreadyAttemptedSync(app, []string{"sha"}, false)
+			assert.False(t, attempted)
 		})
 	})
 
 	t.Run("multi-source", func(t *testing.T) {
-		t.Run("same manifest with sync result", func(t *testing.T) {
-			attempted, _ := alreadyAttemptedSync(app, "", []string{"sha"}, true, false)
+		app := app.DeepCopy()
+		app.Status.OperationState.SyncResult.Sources = []v1alpha1.ApplicationSource{{Path: "folder1"}, {Path: "folder2"}}
+		app.Spec.Sources = []v1alpha1.ApplicationSource{{Path: "folder1"}, {Path: "folder2"}}
+
+		t.Run("same manifest, same SHAs with changes", func(t *testing.T) {
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Revisions = []string{"sha_a", "sha_b"}
+			attempted, _, _ := alreadyAttemptedSync(app, []string{"sha_a", "sha_b"}, true)
 			assert.True(t, attempted)
 		})
 
-		t.Run("same manifest with sync result, different targetRevision, same SHA", func(t *testing.T) {
+		t.Run("same manifest, different SHAs with changes", func(t *testing.T) {
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Revisions = []string{"sha_a_=", "sha_b_1"}
+			attempted, _, _ := alreadyAttemptedSync(app, []string{"sha_a_2", "sha_b_2"}, true)
+			assert.False(t, attempted)
+		})
+
+		t.Run("same manifest, different SHA without changes", func(t *testing.T) {
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Revisions = []string{"sha_a_=", "sha_b_1"}
+			attempted, _, _ := alreadyAttemptedSync(app, []string{"sha_a_2", "sha_b_2"}, false)
+			assert.True(t, attempted)
+		})
+
+		t.Run("different manifest, same SHA with changes", func(t *testing.T) {
 			// This test represents the case where the user changed a source's target revision to a new branch, but it
 			// points to the same revision as the old branch. We currently do not consider this as having been "already
 			// attempted." In the future we may want to short-circuit the auto-sync in these cases.
 			app := app.DeepCopy()
-			app.Status.OperationState.SyncResult.Sources = []v1alpha1.ApplicationSource{{TargetRevision: "branch1"}}
-			app.Spec.Sources = []v1alpha1.ApplicationSource{{TargetRevision: "branch2"}}
-			app.Status.OperationState.SyncResult.Revisions = []string{"sha"}
-			attempted, _ := alreadyAttemptedSync(app, "", []string{"sha"}, true, false)
+			app.Status.OperationState.SyncResult.Sources = []v1alpha1.ApplicationSource{{TargetRevision: "branch1"}, {TargetRevision: "branch2"}}
+			app.Spec.Sources = []v1alpha1.ApplicationSource{{TargetRevision: "branch1"}, {TargetRevision: "branch3"}}
+			app.Status.OperationState.SyncResult.Revisions = []string{"sha_a_2", "sha_b_2"}
+			attempted, _, _ := alreadyAttemptedSync(app, []string{"sha_a_2", "sha_b_2"}, false)
 			assert.False(t, attempted)
 		})
 
-		t.Run("different manifest with sync result, different SHAs", func(t *testing.T) {
+		t.Run("different manifest, different SHA with changes", func(t *testing.T) {
 			app := app.DeepCopy()
-			app.Status.OperationState.SyncResult.Revisions = []string{"sha_a_=", "sha_b_1"}
-			attempted, _ := alreadyAttemptedSync(app, "", []string{"sha_a_2", "sha_b_2"}, true, true)
-			assert.False(t, attempted)
-		})
-
-		t.Run("different manifest with sync result, same SHAs", func(t *testing.T) {
-			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Sources = []v1alpha1.ApplicationSource{{Path: "folder1"}, {Path: "folder2"}}
+			app.Spec.Sources = []v1alpha1.ApplicationSource{{Path: "folder1"}, {Path: "folder3"}}
 			app.Status.OperationState.SyncResult.Revisions = []string{"sha_a", "sha_b"}
-			attempted, _ := alreadyAttemptedSync(app, "", []string{"sha_a", "sha_b"}, true, true)
-			assert.True(t, attempted)
+			attempted, _, _ := alreadyAttemptedSync(app, []string{"sha_a", "sha_b_2"}, true)
+			assert.False(t, attempted)
+		})
+
+		t.Run("different manifest, different SHA without changes", func(t *testing.T) {
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Sources = []v1alpha1.ApplicationSource{{Path: "folder1"}, {Path: "folder2"}}
+			app.Spec.Sources = []v1alpha1.ApplicationSource{{Path: "folder1"}, {Path: "folder3"}}
+			app.Status.OperationState.SyncResult.Revisions = []string{"sha_a", "sha_b"}
+			attempted, _, _ := alreadyAttemptedSync(app, []string{"sha_a", "sha_b_2"}, false)
+			assert.False(t, attempted)
+		})
+
+		t.Run("different manifest, same SHA without changes", func(t *testing.T) {
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Sources = []v1alpha1.ApplicationSource{{Path: "folder1"}, {Path: "folder2"}}
+			app.Spec.Sources = []v1alpha1.ApplicationSource{{Path: "folder1"}, {Path: "folder3"}}
+			app.Status.OperationState.SyncResult.Revisions = []string{"sha_a", "sha_b"}
+			attempted, _, _ := alreadyAttemptedSync(app, []string{"sha_a", "sha_b"}, false)
+			assert.False(t, attempted)
 		})
 	})
 }
