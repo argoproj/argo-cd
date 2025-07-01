@@ -75,8 +75,9 @@ func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
 	azurePullRequests, err := client.GetPullRequestsByProject(ctx, args)
 	if err != nil {
 		// A standard Http 404 error is not returned for Azure DevOps,
-		// so checking the error message for a specific pattern. Also please note that the repos are filtered later,
-		// so what is relevant for AzureDevOps is the existence of the project.
+		// so checking the error message for a specific pattern. 
+		// NOTE: Since the repos are filtered later, only existence of the project
+		// is relevant for AzureDevOps by now
 		if strings.Contains(err.Error(), "The following project does not exist") {
 			// return a custom error indicating that the repository is not found,
 			// but also return the empty result since the decision to continue or not in this case is made by the caller
