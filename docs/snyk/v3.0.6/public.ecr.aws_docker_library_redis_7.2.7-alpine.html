@@ -141,7 +141,7 @@
       padding-top: 2em;
     }
     .project__header {
-      background-color: #030328;
+      background-color: #4b45a9;
       color: #fff;
       margin-bottom: -1px;
       padding-top: 1em;
@@ -201,15 +201,6 @@
       padding: 1.5em;
     }
   
-    .card__labels {
-      position: absolute;
-      top: 1.1em;
-      left: 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-  
     .card .label {
       background-color: #767676;
       border: 2px solid #767676;
@@ -267,7 +258,10 @@
       padding-top: 4em;
     }
   
-    .card--vuln .card__labels > .label:first-child {
+    .card--vuln .label {
+      left: 0;
+      position: absolute;
+      top: 1.1em;
       padding-left: 1.9em;
       padding-right: 1.9em;
       border-radius: 0 0.25rem 0.25rem 0;
@@ -295,36 +289,11 @@
     .card--vuln .card__title {
       font-size: 28px;
       margin-top: 0;
-      margin-right: 100px; /* Ensure space for the risk score */
     }
   
     .card--vuln .card__cta p {
       margin: 0;
       text-align: right;
-    }
-  
-    .risk-score-display {
-      position: absolute;
-      top: 1.5em;
-      right: 1.5em;
-      text-align: right;
-      z-index: 10;
-    }
-  
-    .risk-score-display__label {
-      font-size: 0.7em;
-      font-weight: bold;
-      color: #586069;
-      text-transform: uppercase;
-      line-height: 1;
-      margin-bottom: 3px;
-    }
-  
-    .risk-score-display__value {
-      font-size: 1.9em;
-      font-weight: 600;
-      color: #24292e;
-      line-height: 1;
     }
   
     .source-panel {
@@ -487,12 +456,13 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">June 29th 2025, 12:29:51 am (UTC+00:00)</p>
+                <p class="timestamp">June 15th 2025, 12:26:31 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
-                <span>Scanned the following path:</span>
+                <span>Scanned the following paths:</span>
                 <ul>
-                  <li class="paths">public.ecr.aws/docker/library/haproxy:3.0.8-alpine/docker/library/haproxy (apk)</li>
+                  <li class="paths">public.ecr.aws/docker/library/redis:7.2.7-alpine/docker/library/redis (apk)</li>
+                  <li class="paths">public.ecr.aws/docker/library/redis:7.2.7-alpine/tianon/gosu//usr/local/bin/gosu (gomodules)</li>
                 </ul>
               </div>
     
@@ -504,16 +474,7 @@
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
         </div><!-- .layout-stacked__header -->
-      <section class="layout-container">
-          <table class="metatable">
-              <tbody>
-              <tr class="meta-row"><th class="meta-row-label">Project</th> <td class="meta-row-value">docker-image|public.ecr.aws/docker/library/haproxy</td></tr>
-              <tr class="meta-row"><th class="meta-row-label">Path</th> <td class="meta-row-value">public.ecr.aws/docker/library/haproxy:3.0.8-alpine/docker/library/haproxy</td></tr>
-              <tr class="meta-row"><th class="meta-row-label">Package Manager</th> <td class="meta-row-value">apk</td></tr>
-              
-              </tbody>
-          </table>
-      </section>
+
     <div class="layout-container" style="padding-top: 35px;">
       No known vulnerabilities detected.
     </div>

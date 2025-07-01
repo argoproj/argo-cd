@@ -87,22 +87,10 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                             {formApi => (
                                 <form role='form' className='width-control' onSubmit={formApi.submitForm}>
                                     <div className='argo-form-row'>
-                                        <FormField
-                                            formApi={formApi}
-                                            label='Username'
-                                            field='username'
-                                            component={Text}
-                                            componentProps={{name: 'username', autoCapitalize: 'none', autoComplete: 'username'}}
-                                        />
+                                        <FormField formApi={formApi} label='Username' field='username' component={Text} componentProps={{autoCapitalize: 'none'}} />
                                     </div>
                                     <div className='argo-form-row'>
-                                        <FormField
-                                            formApi={formApi}
-                                            label='Password'
-                                            field='password'
-                                            component={Text}
-                                            componentProps={{name: 'password', type: 'password', autoComplete: 'password'}}
-                                        />
+                                        <FormField formApi={formApi} label='Password' field='password' component={Text} componentProps={{type: 'password'}} />
                                         {this.state.loginError && <div className='argo-form-row__error-msg'>{this.state.loginError}</div>}
                                     </div>
                                     <div className='login__form-row'>

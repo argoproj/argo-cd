@@ -24,24 +24,24 @@ func TestRun_SignalHandling_GracefulShutdown(t *testing.T) {
 		},
 	}
 
-	var runErr error
+	var err error
 	doneCh := make(chan struct{})
 	go func() {
-		runErr = d.Run(t.Context(), &DashboardConfig{ClientOpts: &apiclient.ClientOptions{}})
+		err = d.Run(t.Context(), &DashboardConfig{ClientOpts: &apiclient.ClientOptions{}})
 		close(doneCh)
 	}()
 
 	// Allow some time for the dashboard to register the signal handler
 	time.Sleep(50 * time.Millisecond)
 
-	proc, procErr := os.FindProcess(os.Getpid())
-	require.NoErrorf(t, procErr, "failed to find process: %v", procErr)
-	sigErr := proc.Signal(syscall.SIGINT)
-	require.NoErrorf(t, sigErr, "failed to send SIGINT: %v", sigErr)
+	proc, err := os.FindProcess(os.Getpid())
+	require.NoErrorf(t, err, "failed to find process: %v", err)
+	err = proc.Signal(syscall.SIGINT)
+	require.NoErrorf(t, err, "failed to send SIGINT: %v", err)
 
 	select {
 	case <-doneCh:
-		require.NoError(t, runErr)
+		require.NoError(t, err)
 	case <-time.After(500 * time.Millisecond):
 		t.Fatal("timeout: dashboard.Run did not exit after SIGINT")
 	}
