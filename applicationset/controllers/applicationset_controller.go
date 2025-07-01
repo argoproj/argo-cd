@@ -75,6 +75,11 @@ var defaultPreservedAnnotations = []string{
 	argov1alpha1.AnnotationKeyRefresh,
 }
 
+type deleteInOrder struct {
+	AppName string
+	Step    int
+}
+
 // ApplicationSetReconciler reconciles a ApplicationSet object
 type ApplicationSetReconciler struct {
 	client.Client
@@ -386,10 +391,6 @@ func (r *ApplicationSetReconciler) performReverseDeletion(ctx context.Context, l
 	// Get Rolling Sync Step Maps
 	_, appStepMap := r.buildAppDependencyList(logCtx, appset, currentApps)
 	// reverse the AppStepMap to perform deletion
-	type deleteInOrder struct {
-		AppName string
-		Step    int
-	}
 	var reverseDeleteAppSteps []deleteInOrder
 	for appName, appStep := range appStepMap {
 		reverseDeleteAppSteps = append(reverseDeleteAppSteps, deleteInOrder{appName, stepLength - appStep - 1})
