@@ -12161,6 +12161,8 @@ spec:
                                           type: string
                                         targetBranchMatch:
                                           type: string
+                                        titleMatch:
+                                          type: string
                                       type: object
                                     type: array
                                   gitea:
@@ -18001,6 +18003,8 @@ spec:
                                           type: string
                                         targetBranchMatch:
                                           type: string
+                                        titleMatch:
+                                          type: string
                                       type: object
                                     type: array
                                   gitea:
@@ -21129,6 +21133,8 @@ spec:
                               branchMatch:
                                 type: string
                               targetBranchMatch:
+                                type: string
+                              titleMatch:
                                 type: string
                             type: object
                           type: array
@@ -25610,6 +25616,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.cluster.cache.events.processing.interval
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_COMMIT_SERVER
+          valueFrom:
+            configMapKeyRef:
+              key: commit.server
               name: argocd-cmd-params-cm
               optional: true
         - name: KUBECACHEDIR

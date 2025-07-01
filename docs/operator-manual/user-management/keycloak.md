@@ -107,7 +107,6 @@ Also you can set __Home URL__ to _/applications_ path and __Valid Post logout re
 The Valid Redirect URIs should be set to:
 - http://localhost:8085/auth/callback (needed for argo-cd cli, depends on value from [--sso-port](../../user-guide/commands/argocd_login.md))
 - https://{hostname}/auth/callback
-- https://{hostname}/pkce/verify
 
 ![Keycloak configure client](../../assets/keycloak-configure-client-pkce.png "Keycloak configure client")
 

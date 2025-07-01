@@ -227,21 +227,18 @@ export const SourcePanel = (props: {
                                                                 revision: api.getFormState().values.spec?.source?.targetRevision
                                                             }}
                                                             load={async src =>
-                                                                (src.repoURL &&
-                                                                    (await services.repos
-                                                                        .apps(src.repoURL, src.revision, appInEdit.metadata.name, props.appCurrent.spec.project)
-                                                                        .then(apps => Array.from(new Set(apps.map(item => item.path))).sort())
-                                                                        .catch(() => new Array<string>()))) ||
+                                                                src.repoURL &&
+                                                                // TODO: for autocomplete we need to fetch paths that are used by other apps within the same project making use of the same OCI repo
                                                                 new Array<string>()
                                                             }>
-                                                            {(apps: string[]) => (
+                                                            {(paths: string[]) => (
                                                                 <FormField
                                                                     formApi={api}
                                                                     label='Path'
                                                                     field='spec.source.path'
                                                                     component={AutocompleteField}
                                                                     componentProps={{
-                                                                        items: apps,
+                                                                        items: paths,
                                                                         filterSuggestions: true
                                                                     }}
                                                                 />

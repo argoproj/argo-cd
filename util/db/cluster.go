@@ -112,7 +112,8 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		},
 	}
 
-	if err = clusterToSecret(c, clusterSecret); err != nil {
+	err = clusterToSecret(c, clusterSecret)
+	if err != nil {
 		return nil, err
 	}
 
