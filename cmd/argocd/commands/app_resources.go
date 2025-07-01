@@ -6,10 +6,11 @@ import (
 	"os"
 	"text/tabwriter"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"gopkg.in/yaml.v3"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -26,13 +27,15 @@ import (
 )
 
 func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var resourceName string
-	var namespace string
-	var kind string
-	var group string
-	var project string
-	var output string
-	var showManagedFields bool
+	var (
+		resourceName      string
+		namespace         string
+		kind              string
+		group             string
+		project           string
+		output            string
+		showManagedFields bool
+	)
 	command := &cobra.Command{
 		Use:   "get-resource APPNAME",
 		Short: "Get live manifest of an application's resource",
@@ -72,13 +75,13 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 		// Search for resource to fill in potentially missing information
 		var version string
 		for _, r := range tree.Nodes {
-			if r.Name == resourceName {
-				version = r.Version
-				group = r.Group
-				kind = r.Kind
-				namespace = r.Namespace
-				break
+			if r.Name != resourceName {
+				continue
 			}
+			version = r.Version
+			group = r.Group
+			kind = r.Kind
+			namespace = r.Namespace
 		}
 
 		resource, err := appIf.GetResource(ctx, &applicationpkg.ApplicationResourceRequest{
@@ -117,20 +120,22 @@ func printManifest(obj *unstructured.Unstructured, showManagedFields bool, outpu
 		formattedManifest, err = yaml.Marshal(obj.Object)
 	}
 	errors.CheckError(err)
+
 	fmt.Println(string(formattedManifest))
 	log.Infof("Resource '%s' fetched", obj.GetName())
-
 }
 
 func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var patch string
-	var patchType string
-	var resourceName string
-	var namespace string
-	var kind string
-	var group string
-	var all bool
-	var project string
+	var (
+		patch        string
+		patchType    string
+		resourceName string
+		namespace    string
+		kind         string
+		group        string
+		all          bool
+		project      string
+	)
 	command := &cobra.Command{
 		Use:   "patch-resource APPNAME",
 		Short: "Patch resource in an application",
@@ -190,14 +195,16 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 }
 
 func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var resourceName string
-	var namespace string
-	var kind string
-	var group string
-	var force bool
-	var orphan bool
-	var all bool
-	var project string
+	var (
+		resourceName string
+		namespace    string
+		kind         string
+		group        string
+		force        bool
+		orphan       bool
+		all          bool
+		project      string
+	)
 	command := &cobra.Command{
 		Use:   "delete-resource APPNAME",
 		Short: "Delete resource in an application",
@@ -357,9 +364,11 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 }
 
 func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var orphaned bool
-	var output string
-	var project string
+	var (
+		orphaned bool
+		output   string
+		project  string
+	)
 	command := &cobra.Command{
 		Use:   "resources APPNAME",
 		Short: "List resource of application",
