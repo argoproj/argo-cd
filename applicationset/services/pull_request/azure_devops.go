@@ -10,8 +10,10 @@ import (
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
 )
 
-const AZURE_DEVOPS_DEFAULT_URL = "https://dev.azure.com"
-const AZURE_DEVOPS_PROJECT_NOT_FOUND_ERROR = "The following project does not exist"
+const (
+	AZURE_DEVOPS_DEFAULT_URL             = "https://dev.azure.com"
+	AZURE_DEVOPS_PROJECT_NOT_FOUND_ERROR = "The following project does not exist"
+)
 
 type AzureDevOpsClientFactory interface {
 	// Returns an Azure Devops Client interface.
