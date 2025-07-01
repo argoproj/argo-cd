@@ -75,13 +75,13 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 		// Search for resource to fill in potentially missing information
 		var version string
 		for _, r := range tree.Nodes {
-			if r.Name != resourceName {
+			if r.Name != resourceName || r.Kind != kind {
 				continue
 			}
 			version = r.Version
 			group = r.Group
-			kind = r.Kind
 			namespace = r.Namespace
+			break
 		}
 
 		resource, err := appIf.GetResource(ctx, &applicationpkg.ApplicationResourceRequest{
