@@ -69,7 +69,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                         </div>
                     </div>
                     {props.resources
-                        .sort((first, second) => -createdOrNodeKey(first).localeCompare(createdOrNodeKey(second)))
+                        .sort((first, second) => -createdOrNodeKey(first).localeCompare(createdOrNodeKey(second), undefined, {numeric: true}))
                         .map(res => {
                             const groupkindjoin = [res.group, res.kind].filter(item => !!item).join('/');
                             return (
