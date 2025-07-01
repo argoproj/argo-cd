@@ -1383,7 +1383,7 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 	if needToUpdateStatus {
 		// sort to make sure the array is always in the same order
 		applicationSet.Status.ApplicationStatus = make([]argov1alpha1.ApplicationSetApplicationStatus, len(applicationStatuses))
-		copy(applicationStatuses, applicationSet.Status.ApplicationStatus)
+		copy(applicationSet.Status.ApplicationStatus, applicationStatuses)
 		sort.Slice(applicationSet.Status.ApplicationStatus, func(i, j int) bool {
 			return applicationSet.Status.ApplicationStatus[i].Application < applicationSet.Status.ApplicationStatus[j].Application
 		})
