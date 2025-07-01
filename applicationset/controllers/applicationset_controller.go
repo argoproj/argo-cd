@@ -249,7 +249,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		var message string
 		for _, appName := range errorApps {
 			message = validateErrors[appName].Error()
-			logCtx.WithField("app", appName).Errorf("validation error found during application validation: %s", message)
+			logCtx.WithField("application", appName).Errorf("validation error found during application validation: %s", message)
 		}
 		if len(validateErrors) > 1 {
 			// Only the last message gets added to the appset status, to keep the size reasonable.
@@ -384,6 +384,7 @@ func getParametersGeneratedCondition(parametersGenerated bool, message string) a
 }
 
 func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, condition argov1alpha1.ApplicationSetCondition, parametersGenerated bool) error {
+	// Initialize the default condition types that this method evaluates
 	evaluatedTypes := map[argov1alpha1.ApplicationSetConditionType]bool{
 		argov1alpha1.ApplicationSetConditionParametersGenerated: true,
 		argov1alpha1.ApplicationSetConditionErrorOccurred:       false,
