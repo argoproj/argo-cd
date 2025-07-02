@@ -8955,6 +8955,10 @@
         "bitbucketServer": {
           "$ref": "#/definitions/v1alpha1PullRequestGeneratorBitbucketServer"
         },
+        "continueOnRepoNotFoundError": {
+          "description": "ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator parameters generation even if the repository is not found.",
+          "type": "boolean"
+        },
         "filters": {
           "description": "Filters for which pull requests should be considered.",
           "type": "array",
