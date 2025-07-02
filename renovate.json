@@ -1,11 +1,29 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "github>argoproj/argo-cd//renovate-presets/commons.json5",
-    "github>argoproj/argo-cd//renovate-presets/custom-managers/shell.json5",
-    "github>argoproj/argo-cd//renovate-presets/custom-managers/yaml.json5",
-    "github>argoproj/argo-cd//renovate-presets/fix/disable-all-updates.json5",
-    "github>argoproj/argo-cd//renovate-presets/devtool.json5",
-    "github>argoproj/argo-cd//renovate-presets/docs.json5"
+  "packageRules": [
+    {
+      "matchPackageNames": ["ghcr.io/dexidp/dex"],
+      "enabled": true,
+      "groupName": "dex-automated-updates",
+      "postUpgradeTasks": {
+        "commands": ["make codegen-local"],
+        "executionMode": "branch"
+      }
+    }
+  ],
+  "regexManagers": [
+    {
+      "fileMatch": [
+        "manifests/*.yaml",
+        "manifests/*.yml",
+        ".github/workflows/*.yaml"
+      ],
+      "matchStrings": [
+        "image:\\s*(?:['\"])?ghcr\\.io/dexidp/dex:v?(?<currentValue>[\\d.]+)(?:['\"])?",
+        "docker pull ghcr\\.io/dexidp/dex:v?(?<currentValue>[\\d.]+)"
+      ],
+      "depNameTemplate": "ghcr.io/dexidp/dex",
+      "datasourceTemplate": "docker"
+    }
   ]
 }
