@@ -14,7 +14,9 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
+	"github.com/argoproj/argo-cd/v3/util/argo"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type RepoGetter interface {
@@ -36,6 +38,8 @@ type Dependencies interface {
 	// TODO: only allow access to the hydrator status
 	PersistAppHydratorStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus)
 	AddHydrationQueueItem(key HydrationQueueKey)
+	// LogHydrationPhaseEvent logs an event for the current hydration phase.
+	LogHydrationPhaseEvent(ctx context.Context, app *appv1.Application, eventInfo argo.EventInfo, message string)
 }
 
 type Hydrator struct {
@@ -82,6 +86,7 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 		Phase:          appv1.HydrateOperationPhaseHydrating,
 		SourceHydrator: *app.Spec.SourceHydrator,
 	}
+	h.dependencies.LogHydrationPhaseEvent(context.TODO(), app, argo.EventInfo{Reason: argo.EventReasonHydrationStarted, Type: corev1.EventTypeNormal}, "Hydration started")
 	h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
 	origApp.Status.SourceHydrator = app.Status.SourceHydrator
 	h.dependencies.AddHydrationQueueItem(getHydrationQueueKey(app))
@@ -142,6 +147,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey HydrationQueueKey) (pr
 			// We may or may not have gotten far enough in the hydration process to get a non-empty SHA, but set it just
 			// in case we did.
 			app.Status.SourceHydrator.CurrentOperation.DrySHA = drySHA
+			h.dependencies.LogHydrationPhaseEvent(context.TODO(), app, argo.EventInfo{Reason: argo.EventReasonHydrationFailed, Type: corev1.EventTypeWarning}, "Failed to hydrate app: "+err.Error())
 			h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
 			logCtx = logCtx.WithFields(applog.GetAppLogFields(app))
 			logCtx.Errorf("Failed to hydrate app: %v", err)
@@ -167,6 +173,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey HydrationQueueKey) (pr
 			HydratedSHA:    hydratedSHA,
 			SourceHydrator: app.Status.SourceHydrator.CurrentOperation.SourceHydrator,
 		}
+		h.dependencies.LogHydrationPhaseEvent(context.TODO(), app, argo.EventInfo{Reason: argo.EventReasonHydrationCompleted, Type: corev1.EventTypeNormal}, "Hydration completed")
 		h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
 		// Request a refresh since we pushed a new commit.
 		err := h.dependencies.RequestAppRefresh(app.Name, app.Namespace)
