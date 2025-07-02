@@ -897,7 +897,7 @@ func Test_newAuth_AzureWorkloadIdentity(t *testing.T) {
 	tokenprovider := new(mocks.TokenProvider)
 	tokenprovider.On("GetToken", azureDevopsEntraResourceId).Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil)
 
-	creds := AzureWorkloadIdentityCreds{tokenProvider: tokenprovider}
+	creds := AzureWorkloadIdentityCreds{store: NoopCredsStore{}, tokenProvider: tokenprovider}
 
 	auth, err := newAuth("", creds)
 	require.NoError(t, err)
