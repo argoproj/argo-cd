@@ -4543,3 +4543,17 @@ func TestCluster_ParseProxyUrl(t *testing.T) {
 		}
 	}
 }
+
+func TestAppProject_ValidateSyncWindowDuplicates(t *testing.T) {
+	p := newTestProjectWithSyncWindows()
+	// Add a duplicate window (deep copy of the first window)
+	if len(p.Spec.SyncWindows) == 0 {
+		t.Fatal("test project must have at least one sync window")
+	}
+	dup := *p.Spec.SyncWindows[0]
+	p.Spec.SyncWindows = append(p.Spec.SyncWindows, &dup)
+
+	err := p.ValidateProject()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "already exists")
+}

@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"crypto/md5"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -239,17 +241,22 @@ func (proj *AppProject) ValidateProject() error {
 			if window == nil {
 				continue
 			}
-			if _, ok := existingWindows[window.Kind+window.Schedule+window.Duration]; ok {
+			windowJson, err := json.Marshal(window)
+			if err != nil {
+				return status.Errorf(codes.Internal, "failed to marshal window: %v", err)
+			}
+			windowJsonHash := md5.Sum(windowJson)
+			if _, ok := existingWindows[string(windowJsonHash[:])]; ok {
 				return status.Errorf(codes.AlreadyExists, "window '%s':'%s':'%s' already exists, update or edit", window.Kind, window.Schedule, window.Duration)
 			}
-			err := window.Validate()
+			err = window.Validate()
 			if err != nil {
 				return err
 			}
 			if len(window.Applications) == 0 && len(window.Namespaces) == 0 && len(window.Clusters) == 0 {
 				return status.Errorf(codes.OutOfRange, "window '%s':'%s':'%s' requires one of application, cluster or namespace", window.Kind, window.Schedule, window.Duration)
 			}
-			existingWindows[window.Kind+window.Schedule+window.Duration] = true
+			existingWindows[string(windowJsonHash[:])] = true
 		}
 	}
 
