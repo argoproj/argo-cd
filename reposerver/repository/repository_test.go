@@ -52,6 +52,7 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	iomocks "github.com/argoproj/argo-cd/v3/util/io/mocks"
 	ocimocks "github.com/argoproj/argo-cd/v3/util/oci/mocks"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const testSignature = `gpg: Signature made Wed Feb 26 23:22:34 2020 CET
@@ -256,7 +257,7 @@ func Test_GenerateManifest_KustomizeWithVersionOverride(t *testing.T) {
 	}
 
 	_, err := service.GenerateManifest(t.Context(), &q)
-	require.ErrorAs(t, err, &kustomizeVersionNotRegisteredError{"v1.2.3"})
+	require.ErrorAs(t, err, &settings.KustomizeVersionNotRegisteredError{Version: "v1.2.3"})
 
 	q.KustomizeOptions.Versions = []v1alpha1.KustomizeVersion{
 		{
@@ -1717,7 +1718,7 @@ func TestGetAppDetailsKustomize_CustomVersion(t *testing.T) {
 	}
 
 	_, err := service.GetAppDetails(t.Context(), q)
-	require.ErrorAs(t, err, &kustomizeVersionNotRegisteredError{Version: "v1.2.3"})
+	require.ErrorAs(t, err, &settings.KustomizeVersionNotRegisteredError{Version: "v1.2.3"})
 
 	q.KustomizeOptions.Versions = []v1alpha1.KustomizeVersion{
 		{
@@ -4578,44 +4579,4 @@ func TestGenerateManifest_OCISourceSkipsGitClient(t *testing.T) {
 
 	// verify that newGitClient was never invoked
 	assert.False(t, gitCalled, "GenerateManifest should not invoke Git for OCI sources")
-}
-
-func Test_getKustomizeBinaryPath(t *testing.T) {
-	ko := &v1alpha1.KustomizeOptions{
-		BuildOptions: "--opt1 val1",
-		Versions: []v1alpha1.KustomizeVersion{
-			{Name: "v1", Path: "path_v1"},
-			{Name: "v2", Path: "path_v2"},
-			{Name: "v3", Path: "path_v3", BuildOptions: "--opt2 val2"},
-		},
-	}
-
-	t.Run("VersionDoesNotExist", func(t *testing.T) {
-		_, err := getKustomizeBinaryPath(ko, &v1alpha1.ApplicationSource{
-			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v4"},
-		})
-		require.Error(t, err)
-	})
-
-	t.Run("DefaultBuildOptions", func(t *testing.T) {
-		ver, err := getKustomizeBinaryPath(ko, &v1alpha1.ApplicationSource{})
-		require.NoError(t, err)
-		assert.Empty(t, ver)
-	})
-
-	t.Run("VersionExists", func(t *testing.T) {
-		ver, err := getKustomizeBinaryPath(ko, &v1alpha1.ApplicationSource{
-			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v2"},
-		})
-		require.NoError(t, err)
-		assert.Equal(t, "path_v2", ver)
-	})
-
-	t.Run("VersionExistsWithBuildOption", func(t *testing.T) {
-		ver, err := getKustomizeBinaryPath(ko, &v1alpha1.ApplicationSource{
-			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v3"},
-		})
-		require.NoError(t, err)
-		assert.Equal(t, "path_v3", ver)
-	})
 }

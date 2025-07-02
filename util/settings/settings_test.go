@@ -805,6 +805,46 @@ func TestSettingsManager_GetEventLabelKeys(t *testing.T) {
 	}
 }
 
+func Test_GetKustomizeBinaryPath(t *testing.T) {
+	ko := &v1alpha1.KustomizeOptions{
+		BuildOptions: "--opt1 val1",
+		Versions: []v1alpha1.KustomizeVersion{
+			{Name: "v1", Path: "path_v1"},
+			{Name: "v2", Path: "path_v2"},
+			{Name: "v3", Path: "path_v3", BuildOptions: "--opt2 val2"},
+		},
+	}
+
+	t.Run("VersionDoesNotExist", func(t *testing.T) {
+		_, err := GetKustomizeBinaryPath(ko, v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v4"},
+		})
+		require.Error(t, err)
+	})
+
+	t.Run("DefaultBuildOptions", func(t *testing.T) {
+		ver, err := GetKustomizeBinaryPath(ko, v1alpha1.ApplicationSource{})
+		require.NoError(t, err)
+		assert.Empty(t, ver)
+	})
+
+	t.Run("VersionExists", func(t *testing.T) {
+		ver, err := GetKustomizeBinaryPath(ko, v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v2"},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "path_v2", ver)
+	})
+
+	t.Run("VersionExistsWithBuildOption", func(t *testing.T) {
+		ver, err := GetKustomizeBinaryPath(ko, v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v3"},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "path_v3", ver)
+	})
+}
+
 func TestGetGoogleAnalytics(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"ga.trackingid": "123",

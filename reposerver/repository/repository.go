@@ -62,6 +62,7 @@ import (
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
 	"github.com/argoproj/argo-cd/v3/util/kustomize"
 	"github.com/argoproj/argo-cd/v3/util/manifeststream"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
@@ -1499,7 +1500,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		commands = append(commands, command)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		var kustomizeBinary string
-		kustomizeBinary, err = getKustomizeBinaryPath(q.KustomizeOptions, q.ApplicationSource)
+		kustomizeBinary, err = settings.GetKustomizeBinaryPath(q.KustomizeOptions, *q.ApplicationSource)
 		if err != nil {
 			return nil, fmt.Errorf("error getting kustomize binary path: %w", err)
 		}
@@ -1668,40 +1669,6 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 
 	*source = merged
 	return nil
-}
-
-type kustomizeVersionNotRegisteredError struct {
-	// Version is the Kustomize version that is not registered
-	Version string
-}
-
-func (e kustomizeVersionNotRegisteredError) Error() string {
-	return fmt.Sprintf("kustomize version %s is not registered", e.Version)
-}
-
-// getKustomizeBinaryPath returns the path to the kustomize binary based on the provided KustomizeOptions and ApplicationSource.
-func getKustomizeBinaryPath(ko *v1alpha1.KustomizeOptions, source *v1alpha1.ApplicationSource) (string, error) {
-	if ko == nil {
-		return "", nil
-	}
-	if source == nil {
-		return "", errors.New("cannot get kustomize version: source is nil")
-	}
-	if source.Kustomize != nil && source.Kustomize.Version != "" {
-		for _, ver := range ko.Versions {
-			if ver.Name == source.Kustomize.Version {
-				// add version specific path and build options
-				return ver.Path, nil
-			}
-		}
-		return "", kustomizeVersionNotRegisteredError{Version: source.Kustomize.Version}
-	}
-	if ko.BinaryPath != "" { // nolint:staticcheck // BinaryPath is deprecated, but still supported for backward compatibility
-		log.Warn("kustomizeOptions.binaryPath is deprecated, use KustomizeOptions.versions instead")
-		// nolint:staticcheck // BinaryPath is deprecated, but still supported for backward compatibility
-		return ko.BinaryPath, nil
-	}
-	return "", nil
 }
 
 // GetAppSourceType returns explicit application source type or examines a directory and determines its application source type.
@@ -2336,7 +2303,7 @@ func walkHelmValueFilesInPath(root string, valueFiles *[]string) filepath.WalkFu
 
 func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery, repoRoot string, appPath string, reversion string, credsStore git.CredsStore) error {
 	res.Kustomize = &apiclient.KustomizeAppSpec{}
-	kustomizeBinary, err := getKustomizeBinaryPath(q.KustomizeOptions, q.Source)
+	kustomizeBinary, err := settings.GetKustomizeBinaryPath(q.KustomizeOptions, *q.Source)
 	if err != nil {
 		return fmt.Errorf("failed to get kustomize binary path: %w", err)
 	}

@@ -274,6 +274,41 @@ var (
 	}
 )
 
+// KustomizeVersionNotRegisteredError is an error type that indicates a requested Kustomize version is not registered in
+// the Kustomize options in argocd-cm.
+type KustomizeVersionNotRegisteredError struct {
+	// Version is the Kustomize version that is not registered
+	Version string
+}
+
+func (e KustomizeVersionNotRegisteredError) Error() string {
+	return fmt.Sprintf("kustomize version %s is not registered", e.Version)
+}
+
+// GetKustomizeBinaryPath returns the path to the kustomize binary based on the provided KustomizeOptions and ApplicationSource.
+func GetKustomizeBinaryPath(ks *v1alpha1.KustomizeOptions, source v1alpha1.ApplicationSource) (string, error) {
+	binaryPath := ""
+	if source.Kustomize != nil && source.Kustomize.Version != "" {
+		for _, ver := range ks.Versions {
+			if ver.Name == source.Kustomize.Version {
+				// add version specific path and build options
+				binaryPath = ver.Path
+				break
+			}
+		}
+		if binaryPath == "" {
+			return "", KustomizeVersionNotRegisteredError{Version: source.Kustomize.Version}
+		}
+	} else {
+		if ks.BinaryPath == "" { // nolint:staticcheck // BinaryPath is deprecated, but still supported for backward compatibility
+			log.Warn("kustomizeOptions.binaryPath is deprecated, use KustomizeOptions.versions instead")
+		}
+		// nolint:staticcheck // BinaryPath is deprecated, but still supported for backward compatibility
+		binaryPath = ks.BinaryPath
+	}
+	return binaryPath, nil
+}
+
 // Credentials for accessing a Git repository
 type Repository struct {
 	// The URL to the repository
