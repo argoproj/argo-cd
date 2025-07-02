@@ -244,7 +244,7 @@
               "type": "string"
             },
             "collectionFormat": "multi",
-            "description": "the project names to restrict returned list applications.",
+            "description": "the project names to restrict returned list applications\nDeprecated: use options.projects instead.",
             "name": "projects",
             "in": "query"
           },
@@ -256,13 +256,13 @@
           },
           {
             "type": "string",
-            "description": "the selector to restrict returned list to applications only with matched labels.",
+            "description": "the selector to restrict returned list to applications only with matched labels\nDeprecated: use options.selector instead.",
             "name": "selector",
             "in": "query"
           },
           {
             "type": "string",
-            "description": "the repoURL to restrict returned list applications.",
+            "description": "the repoURL to restrict returned list applications\nDeprecated: use options.repos instead.",
             "name": "repo",
             "in": "query"
           },
@@ -278,20 +278,20 @@
               "type": "string"
             },
             "collectionFormat": "multi",
-            "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
+            "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility)\nDeprecated: use options.projects instead.",
             "name": "project",
             "in": "query"
           },
           {
             "type": "string",
             "description": "the application name to start from (app with min name is included in response).",
-            "name": "minName",
+            "name": "options.minName",
             "in": "query"
           },
           {
             "type": "string",
             "description": "the application name to end at (app with max name is included in response).",
-            "name": "maxName",
+            "name": "options.maxName",
             "in": "query"
           },
           {
@@ -301,7 +301,7 @@
             },
             "collectionFormat": "multi",
             "description": "the repos filter, ignore if the field repo was defined.",
-            "name": "repos",
+            "name": "options.repos",
             "in": "query"
           },
           {
@@ -311,7 +311,7 @@
             },
             "collectionFormat": "multi",
             "description": "the clusters filter.",
-            "name": "clusters",
+            "name": "options.clusters",
             "in": "query"
           },
           {
@@ -321,13 +321,13 @@
             },
             "collectionFormat": "multi",
             "description": "the namespaces filter.",
-            "name": "namespaces",
+            "name": "options.namespaces",
             "in": "query"
           },
           {
             "type": "boolean",
             "description": "the auth sync filter.",
-            "name": "autoSyncEnabled",
+            "name": "options.autoSyncEnabled",
             "in": "query"
           },
           {
@@ -337,7 +337,7 @@
             },
             "collectionFormat": "multi",
             "description": "the sync status filter.",
-            "name": "syncStatuses",
+            "name": "options.syncStatuses",
             "in": "query"
           },
           {
@@ -347,27 +347,27 @@
             },
             "collectionFormat": "multi",
             "description": "the health status filter.",
-            "name": "healthStatuses",
+            "name": "options.healthStatuses",
             "in": "query"
           },
           {
             "type": "string",
             "description": "search.",
-            "name": "search",
+            "name": "options.search",
             "in": "query"
           },
           {
             "type": "string",
             "format": "int64",
             "description": "offset.",
-            "name": "offset",
+            "name": "options.offset",
             "in": "query"
           },
           {
             "type": "string",
             "format": "int64",
             "description": "limit.",
-            "name": "limit",
+            "name": "options.limit",
             "in": "query"
           },
           {
@@ -380,7 +380,7 @@
             "type": "string",
             "default": "ASB_UNSPECIFIED",
             "description": "sort by enum=name;created-at;synchronized.\n\n - ASB_UNSPECIFIED: unspecified, sort by name\n - ASB_NAME: sort by .Name\n - ASB_CREATED_AT: sort by .Metadata.CreateTimestamp\n - ASB_SYNCHRONIZED: sort by .Status.OperationState.FinishedAt",
-            "name": "sortBy",
+            "name": "options.sortBy",
             "in": "query"
           }
         ],
@@ -388,7 +388,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1alpha1ApplicationList"
+              "$ref": "#/definitions/applicationApplicationListResponse"
             }
           },
           "default": {
@@ -684,7 +684,7 @@
               "type": "string"
             },
             "collectionFormat": "multi",
-            "description": "the project names to restrict returned list applications.",
+            "description": "the project names to restrict returned list applications\nDeprecated: use options.projects instead.",
             "name": "projects",
             "in": "query"
           },
@@ -696,13 +696,13 @@
           },
           {
             "type": "string",
-            "description": "the selector to restrict returned list to applications only with matched labels.",
+            "description": "the selector to restrict returned list to applications only with matched labels\nDeprecated: use options.selector instead.",
             "name": "selector",
             "in": "query"
           },
           {
             "type": "string",
-            "description": "the repoURL to restrict returned list applications.",
+            "description": "the repoURL to restrict returned list applications\nDeprecated: use options.repos instead.",
             "name": "repo",
             "in": "query"
           },
@@ -718,20 +718,20 @@
               "type": "string"
             },
             "collectionFormat": "multi",
-            "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
+            "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility)\nDeprecated: use options.projects instead.",
             "name": "project",
             "in": "query"
           },
           {
             "type": "string",
             "description": "the application name to start from (app with min name is included in response).",
-            "name": "minName",
+            "name": "options.minName",
             "in": "query"
           },
           {
             "type": "string",
             "description": "the application name to end at (app with max name is included in response).",
-            "name": "maxName",
+            "name": "options.maxName",
             "in": "query"
           },
           {
@@ -741,7 +741,7 @@
             },
             "collectionFormat": "multi",
             "description": "the repos filter, ignore if the field repo was defined.",
-            "name": "repos",
+            "name": "options.repos",
             "in": "query"
           },
           {
@@ -751,7 +751,7 @@
             },
             "collectionFormat": "multi",
             "description": "the clusters filter.",
-            "name": "clusters",
+            "name": "options.clusters",
             "in": "query"
           },
           {
@@ -761,13 +761,13 @@
             },
             "collectionFormat": "multi",
             "description": "the namespaces filter.",
-            "name": "namespaces",
+            "name": "options.namespaces",
             "in": "query"
           },
           {
             "type": "boolean",
             "description": "the auth sync filter.",
-            "name": "autoSyncEnabled",
+            "name": "options.autoSyncEnabled",
             "in": "query"
           },
           {
@@ -777,7 +777,7 @@
             },
             "collectionFormat": "multi",
             "description": "the sync status filter.",
-            "name": "syncStatuses",
+            "name": "options.syncStatuses",
             "in": "query"
           },
           {
@@ -787,27 +787,27 @@
             },
             "collectionFormat": "multi",
             "description": "the health status filter.",
-            "name": "healthStatuses",
+            "name": "options.healthStatuses",
             "in": "query"
           },
           {
             "type": "string",
             "description": "search.",
-            "name": "search",
+            "name": "options.search",
             "in": "query"
           },
           {
             "type": "string",
             "format": "int64",
             "description": "offset.",
-            "name": "offset",
+            "name": "options.offset",
             "in": "query"
           },
           {
             "type": "string",
             "format": "int64",
             "description": "limit.",
-            "name": "limit",
+            "name": "options.limit",
             "in": "query"
           },
           {
@@ -820,7 +820,7 @@
             "type": "string",
             "default": "ASB_UNSPECIFIED",
             "description": "sort by enum=name;created-at;synchronized.\n\n - ASB_UNSPECIFIED: unspecified, sort by name\n - ASB_NAME: sort by .Name\n - ASB_CREATED_AT: sort by .Metadata.CreateTimestamp\n - ASB_SYNCHRONIZED: sort by .Status.OperationState.FinishedAt",
-            "name": "sortBy",
+            "name": "options.sortBy",
             "in": "query"
           }
         ],
@@ -4280,7 +4280,7 @@
               "type": "string"
             },
             "collectionFormat": "multi",
-            "description": "the project names to restrict returned list applications.",
+            "description": "the project names to restrict returned list applications\nDeprecated: use options.projects instead.",
             "name": "projects",
             "in": "query"
           },
@@ -4292,13 +4292,13 @@
           },
           {
             "type": "string",
-            "description": "the selector to restrict returned list to applications only with matched labels.",
+            "description": "the selector to restrict returned list to applications only with matched labels\nDeprecated: use options.selector instead.",
             "name": "selector",
             "in": "query"
           },
           {
             "type": "string",
-            "description": "the repoURL to restrict returned list applications.",
+            "description": "the repoURL to restrict returned list applications\nDeprecated: use options.repos instead.",
             "name": "repo",
             "in": "query"
           },
@@ -4314,20 +4314,20 @@
               "type": "string"
             },
             "collectionFormat": "multi",
-            "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
+            "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility)\nDeprecated: use options.projects instead.",
             "name": "project",
             "in": "query"
           },
           {
             "type": "string",
             "description": "the application name to start from (app with min name is included in response).",
-            "name": "minName",
+            "name": "options.minName",
             "in": "query"
           },
           {
             "type": "string",
             "description": "the application name to end at (app with max name is included in response).",
-            "name": "maxName",
+            "name": "options.maxName",
             "in": "query"
           },
           {
@@ -4337,7 +4337,7 @@
             },
             "collectionFormat": "multi",
             "description": "the repos filter, ignore if the field repo was defined.",
-            "name": "repos",
+            "name": "options.repos",
             "in": "query"
           },
           {
@@ -4347,7 +4347,7 @@
             },
             "collectionFormat": "multi",
             "description": "the clusters filter.",
-            "name": "clusters",
+            "name": "options.clusters",
             "in": "query"
           },
           {
@@ -4357,13 +4357,13 @@
             },
             "collectionFormat": "multi",
             "description": "the namespaces filter.",
-            "name": "namespaces",
+            "name": "options.namespaces",
             "in": "query"
           },
           {
             "type": "boolean",
             "description": "the auth sync filter.",
-            "name": "autoSyncEnabled",
+            "name": "options.autoSyncEnabled",
             "in": "query"
           },
           {
@@ -4373,7 +4373,7 @@
             },
             "collectionFormat": "multi",
             "description": "the sync status filter.",
-            "name": "syncStatuses",
+            "name": "options.syncStatuses",
             "in": "query"
           },
           {
@@ -4383,27 +4383,27 @@
             },
             "collectionFormat": "multi",
             "description": "the health status filter.",
-            "name": "healthStatuses",
+            "name": "options.healthStatuses",
             "in": "query"
           },
           {
             "type": "string",
             "description": "search.",
-            "name": "search",
+            "name": "options.search",
             "in": "query"
           },
           {
             "type": "string",
             "format": "int64",
             "description": "offset.",
-            "name": "offset",
+            "name": "options.offset",
             "in": "query"
           },
           {
             "type": "string",
             "format": "int64",
             "description": "limit.",
-            "name": "limit",
+            "name": "options.limit",
             "in": "query"
           },
           {
@@ -4416,7 +4416,7 @@
             "type": "string",
             "default": "ASB_UNSPECIFIED",
             "description": "sort by enum=name;created-at;synchronized.\n\n - ASB_UNSPECIFIED: unspecified, sort by name\n - ASB_NAME: sort by .Name\n - ASB_CREATED_AT: sort by .Metadata.CreateTimestamp\n - ASB_SYNCHRONIZED: sort by .Status.OperationState.FinishedAt",
-            "name": "sortBy",
+            "name": "options.sortBy",
             "in": "query"
           }
         ],
@@ -5162,6 +5162,156 @@
     },
     "accountUpdatePasswordResponse": {
       "type": "object"
+    },
+    "applicationApplicationLabelStats": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "applicationApplicationListOptions": {
+      "type": "object",
+      "properties": {
+        "autoSyncEnabled": {
+          "type": "boolean",
+          "title": "the auth sync filter"
+        },
+        "clusters": {
+          "type": "array",
+          "title": "the clusters filter",
+          "items": {
+            "type": "string"
+          }
+        },
+        "healthStatuses": {
+          "type": "array",
+          "title": "the health status filter",
+          "items": {
+            "type": "string"
+          }
+        },
+        "limit": {
+          "type": "integer",
+          "format": "int64",
+          "title": "limit"
+        },
+        "maxName": {
+          "type": "string",
+          "title": "the application name to end at (app with max name is included in response)"
+        },
+        "minName": {
+          "type": "string",
+          "title": "the application name to start from (app with min name is included in response)"
+        },
+        "namespaces": {
+          "type": "array",
+          "title": "the namespaces filter",
+          "items": {
+            "type": "string"
+          }
+        },
+        "offset": {
+          "type": "integer",
+          "format": "int64",
+          "title": "offset"
+        },
+        "repos": {
+          "type": "array",
+          "title": "the repos filter, ignore if the field repo was defined",
+          "items": {
+            "type": "string"
+          }
+        },
+        "search": {
+          "type": "string",
+          "title": "search"
+        },
+        "sortBy": {
+          "$ref": "#/definitions/applicationApplicationSortBy"
+        },
+        "syncStatuses": {
+          "type": "array",
+          "title": "the sync status filter",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "applicationApplicationListResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Application"
+          }
+        },
+        "stats": {
+          "$ref": "#/definitions/applicationApplicationListStats"
+        }
+      }
+    },
+    "applicationApplicationListStats": {
+      "description": "Stats for the application list\nNote total/totalBySyncStatus/totalByHealthStatus/autoSyncEnabledCount is for pagination, therefore\nthe calculation is based on the filtered applications, meanwhile destinations/namespaces/labels are \ncalculated based on all.",
+      "type": "object",
+      "properties": {
+        "autoSyncEnabledCount": {
+          "type": "integer",
+          "format": "int64",
+          "title": "the number of applications with auto-sync enabled"
+        },
+        "destinations": {
+          "type": "array",
+          "title": "all destinations for the applications returned",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationDestination"
+          }
+        },
+        "labels": {
+          "type": "array",
+          "title": "all labels for the applications returned",
+          "items": {
+            "$ref": "#/definitions/applicationApplicationLabelStats"
+          }
+        },
+        "namespaces": {
+          "type": "array",
+          "title": "all namespaces for the applications returned",
+          "items": {
+            "type": "string"
+          }
+        },
+        "total": {
+          "type": "integer",
+          "format": "int64",
+          "title": "the number of applications"
+        },
+        "totalByHealthStatus": {
+          "type": "object",
+          "title": "the number of applications based on the health status",
+          "additionalProperties": {
+            "type": "string",
+            "format": "int64"
+          }
+        },
+        "totalBySyncStatus": {
+          "type": "object",
+          "title": "the number of applications based on the sync status",
+          "additionalProperties": {
+            "type": "string",
+            "format": "int64"
+          }
+        }
+      }
     },
     "applicationApplicationManifestQueryWithFiles": {
       "type": "object",
@@ -7163,84 +7313,6 @@
         "server": {
           "description": "Server specifies the URL of the target cluster's Kubernetes control plane API.",
           "type": "string"
-        }
-      }
-    },
-    "v1alpha1ApplicationLabelStats": {
-      "type": "object",
-      "properties": {
-        "key": {
-          "type": "string"
-        },
-        "values": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
-    "v1alpha1ApplicationList": {
-      "type": "object",
-      "title": "ApplicationList is list of Application resources\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object",
-      "properties": {
-        "items": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1Application"
-          }
-        },
-        "metadata": {
-          "$ref": "#/definitions/v1ListMeta"
-        },
-        "stats": {
-          "$ref": "#/definitions/v1alpha1ApplicationListStats"
-        }
-      }
-    },
-    "v1alpha1ApplicationListStats": {
-      "type": "object",
-      "title": "ApplicationListStats holds additional information about the list of applications",
-      "properties": {
-        "autoSyncEnabledCount": {
-          "type": "integer",
-          "format": "int64"
-        },
-        "destinations": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ApplicationDestination"
-          }
-        },
-        "labels": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1ApplicationLabelStats"
-          }
-        },
-        "namespaces": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "total": {
-          "type": "integer",
-          "format": "int64"
-        },
-        "totalByHealthStatus": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "format": "int64"
-          }
-        },
-        "totalBySyncStatus": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string",
-            "format": "int64"
-          }
         }
       }
     },

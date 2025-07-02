@@ -1302,6 +1302,10 @@ func TestListAppWithProjects(t *testing.T) {
 	})
 }
 
+func newTestApplicationQueryOption(opt application.ApplicationListOptions) application.ApplicationQuery {
+	return application.ApplicationQuery{Options: &opt}
+}
+
 func TestListAppWithMinName(t *testing.T) {
 	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App1"
@@ -1314,7 +1318,7 @@ func TestListAppWithMinName(t *testing.T) {
 	t.Run("List apps with min name filter set", func(t *testing.T) {
 		minName := "App"
 		expectedApps := []string{"App1", "App2"}
-		appQuery := application.ApplicationQuery{MinName: &minName}
+		appQuery := newTestApplicationQueryOption(application.ApplicationListOptions{MinName: &minName})
 		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		var apps []string
@@ -1337,7 +1341,7 @@ func TestListAppWithMaxName(t *testing.T) {
 	t.Run("List apps with min name filter set", func(t *testing.T) {
 		maxName := "p2"
 		expectedApps := []string{"App2"}
-		appQuery := application.ApplicationQuery{MaxName: &maxName}
+		appQuery := newTestApplicationQueryOption(application.ApplicationListOptions{MaxName: &maxName})
 		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		var apps []string
@@ -1360,7 +1364,7 @@ func TestListAppWithSearch(t *testing.T) {
 	t.Run("List apps with min name filter set", func(t *testing.T) {
 		search := "p2"
 		expectedApps := []string{"App2"}
-		appQuery := application.ApplicationQuery{Search: &search}
+		appQuery := newTestApplicationQueryOption(application.ApplicationListOptions{Search: &search})
 		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		var apps []string
@@ -1413,7 +1417,12 @@ func TestListAppWithRepos(t *testing.T) {
 	}
 	for _, validTest := range validTests {
 		t.Run(validTest.testName, func(t *testing.T) {
-			appQuery := application.ApplicationQuery{Repo: validTest.repo, Repos: validTest.repos}
+			appQuery := application.ApplicationQuery{
+				Repo: validTest.repo,
+				Options: &application.ApplicationListOptions{
+					Repos: validTest.repos,
+				},
+			}
 			appList, err := appServer.List(t.Context(), &appQuery)
 			require.NoError(t, err)
 			var apps []string
@@ -1463,7 +1472,7 @@ func TestListAppWithCluster(t *testing.T) {
 	}
 	for _, validTest := range validTests {
 		t.Run(validTest.testName, func(t *testing.T) {
-			appQuery := application.ApplicationQuery{Clusters: validTest.clusters}
+			appQuery := newTestApplicationQueryOption(application.ApplicationListOptions{Clusters: validTest.clusters})
 			appList, err := appServer.List(t.Context(), &appQuery)
 			require.NoError(t, err)
 			var apps []string
@@ -1489,7 +1498,7 @@ func TestListAppWithNamespace(t *testing.T) {
 
 	t.Run("List apps with namespace filter set", func(t *testing.T) {
 		expectedResult := []string{"App2", "App3"}
-		appQuery := application.ApplicationQuery{Namespaces: []string{"test1", "test2"}}
+		appQuery := newTestApplicationQueryOption(application.ApplicationListOptions{Namespaces: []string{"test1", "test2"}})
 		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		var apps []string
@@ -1516,7 +1525,7 @@ func TestListAppWithSyncStatus(t *testing.T) {
 
 	t.Run("List apps with sync status filter set", func(t *testing.T) {
 		expectedResult := []string{"App1", "App2"}
-		appQuery := application.ApplicationQuery{SyncStatuses: []string{"OutOfSync", "Synced"}}
+		appQuery := newTestApplicationQueryOption(application.ApplicationListOptions{SyncStatuses: []string{"OutOfSync", "Synced"}})
 		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		var apps []string
@@ -1543,7 +1552,7 @@ func TestListAppWithHealthStatus(t *testing.T) {
 
 	t.Run("List apps with health status filter set", func(t *testing.T) {
 		expectedResult := []string{"App1", "App2"}
-		appQuery := application.ApplicationQuery{HealthStatuses: []string{"Progressing", "Healthy"}}
+		appQuery := newTestApplicationQueryOption(application.ApplicationListOptions{HealthStatuses: []string{"Progressing", "Healthy"}})
 		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		var apps []string
@@ -1567,7 +1576,7 @@ func TestListAppWithAutomated(t *testing.T) {
 
 	t.Run("List apps with automated filter set", func(t *testing.T) {
 		expectedResult := []string{"App1"}
-		appQuery := application.ApplicationQuery{AutoSyncEnabled: ptr.To(true)}
+		appQuery := newTestApplicationQueryOption(application.ApplicationListOptions{AutoSyncEnabled: ptr.To(true)})
 		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		var apps []string
@@ -1579,7 +1588,7 @@ func TestListAppWithAutomated(t *testing.T) {
 
 	t.Run("List apps with automated filter set false", func(t *testing.T) {
 		expectedResult := []string{"App2", "App3"}
-		appQuery := application.ApplicationQuery{AutoSyncEnabled: ptr.To(false)}
+		appQuery := newTestApplicationQueryOption(application.ApplicationListOptions{AutoSyncEnabled: ptr.To(false)})
 		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		var apps []string
@@ -1604,8 +1613,17 @@ func TestListAppWithPagination(t *testing.T) {
 	}
 	appServer := newTestAppServer(t, apps...)
 
+	newOffsetLimit := func(offset, limit int64) application.ApplicationQuery {
+		return application.ApplicationQuery{
+			Options: &application.ApplicationListOptions{
+				Offset: ptr.To(offset),
+				Limit:  ptr.To(limit),
+			},
+		}
+	}
+
 	t.Run("List apps with pagination", func(t *testing.T) {
-		appQuery := application.ApplicationQuery{Offset: ptrToInt64(0), Limit: ptrToInt64(10)}
+		appQuery := newOffsetLimit(0, 10)
 		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		assert.Len(t, appList.Items, 10)
@@ -1614,7 +1632,7 @@ func TestListAppWithPagination(t *testing.T) {
 	})
 
 	t.Run("List apps with offset 10", func(t *testing.T) {
-		appQuery := application.ApplicationQuery{Offset: ptrToInt64(10), Limit: ptrToInt64(10)}
+		appQuery := newOffsetLimit(10, 10)
 		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		assert.Len(t, appList.Items, 10)
@@ -1623,7 +1641,7 @@ func TestListAppWithPagination(t *testing.T) {
 	})
 
 	t.Run("List apps with offset 99", func(t *testing.T) {
-		appQuery := application.ApplicationQuery{Offset: ptrToInt64(99), Limit: ptrToInt64(10)}
+		appQuery := newOffsetLimit(99, 10)
 		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		assert.Len(t, appList.Items, 1)
@@ -1631,27 +1649,27 @@ func TestListAppWithPagination(t *testing.T) {
 	})
 
 	t.Run("List apps with offset 101", func(t *testing.T) {
-		appQuery := application.ApplicationQuery{Offset: ptrToInt64(101), Limit: ptrToInt64(10)}
+		appQuery := newOffsetLimit(101, 10)
 		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		assert.Empty(t, appList.Items)
 	})
 
 	t.Run("List apps with limit 0", func(t *testing.T) {
-		appQuery := application.ApplicationQuery{Offset: ptrToInt64(0), Limit: ptrToInt64(0)}
+		appQuery := newOffsetLimit(0, 0)
 		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		assert.Empty(t, appList.Items)
 	})
 
 	t.Run("List apps with offset -1", func(t *testing.T) {
-		appQuery := application.ApplicationQuery{Offset: ptrToInt64(-1), Limit: ptrToInt64(10)}
+		appQuery := newOffsetLimit(-1, 10)
 		_, err := appServer.List(t.Context(), &appQuery)
 		assert.ErrorContains(t, err, "must be a non-negative integer")
 	})
 
 	t.Run("List apps with limit -1", func(t *testing.T) {
-		appQuery := application.ApplicationQuery{Offset: ptrToInt64(0), Limit: ptrToInt64(-1)}
+		appQuery := newOffsetLimit(0, -1)
 		_, err := appServer.List(t.Context(), &appQuery)
 		assert.ErrorContains(t, err, "must be a non-negative integer")
 	})
@@ -1676,8 +1694,12 @@ func TestListAppsWithSort(t *testing.T) {
 		app.CreationTimestamp = t3
 	}))
 
+	newSortBy := func(sortBy application.ApplicationSortBy) application.ApplicationQuery {
+		return application.ApplicationQuery{Options: &application.ApplicationListOptions{SortBy: ptr.To(sortBy)}}
+	}
+
 	t.Run("List apps with sort by name", func(t *testing.T) {
-		appQuery := application.ApplicationQuery{SortBy: ptr.To(application.ApplicationSortBy_ASB_NAME)}
+		appQuery := newSortBy(application.ApplicationSortBy_ASB_NAME)
 		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		var names []string
@@ -1688,7 +1710,7 @@ func TestListAppsWithSort(t *testing.T) {
 	})
 
 	t.Run("List apps with sort by created at in descending order", func(t *testing.T) {
-		appQuery := application.ApplicationQuery{SortBy: ptr.To(application.ApplicationSortBy_ASB_CREATED_AT)}
+		appQuery := newSortBy(application.ApplicationSortBy_ASB_CREATED_AT)
 		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		var names []string
@@ -1699,7 +1721,7 @@ func TestListAppsWithSort(t *testing.T) {
 	})
 
 	t.Run("List apps with sort by synchronized in descending order", func(t *testing.T) {
-		appQuery := application.ApplicationQuery{SortBy: ptr.To(application.ApplicationSortBy_ASB_SYNCHRONIZED)}
+		appQuery := newSortBy(application.ApplicationSortBy_ASB_SYNCHRONIZED)
 		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		var names []string
@@ -1772,12 +1794,12 @@ g, group-49, role:test3
 }
 
 // sort slice to make the test deterministic
-func sortStats(stats *v1alpha1.ApplicationListStats) {
+func sortStats(stats *application.ApplicationListStats) {
 	sort.Slice(stats.Destinations, func(i, j int) bool {
 		return stats.Destinations[i].Name < stats.Destinations[j].Name
 	})
 	sort.Slice(stats.Labels, func(i, j int) bool {
-		return stats.Labels[i].Key < stats.Labels[j].Key
+		return stats.Labels[i].GetKey() < stats.Labels[j].GetKey()
 	})
 	for i := range stats.Labels {
 		sort.Strings(stats.Labels[i].Values)
@@ -1813,28 +1835,28 @@ func TestGetAppsStats(t *testing.T) {
 	t.Run("Get apps stats", func(t *testing.T) {
 		appList, err := appServer.List(t.Context(), &application.ApplicationQuery{})
 		require.NoError(t, err)
-		sortStats(&appList.Stats)
-		assert.Equal(t, v1alpha1.ApplicationListStats{
-			Total: 7,
-			TotalBySyncStatus: map[v1alpha1.SyncStatusCode]int64{
-				v1alpha1.SyncStatusCodeOutOfSync: 1,
-				v1alpha1.SyncStatusCodeSynced:    1,
-				"":                               5,
+		sortStats(appList.Stats)
+		assert.Equal(t, &application.ApplicationListStats{
+			Total: ptrToInt64(7),
+			TotalBySyncStatus: map[string]int64{
+				"OutOfSync": 1,
+				"Synced":    1,
+				"":          5,
 			},
-			TotalByHealthStatus: map[health.HealthStatusCode]int64{
-				health.HealthStatusProgressing: 1,
-				health.HealthStatusHealthy:     1,
-				"":                             5,
+			TotalByHealthStatus: map[string]int64{
+				"Progressing": 1,
+				"Healthy":     1,
+				"":            5,
 			},
-			AutoSyncEnabledCount: 1,
-			Destinations: []v1alpha1.ApplicationDestination{
+			AutoSyncEnabledCount: ptrToInt64(1),
+			Destinations: []*v1alpha1.ApplicationDestination{
 				{Server: "https://cluster-api.example.com", Namespace: "fake-dest-ns"},
 				{Name: "fake-cluster", Namespace: "fake-dest-ns"},
 			},
 			Namespaces: []string{"fake-dest-ns"},
-			Labels: []v1alpha1.ApplicationLabelStats{
-				{Key: "key1", Values: []string{"value1", "value2"}},
-				{Key: "key2", Values: []string{"value2"}},
+			Labels: []*application.ApplicationLabelStats{
+				{Key: ptr.To("key1"), Values: []string{"value1", "value2"}},
+				{Key: ptr.To("key2"), Values: []string{"value2"}},
 			},
 		}, appList.Stats)
 	})
@@ -1842,28 +1864,28 @@ func TestGetAppsStats(t *testing.T) {
 	t.Run("Get apps stats with projects filter set", func(t *testing.T) {
 		appList, err := appServer.List(t.Context(), &application.ApplicationQuery{Projects: []string{"proj1"}})
 		require.NoError(t, err)
-		sortStats(&appList.Stats)
-		assert.Equal(t, v1alpha1.ApplicationListStats{
-			Total: 3,
-			TotalBySyncStatus: map[v1alpha1.SyncStatusCode]int64{
-				v1alpha1.SyncStatusCodeOutOfSync: 1,
-				v1alpha1.SyncStatusCodeSynced:    1,
-				"":                               1,
+		sortStats(appList.Stats)
+		assert.Equal(t, &application.ApplicationListStats{
+			Total: ptrToInt64(3),
+			TotalBySyncStatus: map[string]int64{
+				"OutOfSync": 1,
+				"Synced":    1,
+				"":          1,
 			},
-			TotalByHealthStatus: map[health.HealthStatusCode]int64{
-				health.HealthStatusProgressing: 1,
-				health.HealthStatusHealthy:     1,
-				"":                             1,
+			TotalByHealthStatus: map[string]int64{
+				"Progressing": 1,
+				"Healthy":     1,
+				"":            1,
 			},
-			AutoSyncEnabledCount: 1,
-			Destinations: []v1alpha1.ApplicationDestination{
+			AutoSyncEnabledCount: ptrToInt64(1),
+			Destinations: []*v1alpha1.ApplicationDestination{
 				{Server: "https://cluster-api.example.com", Namespace: "fake-dest-ns"},
 				{Name: "fake-cluster", Namespace: "fake-dest-ns"},
 			},
 			Namespaces: []string{"fake-dest-ns"},
-			Labels: []v1alpha1.ApplicationLabelStats{
-				{Key: "key1", Values: []string{"value1", "value2"}},
-				{Key: "key2", Values: []string{"value2"}},
+			Labels: []*application.ApplicationLabelStats{
+				{Key: ptr.To("key1"), Values: []string{"value1", "value2"}},
+				{Key: ptr.To("key2"), Values: []string{"value2"}},
 			},
 		}, appList.Stats)
 	})
@@ -3242,11 +3264,15 @@ func TestIsApplicationPermitted(t *testing.T) {
 	}{
 		{
 			testName: "Permitted with cluster url filter",
-			query:    application.ApplicationQuery{Clusters: []string{"https://cluster-api.example.com"}},
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{Clusters: []string{"https://cluster-api.example.com"}},
+			},
 		},
 		{
 			testName: "Permitted with namespace filter",
-			query:    application.ApplicationQuery{Namespaces: []string{test.FakeDestNamespace}},
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{Namespaces: []string{test.FakeDestNamespace}},
+			},
 		},
 		{
 			testName: "Permitted with repo filter",
@@ -3258,23 +3284,33 @@ func TestIsApplicationPermitted(t *testing.T) {
 		},
 		{
 			testName: "Permitted with minName filter",
-			query:    application.ApplicationQuery{MinName: ptr.To("test-")},
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{MinName: ptr.To("test-")},
+			},
 		},
 		{
 			testName: "Permitted with maxName filter",
-			query:    application.ApplicationQuery{MaxName: ptr.To("app")},
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{MaxName: ptr.To("app")},
+			},
 		},
 		{
 			testName: "Permitted with search filter",
-			query:    application.ApplicationQuery{Search: ptr.To("est")},
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{Search: ptr.To("est")},
+			},
 		},
 		{
 			testName: "Permitted with sync filter",
-			query:    application.ApplicationQuery{SyncStatuses: []string{"Synced"}},
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{SyncStatuses: []string{"Synced"}},
+			},
 		},
 		{
 			testName: "Permitted with health filter",
-			query:    application.ApplicationQuery{HealthStatuses: []string{"Healthy"}},
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{HealthStatuses: []string{"Healthy"}},
+			},
 		},
 	}
 	t.Run("Application is permitted with query filters", func(t *testing.T) {
@@ -3285,7 +3321,7 @@ func TestIsApplicationPermitted(t *testing.T) {
 				testApp.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
 				testApp.Status.Health.Status = health.HealthStatusHealthy
 				appServer := newTestAppServer(t, testApp)
-				filter := buildFilter(tt.query)
+				filter := argo.BuildFilter(tt.query)
 				permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, filter, *testApp)
 				assert.True(t, permitted)
 			})
@@ -3298,11 +3334,15 @@ func TestIsApplicationPermitted(t *testing.T) {
 	}{
 		{
 			testName: "Forbidden with cluster url filter",
-			query:    application.ApplicationQuery{Clusters: []string{"https://invalid.example.com"}},
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{Clusters: []string{"https://invalid.example.com"}},
+			},
 		},
 		{
 			testName: "Forbidden with namespace filter",
-			query:    application.ApplicationQuery{Namespaces: []string{"invalid"}},
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{Namespaces: []string{"invalid"}},
+			},
 		},
 		{
 			testName: "Forbidden with repo filter",
@@ -3314,23 +3354,33 @@ func TestIsApplicationPermitted(t *testing.T) {
 		},
 		{
 			testName: "Forbidden with minName filter",
-			query:    application.ApplicationQuery{MinName: ptr.To("-test")},
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{MinName: ptr.To("-test")},
+			},
 		},
 		{
 			testName: "Forbidden with maxName filter",
-			query:    application.ApplicationQuery{MaxName: ptr.To("app-")},
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{MaxName: ptr.To("app-")},
+			},
 		},
 		{
 			testName: "Forbidden with search filter",
-			query:    application.ApplicationQuery{Search: ptr.To("xxx")},
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{Search: ptr.To("xxx")},
+			},
 		},
 		{
 			testName: "Forbidden with sync filter",
-			query:    application.ApplicationQuery{SyncStatuses: []string{"OutOfSync"}},
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{SyncStatuses: []string{"OutOfSync"}},
+			},
 		},
 		{
 			testName: "Forbidden with health filter",
-			query:    application.ApplicationQuery{HealthStatuses: []string{"Degraded"}},
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{HealthStatuses: []string{"Degraded"}},
+			},
 		},
 	}
 	t.Run("Application is not permitted with query filters", func(t *testing.T) {
@@ -3338,7 +3388,7 @@ func TestIsApplicationPermitted(t *testing.T) {
 			t.Run(tt.testName, func(t *testing.T) {
 				testApp := newTestApp()
 				appServer := newTestAppServer(t, testApp)
-				filter := buildFilter(tt.query)
+				filter := argo.BuildFilter(tt.query)
 				permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, filter, *testApp)
 				assert.False(t, permitted)
 			})

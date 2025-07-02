@@ -24,41 +24,23 @@ message ApplicationQuery {
 	// forces application reconciliation if set to 'hard'
 	optional string refresh = 2;
 	// the project names to restrict returned list applications
+	// Deprecated: use options.projects instead
 	repeated string projects = 3;
 	// when specified with a watch call, shows changes that occur after that particular version of a resource.
 	optional string resourceVersion = 4;
 	// the selector to restrict returned list to applications only with matched labels
+	// Deprecated: use options.selector instead
 	optional string selector = 5;
 	// the repoURL to restrict returned list applications
+	// Deprecated: use options.repos instead
 	optional string repo = 6;
 	// the application's namespace
 	optional string appNamespace = 7;
 	// the project names to restrict returned list applications (legacy name for backwards-compatibility)
+	// Deprecated: use options.projects instead
 	repeated string project = 8;
-	// the application name to start from (app with min name is included in response)
-	optional string minName = 9;
-	// the application name to end at (app with max name is included in response)
-	optional string maxName = 10;
-	// the repos filter, ignore if the field repo was defined
-	repeated string repos = 11;
-	// the clusters filter
-	repeated string clusters = 12;
-	// the namespaces filter
-	repeated string namespaces = 13;
-	// the auth sync filter
-	optional bool autoSyncEnabled = 14;
-	// the sync status filter
-	repeated string syncStatuses = 15;
-	// the health status filter
-	repeated string healthStatuses = 16;
-	// search
-	optional string search = 17;
-  	// offset
-	optional int64 offset = 18;
-	// limit
-	optional int64 limit = 19;
-	// sort by enum=name;created-at;synchronized
-	optional ApplicationSortBy sortBy = 20;
+	// the options to restrict returned list applications
+	optional ApplicationListOptions options = 9;
 }
 
 enum ApplicationSortBy {
@@ -70,6 +52,64 @@ enum ApplicationSortBy {
 	ASB_CREATED_AT = 2;
 	// sort by .Status.OperationState.FinishedAt
 	ASB_SYNCHRONIZED = 3;
+}
+
+message ApplicationListOptions{
+	// the application name to start from (app with min name is included in response)
+	optional string minName = 1;
+	// the application name to end at (app with max name is included in response)
+	optional string maxName = 2;
+	// the repos filter, ignore if the field repo was defined
+	repeated string repos = 3;
+	// the clusters filter
+	repeated string clusters = 4;
+	// the namespaces filter
+	repeated string namespaces = 5;
+	// the auth sync filter
+	optional bool autoSyncEnabled = 6;
+	// the sync status filter
+	repeated string syncStatuses = 7;
+	// the health status filter
+	repeated string healthStatuses = 8;
+	// search
+	optional string search = 9;
+  	// offset
+	optional int64 offset = 10;
+	// limit
+	optional int64 limit = 11;
+	// sort by enum=name;created-at;synchronized
+	optional ApplicationSortBy sortBy = 12;
+}
+
+message ApplicationListResponse {
+	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Application items = 1;
+	required ApplicationListStats stats = 2;
+}
+
+// Stats for the application list
+// Note total/totalBySyncStatus/totalByHealthStatus/autoSyncEnabledCount is for pagination, therefore
+// the calculation is based on the filtered applications, meanwhile destinations/namespaces/labels are 
+// calculated based on all.
+message ApplicationListStats {
+	// the number of applications
+	required int64 total = 1;
+	// the number of applications based on the sync status
+	map<string, int64> totalBySyncStatus = 2;
+	// the number of applications based on the health status
+	map<string, int64> totalByHealthStatus = 3;
+	// the number of applications with auto-sync enabled
+	required int64 autoSyncEnabledCount = 4;
+	// all destinations for the applications returned
+	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationDestination destinations = 5;
+	// all namespaces for the applications returned
+	repeated string namespaces = 6;
+	// all labels for the applications returned
+	repeated ApplicationLabelStats labels = 7;
+}
+
+message ApplicationLabelStats {
+	required string key = 1;
+	repeated string values = 2;
 }
 
 message NodeQuery {
@@ -360,7 +400,7 @@ message ListAppLinksRequest {
 service ApplicationService {
 
 	// List returns list of applications
-	rpc List(ApplicationQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationList) {
+	rpc List(ApplicationQuery) returns (ApplicationListResponse) {
 		option (google.api.http).get = "/api/v1/applications";
 	}
 

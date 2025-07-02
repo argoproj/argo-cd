@@ -1040,7 +1040,7 @@ func TestPrintApplicationNames(t *testing.T) {
 				Name: "test",
 			},
 		}
-		printApplicationNames([]v1alpha1.Application{*app, *app})
+		printApplicationNames([]*v1alpha1.Application{app, app})
 		return nil
 	})
 	expectation := "test\ntest\n"
@@ -1568,7 +1568,7 @@ func TestPrintApplicationTableNotWide(t *testing.T) {
 			},
 		}
 		output := "table"
-		printApplicationTable([]v1alpha1.Application{*app, *app}, &output)
+		printApplicationTable([]*v1alpha1.Application{app, app}, &output)
 		return nil
 	})
 	require.NoError(t, err)
@@ -1604,7 +1604,7 @@ func TestPrintApplicationTableWide(t *testing.T) {
 			},
 		}
 		output := "wide"
-		printApplicationTable([]v1alpha1.Application{*app, *app}, &output)
+		printApplicationTable([]*v1alpha1.Application{app, app}, &output)
 		return nil
 	})
 	require.NoError(t, err)
@@ -2136,7 +2136,7 @@ func (c *fakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.Applicat
 	}, nil
 }
 
-func (c *fakeAppServiceClient) List(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.ApplicationList, error) {
+func (c *fakeAppServiceClient) List(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*applicationpkg.ApplicationListResponse, error) {
 	return nil, nil
 }
 

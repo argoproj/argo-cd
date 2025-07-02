@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"math"
 	"reflect"
 	"slices"
@@ -85,7 +84,6 @@ type Server struct {
 	kubeclientset          kubernetes.Interface
 	appclientset           appclientset.Interface
 	appLister              applisters.ApplicationLister
-	appInformer            cache.SharedIndexInformer
 	appBroadcaster         Broadcaster
 	repoClientset          apiclient.Clientset
 	kubectl                kube.Kubectl
@@ -131,7 +129,6 @@ func NewServer(
 		ns:                     namespace,
 		appclientset:           &deepCopyAppClientset{appclientset},
 		appLister:              &deepCopyApplicationLister{appLister},
-		appInformer:            appInformer,
 		appBroadcaster:         appBroadcaster,
 		kubeclientset:          kubeclientset,
 		cache:                  cache,
@@ -268,14 +265,10 @@ func (s *Server) getApplicationEnforceRBACClient(ctx context.Context, action, pr
 }
 
 // List returns list of applications
-func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1alpha1.ApplicationList, error) {
+func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*application.ApplicationListResponse, error) {
 	selector, err := labels.Parse(q.GetSelector())
 	if err != nil {
 		return nil, fmt.Errorf("error parsing the selector: %w", err)
-	}
-	less, err := getLessFunc(q.SortBy)
-	if err != nil {
-		return nil, fmt.Errorf("error sorting applications: %w", err)
 	}
 	var apps []*v1alpha1.Application
 	if q.GetAppNamespace() == "" {
@@ -287,90 +280,25 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 		return nil, fmt.Errorf("error listing apps with selectors: %w", err)
 	}
 
-	stats := s.getAppsStats(apps)
-
-	filteredApps := argo.FilterByFiltersP(apps, buildFilter(*q))
-
-	newItems := make([]v1alpha1.Application, 0)
-	for _, a := range filteredApps {
+	newItems := make([]*v1alpha1.Application, 0)
+	for _, a := range apps {
 		// Skip any application that is neither in the control plane's namespace
 		// nor in the list of enabled namespaces.
 		if !s.isNamespaceEnabled(a.Namespace) {
 			continue
 		}
 		if s.enf.Enforce(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionGet, a.RBACName(s.ns)) {
-			newItems = append(newItems, *a)
+			newItems = append(newItems, a)
 		}
 	}
-	// App counters are based on the filtered list of applications
-	for _, app := range newItems {
-		stats.Total++
-		stats.TotalByHealthStatus[app.Status.Health.Status]++
-		stats.TotalBySyncStatus[app.Status.Sync.Status]++
-		if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
-			stats.AutoSyncEnabledCount++
-		}
+	newItems, stats, err := argo.Paginate(newItems, *q)
+	if err != nil {
+		return nil, fmt.Errorf("error paginating applications: %w", err)
 	}
-
-	// Sort found applications by name
-	sort.Slice(newItems, func(i, j int) bool {
-		return less(newItems[i], newItems[j])
-	})
-
-	if q.Offset != nil && q.Limit != nil {
-		if *q.Offset < 0 || *q.Limit < 0 {
-			return nil, fmt.Errorf("offset %d and limit %d must be a non-negative integer", *q.Offset, *q.Limit)
-		}
-		if *q.Offset >= int64(len(newItems)) || *q.Limit == 0 {
-			newItems = make([]v1alpha1.Application, 0)
-		} else {
-			if *q.Offset+*q.Limit >= int64(len(newItems)) {
-				newItems = newItems[*q.Offset:]
-			} else {
-				newItems = newItems[*q.Offset : *q.Offset+*q.Limit]
-			}
-		}
-	}
-
-	appList := v1alpha1.ApplicationList{
-		ListMeta: metav1.ListMeta{
-			ResourceVersion: s.appInformer.LastSyncResourceVersion(),
-		},
+	return &application.ApplicationListResponse{
 		Items: newItems,
 		Stats: stats,
-	}
-	return &appList, nil
-}
-
-func (s *Server) getAppsStats(apps []*v1alpha1.Application) v1alpha1.ApplicationListStats {
-	stats := v1alpha1.NewApplicationListStats()
-	destinations := map[v1alpha1.ApplicationDestination]bool{}
-	namespaces := map[string]bool{}
-	labels := map[string]map[string]bool{}
-	for _, app := range apps {
-		if _, ok := destinations[app.Spec.Destination]; !ok {
-			destinations[app.Spec.Destination] = true
-		}
-		if _, ok := namespaces[app.Spec.Destination.Namespace]; !ok {
-			namespaces[app.Spec.Destination.Namespace] = true
-		}
-		for key, value := range app.Labels {
-			if valueMap, ok := labels[key]; !ok {
-				labels[key] = map[string]bool{value: true}
-			} else {
-				valueMap[value] = true
-			}
-		}
-	}
-	stats.Destinations = slices.Collect(maps.Keys(destinations))
-	stats.Namespaces = slices.Collect(maps.Keys(namespaces))
-	for key, valueMap := range labels {
-		stats.Labels = append(stats.Labels, v1alpha1.ApplicationLabelStats{
-			Key:    key,
-			Values: slices.Collect(maps.Keys(valueMap)),
-		})
-	}
-	return stats
+	}, nil
 }
 
 // Create creates an application
@@ -815,7 +743,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 	appNs := s.appNamespaceOrDefault(q.GetAppNamespace())
 
 	project := ""
-	projects := getProjectsFromApplicationQuery(*q)
+	projects := argo.GetProjectsFromApplicationQuery(*q)
 	if len(projects) == 1 {
 		project = projects[0]
 	} else if len(projects) > 1 {
@@ -1278,7 +1206,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	if q.Name != nil {
 		logCtx = logCtx.WithField("application", *q.Name)
 	}
-	filter := buildFilter(*q)
+	filter := argo.BuildFilter(*q)
 	claims := ws.Context().Value("claims")
 	selector, err := labels.Parse(q.GetSelector())
 	if err != nil {
@@ -2853,113 +2781,4 @@ func (s *Server) appNamespaceOrDefault(appNs string) string {
 
 func (s *Server) isNamespaceEnabled(namespace string) bool {
 	return security.IsNamespaceEnabled(namespace, s.ns, s.enabledNamespaces)
-}
-
-// getProjectsFromApplicationQuery gets the project names from a query. If the legacy "project" field was specified, use
-// that. Otherwise, use the newer "projects" field.
-func getProjectsFromApplicationQuery(q application.ApplicationQuery) []string {
-	if q.Project != nil {
-		return q.Project
-	}
-	return q.Projects
-}
-
-func getReposFromApplicationQuery(q application.ApplicationQuery) []string {
-	if q.Repo != nil {
-		return []string{*q.Repo}
-	}
-	return q.Repos
-}
-
-func buildFilter(q application.ApplicationQuery) argo.Filter {
-	chainFilter := argo.NewChainFilter()
-
-	if q.Name != nil {
-		f := argo.NewStringPropertyFilter([]string{q.GetName()}, func(app *v1alpha1.Application) string { return app.Name })
-		chainFilter.AddFilter(f)
-	}
-
-	if getProjectsFromApplicationQuery(q) != nil {
-		f := argo.NewStringPropertyFilter(getProjectsFromApplicationQuery(q), func(app *v1alpha1.Application) string { return app.Spec.Project })
-		chainFilter.AddFilter(f)
-	}
-
-	if q.GetMinName() != "" {
-		chainFilter.AddFilter(argo.NewMinNameFilter(q.GetMinName()))
-	}
-
-	if q.GetMaxName() != "" {
-		chainFilter.AddFilter(argo.NewMaxNameFilter(q.GetMaxName()))
-	}
-
-	if len(getReposFromApplicationQuery(q)) > 0 {
-		f := argo.NewStringPropertyFilter(getReposFromApplicationQuery(q), func(app *v1alpha1.Application) string { return app.Spec.Source.RepoURL })
-		chainFilter.AddFilter(f)
-	}
-
-	if len(q.GetClusters()) > 0 {
-		chainFilter.AddFilter(argo.NewClustersFilter(q.GetClusters()))
-	}
-
-	if len(q.GetNamespaces()) > 0 {
-		f := argo.NewStringPropertyFilter(q.GetNamespaces(), func(app *v1alpha1.Application) string { return app.Spec.Destination.Namespace })
-		chainFilter.AddFilter(f)
-	}
-
-	if q.AutoSyncEnabled != nil {
-		f := argo.NewBoolPropertyFilter(*q.AutoSyncEnabled, func(app *v1alpha1.Application) bool {
-			return app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil
-		})
-		chainFilter.AddFilter(f)
-	}
-
-	if len(q.GetSyncStatuses()) > 0 {
-		f := argo.NewStringPropertyFilter(q.GetSyncStatuses(), func(app *v1alpha1.Application) string { return string(app.Status.Sync.Status) })
-		chainFilter.AddFilter(f)
-	}
-
-	if len(q.GetHealthStatuses()) > 0 {
-		f := argo.NewStringPropertyFilter(q.GetHealthStatuses(), func(app *v1alpha1.Application) string { return string(app.Status.Health.Status) })
-		chainFilter.AddFilter(f)
-	}
-
-	if q.Search != nil {
-		chainFilter.AddFilter(argo.NewSearchFilter(q.GetSearch()))
-	}
-
-	return chainFilter
-}
-
-type Less func(x, y v1alpha1.Application) bool
-
-func getLessFunc(sortBy *application.ApplicationSortBy) (Less, error) {
-	if sortBy == nil || *sortBy == application.ApplicationSortBy_ASB_UNSPECIFIED || *sortBy == application.ApplicationSortBy_ASB_NAME {
-		return func(x, y v1alpha1.Application) bool {
-			return x.Name < y.Name
-		}, nil
-	}
-	// sort in descending order
-	if *sortBy == application.ApplicationSortBy_ASB_CREATED_AT {
-		return func(y, x v1alpha1.Application) bool {
-			return x.CreationTimestamp.Before(&y.CreationTimestamp)
-		}, nil
-	}
-	// sort in descending order
-	if *sortBy == application.ApplicationSortBy_ASB_SYNCHRONIZED {
-		// If x.FinishedAt was assigned but y not, we think x is before(less) than y
-		return func(y, x v1alpha1.Application) bool {
-			if x.Status.OperationState != nil {
-				if y.Status.OperationState != nil {
-					return x.Status.OperationState.FinishedAt.Before(y.Status.OperationState.FinishedAt)
-				}
-				return true
-			}
-			if y.Status.OperationState != nil {
-				return false
-			}
-			// Sort by name if both were nil
-			return y.Name < x.Name
-		}, nil
-	}
-	return nil, fmt.Errorf("invalid sort by %s", *sortBy)
 }

@@ -1662,14 +1662,14 @@ func checkForDeleteEvent(ctx context.Context, acdClient argocdclient.Client, app
 }
 
 // Print simple list of application names
-func printApplicationNames(apps []argoappv1.Application) {
+func printApplicationNames(apps []*argoappv1.Application) {
 	for _, app := range apps {
 		fmt.Println(app.QualifiedName())
 	}
 }
 
 // Print table of application data
-func printApplicationTable(apps []argoappv1.Application, output *string) {
+func printApplicationTable(apps []*argoappv1.Application, output *string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	var fmtStr string
 	headers := []any{"NAME", "CLUSTER", "NAMESPACE", "PROJECT", "STATUS", "HEALTH", "SYNCPOLICY", "CONDITIONS"}
@@ -1683,13 +1683,13 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 	for _, app := range apps {
 		vals := []any{
 			app.QualifiedName(),
-			getServer(&app),
+			getServer(app),
 			app.Spec.Destination.Namespace,
 			app.Spec.GetProject(),
 			app.Status.Sync.Status,
 			app.Status.Health.Status,
-			formatSyncPolicy(app),
-			formatConditionsSummary(app),
+			formatSyncPolicy(*app),
+			formatConditionsSummary(*app),
 		}
 		if *output == "wide" {
 			vals = append(vals, app.Spec.GetSource().RepoURL, app.Spec.GetSource().Path, app.Spec.GetSource().TargetRevision)
@@ -1726,23 +1726,22 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer utilio.Close(conn)
+			listOpts := &application.ApplicationListOptions{}
+			if repo != "" {
+				listOpts.Repos = []string{repo}
+			}
+			if cluster != "" {
+				listOpts.Clusters = []string{cluster}
+			}
 			apps, err := appIf.List(ctx, &application.ApplicationQuery{
 				Selector:     ptr.To(selector),
 				AppNamespace: &appNamespace,
+				Projects:     projects,
+				Options:      listOpts,
 			})
 
 			errors.CheckError(err)
 			appList := apps.Items
-
-			if len(projects) != 0 {
-				appList = argo.FilterByProjects(appList, projects)
-			}
-			if repo != "" {
-				appList = argo.FilterByRepo(appList, repo)
-			}
-			if cluster != "" {
-				appList = argo.FilterByCluster(appList, cluster)
-			}
 
 			switch output {
 			case "yaml", "json":

@@ -249,10 +249,7 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 			resp, err := appIf.Generate(ctx, &req)
 			errors.CheckError(err)
 
-			var appsList []arogappsetv1.Application
-			for i := range resp.Applications {
-				appsList = append(appsList, *resp.Applications[i])
-			}
+			appsList := resp.Applications
 
 			switch output {
 			case "yaml", "json":
