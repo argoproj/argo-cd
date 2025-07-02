@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	"encoding/json"
-	"fmt"
 	"sort"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -765,6 +764,7 @@ type BasicAuthBitbucketServer struct {
 type PullRequestGeneratorFilter struct {
 	BranchMatch       *string `json:"branchMatch,omitempty" protobuf:"bytes,1,opt,name=branchMatch"`
 	TargetBranchMatch *string `json:"targetBranchMatch,omitempty" protobuf:"bytes,2,opt,name=targetBranchMatch"`
+	TitleMatch        *string `json:"titleMatch,omitempty" protobuf:"bytes,3,op,name=titleMatch"`
 }
 
 type PluginConfigMapRef struct {
@@ -917,50 +917,69 @@ func (a *ApplicationSet) RefreshRequired() bool {
 // If the applicationset has a pre-existing condition of a type that is not in the evaluated list,
 // it will be preserved. If the applicationset has a pre-existing condition of a type, status, reason that
 // is in the evaluated list, but not in the incoming conditions list, it will be removed.
-func (status *ApplicationSetStatus) SetConditions(conditions []ApplicationSetCondition, _ map[ApplicationSetConditionType]bool) {
-	applicationSetConditions := make([]ApplicationSetCondition, 0)
+func (status *ApplicationSetStatus) SetConditions(conditions []ApplicationSetCondition, evaluatedTypes map[ApplicationSetConditionType]bool) {
+	newConditions := make([]ApplicationSetCondition, 0)
 	now := metav1.Now()
+	// Keep the existing conditions when they are not evaluated
+	for i := range status.Conditions {
+		currentCondition := status.Conditions[i]
+		if isEvaluated, ok := evaluatedTypes[currentCondition.Type]; !ok || !isEvaluated {
+			if currentCondition.LastTransitionTime == nil {
+				currentCondition.LastTransitionTime = &now
+			}
+			newConditions = append(newConditions, currentCondition)
+		}
+	}
+
+	// Update the evaluated conditions
 	for i := range conditions {
 		condition := conditions[i]
+		if isEvaluated, ok := evaluatedTypes[condition.Type]; !ok || !isEvaluated {
+			// ignore an new condition when it is not evaluated
+			continue
+		}
+
 		if condition.LastTransitionTime == nil {
 			condition.LastTransitionTime = &now
 		}
-		eci := findConditionIndex(status.Conditions, condition.Type)
+		eci := condition.Type.findConditionIndex(status.Conditions)
 		if eci >= 0 && status.Conditions[eci].Message == condition.Message && status.Conditions[eci].Reason == condition.Reason && status.Conditions[eci].Status == condition.Status {
-			// If we already have a condition of this type, status and reason, only update the timestamp if something
-			// has changed.
-			applicationSetConditions = append(applicationSetConditions, status.Conditions[eci])
+			// If we already have a condition of this type and nothing has changed, do not update it
+			newConditions = append(newConditions, status.Conditions[eci])
 		} else {
-			// Otherwise we use the new incoming condition with an updated timestamp:
-			applicationSetConditions = append(applicationSetConditions, condition)
+			// Otherwise we use the new incoming condition with updated information
+			newConditions = append(newConditions, condition)
 		}
 	}
-	sort.Slice(applicationSetConditions, func(i, j int) bool {
-		left := applicationSetConditions[i]
-		right := applicationSetConditions[j]
-		return fmt.Sprintf("%s/%s/%s/%s/%v", left.Type, left.Message, left.Status, left.Reason, left.LastTransitionTime) < fmt.Sprintf("%s/%s/%s/%s/%v", right.Type, right.Message, right.Status, right.Reason, right.LastTransitionTime)
+
+	sort.Slice(newConditions, func(i, j int) bool {
+		left := newConditions[i]
+		right := newConditions[j]
+
+		if left.Type != right.Type {
+			return left.Type < right.Type
+		}
+		if left.Status != right.Status {
+			return left.Status < right.Status
+		}
+		if left.Reason != right.Reason {
+			return left.Reason < right.Reason
+		}
+		if left.Message != right.Message {
+			return left.Message < right.Message
+		}
+		return left.LastTransitionTime.Before(right.LastTransitionTime)
 	})
-	status.Conditions = applicationSetConditions
+	status.Conditions = newConditions
 }
 
-func findConditionIndex(conditions []ApplicationSetCondition, t ApplicationSetConditionType) int {
+func (t ApplicationSetConditionType) findConditionIndex(conditions []ApplicationSetCondition) int {
 	for i := range conditions {
 		if conditions[i].Type == t {
 			return i
 		}
 	}
 	return -1
-}
-
-func (status *ApplicationSetStatus) SetApplicationStatus(newStatus ApplicationSetApplicationStatus) {
-	for i := range status.ApplicationStatus {
-		appStatus := status.ApplicationStatus[i]
-		if appStatus.Application == newStatus.Application {
-			status.ApplicationStatus[i] = newStatus
-			return
-		}
-	}
-	status.ApplicationStatus = append(status.ApplicationStatus, newStatus)
 }
 
 // QualifiedName returns the full qualified name of the applicationset, including
