@@ -1,5 +1,5 @@
 import {DataLoader, SlidingPanel, Tooltip} from 'argo-ui';
-import React, {FC, Fragment, useState} from 'react';
+import React, {useState} from 'react';
 import {VersionMessage} from '../../models';
 import {services} from '../../services';
 import {ThemeWrapper} from '../layout/layout';
@@ -12,7 +12,7 @@ interface VersionPanelProps {
 
 type CopyState = 'success' | 'failed' | undefined;
 
-export const VersionPanel: FC<VersionPanelProps> = ({isShown, onClose, version}) => {
+export function VersionPanel({isShown, onClose, version}: VersionPanelProps) {
     const [copyState, setCopyState] = useState<CopyState>(undefined);
     const header = 'Argo CD Server Version';
 
@@ -30,7 +30,7 @@ export const VersionPanel: FC<VersionPanelProps> = ({isShown, onClose, version})
         };
 
         return (
-            <Fragment>
+            <>
                 {Object.entries(formattedVersion).map(([key, value]) => (
                     <div className='argo-table-list__row' key={key}>
                         <div className='row'>
@@ -47,7 +47,7 @@ export const VersionPanel: FC<VersionPanelProps> = ({isShown, onClose, version})
                         </div>
                     </div>
                 ))}
-            </Fragment>
+            </>
         );
     };
 
@@ -104,4 +104,4 @@ export const VersionPanel: FC<VersionPanelProps> = ({isShown, onClose, version})
             )}
         </DataLoader>
     );
-};
+}
