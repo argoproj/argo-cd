@@ -114,15 +114,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 	syncOp = *state.Operation.Sync
 
-	// validates if it should fail the sync if it finds shared resources
-	hasSharedResource, sharedResourceMessage := hasSharedResourceCondition(app)
-	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") &&
-		hasSharedResource {
-		state.Phase = common.OperationFailed
-		state.Message = fmt.Sprintf("Shared resource found: %s", sharedResourceMessage)
-		return
-	}
-
 	isMultiSourceRevision := app.Spec.HasMultipleSources()
 	rollback := len(syncOp.Sources) > 0 || syncOp.Source != nil
 	if rollback {
@@ -212,6 +203,15 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 	syncRes.Revision = compareResult.syncStatus.Revision
 	syncRes.Revisions = compareResult.syncStatus.Revisions
+
+	// validates if it should fail the sync if it finds shared resources
+	hasSharedResource, sharedResourceMessage := hasSharedResourceCondition(app)
+	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") &&
+		hasSharedResource {
+		state.Phase = common.OperationFailed
+		state.Message = fmt.Sprintf("Shared resource found: %s", sharedResourceMessage)
+		return
+	}
 
 	// If there are any comparison or spec errors error conditions do not perform the operation
 	if errConditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{

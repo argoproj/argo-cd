@@ -1448,7 +1448,7 @@ func TestCacheControlHeaders(t *testing.T) {
 			filename:                    "main.e4188e5adc97bbfc00c0.js",
 			createFile:                  false,
 			expectedStatus:              404,
-			expectedCacheControlHeaders: []string{"no-cache"},
+			expectedCacheControlHeaders: nil,
 		},
 	}
 

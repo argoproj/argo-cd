@@ -41,6 +41,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/utils/ptr"
 
 	commitclient "github.com/argoproj/argo-cd/v2/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
@@ -135,6 +136,7 @@ type ApplicationController struct {
 	statusRefreshJitter           time.Duration
 	selfHealTimeout               time.Duration
 	selfHealBackOff               *wait.Backoff
+	selfHealBackoffCooldown       time.Duration
 	syncTimeout                   time.Duration
 	db                            db.ArgoDB
 	settingsMgr                   *settings_util.SettingsManager
@@ -169,6 +171,7 @@ func NewApplicationController(
 	appResyncJitter time.Duration,
 	selfHealTimeout time.Duration,
 	selfHealBackoff *wait.Backoff,
+	selfHealBackoffCooldown time.Duration,
 	syncTimeout time.Duration,
 	repoErrorGracePeriod time.Duration,
 	metricsPort int,
@@ -214,6 +217,7 @@ func NewApplicationController(
 		settingsMgr:                       settingsMgr,
 		selfHealTimeout:                   selfHealTimeout,
 		selfHealBackOff:                   selfHealBackoff,
+		selfHealBackoffCooldown:           selfHealBackoffCooldown,
 		syncTimeout:                       syncTimeout,
 		clusterSharding:                   clusterSharding,
 		projByNameCache:                   sync.Map{},
@@ -1675,11 +1679,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	project, hasErrors := ctrl.refreshAppConditions(app)
 	ts.AddCheckpoint("refresh_app_conditions_ms")
-	now := metav1.Now()
 	if hasErrors {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = health.HealthStatusUnknown
-		app.Status.Health.LastTransitionTime = &now
 		patchMs = ctrl.persistAppStatus(origApp, &app.Status)
 
 		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), &appv1.ApplicationTree{}); err != nil {
@@ -1770,6 +1772,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	ts.AddCheckpoint("auto_sync_ms")
 
 	if app.Status.ReconciledAt == nil || comparisonLevel >= CompareWithLatest {
+		now := metav1.Now()
 		app.Status.ReconciledAt = &now
 	}
 	app.Status.Sync = *compareResult.syncStatus
@@ -2000,9 +2003,15 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		ctrl.logAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message, context.TODO())
 	}
 	if orig.Status.Health.Status != newStatus.Health.Status {
+		now := metav1.Now()
+		newStatus.Health.LastTransitionTime = &now
 		message := fmt.Sprintf("Updated health status: %s -> %s", orig.Status.Health.Status, newStatus.Health.Status)
 		ctrl.logAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message, context.TODO())
+	} else {
+		// make sure the last transition time is the same and populated if the health is the same
+		newStatus.Health.LastTransitionTime = orig.Status.Health.LastTransitionTime
 	}
+
 	var newAnnotations map[string]string
 	if orig.GetAnnotations() != nil {
 		newAnnotations = make(map[string]string)
@@ -2230,17 +2239,22 @@ func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application, alread
 		return true, time.Duration(0)
 	}
 
-	// Reset counter if the prior sync was successful OR if the revision has changed
-	if !alreadyAttempted || app.Status.Sync.Status == appv1.SyncStatusCodeSynced {
+	var timeSinceOperation *time.Duration
+	if app.Status.OperationState.FinishedAt != nil {
+		timeSinceOperation = ptr.To(time.Since(app.Status.OperationState.FinishedAt.Time))
+	}
+
+	// Reset counter if the prior sync was successful and the cooldown period is over OR if the revision has changed
+	if !alreadyAttempted || (timeSinceOperation != nil && *timeSinceOperation >= ctrl.selfHealBackoffCooldown && app.Status.Sync.Status == appv1.SyncStatusCodeSynced) {
 		app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount = 0
 	}
 
 	var retryAfter time.Duration
 	if ctrl.selfHealBackOff == nil {
-		if app.Status.OperationState.FinishedAt == nil {
+		if timeSinceOperation == nil {
 			retryAfter = ctrl.selfHealTimeout
 		} else {
-			retryAfter = ctrl.selfHealTimeout - time.Since(app.Status.OperationState.FinishedAt.Time)
+			retryAfter = ctrl.selfHealTimeout - *timeSinceOperation
 		}
 	} else {
 		backOff := *ctrl.selfHealBackOff
@@ -2250,10 +2264,11 @@ func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application, alread
 		for i := 0; i < steps; i++ {
 			delay = backOff.Step()
 		}
-		if app.Status.OperationState.FinishedAt == nil {
+
+		if timeSinceOperation == nil {
 			retryAfter = delay
 		} else {
-			retryAfter = delay - time.Since(app.Status.OperationState.FinishedAt.Time)
+			retryAfter = delay - *timeSinceOperation
 		}
 	}
 	return retryAfter <= 0, retryAfter
