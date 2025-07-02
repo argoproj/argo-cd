@@ -8560,7 +8560,7 @@
       "title": "KustomizeOptions are options for kustomize to use when building manifests",
       "properties": {
         "binaryPath": {
-          "description": "Deprecated: Use Settings.Versions instead. If Settings is set, this field will be ignored.",
+          "description": "Deprecated: Use Settings.Versions instead. If this field is set, it will be used as the Kustomize binary path.\nOtherwise, Versions is used.",
           "type": "string",
           "title": "BinaryPath holds optional path to kustomize binary"
         },
