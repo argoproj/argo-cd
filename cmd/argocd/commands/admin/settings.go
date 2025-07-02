@@ -235,7 +235,7 @@ var validatorsByGroup = map[string]settingValidator{
 		return "", err
 	}),
 	"kustomize": func(manager *settings.SettingsManager) (string, error) {
-		opts, err := manager.GetKustomizeSettings()
+		opts, err := manager.GetKustomizeOptions()
 		if err != nil {
 			return "", err
 		}

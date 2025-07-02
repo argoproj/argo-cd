@@ -688,7 +688,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 	t.Run("Empty", func(t *testing.T) {
 		_, settingsManager := fixtures(map[string]string{})
 
-		settings, err := settingsManager.GetKustomizeSettings()
+		settings, err := settingsManager.GetKustomizeOptions()
 
 		require.NoError(t, err)
 		assert.Empty(t, settings.BuildOptions)
@@ -700,7 +700,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 			"kustomize.version.v3.2.1": "somePath",
 		})
 
-		options, err := settingsManager.GetKustomizeSettings()
+		options, err := settingsManager.GetKustomizeOptions()
 
 		require.NoError(t, err)
 		assert.Equal(t, "foo", options.BuildOptions)
@@ -718,7 +718,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 			"kustomize.buildOptions.v3.2.5": "--options v3.2.5",
 		})
 
-		got, err := settingsManager.GetKustomizeSettings()
+		got, err := settingsManager.GetKustomizeOptions()
 
 		require.NoError(t, err)
 		assert.Equal(t, "--global true", got.BuildOptions)
@@ -749,7 +749,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 			"kustomize.path.v3.2.1":         "/other_path_3.2.1",
 		})
 
-		got, err := settingsManager.GetKustomizeSettings()
+		got, err := settingsManager.GetKustomizeOptions()
 		require.ErrorContains(t, err, "found duplicate kustomize version: v3.2.1")
 		assert.Empty(t, got)
 	})
@@ -759,7 +759,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 			"other.options": "--global true",
 		})
 
-		got, err := settingsManager.GetKustomizeSettings()
+		got, err := settingsManager.GetKustomizeOptions()
 		require.NoError(t, err)
 		assert.Empty(t, got)
 	})

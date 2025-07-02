@@ -173,7 +173,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 	ts.AddCheckpoint("plugins_ms")
 
-	kustomizeSettings, err := m.settingsMgr.GetKustomizeSettings()
+	kustomizeOptions, err := m.settingsMgr.GetKustomizeOptions()
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get Kustomize settings: %w", err)
 	}
@@ -305,26 +305,26 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 
 		log.Debugf("Generating Manifest for source %s revision %s", source, revision)
 		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-			Repo:                            repo,
-			Repos:                           repos,
-			Revision:                        revision,
-			NoCache:                         noCache,
-			NoRevisionCache:                 noRevisionCache,
-			AppLabelKey:                     appLabelKey,
-			AppName:                         app.InstanceName(m.namespace),
-			Namespace:                       appNamespace,
-			ApplicationSource:               &source,
-			KustomizeOptions:                kustomizeSettings,
-			KubeVersion:                     serverVersion,
-			ApiVersions:                     apiVersions,
-			VerifySignature:                 verifySignature,
-			HelmRepoCreds:                   helmRepoCreds,
-			TrackingMethod:                  trackingMethod,
-			EnabledSourceTypes:              enabledSourceTypes,
-			HelmOptions:                     helmOptions,
-			HasMultipleSources:              app.Spec.HasMultipleSources(),
-			RefSources:                      refSources,
-			ProjectName:                     proj.Name,
+			Repo:               repo,
+			Repos:              repos,
+			Revision:           revision,
+			NoCache:            noCache,
+			NoRevisionCache:    noRevisionCache,
+			AppLabelKey:        appLabelKey,
+			AppName:            app.InstanceName(m.namespace),
+			Namespace:          appNamespace,
+			ApplicationSource:  &source,
+			KustomizeOptions:   kustomizeOptions,
+			KubeVersion:        serverVersion,
+			ApiVersions:        apiVersions,
+			VerifySignature:    verifySignature,
+			HelmRepoCreds:      helmRepoCreds,
+			TrackingMethod:     trackingMethod,
+			EnabledSourceTypes: enabledSourceTypes,
+			HelmOptions:        helmOptions,
+			HasMultipleSources: app.Spec.HasMultipleSources(),
+			RefSources:         refSources,
+			ProjectName:        proj.Name,
 			ProjectSourceRepos:              proj.Spec.SourceRepos,
 			AnnotationManifestGeneratePaths: app.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
 			InstallationID:                  installationID,
