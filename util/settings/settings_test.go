@@ -843,6 +843,16 @@ func Test_GetKustomizeBinaryPath(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "path_v3", ver)
 	})
+
+	t.Run("ExplicitVersionSet", func(t *testing.T) {
+		// nolint:staticcheck // test for backwards compatibility with deprecated field
+		ko.BinaryPath = "custom_path"
+		ver, err := GetKustomizeBinaryPath(ko, v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v3"},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "custom_path", ver)
+	})
 }
 
 func TestGetGoogleAnalytics(t *testing.T) {

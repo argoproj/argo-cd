@@ -287,26 +287,21 @@ func (e KustomizeVersionNotRegisteredError) Error() string {
 
 // GetKustomizeBinaryPath returns the path to the kustomize binary based on the provided KustomizeOptions and ApplicationSource.
 func GetKustomizeBinaryPath(ks *v1alpha1.KustomizeOptions, source v1alpha1.ApplicationSource) (string, error) {
-	binaryPath := ""
+	if ks.BinaryPath != "" { // nolint:staticcheck // BinaryPath is deprecated, but still supported for backward compatibility
+		log.Warn("kustomizeOptions.binaryPath is deprecated, use KustomizeOptions.versions instead")
+		// nolint:staticcheck // BinaryPath is deprecated, but if it's set, we'll use it to ensure backward compatibility
+		return ks.BinaryPath, nil
+	}
+
 	if source.Kustomize != nil && source.Kustomize.Version != "" {
 		for _, ver := range ks.Versions {
 			if ver.Name == source.Kustomize.Version {
-				// add version specific path and build options
-				binaryPath = ver.Path
-				break
+				return ver.Path, nil
 			}
 		}
-		if binaryPath == "" {
-			return "", KustomizeVersionNotRegisteredError{Version: source.Kustomize.Version}
-		}
-	} else {
-		if ks.BinaryPath == "" { // nolint:staticcheck // BinaryPath is deprecated, but still supported for backward compatibility
-			log.Warn("kustomizeOptions.binaryPath is deprecated, use KustomizeOptions.versions instead")
-		}
-		// nolint:staticcheck // BinaryPath is deprecated, but still supported for backward compatibility
-		binaryPath = ks.BinaryPath
+		return "", KustomizeVersionNotRegisteredError{Version: source.Kustomize.Version}
 	}
-	return binaryPath, nil
+	return "", nil
 }
 
 // Credentials for accessing a Git repository
