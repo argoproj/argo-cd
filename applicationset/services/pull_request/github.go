@@ -64,6 +64,11 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 	for {
 		pulls, resp, err := g.client.PullRequests.List(ctx, g.owner, g.repo, opts)
 		if err != nil {
+			if resp != nil && resp.StatusCode == http.StatusNotFound {
+				// return a custom error indicating that the repository is not found,
+				// but also returning the empty result since the decision to continue or not in this case is made by the caller
+				return pullRequests, NewRepositoryNotFoundError(err)
+			}
 			return nil, fmt.Errorf("error listing pull requests for %s/%s: %w", g.owner, g.repo, err)
 		}
 		for _, pull := range pulls {
