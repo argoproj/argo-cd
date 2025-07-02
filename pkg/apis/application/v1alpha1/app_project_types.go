@@ -241,12 +241,12 @@ func (proj *AppProject) ValidateProject() error {
 			if window == nil {
 				continue
 			}
-			windowJson, err := json.Marshal(window)
+			windowJSON, err := json.Marshal(window)
 			if err != nil {
 				return status.Errorf(codes.Internal, "failed to marshal window: %v", err)
 			}
-			windowJsonHash := md5.Sum(windowJson)
-			if _, ok := existingWindows[string(windowJsonHash[:])]; ok {
+			windowJSONHash := md5.Sum(windowJSON)
+			if _, ok := existingWindows[string(windowJSONHash[:])]; ok {
 				return status.Errorf(codes.AlreadyExists, "window '%s':'%s':'%s' already exists, update or edit", window.Kind, window.Schedule, window.Duration)
 			}
 			err = window.Validate()
@@ -256,7 +256,7 @@ func (proj *AppProject) ValidateProject() error {
 			if len(window.Applications) == 0 && len(window.Namespaces) == 0 && len(window.Clusters) == 0 {
 				return status.Errorf(codes.OutOfRange, "window '%s':'%s':'%s' requires one of application, cluster or namespace", window.Kind, window.Schedule, window.Duration)
 			}
-			existingWindows[string(windowJsonHash[:])] = true
+			existingWindows[string(windowJSONHash[:])] = true
 		}
 	}
 

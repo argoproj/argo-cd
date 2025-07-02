@@ -4554,6 +4554,6 @@ func TestAppProject_ValidateSyncWindowDuplicates(t *testing.T) {
 	p.Spec.SyncWindows = append(p.Spec.SyncWindows, &dup)
 
 	err := p.ValidateProject()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "already exists")
 }
