@@ -1,6 +1,7 @@
 package kustomize
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -14,15 +15,17 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v3/util/io"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	certutil "github.com/argoproj/argo-cd/v2/util/cert"
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/proxy"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	certutil "github.com/argoproj/argo-cd/v3/util/cert"
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
+	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
 
 // Image represents a Docker image in the format NAME[:TAG].
@@ -144,15 +147,16 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			log.Warnf("Could not parse URL %s: %v", k.repo, err)
 		} else {
 			caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
-			if err != nil {
+			switch {
+			case err != nil:
 				// Some error while getting CA bundle
 				log.Warnf("Could not get CA bundle path for %s: %v", parsedURL.Host, err)
-			} else if caPath == "" {
+			case caPath == "":
 				// No cert configured
 				log.Debugf("No caCert found for repo %s", parsedURL.Host)
-			} else {
+			default:
 				// Make Git use CA bundle
-				environ = append(environ, fmt.Sprintf("GIT_SSL_CAINFO=%s", caPath))
+				environ = append(environ, "GIT_SSL_CAINFO="+caPath)
 			}
 		}
 	}
@@ -226,6 +230,9 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			if opts.LabelWithoutSelector {
 				args = append(args, "--without-selector")
 			}
+			if opts.LabelIncludeTemplates {
+				args = append(args, "--include-templates")
+			}
 			commonLabels := map[string]string{}
 			for name, value := range opts.CommonLabels {
 				commonLabels[name] = envVars.Envsubst(value)
@@ -278,32 +285,32 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			// If the kustomization file is not found, return early.
 			// There is no point reading the kustomization path if it doesn't exist.
 			if kustFile == "" {
-				return nil, nil, nil, fmt.Errorf("kustomization file not found in the path")
+				return nil, nil, nil, errors.New("kustomization file not found in the path")
 			}
 			kustomizationPath := filepath.Join(k.path, kustFile)
 			b, err := os.ReadFile(kustomizationPath)
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("failed to load kustomization.yaml: %w", err)
 			}
-			var kustomization interface{}
+			var kustomization any
 			err = yaml.Unmarshal(b, &kustomization)
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("failed to unmarshal kustomization.yaml: %w", err)
 			}
-			kMap, ok := kustomization.(map[string]interface{})
+			kMap, ok := kustomization.(map[string]any)
 			if !ok {
-				return nil, nil, nil, fmt.Errorf("expected kustomization.yaml to be type map[string]interface{}, but got %T", kMap)
+				return nil, nil, nil, fmt.Errorf("expected kustomization.yaml to be type map[string]any, but got %T", kMap)
 			}
 			patches, ok := kMap["patches"]
 			if ok {
 				// The kustomization.yaml already had a patches field, so we need to append to it.
-				patchesList, ok := patches.([]interface{})
+				patchesList, ok := patches.([]any)
 				if !ok {
-					return nil, nil, nil, fmt.Errorf("expected 'patches' field in kustomization.yaml to be []interface{}, but got %T", patches)
+					return nil, nil, nil, fmt.Errorf("expected 'patches' field in kustomization.yaml to be []any, but got %T", patches)
 				}
 				// Since the patches from the Application manifest are typed, we need to convert them to a type which
 				// can be appended to the existing list.
-				untypedPatches := make([]interface{}, len(opts.Patches))
+				untypedPatches := make([]any, len(opts.Patches))
 				for i := range opts.Patches {
 					untypedPatches[i] = opts.Patches[i]
 				}
@@ -332,12 +339,34 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			// components only supported in kustomize >= v3.7.0
 			// https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md
 			if getSemverSafe().LessThan(semver.MustParse("v3.7.0")) {
-				return nil, nil, nil, fmt.Errorf("kustomize components require kustomize v3.7.0 and above")
+				return nil, nil, nil, errors.New("kustomize components require kustomize v3.7.0 and above")
 			}
 
 			// add components
+			foundComponents := opts.Components
+			if opts.IgnoreMissingComponents {
+				foundComponents = make([]string, 0)
+				root, err := os.OpenRoot(k.repoRoot)
+				defer io.Close(root)
+				if err != nil {
+					return nil, nil, nil, fmt.Errorf("failed to open the repo folder: %w", err)
+				}
+
+				for _, c := range opts.Components {
+					resolvedPath, err := filepath.Rel(k.repoRoot, filepath.Join(k.path, c))
+					if err != nil {
+						return nil, nil, nil, fmt.Errorf("kustomize components path failed: %w", err)
+					}
+					_, err = root.Stat(resolvedPath)
+					if err != nil {
+						log.Debugf("%s component directory does not exist", resolvedPath)
+						continue
+					}
+					foundComponents = append(foundComponents, c)
+				}
+			}
 			args := []string{"edit", "add", "component"}
-			args = append(args, opts.Components...)
+			args = append(args, foundComponents...)
 			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
 			cmd.Env = env
@@ -413,7 +442,7 @@ var (
 
 // getSemver returns parsed kustomize version
 func getSemver() (*semver.Version, error) {
-	verStr, err := Version(true)
+	verStr, err := Version()
 	if err != nil {
 		return nil, err
 	}
@@ -444,33 +473,25 @@ func getSemverSafe() *semver.Version {
 	return semVer
 }
 
-func Version(shortForm bool) (string, error) {
-	executable := "kustomize"
-	cmdArgs := []string{"version"}
-	if shortForm {
-		cmdArgs = append(cmdArgs, "--short")
-	}
-	cmd := exec.Command(executable, cmdArgs...)
+func Version() (string, error) {
+	cmd := exec.Command("kustomize", "version", "--short")
 	// example version output:
-	// long: "{Version:kustomize/v3.8.1 GitCommit:0b359d0ef0272e6545eda0e99aacd63aef99c4d0 BuildDate:2020-07-16T00:58:46Z GoOs:linux GoArch:amd64}"
 	// short: "{kustomize/v3.8.1  2020-07-16T00:58:46Z  }"
 	version, err := executil.Run(cmd)
 	if err != nil {
 		return "", fmt.Errorf("could not get kustomize version: %w", err)
 	}
 	version = strings.TrimSpace(version)
-	if shortForm {
-		// trim the curly braces
-		version = strings.TrimPrefix(version, "{")
-		version = strings.TrimSuffix(version, "}")
-		version = strings.TrimSpace(version)
+	// trim the curly braces
+	version = strings.TrimPrefix(version, "{")
+	version = strings.TrimSuffix(version, "}")
+	version = strings.TrimSpace(version)
 
-		// remove double space in middle
-		version = strings.ReplaceAll(version, "  ", " ")
+	// remove double space in middle
+	version = strings.ReplaceAll(version, "  ", " ")
 
-		// remove extra 'kustomize/' before version
-		version = strings.TrimPrefix(version, "kustomize/")
-	}
+	// remove extra 'kustomize/' before version
+	version = strings.TrimPrefix(version, "kustomize/")
 	return version, nil
 }
 
@@ -485,13 +506,13 @@ func getImageParameters(objs []*unstructured.Unstructured) []Image {
 	return images
 }
 
-func getImages(object map[string]interface{}) []Image {
+func getImages(object map[string]any) []Image {
 	var images []Image
 	for k, v := range object {
-		if array, ok := v.([]interface{}); ok {
+		if array, ok := v.([]any); ok {
 			if k == "containers" || k == "initContainers" {
 				for _, obj := range array {
-					if mapObj, isMapObj := obj.(map[string]interface{}); isMapObj {
+					if mapObj, isMapObj := obj.(map[string]any); isMapObj {
 						if image, hasImage := mapObj["image"]; hasImage {
 							images = append(images, fmt.Sprintf("%s", image))
 						}
@@ -499,12 +520,12 @@ func getImages(object map[string]interface{}) []Image {
 				}
 			} else {
 				for i := range array {
-					if mapObj, isMapObj := array[i].(map[string]interface{}); isMapObj {
+					if mapObj, isMapObj := array[i].(map[string]any); isMapObj {
 						images = append(images, getImages(mapObj)...)
 					}
 				}
 			}
-		} else if objMap, ok := v.(map[string]interface{}); ok {
+		} else if objMap, ok := v.(map[string]any); ok {
 			images = append(images, getImages(objMap)...)
 		}
 	}

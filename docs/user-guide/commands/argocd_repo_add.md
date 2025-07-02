@@ -52,6 +52,7 @@ argocd repo add REPOURL [flags]
 ### Options
 
 ```
+      --bearer-token string                     bearer token to the Git BitBucket Data Center repository
       --enable-lfs                              enable git-lfs (Large File Support) on this repository
       --enable-oci                              enable helm-oci (Helm OCI-Based Repository)
       --force-http-basic-auth                   whether to force use of basic auth when connecting repository via HTTP
@@ -73,6 +74,7 @@ argocd repo add REPOURL [flags]
       --tls-client-cert-path string             path to the TLS client cert (must be PEM format)
       --type string                             type of the repository, "git" or "helm" (default "git")
       --upsert                                  Override an existing repository with the same name even if the spec differs
+      --use-azure-workload-identity             whether to use azure workload identity for authentication
       --username string                         username to the repository
 ```
 
@@ -92,7 +94,7 @@ argocd repo add REPOURL [flags]
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: text|json (default "text")
+      --logformat string                Set the logging format. One of: json|text (default "json")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding

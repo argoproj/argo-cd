@@ -6,15 +6,18 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"time"
+
+	rbacv1 "k8s.io/api/rbac/v1"
 
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	client "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/grpc"
+	client "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v3/util/grpc"
 )
 
 // this implements the "when" part of given/when/then
@@ -40,70 +43,58 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 
 func (a *Actions) PatchFile(file string, jsonPath string) *Actions {
 	a.context.t.Helper()
-	fixture.Patch(a.context.path+"/"+file, jsonPath)
+	fixture.Patch(a.context.t, a.context.path+"/"+file, jsonPath)
 	return a
 }
 
 func (a *Actions) DeleteFile(file string) *Actions {
 	a.context.t.Helper()
-	fixture.Delete(a.context.path + "/" + file)
+	fixture.Delete(a.context.t, a.context.path+"/"+file)
 	return a
 }
 
 func (a *Actions) WriteFile(fileName, fileContents string) *Actions {
 	a.context.t.Helper()
-	fixture.WriteFile(a.context.path+"/"+fileName, fileContents)
+	fixture.WriteFile(a.context.t, a.context.path+"/"+fileName, fileContents)
 	return a
 }
 
 func (a *Actions) AddFile(fileName, fileContents string) *Actions {
 	a.context.t.Helper()
-	fixture.AddFile(a.context.path+"/"+fileName, fileContents)
+	fixture.AddFile(a.context.t, a.context.path+"/"+fileName, fileContents)
 	return a
 }
 
 func (a *Actions) AddSignedFile(fileName, fileContents string) *Actions {
 	a.context.t.Helper()
-	fixture.AddSignedFile(a.context.path+"/"+fileName, fileContents)
+	fixture.AddSignedFile(a.context.t, a.context.path+"/"+fileName, fileContents)
 	return a
 }
 
 func (a *Actions) AddSignedTag(name string) *Actions {
 	a.context.t.Helper()
-	fixture.AddSignedTag(name)
+	fixture.AddSignedTag(a.context.t, name)
 	return a
 }
 
 func (a *Actions) AddTag(name string) *Actions {
 	a.context.t.Helper()
-	fixture.AddTag(name)
-	return a
-}
-
-func (a *Actions) AddAnnotatedTag(name string, message string) *Actions {
-	a.context.t.Helper()
-	fixture.AddAnnotatedTag(a.context.t, name, message)
-	return a
-}
-
-func (a *Actions) AddTagWithForce(name string) *Actions {
-	a.context.t.Helper()
-	fixture.AddTagWithForce(a.context.t, name)
+	fixture.AddTag(a.context.t, name)
 	return a
 }
 
 func (a *Actions) RemoveSubmodule() *Actions {
 	a.context.t.Helper()
-	fixture.RemoveSubmodule()
+	fixture.RemoveSubmodule(a.context.t)
 	return a
 }
 
 func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	a.context.t.Helper()
 	tmpFile, err := os.CreateTemp("", "")
-	errors.CheckError(err)
+	require.NoError(a.context.t, err)
 	_, err = tmpFile.Write([]byte(data))
-	errors.CheckError(err)
+	require.NoError(a.context.t, err)
 
 	args := append([]string{
 		"app", "create",
@@ -124,7 +115,7 @@ func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string) *Actions {
 	a.context.t.Helper()
 	app := &Application{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      a.context.AppName(),
 			Namespace: a.context.AppNamespace(),
 		},
@@ -165,9 +156,9 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 	handler(app)
 	data := grpc.MustMarshal(app)
 	tmpFile, err := os.CreateTemp("", "")
-	errors.CheckError(err)
+	require.NoError(a.context.t, err)
 	_, err = tmpFile.Write(data)
-	errors.CheckError(err)
+	require.NoError(a.context.t, err)
 
 	args := append([]string{
 		"app", "create",
@@ -181,7 +172,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
 	a.context.t.Helper()
 	app := &Application{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      a.context.AppName(),
 			Namespace: a.context.AppNamespace(),
 		},
@@ -202,9 +193,9 @@ func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
 
 	data := grpc.MustMarshal(app)
 	tmpFile, err := os.CreateTemp("", "")
-	errors.CheckError(err)
+	require.NoError(a.context.t, err)
 	_, err = tmpFile.Write(data)
-	errors.CheckError(err)
+	require.NoError(a.context.t, err)
 
 	args := append([]string{
 		"app", "create",
@@ -324,7 +315,7 @@ func (a *Actions) Declarative(filename string) *Actions {
 
 func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Actions {
 	a.context.t.Helper()
-	values := map[string]interface{}{
+	values := map[string]any{
 		"ArgoCDNamespace":     fixture.TestNamespace(),
 		"DeploymentNamespace": fixture.DeploymentNamespace(),
 		"Name":                a.context.AppName(),
@@ -332,7 +323,7 @@ func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Ac
 		"Project":             a.context.project,
 		"RepoURL":             repoURL,
 	}
-	a.lastOutput, a.lastError = fixture.Declarative(filename, values)
+	a.lastOutput, a.lastError = fixture.Declarative(a.context.t, filename, values)
 	a.verifyAction()
 	return a
 }
@@ -343,7 +334,7 @@ func (a *Actions) PatchApp(patch string) *Actions {
 	return a
 }
 
-func (a *Actions) PatchAppHttp(patch string) *Actions {
+func (a *Actions) PatchAppHttp(patch string) *Actions { //nolint:revive //FIXME(var-naming)
 	a.context.t.Helper()
 	var application Application
 	patchType := "merge"
@@ -356,12 +347,12 @@ func (a *Actions) PatchAppHttp(patch string) *Actions {
 		AppNamespace: &appNamespace,
 	}
 	jsonBytes, err := json.MarshalIndent(patchRequest, "", "  ")
-	errors.CheckError(err)
+	require.NoError(a.context.t, err)
 	err = fixture.DoHttpJsonRequest("PATCH",
 		fmt.Sprintf("/api/v1/applications/%v", appName),
 		&application,
 		jsonBytes...)
-	errors.CheckError(err)
+	require.NoError(a.context.t, err)
 	return a
 }
 
@@ -467,13 +458,13 @@ func (a *Actions) Delete(cascade bool) *Actions {
 
 func (a *Actions) DeleteBySelector(selector string) *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes")
+	a.runCli("app", "delete", "--selector="+selector, "--yes")
 	return a
 }
 
 func (a *Actions) DeleteBySelectorWithWait(selector string) *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes", "--wait")
+	a.runCli("app", "delete", "--selector="+selector, "--yes", "--wait")
 	return a
 }
 
@@ -489,7 +480,8 @@ func (a *Actions) Wait(args ...string) *Actions {
 }
 
 func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
-	errors.CheckError(fixture.SetParamInSettingConfigMap(key, value))
+	a.context.t.Helper()
+	require.NoError(a.context.t, fixture.SetParamInSettingConfigMap(key, value))
 	return a
 }
 
@@ -501,6 +493,7 @@ func (a *Actions) And(block func()) *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a, 15}
 }
 
@@ -518,16 +511,35 @@ func (a *Actions) verifyAction() {
 }
 
 func (a *Actions) SetTrackingMethod(trackingMethod string) *Actions {
-	errors.CheckError(fixture.SetTrackingMethod(trackingMethod))
+	a.context.t.Helper()
+	require.NoError(a.context.t, fixture.SetTrackingMethod(trackingMethod))
 	return a
 }
 
 func (a *Actions) SetInstallationID(installationID string) *Actions {
-	errors.CheckError(fixture.SetInstallationID(installationID))
+	a.context.t.Helper()
+	require.NoError(a.context.t, fixture.SetInstallationID(installationID))
 	return a
 }
 
 func (a *Actions) SetTrackingLabel(trackingLabel string) *Actions {
-	errors.CheckError(fixture.SetTrackingLabel(trackingLabel))
+	a.context.t.Helper()
+	require.NoError(a.context.t, fixture.SetTrackingLabel(trackingLabel))
+	return a
+}
+
+func (a *Actions) WithImpersonationEnabled(serviceAccountName string, policyRules []rbacv1.PolicyRule) *Actions {
+	a.context.t.Helper()
+	require.NoError(a.context.t, fixture.SetImpersonationEnabled("true"))
+	if serviceAccountName == "" || policyRules == nil {
+		return a
+	}
+	require.NoError(a.context.t, fixture.CreateRBACResourcesForImpersonation(serviceAccountName, policyRules))
+	return a
+}
+
+func (a *Actions) WithImpersonationDisabled() *Actions {
+	a.context.t.Helper()
+	require.NoError(a.context.t, fixture.SetImpersonationEnabled("false"))
 	return a
 }

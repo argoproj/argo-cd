@@ -196,7 +196,7 @@ const PropagationPolicyOption = ReactForm.FormField((props: {fieldApi: ReactForm
     );
 });
 
-export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
+export const OperationPhaseIcon = ({app, isButton}: {app: appModels.Application; isButton?: boolean}) => {
     const operationState = getAppOperationState(app);
     if (operationState === undefined) {
         return <React.Fragment />;
@@ -205,15 +205,15 @@ export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
     let color = '';
     switch (operationState.phase) {
         case appModels.OperationPhases.Succeeded:
-            className = 'fa fa-check-circle';
+            className = `fa fa-check-circle${isButton ? ' status-button' : ''}`;
             color = COLORS.operation.success;
             break;
         case appModels.OperationPhases.Error:
-            className = 'fa fa-times-circle';
+            className = `fa fa-times-circle${isButton ? ' status-button' : ''}`;
             color = COLORS.operation.error;
             break;
         case appModels.OperationPhases.Failed:
-            className = 'fa fa-times-circle';
+            className = `fa fa-times-circle${isButton ? ' status-button' : ''}`;
             color = COLORS.operation.failed;
             break;
         default:
@@ -224,7 +224,7 @@ export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
     return <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{color}} />;
 };
 
-export const HydrateOperationPhaseIcon = ({operationState}: {operationState?: appModels.HydrateOperation}) => {
+export const HydrateOperationPhaseIcon = ({operationState, isButton}: {operationState?: appModels.HydrateOperation; isButton?: boolean}) => {
     if (operationState === undefined) {
         return <React.Fragment />;
     }
@@ -232,11 +232,11 @@ export const HydrateOperationPhaseIcon = ({operationState}: {operationState?: ap
     let color = '';
     switch (operationState.phase) {
         case appModels.HydrateOperationPhases.Hydrated:
-            className = 'fa fa-check-circle';
+            className = `fa fa-check-circle${isButton ? ' status-button' : ''}`;
             color = COLORS.operation.success;
             break;
         case appModels.HydrateOperationPhases.Failed:
-            className = 'fa fa-times-circle';
+            className = `fa fa-times-circle${isButton ? ' status-button' : ''}`;
             color = COLORS.operation.failed;
             break;
         default:
@@ -251,27 +251,28 @@ export const ComparisonStatusIcon = ({
     status,
     resource,
     label,
-    noSpin
+    noSpin,
+    isButton
 }: {
     status: appModels.SyncStatusCode;
     resource?: {requiresPruning?: boolean};
     label?: boolean;
     noSpin?: boolean;
+    isButton?: boolean;
 }) => {
     let className = 'fas fa-question-circle';
     let color = COLORS.sync.unknown;
     let title: string = 'Unknown';
-
     switch (status) {
         case appModels.SyncStatuses.Synced:
-            className = 'fa fa-check-circle';
+            className = `fa fa-check-circle${isButton ? ' status-button' : ''}`;
             color = COLORS.sync.synced;
             title = 'Synced';
             break;
         case appModels.SyncStatuses.OutOfSync:
             // eslint-disable-next-line no-case-declarations
             const requiresPruning = resource && resource.requiresPruning;
-            className = requiresPruning ? 'fa fa-trash' : 'fa fa-arrow-alt-circle-up';
+            className = requiresPruning ? `fa fa-trash${isButton ? ' status-button' : ''}` : `fa fa-arrow-alt-circle-up${isButton ? ' status-button' : ''}`;
             title = 'OutOfSync';
             if (requiresPruning) {
                 title = `${title} (This resource is not present in the application's source. It will be deleted from Kubernetes if the prune option is enabled during sync.)`;
@@ -279,7 +280,7 @@ export const ComparisonStatusIcon = ({
             color = COLORS.sync.out_of_sync;
             break;
         case appModels.SyncStatuses.Unknown:
-            className = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}`;
+            className = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}${isButton ? ' status-button' : ''}`;
             break;
     }
     return (
@@ -1055,7 +1056,7 @@ const getOperationStateTitle = (app: appModels.Application) => {
     return 'Unknown';
 };
 
-export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?: boolean}) => {
+export const OperationState = ({app, quiet, isButton}: {app: appModels.Application; quiet?: boolean; isButton?: boolean}) => {
     const appOperationState = getAppOperationState(app);
     if (appOperationState === undefined) {
         return <React.Fragment />;
@@ -1066,7 +1067,7 @@ export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?
 
     return (
         <React.Fragment>
-            <OperationPhaseIcon app={app} /> {getOperationStateTitle(app)}
+            <OperationPhaseIcon app={app} isButton={isButton} /> {getOperationStateTitle(app)}
         </React.Fragment>
     );
 };
@@ -1545,6 +1546,44 @@ export function formatCreationTimestamp(creationTimestamp: string) {
             <i style={{padding: '2px'}} /> ({fromNow})
         </span>
     );
+}
+
+/*
+ * formatStatefulSetChange reformats a single line describing changes to immutable fields in a StatefulSet.
+ * It extracts the field name and its "from" and "to" values for better readability.
+ */
+function formatStatefulSetChange(line: string): string {
+    if (line.startsWith('-')) {
+        // Remove leading "- " from the line and split into field and changes
+        const [field, changes] = line.substring(2).split(':');
+        if (changes) {
+            // Split "from: X to: Y" into separate lines with aligned values
+            const [from, to] = changes.split('to:').map(s => s.trim());
+            return `   - ${field}:\n      from: ${from.replace('from:', '').trim()}\n      to:   ${to}`;
+        }
+    }
+    return line;
+}
+
+export function formatOperationMessage(message: string): string {
+    if (!message) {
+        return message;
+    }
+
+    // Format immutable fields error message
+    if (message.includes('attempting to change immutable fields:')) {
+        const [header, ...details] = message.split('\n');
+        const formattedDetails = details
+            // Remove empty lines
+            .filter(line => line.trim())
+            // Use helper function
+            .map(formatStatefulSetChange)
+            .join('\n');
+
+        return `${header}\n${formattedDetails}`;
+    }
+
+    return message;
 }
 
 export const selectPostfix = (arr: string[], singular: string, plural: string) => (arr.length > 1 ? plural : singular);

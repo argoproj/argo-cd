@@ -47,7 +47,7 @@ argocd repocreds list [flags]
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: text|json (default "text")
+      --logformat string                Set the logging format. One of: json|text (default "json")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
@@ -64,5 +64,5 @@ argocd repocreds list [flags]
 
 ### SEE ALSO
 
-* [argocd repocreds](argocd_repocreds.md)	 - Manage repository connection parameters
+* [argocd repocreds](argocd_repocreds.md)	 - Manage credential templates for repositories
 

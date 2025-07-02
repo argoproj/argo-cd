@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestProjectOpts_ResourceLists(t *testing.T) {
@@ -18,13 +18,11 @@ func TestProjectOpts_ResourceLists(t *testing.T) {
 	}
 
 	assert.ElementsMatch(t,
-		[]v1.GroupKind{{Kind: "ConfigMap"}}, opts.GetAllowedNamespacedResources())
-	assert.ElementsMatch(t,
-		[]v1.GroupKind{{Group: "apps", Kind: "DaemonSet"}}, opts.GetDeniedNamespacedResources())
-	assert.ElementsMatch(t,
-		[]v1.GroupKind{{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition"}}, opts.GetAllowedClusterResources())
-	assert.ElementsMatch(t,
-		[]v1.GroupKind{{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}}, opts.GetDeniedClusterResources())
+		[]metav1.GroupKind{{Kind: "ConfigMap"}}, opts.GetAllowedNamespacedResources(),
+		[]metav1.GroupKind{{Group: "apps", Kind: "DaemonSet"}}, opts.GetDeniedNamespacedResources(),
+		[]metav1.GroupKind{{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition"}}, opts.GetAllowedClusterResources(),
+		[]metav1.GroupKind{{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}}, opts.GetDeniedClusterResources(),
+	)
 }
 
 func TestProjectOpts_GetDestinationServiceAccounts(t *testing.T) {

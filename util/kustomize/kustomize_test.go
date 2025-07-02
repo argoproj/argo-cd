@@ -13,8 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/git"
 )
 
 const (
@@ -25,6 +25,7 @@ const (
 	kustomization6 = "kustomization_yaml_components"
 	kustomization7 = "label_without_selector"
 	kustomization8 = "kustomization_yaml_patches_empty"
+	kustomization9 = "kustomization_yaml_components_monorepo"
 )
 
 func testDataDir(tb testing.TB, testData string) (string, error) {
@@ -118,8 +119,7 @@ func TestKustomizeBuild(t *testing.T) {
 	}
 
 	for _, image := range images {
-		switch image {
-		case "nginx":
+		if image == "nginx" {
 			assert.Equal(t, "1.15.5", image)
 		}
 	}
@@ -170,7 +170,7 @@ func TestParseKustomizeBuildHelmOptions(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	ver, err := Version(false)
+	ver, err := Version()
 	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
@@ -385,6 +385,45 @@ func TestKustomizeLabelWithoutSelector(t *testing.T) {
 				},
 			},
 		},
+		{
+			TestData: kustomization7,
+			KustomizeSource: v1alpha1.ApplicationSourceKustomize{
+				CommonLabels: map[string]string{
+					"foo": "bar",
+				},
+				LabelWithoutSelector:  true,
+				LabelIncludeTemplates: true,
+			},
+			ExpectedMetadataLabels: map[string]string{"app": "nginx", "managed-by": "helm", "foo": "bar"},
+			ExpectedSelectorLabels: map[string]string{"app": "nginx"},
+			ExpectedTemplateLabels: map[string]string{"app": "nginx", "foo": "bar"},
+			Env: &v1alpha1.Env{
+				&v1alpha1.EnvEntry{
+					Name:  "ARGOCD_APP_NAME",
+					Value: "argo-cd-tests",
+				},
+			},
+		},
+		{
+			TestData: kustomization7,
+			KustomizeSource: v1alpha1.ApplicationSourceKustomize{
+				CommonLabels: map[string]string{
+					"managed-by": "argocd",
+				},
+				LabelWithoutSelector:  true,
+				LabelIncludeTemplates: true,
+				ForceCommonLabels:     true,
+			},
+			ExpectedMetadataLabels: map[string]string{"app": "nginx", "managed-by": "argocd"},
+			ExpectedSelectorLabels: map[string]string{"app": "nginx"},
+			ExpectedTemplateLabels: map[string]string{"app": "nginx", "managed-by": "argocd"},
+			Env: &v1alpha1.Env{
+				&v1alpha1.EnvEntry{
+					Name:  "ARGOCD_APP_NAME",
+					Value: "argo-cd-tests",
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -445,7 +484,15 @@ func TestKustomizeBuildComponents(t *testing.T) {
 	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
 
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
-		Components: []string{"./components"},
+		Components:              []string{"./components", "./missing-components"},
+		IgnoreMissingComponents: false,
+	}
+	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil)
+	require.Error(t, err)
+
+	kustomizeSource = v1alpha1.ApplicationSourceKustomize{
+		Components:              []string{"./components", "./missing-components"},
+		IgnoreMissingComponents: true,
 	}
 	objs, _, _, err := kustomize.Build(&kustomizeSource, nil, nil, nil)
 	require.NoError(t, err)
@@ -458,6 +505,31 @@ func TestKustomizeBuildComponents(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ok)
 	assert.Equal(t, int64(3), replicas)
+}
+
+func TestKustomizeBuildComponentsMonoRepo(t *testing.T) {
+	rootPath, err := testDataDir(t, kustomization9)
+	require.NoError(t, err)
+	appPath := path.Join(rootPath, "envs/inseng-pdx-egert-sandbox/namespaces/inst-system/apps/hello-world")
+	kustomize := NewKustomizeApp(rootPath, appPath, git.NopCreds{}, "", "", "", "")
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
+		Components:              []string{"../../../../../../kustomize/components/all"},
+		IgnoreMissingComponents: true,
+	}
+	objs, _, _, err := kustomize.Build(&kustomizeSource, nil, nil, nil)
+	require.NoError(t, err)
+	obj := objs[2]
+	require.Equal(t, "hello-world-kustomize", obj.GetName())
+	require.Equal(t, map[string]string{
+		"app.kubernetes.io/name":  "hello-world-kustomize",
+		"app.kubernetes.io/owner": "fire-team",
+	}, obj.GetLabels())
+	replicas, ok, err := unstructured.NestedSlice(obj.Object, "spec", "template", "spec", "tolerations")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Len(t, replicas, 1)
+	require.Equal(t, "my-special-toleration", replicas[0].(map[string]any)["key"])
+	require.Equal(t, "Exists", replicas[0].(map[string]any)["operator"])
 }
 
 func TestKustomizeBuildPatches(t *testing.T) {
@@ -488,14 +560,14 @@ func TestKustomizeBuildPatches(t *testing.T) {
 	assert.True(t, found)
 
 	ports, found, err := unstructured.NestedSlice(
-		containers[0].(map[string]interface{}),
+		containers[0].(map[string]any),
 		"ports",
 	)
 	assert.True(t, found)
 	require.NoError(t, err)
 
 	port, found, err := unstructured.NestedInt64(
-		ports[0].(map[string]interface{}),
+		ports[0].(map[string]any),
 		"containerPort",
 	)
 
@@ -504,7 +576,7 @@ func TestKustomizeBuildPatches(t *testing.T) {
 	assert.Equal(t, int64(443), port)
 
 	name, found, err := unstructured.NestedString(
-		containers[0].(map[string]interface{}),
+		containers[0].(map[string]any),
 		"name",
 	)
 	assert.True(t, found)

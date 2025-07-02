@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	httputil "github.com/argoproj/argo-cd/v2/util/http"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
-	util_session "github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v3/common"
+	httputil "github.com/argoproj/argo-cd/v3/util/http"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+	util_session "github.com/argoproj/argo-cd/v3/util/session"
 
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
@@ -144,7 +144,7 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 		if err != nil {
 			log.Errorf("permission denied message err: %v", err)
 		}
-		return copy(p, EndOfTransmission), permissionDeniedErr
+		return copy(p, EndOfTransmission), common.PermissionDeniedAPIError
 	}
 
 	if err := t.terminalOpts.Enf.EnforceErr(t.ctx.Value("claims"), rbac.ResourceExec, rbac.ActionCreate, t.appRBACName); err != nil {
@@ -152,7 +152,7 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 		if err != nil {
 			log.Errorf("permission denied message err: %v", err)
 		}
-		return copy(p, EndOfTransmission), permissionDeniedErr
+		return copy(p, EndOfTransmission), common.PermissionDeniedAPIError
 	}
 	return 0, nil
 }
@@ -189,7 +189,11 @@ func (t *terminalSession) Read(p []byte) (int, error) {
 	_, message, err := t.wsConn.ReadMessage()
 	t.readLock.Unlock()
 	if err != nil {
-		log.Errorf("read message err: %v", err)
+		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+			log.Errorf("unexpected closer error: %v", err)
+			return copy(p, EndOfTransmission), err
+		}
+		log.Errorf("read message error: %v", err)
 		return copy(p, EndOfTransmission), err
 	}
 	var msg TerminalMessage

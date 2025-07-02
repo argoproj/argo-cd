@@ -7,10 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
-	. "github.com/argoproj/argo-cd/v2/util/argo"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	. "github.com/argoproj/argo-cd/v3/util/argo"
 )
 
 func TestMultiSourceAppCreation(t *testing.T) {
@@ -199,7 +199,7 @@ func TestMultiSourceAppWithSourceName(t *testing.T) {
 			assert.Equal(t, KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
 		}).
 		Expect(Event(EventReasonResourceCreated, "create")).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// we remove the first source
 			output, err := RunCli("app", "remove-source", Name(), "--source-name", sources[0].Name)
 			require.NoError(t, err)
@@ -261,7 +261,7 @@ func TestMultiSourceAppSetWithSourceName(t *testing.T) {
 			assert.Equal(t, KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
 		}).
 		Expect(Event(EventReasonResourceCreated, "create")).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			_, err := RunCli("app", "set", Name(), "--source-name", sources[1].Name, "--path", "deployment")
 			require.NoError(t, err)
 		}).
@@ -288,14 +288,12 @@ func TestMultiSourceApptErrorWhenSourceNameAndSourcePosition(t *testing.T) {
 		CreateMultiSourceAppFromFile().
 		Then().
 		Expect(Event(EventReasonResourceCreated, "create")).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			_, err := RunCli("app", "get", Name(), "--source-name", sources[1].Name, "--source-position", "1")
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "Only one of source-position and source-name can be specified.")
+			assert.ErrorContains(t, err, "Only one of source-position and source-name can be specified.")
 		}).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			_, err := RunCli("app", "manifests", Name(), "--revisions", "0.0.2", "--source-names", sources[0].Name, "--revisions", "0.0.2", "--source-positions", "1")
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "Only one of source-positions and source-names can be specified.")
+			assert.ErrorContains(t, err, "Only one of source-positions and source-names can be specified.")
 		})
 }

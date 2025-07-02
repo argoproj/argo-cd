@@ -2,22 +2,23 @@ package generators
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	pullrequest "github.com/argoproj/argo-cd/v2/applicationset/services/pull_request"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	pullrequest "github.com/argoproj/argo-cd/v3/applicationset/services/pull_request"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestPullRequestGithubGenerateParams(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	cases := []struct {
 		selectFunc     func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
-		expected       []map[string]interface{}
+		values         map[string]string
+		expected       []map[string]any
 		expectedErr    error
 		applicationSet argoprojiov1alpha1.ApplicationSet
 	}{
@@ -38,7 +39,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"number":             "1",
 					"title":              "title1",
@@ -71,7 +72,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"number":             "2",
 					"title":              "title2",
@@ -104,7 +105,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"number":             "1",
 					"title":              "title1",
@@ -124,12 +125,51 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 			selectFunc: func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
 				return pullrequest.NewFakeService(
 					ctx,
+					[]*pullrequest.PullRequest{
+						{
+							Number:       1,
+							Title:        "title1",
+							Branch:       "my_branch",
+							TargetBranch: "master",
+							HeadSHA:      "abcd",
+							Author:       "testName",
+						},
+					},
 					nil,
-					fmt.Errorf("fake error"),
+				)
+			},
+			values: map[string]string{
+				"foo":       "bar",
+				"pr_branch": "{{ branch }}",
+			},
+			expected: []map[string]any{
+				{
+					"number":             "1",
+					"title":              "title1",
+					"branch":             "my_branch",
+					"branch_slug":        "my-branch",
+					"target_branch":      "master",
+					"target_branch_slug": "master",
+					"head_sha":           "abcd",
+					"head_short_sha":     "abcd",
+					"head_short_sha_7":   "abcd",
+					"author":             "testName",
+					"values.foo":         "bar",
+					"values.pr_branch":   "my_branch",
+				},
+			},
+			expectedErr: nil,
+		},
+		{
+			selectFunc: func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
+				return pullrequest.NewFakeService(
+					ctx,
+					nil,
+					errors.New("fake error"),
 				)
 			},
 			expected:    nil,
-			expectedErr: fmt.Errorf("error listing repos: fake error"),
+			expectedErr: errors.New("error listing repos: fake error"),
 		},
 		{
 			selectFunc: func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
@@ -149,7 +189,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"number":             "1",
 					"title":              "title1",
@@ -190,7 +230,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"number":             "1",
 					"title":              "title1",
@@ -219,12 +259,14 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 			selectServiceProviderFunc: c.selectFunc,
 		}
 		generatorConfig := argoprojiov1alpha1.ApplicationSetGenerator{
-			PullRequest: &argoprojiov1alpha1.PullRequestGenerator{},
+			PullRequest: &argoprojiov1alpha1.PullRequestGenerator{
+				Values: c.values,
+			},
 		}
 
 		got, gotErr := gen.GenerateParams(&generatorConfig, &c.applicationSet, nil)
 		if c.expectedErr != nil {
-			assert.Equal(t, c.expectedErr.Error(), gotErr.Error())
+			require.EqualError(t, gotErr, c.expectedErr.Error())
 		} else {
 			require.NoError(t, gotErr)
 		}
