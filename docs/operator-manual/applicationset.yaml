@@ -135,6 +135,12 @@ spec:
         requeueAfterSeconds: 1800
         # When set to true, the ApplicationSet controller will continue to generate Applications even if the repository is not found, and will not enter a failed state.
         # One example use case is when a pull request generator is combined with a Git generator in a matrix generator.
+        # NOTE, that if a repository exists but is inaccessible due to
+        # access rights, SCM providers usually return a "404 Not Found" error
+        # instead of a "403 Permission Denied" error. Consequently, using this
+        # option may lead to the deletion of Argo CD applications if the SCM
+        # user associated with the token loses access to the repository.
+
         continueOnRepoNotFoundError: false
         # See below for provider specific options.
         # Specify the repository from which to fetch the GitHub Pull requests.
