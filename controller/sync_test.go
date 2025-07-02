@@ -1512,7 +1512,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 					Source: &v1alpha1.ApplicationSource{},
 				},
 			},
-			Phase: common.OperationRunning,
+			Phase: synccommon.OperationRunning,
 		}
 
 		f.application.Spec.Destination.Server = ""
@@ -1522,7 +1522,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 		f.controller.appStateManager.SyncAppState(f.application, opState)
 
 		// then app sync should not fail
-		assert.Equal(t, common.OperationSucceeded, opState.Phase)
+		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
 		assert.Contains(t, opState.Message, opMessage)
 	})
 }
