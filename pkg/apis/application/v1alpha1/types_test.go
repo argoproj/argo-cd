@@ -825,6 +825,17 @@ func TestAppProject_ValidateSyncWindowList(t *testing.T) {
 		err = p.ValidateProject()
 		require.NoError(t, err)
 	})
+
+	t.Run("HasDuplicateSyncWindow", func(t *testing.T) {
+		p := newTestProjectWithSyncWindows()
+		err := p.ValidateProject()
+		require.NoError(t, err)
+		dup := *p.Spec.SyncWindows[0]
+		p.Spec.SyncWindows = append(p.Spec.SyncWindows, &dup)
+		err = p.ValidateProject()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "already exists")
+	})
 }
 
 // TestInvalidPolicyRules checks various errors in policy rules
@@ -4542,18 +4553,4 @@ func TestCluster_ParseProxyUrl(t *testing.T) {
 			require.ErrorContains(t, err, data.expectedErrMsg)
 		}
 	}
-}
-
-func TestAppProject_ValidateSyncWindowDuplicates(t *testing.T) {
-	p := newTestProjectWithSyncWindows()
-	// Add a duplicate window (deep copy of the first window)
-	if len(p.Spec.SyncWindows) == 0 {
-		t.Fatal("test project must have at least one sync window")
-	}
-	dup := *p.Spec.SyncWindows[0]
-	p.Spec.SyncWindows = append(p.Spec.SyncWindows, &dup)
-
-	err := p.ValidateProject()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "already exists")
 }
