@@ -120,7 +120,7 @@ func NewCommand() *cobra.Command {
 			}
 
 			// By default, watch all namespaces
-			var watchedNamespace string = ""
+			watchedNamespace := ""
 
 			// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
 			if len(applicationSetNamespaces) == 1 {

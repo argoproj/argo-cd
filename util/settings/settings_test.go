@@ -765,7 +765,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 		}
 		sortVersionsByName(want.Versions)
 		sortVersionsByName(got.Versions)
-		assert.EqualValues(t, want, got)
+		assert.Equal(t, want, got)
 	})
 
 	t.Run("Kustomize settings per-version with duplicate versions", func(t *testing.T) {
@@ -820,10 +820,10 @@ func TestSettingsManager_GetEventLabelKeys(t *testing.T) {
 			}
 
 			inKeys := settingsManager.GetIncludeEventLabelKeys()
-			assert.Equal(t, len(tt.expectedKeys), len(inKeys))
+			assert.Len(t, inKeys, len(tt.expectedKeys))
 
 			exKeys := settingsManager.GetExcludeEventLabelKeys()
-			assert.Equal(t, len(tt.expectedKeys), len(exKeys))
+			assert.Len(t, exKeys, len(tt.expectedKeys))
 
 			for i := range tt.expectedKeys {
 				assert.Equal(t, tt.expectedKeys[i], inKeys[i])
@@ -853,7 +853,7 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 	t.Run("DefaultBuildOptions", func(t *testing.T) {
 		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{})
 		require.NoError(t, err)
-		assert.Equal(t, "", ver.BinaryPath)
+		assert.Empty(t, ver.BinaryPath)
 		assert.Equal(t, "--opt1 val1", ver.BuildOptions)
 	})
 
@@ -863,7 +863,7 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "path_v2", ver.BinaryPath)
-		assert.Equal(t, "", ver.BuildOptions)
+		assert.Empty(t, ver.BuildOptions)
 	})
 
 	t.Run("VersionExistsWithBuildOption", func(t *testing.T) {
@@ -1679,7 +1679,7 @@ func TestReplaceStringSecret(t *testing.T) {
 	assert.Equal(t, "$invalid-secret-key", result)
 
 	result = ReplaceStringSecret("", secretValues)
-	assert.Equal(t, "", result)
+	assert.Empty(t, result)
 
 	result = ReplaceStringSecret("my-value", secretValues)
 	assert.Equal(t, "my-value", result)
@@ -1865,7 +1865,7 @@ func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {
 				resourceSensitiveAnnotationsKey: tt.input,
 			})
 			keys := settingsManager.GetSensitiveAnnotations()
-			assert.Equal(t, len(tt.output), len(keys))
+			assert.Len(t, keys, len(tt.output))
 			assert.Equal(t, tt.output, keys)
 		})
 	}

@@ -23,7 +23,7 @@ const (
 )
 
 func newCommand() *cobra.Command {
-	var docsOutputPath string = ""
+	docsOutputPath := ""
 	command := &cobra.Command{
 		Use:     "go run github.com/argoproj/argo-cd/hack/known_types ALIAS PACKAGE_PATH OUTPUT_PATH",
 		Example: "go run github.com/argoproj/argo-cd/hack/known_types corev1 k8s.io/api/core/v1 corev1_known_types.go",

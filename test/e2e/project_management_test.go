@@ -204,7 +204,7 @@ func TestAddProjectDestinationWithName(t *testing.T) {
 	assert.Equal(t, projectName, proj.Name)
 	assert.Len(t, proj.Spec.Destinations, 1)
 
-	assert.Equal(t, "", proj.Spec.Destinations[0].Server)
+	assert.Empty(t, proj.Spec.Destinations[0].Server)
 	assert.Equal(t, "in-cluster", proj.Spec.Destinations[0].Name)
 	assert.Equal(t, "test1", proj.Spec.Destinations[0].Namespace)
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
@@ -768,7 +768,7 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 	assert.Equal(t, "test-sa", proj.Spec.DestinationServiceAccounts[0].DefaultServiceAccount)
 
 	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.DestinationServiceAccounts[1].Server)
-	assert.Equal(t, "", proj.Spec.DestinationServiceAccounts[1].Namespace)
+	assert.Empty(t, proj.Spec.DestinationServiceAccounts[1].Namespace)
 	assert.Equal(t, "test-sa", proj.Spec.DestinationServiceAccounts[1].DefaultServiceAccount)
 
 	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.DestinationServiceAccounts[2].Server)
