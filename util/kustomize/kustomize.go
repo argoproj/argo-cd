@@ -379,11 +379,12 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 
 	var cmd *exec.Cmd
-	params := []string{"build", k.path}
-	if kustomizeOptions != nil {
-		params = parseKustomizeBuildOptions(k, kustomizeOptions.BuildOptions, buildOpts)
+	if kustomizeOptions != nil && kustomizeOptions.BuildOptions != "" {
+		params := parseKustomizeBuildOptions(k, kustomizeOptions.BuildOptions, buildOpts)
+		cmd = exec.Command(k.getBinaryPath(), params...)
+	} else {
+		cmd = exec.Command(k.getBinaryPath(), "build", k.path)
 	}
-	cmd = exec.Command(k.getBinaryPath(), params...)
 	cmd.Env = env
 	cmd.Env = proxy.UpsertEnv(cmd, k.proxy, k.noProxy)
 	cmd.Dir = k.repoRoot
