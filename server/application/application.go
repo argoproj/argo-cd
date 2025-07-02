@@ -536,7 +536,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				return fmt.Errorf("error getting repository: %w", err)
 			}
 
-			kustomizeOptions, err := s.settingsMgr.GetKustomizeOptions()
+			kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings: %w", err)
 			}
@@ -570,7 +570,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				Namespace:                       a.Spec.Destination.Namespace,
 				ApplicationSource:               &source,
 				Repos:                           repos,
-				KustomizeOptions:                kustomizeOptions,
+				KustomizeOptions:                kustomizeSettings,
 				KubeVersion:                     serverVersion,
 				ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
 				HelmRepoCreds:                   helmRepoCreds,
@@ -678,7 +678,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			return fmt.Errorf("error getting repository: %w", err)
 		}
 
-		kustomizeOptions, err := s.settingsMgr.GetKustomizeOptions()
+		kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
 		if err != nil {
 			return fmt.Errorf("error getting kustomize settings: %w", err)
 		}
@@ -691,7 +691,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			Namespace:                       a.Spec.Destination.Namespace,
 			ApplicationSource:               &source,
 			Repos:                           helmRepos,
-			KustomizeOptions:                kustomizeOptions,
+			KustomizeOptions:                kustomizeSettings,
 			KubeVersion:                     serverVersion,
 			ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
 			HelmRepoCreds:                   helmCreds,
@@ -809,7 +809,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 			if err != nil {
 				return fmt.Errorf("error getting repository: %w", err)
 			}
-			kustomizeOptions, err := s.settingsMgr.GetKustomizeOptions()
+			kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings: %w", err)
 			}
@@ -821,7 +821,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 				Repo:               repo,
 				Source:             &source,
 				AppName:            appName,
-				KustomizeOptions:   kustomizeOptions,
+				KustomizeOptions:   kustomizeSettings,
 				Repos:              helmRepos,
 				NoCache:            true,
 				TrackingMethod:     trackingMethod,

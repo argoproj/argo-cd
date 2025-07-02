@@ -378,7 +378,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err != nil {
 		return nil, err
 	}
-	kustomizeOptions, err := s.settings.GetKustomizeOptions()
+	kustomizeSettings, err := s.settings.GetKustomizeSettings()
 	if err != nil {
 		return nil, err
 	}
@@ -400,7 +400,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		Repo:             repo,
 		Source:           q.Source,
 		Repos:            helmRepos,
-		KustomizeOptions: kustomizeOptions,
+		KustomizeOptions: kustomizeSettings,
 		HelmOptions:      helmOptions,
 		AppName:          q.AppName,
 		RefSources:       refSources,

@@ -75,13 +75,13 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		}
 	}
 
-	kustomizeOptions, err := s.mgr.GetKustomizeOptions()
+	kustomizeSettings, err := s.mgr.GetKustomizeSettings()
 	if err != nil {
 		return nil, err
 	}
 	var kustomizeVersions []string
-	for i := range kustomizeOptions.Versions {
-		kustomizeVersions = append(kustomizeVersions, kustomizeOptions.Versions[i].Name)
+	for i := range kustomizeSettings.Versions {
+		kustomizeVersions = append(kustomizeVersions, kustomizeSettings.Versions[i].Name)
 	}
 
 	trackingMethod, err := s.mgr.GetTrackingMethod()

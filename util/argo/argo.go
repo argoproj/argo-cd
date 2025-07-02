@@ -755,7 +755,7 @@ func verifyGenerateManifests(
 ) []argoappv1.ApplicationCondition {
 	var conditions []argoappv1.ApplicationCondition
 	// If source is Kustomize add build options
-	kustomizeOptions, err := settingsMgr.GetKustomizeOptions()
+	kustomizeSettings, err := settingsMgr.GetKustomizeSettings()
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -832,7 +832,7 @@ func verifyGenerateManifests(
 			Namespace:                       app.Spec.Destination.Namespace,
 			ApplicationSource:               &source,
 			AppLabelKey:                     appLabelKey,
-			KustomizeOptions:                kustomizeOptions,
+			KustomizeOptions:                kustomizeSettings,
 			KubeVersion:                     kubeVersion,
 			ApiVersions:                     apiVersions,
 			HelmOptions:                     helmOptions,

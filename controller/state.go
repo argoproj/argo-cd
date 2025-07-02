@@ -173,7 +173,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 	ts.AddCheckpoint("plugins_ms")
 
-	kustomizeOptions, err := m.settingsMgr.GetKustomizeOptions()
+	kustomizeSettings, err := m.settingsMgr.GetKustomizeSettings()
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get Kustomize settings: %w", err)
 	}
@@ -314,7 +314,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			AppName:                         app.InstanceName(m.namespace),
 			Namespace:                       appNamespace,
 			ApplicationSource:               &source,
-			KustomizeOptions:                kustomizeOptions,
+			KustomizeOptions:                kustomizeSettings,
 			KubeVersion:                     serverVersion,
 			ApiVersions:                     apiVersions,
 			VerifySignature:                 verifySignature,

@@ -1111,19 +1111,19 @@ func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 	return helmOptions, nil
 }
 
-// GetKustomizeOptions loads the kustomize settings from argocd-cm ConfigMap
-func (mgr *SettingsManager) GetKustomizeOptions() (*v1alpha1.KustomizeOptions, error) {
+// GetKustomizeSettings loads the kustomize settings from argocd-cm ConfigMap
+func (mgr *SettingsManager) GetKustomizeSettings() (*v1alpha1.KustomizeOptions, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
 	kustomizeVersionsMap := map[string]v1alpha1.KustomizeVersion{}
 	buildOptions := map[string]string{}
-	options := &v1alpha1.KustomizeOptions{}
+	settings := &v1alpha1.KustomizeOptions{}
 
 	// extract build options for the default version
-	if buildOpts, ok := argoCDCM.Data[kustomizeBuildOptionsKey]; ok {
-		options.BuildOptions = buildOpts
+	if options, ok := argoCDCM.Data[kustomizeBuildOptionsKey]; ok {
+		settings.BuildOptions = options
 	}
 
 	// extract per-version binary paths and build options
@@ -1154,9 +1154,9 @@ func (mgr *SettingsManager) GetKustomizeOptions() (*v1alpha1.KustomizeOptions, e
 		if _, ok := buildOptions[v.Name]; ok {
 			v.BuildOptions = buildOptions[v.Name]
 		}
-		options.Versions = append(options.Versions, v)
+		settings.Versions = append(settings.Versions, v)
 	}
-	return options, nil
+	return settings, nil
 }
 
 func addKustomizeVersion(prefix, name, path string, kvMap map[string]v1alpha1.KustomizeVersion) error {
