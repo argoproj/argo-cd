@@ -1,16 +1,15 @@
 package scm_provider
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestBitbucketHasRepo(t *testing.T) {
@@ -19,7 +18,7 @@ func TestBitbucketHasRepo(t *testing.T) {
 			res.WriteHeader(http.StatusNotFound)
 			_, err := res.Write([]byte(""))
 			if err != nil {
-				assert.NoError(t, fmt.Errorf("Error in mock response %v", err))
+				require.NoError(t, fmt.Errorf("Error in mock response %w", err))
 			}
 		}
 		if req.URL.Path == "/repositories/test-owner/testmike/src/dc1edb6c7d650d8ba67719ddf7b662ad8f8fb798/.gitignore" {
@@ -56,13 +55,13 @@ func TestBitbucketHasRepo(t *testing.T) {
 				"size": 624
 			}`))
 			if err != nil {
-				assert.NoError(t, fmt.Errorf("Error in mock response %v", err))
+				require.NoError(t, fmt.Errorf("Error in mock response %w", err))
 			}
 		}
 	}))
 	defer func() { testServer.Close() }()
 
-	os.Setenv("BITBUCKET_API_BASE_URL", testServer.URL)
+	t.Setenv("BITBUCKET_API_BASE_URL", testServer.URL)
 	cases := []struct {
 		name, path, repo, owner, sha string
 		status                       int
@@ -87,16 +86,16 @@ func TestBitbucketHasRepo(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewBitBucketCloudProvider(context.Background(), c.owner, "user", "password", false)
+			provider, _ := NewBitBucketCloudProvider(c.owner, "user", "password", false)
 			repo := &Repository{
 				Organization: c.owner,
 				Repository:   c.repo,
 				SHA:          c.sha,
 				Branch:       "main",
 			}
-			hasPath, err := provider.RepoHasPath(context.Background(), repo, c.path)
+			hasPath, err := provider.RepoHasPath(t.Context(), repo, c.path)
 			if err != nil {
-				assert.Error(t, fmt.Errorf("Error in test %v", err))
+				require.Error(t, fmt.Errorf("Error in test %w", err))
 			}
 			if c.status != http.StatusOK {
 				assert.False(t, hasPath)
@@ -209,7 +208,7 @@ func TestBitbucketListRepos(t *testing.T) {
 				"size": 1
 			}`))
 			if err != nil {
-				assert.NoError(t, fmt.Errorf("Error in mock response %v", err))
+				require.NoError(t, fmt.Errorf("Error in mock response %w", err))
 			}
 		}
 		if req.URL.Path == "/repositories/test-owner/testmike/refs/branches/main" {
@@ -304,7 +303,7 @@ func TestBitbucketListRepos(t *testing.T) {
 				}
 			}`))
 			if err != nil {
-				assert.NoError(t, fmt.Errorf("Error in mock response %v", err))
+				require.NoError(t, fmt.Errorf("Error in mock response %w", err))
 			}
 		}
 		if req.URL.Path == "/repositories/test-owner" {
@@ -443,13 +442,13 @@ func TestBitbucketListRepos(t *testing.T) {
 			"size": 1
 		}`))
 			if err != nil {
-				assert.NoError(t, fmt.Errorf("Error in mock response %v", err))
+				require.NoError(t, fmt.Errorf("Error in mock response %w", err))
 			}
 		}
 	}))
 	defer func() { testServer.Close() }()
 
-	os.Setenv("BITBUCKET_API_BASE_URL", testServer.URL)
+	t.Setenv("BITBUCKET_API_BASE_URL", testServer.URL)
 	cases := []struct {
 		name, proto, owner    string
 		hasError, allBranches bool
@@ -487,12 +486,12 @@ func TestBitbucketListRepos(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewBitBucketCloudProvider(context.Background(), c.owner, "user", "password", c.allBranches)
-			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
+			provider, _ := NewBitBucketCloudProvider(c.owner, "user", "password", c.allBranches)
+			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
 			if c.hasError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				repos := []*Repository{}
 				branches := []string{}
 				for _, r := range rawRepos {

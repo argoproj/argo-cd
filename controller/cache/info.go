@@ -3,47 +3,38 @@ package cache
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
-	v1 "k8s.io/api/core/v1"
+	"github.com/cespare/xxhash/v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/resource"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/resource"
 )
 
-func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLabels []string) {
 	gvk := un.GroupVersionKind()
 	revision := resource.GetRevision(un)
 	if revision > 0 {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Revision", Value: fmt.Sprintf("Rev:%v", revision)})
 	}
-	switch gvk.Group {
-	case "":
-		switch gvk.Kind {
-		case kube.PodKind:
-			populatePodInfo(un, res)
-		case kube.ServiceKind:
-			populateServiceInfo(un, res)
-		case "Node":
-			populateHostNodeInfo(un, res)
-		}
-	case "extensions", "networking.k8s.io":
-		switch gvk.Kind {
-		case kube.IngressKind:
-			populateIngressInfo(un, res)
-		}
-	case "networking.istio.io":
-		switch gvk.Kind {
-		case "VirtualService":
-			populateIstioVirtualServiceInfo(un, res)
+	if len(customLabels) > 0 {
+		if labels := un.GetLabels(); labels != nil {
+			for _, customLabel := range customLabels {
+				if value, ok := labels[customLabel]; ok {
+					res.Info = append(res.Info, v1alpha1.InfoItem{Name: customLabel, Value: value})
+				}
+			}
 		}
 	}
 
@@ -55,20 +46,43 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 			res.NetworkingInfo.ExternalURLs = append(res.NetworkingInfo.ExternalURLs, v)
 		}
 	}
+
+	switch gvk.Group {
+	case "":
+		switch gvk.Kind {
+		case kube.PodKind:
+			populatePodInfo(un, res)
+		case kube.ServiceKind:
+			populateServiceInfo(un, res)
+		case "Node":
+			populateHostNodeInfo(un, res)
+		}
+	case "extensions", "networking.k8s.io":
+		if gvk.Kind == kube.IngressKind {
+			populateIngressInfo(un, res)
+		}
+	case "networking.istio.io":
+		switch gvk.Kind {
+		case "VirtualService":
+			populateIstioVirtualServiceInfo(un, res)
+		case "ServiceEntry":
+			populateIstioServiceEntryInfo(un, res)
+		}
+	}
 }
 
-func getIngress(un *unstructured.Unstructured) []v1.LoadBalancerIngress {
+func getIngress(un *unstructured.Unstructured) []corev1.LoadBalancerIngress {
 	ingress, ok, err := unstructured.NestedSlice(un.Object, "status", "loadBalancer", "ingress")
 	if !ok || err != nil {
 		return nil
 	}
-	res := make([]v1.LoadBalancerIngress, 0)
+	res := make([]corev1.LoadBalancerIngress, 0)
 	for _, item := range ingress {
-		if lbIngress, ok := item.(map[string]interface{}); ok {
+		if lbIngress, ok := item.(map[string]any); ok {
 			if hostname := lbIngress["hostname"]; hostname != nil {
-				res = append(res, v1.LoadBalancerIngress{Hostname: fmt.Sprintf("%s", hostname)})
+				res = append(res, corev1.LoadBalancerIngress{Hostname: fmt.Sprintf("%s", hostname)})
 			} else if ip := lbIngress["ip"]; ip != nil {
-				res = append(res, v1.LoadBalancerIngress{IP: fmt.Sprintf("%s", ip)})
+				res = append(res, corev1.LoadBalancerIngress{IP: fmt.Sprintf("%s", ip)})
 			}
 		}
 	}
@@ -77,14 +91,20 @@ func getIngress(un *unstructured.Unstructured) []v1.LoadBalancerIngress {
 
 func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	targetLabels, _, _ := unstructured.NestedStringMap(un.Object, "spec", "selector")
-	ingress := make([]v1.LoadBalancerIngress, 0)
-	if serviceType, ok, err := unstructured.NestedString(un.Object, "spec", "type"); ok && err == nil && serviceType == string(v1.ServiceTypeLoadBalancer) {
+	ingress := make([]corev1.LoadBalancerIngress, 0)
+	if serviceType, ok, err := unstructured.NestedString(un.Object, "spec", "type"); ok && err == nil && serviceType == string(corev1.ServiceTypeLoadBalancer) {
 		ingress = getIngress(un)
 	}
-	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress}
+
+	var urls []string
+	if res.NetworkingInfo != nil {
+		urls = res.NetworkingInfo.ExternalURLs
+	}
+
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress, ExternalURLs: urls}
 }
 
-func getServiceName(backend map[string]interface{}, gvk schema.GroupVersionKind) (string, error) {
+func getServiceName(backend map[string]any, gvk schema.GroupVersionKind) (string, error) {
 	switch gvk.Group {
 	case "extensions":
 		return fmt.Sprintf("%s", backend["serviceName"]), nil
@@ -118,7 +138,7 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	urlsSet := make(map[string]bool)
 	if rules, ok, err := unstructured.NestedSlice(un.Object, "spec", "rules"); ok && err == nil {
 		for i := range rules {
-			rule, ok := rules[i].(map[string]interface{})
+			rule, ok := rules[i].(map[string]any)
 			if !ok {
 				continue
 			}
@@ -136,7 +156,7 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 				continue
 			}
 			for i := range paths {
-				path, ok := paths[i].(map[string]interface{})
+				path, ok := paths[i].(map[string]any)
 				if !ok {
 					continue
 				}
@@ -158,7 +178,7 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 				stringPort := "http"
 				if tls, ok, err := unstructured.NestedSlice(un.Object, "spec", "tls"); ok && err == nil {
 					for i := range tls {
-						tlsline, ok := tls[i].(map[string]interface{})
+						tlsline, ok := tls[i].(map[string]any)
 						secretName := tlsline["secretName"]
 						if ok && secretName != nil {
 							stringPort = "https"
@@ -169,7 +189,7 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 							continue
 						}
 						if hosts := tlsline["hosts"]; hosts != nil {
-							tlshosts, ok := tlsline["hosts"].(map[string]interface{})
+							tlshosts, ok := tlsline["hosts"].(map[string]any)
 							if ok {
 								for j := range tlshosts {
 									if tlshosts[j] == host {
@@ -212,7 +232,7 @@ func populateIstioVirtualServiceInfo(un *unstructured.Unstructured, res *Resourc
 
 	if rules, ok, err := unstructured.NestedSlice(un.Object, "spec", "http"); ok && err == nil {
 		for i := range rules {
-			rule, ok := rules[i].(map[string]interface{})
+			rule, ok := rules[i].(map[string]any)
 			if !ok {
 				continue
 			}
@@ -221,7 +241,7 @@ func populateIstioVirtualServiceInfo(un *unstructured.Unstructured, res *Resourc
 				continue
 			}
 			for i := range routes {
-				route, ok := routes[i].(map[string]interface{})
+				route, ok := routes[i].(map[string]any)
 				if !ok {
 					continue
 				}
@@ -251,11 +271,58 @@ func populateIstioVirtualServiceInfo(un *unstructured.Unstructured, res *Resourc
 		targets = append(targets, target)
 	}
 
-	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets}
+	var urls []string
+	if res.NetworkingInfo != nil {
+		urls = res.NetworkingInfo.ExternalURLs
+	}
+
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, ExternalURLs: urls}
+}
+
+func populateIstioServiceEntryInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	targetLabels, ok, err := unstructured.NestedStringMap(un.Object, "spec", "workloadSelector", "labels")
+	if err != nil {
+		return
+	}
+	if !ok {
+		return
+	}
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{
+		TargetLabels: targetLabels,
+		TargetRefs: []v1alpha1.ResourceRef{{
+			Kind: kube.PodKind,
+		}},
+	}
+}
+
+func isPodInitializedConditionTrue(status *corev1.PodStatus) bool {
+	for _, condition := range status.Conditions {
+		if condition.Type != corev1.PodInitialized {
+			continue
+		}
+
+		return condition.Status == corev1.ConditionTrue
+	}
+	return false
+}
+
+func isRestartableInitContainer(initContainer *corev1.Container) bool {
+	if initContainer == nil {
+		return false
+	}
+	if initContainer.RestartPolicy == nil {
+		return false
+	}
+
+	return *initContainer.RestartPolicy == corev1.ContainerRestartPolicyAlways
+}
+
+func isPodPhaseTerminal(phase corev1.PodPhase) bool {
+	return phase == corev1.PodFailed || phase == corev1.PodSucceeded
 }
 
 func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
-	pod := v1.Pod{}
+	pod := corev1.Pod{}
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &pod)
 	if err != nil {
 		return
@@ -264,7 +331,8 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	totalContainers := len(pod.Spec.Containers)
 	readyContainers := 0
 
-	reason := string(pod.Status.Phase)
+	podPhase := pod.Status.Phase
+	reason := string(podPhase)
 	if pod.Status.Reason != "" {
 		reason = pod.Status.Reason
 	}
@@ -282,6 +350,21 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		res.Images = append(res.Images, image)
 	}
 
+	// If the Pod carries {type:PodScheduled, reason:SchedulingGated}, set reason to 'SchedulingGated'.
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodScheduled && condition.Reason == corev1.PodReasonSchedulingGated {
+			reason = corev1.PodReasonSchedulingGated
+		}
+	}
+
+	initContainers := make(map[string]*corev1.Container)
+	for i := range pod.Spec.InitContainers {
+		initContainers[pod.Spec.InitContainers[i].Name] = &pod.Spec.InitContainers[i]
+		if isRestartableInitContainer(&pod.Spec.InitContainers[i]) {
+			totalContainers++
+		}
+	}
+
 	initializing := false
 	for i := range pod.Status.InitContainerStatuses {
 		container := pod.Status.InitContainerStatuses[i]
@@ -289,9 +372,15 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		switch {
 		case container.State.Terminated != nil && container.State.Terminated.ExitCode == 0:
 			continue
+		case isRestartableInitContainer(initContainers[container.Name]) &&
+			container.Started != nil && *container.Started:
+			if container.Ready {
+				readyContainers++
+			}
+			continue
 		case container.State.Terminated != nil:
 			// initialization is failed
-			if len(container.State.Terminated.Reason) == 0 {
+			if container.State.Terminated.Reason == "" {
 				if container.State.Terminated.Signal != 0 {
 					reason = fmt.Sprintf("Init:Signal:%d", container.State.Terminated.Signal)
 				} else {
@@ -301,7 +390,7 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 				reason = "Init:" + container.State.Terminated.Reason
 			}
 			initializing = true
-		case container.State.Waiting != nil && len(container.State.Waiting.Reason) > 0 && container.State.Waiting.Reason != "PodInitializing":
+		case container.State.Waiting != nil && container.State.Waiting.Reason != "" && container.State.Waiting.Reason != "PodInitializing":
 			reason = "Init:" + container.State.Waiting.Reason
 			initializing = true
 		default:
@@ -310,24 +399,24 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		}
 		break
 	}
-	if !initializing {
-		restarts = 0
+	if !initializing || isPodInitializedConditionTrue(&pod.Status) {
 		hasRunning := false
 		for i := len(pod.Status.ContainerStatuses) - 1; i >= 0; i-- {
 			container := pod.Status.ContainerStatuses[i]
 
 			restarts += int(container.RestartCount)
-			if container.State.Waiting != nil && container.State.Waiting.Reason != "" {
+			switch {
+			case container.State.Waiting != nil && container.State.Waiting.Reason != "":
 				reason = container.State.Waiting.Reason
-			} else if container.State.Terminated != nil && container.State.Terminated.Reason != "" {
+			case container.State.Terminated != nil && container.State.Terminated.Reason != "":
 				reason = container.State.Terminated.Reason
-			} else if container.State.Terminated != nil && container.State.Terminated.Reason == "" {
+			case container.State.Terminated != nil && container.State.Terminated.Reason == "":
 				if container.State.Terminated.Signal != 0 {
 					reason = fmt.Sprintf("Signal:%d", container.State.Terminated.Signal)
 				} else {
 					reason = fmt.Sprintf("ExitCode:%d", container.State.Terminated.ExitCode)
 				}
-			} else if container.Ready && container.State.Running != nil {
+			case container.Ready && container.State.Running != nil:
 				hasRunning = true
 				readyContainers++
 			}
@@ -346,7 +435,9 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	// and https://github.com/kubernetes/kubernetes/issues/90358#issuecomment-617859364
 	if pod.DeletionTimestamp != nil && pod.Status.Reason == "NodeLost" {
 		reason = "Unknown"
-	} else if pod.DeletionTimestamp != nil {
+		// If the pod is being deleted and the pod phase is not succeeded or failed, set the reason to "Terminating".
+		// See https://github.com/kubernetes/kubectl/issues/1595#issuecomment-2080001023
+	} else if pod.DeletionTimestamp != nil && !isPodPhaseTerminal(podPhase) {
 		reason = "Terminating"
 	}
 
@@ -360,13 +451,19 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Node", Value: pod.Spec.NodeName})
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
 	if restarts > 0 {
-		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Restart Count", Value: fmt.Sprintf("%d", restarts)})
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Restart Count", Value: strconv.Itoa(restarts)})
 	}
-	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels()}
+
+	var urls []string
+	if res.NetworkingInfo != nil {
+		urls = res.NetworkingInfo.ExternalURLs
+	}
+
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{Labels: un.GetLabels(), ExternalURLs: urls}
 }
 
 func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
-	node := v1.Node{}
+	node := corev1.Node{}
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &node)
 	if err != nil {
 		return
@@ -375,5 +472,30 @@ func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		Name:       node.Name,
 		Capacity:   node.Status.Capacity,
 		SystemInfo: node.Status.NodeInfo,
+		Labels:     node.Labels,
 	}
+}
+
+func generateManifestHash(un *unstructured.Unstructured, ignores []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride, opts normalizers.IgnoreNormalizerOpts) (string, error) {
+	normalizer, err := normalizers.NewIgnoreNormalizer(ignores, overrides, opts)
+	if err != nil {
+		return "", fmt.Errorf("error creating normalizer: %w", err)
+	}
+
+	resource := un.DeepCopy()
+	err = normalizer.Normalize(resource)
+	if err != nil {
+		return "", fmt.Errorf("error normalizing resource: %w", err)
+	}
+
+	data, err := resource.MarshalJSON()
+	if err != nil {
+		return "", fmt.Errorf("error marshaling resource: %w", err)
+	}
+	hash := hash(data)
+	return hash, nil
+}
+
+func hash(data []byte) string {
+	return strconv.FormatUint(xxhash.Sum64(data), 16)
 }

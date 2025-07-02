@@ -2,34 +2,34 @@ package apiclient
 
 import (
 	"context"
+	"math"
 	"time"
 
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/env"
+
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
-	"github.com/argoproj/argo-cd/v2/util/io"
+	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
-const (
-	// MaxGRPCMessageSize contains max grpc message size
-	MaxGRPCMessageSize = 100 * 1024 * 1024
-)
+// MaxGRPCMessageSize contains max grpc message size
+var MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 100, 0, math.MaxInt32) * 1024 * 1024
 
 // Clientset represents config management plugin server api clients
 type Clientset interface {
-	NewConfigManagementPluginClient() (io.Closer, ConfigManagementPluginServiceClient, error)
+	NewConfigManagementPluginClient() (utilio.Closer, ConfigManagementPluginServiceClient, error)
 }
 
 type clientSet struct {
 	address string
 }
 
-func (c *clientSet) NewConfigManagementPluginClient() (io.Closer, ConfigManagementPluginServiceClient, error) {
+func (c *clientSet) NewConfigManagementPluginClient() (utilio.Closer, ConfigManagementPluginServiceClient, error) {
 	conn, err := NewConnection(c.address)
 	if err != nil {
 		return nil, nil, err
@@ -45,10 +45,10 @@ func NewConnection(address string) (*grpc.ClientConn, error) {
 	unaryInterceptors := []grpc.UnaryClientInterceptor{grpc_retry.UnaryClientInterceptor(retryOpts...)}
 	dialOpts := []grpc.DialOption{
 		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)),
-		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)),
+		grpc.WithChainUnaryInterceptor(unaryInterceptors...),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)),
-		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
-		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
+		grpc.WithUnaryInterceptor(grpc_util.OTELUnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(grpc_util.OTELStreamClientInterceptor()),
 	}
 
 	dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))

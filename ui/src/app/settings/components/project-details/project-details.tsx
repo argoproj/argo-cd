@@ -4,9 +4,10 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
+import {Link} from 'react-router-dom';
 
 import {BadgePanel, CheckboxField, DataLoader, EditablePanel, ErrorNotification, MapInputField, Page, Query} from '../../../shared/components';
-import {AppContext, Consumer} from '../../../shared/context';
+import {AppContext, Consumer, AuthSettingsCtx} from '../../../shared/context';
 import {GroupKind, Groups, Project, DetailedProjectsResponse, ProjectSpec, ResourceKinds} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
 
@@ -16,6 +17,7 @@ import {ProjectEvents} from '../project-events/project-events';
 import {ProjectRoleEditPanel} from '../project-role-edit-panel/project-role-edit-panel';
 import {ProjectSyncWindowsEditPanel} from '../project-sync-windows-edit-panel/project-sync-windows-edit-panel';
 import {ResourceListsPanel} from './resource-lists-panel';
+import {DeepLinks} from '../../../shared/components/deep-links';
 
 require('./project-details.scss');
 
@@ -51,12 +53,22 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
             merged.namespaceResourceWhitelist = merged.namespaceResourceWhitelist.concat(proj.spec.namespaceResourceWhitelist || []);
             merged.sourceRepos = merged.sourceRepos.concat(proj.spec.sourceRepos || []);
             merged.destinations = merged.destinations.concat(proj.spec.destinations || []);
+            merged.sourceNamespaces = merged.sourceNamespaces.concat(proj.spec.sourceNamespaces || []);
 
             merged.sourceRepos = merged.sourceRepos.filter((item, index) => {
                 return (
                     index ===
                     merged.sourceRepos.findIndex(obj => {
                         return obj === item;
+                    })
+                );
+            });
+
+            merged.destinationServiceAccounts = merged.destinationServiceAccounts.filter((item, index) => {
+                return (
+                    index ===
+                    merged.destinationServiceAccounts.findIndex(obj => {
+                        return obj.server === item.server && obj.namespace === item.namespace && obj.defaultServiceAccount === item.defaultServiceAccount;
                     })
                 );
             });
@@ -105,6 +117,15 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
                     })
                 );
             });
+
+            merged.sourceNamespaces = merged.sourceNamespaces.filter((item, index) => {
+                return (
+                    index ===
+                    merged.sourceNamespaces.findIndex(obj => {
+                        return obj === item;
+                    })
+                );
+            });
             merged.count += 1;
 
             return merged;
@@ -115,9 +136,11 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
             namespaceResourceWhitelist: new Array<GroupKind>(),
             clusterResourceWhitelist: new Array<GroupKind>(),
             sourceRepos: [],
+            sourceNamespaces: [],
             signatureKeys: [],
             destinations: [],
             description: '',
+            destinationServiceAccounts: [],
             roles: [],
             count: 0
         }
@@ -198,7 +221,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                         },
                                                         {
                                                             key: 'windows',
-                                                            title: 'Windows',
+                                                            title: 'Sync Windows',
                                                             content: this.SyncWindowsTab(proj, ctx)
                                                         },
                                                         {
@@ -465,7 +488,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                             <div className='argo-table-list argo-table-list--clickable'>
                                 <div className='argo-table-list__head'>
                                     <div className='row'>
-                                        <div className='columns small-2'>
+                                        <div className='columns small-8-elements'>
                                             STATUS
                                             {helpTip(
                                                 'If a window is active or inactive and what the current ' +
@@ -475,43 +498,53 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     'Green: all syncs allowed'
                                             )}
                                         </div>
-                                        <div className='columns small-2'>
+                                        <div className='columns small-8-elements'>
                                             WINDOW
                                             {helpTip('The kind, start time and duration of the window')}
                                         </div>
-                                        <div className='columns small-2'>
+                                        <div className='columns small-8-elements'>
                                             APPLICATIONS
                                             {helpTip('The applications assigned to the window, wildcards are supported')}
                                         </div>
-                                        <div className='columns small-2'>
+                                        <div className='columns small-8-elements'>
                                             NAMESPACES
                                             {helpTip('The namespaces assigned to the window, wildcards are supported')}
                                         </div>
-                                        <div className='columns small-2'>
+                                        <div className='columns small-8-elements'>
                                             CLUSTERS
                                             {helpTip('The clusters assigned to the window, wildcards are supported')}
                                         </div>
-                                        <div className='columns small-2'>
+                                        <div className='columns small-8-elements'>
                                             MANUALSYNC
                                             {helpTip('If the window allows manual syncs')}
+                                        </div>
+                                        <div className='columns small-8-elements'>
+                                            USE AND OPERATOR
+                                            {helpTip('Use AND operator while selecting the apps that match the configured selectors')}
+                                        </div>
+                                        <div className='columns small-8-elements'>
+                                            DESCRIPTION
+                                            {helpTip('Add a description to your sync window (eg "Ticket 12345")')}
                                         </div>
                                     </div>
                                 </div>
                                 {(proj.spec.syncWindows || []).map((window, i) => (
                                     <div className='argo-table-list__row' key={`${i}`} onClick={() => ctx.navigation.goto(`.`, {editWindow: `${i}`})}>
                                         <div className='row'>
-                                            <div className='columns small-2'>
+                                            <div className='columns small-8-elements'>
                                                 <span>
                                                     <SyncWindowStatusIcon state={data} window={window} />
                                                 </span>
                                             </div>
-                                            <div className='columns small-2'>
+                                            <div className='columns small-8-elements'>
                                                 {window.kind}:{window.schedule}:{window.duration}:{window.timeZone}
                                             </div>
-                                            <div className='columns small-2'>{(window.applications || ['-']).join(',')}</div>
-                                            <div className='columns small-2'>{(window.namespaces || ['-']).join(',')}</div>
-                                            <div className='columns small-2'>{(window.clusters || ['-']).join(',')}</div>
-                                            <div className='columns small-2'>{window.manualSync ? 'Enabled' : 'Disabled'}</div>
+                                            <div className='columns small-8-elements'>{(window.applications || ['-']).join(',')}</div>
+                                            <div className='columns small-8-elements'>{(window.namespaces || ['-']).join(',')}</div>
+                                            <div className='columns small-8-elements'>{(window.clusters || ['-']).join(',')}</div>
+                                            <div className='columns small-8-elements'>{window.manualSync ? 'Enabled' : 'Disabled'}</div>
+                                            <div className='columns small-8-elements'>{window.andOperator ? 'Enabled' : 'Disabled'}</div>
+                                            <div className='columns small-8-elements'>{window.description || ''}</div>
                                         </div>
                                     </div>
                                 ))}
@@ -562,7 +595,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                         {
                             title: 'NAME',
                             view: proj.metadata.name,
-                            edit: (_: FormApi) => proj.metadata.name
+                            edit: () => proj.metadata.name
                         },
                         {
                             title: 'DESCRIPTION',
@@ -575,6 +608,24 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 .map(label => `${label}=${proj.metadata.labels[label]}`)
                                 .join(' '),
                             edit: (formApi: FormApi) => <FormField formApi={formApi} field='metadata.labels' component={MapInputField} />
+                        },
+                        {
+                            title: 'LINKS',
+                            view: (
+                                <div style={{margin: '8px 0'}}>
+                                    <DataLoader load={() => services.projects.getLinks(proj.metadata.name)}>{links => <DeepLinks links={links.items} />}</DataLoader>
+                                </div>
+                            )
+                        },
+                        {
+                            title: 'APPLICATIONS',
+                            view: (
+                                <div>
+                                    <DataLoader load={() => services.applications.list([proj.metadata.name])}>
+                                        {apps => <Link to={'/applications?proj=' + proj.metadata.name}>{apps.items.length}</Link>}
+                                    </DataLoader>
+                                </div>
+                            )
                         }
                     ]}
                 />
@@ -639,7 +690,51 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                     }
                     items={[]}
                 />
-
+                <AuthSettingsCtx.Consumer>
+                    {authCtx =>
+                        authCtx?.appsInAnyNamespaceEnabled && (
+                            <EditablePanel
+                                save={item => this.saveProject(item)}
+                                values={proj}
+                                title={
+                                    <React.Fragment>SOURCE NAMESPACES {helpTip('Kubernetes namespaces where application resources are allowed to be created in')}</React.Fragment>
+                                }
+                                view={
+                                    <React.Fragment>
+                                        {proj.spec.sourceNamespaces
+                                            ? proj.spec.sourceNamespaces.map((namespace, i) => (
+                                                  <div className='row white-box__details-row' key={i}>
+                                                      <div className='columns small-12'>{namespace}</div>
+                                                  </div>
+                                              ))
+                                            : emptyMessage('source namespaces')}
+                                    </React.Fragment>
+                                }
+                                edit={formApi => (
+                                    <React.Fragment>
+                                        {(formApi.values.spec.sourceNamespaces || []).map((_: Project, i: number) => (
+                                            <div className='row white-box__details-row' key={i}>
+                                                <div className='columns small-12'>
+                                                    <FormField formApi={formApi} field={`spec.sourceNamespaces[${i}]`} component={AutocompleteField} />
+                                                    <i
+                                                        className='fa fa-times'
+                                                        onClick={() => formApi.setValue('spec.sourceNamespaces', removeEl(formApi.values.spec.sourceNamespaces, i))}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <button
+                                            className='argo-button argo-button--short'
+                                            onClick={() => formApi.setValue('spec.sourceNamespaces', (formApi.values.spec.sourceNamespaces || []).concat('*'))}>
+                                            ADD SOURCE
+                                        </button>
+                                    </React.Fragment>
+                                )}
+                                items={[]}
+                            />
+                        )
+                    }
+                </AuthSettingsCtx.Consumer>
                 <EditablePanel
                     save={item => this.saveProject(item)}
                     values={proj}
@@ -734,6 +829,97 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 : emptyMessage('destinations')}
                         </React.Fragment>
                     }
+                    items={[]}
+                />
+
+                <EditablePanel
+                    save={item => this.saveProject(item)}
+                    values={proj}
+                    title={
+                        <React.Fragment>
+                            DESTINATION SERVICE ACCOUNTS{' '}
+                            {helpTip(
+                                'Destination Service Accounts holds information about the service accounts to be impersonated for the application sync operation for each destination.'
+                            )}
+                        </React.Fragment>
+                    }
+                    view={
+                        <React.Fragment>
+                            {proj.spec.destinationServiceAccounts ? (
+                                <React.Fragment>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-4'>Server</div>
+                                        <div className='columns small-3'>Namespace</div>
+                                        <div className='columns small-5'>DefaultServiceAccount</div>
+                                    </div>
+                                    {proj.spec.destinationServiceAccounts.map((dest, i) => (
+                                        <div className='row white-box__details-row' key={i}>
+                                            <div className='columns small-4'>{dest.server}</div>
+                                            <div className='columns small-3'>{dest.namespace}</div>
+                                            <div className='columns small-5'>{dest.defaultServiceAccount}</div>
+                                        </div>
+                                    ))}
+                                </React.Fragment>
+                            ) : (
+                                emptyMessage('destinationServiceAccount')
+                            )}
+                        </React.Fragment>
+                    }
+                    edit={formApi => (
+                        <DataLoader load={() => services.clusters.list()}>
+                            {clusters => (
+                                <React.Fragment>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-4'>Server</div>
+                                        <div className='columns small-3'>Namespace</div>
+                                        <div className='columns small-5'>DefaultServiceAccount</div>
+                                    </div>
+                                    {(formApi.values.spec.destinationServiceAccounts || []).map((_: Project, i: number) => (
+                                        <div className='row white-box__details-row' key={i}>
+                                            <div className='columns small-4'>
+                                                <FormField
+                                                    formApi={formApi}
+                                                    field={`spec.destinationServiceAccounts[${i}].server`}
+                                                    component={AutocompleteField}
+                                                    componentProps={{items: clusters.map(cluster => cluster.server)}}
+                                                />
+                                            </div>
+                                            <div className='columns small-3'>
+                                                <FormField formApi={formApi} field={`spec.destinationServiceAccounts[${i}].namespace`} component={AutocompleteField} />
+                                            </div>
+                                            <div className='columns small-5'>
+                                                <FormField
+                                                    formApi={formApi}
+                                                    field={`spec.destinationServiceAccounts[${i}].defaultServiceAccount`}
+                                                    component={AutocompleteField}
+                                                    componentProps={{items: clusters.map(cluster => cluster.name)}}
+                                                />
+                                            </div>
+                                            <i
+                                                className='fa fa-times'
+                                                onClick={() => formApi.setValue('spec.destinationServiceAccounts', removeEl(formApi.values.spec.destinationServiceAccounts, i))}
+                                            />
+                                        </div>
+                                    ))}
+
+                                    <button
+                                        className='argo-button argo-button--short'
+                                        onClick={() =>
+                                            formApi.setValue(
+                                                'spec.destinationServiceAccounts',
+                                                (formApi.values.spec.destinationServiceAccounts || []).concat({
+                                                    server: '*',
+                                                    namespace: '*',
+                                                    defaultServiceAccount: '*'
+                                                })
+                                            )
+                                        }>
+                                        ADD DESTINATION SERVICE ACCOUNTS
+                                    </button>
+                                </React.Fragment>
+                            )}
+                        </DataLoader>
+                    )}
                     items={[]}
                 />
 

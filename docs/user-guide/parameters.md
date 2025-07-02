@@ -26,8 +26,8 @@ argocd app set guestbook -p ingress.enabled=true
 argocd app set guestbook -p ingress.hosts[0]=guestbook.myclusterurl
 ```
 
-The `argocd app set` [command](./commands/argocd_app_set.md) supports more tool-specific flags such as `--kustomize-image`, `--jsonnet-ext-var-str` etc
-flags. You can also specify overrides directly in the source field on application spec. Read more about supported options in corresponded tool [documentation](./application_sources.md).
+The `argocd app set` [command](./commands/argocd_app_set.md) supports more tool-specific flags such as `--kustomize-image`, `--jsonnet-ext-var-str`, etc.
+You can also specify overrides directly in the source field on the application spec. Read more about supported options in the corresponding tool [documentation](./application_sources.md).
 
 ## When To Use Overrides?
 
@@ -54,13 +54,8 @@ argocd app create redis --repo https://github.com/helm/charts.git --path stable/
 
 ## Store Overrides In Git
 
-> The following is available from v1.8 or later
-
 The config management tool specific overrides can be specified in `.argocd-source.yaml` file stored in the source application
 directory in the Git repository.
-
-!!! warn
-    The `.argocd-source` is a beta feature and subject to change.
 
 The `.argocd-source.yaml` file is used during manifest generation and overrides
 application source fields, such as `kustomize`, `helm` etc.
@@ -70,7 +65,7 @@ Example:
 ```yaml
 kustomize:
   images:
-    - gcr.io/heptio-images/ks-guestbook-demo:0.2
+    - quay.io/argoprojlabs/argocd-e2e-container:0.2
 ```
 
 The `.argocd-source` is trying to solve two following main use cases:
@@ -80,15 +75,13 @@ for projects like [argocd-image-updater](https://github.com/argoproj-labs/argocd
 - Support "discovering" applications in the Git repository by projects like [applicationset](https://github.com/argoproj/applicationset)
 (see [git files generator](https://github.com/argoproj/argo-cd/blob/master/applicationset/examples/git-generator-files-discovery/git-generator-files.yaml))
 
-> The following is available from v1.9 or later
-
 You can also store parameter overrides in an application specific file, if you
 are sourcing multiple applications from a single path in your repository.
 
 The application specific file must be named `.argocd-source-<appname>.yaml`,
 where `<appname>` is the name of the application the overrides are valid for.
 
-If there exists an non-application specific `.argocd-source.yaml`, parameters
+If there exists a non-application specific `.argocd-source.yaml`, parameters
 included in that file will be merged first, and then the application specific
 parameters are merged, which can also contain overrides to the parameters
 stored in the non-application specific file.

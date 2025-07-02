@@ -32,7 +32,20 @@ rules:
   - "argoproj.io"
   resources:
   - "applications"
+  - "applicationsets"
   verbs:
   - get
   - list
   - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - create   # supports triggering jobs from UI
+- apiGroups:
+  - argoproj.io
+  resources:
+  - workflows
+  verbs:
+  - create   # supports triggering workflows from UI

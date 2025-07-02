@@ -2,6 +2,7 @@ import * as deepMerge from 'deepmerge';
 import {BehaviorSubject, Observable} from 'rxjs';
 
 import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
+import {UserMessages} from '../models';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
 
@@ -14,24 +15,29 @@ export enum AppsDetailsViewKey {
 
 export interface AppDetailsPreferences {
     resourceFilter: string[];
-    view: AppsDetailsViewType;
+    view: AppsDetailsViewType | string;
     resourceView: 'manifest' | 'diff' | 'desiredManifest';
     inlineDiff: boolean;
     compactDiff: boolean;
     hideManagedFields?: boolean;
+    enableWordWrap?: boolean;
     orphanedResources: boolean;
     podView: PodViewPreferences;
     darkMode: boolean;
     followLogs: boolean;
     hideFilters: boolean;
+    matchCase: boolean;
     wrapLines: boolean;
     groupNodes?: boolean;
     zoom: number;
+    podGroupCount: number;
+    userHelpTipMsgs: UserMessages[];
 }
 
 export interface PodViewPreferences {
     sortMode: PodGroupType;
     hideUnschedulable: boolean;
+    sortOrder?: 'asc' | 'desc';
 }
 
 export interface HealthStatusBarPreferences {
@@ -67,6 +73,7 @@ export class AppsListPreferences {
         pref.projectsFilter = [];
         pref.reposFilter = [];
         pref.syncFilter = [];
+        pref.autoSyncFilter = [];
         pref.showFavorites = false;
     }
 
@@ -74,6 +81,7 @@ export class AppsListPreferences {
     public projectsFilter: string[];
     public reposFilter: string[];
     public syncFilter: string[];
+    public autoSyncFilter: string[];
     public healthFilter: string[];
     public namespacesFilter: string[];
     public clustersFilter: string[];
@@ -89,6 +97,7 @@ export interface ViewPreferences {
     appDetails: AppDetailsPreferences;
     appList: AppsListPreferences;
     pageSizes: {[key: string]: number};
+    sortOptions?: {[key: string]: string};
     hideBannerContent: string;
     hideSidebar: boolean;
     position: string;
@@ -116,8 +125,11 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         },
         darkMode: false,
         followLogs: false,
+        matchCase: false,
         wrapLines: false,
-        zoom: 1.0
+        zoom: 1.0,
+        podGroupCount: 15.0,
+        userHelpTipMsgs: []
     },
     appList: {
         view: 'tiles' as AppsListViewType,
@@ -127,6 +139,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         clustersFilter: new Array<string>(),
         reposFilter: new Array<string>(),
         syncFilter: new Array<string>(),
+        autoSyncFilter: new Array<string>(),
         healthFilter: new Array<string>(),
         hideFilters: false,
         showFavorites: false,

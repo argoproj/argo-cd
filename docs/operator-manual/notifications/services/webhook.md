@@ -1,7 +1,27 @@
-## Configuration
+# Webhook
 
 The webhook notification service allows sending a generic HTTP request using the templatized request body and URL.
-Using Webhook you might trigger a Jenkins job, update Github commit status.
+Using Webhook you might trigger a Jenkins job, update GitHub commit status.
+
+## Parameters
+
+The Webhook notification service configuration includes following settings:
+
+- `url` - the url to send the webhook to
+- `headers` - optional, the headers to pass along with the webhook
+- `basicAuth` - optional, the basic authentication to pass along with the webhook
+- `insecureSkipVerify` - optional bool, true or false
+- `retryWaitMin` - Optional, the minimum wait time between retries. Default value: 1s.
+- `retryWaitMax` - Optional, the maximum wait time between retries. Default value: 5s.
+- `retryMax` - Optional, the maximum number of retries. Default value: 3.
+
+## Retry Behavior
+
+The webhook service will automatically retry the request if it fails due to network errors or if the server returns a 5xx status code. The number of retries and the wait time between retries can be configured using the `retryMax`, `retryWaitMin`, and `retryWaitMax` parameters.
+
+The wait time between retries is between `retryWaitMin` and `retryWaitMax`. If all retries fail, the `Send` method will return an error.
+
+## Configuration
 
 Use the following steps to configure webhook:
 
@@ -11,7 +31,7 @@ Use the following steps to configure webhook:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.webhook.<webhook-name>: |
     url: https://<hostname>/<optional-path>
@@ -21,6 +41,7 @@ data:
     basicAuth: #optional username password
       username: <username>
       password: <api-key>
+    insecureSkipVerify: true #optional bool
 ```
 
 2 Define template that customizes webhook request method, path and body:
@@ -29,7 +50,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   template.github-commit-status: |
     webhook:
@@ -55,13 +76,13 @@ metadata:
 
 ## Examples
 
-### Set Github commit status
+### Set GitHub commit status
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.webhook.github: |
     url: https://api.github.com
@@ -76,7 +97,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.webhook.github: |
     url: https://api.github.com
@@ -107,7 +128,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.webhook.jenkins: |
     url: http://<jenkins-host>/job/<job-name>/build?token=<job-secret>
@@ -124,7 +145,7 @@ type: Opaque
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.webhook.form: |
     url: https://form.example.com
@@ -145,7 +166,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.webhook.slack_webhook: |
     url: https://hooks.slack.com/services/xxxxx

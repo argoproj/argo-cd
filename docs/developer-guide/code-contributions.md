@@ -13,11 +13,6 @@ Before submitting code for a new feature (and also, to some extent, for more com
 [raise an Enhancement Proposal or Bug Issue](https://github.com/argoproj/argo-cd/issues/new/choose)
 first.
 
-Each enhancement proposal needs to go through our
-[triage process](#triage-process)
-before we accept code contributions. To facilitate triage and to provide transparency, we use
-[this GitHub project](https://github.com/orgs/argoproj/projects/18) to keep track of this process' outcome.
-
 _Please_ do not spend too much time on larger features or refactorings before the corresponding enhancement has been triaged. This may save everyone some amount of frustration and time, as the enhancement proposal might be rejected, and the code would never get merged. However, sometimes it's helpful to have some PoC code along with a proposal.
 
 We will do our best to triage incoming enhancement proposals quickly, with one of the following outcomes:
@@ -103,10 +98,12 @@ Design documents are usually submitted as PR and use [this template](https://git
 
 Our community regularly meets virtually to discuss issues, ideas and enhancements around Argo CD. We do invite you to join this virtual meetings if you want to bring up certain things (including your enhancement proposals), participate in our triaging or just want to get to know other contributors.
 
-The current cadence of our meetings is weekly, every Thursday at 4pm UTC (9am Pacific, 12pm Eastern, 6pm Central European, 9:30pm Indian). We use Zoom to conduct these meetings.
+The current cadence of our meetings is weekly, every Thursday at 8:15AM Pacific Time ([click here to check in your current timezone][1]). We use Zoom to conduct these meetings.
 
 * [Agenda document (Google Docs, includes Zoom link)](https://docs.google.com/document/d/1xkoFkVviB70YBzSEa4bDnu-rUZ1sIFtwKKG1Uw8XsY8)
 
 If you want to discuss something, we kindly ask you to put your item on the
 [agenda](https://docs.google.com/document/d/1xkoFkVviB70YBzSEa4bDnu-rUZ1sIFtwKKG1Uw8XsY8)
-for one of the upcoming meetings so that we can plan in the time for discussing about it.
+for one of the upcoming meetings so that we can plan in the time for discussing it.
+
+[1]: https://www.timebie.com/std/pacific.php?q=081500

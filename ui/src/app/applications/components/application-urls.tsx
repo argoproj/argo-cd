@@ -1,5 +1,6 @@
 import {DropDownMenu} from 'argo-ui';
 import * as React from 'react';
+import {isValidURL} from '../../shared/utils';
 
 export class InvalidExternalLinkError extends Error {
     constructor(message: string) {
@@ -22,28 +23,13 @@ export class ExternalLink {
             this.title = url;
             this.ref = url;
         }
-        if (!ExternalLink.isValidURL(this.ref)) {
+        if (!isValidURL(this.ref)) {
             throw new InvalidExternalLinkError('Invalid URL');
-        }
-    }
-
-    private static isValidURL(url: string): boolean {
-        try {
-            const parsedUrl = new URL(url);
-            return parsedUrl.protocol !== 'javascript:' && parsedUrl.protocol !== 'data:';
-        } catch (TypeError) {
-            try {
-                // Try parsing as a relative URL.
-                const parsedUrl = new URL(url, window.location.origin);
-                return parsedUrl.protocol !== 'javascript:' && parsedUrl.protocol !== 'data:';
-            } catch (TypeError) {
-                return false;
-            }
         }
     }
 }
 
-export const ApplicationURLs = ({urls}: {urls: string[]}) => {
+export const ExternalLinks = (urls?: string[]) => {
     const externalLinks: ExternalLink[] = [];
     for (const url of urls || []) {
         try {
@@ -56,15 +42,25 @@ export const ApplicationURLs = ({urls}: {urls: string[]}) => {
 
     // sorted alphabetically & links with titles first
     externalLinks.sort((a, b) => {
-        if (a.title !== '' && b.title !== '') {
+        const hasTitle = (x: ExternalLink): boolean => {
+            return x.title !== x.ref && x.title !== '';
+        };
+
+        if (hasTitle(a) && hasTitle(b) && a.title !== b.title) {
             return a.title > b.title ? 1 : -1;
-        } else if (a.title === '') {
+        } else if (hasTitle(b) && !hasTitle(a)) {
             return 1;
-        } else if (b.title === '') {
+        } else if (hasTitle(a) && !hasTitle(b)) {
             return -1;
         }
         return a.ref > b.ref ? 1 : -1;
     });
+
+    return externalLinks;
+};
+
+export const ApplicationURLs = ({urls}: {urls: string[]}) => {
+    const externalLinks: ExternalLink[] = ExternalLinks(urls);
 
     return (
         ((externalLinks || []).length > 0 && (

@@ -1,7 +1,0 @@
-version: 2
-formats: all
-mkdocs:
-  fail_on_warning: false
-python:
-  install:
-    - requirements: docs/requirements.txt

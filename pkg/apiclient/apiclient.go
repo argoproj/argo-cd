@@ -15,12 +15,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/coreos/go-oidc"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/golang/protobuf/ptypes/empty"
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
-	retryablehttp "github.com/hashicorp/go-retryablehttp"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
+	"github.com/hashicorp/go-retryablehttp"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
@@ -30,31 +29,30 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
-	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	applicationsetpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
-	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
-	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
-	notificationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
-	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
-	repocredspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
-	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
-	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
-	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
-	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
-	http_util "github.com/argoproj/argo-cd/v2/util/http"
-	argoio "github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/kube"
-	"github.com/argoproj/argo-cd/v2/util/localconfig"
-	oidcutil "github.com/argoproj/argo-cd/v2/util/oidc"
-	tls_util "github.com/argoproj/argo-cd/v2/util/tls"
+	"github.com/argoproj/argo-cd/v3/common"
+	accountpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	applicationsetpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
+	certificatepkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/certificate"
+	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
+	gpgkeypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey"
+	notificationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/notification"
+	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
+	repocredspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repocreds"
+	repositorypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repository"
+	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
+	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
+	versionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
+	http_util "github.com/argoproj/argo-cd/v3/util/http"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/kube"
+	"github.com/argoproj/argo-cd/v3/util/localconfig"
+	oidcutil "github.com/argoproj/argo-cd/v3/util/oidc"
+	tls_util "github.com/argoproj/argo-cd/v3/util/tls"
 )
 
 const (
@@ -63,14 +61,10 @@ const (
 	EnvArgoCDServer = "ARGOCD_SERVER"
 	// EnvArgoCDAuthToken is the environment variable to look for an Argo CD auth token
 	EnvArgoCDAuthToken = "ARGOCD_AUTH_TOKEN"
-	// EnvArgoCDgRPCMaxSizeMB is the environment variable to look for a max gRPC message size
-	EnvArgoCDgRPCMaxSizeMB = "ARGOCD_GRPC_MAX_SIZE_MB"
 )
 
-var (
-	// MaxGRPCMessageSize contains max grpc message size
-	MaxGRPCMessageSize = env.ParseNumFromEnv(EnvArgoCDgRPCMaxSizeMB, 200, 0, math.MaxInt32) * 1024 * 1024
-)
+// MaxGRPCMessageSize contains max grpc message size
+var MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 200, 0, math.MaxInt32) * 1024 * 1024
 
 // Client defines an interface for interaction with an Argo CD server.
 type Client interface {
@@ -103,7 +97,7 @@ type Client interface {
 	NewProjectClientOrDie() (io.Closer, projectpkg.ProjectServiceClient)
 	NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error)
 	NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient)
-	WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *argoappv1.ApplicationWatchEvent
+	WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent
 }
 
 // ClientOptions hold address, security, and other settings for the API client.
@@ -124,8 +118,15 @@ type ClientOptions struct {
 	PortForward          bool
 	PortForwardNamespace string
 	Headers              []string
-	HttpRetryMax         int
+	HttpRetryMax         int //nolint:revive //FIXME(var-naming)
 	KubeOverrides        *clientcmd.ConfigOverrides
+	AppControllerName    string
+	ServerName           string
+	RedisHaProxyName     string
+	RedisName            string
+	RedisCompression     string
+	RepoServerName       string
+	PromptsEnabled       bool
 }
 
 type client struct {
@@ -202,14 +203,13 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		c.UserAgent = fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, common.GetVersion().Version)
 	}
 	// Override server address if specified in env or CLI flag
-	if serverFromEnv := os.Getenv(EnvArgoCDServer); serverFromEnv != "" {
-		c.ServerAddr = serverFromEnv
-	}
+	c.ServerAddr = env.StringFromEnv(EnvArgoCDServer, c.ServerAddr)
 	if opts.PortForward || opts.PortForwardNamespace != "" {
 		if opts.KubeOverrides == nil {
 			opts.KubeOverrides = &clientcmd.ConfigOverrides{}
 		}
-		port, err := kube.PortForward(8080, opts.PortForwardNamespace, opts.KubeOverrides, "app.kubernetes.io/name=argocd-server")
+		serverPodLabelSelector := common.LabelKeyAppName + "=" + opts.ServerName
+		port, err := kube.PortForward(8080, opts.PortForwardNamespace, opts.KubeOverrides, serverPodLabelSelector)
 		if err != nil {
 			return nil, err
 		}
@@ -221,16 +221,11 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	}
 	// Make sure we got the server address and auth token from somewhere
 	if c.ServerAddr == "" {
+		//nolint:staticcheck // First letter of error is intentionally capitalized.
 		return nil, errors.New("Argo CD server address unspecified")
 	}
-	if parts := strings.Split(c.ServerAddr, ":"); len(parts) == 1 {
-		// If port is unspecified, assume the most likely port
-		c.ServerAddr += ":443"
-	}
 	// Override auth-token if specified in env variable or CLI flag
-	if authFromEnv := os.Getenv(EnvArgoCDAuthToken); authFromEnv != "" {
-		c.AuthToken = authFromEnv
-	}
+	c.AuthToken = env.StringFromEnv(EnvArgoCDAuthToken, c.AuthToken)
 	if opts.AuthToken != "" {
 		c.AuthToken = strings.TrimSpace(opts.AuthToken)
 	}
@@ -284,17 +279,21 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		}
 	}
 	if !c.GRPCWeb {
-		//test if we need to set it to true
-		//if a call to grpc failed, then try again with GRPCWeb
+		if parts := strings.Split(c.ServerAddr, ":"); len(parts) == 1 {
+			// If port is unspecified, assume the most likely port
+			c.ServerAddr += ":443"
+		}
+		// test if we need to set it to true
+		// if a call to grpc failed, then try again with GRPCWeb
 		conn, versionIf, err := c.NewVersionClient()
 		if err == nil {
-			defer argoio.Close(conn)
+			defer utilio.Close(conn)
 			_, err = versionIf.Version(context.Background(), &empty.Empty{})
 		}
 		if err != nil {
 			c.GRPCWeb = true
 			conn, versionIf := c.NewVersionClientOrDie()
-			defer argoio.Close(conn)
+			defer utilio.Close(conn)
 
 			_, err := versionIf.Version(context.Background(), &empty.Empty{})
 			if err == nil {
@@ -321,29 +320,30 @@ func (c *client) OIDCConfig(ctx context.Context, set *settingspkg.Settings) (*oa
 	var clientID string
 	var issuerURL string
 	var scopes []string
-	if set.OIDCConfig != nil && set.OIDCConfig.Issuer != "" {
+	switch {
+	case set.OIDCConfig != nil && set.OIDCConfig.Issuer != "":
 		if set.OIDCConfig.CLIClientID != "" {
 			clientID = set.OIDCConfig.CLIClientID
 		} else {
 			clientID = set.OIDCConfig.ClientID
 		}
 		issuerURL = set.OIDCConfig.Issuer
-		scopes = set.OIDCConfig.Scopes
-	} else if set.DexConfig != nil && len(set.DexConfig.Connectors) > 0 {
+		scopes = oidcutil.GetScopesOrDefault(set.OIDCConfig.Scopes)
+	case set.DexConfig != nil && len(set.DexConfig.Connectors) > 0:
 		clientID = common.ArgoCDCLIClientAppID
+		scopes = append(oidcutil.GetScopesOrDefault(nil), common.DexFederatedScope)
 		issuerURL = fmt.Sprintf("%s%s", set.URL, common.DexAPIEndpoint)
-	} else {
+	default:
 		return nil, nil, fmt.Errorf("%s is not configured with SSO", c.ServerAddr)
 	}
 	provider, err := oidc.NewProvider(ctx, issuerURL)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to query provider %q: %v", issuerURL, err)
+		return nil, nil, fmt.Errorf("failed to query provider %q: %w", issuerURL, err)
 	}
 	oidcConf, err := oidcutil.ParseConfig(provider)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to parse provider config: %v", err)
+		return nil, nil, fmt.Errorf("failed to parse provider config: %w", err)
 	}
-	scopes = oidcutil.GetScopesOrDefault(scopes)
 	if oidcutil.OfflineAccess(oidcConf.ScopesSupported) {
 		scopes = append(scopes, oidc.ScopeOfflineAccess)
 	}
@@ -404,7 +404,8 @@ func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, co
 	if err != nil {
 		return err
 	}
-	if claims.Valid() == nil {
+	validator := jwt.NewValidator()
+	if validator.Validate(claims) == nil {
 		// token is still valid
 		return nil
 	}
@@ -522,7 +523,9 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(endpointCredentials))
 	dialOpts = append(dialOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)))
 	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)))
-	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(grpc_retry.UnaryClientInterceptor(retryOpts...))))
+	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor(retryOpts...)))
+	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_util.OTELUnaryClientInterceptor()))
+	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_util.OTELStreamClientInterceptor()))
 
 	ctx := context.Background()
 
@@ -541,7 +544,7 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	}
 	conn, e := grpc_util.BlockingDial(ctx, network, serverAddr, creds, dialOpts...)
 	closers = append(closers, conn)
-	return conn, argoio.NewCloser(func() error {
+	return conn, utilio.NewCloser(func() error {
 		var firstErr error
 		for i := range closers {
 			err := closers[i].Close()
@@ -558,7 +561,7 @@ func (c *client) tlsConfig() (*tls.Config, error) {
 	if len(c.CertPEMData) > 0 {
 		cp := tls_util.BestEffortSystemCertPool()
 		if !cp.AppendCertsFromPEM(c.CertPEMData) {
-			return nil, fmt.Errorf("credentials: failed to append certificates")
+			return nil, errors.New("credentials: failed to append certificates")
 		}
 		tlsConfig.RootCAs = cp
 	}
@@ -803,10 +806,10 @@ func (c *client) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceCl
 
 // WatchApplicationWithRetry returns a channel of watch events for an application, retrying the
 // watch upon errors. Closes the returned channel when the context is cancelled.
-func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *argoappv1.ApplicationWatchEvent {
-	appEventsCh := make(chan *argoappv1.ApplicationWatchEvent)
+func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent {
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
 	cancelled := false
-	appName, appNs := argo.ParseAppQualifiedName(appName, "")
+	appName, appNs := argo.ParseFromQualifiedName(appName, "")
 	go func() {
 		defer close(appEventsCh)
 		for !cancelled {
@@ -846,7 +849,7 @@ func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, 
 }
 
 func isCanceledContextErr(err error) bool {
-	if err == context.Canceled {
+	if err != nil && errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return true
 	}
 	if stat, ok := status.FromError(err); ok {

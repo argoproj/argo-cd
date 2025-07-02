@@ -12,38 +12,41 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/go-oidc"
-	"github.com/golang-jwt/jwt/v4"
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+
+	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
-	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
-	"github.com/argoproj/argo-cd/v2/util/localconfig"
-	oidcutil "github.com/argoproj/argo-cd/v2/util/oidc"
-	"github.com/argoproj/argo-cd/v2/util/rand"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
+	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/localconfig"
+	oidcutil "github.com/argoproj/argo-cd/v3/util/oidc"
+	"github.com/argoproj/argo-cd/v3/util/rand"
+	oidcconfig "github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // NewLoginCommand returns a new instance of `argocd login` command
 func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		ctxName     string
-		username    string
-		password    string
-		sso         bool
-		ssoPort     int
-		skipTestTLS bool
+		ctxName          string
+		username         string
+		password         string
+		sso              bool
+		ssoPort          int
+		skipTestTLS      bool
+		ssoLaunchBrowser bool
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "login SERVER",
 		Short: "Log in to Argo CD",
 		Long:  "Log in to Argo CD",
@@ -65,11 +68,12 @@ argocd login cd.argoproj.io --core`,
 				os.Exit(1)
 			}
 
-			if globalClientOpts.PortForward {
+			switch {
+			case globalClientOpts.PortForward:
 				server = "port-forward"
-			} else if globalClientOpts.Core {
+			case globalClientOpts.Core:
 				server = "kubernetes"
-			} else {
+			default:
 				server = args[0]
 
 				if !skipTestTLS {
@@ -106,6 +110,7 @@ argocd login cd.argoproj.io --core`,
 				PortForwardNamespace: globalClientOpts.PortForwardNamespace,
 				Headers:              globalClientOpts.Headers,
 				KubeOverrides:        globalClientOpts.KubeOverrides,
+				ServerName:           globalClientOpts.ServerName,
 			}
 
 			if ctxName == "" {
@@ -122,7 +127,7 @@ argocd login cd.argoproj.io --core`,
 			if !globalClientOpts.Core {
 				acdClient := headless.NewClientOrDie(&clientOpts, c)
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
-				defer io.Close(setConn)
+				defer utilio.Close(setConn)
 				if !sso {
 					tokenString = passwordLogin(ctx, acdClient, username, password)
 				} else {
@@ -133,7 +138,7 @@ argocd login cd.argoproj.io --core`,
 					errors.CheckError(err)
 					oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
 					errors.CheckError(err)
-					tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider)
+					tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser)
 				}
 				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 				claims := jwt.MapClaims{}
@@ -175,13 +180,14 @@ argocd login cd.argoproj.io --core`,
 			fmt.Printf("Context '%s' updated\n", ctxName)
 		},
 	}
-	command.Flags().StringVar(&ctxName, "name", "", "name to use for the context")
-	command.Flags().StringVar(&username, "username", "", "the username of an account to authenticate")
-	command.Flags().StringVar(&password, "password", "", "the password of an account to authenticate")
-	command.Flags().BoolVar(&sso, "sso", false, "perform SSO login")
-	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "port to run local OAuth2 login application")
+	command.Flags().StringVar(&ctxName, "name", "", "Name to use for the context")
+	command.Flags().StringVar(&username, "username", "", "The username of an account to authenticate")
+	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
+	command.Flags().BoolVar(&sso, "sso", false, "Perform SSO login")
+	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
 	command.Flags().
 		BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
+	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the system default browser when performing SSO login")
 	return command
 }
 
@@ -192,7 +198,7 @@ func userDisplayName(claims jwt.MapClaims) string {
 	if name := jwtutil.StringField(claims, "name"); name != "" {
 		return name
 	}
-	return jwtutil.StringField(claims, "sub")
+	return jwtutil.GetUserIdentifier(claims)
 }
 
 // oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and
@@ -203,6 +209,7 @@ func oauth2Login(
 	oidcSettings *settingspkg.OIDCConfig,
 	oauth2conf *oauth2.Config,
 	provider *oidc.Provider,
+	ssoLaunchBrowser bool,
 ) (string, string) {
 	oauth2conf.RedirectURL = fmt.Sprintf("http://localhost:%d/auth/callback", port)
 	oidcConf, err := oidcutil.ParseConfig(provider)
@@ -302,9 +309,8 @@ func oauth2Login(
 	http.HandleFunc("/auth/callback", callbackHandler)
 
 	// Redirect user to login & consent page to ask for permission for the scopes specified above.
-	fmt.Printf("Opening browser for authentication\n")
-
 	var url string
+	var oidcconfig oidcconfig.OIDCConfig
 	grantType := oidcutil.InferGrantType(oidcConf)
 	opts := []oauth2.AuthCodeOption{oauth2.AccessTypeOffline}
 	if claimsRequested := oidcSettings.GetIDTokenClaims(); claimsRequested != nil {
@@ -315,6 +321,9 @@ func oauth2Login(
 	case oidcutil.GrantTypeAuthorizationCode:
 		opts = append(opts, oauth2.SetAuthURLParam("code_challenge", codeChallenge))
 		opts = append(opts, oauth2.SetAuthURLParam("code_challenge_method", "S256"))
+		if oidcconfig.DomainHint != "" {
+			opts = append(opts, oauth2.SetAuthURLParam("domain_hint", oidcconfig.DomainHint))
+		}
 		url = oauth2conf.AuthCodeURL(stateNonce, opts...)
 	case oidcutil.GrantTypeImplicit:
 		url, err = oidcutil.ImplicitFlowURL(oauth2conf, stateNonce, opts...)
@@ -324,8 +333,7 @@ func oauth2Login(
 	}
 	fmt.Printf("Performing %s flow login: %s\n", grantType, url)
 	time.Sleep(1 * time.Second)
-	err = open.Start(url)
-	errors.CheckError(err)
+	ssoAuthFlow(url, ssoLaunchBrowser)
 	go func() {
 		log.Debugf("Listen: %s", srv.Addr)
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
@@ -348,7 +356,7 @@ func oauth2Login(
 func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username, password string) string {
 	username, password = cli.PromptCredentials(username, password)
 	sessConn, sessionIf := acdClient.NewSessionClientOrDie()
-	defer io.Close(sessConn)
+	defer utilio.Close(sessConn)
 	sessionRequest := sessionpkg.SessionCreateRequest{
 		Username: username,
 		Password: password,
@@ -356,4 +364,14 @@ func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username,
 	createdSession, err := sessionIf.Create(ctx, &sessionRequest)
 	errors.CheckError(err)
 	return createdSession.Token
+}
+
+func ssoAuthFlow(url string, ssoLaunchBrowser bool) {
+	if ssoLaunchBrowser {
+		fmt.Printf("Opening system default browser for authentication\n")
+		err := open.Start(url)
+		errors.CheckError(err)
+	} else {
+		fmt.Printf("To authenticate, copy-and-paste the following URL into your preferred browser: %s\n", url)
+	}
 }

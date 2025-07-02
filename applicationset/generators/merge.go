@@ -2,21 +2,23 @@ package generators
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"maps"
 	"time"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 var _ Generator = (*MergeGenerator)(nil)
 
 var (
-	ErrLessThanTwoGeneratorsInMerge = fmt.Errorf("found less than two generators, Merge requires two or more")
-	ErrNoMergeKeys                  = fmt.Errorf("no merge keys were specified, Merge requires at least one")
-	ErrNonUniqueParamSets           = fmt.Errorf("the parameters from a generator were not unique by the given mergeKeys, Merge requires all param sets to be unique")
+	ErrLessThanTwoGeneratorsInMerge = errors.New("found less than two generators, Merge requires two or more")
+	ErrNoMergeKeys                  = errors.New("no merge keys were specified, Merge requires at least one")
+	ErrNonUniqueParamSets           = errors.New("the parameters from a generator were not unique by the given mergeKeys, Merge requires all param sets to be unique")
 )
 
 type MergeGenerator struct {
@@ -34,12 +36,12 @@ func NewMergeGenerator(supportedGenerators map[string]Generator) Generator {
 
 // getParamSetsForAllGenerators generates params for each child generator in a MergeGenerator. Param sets are returned
 // in slices ordered according to the order of the given generators.
-func (m *MergeGenerator) getParamSetsForAllGenerators(generators []argoprojiov1alpha1.ApplicationSetNestedGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([][]map[string]interface{}, error) {
-	var paramSets [][]map[string]interface{}
-	for _, generator := range generators {
-		generatorParamSets, err := m.getParams(generator, appSet)
+func (m *MergeGenerator) getParamSetsForAllGenerators(generators []argoprojiov1alpha1.ApplicationSetNestedGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([][]map[string]any, error) {
+	var paramSets [][]map[string]any
+	for i, generator := range generators {
+		generatorParamSets, err := m.getParams(generator, appSet, client)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error getting params from generator %d of %d: %w", i+1, len(generators), err)
 		}
 		// concatenate param lists produced by each generator
 		paramSets = append(paramSets, generatorParamSets)
@@ -48,55 +50,51 @@ func (m *MergeGenerator) getParamSetsForAllGenerators(generators []argoprojiov1a
 }
 
 // GenerateParams gets the params produced by the MergeGenerator.
-func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
+func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]any, error) {
 	if appSetGenerator.Merge == nil {
-		return nil, EmptyAppSetGeneratorError
+		return nil, ErrEmptyAppSetGenerator
 	}
 
 	if len(appSetGenerator.Merge.Generators) < 2 {
 		return nil, ErrLessThanTwoGeneratorsInMerge
 	}
 
-	paramSetsFromGenerators, err := m.getParamSetsForAllGenerators(appSetGenerator.Merge.Generators, appSet)
+	paramSetsFromGenerators, err := m.getParamSetsForAllGenerators(appSetGenerator.Merge.Generators, appSet, client)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting param sets from generators: %w", err)
 	}
 
 	baseParamSetsByMergeKey, err := getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSetsFromGenerators[0])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting param sets by merge key: %w", err)
 	}
 
 	for _, paramSets := range paramSetsFromGenerators[1:] {
 		paramSetsByMergeKey, err := getParamSetsByMergeKey(appSetGenerator.Merge.MergeKeys, paramSets)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error getting param sets by merge key: %w", err)
 		}
 
 		for mergeKeyValue, baseParamSet := range baseParamSetsByMergeKey {
 			if overrideParamSet, exists := paramSetsByMergeKey[mergeKeyValue]; exists {
-
 				if appSet.Spec.GoTemplate {
 					if err := mergo.Merge(&baseParamSet, overrideParamSet, mergo.WithOverride); err != nil {
-						return nil, fmt.Errorf("failed to merge base param set with override param set: %w", err)
+						return nil, fmt.Errorf("error merging base param set with override param set: %w", err)
 					}
 					baseParamSetsByMergeKey[mergeKeyValue] = baseParamSet
 				} else {
-					overriddenParamSet, err := utils.CombineStringMapsAllowDuplicates(baseParamSet, overrideParamSet)
-					if err != nil {
-						return nil, err
-					}
-					baseParamSetsByMergeKey[mergeKeyValue] = utils.ConvertToMapStringInterface(overriddenParamSet)
+					maps.Copy(baseParamSet, overrideParamSet)
+					baseParamSetsByMergeKey[mergeKeyValue] = baseParamSet
 				}
 			}
 		}
 	}
 
-	mergedParamSets := make([]map[string]interface{}, len(baseParamSetsByMergeKey))
-	var i = 0
+	mergedParamSets := make([]map[string]any, len(baseParamSetsByMergeKey))
+	i := 0
 	for _, mergedParamSet := range baseParamSetsByMergeKey {
 		mergedParamSets[i] = mergedParamSet
-		i += 1
+		i++
 	}
 
 	return mergedParamSets, nil
@@ -105,7 +103,7 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 // getParamSetsByMergeKey converts the given list of parameter sets to a map of parameter sets where the key is the
 // unique key of the parameter set as determined by the given mergeKeys. If any two parameter sets share the same merge
 // key, getParamSetsByMergeKey will throw NonUniqueParamSets.
-func getParamSetsByMergeKey(mergeKeys []string, paramSets []map[string]interface{}) (map[string]map[string]interface{}, error) {
+func getParamSetsByMergeKey(mergeKeys []string, paramSets []map[string]any) (map[string]map[string]any, error) {
 	if len(mergeKeys) < 1 {
 		return nil, ErrNoMergeKeys
 	}
@@ -115,17 +113,17 @@ func getParamSetsByMergeKey(mergeKeys []string, paramSets []map[string]interface
 		deDuplicatedMergeKeys[mergeKey] = false
 	}
 
-	paramSetsByMergeKey := make(map[string]map[string]interface{}, len(paramSets))
+	paramSetsByMergeKey := make(map[string]map[string]any, len(paramSets))
 	for _, paramSet := range paramSets {
-		paramSetKey := make(map[string]interface{})
+		paramSetKey := make(map[string]any)
 		for mergeKey := range deDuplicatedMergeKeys {
 			paramSetKey[mergeKey] = paramSet[mergeKey]
 		}
-		paramSetKeyJson, err := json.Marshal(paramSetKey)
+		paramSetKeyJSON, err := json.Marshal(paramSetKey)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error marshalling param set key json: %w", err)
 		}
-		paramSetKeyString := string(paramSetKeyJson)
+		paramSetKeyString := string(paramSetKeyJSON)
 		if _, exists := paramSetsByMergeKey[paramSetKeyString]; exists {
 			return nil, fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamSets, paramSetKeyString)
 		}
@@ -136,28 +134,14 @@ func getParamSetsByMergeKey(mergeKeys []string, paramSets []map[string]interface
 }
 
 // getParams get the parameters generated by this generator.
-func (m *MergeGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.ApplicationSetNestedGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
-
-	var matrix *argoprojiov1alpha1.MatrixGenerator
-	if appSetBaseGenerator.Matrix != nil {
-		nestedMatrix, err := argoprojiov1alpha1.ToNestedMatrixGenerator(appSetBaseGenerator.Matrix)
-		if err != nil {
-			return nil, err
-		}
-		if nestedMatrix != nil {
-			matrix = nestedMatrix.ToMatrixGenerator()
-		}
+func (m *MergeGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.ApplicationSetNestedGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]any, error) {
+	matrixGen, err := getMatrixGenerator(appSetBaseGenerator)
+	if err != nil {
+		return nil, err
 	}
-
-	var mergeGenerator *argoprojiov1alpha1.MergeGenerator
-	if appSetBaseGenerator.Merge != nil {
-		nestedMerge, err := argoprojiov1alpha1.ToNestedMergeGenerator(appSetBaseGenerator.Merge)
-		if err != nil {
-			return nil, err
-		}
-		if nestedMerge != nil {
-			mergeGenerator = nestedMerge.ToMergeGenerator()
-		}
+	mergeGen, err := getMergeGenerator(appSetBaseGenerator)
+	if err != nil {
+		return nil, err
 	}
 
 	t, err := Transform(
@@ -168,21 +152,21 @@ func (m *MergeGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Applic
 			SCMProvider:             appSetBaseGenerator.SCMProvider,
 			ClusterDecisionResource: appSetBaseGenerator.ClusterDecisionResource,
 			PullRequest:             appSetBaseGenerator.PullRequest,
-			Matrix:                  matrix,
-			Merge:                   mergeGenerator,
+			Plugin:                  appSetBaseGenerator.Plugin,
+			Matrix:                  matrixGen,
+			Merge:                   mergeGen,
 			Selector:                appSetBaseGenerator.Selector,
 		},
 		m.supportedGenerators,
 		argoprojiov1alpha1.ApplicationSetTemplate{},
 		appSet,
-		map[string]interface{}{})
-
+		map[string]any{}, client)
 	if err != nil {
-		return nil, fmt.Errorf("child generator returned an error on parameter generation: %v", err)
+		return nil, fmt.Errorf("child generator returned an error on parameter generation: %w", err)
 	}
 
 	if len(t) == 0 {
-		return nil, fmt.Errorf("child generator generated no parameters")
+		return nil, errors.New("child generator generated no parameters")
 	}
 
 	if len(t) > 1 {
@@ -197,10 +181,18 @@ func (m *MergeGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.App
 	var found bool
 
 	for _, r := range appSetGenerator.Merge.Generators {
+		matrixGen, _ := getMatrixGenerator(r)
+		mergeGen, _ := getMergeGenerator(r)
 		base := &argoprojiov1alpha1.ApplicationSetGenerator{
-			List:     r.List,
-			Clusters: r.Clusters,
-			Git:      r.Git,
+			List:                    r.List,
+			Clusters:                r.Clusters,
+			Git:                     r.Git,
+			PullRequest:             r.PullRequest,
+			Plugin:                  r.Plugin,
+			SCMProvider:             r.SCMProvider,
+			ClusterDecisionResource: r.ClusterDecisionResource,
+			Matrix:                  matrixGen,
+			Merge:                   mergeGen,
 		}
 		generators := GetRelevantGenerators(base, m.supportedGenerators)
 
@@ -215,10 +207,19 @@ func (m *MergeGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.App
 
 	if found {
 		return res
-	} else {
-		return NoRequeueAfter
 	}
+	return NoRequeueAfter
+}
 
+func getMergeGenerator(r argoprojiov1alpha1.ApplicationSetNestedGenerator) (*argoprojiov1alpha1.MergeGenerator, error) {
+	if r.Merge == nil {
+		return nil, nil
+	}
+	merge, err := argoprojiov1alpha1.ToNestedMergeGenerator(r.Merge)
+	if err != nil {
+		return nil, fmt.Errorf("error converting to nested merge generator: %w", err)
+	}
+	return merge.ToMergeGenerator(), nil
 }
 
 // GetTemplate gets the Template field for the MergeGenerator.

@@ -1,16 +1,19 @@
 package diff
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/go-logr/logr"
+	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
-	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	k8smanagedfields "k8s.io/apimachinery/pkg/util/managedfields"
+
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/argo/managedfields"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -26,12 +29,14 @@ type DiffConfigBuilder struct {
 // NewDiffConfigBuilder create a new DiffConfigBuilder instance.
 func NewDiffConfigBuilder() *DiffConfigBuilder {
 	return &DiffConfigBuilder{
-		diffConfig: &diffConfig{},
+		diffConfig: &diffConfig{
+			ignoreMutationWebhook: true,
+		},
 	}
 }
 
 // WithDiffSettings will set the diff settings in the builder.
-func (b *DiffConfigBuilder) WithDiffSettings(id []v1alpha1.ResourceIgnoreDifferences, o map[string]v1alpha1.ResourceOverride, ignoreAggregatedRoles bool) *DiffConfigBuilder {
+func (b *DiffConfigBuilder) WithDiffSettings(id []v1alpha1.ResourceIgnoreDifferences, o map[string]v1alpha1.ResourceOverride, ignoreAggregatedRoles bool, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts) *DiffConfigBuilder {
 	ignores := id
 	if ignores == nil {
 		ignores = []v1alpha1.ResourceIgnoreDifferences{}
@@ -40,10 +45,11 @@ func (b *DiffConfigBuilder) WithDiffSettings(id []v1alpha1.ResourceIgnoreDiffere
 
 	overrides := o
 	if overrides == nil {
-		overrides = make(map[string]appv1.ResourceOverride)
+		overrides = make(map[string]v1alpha1.ResourceOverride)
 	}
 	b.diffConfig.overrides = overrides
 	b.diffConfig.ignoreAggregatedRoles = ignoreAggregatedRoles
+	b.diffConfig.ignoreNormalizerOpts = ignoreNormalizerOpts
 	return b
 }
 
@@ -63,7 +69,6 @@ func (b *DiffConfigBuilder) WithNoCache() *DiffConfigBuilder {
 // WithCache sets the appstatecache.Cache and the appName in the diff config. Those the
 // are two objects necessary to retrieve a cached diff.
 func (b *DiffConfigBuilder) WithCache(s *appstatecache.Cache, appName string) *DiffConfigBuilder {
-	b.diffConfig.noCache = false
 	b.diffConfig.stateCache = s
 	b.diffConfig.appName = appName
 	return b
@@ -95,6 +100,21 @@ func (b *DiffConfigBuilder) WithManager(manager string) *DiffConfigBuilder {
 	return b
 }
 
+func (b *DiffConfigBuilder) WithServerSideDryRunner(ssdr diff.ServerSideDryRunner) *DiffConfigBuilder {
+	b.diffConfig.serverSideDryRunner = ssdr
+	return b
+}
+
+func (b *DiffConfigBuilder) WithServerSideDiff(ssd bool) *DiffConfigBuilder {
+	b.diffConfig.serverSideDiff = ssd
+	return b
+}
+
+func (b *DiffConfigBuilder) WithIgnoreMutationWebhook(m bool) *DiffConfigBuilder {
+	b.diffConfig.ignoreMutationWebhook = m
+	return b
+}
+
 // Build will first validate the current state of the diff config and return the
 // DiffConfig implementation if no errors are found. Will return nil and the error
 // details otherwise.
@@ -113,7 +133,7 @@ type DiffConfig interface {
 	Validate() error
 	// DiffFromCache will verify if it should retrieve the cached ResourceDiff based on this
 	// DiffConfig.
-	DiffFromCache(appName string) (bool, []*appv1.ResourceDiff)
+	DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDiff)
 	// Ignores Application level ignore difference configurations.
 	Ignores() []v1alpha1.ResourceIgnoreDifferences
 	// Overrides is map of system configurations to override the Application ones.
@@ -140,6 +160,12 @@ type DiffConfig interface {
 	// Manager returns the manager that should be used by the diff while
 	// calculating the structured merge diff.
 	Manager() string
+
+	ServerSideDiff() bool
+	ServerSideDryRunner() diff.ServerSideDryRunner
+	IgnoreMutationWebhook() bool
+
+	IgnoreNormalizerOpts() normalizers.IgnoreNormalizerOpts
 }
 
 // diffConfig defines the configurations used while applying diffs.
@@ -156,43 +182,74 @@ type diffConfig struct {
 	gvkParser             *k8smanagedfields.GvkParser
 	structuredMergeDiff   bool
 	manager               string
+	serverSideDiff        bool
+	serverSideDryRunner   diff.ServerSideDryRunner
+	ignoreMutationWebhook bool
+	ignoreNormalizerOpts  normalizers.IgnoreNormalizerOpts
 }
 
 func (c *diffConfig) Ignores() []v1alpha1.ResourceIgnoreDifferences {
 	return c.ignores
 }
+
 func (c *diffConfig) Overrides() map[string]v1alpha1.ResourceOverride {
 	return c.overrides
 }
+
 func (c *diffConfig) AppLabelKey() string {
 	return c.appLabelKey
 }
+
 func (c *diffConfig) TrackingMethod() string {
 	return c.trackingMethod
 }
+
 func (c *diffConfig) AppName() string {
 	return c.appName
 }
+
 func (c *diffConfig) NoCache() bool {
 	return c.noCache
 }
+
 func (c *diffConfig) StateCache() *appstatecache.Cache {
 	return c.stateCache
 }
+
 func (c *diffConfig) IgnoreAggregatedRoles() bool {
 	return c.ignoreAggregatedRoles
 }
+
 func (c *diffConfig) Logger() *logr.Logger {
 	return c.logger
 }
+
 func (c *diffConfig) GVKParser() *k8smanagedfields.GvkParser {
 	return c.gvkParser
 }
+
 func (c *diffConfig) StructuredMergeDiff() bool {
 	return c.structuredMergeDiff
 }
+
 func (c *diffConfig) Manager() string {
 	return c.manager
+}
+
+func (c *diffConfig) ServerSideDryRunner() diff.ServerSideDryRunner {
+	return c.serverSideDryRunner
+}
+
+func (c *diffConfig) ServerSideDiff() bool {
+	return c.serverSideDiff
+}
+
+func (c *diffConfig) IgnoreMutationWebhook() bool {
+	return c.ignoreMutationWebhook
+}
+
+func (c *diffConfig) IgnoreNormalizerOpts() normalizers.IgnoreNormalizerOpts {
+	return c.ignoreNormalizerOpts
 }
 
 // Validate will check the current state of this diffConfig and return
@@ -212,6 +269,9 @@ func (c *diffConfig) Validate() error {
 		if c.stateCache == nil {
 			return fmt.Errorf("%s: StateCache must be set when retrieving from cache", msg)
 		}
+	}
+	if c.serverSideDiff && c.serverSideDryRunner == nil {
+		return fmt.Errorf("%s: serverSideDryRunner must be set when using server side diff", msg)
 	}
 	return nil
 }
@@ -240,12 +300,12 @@ func StateDiff(live, config *unstructured.Unstructured, diffConfig DiffConfig) (
 func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConfig) (*diff.DiffResultList, error) {
 	normResults, err := preDiffNormalize(lives, configs, diffConfig)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to perform pre-diff normalization: %w", err)
 	}
 
-	diffNormalizer, err := newDiffNormalizer(diffConfig.Ignores(), diffConfig.Overrides())
+	diffNormalizer, err := newDiffNormalizer(diffConfig.Ignores(), diffConfig.Overrides(), diffConfig.IgnoreNormalizerOpts())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create diff normalizer: %w", err)
 	}
 
 	diffOpts := []diff.Option{
@@ -254,6 +314,9 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 		diff.WithStructuredMergeDiff(diffConfig.StructuredMergeDiff()),
 		diff.WithGVKParser(diffConfig.GVKParser()),
 		diff.WithManager(diffConfig.Manager()),
+		diff.WithServerSideDiff(diffConfig.ServerSideDiff()),
+		diff.WithServerSideDryRunner(diffConfig.ServerSideDryRunner()),
+		diff.WithIgnoreMutationWebhook(diffConfig.IgnoreMutationWebhook()),
 	}
 
 	if diffConfig.Logger() != nil {
@@ -262,21 +325,28 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 
 	useCache, cachedDiff := diffConfig.DiffFromCache(diffConfig.AppName())
 	if useCache && cachedDiff != nil {
-		return diffArrayCached(normResults.Targets, normResults.Lives, cachedDiff, diffOpts...)
+		cached, err := diffArrayCached(normResults.Targets, normResults.Lives, cachedDiff, diffOpts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to calculate diff from cache: %w", err)
+		}
+		return cached, nil
 	}
-	return diff.DiffArray(normResults.Targets, normResults.Lives, diffOpts...)
+	array, err := diff.DiffArray(normResults.Targets, normResults.Lives, diffOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate diff: %w", err)
+	}
+	return array, nil
 }
 
-func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unstructured.Unstructured, cachedDiff []*appv1.ResourceDiff, opts ...diff.Option) (*diff.DiffResultList, error) {
+func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unstructured.Unstructured, cachedDiff []*v1alpha1.ResourceDiff, opts ...diff.Option) (*diff.DiffResultList, error) {
 	numItems := len(configArray)
 	if len(liveArray) != numItems {
-		return nil, fmt.Errorf("left and right arrays have mismatched lengths")
+		return nil, errors.New("left and right arrays have mismatched lengths")
 	}
 
-	diffByKey := map[kube.ResourceKey]*appv1.ResourceDiff{}
-	for i := range cachedDiff {
-		res := cachedDiff[i]
-		diffByKey[kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)] = cachedDiff[i]
+	diffByKey := map[kube.ResourceKey]*v1alpha1.ResourceDiff{}
+	for _, res := range cachedDiff {
+		diffByKey[kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)] = res
 	}
 
 	diffResultList := diff.DiffResultList{
@@ -322,26 +392,31 @@ func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unst
 // DiffFromCache will verify if it should retrieve the cached ResourceDiff based on this
 // DiffConfig. Returns true and the cached ResourceDiff if configured to use the cache.
 // Returns false and nil otherwise.
-func (c *diffConfig) DiffFromCache(appName string) (bool, []*appv1.ResourceDiff) {
+func (c *diffConfig) DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDiff) {
 	if c.noCache || c.stateCache == nil || appName == "" {
 		return false, nil
 	}
-	cachedDiff := make([]*appv1.ResourceDiff, 0)
-	if c.stateCache != nil && c.stateCache.GetAppManagedResources(appName, &cachedDiff) == nil {
+	cachedDiff := make([]*v1alpha1.ResourceDiff, 0)
+	if c.stateCache != nil {
+		err := c.stateCache.GetAppManagedResources(appName, &cachedDiff)
+		if err != nil {
+			log.Errorf("DiffFromCache error: error getting managed resources for app %s: %s", appName, err)
+			return false, nil
+		}
 		return true, cachedDiff
 	}
 	return false, nil
 }
 
 // preDiffNormalize applies the normalization of live and target resources before invoking
-// the diff. None of the attributes in the preDiffNormalizeParams will be modified.
+// the diff. None of the attributes in the lives and targets params will be modified.
 func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig DiffConfig) (*NormalizationResult, error) {
 	if diffConfig == nil {
-		return nil, fmt.Errorf("preDiffNormalize error: diffConfig can not be nil")
+		return nil, errors.New("preDiffNormalize error: diffConfig can not be nil")
 	}
 	err := diffConfig.Validate()
 	if err != nil {
-		return nil, fmt.Errorf("preDiffNormalize error: %s", err)
+		return nil, fmt.Errorf("preDiffNormalize error: %w", err)
 	}
 
 	results := &NormalizationResult{}

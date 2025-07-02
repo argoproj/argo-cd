@@ -12,9 +12,9 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
-    app.kubernetes.io/component: controller
+    app.kubernetes.io/component: applicationset-controller
     app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd-applicationset
+    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller
 ---
 apiVersion: v1
@@ -84,6 +84,7 @@ rules:
   - argoproj.io
   resources:
   - applications
+  - applicationsets
   - appprojects
   verbs:
   - create
@@ -100,14 +101,22 @@ rules:
   verbs:
   - create
   - list
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   labels:
-    app.kubernetes.io/component: controller
+    app.kubernetes.io/component: applicationset-controller
     app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd-applicationset
+    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller
 rules:
 - apiGroups:
@@ -130,6 +139,8 @@ rules:
   - appprojects
   verbs:
   - get
+  - list
+  - watch
 - apiGroups:
   - argoproj.io
   resources:
@@ -189,6 +200,10 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-notifications-controller
 rules:
 - apiGroups:
@@ -226,6 +241,30 @@ rules:
   - secrets
   verbs:
   - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis
+    app.kubernetes.io/part-of: argocd
+  name: argocd-redis
+rules:
+- apiGroups:
+  - ""
+  resourceNames:
+  - argocd-redis
+  resources:
+  - secrets
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -291,9 +330,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   labels:
-    app.kubernetes.io/component: controller
+    app.kubernetes.io/component: applicationset-controller
     app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd-applicationset
+    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -322,6 +361,10 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-notifications-controller
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -364,6 +407,100 @@ subjects:
   name: argocd-server
 ---
 apiVersion: v1
+data:
+  resource.customizations.ignoreResourceUpdates.ConfigMap: |
+    jqPathExpressions:
+      # Ignore the cluster-autoscaler status
+      - '.metadata.annotations."cluster-autoscaler.kubernetes.io/last-updated"'
+      # Ignore the annotation of the legacy Leases election
+      - '.metadata.annotations."control-plane.alpha.kubernetes.io/leader"'
+  resource.customizations.ignoreResourceUpdates.Endpoints: |
+    jsonPointers:
+      - /metadata
+      - /subsets
+  resource.customizations.ignoreResourceUpdates.all: |
+    jsonPointers:
+      - /status
+  resource.customizations.ignoreResourceUpdates.apps_ReplicaSet: |
+    jqPathExpressions:
+      - '.metadata.annotations."deployment.kubernetes.io/desired-replicas"'
+      - '.metadata.annotations."deployment.kubernetes.io/max-replicas"'
+      - '.metadata.annotations."rollout.argoproj.io/desired-replicas"'
+  resource.customizations.ignoreResourceUpdates.argoproj.io_Application: |
+    jqPathExpressions:
+      - '.metadata.annotations."notified.notifications.argoproj.io"'
+      - '.metadata.annotations."argocd.argoproj.io/refresh"'
+      - '.metadata.annotations."argocd.argoproj.io/hydrate"'
+      - '.operation'
+  resource.customizations.ignoreResourceUpdates.argoproj.io_Rollout: |
+    jqPathExpressions:
+      - '.metadata.annotations."notified.notifications.argoproj.io"'
+  resource.customizations.ignoreResourceUpdates.autoscaling_HorizontalPodAutoscaler: |
+    jqPathExpressions:
+      - '.metadata.annotations."autoscaling.alpha.kubernetes.io/behavior"'
+      - '.metadata.annotations."autoscaling.alpha.kubernetes.io/conditions"'
+      - '.metadata.annotations."autoscaling.alpha.kubernetes.io/metrics"'
+      - '.metadata.annotations."autoscaling.alpha.kubernetes.io/current-metrics"'
+  resource.customizations.ignoreResourceUpdates.discovery.k8s.io_EndpointSlice: |
+    jsonPointers:
+      - /metadata
+      - /endpoints
+      - /ports
+  resource.exclusions: |
+    ### Network resources created by the Kubernetes control plane and excluded to reduce the number of watched events and UI clutter
+    - apiGroups:
+      - ''
+      - discovery.k8s.io
+      kinds:
+      - Endpoints
+      - EndpointSlice
+    ### Internal Kubernetes resources excluded reduce the number of watched events
+    - apiGroups:
+      - coordination.k8s.io
+      kinds:
+      - Lease
+    ### Internal Kubernetes Authz/Authn resources excluded reduce the number of watched events
+    - apiGroups:
+      - authentication.k8s.io
+      - authorization.k8s.io
+      kinds:
+      - SelfSubjectReview
+      - TokenReview
+      - LocalSubjectAccessReview
+      - SelfSubjectAccessReview
+      - SelfSubjectRulesReview
+      - SubjectAccessReview
+    ### Intermediate Certificate Request excluded reduce the number of watched events
+    - apiGroups:
+      - certificates.k8s.io
+      kinds:
+      - CertificateSigningRequest
+    - apiGroups:
+      - cert-manager.io
+      kinds:
+      - CertificateRequest
+    ### Cilium internal resources excluded reduce the number of watched events and UI Clutter
+    - apiGroups:
+      - cilium.io
+      kinds:
+      - CiliumIdentity
+      - CiliumEndpoint
+      - CiliumEndpointSlice
+    ### Kyverno intermediate and reporting resources excluded reduce the number of watched events and improve performance
+    - apiGroups:
+      - kyverno.io
+      - reports.kyverno.io
+      - wgpolicyk8s.io
+      kinds:
+      - PolicyReport
+      - ClusterPolicyReport
+      - EphemeralReport
+      - ClusterEphemeralReport
+      - AdmissionReport
+      - ClusterAdmissionReport
+      - BackgroundScanReport
+      - ClusterBackgroundScanReport
+      - UpdateRequest
 kind: ConfigMap
 metadata:
   labels:
@@ -390,6 +527,10 @@ metadata:
 apiVersion: v1
 kind: ConfigMap
 metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-notifications-cm
 ---
 apiVersion: v1
@@ -402,16 +543,22 @@ metadata:
 ---
 apiVersion: v1
 data:
-  ssh_known_hosts: |-
-    bitbucket.org ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAubiN81eDcafrgMeLzaFPsw2kNvEcqTKl/VqLat/MaB33pZy0y3rJZtnqwR2qOOvbwKZYKiEO1O6VqNEBxKvJJelCq0dTXWT5pbO2gDXC6h6QDXCaHo6pOHGPUy+YBaGQRGuSusMEASYiWunYN0vCAI8QaXnWMXNMdFP3jHAJH0eDsoiGnLPBlBp4TNm6rYI74nMzgz3B9IikW4WVK+dc8KZJZWYjAuORU3jc1c/NPskD2ASinf8v3xnfXeukU0sJ5N6m5E8VLjObPEO+mN2t/FZTMZLiFqPWc/ALSqnMnnhwrNi2rbfg/rd/IpL8Le3pSBne8+seeFVBoGqzHM9yXw==
-    github.com ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==
+  ssh_known_hosts: |
+    # This file was automatically generated by hack/update-ssh-known-hosts.sh. DO NOT EDIT
+    [ssh.github.com]:443 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
+    [ssh.github.com]:443 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+    [ssh.github.com]:443 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
+    bitbucket.org ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBPIQmuzMBuKdWeF4+a2sjSSpBK0iqitSQ+5BM9KhpexuGt20JpTVM7u5BDZngncgrqDMbWdxMWWOGtZ9UgbqgZE=
+    bitbucket.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIazEu89wgQZ4bqs3d63QSMzYVa0MuJ2e2gKTKqu+UUO
+    bitbucket.org ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDQeJzhupRu0u0cdegZIa8e86EG2qOCsIsD1Xw0xSeiPDlCr7kq97NLmMbpKTX6Esc30NuoqEEHCuc7yWtwp8dI76EEEB1VqY9QJq6vk+aySyboD5QF61I/1WeTwu+deCbgKMGbUijeXhtfbxSxm6JwGrXrhBdofTsbKRUsrN1WoNgUa8uqN1Vx6WAJw1JHPhglEGGHea6QICwJOAr/6mrui/oB7pkaWKHj3z7d1IC4KWLtY47elvjbaTlkN04Kc/5LFEirorGYVbt15kAUlqGM65pk6ZBxtaO3+30LVlORZkxOh+LKL/BvbZ/iRNhItLqNyieoQj/uh/7Iv4uyH/cV/0b4WDSd3DptigWq84lJubb9t/DnZlrJazxyDCulTmKdOR7vs9gMTo+uoIrPSb8ScTtvw65+odKAlBj59dhnVp9zd7QUojOpXlL62Aw56U4oO+FALuevvMjiWeavKhJqlR7i5n9srYcrNV7ttmDw7kf/97P5zauIhxcjX+xHv4M=
+    github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
+    github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+    github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
     gitlab.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBFSMqzJeV9rUzU4kWitGjeR4PWSa29SPqJ1fVkhtj3Hw9xjLVXVYrU9QlYWrOLXBpQ6KWjbjTDTdDkoohFzgbEY=
     gitlab.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAfuCHKVTjquxvt6CM6tdG4SLp1Btn/nOeHHE5UOzRdf
     gitlab.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCsj2bNKTBSpIYDEGk9KxsGh3mySTRgMtXL583qmBpzeQ+jqCMRgBqB98u3z++J1sKlXHWfM9dyhSevkMwSbhoR8XIq/U0tCNyokEi/ueaBMCvbcTHhO7FcwzY92WK4Yt0aGROY5qX2UKSeOvuP4D6TPqKF1onrSzH9bx9XUf2lEdWT/ia1NEKjunUqu1xOB/StKDHMoX4/OKyIzuS0q/T1zOATthvasJFoPrAjkohTyaDUz2LN5JoH839hViyEG82yB+MjcFV5MU3N1l1QL3cVUCh93xSaua1N85qivl+siMkPGbO5xR/En4iEY6K2XPASUEMaieWVNTRCtJ4S8H+9
     ssh.dev.azure.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4NakVyIzf1rXYd4d7wo6jBlkLvCA4odBlL0mDUyZ0/QUfTTqeu+tm22gOsv+VrVTMk6vwRU75gY/y9ut5Mb3bR5BV58dKXyq9A9UeB5Cakehn5Zgm6x1mKoVyf+FFn26iYqXJRgzIZZcZ5V6hrE0Qg39kZm4az48o0AUbf6Sp4SLdvnuMa2sVNwHBboS7EJkm57XQPVU3/QpyNLHbWDdzwtrlS+ez30S3AdYhLKEOxAG8weOnyrtLJAUen9mTkol8oII1edf7mWWbWVf0nBmly21+nZcmCTISQBtdcyPaEno7fFQMDD26/s0lfKob4Kw8H
     vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4NakVyIzf1rXYd4d7wo6jBlkLvCA4odBlL0mDUyZ0/QUfTTqeu+tm22gOsv+VrVTMk6vwRU75gY/y9ut5Mb3bR5BV58dKXyq9A9UeB5Cakehn5Zgm6x1mKoVyf+FFn26iYqXJRgzIZZcZ5V6hrE0Qg39kZm4az48o0AUbf6Sp4SLdvnuMa2sVNwHBboS7EJkm57XQPVU3/QpyNLHbWDdzwtrlS+ez30S3AdYhLKEOxAG8weOnyrtLJAUen9mTkol8oII1edf7mWWbWVf0nBmly21+nZcmCTISQBtdcyPaEno7fFQMDD26/s0lfKob4Kw8H
-    github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
-    github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
 kind: ConfigMap
 metadata:
   labels:
@@ -430,6 +577,10 @@ metadata:
 apiVersion: v1
 kind: Secret
 metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-notifications-secret
 type: Opaque
 ---
@@ -446,9 +597,9 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app.kubernetes.io/component: controller
+    app.kubernetes.io/component: applicationset-controller
     app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd-applicationset
+    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller
 spec:
   ports:
@@ -473,7 +624,8 @@ metadata:
   name: argocd-dex-server
 spec:
   ports:
-  - name: http
+  - appProtocol: TCP
+    name: http
     port: 5556
     protocol: TCP
     targetPort: 5556
@@ -509,7 +661,9 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
+    app.kubernetes.io/component: notifications-controller
     app.kubernetes.io/name: argocd-notifications-controller-metrics
+    app.kubernetes.io/part-of: argocd
   name: argocd-notifications-controller-metrics
 spec:
   ports:
@@ -599,9 +753,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app.kubernetes.io/component: controller
+    app.kubernetes.io/component: applicationset-controller
     app.kubernetes.io/name: argocd-applicationset-controller
-    app.kubernetes.io/part-of: argocd-applicationset
+    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller
 spec:
   selector:
@@ -613,10 +767,21 @@ spec:
         app.kubernetes.io/name: argocd-applicationset-controller
     spec:
       containers:
-      - command:
-        - entrypoint.sh
-        - argocd-applicationset-controller
+      - args:
+        - /usr/local/bin/argocd-applicationset-controller
         env:
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.global.preserved.annotations
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.global.preserved.labels
+              name: argocd-cmd-params-cm
+              optional: true
         - name: NAMESPACE
           valueFrom:
             fieldRef:
@@ -625,12 +790,6 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: applicationsetcontroller.enable.leader.election
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACE
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.namespace
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER
@@ -643,6 +802,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: applicationsetcontroller.policy
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.policy.override
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_DEBUG
@@ -663,6 +828,12 @@ spec:
               key: applicationsetcontroller.log.level
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
+          valueFrom:
+            configMapKeyRef:
+              key: log.format.timestamp
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN
           valueFrom:
             configMapKeyRef:
@@ -673,6 +844,90 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: applicationsetcontroller.enable.git.submodule
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.progressive.syncs
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.tokenref.strict.mode
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.new.git.file.globbing
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_PLAINTEXT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.repo.server.plaintext
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_STRICT_TLS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.repo.server.strict.tls
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.repo.server.timeout.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_RECONCILIATIONS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.concurrent.reconciliations.max
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.namespaces
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.scm.root.ca.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.allowed.scm.providers
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.scm.providers
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.github.api.metrics
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.webhook.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_REQUEUE_AFTER
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.requeue.after
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
@@ -703,6 +958,10 @@ spec:
           name: gpg-keyring
         - mountPath: /tmp
           name: tmp
+        - mountPath: /app/config/reposerver/tls
+          name: argocd-repo-server-tls
+      nodeSelector:
+        kubernetes.io/os: linux
       serviceAccountName: argocd-applicationset-controller
       volumes:
       - configMap:
@@ -718,6 +977,17 @@ spec:
         name: gpg-keyring
       - emptyDir: {}
         name: tmp
+      - name: argocd-repo-server-tls
+        secret:
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+          - key: ca.crt
+            path: ca.crt
+          optional: true
+          secretName: argocd-repo-server-tls
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -750,13 +1020,31 @@ spec:
         - /shared/argocd-dex
         - rundex
         env:
+        - name: ARGOCD_DEX_SERVER_LOGFORMAT
+          valueFrom:
+            configMapKeyRef:
+              key: dexserver.log.format
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_DEX_SERVER_LOGLEVEL
+          valueFrom:
+            configMapKeyRef:
+              key: dexserver.log.level
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
+          valueFrom:
+            configMapKeyRef:
+              key: log.format.timestamp
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_DEX_SERVER_DISABLE_TLS
           valueFrom:
             configMapKeyRef:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.35.3-distroless
+        image: ghcr.io/dexidp/dex:v2.43.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -781,7 +1069,7 @@ spec:
           name: argocd-dex-server-tls
       initContainers:
       - command:
-        - cp
+        - /bin/cp
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
@@ -802,6 +1090,8 @@ spec:
           name: static-files
         - mountPath: /tmp
           name: dexconfig
+      nodeSelector:
+        kubernetes.io/os: linux
       serviceAccountName: argocd-dex-server
       volumes:
       - emptyDir: {}
@@ -823,6 +1113,10 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-notifications-controller
 spec:
   selector:
@@ -836,8 +1130,45 @@ spec:
         app.kubernetes.io/name: argocd-notifications-controller
     spec:
       containers:
-      - command:
-        - argocd-notifications
+      - args:
+        - /usr/local/bin/argocd-notifications
+        env:
+        - name: ARGOCD_NOTIFICATIONS_CONTROLLER_LOGFORMAT
+          valueFrom:
+            configMapKeyRef:
+              key: notificationscontroller.log.format
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_NOTIFICATIONS_CONTROLLER_LOGLEVEL
+          valueFrom:
+            configMapKeyRef:
+              key: notificationscontroller.log.level
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
+          valueFrom:
+            configMapKeyRef:
+              key: log.format.timestamp
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: application.namespaces
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_NOTIFICATION_CONTROLLER_SELF_SERVICE_NOTIFICATION_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: notificationscontroller.selfservice.enabled
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_PLAINTEXT
+          valueFrom:
+            configMapKeyRef:
+              key: notificationscontroller.repo.server.plaintext
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -856,6 +1187,8 @@ spec:
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
         workingDir: /app
+      nodeSelector:
+        kubernetes.io/os: linux
       securityContext:
         runAsNonRoot: true
         seccompProfile:
@@ -915,7 +1248,14 @@ spec:
         - ""
         - --appendonly
         - "no"
-        image: redis:7.0.5-alpine
+        - --requirepass $(REDIS_PASSWORD)
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
+        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -925,6 +1265,26 @@ spec:
           capabilities:
             drop:
             - ALL
+          readOnlyRootFilesystem: true
+      initContainers:
+      - command:
+        - argocd
+        - admin
+        - redis-initial-password
+        image: quay.io/argoproj/argocd:latest
+        imagePullPolicy: IfNotPresent
+        name: secret-init
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+      nodeSelector:
+        kubernetes.io/os: linux
       securityContext:
         runAsNonRoot: true
         runAsUser: 999
@@ -966,11 +1326,14 @@ spec:
             weight: 5
       automountServiceAccountToken: false
       containers:
-      - command:
-        - sh
-        - -c
-        - entrypoint.sh argocd-repo-server --redis argocd-redis:6379
+      - args:
+        - /usr/local/bin/argocd-repo-server
         env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
             configMapKeyRef:
@@ -989,10 +1352,28 @@ spec:
               key: reposerver.log.level
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
+          valueFrom:
+            configMapKeyRef:
+              key: log.format.timestamp
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_REPO_SERVER_PARALLELISM_LIMIT
           valueFrom:
             configMapKeyRef:
               key: reposerver.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_LISTEN_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.listen.address
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_LISTEN_METRICS_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.metrics.listen.address
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_REPO_SERVER_DISABLE_TLS
@@ -1055,6 +1436,24 @@ spec:
               key: otlp.address
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_OTLP_INSECURE
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.insecure
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_OTLP_HEADERS
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.headers
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_OTLP_ATTRS
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.attrs
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
           valueFrom:
             configMapKeyRef:
@@ -1065,6 +1464,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.plugin.tar.exclusions
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.plugin.use.manifest.generate.paths
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS
@@ -1085,10 +1490,52 @@ spec:
               key: reposerver.streamed.manifest.max.extracted.size
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_EXTRACTED_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.helm.manifest.max.extracted.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.disable.helm.manifest.max.extracted.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REVISION_CACHE_LOCK_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.revision.cache.lock.timeout
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_GIT_MODULES_ENABLED
           valueFrom:
             configMapKeyRef:
               key: reposerver.enable.git.submodule
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.git.lsremote.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_GIT_REQUEST_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.git.request.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_GRPC_MAX_SIZE_MB
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.grpc.max.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.include.hidden.directories
               name: argocd-cmd-params-cm
               optional: true
         - name: HELM_CACHE_HOME
@@ -1145,7 +1592,7 @@ spec:
           name: plugins
       initContainers:
       - command:
-        - cp
+        - /bin/cp
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
@@ -1163,6 +1610,8 @@ spec:
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files
+      nodeSelector:
+        kubernetes.io/os: linux
       serviceAccountName: argocd-repo-server
       volumes:
       - configMap:
@@ -1229,9 +1678,14 @@ spec:
               topologyKey: kubernetes.io/hostname
             weight: 5
       containers:
-      - command:
-        - argocd-server
+      - args:
+        - /usr/local/bin/argocd-server
         env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
         - name: ARGOCD_SERVER_INSECURE
           valueFrom:
             configMapKeyRef:
@@ -1358,12 +1812,6 @@ spec:
               key: server.oidc.cache.expiration
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_SERVER_LOGIN_ATTEMPTS_EXPIRATION
-          valueFrom:
-            configMapKeyRef:
-              key: server.login.attempts.expiration
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_SERVER_STATIC_ASSETS
           valueFrom:
             configMapKeyRef:
@@ -1406,16 +1854,118 @@ spec:
               key: server.http.cookie.maxnumber
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_LISTEN_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              key: server.listen.address
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_METRICS_LISTEN_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              key: server.metrics.listen.address
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_SERVER_OTLP_ADDRESS
           valueFrom:
             configMapKeyRef:
               key: otlp.address
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_OTLP_INSECURE
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.insecure
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_OTLP_HEADERS
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.headers
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_OTLP_ATTRS
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.attrs
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
               key: application.namespaces
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_ENABLE_PROXY_EXTENSION
+          valueFrom:
+            configMapKeyRef:
+              key: server.enable.proxy.extension
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8SCLIENT_RETRY_MAX
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8sclient.retry.max
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8sclient.retry.base.backoff
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_API_CONTENT_TYPES
+          valueFrom:
+            configMapKeyRef:
+              key: server.api.content.types
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: server.webhook.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.new.git.file.globbing
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.scm.root.ca.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.allowed.scm.providers
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.scm.providers
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.github.api.metrics
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_HYDRATOR_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: hydrator.enabled
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SYNC_WITH_REPLACE_ALLOWED
+          valueFrom:
+            configMapKeyRef:
+              key: server.sync.replace.allowed
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
@@ -1459,6 +2009,10 @@ spec:
           name: plugins-home
         - mountPath: /tmp
           name: tmp
+        - mountPath: /home/argocd/params
+          name: argocd-cmd-params-cm
+      nodeSelector:
+        kubernetes.io/os: linux
       serviceAccountName: argocd-server
       volumes:
       - emptyDir: {}
@@ -1491,6 +2045,13 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-dex-server-tls
+      - configMap:
+          items:
+          - key: server.profile.enabled
+            path: profiler.enabled
+          name: argocd-cmd-params-cm
+          optional: true
+        name: argocd-cmd-params-cm
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -1527,9 +2088,14 @@ spec:
               topologyKey: kubernetes.io/hostname
             weight: 5
       containers:
-      - command:
-        - argocd-application-controller
+      - args:
+        - /usr/local/bin/argocd-application-controller
         env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
         - name: ARGOCD_CONTROLLER_REPLICAS
           value: "1"
         - name: ARGOCD_RECONCILIATION_TIMEOUT
@@ -1543,6 +2109,18 @@ spec:
             configMapKeyRef:
               key: timeout.hard.reconciliation
               name: argocd-cm
+              optional: true
+        - name: ARGOCD_RECONCILIATION_JITTER
+          valueFrom:
+            configMapKeyRef:
+              key: timeout.reconciliation.jitter
+              name: argocd-cm
+              optional: true
+        - name: ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.repo.error.grace.period.seconds
+              name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER
           valueFrom:
@@ -1580,6 +2158,12 @@ spec:
               key: controller.log.level
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
+          valueFrom:
+            configMapKeyRef:
+              key: log.format.timestamp
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_CACHE_EXPIRATION
           valueFrom:
             configMapKeyRef:
@@ -1590,6 +2174,36 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.self.heal.timeout.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_TIMEOUT_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.self.heal.backoff.timeout.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_FACTOR
+          valueFrom:
+            configMapKeyRef:
+              key: controller.self.heal.backoff.factor
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_CAP_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.self.heal.backoff.cap.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_COOLDOWN_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.self.heal.backoff.cooldown.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.sync.timeout.seconds
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT
@@ -1646,12 +2260,92 @@ spec:
               key: otlp.address
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_INSECURE
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.insecure
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_HEADERS
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.headers
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_ATTRS
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.attrs
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
               key: application.namespaces
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_CONTROLLER_SHARDING_ALGORITHM
+          valueFrom:
+            configMapKeyRef:
+              key: controller.sharding.algorithm
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.kubectl.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8SCLIENT_RETRY_MAX
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8sclient.retry.max
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8sclient.retry.base.backoff
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF
+          valueFrom:
+            configMapKeyRef:
+              key: controller.diff.server.side
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_IGNORE_NORMALIZER_JQ_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.ignore.normalizer.jq.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_HYDRATOR_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: hydrator.enabled
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING
+          valueFrom:
+            configMapKeyRef:
+              key: controller.cluster.cache.batch.events.processing
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              key: controller.cluster.cache.events.processing.interval
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_COMMIT_SERVER
+          valueFrom:
+            configMapKeyRef:
+              key: commit.server
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: KUBECACHEDIR
+          value: /tmp/kubecache
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
@@ -1677,11 +2371,19 @@ spec:
           name: argocd-repo-server-tls
         - mountPath: /home/argocd
           name: argocd-home
+        - mountPath: /home/argocd/params
+          name: argocd-cmd-params-cm
+        - mountPath: /tmp
+          name: argocd-application-controller-tmp
         workingDir: /home/argocd
+      nodeSelector:
+        kubernetes.io/os: linux
       serviceAccountName: argocd-application-controller
       volumes:
       - emptyDir: {}
         name: argocd-home
+      - emptyDir: {}
+        name: argocd-application-controller-tmp
       - name: argocd-repo-server-tls
         secret:
           items:
@@ -1693,10 +2395,21 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
+      - configMap:
+          items:
+          - key: controller.profile.enabled
+            path: profiler.enabled
+          name: argocd-cmd-params-cm
+          optional: true
+        name: argocd-cmd-params-cm
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: application-controller
+    app.kubernetes.io/name: argocd-application-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-application-controller-network-policy
 spec:
   ingress:
@@ -1713,6 +2426,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: applicationset-controller
+    app.kubernetes.io/name: argocd-applicationset-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller-network-policy
 spec:
   ingress:
@@ -1732,6 +2449,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: dex-server
+    app.kubernetes.io/name: argocd-dex-server
+    app.kubernetes.io/part-of: argocd
   name: argocd-dex-server-network-policy
 spec:
   ingress:
@@ -1758,6 +2479,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-notifications-controller-network-policy
 spec:
   ingress:
@@ -1775,16 +2500,12 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis
+    app.kubernetes.io/part-of: argocd
   name: argocd-redis-network-policy
 spec:
-  egress:
-  - ports:
-    - port: 53
-      protocol: UDP
-    - port: 53
-      protocol: TCP
-    to:
-    - namespaceSelector: {}
   ingress:
   - from:
     - podSelector:
@@ -1804,11 +2525,14 @@ spec:
       app.kubernetes.io/name: argocd-redis
   policyTypes:
   - Ingress
-  - Egress
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: repo-server
+    app.kubernetes.io/name: argocd-repo-server
+    app.kubernetes.io/part-of: argocd
   name: argocd-repo-server-network-policy
 spec:
   ingress:
@@ -1822,6 +2546,9 @@ spec:
     - podSelector:
         matchLabels:
           app.kubernetes.io/name: argocd-notifications-controller
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-applicationset-controller
     ports:
     - port: 8081
       protocol: TCP
@@ -1838,6 +2565,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: server
+    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/part-of: argocd
   name: argocd-server-network-policy
 spec:
   ingress:

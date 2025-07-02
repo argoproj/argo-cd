@@ -7,7 +7,7 @@ other than what Argo CD bundles. Some reasons to do this might be:
 * To upgrade/downgrade to a specific version of a tool due to bugs or bug fixes.
 * To install additional dependencies to be used by kustomize's configmap/secret generators.
   (e.g. curl, vault, gpg, AWS CLI)
-* To install a [config management plugin](../user-guide/config-management-plugins.md).
+* To install a [config management plugin](config-management-plugins.md).
 
 As the Argo CD repo-server is the single service responsible for generating Kubernetes manifests, it
 can be customized to use alternative toolchain required by your environment.
@@ -30,7 +30,7 @@ the helm binary with a different version than what is bundled in Argo CD:
         image: alpine:3.8
         command: [sh, -c]
         args:
-        - wget -qO- https://storage.googleapis.com/kubernetes-helm/helm-v2.12.3-linux-amd64.tar.gz | tar -xvzf - &&
+        - wget -qO- https://get.helm.sh/helm-v2.12.3-linux-amd64.tar.gz | tar -xvzf - &&
           mv linux-amd64/helm /custom-tools/
         volumeMounts:
         - mountPath: /custom-tools
@@ -51,7 +51,7 @@ following example builds an entirely customized repo-server from a Dockerfile, i
 dependencies that may be needed for generating manifests.
 
 ```Dockerfile
-FROM argoproj/argocd:latest
+FROM argoproj/argocd:v2.5.4 # Replace tag with the appropriate argo version
 
 # Switch to root for the ability to perform install
 USER root
@@ -69,5 +69,5 @@ RUN apt-get update && \
     chmod +x /usr/local/bin/sops
 
 # Switch back to non-root user
-USER 999
+USER $ARGOCD_USER_ID
 ```

@@ -1,0 +1,4 @@
+actionTests:
+- action: create-job
+  inputPath: testdata/cronjob.yaml
+  expectedOutputPath: testdata/job.yaml

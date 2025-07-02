@@ -25,7 +25,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 ```
 
 Follow our [getting started guide](getting_started.md). Further user oriented [documentation](user-guide/)
-is provided for additional features. If you are looking to upgrade ArgoCD, see the [upgrade guide](./operator-manual/upgrading/overview.md).
+is provided for additional features. If you are looking to upgrade Argo CD, see the [upgrade guide](./operator-manual/upgrading/overview.md).
 Developer oriented [documentation](developer-guide/) is available for people interested in building third-party integrations.
 
 ## How it works
@@ -40,7 +40,7 @@ the desired application state. Kubernetes manifests can be specified in several 
 * Any custom config management tool configured as a config management plugin
 
 Argo CD automates the deployment of the desired application states in the specified target environments.
-Application deployments can track updates to branches, tags, or pinned to a specific version of
+Application deployments can track updates to branches, tags, or be pinned to a specific version of
 manifests at a Git commit. See [tracking strategies](user-guide/tracking_strategies.md) for additional
 details about the different tracking strategies available.
 
@@ -53,7 +53,7 @@ meeting:
 
 ![Argo CD Architecture](assets/argocd_architecture.png)
 
-Argo CD is implemented as a kubernetes controller which continuously monitors running applications
+Argo CD is implemented as a Kubernetes controller which continuously monitors running applications
 and compares the current, live state against the desired target state (as specified in the Git repo).
 A deployed application whose live state deviates from the target state is considered `OutOfSync`.
 Argo CD reports & visualizes the differences, while providing facilities to automatically or

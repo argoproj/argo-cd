@@ -16,7 +16,7 @@ If you want to submit a PR, please read this document carefully, as it contains 
 
 As is the case with the development process, this document is under constant change. If you notice any error, or if you think this document is out-of-date, or if you think it is missing something: Feel free to submit a PR or submit a bug to our GitHub issue tracker.
 
-If you need guidance with submitting a PR, or have any other questions regarding development of Argo CD, do not hesitate to [join our Slack](https://argoproj.github.io/community/join-slack) and get in touch with us in the `#argo-contributors` channel!
+If you need guidance with submitting a PR, or have any other questions regarding development of Argo CD, do not hesitate to [join our Slack](https://argoproj.github.io/community/join-slack) and get in touch with us in the `#argo-cd-contributors` channel!
 
 ## Before you start
 
@@ -42,7 +42,6 @@ You will need at least the following things in your toolchain in order to develo
 When you submit a PR against Argo CD's GitHub repository, a couple of CI checks will be run automatically to ensure your changes will build fine and meet certain quality standards. Your contribution needs to pass those checks in order to be merged into the repository.
 
 !!!note
-
     Please make sure that you always create PRs from a branch that is up-to-date with the latest changes from Argo CD's master branch. Depending on how long it takes for the maintainers to review and merge your PR, it might be necessary to pull in latest changes into your branch again.
 
 Please understand that we, as an Open Source project, have limited capacities for reviewing and merging PRs to Argo CD. We will do our best to review your PR and give you feedback as soon as possible, but please bear with us if it takes a little longer as expected.
@@ -53,7 +52,7 @@ The following read will help you to submit a PR that meets the standards of our 
 
 Please use a meaningful and concise title for your PR. This will help us to pick PRs for review quickly, and the PR title will also end up in the Changelog.
 
-We use the [Semantic PR title checker](https://github.com/zeke/semantic-pull-requests) to categorize your PR into one of the following categories:
+We use [PR title checker](https://github.com/marketplace/actions/pr-title-checker) to categorize your PR into one of the following categories:
 
 * `fix` - Your PR contains one or more code bug fixes
 * `feat` - Your PR contains a new feature
@@ -95,7 +94,7 @@ ok      github.com/argoproj/argo-cd/server/cache        0.029s  coverage: 89.3% 
 
 ## Local vs Virtualized toolchain
 
-Argo CD provides a fully virtualized development and testing toolchain using Docker images. It is recommended to use those images, as they provide the same runtime environment as the final product and it is much easier to keep up-to-date with changes to the toolchain and dependencies. But as using Docker comes with a slight performance penalty, you might want to setup a local toolchain.
+Argo CD provides a fully virtualized development and testing toolchain using Docker images. It is recommended to use those images, as they provide the same runtime environment as the final product, and it is much easier to keep up-to-date with changes to the toolchain and dependencies. But as using Docker comes with a slight performance penalty, you might want to set up a local toolchain.
 
 Most relevant targets for the build & test cycles in the `Makefile` provide two variants, one of them suffixed with `-local`. For example, `make test` will run unit tests in the Docker container, `make test-local` will run it natively on your local system.
 
@@ -104,7 +103,7 @@ If you are going to use the virtualized toolchain, please bear in mind the follo
 * Your Kubernetes API server must listen on the interface of your local machine or VM, and not on `127.0.0.1` only.
 * Your Kubernetes client configuration (`~/.kube/config`) must not use an API URL that points to `localhost` or `127.0.0.1`.
 
-You can test whether the virtualized toolchain has access to your Kubernetes cluster by running `make verify-kube-connect` (*after* you have setup your development environment, as described below), which will run `kubectl version` inside the Docker container used for running all tests.
+You can test whether the virtualized toolchain has access to your Kubernetes cluster by running `make verify-kube-connect` (*after* you have set up your development environment, as described below), which will run `kubectl version` inside the Docker container used for running all tests.
 
 The Docker container for the virtualized toolchain will use the following local mounts from your workstation, and possibly modify its contents:
 
@@ -117,14 +116,41 @@ The Docker container for the virtualized toolchain will use the following local 
 
 The following steps are required no matter whether you chose to use a virtualized or a local toolchain.
 
+!!!note "Docker privileges"
+    If you opt in to use the virtualized toolchain, you will need to have the
+    appropriate privileges to interact with the Docker daemon. It is not
+    recommended to work as the root user, and if your user does not have the
+    permissions to talk to the Docker user, but you have `sudo` setup on your
+    system, you can set the environment variable `SUDO` to `sudo` in order to
+    have the build scripts make any calls to the `docker` CLI using sudo,
+    without affecting the other parts of the build scripts (which should be
+    executed with your normal user privileges).
+
+    You can either set this before calling `make`, like so for example:
+
+    ```
+    SUDO=sudo make sometarget
+    ```
+
+    Or you can opt to export this permanently to your environment, for example
+    ```
+    export SUDO=sudo
+    ```
+
+    If you have podman installed, you can also leverage its rootless mode. In
+    order to use podman for running and testing Argo CD locally, set the
+    `DOCKER` environment variable to `podman` before you run `make`, e.g.
+
+    ```
+    DOCKER=podman make start
+    ```
+
 ### Clone the Argo CD repository from your personal fork on GitHub
 
-* `mkdir -p ~/go/src/github.com/argoproj`
-* `cd ~/go/src/github.com/argoproj`
-* `git clone https://github.com/yourghuser/argo-cd`
+* `git clone https://github.com/YOUR-USERNAME/argo-cd`
 * `cd argo-cd`
 
-### Optional: Setup an additional Git remote
+### Optional: Set up an additional Git remote
 
 While everyone has their own Git workflow, the author of this document recommends to create a remote called `upstream` in your local copy pointing to the original Argo CD repository. This way, you can easily keep your local branches up-to-date by merging in latest changes from the Argo CD repository, i.e. by doing a `git pull upstream master` in your locally checked out branch. To create the remote, run `git remote add upstream https://github.com/argoproj/argo-cd`
 
@@ -136,9 +162,9 @@ Make sure you fulfill the pre-requisites above and run some preliminary tests. N
 * Run `docker version`
 * Run `go version`
 
-### Build (or pull) the required Docker image
+### Build the required Docker image
 
-Build the required Docker image by running `make test-tools-image` or pull the latest version by issuing `docker pull argoproj/argocd-test-tools`.
+Build the required Docker image by running `make test-tools-image`. This image offers the environment of the virtualized toolchain.
 
 The `Dockerfile` used to build these images can be found at `test/container/Dockerfile`.
 
@@ -157,7 +183,7 @@ you should edit your `~/.kube/config` and modify the `server` option to point to
 
 ### Using k3d
 
-[k3d](https://github.com/rancher/k3d) is a lightweight wrapper to run [k3s](https://github.com/rancher/k3s), a minimal Kubernetes distribution, in docker. Because it's running in a docker container, you're dealing with docker's internal networking rules when using k3d. A typical Kubernetes cluster running on your local machine is part of the same network that you're on so you can access it using **kubectl**. However, a Kubernetes cluster running within a docker container (in this case, the one launched by make) cannot access 0.0.0.0 from inside the container itself, when 0.0.0.0 is a network resource outside the container itself (and/or the container's network). This is the cost of a fully self-contained, disposable Kubernetes cluster. The following steps should help with a successful `make verify-kube-connect` execution.
+[k3d](https://github.com/rancher/k3d) is a lightweight wrapper to run [k3s](https://github.com/rancher/k3s), a minimal Kubernetes distribution, in docker. Because it's running in a docker container, you're dealing with docker's internal networking rules when using k3d. A typical Kubernetes cluster running on your local machine is part of the same network that you're on, so you can access it using **kubectl**. However, a Kubernetes cluster running within a docker container (in this case, the one launched by make) cannot access 0.0.0.0 from inside the container itself, when 0.0.0.0 is a network resource outside the container itself (and/or the container's network). This is the cost of a fully self-contained, disposable Kubernetes cluster. The following steps should help with a successful `make verify-kube-connect` execution.
 
 1. Find your host IP by executing `ifconfig` on Mac/Linux and `ipconfig` on Windows. For most users, the following command works to find the IP address.
 
@@ -184,10 +210,11 @@ you should edit your `~/.kube/config` and modify the `server` option to point to
 4. Finally, so that you don't have to keep updating your kube-config whenever you spin up a new k3d cluster, add `--api-port $IP:6550` to your **k3d cluster create** command, where $IP is the value from step 1. An example command is provided here:
 
 ```
-k3d cluster create my-cluster --wait --k3s-server-arg '--disable=traefik' --api-port $IP:6550 -p 443:443@loadbalancer
+k3d cluster create my-cluster --wait --k3s-arg '--disable=traefik@server:*' --api-port $IP:6550 -p 443:443@loadbalancer
 ```
 
-Starting from k3d v5.0.0 the example command flags `--k3s-server-arg` and `'--disable=traefik'` would have to be changed to `--k3s-arg` and `'--disable=traefik@server:*'`, respectively. 
+!!!note
+    For k3d versions less than v5.0.0, the example command flags `--k3s-arg` and `'--disable=traefik@server:*'` should change to `--k3s-server-arg` and `'--disable=traefik'`, respectively.
 
 ## The development cycle
 
@@ -222,7 +249,7 @@ After the code glue has been generated, your code should build and the unit test
 * `make build`
 * `make test`
 
-These steps are non-modifying, so there's no need to check for changes afterwards.
+These steps are non-modifying, so there's no need to check for changes afterward.
 
 ### Lint your code base
 
@@ -264,7 +291,7 @@ and others. Although you can make changes to these files and run them locally, i
 
 6. Commit changes and open a PR to [Argo UI](https://github.com/argoproj/argo-ui). 
 
-7. Once your PR has been merged in Argo UI, `cd` into your `argo-cd/ui` folder and run `yarn add git+https://github.com/argoproj/argo-ui.git`. This will update the commit SHA in the `ui/yarn.lock` file to use the lastest master commit for argo-ui. 
+7. Once your PR has been merged in Argo UI, `cd` into your `argo-cd/ui` folder and run `yarn add git+https://github.com/argoproj/argo-ui.git`. This will update the commit SHA in the `ui/yarn.lock` file to use the latest master commit for argo-ui. 
 
 8. Submit changes to `ui/yarn.lock`in a PR to Argo CD. 
 
@@ -282,7 +309,7 @@ For installing the tools required to build and test Argo CD on your local system
 You can change the target location by setting the `BIN` environment before running the installer scripts. For example, you can install the binaries into `~/go/bin` (which should then be the first component in your `PATH` environment, i.e. `export PATH=~/go/bin:$PATH`):
 
 ```shell
-make BIN=~/go/bin install-tools-local
+BIN=~/go/bin make install-tools-local
 ```
 
 Additionally, you have to install at least the following tools via your OS's package manager (this list might not be always up-to-date):
@@ -299,7 +326,7 @@ You need to pull in all required Go dependencies. To do so, run
 
 ### Test your build toolchain
 
-The first thing you can do to test whether your build toolchain is setup correctly is by generating the glue code for the API and after that, run a normal build:
+The first thing you can do to test whether your build toolchain is set up correctly is by generating the glue code for the API and after that, run a normal build:
 
 * `make codegen-local`
 * `make build-local`
@@ -308,15 +335,17 @@ This should return without any error.
 
 ### Run unit-tests
 
-The next thing is to make sure that unit tests are running correctly on your system. These will require that all dependencies, such as Helm, Kustomize, Git, GnuPG, etc are correctly installed and fully functioning:
+The next thing is to make sure that unit tests are running correctly on your system. These will require that all dependencies, such as Helm, Kustomize, Git, GnuPG, etc. are correctly installed and fully functioning:
 
 * `make test-local`
 
 ### Run end-to-end tests
 
-The final step is running the End-to-End testsuite, which makes sure that your Kubernetes dependencies are working properly. This will involve starting all of the Argo CD components locally on your computer. The end-to-end tests consists of two parts: a server component, and a client component.
+The final step is running the End-to-End testsuite, which makes sure that your Kubernetes dependencies are working properly. This will involve starting all the Argo CD components locally on your computer. The end-to-end tests consists of two parts: a server component, and a client component.
 
 * First, start the End-to-End server: `make start-e2e-local`. This will spawn a number of processes and services on your system.
 * When all components have started, run `make test-e2e-local` to run the end-to-end tests against your local services.
+
+To run a single test, you can use `TEST_FLAGS="-run TestName" make test-e2e-local`.
 
 For more information about End-to-End tests, refer to the [End-to-End test documentation](test-e2e.md).

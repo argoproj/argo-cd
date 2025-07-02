@@ -2,15 +2,17 @@ import {useData, Checkbox} from 'argo-ui/v2';
 import * as minimatch from 'minimatch';
 import * as React from 'react';
 import {Context} from '../../../shared/context';
-import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
+import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthStatuses, SyncPolicy, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
-import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+import {ComparisonStatusIcon, getAppDefaultSource, HealthStatusIcon} from '../utils';
+import {formatClusterQueryParam} from '../../../shared/utils';
 
 export interface FilterResult {
     repos: boolean;
     sync: boolean;
+    autosync: boolean;
     health: boolean;
     namespaces: boolean;
     clusters: boolean;
@@ -22,12 +24,20 @@ export interface FilteredApp extends Application {
     filterResult: FilterResult;
 }
 
+function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
+    if (!syncPolicy || !syncPolicy.automated) {
+        return 'Disabled';
+    }
+    return 'Enabled';
+}
+
 export function getFilterResults(applications: Application[], pref: AppsListPreferences): FilteredApp[] {
     return applications.map(app => ({
         ...app,
         filterResult: {
-            repos: pref.reposFilter.length === 0 || pref.reposFilter.includes(app.spec.source.repoURL),
+            repos: pref.reposFilter.length === 0 || pref.reposFilter.includes(getAppDefaultSource(app).repoURL),
             sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
+            autosync: pref.autoSyncFilter.length === 0 || pref.autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
             health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
             namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
             favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(app.metadata.name)),
@@ -176,10 +186,7 @@ const ClusterFilter = (props: AppFilterProps) => {
         if (!cluster) {
             return dest.server || dest.name;
         }
-        if (cluster.name === cluster.server) {
-            return cluster.name;
-        }
-        return `${cluster.name} (${cluster.server})`;
+        return formatClusterQueryParam(cluster);
     };
 
     const [clusters, loading, error] = useData(() => services.clusters.list());
@@ -224,7 +231,7 @@ const FavoriteFilter = (props: AppFilterProps) => {
     return (
         <div
             className={`filter filter__item ${props.pref.showFavorites ? 'filter__item--selected' : ''}`}
-            style={{margin: '0.5em 0'}}
+            style={{margin: '0.5em 0', marginTop: '0.5em'}}
             onClick={() => onChange(!props.pref.showFavorites)}>
             <Checkbox
                 value={!!props.pref.showFavorites}
@@ -233,7 +240,7 @@ const FavoriteFilter = (props: AppFilterProps) => {
                     marginRight: '8px'
                 }}
             />
-            <div style={{marginRight: '5px'}}>
+            <div style={{marginRight: '5px', textAlign: 'center', width: '25px'}}>
                 <i style={{color: '#FFCE25'}} className='fas fa-star' />
             </div>
             <div className='filter__item__label'>Favorites Only</div>
@@ -241,9 +248,35 @@ const FavoriteFilter = (props: AppFilterProps) => {
     );
 };
 
+function getAutoSyncOptions(apps: FilteredApp[]) {
+    const counts = getCounts(apps, 'autosync', app => getAutoSyncStatus(app.spec.syncPolicy), ['Enabled', 'Disabled']);
+    return [
+        {
+            label: 'Enabled',
+            icon: <i className='fa fa-circle-play' />,
+            count: counts.get('Enabled')
+        },
+        {
+            label: 'Disabled',
+            icon: <i className='fa fa-ban' />,
+            count: counts.get('Disabled')
+        }
+    ];
+}
+
+const AutoSyncFilter = (props: AppFilterProps) => (
+    <Filter
+        label='AUTO SYNC'
+        selected={props.pref.autoSyncFilter}
+        setSelected={s => props.onChange({...props.pref, autoSyncFilter: s})}
+        options={getAutoSyncOptions(props.apps)}
+        collapsed={props.collapsed || false}
+    />
+);
+
 export const ApplicationsFilter = (props: AppFilterProps) => {
     return (
-        <FiltersGroup content={props.children} collapsed={props.collapsed}>
+        <FiltersGroup title='Application filters' content={props.children} collapsed={props.collapsed}>
             <FavoriteFilter {...props} />
             <SyncFilter {...props} />
             <HealthFilter {...props} />
@@ -251,6 +284,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
             <ProjectFilter {...props} />
             <ClusterFilter {...props} />
             <NamespaceFilter {...props} />
+            <AutoSyncFilter {...props} collapsed={true} />
         </FiltersGroup>
     );
 };

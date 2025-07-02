@@ -53,7 +53,7 @@ export const ApplicationsStatusBar = ({applications}: ApplicationsStatusBarProps
 
     return (
         <Consumer>
-            {ctx => (
+            {() => (
                 <>
                     {totalItems > 1 && (
                         <div className='status-bar'>

@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"context"
 	"testing"
 
 	clustermocks "github.com/argoproj/gitops-engine/pkg/cache/mocks"
@@ -9,26 +8,29 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
-	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
-	cachemocks "github.com/argoproj/argo-cd/v2/controller/cache/mocks"
-	"github.com/argoproj/argo-cd/v2/controller/metrics"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appfake "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	argocdclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	statecache "github.com/argoproj/argo-cd/v3/controller/cache"
+	cachemocks "github.com/argoproj/argo-cd/v3/controller/cache/mocks"
+	"github.com/argoproj/argo-cd/v3/controller/metrics"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appfake "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
+	argocdclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func TestGetReconcileResults(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	appClientset := appfake.NewSimpleClientset(&v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
@@ -36,34 +38,45 @@ func TestGetReconcileResults(t *testing.T) {
 			Namespace: "default",
 		},
 		Status: v1alpha1.ApplicationStatus{
-			Health: v1alpha1.HealthStatus{Status: health.HealthStatusHealthy},
+			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
 			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
 		},
 	})
 
 	result, err := getReconcileResults(ctx, appClientset, "default", "")
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	expectedResults := []appReconcileResult{{
 		Name:   "test",
-		Health: &v1alpha1.HealthStatus{Status: health.HealthStatusHealthy},
+		Health: health.HealthStatusHealthy,
 		Sync:   &v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
 	}}
 	assert.ElementsMatch(t, expectedResults, result)
 }
 
 func TestGetReconcileResults_Refresh(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
-	cm := corev1.ConfigMap{
+	argoCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cm",
+			Name:      common.ArgoCDConfigMapName,
 			Namespace: "default",
 			Labels: map[string]string{
 				"app.kubernetes.io/part-of": "argocd",
 			},
+		},
+	}
+	argoCDSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string][]byte{
+			"admin.password":   nil,
+			"server.secretkey": nil,
 		},
 	}
 	proj := &v1alpha1.AppProject{
@@ -80,6 +93,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: v1alpha1.ApplicationSpec{
+			Source:  &v1alpha1.ApplicationSource{},
 			Project: "default",
 			Destination: v1alpha1.ApplicationDestination{
 				Server:    v1alpha1.KubernetesInternalAPIServerAddr,
@@ -90,7 +104,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 
 	appClientset := appfake.NewSimpleClientset(app, proj)
 	deployment := test.NewDeployment()
-	kubeClientset := kubefake.NewSimpleClientset(deployment, &cm)
+	kubeClientset := kubefake.NewClientset(deployment, argoCM, argoCDSecret)
 	clusterCache := clustermocks.ClusterCache{}
 	clusterCache.On("IsNamespaced", mock.Anything).Return(true, nil)
 	clusterCache.On("GetGVKParser", mock.Anything).Return(nil)
@@ -100,7 +114,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 	}, nil)
 	repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
 	liveStateCache := cachemocks.LiveStateCache{}
-	liveStateCache.On("GetManagedLiveObjs", mock.Anything, mock.Anything).Return(map[kube.ResourceKey]*unstructured.Unstructured{
+	liveStateCache.On("GetManagedLiveObjs", mock.Anything, mock.Anything, mock.Anything).Return(map[kube.ResourceKey]*unstructured.Unstructured{
 		kube.GetResourceKey(deployment): deployment,
 	}, nil)
 	liveStateCache.On("GetVersionsInfo", mock.Anything).Return("v1.2.3", nil, nil)
@@ -109,22 +123,22 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 	liveStateCache.On("IsNamespaced", mock.Anything, mock.Anything).Return(true, nil)
 
 	result, err := reconcileApplications(ctx, kubeClientset, appClientset, "default", &repoServerClientset, "",
-		func(argoDB db.ArgoDB, appInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) statecache.LiveStateCache {
+		func(_ db.ArgoDB, _ cache.SharedIndexInformer, _ *settings.SettingsManager, _ *metrics.MetricsServer) statecache.LiveStateCache {
 			return &liveStateCache
 		},
+		false,
+		normalizers.IgnoreNormalizerOpts{},
 	)
 
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
-	assert.Equal(t, result[0].Health.Status, health.HealthStatusMissing)
-	assert.Equal(t, result[0].Sync.Status, v1alpha1.SyncStatusCodeOutOfSync)
+	assert.Equal(t, health.HealthStatusMissing, result[0].Health)
+	assert.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, result[0].Sync.Status)
 }
 
 func TestDiffReconcileResults_NoDifferences(t *testing.T) {
 	logs, err := captureStdout(func() {
-		assert.NoError(t, diffReconcileResults(
+		require.NoError(t, diffReconcileResults(
 			reconcileResults{Applications: []appReconcileResult{{
 				Name: "app1",
 				Sync: &v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
@@ -135,13 +149,13 @@ func TestDiffReconcileResults_NoDifferences(t *testing.T) {
 			}}},
 		))
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "app1\n", logs)
 }
 
 func TestDiffReconcileResults_DifferentApps(t *testing.T) {
 	logs, err := captureStdout(func() {
-		assert.NoError(t, diffReconcileResults(
+		require.NoError(t, diffReconcileResults(
 			reconcileResults{Applications: []appReconcileResult{{
 				Name: "app1",
 				Sync: &v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
@@ -158,12 +172,12 @@ func TestDiffReconcileResults_DifferentApps(t *testing.T) {
 			}}},
 		))
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, `app1
 app2
 1,9d0
 < conditions: null
-< health: null
+< health: ""
 < name: app2
 < sync:
 <   comparedTo:
@@ -174,7 +188,7 @@ app2
 app3
 0a1,9
 > conditions: null
-> health: null
+> health: ""
 > name: app3
 > sync:
 >   comparedTo:

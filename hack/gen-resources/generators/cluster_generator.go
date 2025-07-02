@@ -9,23 +9,18 @@ import (
 	"strings"
 	"time"
 
-	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/argoproj/argo-cd/v2/util/helm"
-
 	"gopkg.in/yaml.v2"
-
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
-
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 
-	"k8s.io/client-go/kubernetes"
-
-	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v3/hack/gen-resources/util"
+	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/helm"
 )
 
 const POD_PREFIX = "vcluster"
@@ -77,7 +72,7 @@ func (cg *ClusterGenerator) getClusterCredentials(namespace string, releaseSuffi
 	}
 
 	var stdout, stderr, stdin bytes.Buffer
-	option := &v1.PodExecOptions{
+	option := &corev1.PodExecOptions{
 		Command:   cmd,
 		Container: "syncer",
 		Stdin:     true,
@@ -99,7 +94,7 @@ func (cg *ClusterGenerator) getClusterCredentials(namespace string, releaseSuffi
 		return nil, nil, nil, err
 	}
 
-	err = exec.Stream(remotecommand.StreamOptions{
+	err = exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
 		Stdin:  &stdin,
 		Stdout: &stdout,
 		Stderr: &stderr,
@@ -137,9 +132,9 @@ func (cg *ClusterGenerator) getClusterCredentials(namespace string, releaseSuffi
 	return caData, cert, key, nil
 }
 
-//TODO: also should provision service for vcluster pod
+// TODO: also should provision service for vcluster pod
 func (cg *ClusterGenerator) installVCluster(opts *util.GenerateOpts, namespace string, releaseName string) error {
-	cmd, err := helm.NewCmd("/tmp", "v3", "")
+	cmd, err := helm.NewCmd("/tmp", "v3", "", "")
 	if err != nil {
 		return err
 	}
@@ -151,101 +146,111 @@ func (cg *ClusterGenerator) installVCluster(opts *util.GenerateOpts, namespace s
 	return nil
 }
 
-func (cg *ClusterGenerator) getClusterServerUri(namespace string, releaseSuffix string) (string, error) {
-	pod, err := cg.clientSet.CoreV1().Pods(namespace).Get(context.TODO(), POD_PREFIX+"-"+releaseSuffix+"-0", v12.GetOptions{})
+func (cg *ClusterGenerator) getClusterServerURI(namespace string, releaseSuffix string) (string, error) {
+	pod, err := cg.clientSet.CoreV1().Pods(namespace).Get(context.TODO(), POD_PREFIX+"-"+releaseSuffix+"-0", metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 	// TODO: should be moved to service instead pod
-	log.Printf("Get service for https://" + pod.Status.PodIP + ":8443")
+	log.Printf("Get service for https://%s:8443", pod.Status.PodIP)
 	return "https://" + pod.Status.PodIP + ":8443", nil
 }
 
-func (cg *ClusterGenerator) retrieveClusterUri(namespace, releaseSuffix string) (string, error) {
+func (cg *ClusterGenerator) retrieveClusterURI(namespace, releaseSuffix string) string {
 	for i := 0; i < 10; i++ {
-		log.Printf("Attempting to get cluster uri")
-		uri, err := cg.getClusterServerUri(namespace, releaseSuffix)
+		log.Print("Attempting to get cluster uri")
+		uri, err := cg.getClusterServerURI(namespace, releaseSuffix)
 		if err != nil {
 			log.Printf("Failed to get cluster uri due to %s", err.Error())
 			time.Sleep(10 * time.Second)
 			continue
 		}
-		return uri, nil
+		return uri
 	}
-	return "", nil
+	return ""
+}
+
+func (cg *ClusterGenerator) generate(i int, opts *util.GenerateOpts) error {
+	log.Printf("Generate cluster #%v of #%v", i, opts.ClusterOpts.Samples)
+
+	namespace := opts.ClusterOpts.NamespacePrefix + "-" + util.GetRandomString()
+
+	log.Printf("Namespace is %s", namespace)
+
+	releaseSuffix := util.GetRandomString()
+
+	log.Printf("Release suffix is %s", namespace)
+
+	err := cg.installVCluster(opts, namespace, POD_PREFIX+"-"+releaseSuffix)
+	if err != nil {
+		log.Printf("Skip cluster installation due error %v", err.Error())
+	}
+
+	log.Print("Get cluster credentials")
+	caData, cert, key, err := cg.getClusterCredentials(namespace, releaseSuffix)
+
+	for o := 0; o < 5; o++ {
+		if err == nil {
+			break
+		}
+		log.Printf("Failed to get cluster credentials %s, retrying...", releaseSuffix)
+		time.Sleep(10 * time.Second)
+		caData, cert, key, err = cg.getClusterCredentials(namespace, releaseSuffix)
+	}
+	if err != nil {
+		return err
+	}
+
+	log.Print("Get cluster server uri")
+
+	uri := cg.retrieveClusterURI(namespace, releaseSuffix)
+	log.Printf("Cluster server uri is %s", uri)
+
+	log.Print("Create cluster")
+	_, err = cg.db.CreateCluster(context.TODO(), &argoappv1.Cluster{
+		Server: uri,
+		Name:   opts.ClusterOpts.ClusterNamePrefix + "-" + util.GetRandomString(),
+		Config: argoappv1.ClusterConfig{
+			TLSClientConfig: argoappv1.TLSClientConfig{
+				Insecure:   false,
+				ServerName: "kubernetes.default.svc",
+				CAData:     caData,
+				CertData:   cert,
+				KeyData:    key,
+			},
+		},
+		ConnectionState: argoappv1.ConnectionState{},
+		ServerVersion:   "1.18",
+		Namespaces:      []string{opts.ClusterOpts.DestinationNamespace},
+		Labels:          labels,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
-	for i := 1; i <= opts.ClusterOpts.Samples; i++ {
-		log.Printf("Generate cluster #%v of #%v", i, opts.ClusterOpts.Samples)
+	log.Printf("Excute in parallel with %v", opts.ClusterOpts.Concurrency)
 
-		namespace := opts.ClusterOpts.NamespacePrefix + "-" + util.GetRandomString()
-
-		log.Printf("Namespace is %s", namespace)
-
-		releaseSuffix := util.GetRandomString()
-
-		log.Printf("Release suffix is %s", namespace)
-
-		err := cg.installVCluster(opts, namespace, POD_PREFIX+"-"+releaseSuffix)
-		if err != nil {
-			log.Printf("Skip cluster installation due error %v", err.Error())
-			continue
-		}
-
-		log.Print("Get cluster credentials")
-		caData, cert, key, err := cg.getClusterCredentials(namespace, releaseSuffix)
-
-		for o := 0; o < 5; o++ {
-			if err == nil {
-				break
+	wg := util.New(opts.ClusterOpts.Concurrency)
+	for l := 1; l <= opts.ClusterOpts.Samples; l++ {
+		wg.Add()
+		go func(i int) {
+			defer wg.Done()
+			err := cg.generate(i, opts)
+			if err != nil {
+				log.Printf("Failed to generate cluster #%v due to : %s", i, err.Error())
 			}
-			log.Printf("Failed to get cluster credentials %s, retrying...", releaseSuffix)
-			time.Sleep(10 * time.Second) 
-			caData, cert, key, err = cg.getClusterCredentials(namespace, releaseSuffix)
-		}
-		if err != nil {
-			return err
-		}
-		
-
-		log.Print("Get cluster server uri")
-
-		uri, err := cg.retrieveClusterUri(namespace, releaseSuffix)
-		if err != nil {
-			return err
-		}
-
-		log.Printf("Cluster server uri is %s", uri)
-
-		log.Print("Create cluster")
-		_, err = cg.db.CreateCluster(context.TODO(), &argoappv1.Cluster{
-			Server: uri,
-			Name:   opts.ClusterOpts.ClusterNamePrefix + "-" + util.GetRandomString(),
-			Config: argoappv1.ClusterConfig{
-				TLSClientConfig: argoappv1.TLSClientConfig{
-					Insecure:   false,
-					ServerName: "kubernetes.default.svc",
-					CAData:     caData,
-					CertData:   cert,
-					KeyData:    key,
-				},
-			},
-			ConnectionState: argoappv1.ConnectionState{},
-			ServerVersion:   "1.18",
-			Namespaces:      []string{opts.ClusterOpts.DestinationNamespace},
-			Labels:          labels,
-		})
-		if err != nil {
-			return err
-		}
+		}(l)
 	}
+	wg.Wait()
 	return nil
 }
 
 func (cg *ClusterGenerator) Clean(opts *util.GenerateOpts) error {
 	log.Printf("Clean clusters")
-	namespaces, err := cg.clientSet.CoreV1().Namespaces().List(context.TODO(), v12.ListOptions{})
+	namespaces, err := cg.clientSet.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -253,7 +258,7 @@ func (cg *ClusterGenerator) Clean(opts *util.GenerateOpts) error {
 	for _, ns := range namespaces.Items {
 		if strings.HasPrefix(ns.Name, POD_PREFIX) {
 			log.Printf("Delete namespace %s", ns.Name)
-			err = cg.clientSet.CoreV1().Namespaces().Delete(context.TODO(), ns.Name, v12.DeleteOptions{})
+			err = cg.clientSet.CoreV1().Namespaces().Delete(context.TODO(), ns.Name, metav1.DeleteOptions{})
 			if err != nil {
 				log.Printf("Delete namespace failed due: %s", err.Error())
 			}
@@ -261,7 +266,7 @@ func (cg *ClusterGenerator) Clean(opts *util.GenerateOpts) error {
 	}
 
 	secrets := cg.clientSet.CoreV1().Secrets(opts.Namespace)
-	return secrets.DeleteCollection(context.TODO(), v12.DeleteOptions{}, v12.ListOptions{
+	return secrets.DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/generated-by=argocd-generator",
 	})
 }

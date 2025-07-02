@@ -1,4 +1,4 @@
-actions = {}
+local actions = {}
 actions["terminate"] = {["disabled"] = (obj.spec.terminate or
     obj.status.phase == "Successful" or
     obj.status.phase == "Failed" or
