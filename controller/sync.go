@@ -204,7 +204,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") &&
 		hasSharedResource {
 		state.Phase = common.OperationFailed
-		state.Message = fmt.Sprintf("Shared resource found: %s", sharedResourceMessage)
+		state.Message = "Shared resource found: %s" + sharedResourceMessage
 		return
 	}
 
