@@ -1,0 +1,33 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# All the members of this group are meant be populated from the
+# same nonproduction overlay of the matching app
+resources:
+  - ../../../../../../kustomize/apps/hello-world/base
+
+nameSuffix: -kustomize
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: hello-world-kustomize
+    includeSelectors: true
+    includeTemplates: true
+
+patches:
+  # Adjusting the serviceAccount ref
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: hello-world
+      spec:
+        template:
+          spec:
+            serviceAccountName: hello-world-kustomize
+
+# Container image versions across the members
+images:
+  - name: hello-world
+    newTag: 1.17.0
