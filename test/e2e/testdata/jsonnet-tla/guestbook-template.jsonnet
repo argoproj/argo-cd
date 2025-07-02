@@ -1,6 +1,6 @@
 function (
     containerPort=80, 
-    image="gcr.io/heptio-images/ks-guestbook-demo:0.2", 
+    image="quay.io/argoprojlabs/argocd-e2e-container:0.2",
     name="jsonnet-guestbook-ui",
     replicas=1,
     servicePort=80, 

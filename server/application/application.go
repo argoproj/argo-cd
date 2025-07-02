@@ -844,7 +844,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 		}
 		found := false
 		for _, n := range append(tree.Nodes, tree.OrphanedNodes...) {
-			if n.ResourceRef.UID == q.GetResourceUID() && n.ResourceRef.Name == q.GetResourceName() && n.ResourceRef.Namespace == q.GetResourceNamespace() {
+			if n.UID == q.GetResourceUID() && n.Name == q.GetResourceName() && n.Namespace == q.GetResourceNamespace() {
 				found = true
 				break
 			}
@@ -1378,7 +1378,7 @@ func (s *Server) getAppLiveResource(ctx context.Context, action string, q *appli
 	}
 
 	found := tree.FindNode(q.GetGroup(), q.GetKind(), q.GetNamespace(), q.GetResourceName())
-	if found == nil || found.ResourceRef.UID == "" {
+	if found == nil || found.UID == "" {
 		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.GetKind(), q.GetGroup(), q.GetResourceName(), q.GetName())
 	}
 	config, err := s.getApplicationClusterConfig(ctx, a)

@@ -65,7 +65,7 @@ func (l *loggingServerStream) SendMsg(m interface{}) error {
 func (l *loggingServerStream) RecvMsg(m interface{}) error {
 	err := l.ServerStream.RecvMsg(m)
 	if err == nil {
-		logRequest(l.entry, l.info, m, l.ServerStream.Context(), l.logClaims)
+		logRequest(l.entry, l.info, m, l.Context(), l.logClaims)
 	}
 	return err
 }

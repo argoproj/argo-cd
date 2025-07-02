@@ -1752,12 +1752,12 @@ func TestEnv_IsZero(t *testing.T) {
 
 func TestEnv_Envsubst(t *testing.T) {
 	env := Env{&EnvEntry{"FOO", "bar"}}
-	assert.Equal(t, "", env.Envsubst(""))
+	assert.Empty(t, env.Envsubst(""))
 	assert.Equal(t, "bar", env.Envsubst("$FOO"))
 	assert.Equal(t, "bar", env.Envsubst("${FOO}"))
 	assert.Equal(t, "FOO", env.Envsubst("${FOO"))
-	assert.Equal(t, "", env.Envsubst("$BAR"))
-	assert.Equal(t, "", env.Envsubst("${BAR}"))
+	assert.Empty(t, env.Envsubst("$BAR"))
+	assert.Empty(t, env.Envsubst("${BAR}"))
 	assert.Equal(t,
 		"echo bar; echo ; echo bar; echo ; echo FOO",
 		env.Envsubst("echo $FOO; echo $BAR; echo ${FOO}; echo ${BAR}; echo ${FOO"),
@@ -2895,7 +2895,7 @@ func TestApplicationStatus_GetConditions(t *testing.T) {
 	conditions := status.GetConditions(map[ApplicationConditionType]bool{
 		ApplicationConditionInvalidSpecError: true,
 	})
-	assert.EqualValues(t, []ApplicationCondition{{Type: ApplicationConditionInvalidSpecError}}, conditions)
+	assert.Equal(t, []ApplicationCondition{{Type: ApplicationConditionInvalidSpecError}}, conditions)
 }
 
 type projectBuilder struct {
@@ -3045,8 +3045,8 @@ func TestSetConditions(t *testing.T) {
 			validate: func(t *testing.T, a *Application) {
 				t.Helper()
 				// SetConditions should add timestamps for new conditions.
-				assert.True(t, a.Status.Conditions[0].LastTransitionTime.Time.After(fiveMinsAgo.Time))
-				assert.True(t, a.Status.Conditions[1].LastTransitionTime.Time.After(fiveMinsAgo.Time))
+				assert.True(t, a.Status.Conditions[0].LastTransitionTime.After(fiveMinsAgo.Time))
+				assert.True(t, a.Status.Conditions[1].LastTransitionTime.After(fiveMinsAgo.Time))
 			},
 		},
 		{
@@ -3168,7 +3168,7 @@ func TestSetConditions(t *testing.T) {
 // to match positions.
 func assertConditions(t *testing.T, expected []ApplicationCondition, actual []ApplicationCondition) {
 	t.Helper()
-	assert.Equal(t, len(expected), len(actual))
+	assert.Len(t, actual, len(expected))
 	for i := range expected {
 		assert.Equal(t, expected[i].Type, actual[i].Type)
 		assert.Equal(t, expected[i].Message, actual[i].Message)

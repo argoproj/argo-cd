@@ -57,7 +57,7 @@ func TestValueInterpolation(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			err := appendTemplatedValues(testCase.values, testCase.params, false, nil)
 			require.NoError(t, err)
-			assert.EqualValues(t, testCase.expected, testCase.params)
+			assert.Equal(t, testCase.expected, testCase.params)
 		})
 	}
 }
@@ -118,7 +118,7 @@ func TestValueInterpolationWithGoTemplating(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			err := appendTemplatedValues(testCase.values, testCase.params, true, nil)
 			require.NoError(t, err)
-			assert.EqualValues(t, testCase.expected, testCase.params)
+			assert.Equal(t, testCase.expected, testCase.params)
 		})
 	}
 }
