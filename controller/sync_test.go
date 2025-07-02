@@ -194,7 +194,6 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 
 	type fixture struct {
 		application *v1alpha1.Application
-		project     *v1alpha1.AppProject
 		controller  *ApplicationController
 	}
 
@@ -236,7 +235,6 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 
 		return &fixture{
 			application: app,
-			project:     project,
 			controller:  ctrl,
 		}
 	}
