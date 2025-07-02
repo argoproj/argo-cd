@@ -74,8 +74,8 @@ func CreateDeepLinksObject(resourceObj *unstructured.Unstructured, app *unstruct
 
 		// Add managed-by URL if present in annotations
 		if app.Object["metadata"] != nil {
-			if metadata, ok := app.Object["metadata"].(map[string]interface{}); ok {
-				if annotations, ok := metadata["annotations"].(map[string]interface{}); ok {
+			if metadata, ok := app.Object["metadata"].(map[string]any); ok {
+				if annotations, ok := metadata["annotations"].(map[string]any); ok {
 					if managedByURL, ok := annotations["argocd.argoproj.io/managed-by-url"].(string); ok {
 						deeplinkObj[ManagedByURLKey] = managedByURL
 					}
