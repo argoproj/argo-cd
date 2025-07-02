@@ -78,7 +78,7 @@ func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Appli
 	if err != nil {
 		return nil, err
 	}
-	kustomizeSettings, err := svc.settingsMgr.GetKustomizeSettings()
+	kustomizeOptions, err := svc.settingsMgr.GetKustomizeSettings()
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Appli
 		Repo:             repo,
 		Source:           appSource,
 		Repos:            helmRepos,
-		KustomizeOptions: kustomizeSettings,
+		KustomizeOptions: kustomizeOptions,
 		HelmOptions:      helmOptions,
 	})
 	if err != nil {
