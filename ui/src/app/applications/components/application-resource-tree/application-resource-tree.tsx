@@ -1,4 +1,4 @@
-import {DropDown, DropDownMenu, Tooltip} from 'argo-ui';
+import {DropDown, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
@@ -15,7 +15,6 @@ import {ResourceLabel} from '../resource-label';
 import {
     BASE_COLORS,
     ComparisonStatusIcon,
-    deletePodAction,
     getAppOverridesCount,
     HealthStatusIcon,
     isAppNode,
@@ -68,6 +67,7 @@ export interface ApplicationResourceTreeProps {
     filters?: string[];
     setTreeFilterGraph?: (filterGraph: any[]) => void;
     nameDirection: boolean;
+    nameWrap: boolean;
     setNodeExpansion: (node: string, isExpanded: boolean) => any;
     getNodeExpansion: (node: string) => boolean;
 }
@@ -94,15 +94,7 @@ const NODE_TYPES = {
     podGroup: 'pod_group'
 };
 // generate lots of colors with different darkness
-const TRAFFIC_COLORS = [0, 0.25, 0.4, 0.6]
-    .map(darken =>
-        BASE_COLORS.map(item =>
-            color(item)
-                .darken(darken)
-                .hex()
-        )
-    )
-    .reduce((first, second) => first.concat(second), []);
+const TRAFFIC_COLORS = [0, 0.25, 0.4, 0.6].map(darken => BASE_COLORS.map(item => color(item).darken(darken).hex())).reduce((first, second) => first.concat(second), []);
 
 function getGraphSize(nodes: dagre.Node[]): {width: number; height: number} {
     let width = 0;
@@ -218,7 +210,7 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
         const numberA = Number(a);
         const numberB = Number(b);
         if (isNaN(numberA) || isNaN(numberB)) {
-            return a.localeCompare(b);
+            return a.localeCompare(b, undefined, {numeric: true});
         }
         return Math.sign(numberA - numberB);
     }
@@ -237,13 +229,13 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
         return (
             orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
             compareRevision(getRevision(second), getRevision(first)) ||
-            nodeKey(first).localeCompare(nodeKey(second)) ||
+            nodeKey(first).localeCompare(nodeKey(second), undefined, {numeric: true}) ||
             0
         );
     }
     return (
         orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
-        nodeKey(first).localeCompare(nodeKey(second)) ||
+        nodeKey(first).localeCompare(nodeKey(second), undefined, {numeric: true}) ||
         compareRevision(getRevision(first), getRevision(second)) ||
         0
     );
@@ -300,7 +292,7 @@ function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: n
                     className='application-resource-tree__node-title application-resource-tree__direction-center-left'
                     onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupedNodeIds)}
                     title={`Click to see details of ${node.count} collapsed ${node.kind} and doesn't contains any active pods`}>
-                    {node.kind}
+                    {node.count} {node.kind.endsWith('s') ? node.kind : `${node.kind}s`}
                     <span style={{paddingLeft: '.5em', fontSize: 'small'}}>
                         {node.kind === 'ReplicaSet' ? (
                             <i
@@ -473,7 +465,11 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                     <br />
                     {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
                 </div>
-                <div className='application-resource-tree__node-content'>
+                <div
+                    className={classNames('application-resource-tree__node-content', {
+                        'application-resource-tree__fullname': props.nameWrap,
+                        'application-resource-tree__wrappedname': !props.nameWrap
+                    })}>
                     <span
                         className={classNames('application-resource-tree__node-title', {
                             'application-resource-tree__direction-right': props.nameDirection,
@@ -600,83 +596,58 @@ function renderPodGroupByStatus(props: ApplicationResourceTreeProps, node: any, 
                     </div>
                 </React.Fragment>
             ) : (
-                pods.map(pod => (
-                    <DropDownMenu
-                        key={pod.uid}
-                        anchor={() => (
-                            <Tooltip
-                                content={
-                                    <div>
-                                        {pod.metadata.name}
-                                        <div>Health: {pod.health}</div>
-                                        {pod.createdAt && (
-                                            <span>
-                                                <span>Created: </span>
-                                                <Moment fromNow={true} ago={true}>
-                                                    {pod.createdAt}
-                                                </Moment>
-                                                <span> ago ({<Moment local={true}>{pod.createdAt}</Moment>})</span>
-                                            </span>
-                                        )}
-                                    </div>
-                                }
-                                popperOptions={{
-                                    modifiers: {
-                                        preventOverflow: {
-                                            enabled: true
-                                        },
-                                        hide: {
-                                            enabled: false
-                                        },
-                                        flip: {
-                                            enabled: false
+                pods.map(
+                    pod =>
+                        props.nodeMenu && (
+                            <DropDown
+                                key={pod.uid}
+                                isMenu={true}
+                                anchor={() => (
+                                    <Tooltip
+                                        content={
+                                            <div>
+                                                {pod.metadata.name}
+                                                <div>Health: {pod.health}</div>
+                                                {pod.createdAt && (
+                                                    <span>
+                                                        <span>Created: </span>
+                                                        <Moment fromNow={true} ago={true}>
+                                                            {pod.createdAt}
+                                                        </Moment>
+                                                        <span> ago ({<Moment local={true}>{pod.createdAt}</Moment>})</span>
+                                                    </span>
+                                                )}
+                                            </div>
                                         }
-                                    }
-                                }}
-                                key={pod.metadata.name}>
-                                <div style={{position: 'relative'}}>
-                                    {isYoungerThanXMinutes(pod, 30) && (
-                                        <i className='fas fa-star application-resource-tree__node--lower-section__pod-group__pod application-resource-tree__node--lower-section__pod-group__pod__star-icon' />
-                                    )}
-                                    <div
-                                        className={`application-resource-tree__node--lower-section__pod-group__pod application-resource-tree__node--lower-section__pod-group__pod--${pod.health.toLowerCase()}`}>
-                                        <PodHealthIcon state={{status: pod.health, message: ''}} />
-                                    </div>
-                                </div>
-                            </Tooltip>
-                        )}
-                        items={[
-                            {
-                                title: (
-                                    <React.Fragment>
-                                        <i className='fa fa-info-circle' /> Info
-                                    </React.Fragment>
-                                ),
-                                action: () => props.onNodeClick(pod.fullName)
-                            },
-                            {
-                                title: (
-                                    <React.Fragment>
-                                        <i className='fa fa-align-left' /> Logs
-                                    </React.Fragment>
-                                ),
-                                action: () => {
-                                    props.appContext.apis.navigation.goto('.', {node: pod.fullName, tab: 'logs'}, {replace: true});
-                                }
-                            },
-                            {
-                                title: (
-                                    <React.Fragment>
-                                        <i className='fa fa-times-circle' /> Delete
-                                    </React.Fragment>
-                                ),
-                                action: () => {
-                                    deletePodAction(pod, props.appContext, props.app.metadata.name, props.app.metadata.namespace);
-                                }
-                            }
-                        ]}
-                    />
-                ))
+                                        popperOptions={{
+                                            modifiers: {
+                                                preventOverflow: {
+                                                    enabled: true
+                                                },
+                                                hide: {
+                                                    enabled: false
+                                                },
+                                                flip: {
+                                                    enabled: false
+                                                }
+                                            }
+                                        }}
+                                        key={pod.metadata.name}>
+                                        <div style={{position: 'relative'}}>
+                                            {isYoungerThanXMinutes(pod, 30) && (
+                                                <i className='fas fa-star application-resource-tree__node--lower-section__pod-group__pod application-resource-tree__node--lower-section__pod-group__pod__star-icon' />
+                                            )}
+                                            <div
+                                                className={`application-resource-tree__node--lower-section__pod-group__pod application-resource-tree__node--lower-section__pod-group__pod--${pod.health.toLowerCase()}`}>
+                                                <PodHealthIcon state={{status: pod.health, message: ''}} />
+                                            </div>
+                                        </div>
+                                    </Tooltip>
+                                )}>
+                                {() => props.nodeMenu(pod)}
+                            </DropDown>
+                        )
+                )
             )}
         </div>
     );
@@ -778,7 +749,11 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 <br />
                 {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
             </div>
-            <div className='application-resource-tree__node-content'>
+            <div
+                className={classNames('application-resource-tree__node-content', {
+                    'application-resource-tree__fullname': props.nameWrap,
+                    'application-resource-tree__wrappedname': !props.nameWrap
+                })}>
                 <div
                     className={classNames('application-resource-tree__node-title', {
                         'application-resource-tree__direction-right': props.nameDirection,
@@ -892,7 +867,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         resourceVersion: props.app.metadata.resourceVersion,
         group: 'argoproj.io',
         version: '',
-        children: Array(),
+        // @ts-expect-error its not any
+        children: [],
         status: props.app.status.sync.status,
         health: props.app.status.health,
         uid: props.app.kind + '-' + props.app.metadata.namespace + '-' + props.app.metadata.name,
@@ -959,7 +935,16 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         graphNodesFilter.nodes().forEach(nodeId => {
             const node: ResourceTreeNode = graphNodesFilter.node(nodeId) as any;
             const parentIds = graphNodesFilter.predecessors(nodeId);
-            if (node.root != null && !predicate(node) && appKey !== nodeId) {
+
+            const shouldKeepNode = () => {
+                //case for podgroup in group node view
+                if (node.podGroup) {
+                    return predicate(node) || node.podGroup.pods.some(pod => predicate({...node, kind: 'Pod', name: pod.name}));
+                }
+                return predicate(node);
+            };
+
+            if (node.root != null && !shouldKeepNode() && appKey !== nodeId) {
                 const childIds = graphNodesFilter.successors(nodeId);
                 graphNodesFilter.removeNode(nodeId);
                 filtered++;
@@ -972,8 +957,14 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 if (node.root != null) filteredNodes.push(node);
             }
         });
+
         if (filtered) {
-            graphNodesFilter.setNode(FILTERED_INDICATOR_NODE, {height: NODE_HEIGHT, width: NODE_WIDTH, count: filtered, type: NODE_TYPES.filteredIndicator});
+            graphNodesFilter.setNode(FILTERED_INDICATOR_NODE, {
+                height: NODE_HEIGHT,
+                width: NODE_WIDTH,
+                count: filtered,
+                type: NODE_TYPES.filteredIndicator
+            });
             graphNodesFilter.setEdge(filteredIndicatorParent, FILTERED_INDICATOR_NODE);
         }
     }
@@ -1035,7 +1026,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 const loadBalancers = root.networkingInfo.ingress.map(ingress => ingress.hostname || ingress.ip);
                 const colorByService = new Map<string, string>();
                 (childrenByParentKey.get(treeNodeKey(root)) || []).forEach((child, i) => colorByService.set(treeNodeKey(child), TRAFFIC_COLORS[i % TRAFFIC_COLORS.length]));
-                (childrenByParentKey.get(treeNodeKey(root)) || []).sort(compareNodes).forEach((child, i) => {
+                (childrenByParentKey.get(treeNodeKey(root)) || []).sort(compareNodes).forEach(child => {
                     processNode(child, root, [colorByService.get(treeNodeKey(child))]);
                 });
                 if (root.podGroup && props.showCompactNodes) {
@@ -1224,6 +1215,58 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     });
     const graphNodes = graph.nodes();
     const size = getGraphSize(graphNodes.map(id => graph.node(id)));
+
+    const resourceTreeRef = React.useRef<HTMLDivElement>();
+
+    const graphMoving = React.useRef({
+        enable: false,
+        x: 0,
+        y: 0
+    });
+
+    const onGraphDragStart: React.PointerEventHandler<HTMLDivElement> = e => {
+        if (e.target !== resourceTreeRef.current) {
+            return;
+        }
+
+        if (!resourceTreeRef.current?.parentElement) {
+            return;
+        }
+
+        graphMoving.current.enable = true;
+        graphMoving.current.x = e.clientX;
+        graphMoving.current.y = e.clientY;
+    };
+
+    const onGraphDragMoving: React.PointerEventHandler<HTMLDivElement> = e => {
+        if (!graphMoving.current.enable) {
+            return;
+        }
+
+        if (!resourceTreeRef.current?.parentElement) {
+            return;
+        }
+
+        const graphContainer = resourceTreeRef.current?.parentElement;
+
+        const currentPositionX = graphContainer.scrollLeft;
+        const currentPositionY = graphContainer.scrollTop;
+
+        const scrollLeft = currentPositionX + graphMoving.current.x - e.clientX;
+        const scrollTop = currentPositionY + graphMoving.current.y - e.clientY;
+
+        graphContainer.scrollTo(scrollLeft, scrollTop);
+
+        graphMoving.current.x = e.clientX;
+        graphMoving.current.y = e.clientY;
+    };
+
+    const onGraphDragEnd: React.PointerEventHandler<HTMLDivElement> = e => {
+        if (graphMoving.current.enable) {
+            graphMoving.current.enable = false;
+            e.preventDefault();
+        }
+    };
     return (
         (graphNodes.length === 0 && (
             <EmptyState icon=' fa fa-network-wired'>
@@ -1232,8 +1275,13 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             </EmptyState>
         )) || (
             <div
+                ref={resourceTreeRef}
+                onPointerDown={onGraphDragStart}
+                onPointerMove={onGraphDragMoving}
+                onPointerUp={onGraphDragEnd}
+                onPointerLeave={onGraphDragEnd}
                 className={classNames('application-resource-tree', {'application-resource-tree--network': props.useNetworkingHierarchy})}
-                style={{width: size.width + 150, height: size.height + 250, transformOrigin: '0% 0%', transform: `scale(${props.zoom})`}}>
+                style={{width: size.width + 150, height: size.height + 250, transformOrigin: '0% 4%', transform: `scale(${props.zoom})`}}>
                 {graphNodes.map(key => {
                     const node = graph.node(key);
                     const nodeType = node.type;

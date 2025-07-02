@@ -17,8 +17,8 @@ var (
 // see https://github.com/open-telemetry/opentelemetry-go-contrib/issues/4226 for details
 func ensureInitialized() {
 	interceptorsInitialized.Do(func() {
-		otelUnaryInterceptor = otelgrpc.UnaryClientInterceptor()
-		otelStreamInterceptor = otelgrpc.StreamClientInterceptor()
+		otelUnaryInterceptor = otelgrpc.UnaryClientInterceptor()   //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
+		otelStreamInterceptor = otelgrpc.StreamClientInterceptor() //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 	})
 }
 

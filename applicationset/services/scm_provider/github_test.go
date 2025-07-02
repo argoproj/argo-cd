@@ -1,18 +1,19 @@
 package scm_provider
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func githubMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
@@ -241,12 +242,12 @@ func TestGithubListRepos(t *testing.T) {
 	defer ts.Close()
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, c.allBranches)
-			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
+			provider, _ := NewGithubProvider("argoproj", "", ts.URL, c.allBranches)
+			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
 			if c.hasError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				// Just check that this one project shows up. Not a great test but better thing nothing?
 				repos := []*Repository{}
 				branches := []string{}
@@ -266,23 +267,31 @@ func TestGithubListRepos(t *testing.T) {
 	}
 }
 
+/*
+	metricsCtx := &services.MetricsContext{
+		AppSetNamespace: "test-ns",
+		AppSetName:      "test-appset",
+	}
+
+httpClient := services.NewGitHubMetricsClient(metricsCtx)
+*/
 func TestGithubHasPath(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	host, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, false)
+	host, _ := NewGithubProvider("argoproj", "", ts.URL, false)
 	repo := &Repository{
 		Organization: "argoproj",
 		Repository:   "argo-cd",
 		Branch:       "master",
 	}
-	ok, err := host.RepoHasPath(context.Background(), repo, "pkg/")
-	assert.Nil(t, err)
+	ok, err := host.RepoHasPath(t.Context(), repo, "pkg/")
+	require.NoError(t, err)
 	assert.True(t, ok)
 
-	ok, err = host.RepoHasPath(context.Background(), repo, "notathing/")
-	assert.Nil(t, err)
+	ok, err = host.RepoHasPath(t.Context(), repo, "notathing/")
+	require.NoError(t, err)
 	assert.False(t, ok)
 }
 
@@ -291,34 +300,34 @@ func TestGithubGetBranches(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	host, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, false)
+	host, _ := NewGithubProvider("argoproj", "", ts.URL, false)
 	repo := &Repository{
 		Organization: "argoproj",
 		Repository:   "argo-cd",
 		Branch:       "master",
 	}
-	repos, err := host.GetBranches(context.Background(), repo)
+	repos, err := host.GetBranches(t.Context(), repo)
 	if err != nil {
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	} else {
-		assert.Equal(t, repos[0].Branch, "master")
+		assert.Equal(t, "master", repos[0].Branch)
 	}
-	//Branch Doesn't exists instead of error will return no error
+	// Branch Doesn't exists instead of error will return no error
 	repo2 := &Repository{
 		Organization: "argoproj",
 		Repository:   "applicationset",
 		Branch:       "main",
 	}
-	_, err = host.GetBranches(context.Background(), repo2)
-	assert.NoError(t, err)
+	_, err = host.GetBranches(t.Context(), repo2)
+	require.NoError(t, err)
 
 	// Get all branches
 	host.allBranches = true
-	repos, err = host.GetBranches(context.Background(), repo)
+	repos, err = host.GetBranches(t.Context(), repo)
 	if err != nil {
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	} else {
 		// considering master  branch to  exist.
-		assert.Equal(t, len(repos), 1)
+		assert.Len(t, repos, 1)
 	}
 }

@@ -10,9 +10,9 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services/mocks"
+	"github.com/argoproj/argo-cd/v3/applicationset/services/mocks"
 
-	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
@@ -27,19 +27,19 @@ func TestMatchValues(t *testing.T) {
 		name     string
 		elements []apiextensionsv1.JSON
 		selector *metav1.LabelSelector
-		expected []map[string]interface{}
+		expected []map[string]any
 	}{
 		{
 			name:     "no filter",
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url"}`)}},
 			selector: &metav1.LabelSelector{},
-			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url"}},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url"}},
 		},
 		{
 			name:     "nil",
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url"}`)}},
 			selector: nil,
-			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url"}},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url"}},
 		},
 		{
 			name:     "values.foo should be foo but is ignore element",
@@ -49,7 +49,7 @@ func TestMatchValues(t *testing.T) {
 					"values.foo": "foo",
 				},
 			},
-			expected: []map[string]interface{}{},
+			expected: []map[string]any{},
 		},
 		{
 			name:     "values.foo should be bar",
@@ -59,14 +59,14 @@ func TestMatchValues(t *testing.T) {
 					"values.foo": "bar",
 				},
 			},
-			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url", "values.foo": "bar"}},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url", "values.foo": "bar"}},
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			var listGenerator = NewListGenerator()
-			var data = map[string]Generator{
+			listGenerator := NewListGenerator()
+			data := map[string]Generator{
 				"List": listGenerator,
 			}
 
@@ -84,12 +84,13 @@ func TestMatchValues(t *testing.T) {
 				List: &argov1alpha1.ListGenerator{
 					Elements: testCase.elements,
 					Template: emptyTemplate(),
-				}},
+				},
+			},
 				data,
 				emptyTemplate(),
-				&applicationSetInfo, nil)
+				&applicationSetInfo, nil, nil)
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.ElementsMatch(t, testCase.expected, results[0].Params)
 		})
 	}
@@ -100,19 +101,19 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 		name     string
 		elements []apiextensionsv1.JSON
 		selector *metav1.LabelSelector
-		expected []map[string]interface{}
+		expected []map[string]any
 	}{
 		{
 			name:     "no filter",
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url"}`)}},
 			selector: &metav1.LabelSelector{},
-			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url"}},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url"}},
 		},
 		{
 			name:     "nil",
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url"}`)}},
 			selector: nil,
-			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url"}},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url"}},
 		},
 		{
 			name:     "values.foo should be foo but is ignore element",
@@ -122,7 +123,7 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 					"values.foo": "foo",
 				},
 			},
-			expected: []map[string]interface{}{},
+			expected: []map[string]any{},
 		},
 		{
 			name:     "values.foo should be bar",
@@ -132,7 +133,7 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 					"values.foo": "bar",
 				},
 			},
-			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url", "values": map[string]interface{}{"foo": "bar"}}},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url", "values": map[string]any{"foo": "bar"}}},
 		},
 		{
 			name:     "values.0 should be bar",
@@ -142,14 +143,14 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 					"values.0": "bar",
 				},
 			},
-			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url", "values": []interface{}{"bar"}}},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url", "values": []any{"bar"}}},
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			var listGenerator = NewListGenerator()
-			var data = map[string]Generator{
+			listGenerator := NewListGenerator()
+			data := map[string]Generator{
 				"List": listGenerator,
 			}
 
@@ -167,12 +168,13 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 				List: &argov1alpha1.ListGenerator{
 					Elements: testCase.elements,
 					Template: emptyTemplate(),
-				}},
+				},
+			},
 				data,
 				emptyTemplate(),
-				&applicationSetInfo, nil)
+				&applicationSetInfo, nil, nil)
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.ElementsMatch(t, testCase.expected, results[0].Params)
 		})
 	}
@@ -182,14 +184,14 @@ func TestTransForm(t *testing.T) {
 	testCases := []struct {
 		name     string
 		selector *metav1.LabelSelector
-		expected []map[string]interface{}
+		expected []map[string]any
 	}{
 		{
 			name: "server filter",
 			selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"server": "https://production-01.example.com"},
 			},
-			expected: []map[string]interface{}{{
+			expected: []map[string]any{{
 				"metadata.annotations.foo.argoproj.io":           "production",
 				"metadata.labels.argocd.argoproj.io/secret-type": "cluster",
 				"metadata.labels.environment":                    "production",
@@ -197,6 +199,7 @@ func TestTransForm(t *testing.T) {
 				"name":                                           "production_01/west",
 				"nameNormalized":                                 "production-01-west",
 				"server":                                         "https://production-01.example.com",
+				"project":                                        "",
 			}},
 		},
 		{
@@ -204,7 +207,7 @@ func TestTransForm(t *testing.T) {
 			selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"server": "https://some-really-long-url-that-will-exceed-63-characters.com"},
 			},
-			expected: []map[string]interface{}{{
+			expected: []map[string]any{{
 				"metadata.annotations.foo.argoproj.io":           "production",
 				"metadata.labels.argocd.argoproj.io/secret-type": "cluster",
 				"metadata.labels.environment":                    "production",
@@ -212,6 +215,7 @@ func TestTransForm(t *testing.T) {
 				"name":                                           "some-really-long-server-url",
 				"nameNormalized":                                 "some-really-long-server-url",
 				"server":                                         "https://some-really-long-url-that-will-exceed-63-characters.com",
+				"project":                                        "",
 			}},
 		},
 	}
@@ -236,12 +240,13 @@ func TestTransForm(t *testing.T) {
 						Selector: metav1.LabelSelector{},
 						Template: argov1alpha1.ApplicationSetTemplate{},
 						Values:   nil,
-					}},
+					},
+				},
 				testGenerators,
 				emptyTemplate(),
-				&applicationSetInfo, nil)
+				&applicationSetInfo, nil, nil)
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.ElementsMatch(t, testCase.expected, results[0].Params)
 		})
 	}
@@ -337,18 +342,17 @@ func getMockClusterGenerator() Generator {
 	appClientset := kubefake.NewSimpleClientset(runtimeClusters...)
 
 	fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
-	return NewClusterGenerator(fakeClient, context.Background(), appClientset, "namespace")
+	return NewClusterGenerator(context.Background(), fakeClient, appClientset, "namespace")
 }
 
 func getMockGitGenerator() Generator {
 	argoCDServiceMock := mocks.Repos{}
 	argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return([]string{"app1", "app2", "app_3", "p1/app4"}, nil)
-	var gitGenerator = NewGitGenerator(&argoCDServiceMock)
+	gitGenerator := NewGitGenerator(&argoCDServiceMock, "namespace")
 	return gitGenerator
 }
 
 func TestGetRelevantGenerators(t *testing.T) {
-
 	testGenerators := map[string]Generator{
 		"Clusters": getMockClusterGenerator(),
 		"Git":      getMockGitGenerator(),
@@ -361,7 +365,8 @@ func TestGetRelevantGenerators(t *testing.T) {
 	requestedGenerator := &argov1alpha1.ApplicationSetGenerator{
 		List: &argov1alpha1.ListGenerator{
 			Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","values":{"foo":"bar"}}`)}},
-		}}
+		},
+	}
 
 	relevantGenerators := GetRelevantGenerators(requestedGenerator, testGenerators)
 	assert.Len(t, relevantGenerators, 1)
@@ -404,10 +409,11 @@ func TestInterpolateGenerator(t *testing.T) {
 					"path-basename":                  "{{path.basename}}",
 					"path-zero":                      "{{path[0]}}",
 					"path-full":                      "{{path}}",
-				}},
+				},
+			},
 		},
 	}
-	gitGeneratorParams := map[string]interface{}{
+	gitGeneratorParams := map[string]any{
 		"path":                    "p1/p2/app3",
 		"path.basename":           "app3",
 		"path[0]":                 "p1",
@@ -436,7 +442,7 @@ func TestInterpolateGenerator(t *testing.T) {
 			Template: argov1alpha1.ApplicationSetTemplate{},
 		},
 	}
-	clusterGeneratorParams := map[string]interface{}{
+	clusterGeneratorParams := map[string]any{
 		"name": "production_01/west", "server": "https://production-01.example.com",
 	}
 	interpolatedGenerator, err = InterpolateGenerator(requestedGenerator, clusterGeneratorParams, false, nil)
@@ -458,11 +464,12 @@ func TestInterpolateGenerator_go(t *testing.T) {
 					"path-zero":                      "{{index .path.segments 0}}",
 					"path-full":                      "{{.path.path}}",
 					"kubernetes.io/environment":      `{{default "foo" .my_label}}`,
-				}},
+				},
+			},
 		},
 	}
-	gitGeneratorParams := map[string]interface{}{
-		"path": map[string]interface{}{
+	gitGeneratorParams := map[string]any{
+		"path": map[string]any{
 			"path":     "p1/p2/app3",
 			"segments": []string{"p1", "p2", "app3"},
 		},
@@ -490,7 +497,7 @@ func TestInterpolateGenerator_go(t *testing.T) {
 			Template: argov1alpha1.ApplicationSetTemplate{},
 		},
 	}
-	clusterGeneratorParams := map[string]interface{}{
+	clusterGeneratorParams := map[string]any{
 		"name": "production_01/west", "server": "https://production-01.example.com",
 	}
 	interpolatedGenerator, err = InterpolateGenerator(requestedGenerator, clusterGeneratorParams, true, nil)
@@ -505,7 +512,7 @@ func TestInterpolateGenerator_go(t *testing.T) {
 func TestInterpolateGeneratorError(t *testing.T) {
 	type args struct {
 		requestedGenerator *argov1alpha1.ApplicationSetGenerator
-		params             map[string]interface{}
+		params             map[string]any
 		useGoTemplate      bool
 		goTemplateOptions  []string
 	}
@@ -523,7 +530,7 @@ func TestInterpolateGeneratorError(t *testing.T) {
 		}, want: argov1alpha1.ApplicationSetGenerator{}, expectedErrStr: "generator is empty"},
 		{name: "No Params", args: args{
 			requestedGenerator: &argov1alpha1.ApplicationSetGenerator{},
-			params:             map[string]interface{}{},
+			params:             map[string]any{},
 			useGoTemplate:      false,
 			goTemplateOptions:  nil,
 		}, want: argov1alpha1.ApplicationSetGenerator{}, expectedErrStr: ""},
@@ -538,7 +545,7 @@ func TestInterpolateGeneratorError(t *testing.T) {
 					"resolved":  "{{ index .rmap (default .override .test) }}",
 				},
 			}},
-			params: map[string]interface{}{
+			params: map[string]any{
 				"name":     "in-cluster",
 				"override": "foo",
 			},
@@ -550,7 +557,7 @@ func TestInterpolateGeneratorError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := InterpolateGenerator(tt.args.requestedGenerator, tt.args.params, tt.args.useGoTemplate, tt.args.goTemplateOptions)
 			if tt.expectedErrStr != "" {
-				assert.EqualError(t, err, tt.expectedErrStr)
+				require.EqualError(t, err, tt.expectedErrStr)
 			} else {
 				require.NoError(t, err)
 			}

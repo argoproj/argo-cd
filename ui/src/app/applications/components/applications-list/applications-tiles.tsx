@@ -66,7 +66,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
         keys: Key.ENTER,
         action: () => {
             if (selectedApp > -1) {
-                ctxh.navigation.goto(`/applications/${applications[selectedApp].metadata.name}`);
+                ctxh.navigation.goto(AppUtils.getAppUrl(applications[selectedApp]));
                 return true;
             }
             return false;
@@ -105,11 +105,11 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                     {pref => {
                         const favList = pref.appList.favoritesAppList || [];
                         return (
-                            <div
-                                className='applications-tiles argo-table-list argo-table-list--clickable row small-up-1 medium-up-2 large-up-3 xxxlarge-up-4'
-                                ref={appContainerRef}>
+                            <div className='applications-tiles argo-table-list argo-table-list--clickable' ref={appContainerRef}>
                                 {applications.map((app, i) => {
                                     const source = getAppDefaultSource(app);
+                                    const isOci = source?.repoURL?.startsWith('oci://');
+                                    const targetRevision = source ? source.targetRevision || 'HEAD' : 'Unknown';
                                     return (
                                         <div
                                             key={AppUtils.appInstanceName(app)}
@@ -119,16 +119,18 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                             }`}>
                                             <div
                                                 className='row applications-tiles__wrapper'
-                                                onClick={e =>
-                                                    ctx.navigation.goto(`/applications/${app.metadata.namespace}/${app.metadata.name}`, {view: pref.appDetails.view}, {event: e})
-                                                }>
+                                                onClick={e => ctx.navigation.goto(AppUtils.getAppUrl(app), {view: pref.appDetails.view}, {event: e})}>
                                                 <div
                                                     className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(
                                                         app
                                                     )} applications-tiles__item`}>
                                                     <div className='row '>
                                                         <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-10' : 'columns small-11'}>
-                                                            <i className={'icon argo-icon-' + (source.chart != null ? 'helm' : 'git')} />
+                                                            <i
+                                                                className={
+                                                                    'icon argo-icon-' + (source?.chart != null ? 'helm' : isOci ? 'oci applications-tiles__item__small' : 'git')
+                                                                }
+                                                            />
                                                             <Tooltip content={AppUtils.appInstanceName(app)}>
                                                                 <span className='applications-list__title'>
                                                                     {AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
@@ -210,8 +212,8 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             Repository:
                                                         </div>
                                                         <div className='columns small-9'>
-                                                            <Tooltip content={source.repoURL} zIndex={4}>
-                                                                <span>{source.repoURL}</span>
+                                                            <Tooltip content={source?.repoURL} zIndex={4}>
+                                                                <span>{source?.repoURL}</span>
                                                             </Tooltip>
                                                         </div>
                                                     </div>
@@ -219,22 +221,22 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         <div className='columns small-3' title='Target Revision:'>
                                                             Target Revision:
                                                         </div>
-                                                        <div className='columns small-9'>{source.targetRevision || 'HEAD'}</div>
+                                                        <div className='columns small-9'>{targetRevision}</div>
                                                     </div>
-                                                    {source.path && (
+                                                    {source?.path && (
                                                         <div className='row'>
                                                             <div className='columns small-3' title='Path:'>
                                                                 Path:
                                                             </div>
-                                                            <div className='columns small-9'>{source.path}</div>
+                                                            <div className='columns small-9'>{source?.path}</div>
                                                         </div>
                                                     )}
-                                                    {source.chart && (
+                                                    {source?.chart && (
                                                         <div className='row'>
                                                             <div className='columns small-3' title='Chart:'>
                                                                 Chart:
                                                             </div>
-                                                            <div className='columns small-9'>{source.chart}</div>
+                                                            <div className='columns small-9'>{source?.chart}</div>
                                                         </div>
                                                     )}
                                                     <div className='row'>
@@ -279,27 +281,31 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                                 <i className='fa fa-sync' /> Sync
                                                             </a>
                                                             &nbsp;
-                                                            <a
-                                                                className='argo-button argo-button--base'
-                                                                qe-id='applications-tiles-button-refresh'
-                                                                {...AppUtils.refreshLinkAttrs(app)}
-                                                                onClick={e => {
-                                                                    e.stopPropagation();
-                                                                    refreshApplication(app.metadata.name, app.metadata.namespace);
-                                                                }}>
-                                                                <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppRefreshing(app)})} />{' '}
-                                                                <span className='show-for-xxlarge'>Refresh</span>
-                                                            </a>
+                                                            <Tooltip className='custom-tooltip' content={'Refresh'}>
+                                                                <a
+                                                                    className='argo-button argo-button--base'
+                                                                    qe-id='applications-tiles-button-refresh'
+                                                                    {...AppUtils.refreshLinkAttrs(app)}
+                                                                    onClick={e => {
+                                                                        e.stopPropagation();
+                                                                        refreshApplication(app.metadata.name, app.metadata.namespace);
+                                                                    }}>
+                                                                    <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppRefreshing(app)})} />{' '}
+                                                                    <span className='show-for-xxlarge'>Refresh</span>
+                                                                </a>
+                                                            </Tooltip>
                                                             &nbsp;
-                                                            <a
-                                                                className='argo-button argo-button--base'
-                                                                qe-id='applications-tiles-button-delete'
-                                                                onClick={e => {
-                                                                    e.stopPropagation();
-                                                                    deleteApplication(app.metadata.name, app.metadata.namespace);
-                                                                }}>
-                                                                <i className='fa fa-times-circle' /> <span className='show-for-xxlarge'>Delete</span>
-                                                            </a>
+                                                            <Tooltip className='custom-tooltip' content={'Delete'}>
+                                                                <a
+                                                                    className='argo-button argo-button--base'
+                                                                    qe-id='applications-tiles-button-delete'
+                                                                    onClick={e => {
+                                                                        e.stopPropagation();
+                                                                        deleteApplication(app.metadata.name, app.metadata.namespace);
+                                                                    }}>
+                                                                    <i className='fa fa-times-circle' /> <span className='show-for-xxlarge'>Delete</span>
+                                                                </a>
+                                                            </Tooltip>
                                                         </div>
                                                     </div>
                                                 </div>

@@ -23,21 +23,27 @@ Helm chart versions are [Semantic Versions](https://semver.org/). As a result, y
 
 [Read about version ranges](https://www.telerik.com/blogs/the-mystical-magical-semver-ranges-used-by-npm-bower)
 
+!!! note
+    If you want Argo CD to include all existing prerelease version tags of a repository in the comparison logic, you explicitly have to add a prerelease `-0` suffix to the version constraint. As mentioned `*-0` will compare against prerelease versions in a repository, `*` will not. The same applies for other constraints e.g. `>=1.2.2` will **not** compare prerelease versions vs. `>=1.2.2-0` which will include prerelease versions in the comparison.
+
+[Read about prerelease version comparison](https://github.com/Masterminds/semver?tab=readme-ov-file#working-with-prerelease-versions)
+
 ## Git
 
-For Git, all versions are Git references:
+For Git, all versions are Git references but tags [Semantic Versions](https://semver.org/) can also be used:
 
 | Use Case | How | Notes |
 |-|-|-|
 | Pin to a version (e.g. in production) | Either (a) tag the commit with (e.g. `v1.2.0`) and use that tag, or (b) using commit SHA. | See [commit pinning](#commit-pinning). |
-| Track patches (e.g. in pre-production) | Tag/re-tag the commit, e.g. (e.g. `v1.2`) and use that tag. | See [tag tracking](#tag-tracking) |
-| Track minor releases (e.g. in QA) | Re-tag the commit as (e.g. `v1`) and use that tag. | See [tag tracking](#tag-tracking) |
-| Use the latest (e.g. in local development) | Use `HEAD` or `master` (assuming `master` is your master branch). | See [HEAD / Branch Tracking](#head-branch-tracking) |
+| Track patches (e.g. in pre-production) | Use a range (e.g. `1.2.*` or `>=1.2.0 <1.3.0`)                                           | See [tag tracking](#tag-tracking) |
+| Track minor releases (e.g. in QA) | Use a range (e.g. `1.*` or `>=1.0.0 <2.0.0`)                                             | See [tag tracking](#tag-tracking) |
+| Use the latest (e.g. in local development) | Use `HEAD` or `master` (assuming `master` is your master branch).                        | See [HEAD / Branch Tracking](#head-branch-tracking) |
+| Use the latest including pre-releases | Use star range with `-0` suffix | `*-0` or `>=0.0.0-0` |
 
 
 ### HEAD / Branch Tracking
 
-If a branch name, or a symbolic reference (like HEAD) is specified, Argo CD will continually compare
+If a branch name or a symbolic reference (like HEAD) is specified, Argo CD will continually compare
 live state against the resource manifests defined at the tip of the specified branch or the
 resolved commit of the symbolic reference.
 
@@ -52,6 +58,9 @@ more stable, and less frequently updated, with some manual judgement of what con
 To redeploy an app, the user uses Git to change the meaning of a tag by retagging it to a
 different commit SHA. Argo CD will detect the new meaning of the tag when performing the
 comparison/sync.
+
+But if you're using semantic versioning you can set the constraint in your service revision
+and Argo CD will get the latest version following the constraint rules.
 
 ### Commit Pinning
 

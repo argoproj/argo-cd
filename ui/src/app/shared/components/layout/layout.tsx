@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {Sidebar} from '../../../sidebar/sidebar';
 import {ViewPreferences} from '../../services';
+import {useTheme} from '../../utils';
 
 require('./layout.scss');
 
@@ -9,21 +10,28 @@ export interface LayoutProps {
     onVersionClick?: () => void;
     children?: React.ReactNode;
     pref: ViewPreferences;
-    isExtension?: boolean;
 }
 
 const getBGColor = (theme: string): string => (theme === 'light' ? '#dee6eb' : '#100f0f');
 
+export const ThemeWrapper = (props: {children: React.ReactNode; theme: string}) => {
+    const [systemTheme] = useTheme({
+        theme: props.theme
+    });
+    return <div className={'theme-' + systemTheme}>{props.children}</div>;
+};
+
 export const Layout = (props: LayoutProps) => {
+    const [theme] = useTheme({theme: props.pref.theme});
     React.useEffect(() => {
-        if (props.pref.theme) {
-            document.body.style.background = getBGColor(props.pref.theme);
+        if (theme) {
+            document.body.style.background = getBGColor(theme);
         }
-    }, [props.pref.theme]);
+    }, [theme]);
 
     return (
-        <div className={props.pref.theme ? 'theme-' + props.pref.theme : 'theme-light'}>
-            <div className={`cd-layout ${props.isExtension ? 'cd-layout--extension' : ''}`}>
+        <div className={`theme-${theme}`}>
+            <div className={'cd-layout'}>
                 <Sidebar onVersionClick={props.onVersionClick} navItems={props.navItems} pref={props.pref} />
                 <div className={`cd-layout__content ${props.pref.hideSidebar ? 'cd-layout__content--sb-collapsed' : 'cd-layout__content--sb-expanded'} custom-styles`}>
                     {props.children}

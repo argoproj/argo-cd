@@ -16,7 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientauthv1beta1 "k8s.io/client-go/pkg/apis/clientauthentication/v1beta1"
 
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 const (
@@ -37,13 +37,14 @@ func newAWSCommand() *cobra.Command {
 	var (
 		clusterName string
 		roleARN     string
+		profile     string
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use: "aws",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
-			presignedURLString, err := getSignedRequestWithRetry(ctx, time.Minute, 5*time.Second, clusterName, roleARN, getSignedRequest)
+			presignedURLString, err := getSignedRequestWithRetry(ctx, time.Minute, 5*time.Second, clusterName, roleARN, profile, getSignedRequest)
 			errors.CheckError(err)
 			token := v1Prefix + base64.RawURLEncoding.EncodeToString([]byte(presignedURLString))
 			// Set token expiration to 1 minute before the presigned URL expires for some cushion
@@ -53,31 +54,34 @@ func newAWSCommand() *cobra.Command {
 	}
 	command.Flags().StringVar(&clusterName, "cluster-name", "", "AWS Cluster name")
 	command.Flags().StringVar(&roleARN, "role-arn", "", "AWS Role ARN")
+	command.Flags().StringVar(&profile, "profile", "", "AWS Profile")
 	return command
 }
 
-type getSignedRequestFunc func(clusterName, roleARN string) (string, error)
+type getSignedRequestFunc func(clusterName, roleARN string, profile string) (string, error)
 
-func getSignedRequestWithRetry(ctx context.Context, timeout, interval time.Duration, clusterName, roleARN string, fn getSignedRequestFunc) (string, error) {
+func getSignedRequestWithRetry(ctx context.Context, timeout, interval time.Duration, clusterName, roleARN string, profile string, fn getSignedRequestFunc) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	for {
-		signed, err := fn(clusterName, roleARN)
+		signed, err := fn(clusterName, roleARN, profile)
 		if err == nil {
 			return signed, nil
 		}
 		select {
 		case <-ctx.Done():
-			return "", fmt.Errorf("timeout while trying to get signed aws request: last error: %s", err)
+			return "", fmt.Errorf("timeout while trying to get signed aws request: last error: %w", err)
 		case <-time.After(interval):
 		}
 	}
 }
 
-func getSignedRequest(clusterName, roleARN string) (string, error) {
-	sess, err := session.NewSession()
+func getSignedRequest(clusterName, roleARN string, profile string) (string, error) {
+	sess, err := session.NewSessionWithOptions(session.Options{
+		Profile: profile,
+	})
 	if err != nil {
-		return "", fmt.Errorf("error creating new AWS session: %s", err)
+		return "", fmt.Errorf("error creating new AWS session: %w", err)
 	}
 	stsAPI := sts.New(sess)
 	if roleARN != "" {
@@ -88,7 +92,7 @@ func getSignedRequest(clusterName, roleARN string) (string, error) {
 	request.HTTPRequest.Header.Add(clusterIDHeader, clusterName)
 	signed, err := request.Presign(requestPresignParam)
 	if err != nil {
-		return "", fmt.Errorf("error presigning AWS request: %s", err)
+		return "", fmt.Errorf("error presigning AWS request: %w", err)
 	}
 	return signed, nil
 }

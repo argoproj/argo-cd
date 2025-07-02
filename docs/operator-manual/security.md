@@ -30,7 +30,7 @@ in one of the following ways:
 ## Authorization
 
 Authorization is performed by iterating the list of group membership in a user's JWT groups claims,
-and comparing each group against the roles/rules in the [RBAC](../rbac) policy. Any matched rule
+and comparing each group against the roles/rules in the [RBAC](./rbac.md) policy. Any matched rule
 permits access to the API request.
 
 ## TLS
@@ -144,7 +144,7 @@ argocd cluster rm https://your-kubernetes-cluster-addr
 
 ## Cluster RBAC
 
-By default, Argo CD uses a [clusteradmin level role](https://github.com/argoproj/argo-cd/blob/master/manifests/base/application-controller/argocd-application-controller-role.yaml)
+By default, Argo CD uses a [clusteradmin level role](https://github.com/argoproj/argo-cd/blob/master/manifests/base/application-controller-roles/argocd-application-controller-role.yaml)
 in order to:
 
 1. watch & operate on cluster state
@@ -237,6 +237,14 @@ can be found in [server/server.go](https://github.com/argoproj/argo-cd/blob/abba
 
 Argo CD does not log IP addresses of clients requesting API endpoints, since the API server is typically behind a proxy. Instead, it is recommended
 to configure IP addresses logging in the proxy server that sits in front of the API server.
+
+### Standard Application log fields
+
+For logs related to an Application, Argo CD will log the following standard fields :
+
+* *application*: the Application name, without the namespace
+* *app-namespace*: the Application's namespace
+* *project*: the Application's project
 
 ## ApplicationSets
 

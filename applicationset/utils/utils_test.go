@@ -17,11 +17,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
-	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoappsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestRenderTemplateParams(t *testing.T) {
-
 	// Believe it or not, this is actually less complex than the equivalent solution using reflection
 	fieldMap := map[string]func(app *argoappsv1.Application) *string{}
 	fieldMap["Path"] = func(app *argoappsv1.Application) *string { return &app.Spec.Source.Path }
@@ -63,14 +62,14 @@ func TestRenderTemplateParams(t *testing.T) {
 	tests := []struct {
 		name        string
 		fieldVal    string
-		params      map[string]interface{}
+		params      map[string]any
 		expectedVal string
 	}{
 		{
 			name:        "simple substitution",
 			fieldVal:    "{{one}}",
 			expectedVal: "two",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"one": "two",
 			},
 		},
@@ -78,7 +77,7 @@ func TestRenderTemplateParams(t *testing.T) {
 			name:        "simple substitution with whitespace",
 			fieldVal:    "{{ one }}",
 			expectedVal: "two",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"one": "two",
 			},
 		},
@@ -87,7 +86,7 @@ func TestRenderTemplateParams(t *testing.T) {
 			name:        "template characters but not in a template",
 			fieldVal:    "}} {{",
 			expectedVal: "}} {{",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"one": "two",
 			},
 		},
@@ -96,7 +95,7 @@ func TestRenderTemplateParams(t *testing.T) {
 			name:        "nested template",
 			fieldVal:    "{{ }}",
 			expectedVal: "{{ }}",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"one": "{{ }}",
 			},
 		},
@@ -104,7 +103,7 @@ func TestRenderTemplateParams(t *testing.T) {
 			name:        "field with whitespace",
 			fieldVal:    "{{ }}",
 			expectedVal: "{{ }}",
-			params: map[string]interface{}{
+			params: map[string]any{
 				" ": "two",
 				"":  "three",
 			},
@@ -114,7 +113,7 @@ func TestRenderTemplateParams(t *testing.T) {
 			name:        "template contains itself, containing itself",
 			fieldVal:    "{{one}}",
 			expectedVal: "{{one}}",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"{{one}}": "{{one}}",
 			},
 		},
@@ -123,7 +122,7 @@ func TestRenderTemplateParams(t *testing.T) {
 			name:        "template contains itself, containing something else",
 			fieldVal:    "{{one}}",
 			expectedVal: "{{one}}",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"{{one}}": "{{two}}",
 			},
 		},
@@ -132,7 +131,7 @@ func TestRenderTemplateParams(t *testing.T) {
 			name:        "templates are case sensitive",
 			fieldVal:    "{{ONE}}",
 			expectedVal: "{{ONE}}",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"{{one}}": "two",
 			},
 		},
@@ -140,7 +139,7 @@ func TestRenderTemplateParams(t *testing.T) {
 			name:        "multiple on a line",
 			fieldVal:    "{{one}}{{one}}",
 			expectedVal: "twotwo",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"one": "two",
 			},
 		},
@@ -148,7 +147,7 @@ func TestRenderTemplateParams(t *testing.T) {
 			name:        "multiple different on a line",
 			fieldVal:    "{{one}}{{three}}",
 			expectedVal: "twofour",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"one":   "two",
 				"three": "four",
 			},
@@ -157,7 +156,7 @@ func TestRenderTemplateParams(t *testing.T) {
 			name:        "multiple different on a line with quote",
 			fieldVal:    "{{one}} {{three}}",
 			expectedVal: "\"hello\" world four",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"one":   "\"hello\" world",
 				"three": "four",
 			},
@@ -165,11 +164,8 @@ func TestRenderTemplateParams(t *testing.T) {
 	}
 
 	for _, test := range tests {
-
 		t.Run(test.name, func(t *testing.T) {
-
 			for fieldName, getPtrFunc := range fieldMap {
-
 				// Clone the template application
 				application := emptyApplication.DeepCopy()
 
@@ -184,24 +180,22 @@ func TestRenderTemplateParams(t *testing.T) {
 				// the target field has been templated into the expected value
 				actualValue := *getPtrFunc(newApplication)
 				assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", fieldName, test.expectedVal, actualValue)
-				assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key"], "annotation-value")
-				assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key2"], "annotation-value2")
-				assert.Equal(t, newApplication.ObjectMeta.Labels["label-key"], "label-value")
-				assert.Equal(t, newApplication.ObjectMeta.Labels["label-key2"], "label-value2")
-				assert.Equal(t, newApplication.ObjectMeta.Name, "application-one")
-				assert.Equal(t, newApplication.ObjectMeta.Namespace, "default")
-				assert.Equal(t, newApplication.ObjectMeta.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
-				assert.Equal(t, newApplication.ObjectMeta.CreationTimestamp, application.ObjectMeta.CreationTimestamp)
-				assert.NoError(t, err)
+				assert.Equal(t, "annotation-value", newApplication.Annotations["annotation-key"])
+				assert.Equal(t, "annotation-value2", newApplication.Annotations["annotation-key2"])
+				assert.Equal(t, "label-value", newApplication.Labels["label-key"])
+				assert.Equal(t, "label-value2", newApplication.Labels["label-key2"])
+				assert.Equal(t, "application-one", newApplication.Name)
+				assert.Equal(t, "default", newApplication.Namespace)
+				assert.Equal(t, newApplication.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
+				assert.Equal(t, newApplication.CreationTimestamp, application.CreationTimestamp)
+				require.NoError(t, err)
 			}
 		})
 	}
-
 }
 
 func TestRenderHelmValuesObjectJson(t *testing.T) {
-
-	params := map[string]interface{}{
+	params := map[string]any{
 		"test": "Hello world",
 	}
 
@@ -243,20 +237,18 @@ func TestRenderHelmValuesObjectJson(t *testing.T) {
 	render := Render{}
 	newApplication, err := render.RenderTemplateParams(application, nil, params, true, []string{})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, newApplication)
 
-	var unmarshaled interface{}
+	var unmarshaled any
 	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject.Raw, &unmarshaled)
 
-	assert.NoError(t, err)
-	assert.Equal(t, unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"], "Hello world")
-
+	require.NoError(t, err)
+	assert.Equal(t, "Hello world", unmarshaled.(map[string]any)["some"].(map[string]any)["string"])
 }
 
 func TestRenderHelmValuesObjectYaml(t *testing.T) {
-
-	params := map[string]interface{}{
+	params := map[string]any{
 		"test": "Hello world",
 	}
 
@@ -295,19 +287,17 @@ func TestRenderHelmValuesObjectYaml(t *testing.T) {
 	render := Render{}
 	newApplication, err := render.RenderTemplateParams(application, nil, params, true, []string{})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, newApplication)
 
-	var unmarshaled interface{}
+	var unmarshaled any
 	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject.Raw, &unmarshaled)
 
-	assert.NoError(t, err)
-	assert.Equal(t, unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"], "Hello world")
-
+	require.NoError(t, err)
+	assert.Equal(t, "Hello world", unmarshaled.(map[string]any)["some"].(map[string]any)["string"])
 }
 
 func TestRenderTemplateParamsGoTemplate(t *testing.T) {
-
 	// Believe it or not, this is actually less complex than the equivalent solution using reflection
 	fieldMap := map[string]func(app *argoappsv1.Application) *string{}
 	fieldMap["Path"] = func(app *argoappsv1.Application) *string { return &app.Spec.Source.Path }
@@ -349,7 +339,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 	tests := []struct {
 		name            string
 		fieldVal        string
-		params          map[string]interface{}
+		params          map[string]any
 		expectedVal     string
 		errorMessage    string
 		templateOptions []string
@@ -358,7 +348,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "simple substitution",
 			fieldVal:    "{{ .one }}",
 			expectedVal: "two",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"one": "two",
 			},
 		},
@@ -366,7 +356,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "simple substitution with whitespace",
 			fieldVal:    "{{ .one }}",
 			expectedVal: "two",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"one": "two",
 			},
 		},
@@ -374,7 +364,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "template contains itself, containing itself",
 			fieldVal:    "{{ .one }}",
 			expectedVal: "{{one}}",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"one": "{{one}}",
 			},
 		},
@@ -383,7 +373,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "template contains itself, containing something else",
 			fieldVal:    "{{ .one }}",
 			expectedVal: "{{two}}",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"one": "{{two}}",
 			},
 		},
@@ -391,7 +381,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "multiple on a line",
 			fieldVal:    "{{.one}}{{.one}}",
 			expectedVal: "twotwo",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"one": "two",
 			},
 		},
@@ -399,7 +389,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "multiple different on a line",
 			fieldVal:    "{{.one}}{{.three}}",
 			expectedVal: "twofour",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"one":   "two",
 				"three": "four",
 			},
@@ -408,7 +398,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "multiple different on a line with quote",
 			fieldVal:    "{{.one}} {{.three}}",
 			expectedVal: "\"hello\" world four",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"one":   "\"hello\" world",
 				"three": "four",
 			},
@@ -417,9 +407,9 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "depth",
 			fieldVal:    "{{ .image.version }}",
 			expectedVal: "latest",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"replicas": 3,
-				"image": map[string]interface{}{
+				"image": map[string]any{
 					"name":    "busybox",
 					"version": "latest",
 				},
@@ -429,9 +419,9 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "multiple depth",
 			fieldVal:    "{{ .image.name }}:{{ .image.version }}",
 			expectedVal: "busybox:latest",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"replicas": 3,
-				"image": map[string]interface{}{
+				"image": map[string]any{
 					"name":    "busybox",
 					"version": "latest",
 				},
@@ -441,9 +431,9 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "if ok",
 			fieldVal:    "{{ if .hpa.enabled }}{{ .hpa.maxReplicas }}{{ else }}{{ .replicas }}{{ end }}",
 			expectedVal: "5",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"replicas": 3,
-				"hpa": map[string]interface{}{
+				"hpa": map[string]any{
 					"enabled":     true,
 					"minReplicas": 1,
 					"maxReplicas": 5,
@@ -454,9 +444,9 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "if not ok",
 			fieldVal:    "{{ if .hpa.enabled }}{{ .hpa.maxReplicas }}{{ else }}{{ .replicas }}{{ end }}",
 			expectedVal: "3",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"replicas": 3,
-				"hpa": map[string]interface{}{
+				"hpa": map[string]any{
 					"enabled":     false,
 					"minReplicas": 1,
 					"maxReplicas": 5,
@@ -467,16 +457,16 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "loop",
 			fieldVal:    "{{ range .volumes }}[{{ .name }}]{{ end }}",
 			expectedVal: "[volume-one][volume-two]",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"replicas": 3,
-				"volumes": []map[string]interface{}{
+				"volumes": []map[string]any{
 					{
 						"name":     "volume-one",
-						"emptyDir": map[string]interface{}{},
+						"emptyDir": map[string]any{},
 					},
 					{
 						"name":     "volume-two",
-						"emptyDir": map[string]interface{}{},
+						"emptyDir": map[string]any{},
 					},
 				},
 			},
@@ -485,8 +475,8 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "Index",
 			fieldVal:    `{{ index .admin "admin-ca" }}, {{ index .admin "admin-jks" }}`,
 			expectedVal: "value admin ca, value admin jks",
-			params: map[string]interface{}{
-				"admin": map[string]interface{}{
+			params: map[string]any{
+				"admin": map[string]any{
 					"admin-ca":  "value admin ca",
 					"admin-jks": "value admin jks",
 				},
@@ -496,8 +486,8 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "Index",
 			fieldVal:    `{{ index .admin "admin-ca" }}, \\ "Hello world", {{ index .admin "admin-jks" }}`,
 			expectedVal: `value "admin" ca with \, \\ "Hello world", value admin jks`,
-			params: map[string]interface{}{
-				"admin": map[string]interface{}{
+			params: map[string]any{
+				"admin": map[string]any{
 					"admin-ca":  `value "admin" ca with \`,
 					"admin-jks": "value admin jks",
 				},
@@ -507,7 +497,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "quote",
 			fieldVal:    `{{.quote}}`,
 			expectedVal: `"`,
-			params: map[string]interface{}{
+			params: map[string]any{
 				"quote": `"`,
 			},
 		},
@@ -515,13 +505,13 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "Test No Data",
 			fieldVal:    `{{.data}}`,
 			expectedVal: "{{.data}}",
-			params:      map[string]interface{}{},
+			params:      map[string]any{},
 		},
 		{
 			name:        "Test Parse Error",
 			fieldVal:    `{{functiondoesnotexist}}`,
 			expectedVal: "",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"data": `a data string`,
 			},
 			errorMessage: `failed to parse template {{functiondoesnotexist}}: template: :1: function "functiondoesnotexist" not defined`,
@@ -530,7 +520,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "Test template error",
 			fieldVal:    `{{.data.test}}`,
 			expectedVal: "",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"data": `a data string`,
 			},
 			errorMessage: `failed to execute go template {{.data.test}}: template: :1:7: executing "" at <.data.test>: can't evaluate field test in type interface {}`,
@@ -539,7 +529,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "lookup missing value with missingkey=default",
 			fieldVal:    `--> {{.doesnotexist}} <--`,
 			expectedVal: `--> <no value> <--`,
-			params: map[string]interface{}{
+			params: map[string]any{
 				// if no params are passed then for some reason templating is skipped
 				"unused": "this is not used",
 			},
@@ -548,7 +538,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "lookup missing value with missingkey=error",
 			fieldVal:    `--> {{.doesnotexist}} <--`,
 			expectedVal: "",
-			params: map[string]interface{}{
+			params: map[string]any{
 				// if no params are passed then for some reason templating is skipped
 				"unused": "this is not used",
 			},
@@ -559,9 +549,9 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "toYaml",
 			fieldVal:    `{{ toYaml . | indent 2 }}`,
 			expectedVal: "  foo:\n    bar:\n      bool: true\n      number: 2\n      str: Hello world",
-			params: map[string]interface{}{
-				"foo": map[string]interface{}{
-					"bar": map[string]interface{}{
+			params: map[string]any{
+				"foo": map[string]any{
+					"bar": map[string]any{
 						"bool":   true,
 						"number": 2,
 						"str":    "Hello world",
@@ -574,8 +564,8 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			fieldVal:     `{{ toYaml . | indent 2 }}`,
 			expectedVal:  "  foo:\n    bar:\n      bool: true\n      number: 2\n      str: Hello world",
 			errorMessage: "failed to execute go template {{ toYaml . | indent 2 }}: template: :1:3: executing \"\" at <toYaml .>: error calling toYaml: error marshaling into JSON: json: unsupported type: func(*string)",
-			params: map[string]interface{}{
-				"foo": func(test *string) {
+			params: map[string]any{
+				"foo": func(_ *string) {
 				},
 			},
 		},
@@ -583,7 +573,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "fromYaml",
 			fieldVal:    `{{ get (fromYaml .value) "hello" }}`,
 			expectedVal: "world",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"value": "hello: world",
 			},
 		},
@@ -592,7 +582,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			fieldVal:     `{{ get (fromYaml .value) "hello" }}`,
 			expectedVal:  "world",
 			errorMessage: "failed to execute go template {{ get (fromYaml .value) \"hello\" }}: template: :1:8: executing \"\" at <fromYaml .value>: error calling fromYaml: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"value": "non\n compliant\n yaml",
 			},
 		},
@@ -600,7 +590,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:        "fromYamlArray",
 			fieldVal:    `{{ fromYamlArray .value | last }}`,
 			expectedVal: "bonjour tout le monde",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"value": "- hello world\n- bonjour tout le monde",
 			},
 		},
@@ -609,18 +599,15 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			fieldVal:     `{{ fromYamlArray .value | last }}`,
 			expectedVal:  "bonjour tout le monde",
 			errorMessage: "failed to execute go template {{ fromYamlArray .value | last }}: template: :1:3: executing \"\" at <fromYamlArray .value>: error calling fromYamlArray: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type []interface {}",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"value": "non\n compliant\n yaml",
 			},
 		},
 	}
 
 	for _, test := range tests {
-
 		t.Run(test.name, func(t *testing.T) {
-
 			for fieldName, getPtrFunc := range fieldMap {
-
 				// Clone the template application
 				application := emptyApplication.DeepCopy()
 
@@ -634,20 +621,20 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 				// Retrieve the value of the target field from the newApplication, then verify that
 				// the target field has been templated into the expected value
 				if test.errorMessage != "" {
-					assert.Error(t, err)
+					require.Error(t, err)
 					assert.Equal(t, test.errorMessage, err.Error())
 				} else {
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					actualValue := *getPtrFunc(newApplication)
 					assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", fieldName, test.expectedVal, actualValue)
-					assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key"], "annotation-value")
-					assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key2"], "annotation-value2")
-					assert.Equal(t, newApplication.ObjectMeta.Labels["label-key"], "label-value")
-					assert.Equal(t, newApplication.ObjectMeta.Labels["label-key2"], "label-value2")
-					assert.Equal(t, newApplication.ObjectMeta.Name, "application-one")
-					assert.Equal(t, newApplication.ObjectMeta.Namespace, "default")
-					assert.Equal(t, newApplication.ObjectMeta.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
-					assert.Equal(t, newApplication.ObjectMeta.CreationTimestamp, application.ObjectMeta.CreationTimestamp)
+					assert.Equal(t, "annotation-value", newApplication.Annotations["annotation-key"])
+					assert.Equal(t, "annotation-value2", newApplication.Annotations["annotation-key2"])
+					assert.Equal(t, "label-value", newApplication.Labels["label-key"])
+					assert.Equal(t, "label-value2", newApplication.Labels["label-key2"])
+					assert.Equal(t, "application-one", newApplication.Name)
+					assert.Equal(t, "default", newApplication.Namespace)
+					assert.Equal(t, newApplication.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
+					assert.Equal(t, newApplication.CreationTimestamp, application.CreationTimestamp)
 				}
 			}
 		})
@@ -658,7 +645,7 @@ func TestRenderGeneratorParams_does_not_panic(t *testing.T) {
 	// This test verifies that the RenderGeneratorParams function does not panic when the value in a map is a non-
 	// nillable type. This is a regression test.
 	render := Render{}
-	params := map[string]interface{}{
+	params := map[string]any{
 		"branch": "master",
 	}
 	generator := &argoappsv1.ApplicationSetGenerator{
@@ -679,7 +666,7 @@ func TestRenderGeneratorParams_does_not_panic(t *testing.T) {
 		},
 	}
 	_, err := render.RenderGeneratorParams(generator, params, true, []string{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestRenderTemplateKeys(t *testing.T) {
@@ -692,7 +679,7 @@ func TestRenderTemplateKeys(t *testing.T) {
 			},
 		}
 
-		params := map[string]interface{}{
+		params := map[string]any{
 			"key":   "some-key",
 			"value": "some-value",
 		}
@@ -700,8 +687,8 @@ func TestRenderTemplateKeys(t *testing.T) {
 		render := Render{}
 		newApplication, err := render.RenderTemplateParams(application, nil, params, false, nil)
 		require.NoError(t, err)
-		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
-		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
+		require.Contains(t, newApplication.Annotations, "annotation-some-key")
+		assert.Equal(t, "annotation-some-value", newApplication.Annotations["annotation-some-key"])
 	})
 	t.Run("gotemplate", func(t *testing.T) {
 		application := &argoappsv1.Application{
@@ -712,7 +699,7 @@ func TestRenderTemplateKeys(t *testing.T) {
 			},
 		}
 
-		params := map[string]interface{}{
+		params := map[string]any{
 			"key":   "some-key",
 			"value": "some-value",
 		}
@@ -720,8 +707,8 @@ func TestRenderTemplateKeys(t *testing.T) {
 		render := Render{}
 		newApplication, err := render.RenderTemplateParams(application, nil, params, true, nil)
 		require.NoError(t, err)
-		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
-		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
+		require.Contains(t, newApplication.Annotations, "annotation-some-key")
+		assert.Equal(t, "annotation-some-value", newApplication.Annotations["annotation-some-key"])
 	})
 }
 
@@ -729,12 +716,11 @@ func Test_Render_Replace_no_panic_on_missing_closing_brace(t *testing.T) {
 	r := &Render{}
 	assert.NotPanics(t, func() {
 		_, err := r.Replace("{{properly.closed}} {{improperly.closed}", nil, false, []string{})
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 }
 
 func TestRenderTemplateParamsFinalizers(t *testing.T) {
-
 	emptyApplication := &argoappsv1.Application{
 		Spec: argoappsv1.ApplicationSpec{
 			Source: &argoappsv1.ApplicationSource{
@@ -766,35 +752,35 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 		},
 		{
 			testName:           "background finalizer should be preserved",
-			existingFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
+			existingFinalizers: []string{argoappsv1.BackgroundPropagationPolicyFinalizer},
 			syncPolicy:         nil,
-			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
+			expectedFinalizers: []string{argoappsv1.BackgroundPropagationPolicyFinalizer},
 		},
 
 		{
 			testName:           "empty finalizer and empty sync should use standard finalizer",
 			existingFinalizers: nil,
 			syncPolicy:         nil,
-			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			expectedFinalizers: []string{argoappsv1.ResourcesFinalizerName},
 		},
 
 		{
 			testName:           "standard finalizer should be preserved",
-			existingFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			existingFinalizers: []string{argoappsv1.ResourcesFinalizerName},
 			syncPolicy:         nil,
-			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			expectedFinalizers: []string{argoappsv1.ResourcesFinalizerName},
 		},
 		{
 			testName:           "empty array finalizers should use standard finalizer",
 			existingFinalizers: []string{},
 			syncPolicy:         nil,
-			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			expectedFinalizers: []string{argoappsv1.ResourcesFinalizerName},
 		},
 		{
 			testName:           "non-nil sync policy should use standard finalizer",
 			existingFinalizers: nil,
 			syncPolicy:         &argoappsv1.ApplicationSetSyncPolicy{},
-			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			expectedFinalizers: []string{argoappsv1.ResourcesFinalizerName},
 		},
 		{
 			testName:           "preserveResourcesOnDeletion should not have a finalizer",
@@ -806,21 +792,19 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 		},
 		{
 			testName:           "user-specified finalizer should overwrite preserveResourcesOnDeletion",
-			existingFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
+			existingFinalizers: []string{argoappsv1.BackgroundPropagationPolicyFinalizer},
 			syncPolicy: &argoappsv1.ApplicationSetSyncPolicy{
 				PreserveResourcesOnDeletion: true,
 			},
-			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
+			expectedFinalizers: []string{argoappsv1.BackgroundPropagationPolicyFinalizer},
 		},
 	} {
-
 		t.Run(c.testName, func(t *testing.T) {
-
 			// Clone the template application
 			application := emptyApplication.DeepCopy()
 			application.Finalizers = c.existingFinalizers
 
-			params := map[string]interface{}{
+			params := map[string]any{
 				"one": "two",
 			}
 
@@ -828,23 +812,19 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 			render := Render{}
 
 			res, err := render.RenderTemplateParams(application, c.syncPolicy, params, true, nil)
-			assert.Nil(t, err)
+			require.NoError(t, err)
 
 			assert.ElementsMatch(t, res.Finalizers, c.expectedFinalizers)
-
 		})
-
 	}
-
 }
 
 func TestCheckInvalidGenerators(t *testing.T) {
-
 	scheme := runtime.NewScheme()
 	err := argoappsv1.AddToScheme(scheme)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	err = argoappsv1.AddToScheme(scheme)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	for _, c := range []struct {
 		testName    string
@@ -932,7 +912,7 @@ func TestCheckInvalidGenerators(t *testing.T) {
 		hook := logtest.NewGlobal()
 
 		_ = CheckInvalidGenerators(&c.appSet)
-		assert.True(t, len(hook.Entries) >= 1, c.testName)
+		assert.GreaterOrEqual(t, len(hook.Entries), 1, c.testName)
 		assert.NotNil(t, hook.LastEntry(), c.testName)
 		if hook.LastEntry() != nil {
 			assert.Equal(t, logrus.WarnLevel, hook.LastEntry().Level, c.testName)
@@ -943,12 +923,11 @@ func TestCheckInvalidGenerators(t *testing.T) {
 }
 
 func TestInvalidGenerators(t *testing.T) {
-
 	scheme := runtime.NewScheme()
 	err := argoappsv1.AddToScheme(scheme)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	err = argoappsv1.AddToScheme(scheme)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	for _, c := range []struct {
 		testName        string
@@ -1281,11 +1260,8 @@ func TestSlugify(t *testing.T) {
 }
 
 func TestGetTLSConfig(t *testing.T) {
-	// certParsed, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
-	// require.NoError(t, err)
-
 	temppath := t.TempDir()
-	cert := `
+	certFromFile := `
 -----BEGIN CERTIFICATE-----
 MIIFvTCCA6WgAwIBAgIUGrTmW3qc39zqnE08e3qNDhUkeWswDQYJKoZIhvcNAQEL
 BQAwbjELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAklMMRAwDgYDVQQHDAdDaGljYWdv
@@ -1321,48 +1297,94 @@ xO7Tr5lAo74vNUkF2EHNaI28/RGnJPm2TIxZqy4rNH6L
 -----END CERTIFICATE-----
 `
 
+	certFromCM := `
+-----BEGIN CERTIFICATE-----
+MIIDOTCCAiGgAwIBAgIQSRJrEpBGFc7tNb1fb5pKFzANBgkqhkiG9w0BAQsFADAS
+MRAwDgYDVQQKEwdBY21lIENvMCAXDTcwMDEwMTAwMDAwMFoYDzIwODQwMTI5MTYw
+MDAwWjASMRAwDgYDVQQKEwdBY21lIENvMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
+MIIBCgKCAQEA6Gba5tHV1dAKouAaXO3/ebDUU4rvwCUg/CNaJ2PT5xLD4N1Vcb8r
+bFSW2HXKq+MPfVdwIKR/1DczEoAGf/JWQTW7EgzlXrCd3rlajEX2D73faWJekD0U
+aUgz5vtrTXZ90BQL7WvRICd7FlEZ6FPOcPlumiyNmzUqtwGhO+9ad1W5BqJaRI6P
+YfouNkwR6Na4TzSj5BrqUfP0FwDizKSJ0XXmh8g8G9mtwxOSN3Ru1QFc61Xyeluk
+POGKBV/q6RBNklTNe0gI8usUMlYyoC7ytppNMW7X2vodAelSu25jgx2anj9fDVZu
+h7AXF5+4nJS4AAt0n1lNY7nGSsdZas8PbQIDAQABo4GIMIGFMA4GA1UdDwEB/wQE
+AwICpDATBgNVHSUEDDAKBggrBgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MB0GA1Ud
+DgQWBBStsdjh3/JCXXYlQryOrL4Sh7BW5TAuBgNVHREEJzAlggtleGFtcGxlLmNv
+bYcEfwAAAYcQAAAAAAAAAAAAAAAAAAAAATANBgkqhkiG9w0BAQsFAAOCAQEAxWGI
+5NhpF3nwwy/4yB4i/CwwSpLrWUa70NyhvprUBC50PxiXav1TeDzwzLx/o5HyNwsv
+cxv3HdkLW59i/0SlJSrNnWdfZ19oTcS+6PtLoVyISgtyN6DpkKpdG1cOkW3Cy2P2
++tK/tKHRP1Y/Ra0RiDpOAmqn0gCOFGz8+lqDIor/T7MTpibL3IxqWfPrvfVRHL3B
+grw/ZQTTIVjjh4JBSW3WyWgNo/ikC1lrVxzl4iPUGptxT36Cr7Zk2Bsg0XqwbOvK
+5d+NTDREkSnUbie4GeutujmX3Dsx88UiV6UY/4lHJa6I5leHUNOHahRbpbWeOfs/
+WkBKOclmOV2xlTVuPw==
+-----END CERTIFICATE-----
+`
+
 	rootCAPath := path.Join(temppath, "foo.example.com")
-	err := os.WriteFile(rootCAPath, []byte(cert), 0666)
+	err := os.WriteFile(rootCAPath, []byte(certFromFile), 0o666)
 	if err != nil {
 		panic(err)
 	}
-
-	certPool := x509.NewCertPool()
-	ok := certPool.AppendCertsFromPEM([]byte(cert))
-	assert.True(t, ok)
 
 	testCases := []struct {
 		name                    string
 		scmRootCAPath           string
 		insecure                bool
-		validateCertInTlsConfig bool
+		caCerts                 []byte
+		validateCertInTLSConfig bool
 	}{
 		{
 			name:                    "Insecure mode configured, SCM Root CA Path not set",
 			scmRootCAPath:           "",
 			insecure:                true,
-			validateCertInTlsConfig: false,
+			caCerts:                 nil,
+			validateCertInTLSConfig: false,
 		},
 		{
 			name:                    "SCM Root CA Path set, Insecure mode set to false",
 			scmRootCAPath:           rootCAPath,
 			insecure:                false,
-			validateCertInTlsConfig: true,
+			caCerts:                 nil,
+			validateCertInTLSConfig: true,
 		},
 		{
 			name:                    "SCM Root CA Path set, Insecure mode set to true",
 			scmRootCAPath:           rootCAPath,
 			insecure:                true,
-			validateCertInTlsConfig: true,
+			caCerts:                 nil,
+			validateCertInTLSConfig: true,
+		},
+		{
+			name:                    "Cert passed, Insecure mode set to false",
+			scmRootCAPath:           "",
+			insecure:                false,
+			caCerts:                 []byte(certFromCM),
+			validateCertInTLSConfig: true,
+		},
+		{
+			name:                    "SCM Root CA Path set, cert passed, Insecure mode set to false",
+			scmRootCAPath:           rootCAPath,
+			insecure:                false,
+			caCerts:                 []byte(certFromCM),
+			validateCertInTLSConfig: true,
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			tlsConfig := GetTlsConfig(testCase.scmRootCAPath, testCase.insecure)
+			certPool := x509.NewCertPool()
+			tlsConfig := GetTlsConfig(testCase.scmRootCAPath, testCase.insecure, testCase.caCerts)
 			assert.Equal(t, testCase.insecure, tlsConfig.InsecureSkipVerify)
-			if testCase.validateCertInTlsConfig {
-				assert.NotNil(t, tlsConfig)
+			if testCase.caCerts != nil {
+				ok := certPool.AppendCertsFromPEM([]byte(certFromCM))
+				assert.True(t, ok)
+			}
+			if testCase.scmRootCAPath != "" {
+				ok := certPool.AppendCertsFromPEM([]byte(certFromFile))
+				assert.True(t, ok)
+			}
+			assert.NotNil(t, tlsConfig)
+			if testCase.validateCertInTLSConfig {
 				assert.True(t, tlsConfig.RootCAs.Equal(certPool))
 			}
 		})

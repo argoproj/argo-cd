@@ -172,6 +172,8 @@ kubectl edit configmap argocd-cm -n argocd
 ```
 
 * In the `url` key, input the base URL of Argo CD. In this example, it is `https://argocd.example.com`
+* (Optional): If Argo CD should be accessible via multiple base URLs you may
+  specify any additional base URLs via the `additionalUrls` key.
 * In the `dex.config` key, add the `github` connector to the `connectors` sub field. See Dex's
   [GitHub connector](https://github.com/dexidp/website/blob/main/content/docs/connectors/github.md)
   documentation for explanation of the fields. A minimal config should populate the clientID,
@@ -208,7 +210,7 @@ data:
           - name: your-github-org
 ```
 
-After saving, the changes should take affect automatically.
+After saving, the changes should take effect automatically.
 
 NOTES:
 
@@ -251,7 +253,7 @@ data:
 
 By default Dex only retrieves the profile and email scopes. In order to retrieve more claims you
 can add them under the `scopes` entry in the Dex configuration. To enable group claims through Dex,
-`insecureEnableGroups` also needs to enabled. Group information is currently only refreshed at authentication
+`insecureEnableGroups` also needs to be enabled. Group information is currently only refreshed at authentication
 time and support to refresh group information more dynamically can be tracked here: [dexidp/dex#1065](https://github.com/dexidp/dex/issues/1065).
 
 ```yaml
@@ -260,7 +262,7 @@ data:
   dex.config: |
     connectors:
       # OIDC
-      - type: OIDC
+      - type: oidc
         id: oidc
         name: OIDC
         config:
@@ -290,7 +292,7 @@ data:
   dex.config: |
     connectors:
       # OIDC
-      - type: OIDC
+      - type: oidc
         id: oidc
         name: OIDC
         config:
@@ -345,10 +347,9 @@ data:
     # use the same clientID as the Argo CD server
     cliClientID: vvvvwwwwxxxxyyyyzzzz
 
-    # PKCE authentication flow processes authorization flow from browser only - default false
-    # uses the clientID
-    # make sure the Identity Provider (IdP) is public and doesn't need clientSecret
-    # make sure the Identity Provider (IdP) has this redirect URI registered: https://argocd.example.com/pkce/verify
+    # PKCE is an OIDC extension to prevent authorization code interception attacks.
+    # Make sure the identity provider supports it and that it is activated for Argo CD OIDC client.
+    # Default is false.
     enablePKCEAuthentication: true
 ```
 
@@ -500,7 +501,7 @@ data:
 
 #### Alternative
 
-If you want to store sensitive data in **another** Kubernetes `Secret`, instead of `argocd-secret`. ArgoCD knows to check the keys under `data` in your Kubernetes `Secret` for a corresponding key whenever a value in a configmap starts with `$`, then your Kubernetes `Secret` name and `:` (colon).
+If you want to store sensitive data in **another** Kubernetes `Secret`, instead of `argocd-secret`. ArgoCD knows to check the keys under `data` in your Kubernetes `Secret` for a corresponding key whenever a value in a configmap or secret starts with `$`, then your Kubernetes `Secret` name and `:` (colon).
 
 Syntax: `$<k8s_secret_name>:<a_key_in_that_k8s_secret>`
 

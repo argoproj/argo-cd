@@ -28,7 +28,7 @@ stringData:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.pagerdutyv2: |
     serviceKeys:
@@ -43,7 +43,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   template.rollout-aborted: |
     message: Rollout {{.rollout.metadata.name}} is aborted.
@@ -74,5 +74,5 @@ apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
   annotations:
-    notifications.argoproj.io/subscribe.on-rollout-aborted.pagerdutyv2: "<serviceID for Pagerduty>"
+    notifications.argoproj.io/subscribe.on-rollout-aborted.pagerdutyv2: "<serviceID for PagerDuty>"
 ```

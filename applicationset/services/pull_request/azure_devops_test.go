@@ -2,14 +2,17 @@ package pull_request
 
 import (
 	"context"
+	"errors"
 	"testing"
 
-	"github.com/microsoft/azure-devops-go-api/azuredevops/core"
-	git "github.com/microsoft/azure-devops-go-api/azuredevops/git"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/webapi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
-	azureMock "github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider/azure_devops/git/mocks"
+	azureMock "github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/azure_devops/git/mocks"
 )
 
 func createBoolPtr(x bool) *bool {
@@ -25,6 +28,10 @@ func createIntPtr(x int) *int {
 }
 
 func createLabelsPtr(x []core.WebApiTagDefinition) *[]core.WebApiTagDefinition {
+	return &x
+}
+
+func createUniqueNamePtr(x string) *string {
 	return &x
 }
 
@@ -54,20 +61,27 @@ func (m *AzureClientFactoryMock) GetClient(ctx context.Context) (git.Client, err
 func TestListPullRequest(t *testing.T) {
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
-	pr_id := 123
-	pr_head_sha := "cd4973d9d14a08ffe6b641a89a68891d6aac8056"
-	ctx := context.Background()
+	prID := 123
+	prTitle := "feat(123)"
+	prHeadSha := "cd4973d9d14a08ffe6b641a89a68891d6aac8056"
+	ctx := t.Context()
+	uniqueName := "testName"
 
 	pullRequestMock := []git.GitPullRequest{
 		{
-			PullRequestId: createIntPtr(pr_id),
+			PullRequestId: createIntPtr(prID),
+			Title:         createStringPtr(prTitle),
 			SourceRefName: createStringPtr("refs/heads/feature-branch"),
+			TargetRefName: createStringPtr("refs/heads/main"),
 			LastMergeSourceCommit: &git.GitCommitRef{
-				CommitId: createStringPtr(pr_head_sha),
+				CommitId: createStringPtr(prHeadSha),
 			},
 			Labels: &[]core.WebApiTagDefinition{},
 			Repository: &git.GitRepository{
 				Name: createStringPtr(repoName),
+			},
+			CreatedBy: &webapi.IdentityRef{
+				UniqueName: createUniqueNamePtr(uniqueName + "@example.com"),
 			},
 		},
 	}
@@ -90,11 +104,14 @@ func TestListPullRequest(t *testing.T) {
 	}
 
 	list, err := provider.List(ctx)
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(list))
+	require.NoError(t, err)
+	assert.Len(t, list, 1)
 	assert.Equal(t, "feature-branch", list[0].Branch)
-	assert.Equal(t, pr_head_sha, list[0].HeadSHA)
-	assert.Equal(t, pr_id, list[0].Number)
+	assert.Equal(t, "main", list[0].TargetBranch)
+	assert.Equal(t, prHeadSha, list[0].HeadSHA)
+	assert.Equal(t, "feat(123)", list[0].Title)
+	assert.Equal(t, prID, list[0].Number)
+	assert.Equal(t, uniqueName, list[0].Author)
 }
 
 func TestConvertLabes(t *testing.T) {
@@ -215,7 +232,40 @@ func TestBuildURL(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			result := buildURL(tc.url, tc.organization)
-			assert.Equal(t, result, tc.expected)
+			assert.Equal(t, tc.expected, result)
 		})
 	}
+}
+
+func TestAzureDevOpsListReturnsRepositoryNotFoundError(t *testing.T) {
+	args := git.GetPullRequestsByProjectArgs{
+		Project:        createStringPtr("nonexistent"),
+		SearchCriteria: &git.GitPullRequestSearchCriteria{},
+	}
+
+	pullRequestMock := []git.GitPullRequest{}
+
+	gitClientMock := azureMock.Client{}
+	clientFactoryMock := &AzureClientFactoryMock{mock: &mock.Mock{}}
+	clientFactoryMock.mock.On("GetClient", mock.Anything).Return(&gitClientMock, nil)
+
+	// Mock the GetPullRequestsByProject to return an error containing "404"
+	gitClientMock.On("GetPullRequestsByProject", t.Context(), args).Return(&pullRequestMock,
+		errors.New("The following project does not exist:"))
+
+	provider := AzureDevOpsService{
+		clientFactory: clientFactoryMock,
+		project:       "nonexistent",
+		repo:          "nonexistent",
+		labels:        nil,
+	}
+
+	prs, err := provider.List(t.Context())
+
+	// Should return empty pull requests list
+	assert.Empty(t, prs)
+
+	// Should return RepositoryNotFoundError
+	require.Error(t, err)
+	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
 }

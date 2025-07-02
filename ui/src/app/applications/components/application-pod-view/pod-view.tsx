@@ -11,7 +11,7 @@ import {PodViewPreferences, services, ViewPreferences} from '../../../shared/ser
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {ComparisonStatusIcon, isYoungerThanXMinutes, HealthStatusIcon, nodeKey, PodHealthIcon, deletePodAction} from '../utils';
+import {ComparisonStatusIcon, isYoungerThanXMinutes, HealthStatusIcon, nodeKey, PodHealthIcon} from '../utils';
 
 import './pod-view.scss';
 import {PodTooltip} from './pod-tooltip';
@@ -25,8 +25,15 @@ interface PodViewProps {
 }
 
 export type PodGroupType = 'topLevelResource' | 'parentResource' | 'node';
+export type SortOrder = 'asc' | 'desc';
+
+const labelForSortOrder: Record<SortOrder, string> = {
+    asc: 'Oldest First',
+    desc: 'Newest First'
+};
 
 export interface PodGroup extends Partial<ResourceNode> {
+    timestamp?: number;
     type: PodGroupType;
     pods: Pod[];
     info?: InfoItem[];
@@ -35,6 +42,7 @@ export interface PodGroup extends Partial<ResourceNode> {
     renderMenu?: () => React.ReactNode;
     renderQuickStarts?: () => React.ReactNode;
     fullName?: string;
+    hostLabels?: {[name: string]: string};
 }
 
 export class PodView extends React.Component<PodViewProps> {
@@ -53,6 +61,18 @@ export class PodView extends React.Component<PodViewProps> {
                     const podPrefs = prefs.appDetails.podView || ({} as PodViewPreferences);
                     const groups = this.processTree(podPrefs.sortMode, this.props.tree.hosts || []) || [];
 
+                    if (podPrefs.sortMode !== 'node' && podPrefs.sortOrder) {
+                        // Sort the groups in place based on precomputed timestamps
+                        groups.sort((a, b) => {
+                            const timeA = Date.parse(a.createdAt || '0');
+                            const timeB = Date.parse(b.createdAt || '0');
+                            a.timestamp = timeA;
+                            b.timestamp = timeB;
+
+                            return podPrefs.sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+                        });
+                    }
+
                     return (
                         <React.Fragment>
                             <div className='pod-view__settings'>
@@ -68,6 +88,20 @@ export class PodView extends React.Component<PodViewProps> {
                                         items={this.menuItemsFor(['node', 'parentResource', 'topLevelResource'], prefs)}
                                     />
                                 </div>
+                                {podPrefs.sortMode !== 'node' && (
+                                    <div className='pod-view__settings__section'>
+                                        SORT BY AGE:&nbsp;
+                                        <DropDownMenu
+                                            anchor={() => (
+                                                <button className='argo-button argo-button--base-o'>
+                                                    {labelForSortOrder[podPrefs.sortOrder || 'desc']}&nbsp;&nbsp;
+                                                    <i className='fa fa-chevron-circle-down' />
+                                                </button>
+                                            )}
+                                            items={this.sortOrderItemsFor(['asc', 'desc'], prefs)}
+                                        />
+                                    </div>
+                                )}
                                 {podPrefs.sortMode === 'node' && (
                                     <div className='pod-view__settings__section'>
                                         <button
@@ -129,12 +163,29 @@ export class PodView extends React.Component<PodViewProps> {
                                                         </div>
                                                     </div>
                                                     {group.type === 'node' ? (
-                                                        <div className='pod-view__node__info--large'>
-                                                            {(group.info || []).map(item => (
-                                                                <div key={item.name}>
-                                                                    {item.name}: <div>{item.value}</div>
+                                                        <div>
+                                                            <div className='pod-view__node__info--large'>
+                                                                {(group.info || []).map(item => (
+                                                                    <Tooltip content={`${item.name}: ${item.value}`} key={item.name}>
+                                                                        <div className='pod-view__node__info--large__item'>
+                                                                            <div className='pod-view__node__info--large__item__name'>{item.name}:</div>
+                                                                            <div className='pod-view__node__info--large__item__value'>{item.value}</div>
+                                                                        </div>
+                                                                    </Tooltip>
+                                                                ))}
+                                                            </div>
+                                                            {group.hostLabels && Object.keys(group.hostLabels).length > 0 ? (
+                                                                <div className='pod-view__node__info--large'>
+                                                                    {Object.keys(group.hostLabels || []).map(label => (
+                                                                        <Tooltip content={`${label}: ${group.hostLabels[label]}`} key={label}>
+                                                                            <div className='pod-view__node__info--large__item'>
+                                                                                <div className='pod-view__node__info--large__item__name'>{label}:</div>
+                                                                                <div className='pod-view__node__info--large__item__value'>{group.hostLabels[label]}</div>
+                                                                            </div>
+                                                                        </Tooltip>
+                                                                    ))}
                                                                 </div>
-                                                            ))}
+                                                            ) : null}
                                                         </div>
                                                     ) : (
                                                         <div className='pod-view__node__info'>
@@ -145,9 +196,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                     </Moment>
                                                                 </div>
                                                             ) : null}
-                                                            {group.info?.map(infoItem => (
-                                                                <div key={infoItem.name}>{infoItem.value}</div>
-                                                            ))}
+                                                            {group.info?.map(infoItem => <div key={infoItem.name}>{infoItem.value}</div>)}
                                                         </div>
                                                     )}
                                                 </div>
@@ -159,83 +208,43 @@ export class PodView extends React.Component<PodViewProps> {
                                                     )}
                                                     <div className='pod-view__node__pod-container pod-view__node__container'>
                                                         <div className='pod-view__node__pod-container__pods'>
-                                                            {group.pods.map(pod => (
-                                                                <DropDownMenu
-                                                                    key={pod.uid}
-                                                                    anchor={() => (
-                                                                        <Tooltip
-                                                                            content={<PodTooltip pod={pod} />}
-                                                                            popperOptions={{
-                                                                                modifiers: {
-                                                                                    preventOverflow: {
-                                                                                        enabled: true
-                                                                                    },
-                                                                                    hide: {
-                                                                                        enabled: false
-                                                                                    },
-                                                                                    flip: {
-                                                                                        enabled: false
-                                                                                    }
-                                                                                }
-                                                                            }}
-                                                                            key={pod.metadata.name}>
-                                                                            <div style={{position: 'relative'}}>
-                                                                                {isYoungerThanXMinutes(pod, 30) && (
-                                                                                    <i className='fas fa-circle pod-view__node__pod pod-view__node__pod__new-pod-icon' />
-                                                                                )}
-                                                                                <div className={`pod-view__node__pod pod-view__node__pod--${pod.health.toLowerCase()}`}>
-                                                                                    <PodHealthIcon state={{status: pod.health, message: ''}} />
-                                                                                </div>
-                                                                            </div>
-                                                                        </Tooltip>
-                                                                    )}
-                                                                    items={[
-                                                                        {
-                                                                            title: (
-                                                                                <React.Fragment>
-                                                                                    <i className='fa fa-info-circle' /> Info
-                                                                                </React.Fragment>
-                                                                            ),
-                                                                            action: () => this.props.onItemClick(pod.fullName)
-                                                                        },
-                                                                        {
-                                                                            title: (
-                                                                                <React.Fragment>
-                                                                                    <i className='fa fa-align-left' /> Logs
-                                                                                </React.Fragment>
-                                                                            ),
-                                                                            action: () => {
-                                                                                this.appContext.apis.navigation.goto('.', {node: pod.fullName, tab: 'logs'}, {replace: true});
-                                                                            }
-                                                                        },
-                                                                        {
-                                                                            title: (
-                                                                                <React.Fragment>
-                                                                                    <i className='fa fa-terminal' /> Exec
-                                                                                </React.Fragment>
-                                                                            ),
-                                                                            action: () => {
-                                                                                this.appContext.apis.navigation.goto('.', {node: pod.fullName, tab: 'exec'}, {replace: true});
-                                                                            }
-                                                                        },
-                                                                        {
-                                                                            title: (
-                                                                                <React.Fragment>
-                                                                                    <i className='fa fa-times-circle' /> Delete
-                                                                                </React.Fragment>
-                                                                            ),
-                                                                            action: () => {
-                                                                                deletePodAction(
-                                                                                    pod,
-                                                                                    this.appContext,
-                                                                                    this.props.app.metadata.name,
-                                                                                    this.props.app.metadata.namespace
-                                                                                );
-                                                                            }
-                                                                        }
-                                                                    ]}
-                                                                />
-                                                            ))}
+                                                            {group.pods.map(
+                                                                pod =>
+                                                                    this.props.nodeMenu && (
+                                                                        <DropDown
+                                                                            key={pod.uid}
+                                                                            isMenu={true}
+                                                                            anchor={() => (
+                                                                                <Tooltip
+                                                                                    content={<PodTooltip pod={pod} />}
+                                                                                    popperOptions={{
+                                                                                        modifiers: {
+                                                                                            preventOverflow: {
+                                                                                                enabled: true
+                                                                                            },
+                                                                                            hide: {
+                                                                                                enabled: false
+                                                                                            },
+                                                                                            flip: {
+                                                                                                enabled: false
+                                                                                            }
+                                                                                        }
+                                                                                    }}
+                                                                                    key={pod.metadata.name}>
+                                                                                    <div style={{position: 'relative'}}>
+                                                                                        {isYoungerThanXMinutes(pod, 30) && (
+                                                                                            <i className='fas fa-circle pod-view__node__pod pod-view__node__pod__new-pod-icon' />
+                                                                                        )}
+                                                                                        <div className={`pod-view__node__pod pod-view__node__pod--${pod.health.toLowerCase()}`}>
+                                                                                            <PodHealthIcon state={{status: pod.health, message: ''}} />
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </Tooltip>
+                                                                            )}>
+                                                                            {() => this.props.nodeMenu(pod)}
+                                                                        </DropDown>
+                                                                    )
+                                                            )}
                                                         </div>
                                                         <div className='pod-view__node__label'>PODS</div>
                                                         {(podPrefs.sortMode === 'parentResource' || podPrefs.sortMode === 'topLevelResource') && (
@@ -258,6 +267,26 @@ export class PodView extends React.Component<PodViewProps> {
                 }}
             </DataLoader>
         );
+    }
+
+    private sortOrderItemsFor(orders: SortOrder[], prefs: ViewPreferences): MenuItem[] {
+        const podPrefs = prefs.appDetails.podView || ({} as PodViewPreferences);
+        return orders.map(order => ({
+            title: (
+                <React.Fragment>
+                    {podPrefs.sortOrder === order && <i className='fa fa-check' />} {labelForSortOrder[order]}{' '}
+                </React.Fragment>
+            ),
+            action: () => {
+                this.appContext.apis.navigation.goto('.', {podSortOrder: order});
+                services.viewPreferences.updatePreferences({
+                    appDetails: {
+                        ...prefs.appDetails,
+                        podView: {...podPrefs, sortOrder: order}
+                    }
+                });
+            }
+        }));
     }
 
     private menuItemsFor(modes: PodGroupType[], prefs: ViewPreferences): MenuItem[] {
@@ -296,7 +325,8 @@ export class PodView extends React.Component<PodViewProps> {
                         {name: 'Kernel Version', value: infraNode.systemInfo.kernelVersion},
                         {name: 'OS/Arch', value: `${infraNode.systemInfo.operatingSystem}/${infraNode.systemInfo.architecture}`}
                     ],
-                    hostResourcesInfo: infraNode.resourcesInfo
+                    hostResourcesInfo: infraNode.resourcesInfo,
+                    hostLabels: infraNode.labels
                 };
             });
         }
@@ -366,7 +396,8 @@ export class PodView extends React.Component<PodViewProps> {
                                 {name: 'Kernel Version', value: 'N/A'},
                                 {name: 'OS/Arch', value: 'N/A'}
                             ],
-                            hostResourcesInfo: []
+                            hostResourcesInfo: [],
+                            hostLabels: {}
                         };
                     }
                 }
@@ -396,7 +427,7 @@ export class PodView extends React.Component<PodViewProps> {
             }
         });
 
-        Object.values(groupRefs).forEach(group => group.pods.sort((first, second) => nodeKey(first).localeCompare(nodeKey(second))));
+        Object.values(groupRefs).forEach(group => group.pods.sort((first, second) => nodeKey(first).localeCompare(nodeKey(second), undefined, {numeric: true})));
 
         return Object.values(groupRefs)
             .sort((a, b) => (a.name > b.name ? 1 : a.name === b.name ? 0 : -1)) // sort by name

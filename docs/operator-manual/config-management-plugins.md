@@ -2,11 +2,11 @@
 # Config Management Plugins
 
 Argo CD's "native" config management tools are Helm, Jsonnet, and Kustomize. If you want to use a different config
-management tools, or if Argo CD's native tool support does not include a feature you need, you might need to turn to
+management tool, or if Argo CD's native tool support does not include a feature you need, you might need to turn to
 a Config Management Plugin (CMP).
 
 The Argo CD "repo server" component is in charge of building Kubernetes manifests based on some source files from a
-Helm, OCI, or git repository. When a config management plugin is correctly configured, the repo server may delegate the
+Helm, OCI, or Git repository. When a config management plugin is correctly configured, the repo server may delegate the
 task of building manifests to the plugin.
 
 The following sections will describe how to create, install, and use plugins. Check out the
@@ -63,7 +63,7 @@ spec:
     # directory. If there is a match, this plugin may be used for the Application.
     fileName: "./subdir/s*.yaml"
     find:
-      # This does the same thing as fileName, but it supports double-start (nested directory) glob patterns.
+      # This does the same thing as fileName, but it supports double-star (nested directory) glob patterns.
       glob: "**/Chart.yaml"
       # The find command runs in the repository's root directory. To match, it must exit with status code 0 _and_ 
       # produce non-empty output to standard out.
@@ -113,6 +113,10 @@ spec:
   # If set to `true` then the plugin receives repository files with original file mode. Dangerous since the repository
   # might have executable files. Set to true only if you trust the CMP plugin authors.
   preserveFileMode: false
+
+  # If set to `true` then the plugin can retrieve git credentials from the reposerver during generate. Plugin authors 
+  # should ensure these credentials are appropriately protected during execution
+  provideGitCreds: false
 ```
 
 !!! note
@@ -178,7 +182,7 @@ entrypoint. You can use either off-the-shelf or custom-built plugin image as sid
 containers:
 - name: my-plugin
   command: [/var/run/argocd/argocd-cmp-server] # Entrypoint should be Argo CD lightweight CMP server i.e. argocd-cmp-server
-  image: busybox # This can be off-the-shelf or custom-built image
+  image: ubuntu # This can be off-the-shelf or custom-built image
   securityContext:
     runAsNonRoot: true
     runAsUser: 999
@@ -323,6 +327,8 @@ If you don't need to set any environment variables, you can set an empty plugin 
     and let the automatic discovery to identify the plugin.
 !!! note
     If a CMP renders blank manfiests, and `prune` is set to `true`, Argo CD will automatically remove resources. CMP plugin authors should ensure errors are part of the exit code. Commonly something like `kustomize build . | cat` won't pass errors because of the pipe. Consider setting `set -o pipefail` so anything piped will pass errors on failure.
+!!! note
+    If a CMP command fails to gracefully exit on `ARGOCD_EXEC_TIMEOUT`, it will be forcefully killed after an additional timeout of `ARGOCD_EXEC_FATAL_TIMEOUT`.
 
 ## Debugging a CMP
 
@@ -336,7 +342,7 @@ If you are actively developing a sidecar-installed CMP, keep a few things in min
 3. CMP errors are cached by the repo-server in Redis. Restarting the repo-server Pod will not clear the cache. Always
    do a "Hard Refresh" when actively developing a CMP so you have the latest output.
 4. Verify your sidecar has started properly by viewing the Pod and seeing that two containers are running `kubectl get pod -l app.kubernetes.io/component=repo-server -n argocd`
-5. Write log message to stderr and set the `--loglevel=info` flag in the sidecar. This will print everything written to stderr, even on successfull command execution.
+5. Write log message to stderr and set the `--loglevel=info` flag in the sidecar. This will print everything written to stderr, even on successful command execution.
 
 
 ### Other Common Errors
@@ -358,6 +364,16 @@ You can set it one of three ways:
 
 For option 1, the flag can be repeated multiple times. For option 2 and 3, you can specify multiple globs by separating
 them with semicolons.
+
+## Application manifests generation using argocd.argoproj.io/manifest-generate-paths
+
+To enhance the application manifests generation process, you can enable the use of the `argocd.argoproj.io/manifest-generate-paths` annotation. When this flag is enabled, the resources specified by this annotation will be passed to the CMP server for generating application manifests, rather than sending the entire repository. This can be particularly useful for monorepos.
+
+You can set it one of three ways:
+
+1. The `--plugin-use-manifest-generate-paths` argument on the repo server.
+2. The `reposerver.plugin.use.manifest.generate.paths` key if you are using `argocd-cmd-params-cm`
+3. Directly setting `ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS` environment variable on the repo server to `true`.
 
 ## Migrating from argocd-cm plugins
 
@@ -458,7 +474,7 @@ Plugins configured with argocd-cm ran on the Argo CD image. This gave it access 
 image by default (see the [Dockerfile](https://github.com/argoproj/argo-cd/blob/master/Dockerfile) for base image and
 installed tools).
 
-You can either use a stock image (like busybox, or alpine/k8s) or design your own base image with the tools your plugin needs. For
+You can either use a stock image (like ubuntu, busybox, or alpine/k8s) or design your own base image with the tools your plugin needs. For
 security, avoid using images with more binaries installed than what your plugin actually needs.
 
 ### Test the plugin
@@ -493,3 +509,40 @@ spec:
     args: ["sample args"]
   preserveFileMode: true
 ```
+
+##### Provide Git Credentials
+
+By default, the config management plugin is responsible for providing its own credentials to additional Git repositories
+that may need to be accessed during manifest generation. The reposerver has these credentials available in its git creds
+store. When credential sharing is allowed, the git credentials used by the reposerver to clone the repository contents
+are shared for the lifetime of the execution of the config management plugin, utilizing git's `ASKPASS` method to make a
+call from the config management sidecar container to the reposerver to retrieve the initialized git credentials.
+
+Utilizing `ASKPASS` means that credentials are not proactively shared, but rather only provided when an operation requires
+them.
+
+`ASKPASS` requires a socket to be shared between the config management plugin and the reposerver. To mitigate path traversal
+attacks, it's recommended to use a dedicated volume to share the socket, and mount it in the reposerver and sidecar.
+To change the socket path, you must set the `ARGOCD_ASK_PASS_SOCK` environment variable for both containers.
+
+To allow the plugin to access the reposerver git credentials, you can set `provideGitCreds` to `true` in the plugin spec:
+
+!!! warning
+    Make sure you trust the plugin you are using. If you set `provideGitCreds` to `true` then the plugin will receive
+    credentials used to clone the source Git repository.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: pluginName
+spec:
+  init:
+    command: ["sample command"]
+    args: ["sample args"]
+  generate:
+    command: ["sample command"]
+    args: ["sample args"]
+  provideGitCreds: true
+```
+

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	stderrors "errors"
 	"fmt"
 	"os"
 	"path"
@@ -10,15 +11,15 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/localconfig"
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/localconfig"
 )
 
 // NewContextCommand returns a new instance of an `argocd ctx` command
 func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var delete bool
-	var command = &cobra.Command{
+	var deletion bool
+	command := &cobra.Command{
 		Use:     "context [CONTEXT]",
 		Aliases: []string{"ctx"},
 		Short:   "Switch between contexts",
@@ -31,11 +32,10 @@ argocd context cd.argoproj.io
 # Delete Argo CD context
 argocd context cd.argoproj.io --delete`,
 		Run: func(c *cobra.Command, args []string) {
-
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errors.CheckError(err)
 
-			if delete {
+			if deletion {
 				if len(args) == 0 {
 					c.HelpFunc()(c, args)
 					os.Exit(1)
@@ -73,26 +73,25 @@ argocd context cd.argoproj.io --delete`,
 
 			err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
 			errors.CheckError(err)
-			err = os.WriteFile(prevCtxFile, []byte(prevCtx), 0644)
+			err = os.WriteFile(prevCtxFile, []byte(prevCtx), 0o644)
 			errors.CheckError(err)
 			fmt.Printf("Switched to context '%s'\n", localCfg.CurrentContext)
 		},
 	}
-	command.Flags().BoolVar(&delete, "delete", false, "Delete the context instead of switching to it")
+	command.Flags().BoolVar(&deletion, "delete", false, "Delete the context instead of switching to it")
 	return command
 }
 
 func deleteContext(context, configPath string) error {
-
 	localCfg, err := localconfig.ReadLocalConfig(configPath)
 	errors.CheckError(err)
 	if localCfg == nil {
-		return fmt.Errorf("Nothing to logout from")
+		return stderrors.New("nothing to logout from")
 	}
 
 	serverName, ok := localCfg.RemoveContext(context)
 	if !ok {
-		return fmt.Errorf("Context %s does not exist", context)
+		return fmt.Errorf("context %s does not exist", context)
 	}
 	_ = localCfg.RemoveUser(context)
 	_ = localCfg.RemoveServer(serverName)
@@ -106,7 +105,7 @@ func deleteContext(context, configPath string) error {
 		}
 		err = localconfig.ValidateLocalConfig(*localCfg)
 		if err != nil {
-			return fmt.Errorf("Error in logging out")
+			return stderrors.New("error in logging out")
 		}
 		err = localconfig.WriteLocalConfig(*localCfg, configPath)
 		errors.CheckError(err)

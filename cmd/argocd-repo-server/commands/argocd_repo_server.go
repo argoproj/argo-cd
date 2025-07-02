@@ -5,32 +5,37 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"os"
+	"os/signal"
+	"runtime/debug"
+	"sync"
+	"syscall"
 	"time"
 
-	"github.com/argoproj/pkg/stats"
+	"github.com/argoproj/pkg/v2/stats"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/reposerver"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
-	reposervercache "github.com/argoproj/argo-cd/v2/reposerver/cache"
-	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
-	"github.com/argoproj/argo-cd/v2/reposerver/repository"
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/gpg"
-	"github.com/argoproj/argo-cd/v2/util/healthz"
-	ioutil "github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/tls"
-	traceutil "github.com/argoproj/argo-cd/v2/util/trace"
+	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/reposerver"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	reposervercache "github.com/argoproj/argo-cd/v3/reposerver/cache"
+	"github.com/argoproj/argo-cd/v3/reposerver/metrics"
+	"github.com/argoproj/argo-cd/v3/reposerver/repository"
+	"github.com/argoproj/argo-cd/v3/util/askpass"
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/gpg"
+	"github.com/argoproj/argo-cd/v3/util/healthz"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/tls"
+	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
 )
 
 const (
@@ -48,34 +53,40 @@ var (
 
 func NewCommand() *cobra.Command {
 	var (
-		parallelismLimit                  int64
-		listenPort                        int
-		listenHost                        string
-		metricsPort                       int
-		metricsHost                       string
-		otlpAddress                       string
-		otlpInsecure                      bool
-		otlpHeaders                       map[string]string
-		otlpAttrs                         []string
-		cacheSrc                          func() (*reposervercache.Cache, error)
-		tlsConfigCustomizer               tls.ConfigCustomizer
-		tlsConfigCustomizerSrc            func() (tls.ConfigCustomizer, error)
-		redisClient                       *redis.Client
-		disableTLS                        bool
-		maxCombinedDirectoryManifestsSize string
-		cmpTarExcludedGlobs               []string
-		allowOutOfBoundsSymlinks          bool
-		streamedManifestMaxTarSize        string
-		streamedManifestMaxExtractedSize  string
-		helmManifestMaxExtractedSize      string
-		disableManifestMaxExtractedSize   bool
+		parallelismLimit                   int64
+		listenPort                         int
+		listenHost                         string
+		metricsPort                        int
+		metricsHost                        string
+		otlpAddress                        string
+		otlpInsecure                       bool
+		otlpHeaders                        map[string]string
+		otlpAttrs                          []string
+		cacheSrc                           func() (*reposervercache.Cache, error)
+		tlsConfigCustomizer                tls.ConfigCustomizer
+		tlsConfigCustomizerSrc             func() (tls.ConfigCustomizer, error)
+		redisClient                        *redis.Client
+		disableTLS                         bool
+		maxCombinedDirectoryManifestsSize  string
+		cmpTarExcludedGlobs                []string
+		allowOutOfBoundsSymlinks           bool
+		streamedManifestMaxTarSize         string
+		streamedManifestMaxExtractedSize   string
+		helmManifestMaxExtractedSize       string
+		helmRegistryMaxIndexSize           string
+		ociManifestMaxExtractedSize        string
+		disableOCIManifestMaxExtractedSize bool
+		disableManifestMaxExtractedSize    bool
+		includeHiddenDirectories           bool
+		cmpUseManifestGeneratePaths        bool
+		ociMediaTypes                      []string
 	)
-	var command = cobra.Command{
+	command := cobra.Command{
 		Use:               cliName,
 		Short:             "Run ArgoCD Repository Server",
 		Long:              "ArgoCD Repository Server is an internal service which maintains a local cache of the Git repository holding the application manifests, and is responsible for generating and returning the Kubernetes manifests.  This command runs Repository Server in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: func(c *cobra.Command, _ []string) error {
 			ctx := c.Context()
 
 			vers := common.GetVersion()
@@ -88,6 +99,13 @@ func NewCommand() *cobra.Command {
 
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
+
+			// Recover from panic and log the error using the configured logger instead of the default.
+			defer func() {
+				if r := recover(); r != nil {
+					log.WithField("trace", string(debug.Stack())).Fatal("Recovered from panic: ", r)
+				}
+			}()
 
 			if !disableTLS {
 				var err error
@@ -110,9 +128,15 @@ func NewCommand() *cobra.Command {
 			helmManifestMaxExtractedSizeQuantity, err := resource.ParseQuantity(helmManifestMaxExtractedSize)
 			errors.CheckError(err)
 
-			askPassServer := askpass.NewServer()
+			ociManifestMaxExtractedSizeQuantity, err := resource.ParseQuantity(ociManifestMaxExtractedSize)
+			errors.CheckError(err)
+
+			helmRegistryMaxIndexSizeQuantity, err := resource.ParseQuantity(helmRegistryMaxIndexSize)
+			errors.CheckError(err)
+
+			askPassServer := askpass.NewServer(askpass.SocketPath)
 			metricsServer := metrics.NewMetricsServer()
-			cacheutil.CollectMetrics(redisClient, metricsServer)
+			cacheutil.CollectMetrics(redisClient, metricsServer, nil)
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
 				ParallelismLimit: parallelismLimit,
 				PauseGenerationAfterFailedGenerationAttempts: pauseGenerationAfterFailedGenerationAttempts,
@@ -125,6 +149,12 @@ func NewCommand() *cobra.Command {
 				StreamedManifestMaxExtractedSize:             streamedManifestMaxExtractedSizeQuantity.ToDec().Value(),
 				StreamedManifestMaxTarSize:                   streamedManifestMaxTarSizeQuantity.ToDec().Value(),
 				HelmManifestMaxExtractedSize:                 helmManifestMaxExtractedSizeQuantity.ToDec().Value(),
+				HelmRegistryMaxIndexSize:                     helmRegistryMaxIndexSizeQuantity.ToDec().Value(),
+				OCIManifestMaxExtractedSize:                  ociManifestMaxExtractedSizeQuantity.ToDec().Value(),
+				DisableOCIManifestMaxExtractedSize:           disableOCIManifestMaxExtractedSize,
+				IncludeHiddenDirectories:                     includeHiddenDirectories,
+				CMPUseManifestGeneratePaths:                  cmpUseManifestGeneratePaths,
+				OCIMediaTypes:                                ociMediaTypes,
 			}, askPassServer)
 			errors.CheckError(err)
 
@@ -151,7 +181,7 @@ func NewCommand() *cobra.Command {
 					if err != nil {
 						return err
 					}
-					defer ioutil.Close(conn)
+					defer utilio.Close(conn)
 					client := grpc_health_v1.NewHealthClient(conn)
 					res, err := client.Check(r.Context(), &grpc_health_v1.HealthCheckRequest{})
 					if err != nil {
@@ -166,7 +196,7 @@ func NewCommand() *cobra.Command {
 			})
 			http.Handle("/metrics", metricsServer.GetHandler())
 			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf("%s:%d", metricsHost, metricsPort), nil)) }()
-			go func() { errors.CheckError(askPassServer.Run(askpass.SocketPath)) }()
+			go func() { errors.CheckError(askPassServer.Run()) }()
 
 			if gpg.IsGPGEnabled() {
 				log.Infof("Initializing GnuPG keyring at %s", common.GetGnuPGHomePath())
@@ -185,12 +215,31 @@ func NewCommand() *cobra.Command {
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
+
+			// Graceful shutdown code adapted from https://gist.github.com/embano1/e0bf49d24f1cdd07cffad93097c04f0a
+			sigCh := make(chan os.Signal, 1)
+			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				s := <-sigCh
+				log.Printf("got signal %v, attempting graceful shutdown", s)
+				grpc.GracefulStop()
+				wg.Done()
+			}()
+
+			log.Println("starting grpc server")
 			err = grpc.Serve(listener)
-			errors.CheckError(err)
+			if err != nil {
+				log.Fatalf("could not serve: %v", err)
+			}
+			wg.Wait()
+			log.Println("clean shutdown")
+
 			return nil
 		},
 	}
-	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", int64(env.ParseNumFromEnv("ARGOCD_REPO_SERVER_PARALLELISM_LIMIT", 0, 0, math.MaxInt32)), "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")
 	command.Flags().StringVar(&listenHost, "address", env.StringFromEnv("ARGOCD_REPO_SERVER_LISTEN_ADDRESS", common.DefaultAddressRepoServer), "Listen on given address for incoming connections")
@@ -208,10 +257,18 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&streamedManifestMaxTarSize, "streamed-manifest-max-tar-size", env.StringFromEnv("ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_TAR_SIZE", "100M"), "Maximum size of streamed manifest archives")
 	command.Flags().StringVar(&streamedManifestMaxExtractedSize, "streamed-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of streamed manifest archives when extracted")
 	command.Flags().StringVar(&helmManifestMaxExtractedSize, "helm-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of helm manifest archives when extracted")
+	command.Flags().StringVar(&helmRegistryMaxIndexSize, "helm-registry-max-index-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_INDEX_SIZE", "1G"), "Maximum size of registry index file")
+	command.Flags().StringVar(&ociManifestMaxExtractedSize, "oci-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_OCI_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of oci manifest archives when extracted")
+	command.Flags().BoolVar(&disableOCIManifestMaxExtractedSize, "disable-oci-manifest-max-extracted-size", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_OCI_MANIFEST_MAX_EXTRACTED_SIZE", false), "Disable maximum size of oci manifest archives when extracted")
 	command.Flags().BoolVar(&disableManifestMaxExtractedSize, "disable-helm-manifest-max-extracted-size", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE", false), "Disable maximum size of helm manifest archives when extracted")
+	command.Flags().BoolVar(&includeHiddenDirectories, "include-hidden-directories", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES", false), "Include hidden directories from Git")
+	command.Flags().BoolVar(&cmpUseManifestGeneratePaths, "plugin-use-manifest-generate-paths", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS", false), "Pass the resources described in argocd.argoproj.io/manifest-generate-paths value to the cmpserver to generate the application manifests.")
+	command.Flags().StringSliceVar(&ociMediaTypes, "oci-layer-media-types", env.StringsFromEnv("ARGOCD_REPO_SERVER_OCI_LAYER_MEDIA_TYPES", []string{"application/vnd.oci.image.layer.v1.tar", "application/vnd.oci.image.layer.v1.tar+gzip", "application/vnd.cncf.helm.chart.content.v1.tar+gzip"}, ","), "Comma separated list of allowed media types for OCI media types. This only accounts for media types within layers.")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
-	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
-		redisClient = client
+	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
+		OnClientCreated: func(client *redis.Client) {
+			redisClient = client
+		},
 	})
 	return &command
 }

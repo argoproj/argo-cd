@@ -5,6 +5,7 @@ package cli
 import (
 	"bufio"
 	"bytes"
+	stderrors "errors"
 	"flag"
 	"fmt"
 	"os"
@@ -25,10 +26,10 @@ import (
 	"k8s.io/kubectl/pkg/util/term"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	utillog "github.com/argoproj/argo-cd/v2/util/log"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	utillog "github.com/argoproj/argo-cd/v3/util/log"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
@@ -37,7 +38,7 @@ func NewVersionCmd(cliName string) *cobra.Command {
 	versionCmd := cobra.Command{
 		Use:   "version",
 		Short: "Print version information",
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			version := common.GetVersion()
 			fmt.Printf("%s: %s\n", cliName, version)
 			if short {
@@ -164,7 +165,7 @@ func ReadAndConfirmPassword(username string) (string, error) {
 			return "", err
 		}
 		fmt.Print("\n")
-		if string(password) == string(confirmPassword) {
+		if bytes.Equal(password, confirmPassword) {
 			return string(password), nil
 		}
 		log.Error("Passwords do not match")
@@ -203,7 +204,7 @@ func SetGLogLevel(glogLevel int) {
 func writeToTempFile(pattern string, data []byte) string {
 	f, err := os.CreateTemp("", pattern)
 	errors.CheckError(err)
-	defer io.Close(f)
+	defer utilio.Close(f)
 	_, err = f.Write(data)
 	errors.CheckError(err)
 	return f.Name()
@@ -275,12 +276,11 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 
 		updated, err := os.ReadFile(tempFile)
 		errors.CheckError(err)
-		if string(updated) == "" || string(updated) == string(data) {
-			errors.CheckError(fmt.Errorf("edit cancelled, no valid changes were saved"))
+		if len(updated) == 0 || bytes.Equal(updated, data) {
+			errors.CheckError(stderrors.New("edit cancelled, no valid changes were saved"))
 			break
-		} else {
-			data = stripComments(updated)
 		}
+		data = stripComments(updated)
 
 		err = save(data)
 		if err == nil {
@@ -305,11 +305,11 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 			return err
 		}
 	}
-	err = os.WriteFile(targetFile, targetData, 0644)
+	err = os.WriteFile(targetFile, targetData, 0o644)
 	if err != nil {
 		return err
 	}
-	liveFile := path.Join(tempDir, fmt.Sprintf("%s-live.yaml", name))
+	liveFile := path.Join(tempDir, name+"-live.yaml")
 	liveData := []byte("")
 	if live != nil {
 		liveData, err = yaml.Marshal(live)
@@ -317,7 +317,7 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 			return err
 		}
 	}
-	err = os.WriteFile(liveFile, liveData, 0644)
+	err = os.WriteFile(liveFile, liveData, 0o644)
 	if err != nil {
 		return err
 	}

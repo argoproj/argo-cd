@@ -8,22 +8,22 @@ import (
 	"os"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/yaml"
 
-	ioutil "github.com/argoproj/argo-cd/v2/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 func getOutWriter(inline bool, filePath string) (io.Writer, io.Closer, error) {
 	if !inline {
-		return os.Stdout, ioutil.NopCloser, nil
+		return os.Stdout, utilio.NopCloser, nil
 	}
 
 	if filePath == "" {
-		return nil, nil, errors.New("The file path must be specified using flag '--file'")
+		return nil, nil, errors.New("the file path must be specified using flag '--file'")
 	}
 
-	err := os.Rename(filePath, fmt.Sprintf("%s.back", filePath))
+	err := os.Rename(filePath, filePath+".back")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -36,9 +36,9 @@ func getOutWriter(inline bool, filePath string) (io.Writer, io.Closer, error) {
 }
 
 // PrintResources prints a single resource in YAML or JSON format to stdout according to the output format
-func PrintResources(output string, out io.Writer, resources ...interface{}) error {
+func PrintResources(output string, out io.Writer, resources ...any) error {
 	for i, resource := range resources {
-		if secret, ok := resource.(*v1.Secret); ok {
+		if secret, ok := resource.(*corev1.Secret); ok {
 			convertSecretData(secret)
 		}
 		filteredResource, err := omitFields(resource)
@@ -47,7 +47,7 @@ func PrintResources(output string, out io.Writer, resources ...interface{}) erro
 		}
 		resources[i] = filteredResource
 	}
-	var obj interface{} = resources
+	var obj any = resources
 	if len(resources) == 1 {
 		obj = resources[0]
 	}
@@ -74,13 +74,13 @@ func PrintResources(output string, out io.Writer, resources ...interface{}) erro
 }
 
 // omit fields such as status, creationTimestamp and metadata.namespace in k8s objects
-func omitFields(resource interface{}) (interface{}, error) {
+func omitFields(resource any) (any, error) {
 	jsonBytes, err := json.Marshal(resource)
 	if err != nil {
 		return nil, err
 	}
 
-	toMap := make(map[string]interface{})
+	toMap := make(map[string]any)
 	err = json.Unmarshal(jsonBytes, &toMap)
 	if err != nil {
 		return nil, err
@@ -88,7 +88,7 @@ func omitFields(resource interface{}) (interface{}, error) {
 
 	delete(toMap, "status")
 	if v, ok := toMap["metadata"]; ok {
-		if metadata, ok := v.(map[string]interface{}); ok {
+		if metadata, ok := v.(map[string]any); ok {
 			delete(metadata, "creationTimestamp")
 			delete(metadata, "namespace")
 		}
@@ -97,7 +97,7 @@ func omitFields(resource interface{}) (interface{}, error) {
 }
 
 // convertSecretData converts kubernetes secret's data to stringData
-func convertSecretData(secret *v1.Secret) {
+func convertSecretData(secret *corev1.Secret) {
 	secret.Kind = kube.SecretKind
 	secret.APIVersion = "v1"
 	secret.StringData = map[string]string{}

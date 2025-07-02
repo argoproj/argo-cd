@@ -1,0 +1,253 @@
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/argoproj/argo-cd/v3
+
+issues:
+  max-issues-per-linter: 0
+
+  max-same-issues: 0
+
+linters:
+  enable:
+    - errorlint
+    - exptostd
+    - gocritic
+    - gomodguard
+    - govet
+    - importas
+    - misspell
+    - perfsprint
+    - revive
+    - staticcheck
+    - testifylint
+    - thelper
+    - tparallel
+    - unparam
+    - usestdlibvars
+    - usetesting
+    - whitespace
+
+  exclusions:
+    rules:
+      - linters:
+          - unparam
+        path: (.+)_test\.go
+
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+
+    warn-unused: true
+
+  settings:
+    gocritic:
+      enable-all: true
+      # Most of these should probably be enabled one-by-one.
+      disabled-checks:
+        - appendAssign
+        - appendCombine # Leave disabled, multi-line assigns can be more readable.
+        - assignOp # Leave disabled, assign operations can be more confusing than helpful.
+        - commentedOutCode
+        - deferInLoop
+        - exitAfterDefer
+        - exposedSyncMutex
+        - hugeParam
+        - importShadow
+        - paramTypeCombine # Leave disabled, there are too many failures to be worth fixing.
+        - rangeValCopy
+        - tooManyResultsChecker
+        - unnamedResult
+        - whyNoLint
+
+    gomodguard:
+      blocked:
+        modules:
+          - github.com/golang-jwt/jwt/v4:
+              recommendations:
+                - github.com/golang-jwt/jwt/v5
+
+          - github.com/imdario/mergo:
+              recommendations:
+                - dario.cat/mergo
+              reason: '`github.com/imdario/mergo` has been renamed.'
+
+          - github.com/pkg/errors:
+              recommendations:
+                - errors
+
+    govet:
+      disable:
+        - fieldalignment
+        - shadow
+      enable-all: true
+
+    importas:
+      alias:
+        - pkg: github.com/golang-jwt/jwt/v5
+          alias: jwtgo
+
+        - pkg: k8s.io/api/apps/v1
+          alias: appsv1
+
+        - pkg: k8s.io/api/core/v1
+          alias: corev1
+
+        - pkg: k8s.io/api/rbac/v1
+          alias: rbacv1
+
+        - pkg: k8s.io/apimachinery/pkg/api/errors
+          alias: apierrors
+
+        - pkg: k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1
+          alias: apiextensionsv1
+
+        - pkg: k8s.io/apimachinery/pkg/apis/meta/v1
+          alias: metav1
+
+        - pkg: k8s.io/client-go/informers/core/v1
+          alias: informersv1
+
+        - pkg: errors
+          alias: stderrors
+
+        - pkg: github.com/argoproj/argo-cd/v3/util/io
+          alias: utilio
+
+    nolintlint:
+      require-specific: true
+
+    perfsprint:
+      # Optimizes even if it requires an int or uint type cast.
+      int-conversion: true
+      # Optimizes into `err.Error()` even if it is only equivalent for non-nil errors.
+      err-error: true
+      # Optimizes `fmt.Errorf`.
+      errorf: true
+      # Optimizes `fmt.Sprintf` with only one argument.
+      sprintf1: true
+      # Optimizes into strings concatenation.
+      strconcat: true
+
+    revive:
+      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md
+      rules:
+        - name: bool-literal-in-expr
+
+        - name: blank-imports
+          disabled: true
+
+        - name: context-as-argument
+          arguments:
+            - allowTypesBefore: '*testing.T,testing.TB'
+
+        - name: context-keys-type
+          disabled: true
+
+        - name: dot-imports
+          disabled: true
+
+        - name: duplicated-imports
+
+        - name: early-return
+          arguments:
+            - preserveScope
+
+        - name: empty-block
+          disabled: true
+
+        - name: error-naming
+          disabled: true
+
+        - name: error-return
+
+        - name: error-strings
+          disabled: true
+
+        - name: errorf
+
+        - name: identical-branches
+
+        - name: if-return
+
+        - name: increment-decrement
+
+        - name: indent-error-flow
+          arguments:
+            - preserveScope
+
+        - name: modifies-parameter
+
+        - name: optimize-operands-order
+
+        - name: range
+
+        - name: receiver-naming
+
+        - name: redefines-builtin-id
+          disabled: true
+
+        - name: redundant-import-alias
+
+        - name: superfluous-else
+          arguments:
+            - preserveScope
+
+        - name: time-equal
+
+        - name: time-naming
+          disabled: true
+
+        - name: unexported-return
+          disabled: true
+
+        - name: unnecessary-stmt
+
+        - name: unreachable-code
+
+        - name: unused-parameter
+
+        - name: use-any
+
+        - name: useless-break
+
+        - name: var-declaration
+
+        - name: var-naming
+          arguments:
+            - - ID
+            - - VM
+            - - skipPackageNameChecks: true
+                upperCaseConst: true
+
+    staticcheck:
+      checks:
+        - all
+        - -SA5011
+        - -ST1003
+        - -ST1016
+
+    testifylint:
+      enable-all: true
+
+      disable:
+        - go-require
+
+    unused:
+      field-writes-are-uses: false
+      exported-fields-are-used: false
+
+    usetesting:
+      os-mkdir-temp: false
+
+output:
+  show-stats: false
+
+version: "2"

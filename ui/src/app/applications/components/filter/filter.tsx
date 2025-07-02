@@ -52,10 +52,18 @@ export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) 
     );
 };
 
-export const FiltersGroup = (props: {children?: React.ReactNode; content: React.ReactNode; appliedFilter?: string[]; onClearFilter?: () => void; collapsed?: boolean}) => {
+export const FiltersGroup = (props: {
+    children?: React.ReactNode;
+    content: React.ReactNode;
+    appliedFilter?: string[];
+    onClearFilter?: () => void;
+    collapsed?: boolean;
+    title?: string;
+}) => {
     return (
         !props.collapsed && (
             <div className='filters-group'>
+                {props.title && <div className='filters-group__title'>{props.title}</div>}
                 {props.appliedFilter?.length > 0 && props.onClearFilter && (
                     <div className='filters-group__header'>
                         <button onClick={() => props.onClearFilter()} className='argo-button argo-button--base argo-button--sm'>
@@ -148,7 +156,7 @@ export const Filter = (props: FilterProps) => {
                                     setValues(update);
                                 }}
                                 style={{width: '100%'}}
-                                inputStyle={{marginBottom: '0.5em', backgroundColor: 'black', border: 'none'}}
+                                inputStyle={{marginBottom: '0.5em', backgroundColor: 'black', border: 'none', color: '#fff'}}
                             />
                         )}
                         {((props.field ? tags : options) || []).map((opt, i) => (

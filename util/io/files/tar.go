@@ -30,12 +30,26 @@ func Tgz(srcPath string, inclusions []string, exclusions []string, writers ...io
 		return 0, fmt.Errorf("error inspecting srcPath %q: %w", srcPath, err)
 	}
 
-	mw := io.MultiWriter(writers...)
-
-	gzw := gzip.NewWriter(mw)
+	gzw := gzip.NewWriter(io.MultiWriter(writers...))
 	defer gzw.Close()
 
-	tw := tar.NewWriter(gzw)
+	return writeFile(srcPath, inclusions, exclusions, gzw)
+}
+
+// Tar will iterate over all files found in srcPath archiving with Tar. Will invoke every given writer while generating the tar.
+// This is useful to generate checksums. Will exclude files matching the exclusions
+// list blob if exclusions is not nil. Will include only the files matching the
+// inclusions list if inclusions is not nil.
+func Tar(srcPath string, inclusions []string, exclusions []string, writers ...io.Writer) (int, error) {
+	if _, err := os.Stat(srcPath); err != nil {
+		return 0, fmt.Errorf("error inspecting srcPath %q: %w", srcPath, err)
+	}
+
+	return writeFile(srcPath, inclusions, exclusions, io.MultiWriter(writers...))
+}
+
+func writeFile(srcPath string, inclusions []string, exclusions []string, writer io.Writer) (int, error) {
+	tw := tar.NewWriter(writer)
 	defer tw.Close()
 
 	t := &tgz{
@@ -45,7 +59,6 @@ func Tgz(srcPath string, inclusions []string, exclusions []string, writers ...io
 		tarWriter:  tw,
 	}
 	err := filepath.Walk(srcPath, t.tgzFile)
-
 	if err != nil {
 		return 0, err
 	}
@@ -57,7 +70,7 @@ func Tgz(srcPath string, inclusions []string, exclusions []string, writers ...io
 // Callers must make sure dstPath is:
 //   - a full path
 //   - points to an empty directory or
-//   - points to a non existing directory
+//   - points to a non-existing directory
 func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) error {
 	if !filepath.IsAbs(dstPath) {
 		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
@@ -68,9 +81,29 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 		return fmt.Errorf("error reading file: %w", err)
 	}
 	defer gzr.Close()
+	return untar(dstPath, io.LimitReader(gzr, maxSize), preserveFileMode)
+}
 
-	lr := io.LimitReader(gzr, maxSize)
-	tr := tar.NewReader(lr)
+// Untar will loop over the tar reader creating the file structure at dstPath.
+// Callers must make sure dstPath is:
+//   - a full path
+//   - points to an empty directory or
+//   - points to a non-existing directory
+func Untar(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) error {
+	if !filepath.IsAbs(dstPath) {
+		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
+	}
+
+	return untar(dstPath, io.LimitReader(r, maxSize), preserveFileMode)
+}
+
+// untar will loop over the tar reader creating the file structure at dstPath.
+// Callers must make sure dstPath is:
+//   - a full path
+//   - points to an empty directory or
+//   - points to a non existing directory
+func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
+	tr := tar.NewReader(r)
 
 	for {
 		header, err := tr.Next()
@@ -80,7 +113,7 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 			}
 			return fmt.Errorf("error while iterating on tar reader: %w", err)
 		}
-		if header == nil || header.Name == "." {
+		if header == nil || header.Name == "." || header.Name == "./" {
 			continue
 		}
 
@@ -92,7 +125,7 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			var mode os.FileMode = 0755
+			var mode os.FileMode = 0o755
 			if preserveFileMode {
 				mode = os.FileMode(header.Mode)
 			}
@@ -107,22 +140,22 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 			if os.IsNotExist(err) {
 				realPath = linkTarget
 			} else if err != nil {
-				return fmt.Errorf("error checking symlink realpath: %s", err)
+				return fmt.Errorf("error checking symlink realpath: %w", err)
 			}
 			if !Inbound(realPath, dstPath) {
 				return fmt.Errorf("illegal filepath in symlink: %s", linkTarget)
 			}
 			err = os.Symlink(realPath, target)
 			if err != nil {
-				return fmt.Errorf("error creating symlink: %s", err)
+				return fmt.Errorf("error creating symlink: %w", err)
 			}
 		case tar.TypeReg:
-			var mode os.FileMode = 0644
+			var mode os.FileMode = 0o644
 			if preserveFileMode {
 				mode = os.FileMode(header.Mode)
 			}
 
-			err := os.MkdirAll(filepath.Dir(target), 0755)
+			err := os.MkdirAll(filepath.Dir(target), 0o755)
 			if err != nil {
 				return fmt.Errorf("error creating nested folders: %w", err)
 			}
@@ -155,7 +188,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 
 	relativePath, err := RelativePath(path, t.srcPath)
 	if err != nil {
-		return fmt.Errorf("relative path error: %s", err)
+		return fmt.Errorf("relative path error: %w", err)
 	}
 
 	if t.inclusions != nil && base != "." && !fi.IsDir() {
@@ -197,7 +230,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	if IsSymlink(fi) {
 		link, err = os.Readlink(path)
 		if err != nil {
-			return fmt.Errorf("error getting link target: %s", err)
+			return fmt.Errorf("error getting link target: %w", err)
 		}
 	}
 

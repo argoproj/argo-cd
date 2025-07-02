@@ -1,0 +1,14 @@
+tests:
+- healthStatus:
+    status: Degraded
+    message: >-
+      delete failed: operation error S3: DeleteBucket, https response error
+      StatusCode: 409, RequestID: ABC123, HostID:
+      ABC/123/ABC=,
+      api error BucketNotEmpty: The bucket you tried to delete is not empty.
+      You must delete all versions in the bucket.
+  inputPath: testdata/ReconcileError.yaml
+- healthStatus:
+    status: Healthy
+    message: Available
+  inputPath: testdata/healthy.yaml

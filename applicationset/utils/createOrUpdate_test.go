@@ -8,10 +8,13 @@ import (
 	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
 
 func Test_applyIgnoreDifferences(t *testing.T) {
+	t.Parallel()
+
 	appMeta := metav1.TypeMeta{
 		APIVersion: v1alpha1.ApplicationSchemaGroupVersionKind.GroupVersion().String(),
 		Kind:       v1alpha1.ApplicationSchemaGroupVersionKind.Kind,
@@ -222,13 +225,13 @@ spec:
 			generatedApp := v1alpha1.Application{TypeMeta: appMeta}
 			err = yaml.Unmarshal([]byte(tc.generatedApp), &generatedApp)
 			require.NoError(t, err, tc.generatedApp)
-			err = applyIgnoreDifferences(tc.ignoreDifferences, &foundApp, &generatedApp)
+			err = applyIgnoreDifferences(tc.ignoreDifferences, &foundApp, &generatedApp, normalizers.IgnoreNormalizerOpts{})
 			require.NoError(t, err)
 			yamlFound, err := yaml.Marshal(tc.foundApp)
 			require.NoError(t, err)
 			yamlExpected, err := yaml.Marshal(tc.expectedApp)
 			require.NoError(t, err)
-			assert.Equal(t, string(yamlExpected), string(yamlFound))
+			assert.YAMLEq(t, string(yamlExpected), string(yamlFound))
 		})
 	}
 }

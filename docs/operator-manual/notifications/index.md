@@ -14,7 +14,7 @@ So you can just use them instead of reinventing new ones.
     kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/notifications_catalog/install.yaml
     ```
 
-* Add Email username and password token to `argocd-notifications-secret` secret
+* Add email username and password token to the `argocd-notifications-secret` secret
 
     ```bash
     EMAIL_USER=<your-username>
@@ -32,7 +32,7 @@ So you can just use them instead of reinventing new ones.
     EOF
     ```
 
-* Register Email notification service
+* Register email notification service
 
     ```bash
     kubectl patch cm argocd-notifications-cm -n argocd --type merge -p '{"data": {"service.email.gmail": "{ username: $email-username, password: $email-password, host: smtp.gmail.com, port: 465, from: $email-username }" }}'
@@ -67,7 +67,7 @@ metadata:
   name: argocd-cmd-params-cm
 data:
   application.namespaces: app-team-one, app-team-two
-  notificationscontroller.selfservice.enabled: true
+  notificationscontroller.selfservice.enabled: "true"
 ```
 
 To use this feature, you can deploy configmap named `argocd-notifications-cm` and possibly a secret `argocd-notifications-secret` in the namespace where the Argo CD application lives.
@@ -93,7 +93,7 @@ data:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: argo-cd-notification-secret
+  name: argocd-notifications-secret
 type: Opaque
 data:
   pagerduty-key-my-service: <pd-integration-key>
@@ -112,4 +112,4 @@ metadata:
     When the same notification service and trigger are defined in controller level configuration and application level configuration,
     both notifications will be sent according to its own configuration.
 
-[Defining and using secrets within notification templates](templates.md/#defining-and-using-secrets-within-notification-templates) function is not available when flag `--self-service-notification-enable` is on.
+[Defining and using secrets within notification templates](templates/#defining-and-using-secrets-within-notification-templates) function is not available when flag `--self-service-notification-enable` is on.

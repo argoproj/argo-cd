@@ -1,0 +1,70 @@
+apiVersion: numaplane.numaproj.io/v1alpha1
+kind: MonoVertexRollout
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"numaplane.numaproj.io/v1alpha1","kind":"MonoVertexRollout","metadata":{"annotations":{},"name":"my-monovertex","namespace":"example-namespace"},"spec":{"monoVertex":{"spec":{"sink":{"udsink":{"container":{"image":"quay.io/numaio/numaflow-go/sink-log:stable"}}},"source":{"udsource":{"container":{"image":"quay.io/numaio/numaflow-go/source-simple-source:bad-image"}}}}},"strategy":{"progressive":{"assessmentSchedule":"60,60,10"}}}}
+  creationTimestamp: "2025-03-03T18:51:52Z"
+  finalizers:
+  - numaplane.numaproj.io/numaplane-controller
+  generation: 3
+  name: my-monovertex
+  namespace: example-namespace
+  resourceVersion: "314047"
+  uid: d948cd56-e383-4a18-8100-34b513976614
+spec:
+  monoVertex:
+    metadata: {}
+    spec:
+      sink:
+        udsink:
+          container:
+            image: quay.io/numaio/numaflow-go/sink-log:stable
+      source:
+        udsource:
+          container:
+            image: quay.io/numaio/numaflow-go/source-simple-source:bad-image
+  strategy:
+    progressive:
+      assessmentSchedule: 60,60,10
+      forcePromote: false
+status:
+  conditions:
+  - lastTransitionTime: "2025-03-03T18:51:52Z"
+    message: Successful
+    observedGeneration: 2
+    reason: Successful
+    status: "True"
+    type: ChildResourceDeployed
+  - lastTransitionTime: "2025-03-03T18:54:08Z"
+    message: Successful
+    observedGeneration: 3
+    reason: Successful
+    status: "True"
+    type: ChildResourcesHealthy
+  - lastTransitionTime: "2025-03-03T18:51:52Z"
+    message: MonoVertex unpaused
+    observedGeneration: 3
+    reason: Unpaused
+    status: "False"
+    type: MonoVertexPausingOrPaused
+  - lastTransitionTime: "2025-03-03T18:54:02Z"
+    message: New Child Object example-namespace/my-monovertex-1 Failed
+    observedGeneration: 3
+    reason: Failed
+    status: "False"
+    type: ProgressiveUpgradeSucceeded
+  message: Progressing
+  nameCount: 2
+  observedGeneration: 3
+  phase: Pending
+  progressiveStatus:
+    promotedMonoVertexStatus:
+      name: my-monovertex-0
+      scaleValuesRestoredToOriginal: true
+    upgradingMonoVertexStatus:
+      assessmentEndTime: "2025-03-03T18:54:56Z"
+      assessmentResult: Failure
+      assessmentStartTime: "2025-03-03T18:53:53Z"
+      name: my-monovertex-1
+  upgradeInProgress: Progressive

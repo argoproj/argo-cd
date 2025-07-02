@@ -23,6 +23,7 @@ nav:
   - operator-manual/index.md
   - operator-manual/architecture.md
   - operator-manual/installation.md
+  - operator-manual/feature-maturity.md
   - operator-manual/core.md
   - operator-manual/declarative-setup.md
   - operator-manual/app-any-namespace.md
@@ -47,6 +48,7 @@ nav:
     - snyk/index.md
     - operator-manual/signed-release-assets.md
   - operator-manual/tls.md
+  - operator-manual/cluster-management.md
   - operator-manual/cluster-bootstrapping.md
   - operator-manual/secret-management.md
   - operator-manual/disaster_recovery.md
@@ -72,6 +74,7 @@ nav:
     - operator-manual/notifications/troubleshooting.md
     - operator-manual/notifications/troubleshooting-commands.md
     - operator-manual/notifications/troubleshooting-errors.md
+    - operator-manual/notifications/examples.md
     - Notification Services:
       - operator-manual/notifications/services/alertmanager.md
       - operator-manual/notifications/services/awssqs.md
@@ -128,6 +131,12 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/3.0-3.1.md
+    - operator-manual/upgrading/2.14-3.0.md
+    - operator-manual/upgrading/2.13-2.14.md
+    - operator-manual/upgrading/2.12-2.13.md
+    - operator-manual/upgrading/2.11-2.12.md
+    - operator-manual/upgrading/2.10-2.11.md
     - operator-manual/upgrading/2.9-2.10.md
     - operator-manual/upgrading/2.8-2.9.md
     - operator-manual/upgrading/2.7-2.8.md
@@ -153,16 +162,20 @@ nav:
   - user-guide/application_sources.md
   - user-guide/kustomize.md
   - user-guide/helm.md
+  - user-guide/oci.md
   - user-guide/import.md
   - user-guide/jsonnet.md
   - user-guide/directory.md
   - user-guide/tool_detection.md
   - user-guide/projects.md
   - user-guide/private-repositories.md
+  - user-guide/plugins.md
   - user-guide/multiple_sources.md
   - GnuPG verification: user-guide/gpg-verification.md
   - user-guide/auto_sync.md
-  - user-guide/diffing.md
+  - Diffing:
+    - Diff Strategies: user-guide/diff-strategies.md
+    - Diff Customization: user-guide/diffing.md
   - user-guide/orphaned-resources.md
   - user-guide/compare-options.md
   - user-guide/sync-options.md
@@ -199,18 +212,18 @@ nav:
   - developer-guide/release-process-and-cadence.md
   - developer-guide/running-locally.md
   - developer-guide/debugging-remote-environment.md
-  - developer-guide/use-gitpod.md
   - developer-guide/api-docs.md
   - developer-guide/test-e2e.md
   - developer-guide/dependencies.md
   - developer-guide/ci.md
   - developer-guide/releasing.md
-  - developer-guide/site.md
+  - developer-guide/docs-site.md
   - developer-guide/static-code-analysis.md
   - Extensions:
     - developer-guide/extensions/ui-extensions.md
     - developer-guide/extensions/proxy-extensions.md
   - developer-guide/faq.md
+  - developer-guide/tilt.md
 - faq.md
 - security_considerations.md
 - Support: SUPPORT.md
@@ -219,6 +232,7 @@ nav:
 - Blog ⧉: https://blog.argoproj.io/
 repo_url: https://github.com/argoproj/argo-cd
 site_name: Argo CD - Declarative GitOps CD for Kubernetes
+site_url: !ENV READTHEDOCS_CANONICAL_URL
 strict: true
 theme:
   custom_dir: overrides

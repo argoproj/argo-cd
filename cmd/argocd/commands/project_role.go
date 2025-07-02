@@ -7,22 +7,24 @@ import (
 	"text/tabwriter"
 	"time"
 
-	timeutil "github.com/argoproj/pkg/time"
-	jwtgo "github.com/golang-jwt/jwt/v4"
+	timeutil "github.com/argoproj/pkg/v2/time"
+	jwtgo "github.com/golang-jwt/jwt/v5"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/jwt"
-	"github.com/argoproj/argo-cd/v2/util/templates"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/jwt"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/templates"
 )
 
 const (
-	policyTemplate = "p, proj:%s:%s, applications, %s, %s/%s, %s"
+	policyTemplate = "p, proj:%s:%s, %s, %s, %s/%s, %s"
 )
 
 // NewProjectRoleCommand returns a new instance of the `argocd proj role` command
@@ -51,10 +53,8 @@ func NewProjectRoleCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 
 // NewProjectRoleAddPolicyCommand returns a new instance of an `argocd proj role add-policy` command
 func NewProjectRoleAddPolicyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		opts policyOpts
-	)
-	var command = &cobra.Command{
+	var opts policyOpts
+	command := &cobra.Command{
 		Use:   "add-policy PROJECT ROLE-NAME",
 		Short: "Add a policy to a project role",
 		Example: `# Before adding new policy
@@ -80,18 +80,33 @@ p, proj:test-project:test-role, applications, update, test-project/project, allo
 JWT Tokens:
 ID          ISSUED-AT                                EXPIRES-AT
 1696759698  2023-10-08T11:08:18+01:00 (3 hours ago)  <none>
+
+# Add a new policy to allow get logs to the project
+$ argocd proj role add-policy test-project test-role -a get -p allow -o project -r logs
+
+# Policy should be updated
+$  argocd proj role get test-project test-role
+Role Name:     test-role
+Description:
+Policies:
+p, proj:test-project:test-role, projects, get, test-project, allow
+p, proj:test-project:test-role, applications, update, test-project/project, allow
+p, proj:test-project:test-role, logs, get, test-project/project, allow
+JWT Tokens:
+ID          ISSUED-AT                                EXPIRES-AT
+1696759698  2023-10-08T11:08:18+01:00 (3 hours ago)  <none>
 `,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
-			if len(args) != 2 {
+			if len(args) != 2 || !rbac.ProjectScoped[opts.resource] {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 			projName := args[0]
 			roleName := args[1]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -99,7 +114,7 @@ ID          ISSUED-AT                                EXPIRES-AT
 			role, roleIndex, err := proj.GetRoleByName(roleName)
 			errors.CheckError(err)
 
-			policy := fmt.Sprintf(policyTemplate, proj.Name, role.Name, opts.action, proj.Name, opts.object, opts.permission)
+			policy := fmt.Sprintf(policyTemplate, proj.Name, role.Name, opts.resource, opts.action, proj.Name, opts.object, opts.permission)
 			proj.Spec.Roles[roleIndex].Policies = append(role.Policies, policy)
 
 			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
@@ -112,10 +127,8 @@ ID          ISSUED-AT                                EXPIRES-AT
 
 // NewProjectRoleRemovePolicyCommand returns a new instance of an `argocd proj role remove-policy` command
 func NewProjectRoleRemovePolicyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		opts policyOpts
-	)
-	var command = &cobra.Command{
+	var opts policyOpts
+	command := &cobra.Command{
 		Use:   "remove-policy PROJECT ROLE-NAME",
 		Short: "Remove a policy from a role within a project",
 		Example: `List the policy of the test-role before removing a policy
@@ -125,12 +138,28 @@ Description:
 Policies:
 p, proj:test-project:test-role, projects, get, test-project, allow
 p, proj:test-project:test-role, applications, update, test-project/project, allow
+p, proj:test-project:test-role, logs, get, test-project/project, allow
 JWT Tokens:
 ID          ISSUED-AT                                EXPIRES-AT
 1696759698  2023-10-08T11:08:18+01:00 (3 hours ago)  <none>
 
 # Remove the policy to allow update to objects
 $ argocd proj role remove-policy test-project test-role -a update -p allow -o project
+
+# The role should be removed now.
+$ argocd proj role get test-project test-role
+Role Name:     test-role
+Description:
+Policies:
+p, proj:test-project:test-role, projects, get, test-project, allow
+p, proj:test-project:test-role, logs, get, test-project/project, allow
+JWT Tokens:
+ID          ISSUED-AT                                EXPIRES-AT
+1696759698  2023-10-08T11:08:18+01:00 (4 hours ago)  <none>
+
+
+# Remove the logs read policy
+$ argocd proj role remove-policy test-project test-role -a get -p allow -o project -r logs
 
 # The role should be removed now.
 $ argocd proj role get test-project test-role
@@ -145,14 +174,14 @@ ID          ISSUED-AT                                EXPIRES-AT
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
-			if len(args) != 2 {
+			if len(args) != 2 || !rbac.ProjectScoped[opts.resource] {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 			projName := args[0]
 			roleName := args[1]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -160,7 +189,7 @@ ID          ISSUED-AT                                EXPIRES-AT
 			role, roleIndex, err := proj.GetRoleByName(roleName)
 			errors.CheckError(err)
 
-			policyToRemove := fmt.Sprintf(policyTemplate, proj.Name, role.Name, opts.action, proj.Name, opts.object, opts.permission)
+			policyToRemove := fmt.Sprintf(policyTemplate, proj.Name, role.Name, opts.resource, opts.action, proj.Name, opts.object, opts.permission)
 			duplicateIndex := -1
 			for i, policy := range role.Policies {
 				if policy == policyToRemove {
@@ -173,8 +202,15 @@ ID          ISSUED-AT                                EXPIRES-AT
 			}
 			role.Policies[duplicateIndex] = role.Policies[len(role.Policies)-1]
 			proj.Spec.Roles[roleIndex].Policies = role.Policies[:len(role.Policies)-1]
-			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
-			errors.CheckError(err)
+
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
+			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to delete '%s' policy? [y/n]", policyToRemove))
+			if canDelete {
+				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+				errors.CheckError(err)
+			} else {
+				fmt.Printf("The command to delete policy '%s' was cancelled.\n", policyToRemove)
+			}
 		},
 	}
 	addPolicyFlags(command, &opts)
@@ -183,13 +219,11 @@ ID          ISSUED-AT                                EXPIRES-AT
 
 // NewProjectRoleCreateCommand returns a new instance of an `argocd proj role create` command
 func NewProjectRoleCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		description string
-	)
-	var command = &cobra.Command{
+	var description string
+	command := &cobra.Command{
 		Use:   "create PROJECT ROLE-NAME",
 		Short: "Create a project role",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # Create a project role in the "my-project" project with the name "my-role".
   argocd proj role create my-project my-role --description "My project role description"
   		`),
@@ -204,7 +238,7 @@ func NewProjectRoleCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			projName := args[0]
 			roleName := args[1]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -227,7 +261,7 @@ func NewProjectRoleCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 
 // NewProjectRoleDeleteCommand returns a new instance of an `argocd proj role delete` command
 func NewProjectRoleDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:     "delete PROJECT ROLE-NAME",
 		Short:   "Delete a project role",
 		Example: `$ argocd proj role delete test-project test-role`,
@@ -241,7 +275,9 @@ func NewProjectRoleDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			projName := args[0]
 			roleName := args[1]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
+
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -254,9 +290,14 @@ func NewProjectRoleDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			proj.Spec.Roles[index] = proj.Spec.Roles[len(proj.Spec.Roles)-1]
 			proj.Spec.Roles = proj.Spec.Roles[:len(proj.Spec.Roles)-1]
 
-			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
-			errors.CheckError(err)
-			fmt.Printf("Role '%s' deleted\n", roleName)
+			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to delete '%s' role? [y/n]", roleName))
+			if canDelete {
+				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+				errors.CheckError(err)
+				fmt.Printf("Role '%s' deleted\n", roleName)
+			} else {
+				fmt.Printf("The command to delete role '%s' was cancelled.\n", roleName)
+			}
 		},
 	}
 	return command
@@ -277,7 +318,7 @@ func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *c
 		outputTokenOnly bool
 		tokenID         string
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "create-token PROJECT ROLE-NAME",
 		Short: "Create a project token",
 		Example: `$ argocd proj role create-token test-project test-role
@@ -298,7 +339,7 @@ Create token succeeded for proj:test-project:test-role.
 			projName := args[0]
 			roleName := args[1]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 			if expiresIn == "" {
 				expiresIn = "0s"
 			}
@@ -314,17 +355,17 @@ Create token succeeded for proj:test-project:test-role.
 
 			token, err := jwtgo.Parse(tokenResponse.Token, nil)
 			if token == nil {
-				err = fmt.Errorf("received malformed token %v", err)
+				err = fmt.Errorf("received malformed token %w", err)
 				errors.CheckError(err)
 				return
 			}
 
 			claims := token.Claims.(jwtgo.MapClaims)
+
 			issuedAt, _ := jwt.IssuedAt(claims)
 			expiresAt := int64(jwt.Float64Field(claims, "exp"))
 			id := jwt.StringField(claims, "jti")
-			subject := jwt.StringField(claims, "sub")
-
+			subject := jwt.GetUserIdentifier(claims)
 			if !outputTokenOnly {
 				fmt.Printf("Create token succeeded for %s.\n", subject)
 				fmt.Printf("  ID: %s\n  Issued At: %s\n  Expires At: %s\n",
@@ -346,10 +387,8 @@ Create token succeeded for proj:test-project:test-role.
 }
 
 func NewProjectRoleListTokensCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		useUnixTime bool
-	)
-	var command = &cobra.Command{
+	var useUnixTime bool
+	command := &cobra.Command{
 		Use:   "list-tokens PROJECT ROLE-NAME",
 		Short: "List tokens for a given role.",
 		Example: `$ argocd proj role list-tokens test-project test-role
@@ -369,7 +408,7 @@ fa9d3517-c52d-434c-9bff-215b38508842    2023-10-08T11:08:18+01:00    Never
 			roleName := args[1]
 
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -405,7 +444,7 @@ fa9d3517-c52d-434c-9bff-215b38508842    2023-10-08T11:08:18+01:00    Never
 
 // NewProjectRoleDeleteTokenCommand returns a new instance of an `argocd proj role delete-token` command
 func NewProjectRoleDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "delete-token PROJECT ROLE-NAME ISSUED-AT",
 		Short: "Delete a project token",
 		Example: `#Create project test-project
@@ -445,14 +484,22 @@ $ argocd proj role delete-token test-project test-role 1696769937
 			}
 			projName := args[0]
 			roleName := args[1]
-			issuedAt, err := strconv.ParseInt(args[2], 10, 64)
+			tokenId := args[2]
+			issuedAt, err := strconv.ParseInt(tokenId, 10, 64)
 			errors.CheckError(err)
+
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
 
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 
-			_, err = projIf.DeleteToken(ctx, &projectpkg.ProjectTokenDeleteRequest{Project: projName, Role: roleName, Iat: issuedAt})
-			errors.CheckError(err)
+			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to delete '%s' project token? [y/n]", tokenId))
+			if canDelete {
+				_, err = projIf.DeleteToken(ctx, &projectpkg.ProjectTokenDeleteRequest{Project: projName, Role: roleName, Iat: issuedAt})
+				errors.CheckError(err)
+			} else {
+				fmt.Printf("The command to delete project token '%s' was cancelled.\n", tokenId)
+			}
 		},
 	}
 	return command
@@ -477,13 +524,11 @@ func printProjectRoleListTable(roles []v1alpha1.ProjectRole) {
 
 // NewProjectRoleListCommand returns a new instance of an `argocd proj roles list` command
 func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		output string
-	)
-	var command = &cobra.Command{
+	var output string
+	command := &cobra.Command{
 		Use:   "list PROJECT",
 		Short: "List all the roles in a project",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # This command will list all the roles in argocd-project in a default table format.
   argocd proj role list PROJECT
 
@@ -501,7 +546,7 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 			projName := args[0]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 
 			project, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -524,7 +569,7 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 // NewProjectRoleGetCommand returns a new instance of an `argocd proj roles get` command
 func NewProjectRoleGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "get PROJECT ROLE-NAME",
 		Short: "Get the details of a specific role",
 		Example: `$ argocd proj role get test-project test-role
@@ -547,7 +592,7 @@ ID          ISSUED-AT                                  EXPIRES-AT
 			projName := args[0]
 			roleName := args[1]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
@@ -579,7 +624,7 @@ ID          ISSUED-AT                                  EXPIRES-AT
 
 // NewProjectRoleAddGroupCommand returns a new instance of an `argocd proj role add-group` command
 func NewProjectRoleAddGroupCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "add-group PROJECT ROLE-NAME GROUP-CLAIM",
 		Short: "Add a group claim to a project role",
 		Run: func(c *cobra.Command, args []string) {
@@ -591,7 +636,7 @@ func NewProjectRoleAddGroupCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			}
 			projName, roleName, groupName := args[0], args[1], args[2]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 			updated, err := proj.AddGroupToRole(roleName, groupName)
@@ -610,7 +655,7 @@ func NewProjectRoleAddGroupCommand(clientOpts *argocdclient.ClientOptions) *cobr
 
 // NewProjectRoleRemoveGroupCommand returns a new instance of an `argocd proj role remove-group` command
 func NewProjectRoleRemoveGroupCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "remove-group PROJECT ROLE-NAME GROUP-CLAIM",
 		Short: "Remove a group claim from a role within a project",
 		Run: func(c *cobra.Command, args []string) {
@@ -622,7 +667,7 @@ func NewProjectRoleRemoveGroupCommand(clientOpts *argocdclient.ClientOptions) *c
 			}
 			projName, roleName, groupName := args[0], args[1], args[2]
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 			updated, err := proj.RemoveGroupFromRole(roleName, groupName)
@@ -631,9 +676,18 @@ func NewProjectRoleRemoveGroupCommand(clientOpts *argocdclient.ClientOptions) *c
 				fmt.Printf("Group '%s' not present in role '%s'\n", groupName, roleName)
 				return
 			}
-			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
-			errors.CheckError(err)
-			fmt.Printf("Group '%s' removed from role '%s'\n", groupName, roleName)
+
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
+
+			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to remove '%s' group from role '%s'? [y/n]", groupName, roleName))
+
+			if canDelete {
+				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+				errors.CheckError(err)
+				fmt.Printf("Group '%s' removed from role '%s'\n", groupName, roleName)
+			} else {
+				fmt.Printf("The command to remove group '%s' from role '%s' was cancelled.\n", groupName, roleName)
+			}
 		},
 	}
 	return command

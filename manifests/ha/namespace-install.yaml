@@ -43,6 +43,8 @@ metadata:
     app.kubernetes.io/name: argocd-redis-ha
     app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha
+secrets:
+- name: argocd-redis
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -93,6 +95,7 @@ rules:
   - argoproj.io
   resources:
   - applications
+  - applicationsets
   - appprojects
   verbs:
   - create
@@ -109,6 +112,14 @@ rules:
   verbs:
   - create
   - list
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -139,6 +150,8 @@ rules:
   - appprojects
   verbs:
   - get
+  - list
+  - watch
 - apiGroups:
   - argoproj.io
   resources:
@@ -268,6 +281,20 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - secrets
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resourceNames:
+  - argocd-redis
+  resources:
+  - secrets
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
   - endpoints
   verbs:
   - get
@@ -429,6 +456,100 @@ subjects:
   name: argocd-server
 ---
 apiVersion: v1
+data:
+  resource.customizations.ignoreResourceUpdates.ConfigMap: |
+    jqPathExpressions:
+      # Ignore the cluster-autoscaler status
+      - '.metadata.annotations."cluster-autoscaler.kubernetes.io/last-updated"'
+      # Ignore the annotation of the legacy Leases election
+      - '.metadata.annotations."control-plane.alpha.kubernetes.io/leader"'
+  resource.customizations.ignoreResourceUpdates.Endpoints: |
+    jsonPointers:
+      - /metadata
+      - /subsets
+  resource.customizations.ignoreResourceUpdates.all: |
+    jsonPointers:
+      - /status
+  resource.customizations.ignoreResourceUpdates.apps_ReplicaSet: |
+    jqPathExpressions:
+      - '.metadata.annotations."deployment.kubernetes.io/desired-replicas"'
+      - '.metadata.annotations."deployment.kubernetes.io/max-replicas"'
+      - '.metadata.annotations."rollout.argoproj.io/desired-replicas"'
+  resource.customizations.ignoreResourceUpdates.argoproj.io_Application: |
+    jqPathExpressions:
+      - '.metadata.annotations."notified.notifications.argoproj.io"'
+      - '.metadata.annotations."argocd.argoproj.io/refresh"'
+      - '.metadata.annotations."argocd.argoproj.io/hydrate"'
+      - '.operation'
+  resource.customizations.ignoreResourceUpdates.argoproj.io_Rollout: |
+    jqPathExpressions:
+      - '.metadata.annotations."notified.notifications.argoproj.io"'
+  resource.customizations.ignoreResourceUpdates.autoscaling_HorizontalPodAutoscaler: |
+    jqPathExpressions:
+      - '.metadata.annotations."autoscaling.alpha.kubernetes.io/behavior"'
+      - '.metadata.annotations."autoscaling.alpha.kubernetes.io/conditions"'
+      - '.metadata.annotations."autoscaling.alpha.kubernetes.io/metrics"'
+      - '.metadata.annotations."autoscaling.alpha.kubernetes.io/current-metrics"'
+  resource.customizations.ignoreResourceUpdates.discovery.k8s.io_EndpointSlice: |
+    jsonPointers:
+      - /metadata
+      - /endpoints
+      - /ports
+  resource.exclusions: |
+    ### Network resources created by the Kubernetes control plane and excluded to reduce the number of watched events and UI clutter
+    - apiGroups:
+      - ''
+      - discovery.k8s.io
+      kinds:
+      - Endpoints
+      - EndpointSlice
+    ### Internal Kubernetes resources excluded reduce the number of watched events
+    - apiGroups:
+      - coordination.k8s.io
+      kinds:
+      - Lease
+    ### Internal Kubernetes Authz/Authn resources excluded reduce the number of watched events
+    - apiGroups:
+      - authentication.k8s.io
+      - authorization.k8s.io
+      kinds:
+      - SelfSubjectReview
+      - TokenReview
+      - LocalSubjectAccessReview
+      - SelfSubjectAccessReview
+      - SelfSubjectRulesReview
+      - SubjectAccessReview
+    ### Intermediate Certificate Request excluded reduce the number of watched events
+    - apiGroups:
+      - certificates.k8s.io
+      kinds:
+      - CertificateSigningRequest
+    - apiGroups:
+      - cert-manager.io
+      kinds:
+      - CertificateRequest
+    ### Cilium internal resources excluded reduce the number of watched events and UI Clutter
+    - apiGroups:
+      - cilium.io
+      kinds:
+      - CiliumIdentity
+      - CiliumEndpoint
+      - CiliumEndpointSlice
+    ### Kyverno intermediate and reporting resources excluded reduce the number of watched events and improve performance
+    - apiGroups:
+      - kyverno.io
+      - reports.kyverno.io
+      - wgpolicyk8s.io
+      kinds:
+      - PolicyReport
+      - ClusterPolicyReport
+      - EphemeralReport
+      - ClusterEphemeralReport
+      - AdmissionReport
+      - ClusterAdmissionReport
+      - BackgroundScanReport
+      - ClusterBackgroundScanReport
+      - UpdateRequest
 kind: ConfigMap
 metadata:
   labels:
@@ -497,7 +618,7 @@ data:
     sentinel_get_master() {
     set +e
         if [ "$SENTINEL_PORT" -eq 0 ]; then
-            redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"   --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
+            redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
             grep -E '((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?s*$))'
         else
             redis-cli -h "${SERVICE}" -p "${SENTINEL_PORT}"  sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
@@ -606,9 +727,9 @@ data:
     redis_ping() {
     set +e
         if [ "$REDIS_PORT" -eq 0 ]; then
-            redis-cli -h "${MASTER}" -p "${REDIS_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key ping
+            redis-cli -h "${MASTER}" -a "${AUTH}" --no-auth-warning -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key ping
         else
-            redis-cli -h "${MASTER}" -p "${REDIS_PORT}" ping
+            redis-cli -h "${MASTER}" -a "${AUTH}" --no-auth-warning -p "${REDIS_PORT}" ping
         fi
     set -e
     }
@@ -641,7 +762,7 @@ data:
 
             if [ "$SENTINEL_PORT" -eq 0 ]; then
                 echo "  on sentinel (${SERVICE}:${SENTINEL_TLS_PORT}), sentinel grp (${MASTER_GROUP})"
-                if redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"   --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel failover "${MASTER_GROUP}" | grep -q 'NOGOODSLAVE' ; then
+                if redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel failover "${MASTER_GROUP}" | grep -q 'NOGOODSLAVE' ; then
                     echo "  $(date) Failover returned with 'NOGOODSLAVE'"
                     echo "Setting defaults for this pod.."
                     setup_defaults
@@ -706,9 +827,9 @@ data:
     redis_role() {
     set +e
         if [ "$REDIS_PORT" -eq 0 ]; then
-            ROLE=$(redis-cli  -p "${REDIS_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key info | grep role | sed 's/role://' | sed 's/\r//')
+            ROLE=$(redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key info | grep role | sed 's/role://' | sed 's/\r//')
         else
-            ROLE=$(redis-cli  -p "${REDIS_PORT}" info | grep role | sed 's/role://' | sed 's/\r//')
+            ROLE=$(redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_PORT}" info | grep role | sed 's/role://' | sed 's/\r//')
         fi
     set -e
     }
@@ -716,9 +837,9 @@ data:
     identify_redis_master() {
     set +e
         if [ "$REDIS_PORT" -eq 0 ]; then
-            REDIS_MASTER=$(redis-cli  -p "${REDIS_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key info | grep master_host | sed 's/master_host://' | sed 's/\r//')
+            REDIS_MASTER=$(redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key info | grep master_host | sed 's/master_host://' | sed 's/\r//')
         else
-            REDIS_MASTER=$(redis-cli  -p "${REDIS_PORT}" info | grep master_host | sed 's/master_host://' | sed 's/\r//')
+            REDIS_MASTER=$(redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_PORT}" info | grep master_host | sed 's/master_host://' | sed 's/\r//')
         fi
     set -e
     }
@@ -728,9 +849,9 @@ data:
         sh /readonly-config/init.sh
 
         if [ "$REDIS_PORT" -eq 0 ]; then
-            echo "shutdown" | redis-cli  -p "${REDIS_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key
+            echo "shutdown" | redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key
         else
-            echo "shutdown" | redis-cli  -p "${REDIS_PORT}"
+            echo "shutdown" | redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_PORT}"
         fi
     set -e
     }
@@ -743,6 +864,7 @@ data:
         identify_announce_ip
     done
 
+    trap "exit 0" TERM
     while true; do
         sleep 60
 
@@ -785,16 +907,18 @@ data:
     decide redis backend to use\n#master\nfrontend ft_redis_master\n  bind :6379 \n
     \ use_backend bk_redis_master\n# Check all redis servers to see if they think
     they are master\nbackend bk_redis_master\n  mode tcp\n  option tcp-check\n  tcp-check
-    connect\n  tcp-check send PING\\r\\n\n  tcp-check expect string +PONG\n  tcp-check
-    send info\\ replication\\r\\n\n  tcp-check expect string role:master\n  tcp-check
-    send QUIT\\r\\n\n  tcp-check expect string +OK\n  use-server R0 if { srv_is_up(R0)
+    connect\n  tcp-check send \"AUTH ${AUTH}\"\\r\\n\n  tcp-check expect string +OK\n
+    \ tcp-check send PING\\r\\n\n  tcp-check expect string +PONG\n  tcp-check send
+    info\\ replication\\r\\n\n  tcp-check expect string role:master\n  tcp-check send
+    QUIT\\r\\n\n  tcp-check expect string +OK\n  use-server R0 if { srv_is_up(R0)
     } { nbsrv(check_if_redis_is_master_0) ge 2 }\n  server R0 argocd-redis-ha-announce-0:6379
     check inter 3s fall 1 rise 1\n  use-server R1 if { srv_is_up(R1) } { nbsrv(check_if_redis_is_master_1)
     ge 2 }\n  server R1 argocd-redis-ha-announce-1:6379 check inter 3s fall 1 rise
     1\n  use-server R2 if { srv_is_up(R2) } { nbsrv(check_if_redis_is_master_2) ge
     2 }\n  server R2 argocd-redis-ha-announce-2:6379 check inter 3s fall 1 rise 1\nfrontend
     stats\n  mode http\n  bind :9101 \n  http-request use-service prometheus-exporter
-    if { path /metrics }\n  stats enable\n  stats uri /stats\n  stats refresh 10s\n"
+    if { path /metrics }\n  stats enable\n  stats uri /stats\n  stats refresh 10s\n#
+    Additional configuration\nglobal\n  maxconn 4096\n"
   haproxy_init.sh: |
     HAPROXY_CONF=/data/haproxy.cfg
     cp /readonly/haproxy.cfg "$HAPROXY_CONF"
@@ -850,7 +974,7 @@ data:
     sentinel_get_master() {
     set +e
         if [ "$SENTINEL_PORT" -eq 0 ]; then
-            redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"   --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
+            redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
             grep -E '((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?s*$))'
         else
             redis-cli -h "${SERVICE}" -p "${SENTINEL_PORT}"  sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
@@ -959,9 +1083,9 @@ data:
     redis_ping() {
     set +e
         if [ "$REDIS_PORT" -eq 0 ]; then
-            redis-cli -h "${MASTER}" -p "${REDIS_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key ping
+            redis-cli -h "${MASTER}" -a "${AUTH}" --no-auth-warning -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key ping
         else
-            redis-cli -h "${MASTER}" -p "${REDIS_PORT}" ping
+            redis-cli -h "${MASTER}" -a "${AUTH}" --no-auth-warning -p "${REDIS_PORT}" ping
         fi
     set -e
     }
@@ -994,7 +1118,7 @@ data:
 
             if [ "$SENTINEL_PORT" -eq 0 ]; then
                 echo "  on sentinel (${SERVICE}:${SENTINEL_TLS_PORT}), sentinel grp (${MASTER_GROUP})"
-                if redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"   --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel failover "${MASTER_GROUP}" | grep -q 'NOGOODSLAVE' ; then
+                if redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel failover "${MASTER_GROUP}" | grep -q 'NOGOODSLAVE' ; then
                     echo "  $(date) Failover returned with 'NOGOODSLAVE'"
                     echo "Setting defaults for this pod.."
                     setup_defaults
@@ -1067,7 +1191,7 @@ data:
     identify_announce_ip
 
     if [ -z "${ANNOUNCE_IP}" ]; then
-        "Error: Could not resolve the announce ip for this pod."
+        "Error: Could not resolve the announce ip for this pod"
         exit 1
     elif [ "${MASTER}" ]; then
         find_master
@@ -1102,6 +1226,8 @@ data:
     rdbcompression yes
     repl-diskless-sync yes
     save ""
+    requirepass replace-default-auth
+    masterauth replace-default-auth
   sentinel.conf: |
     dir "/data"
     port 26379
@@ -1110,10 +1236,12 @@ data:
         sentinel failover-timeout argocd 180000
         maxclients 10000
         sentinel parallel-syncs argocd 5
+    sentinel auth-pass argocd replace-default-auth
   trigger-failover-if-master.sh: |
     get_redis_role() {
       is_master=$(
         redis-cli \
+          -a "${AUTH}" --no-auth-warning \
           -h localhost \
           -p 6379 \
           info | grep -c 'role:master' || true
@@ -1153,27 +1281,53 @@ data:
   redis_liveness.sh: |
     response=$(
       redis-cli \
+        -a "${AUTH}" --no-auth-warning \
         -h localhost \
         -p 6379 \
         ping
     )
-    if [ "$response" != "PONG" ] && [ "${response:0:7}" != "LOADING" ] ; then
-      echo "$response"
-      exit 1
-    fi
     echo "response=$response"
+    case $response in
+      PONG|LOADING*) ;;
+      *) exit 1 ;;
+    esac
+    exit 0
   redis_readiness.sh: |
     response=$(
       redis-cli \
+        -a "${AUTH}" --no-auth-warning \
         -h localhost \
         -p 6379 \
         ping
     )
     if [ "$response" != "PONG" ] ; then
-      echo "$response"
+      echo "ping=$response"
       exit 1
     fi
-    echo "response=$response"
+
+    response=$(
+      redis-cli \
+        -a "${AUTH}" --no-auth-warning \
+        -h localhost \
+        -p 6379 \
+        role
+    )
+    role=$( echo "$response" | sed "1!d" )
+    if [ "$role" = "master" ]; then
+      echo "role=$role"
+      exit 0
+    elif [ "$role" = "slave" ]; then
+      repl=$( echo "$response" | sed "4!d" )
+      echo "role=$role; repl=$repl"
+      if [ "$repl" = "connected" ]; then
+        exit 0
+      else
+        exit 1
+      fi
+    else
+      echo "role=$role"
+      exit 1
+    fi
   sentinel_liveness.sh: |
     response=$(
       redis-cli \
@@ -1353,8 +1507,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  annotations:
-    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
@@ -1379,8 +1531,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  annotations:
-    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
@@ -1405,8 +1555,6 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  annotations:
-    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
   labels:
     app.kubernetes.io/component: redis
     app.kubernetes.io/name: argocd-redis-ha
@@ -1588,6 +1736,12 @@ spec:
               key: applicationsetcontroller.log.level
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
+          valueFrom:
+            configMapKeyRef:
+              key: log.format.timestamp
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN
           valueFrom:
             configMapKeyRef:
@@ -1604,6 +1758,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: applicationsetcontroller.enable.progressive.syncs
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.tokenref.strict.mode
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING
@@ -1660,6 +1820,24 @@ spec:
               key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.github.api.metrics
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.webhook.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_REQUEUE_AFTER
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.requeue.after
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
@@ -1690,6 +1868,8 @@ spec:
           name: tmp
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
+      nodeSelector:
+        kubernetes.io/os: linux
       serviceAccountName: argocd-applicationset-controller
       volumes:
       - configMap:
@@ -1748,13 +1928,31 @@ spec:
         - /shared/argocd-dex
         - rundex
         env:
+        - name: ARGOCD_DEX_SERVER_LOGFORMAT
+          valueFrom:
+            configMapKeyRef:
+              key: dexserver.log.format
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_DEX_SERVER_LOGLEVEL
+          valueFrom:
+            configMapKeyRef:
+              key: dexserver.log.level
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
+          valueFrom:
+            configMapKeyRef:
+              key: log.format.timestamp
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_DEX_SERVER_DISABLE_TLS
           valueFrom:
             configMapKeyRef:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.37.0
+        image: ghcr.io/dexidp/dex:v2.43.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -1800,6 +1998,8 @@ spec:
           name: static-files
         - mountPath: /tmp
           name: dexconfig
+      nodeSelector:
+        kubernetes.io/os: linux
       serviceAccountName: argocd-dex-server
       volumes:
       - emptyDir: {}
@@ -1853,6 +2053,12 @@ spec:
               key: notificationscontroller.log.level
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
+          valueFrom:
+            configMapKeyRef:
+              key: log.format.timestamp
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
@@ -1863,6 +2069,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: notificationscontroller.selfservice.enabled
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_PLAINTEXT
+          valueFrom:
+            configMapKeyRef:
+              key: notificationscontroller.repo.server.plaintext
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
@@ -1883,6 +2095,8 @@ spec:
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
         workingDir: /app
+      nodeSelector:
+        kubernetes.io/os: linux
       securityContext:
         runAsNonRoot: true
         seccompProfile:
@@ -1923,7 +2137,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 492a6adabb741e0cee39be9aa5155c41a4456629f862d0006a2d892dbecfbcae
+        checksum/config: cd6508bdf9819601c454d0cc491fb77a209e3a88761d92514d105b6681829953
         prometheus.io/path: /metrics
         prometheus.io/port: "9101"
         prometheus.io/scrape: "true"
@@ -1938,18 +2152,27 @@ spec:
               matchLabels:
                 app.kubernetes.io/name: argocd-redis-ha-haproxy
             topologyKey: kubernetes.io/hostname
+      automountServiceAccountToken: true
       containers:
-      - image: haproxy:2.6.14-alpine
+      - env:
+        - name: AUTH
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
+        image: public.ecr.aws/docker/library/haproxy:3.0.8-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8888
+            port: probe
           initialDelaySeconds: 5
           periodSeconds: 3
         name: haproxy
         ports:
+        - containerPort: 8888
+          name: probe
         - containerPort: 6379
           name: redis
         - containerPort: 9101
@@ -1957,7 +2180,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /healthz
-            port: 8888
+            port: probe
           initialDelaySeconds: 5
           periodSeconds: 3
         securityContext:
@@ -1974,11 +2197,27 @@ spec:
         - mountPath: /run/haproxy
           name: shared-socket
       initContainers:
+      - command:
+        - argocd
+        - admin
+        - redis-initial-password
+        image: quay.io/argoproj/argocd:latest
+        imagePullPolicy: IfNotPresent
+        name: secret-init
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
       - args:
         - /readonly/haproxy_init.sh
         command:
         - sh
-        image: haproxy:2.6.14-alpine
+        image: public.ecr.aws/docker/library/haproxy:3.0.8-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
@@ -2046,6 +2285,11 @@ spec:
       - args:
         - /usr/local/bin/argocd-repo-server
         env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
             configMapKeyRef:
@@ -2062,6 +2306,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.log.level
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
+          valueFrom:
+            configMapKeyRef:
+              key: log.format.timestamp
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_REPO_SERVER_PARALLELISM_LIMIT
@@ -2154,6 +2404,12 @@ spec:
               key: otlp.headers
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_OTLP_ATTRS
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.attrs
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
           valueFrom:
             configMapKeyRef:
@@ -2164,6 +2420,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.plugin.tar.exclusions
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.plugin.use.manifest.generate.paths
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS
@@ -2196,6 +2458,12 @@ spec:
               key: reposerver.disable.helm.manifest.max.extracted.size
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REVISION_CACHE_LOCK_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.revision.cache.lock.timeout
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_GIT_MODULES_ENABLED
           valueFrom:
             configMapKeyRef:
@@ -2212,6 +2480,18 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.git.request.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_GRPC_MAX_SIZE_MB
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.grpc.max.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.include.hidden.directories
               name: argocd-cmd-params-cm
               optional: true
         - name: HELM_CACHE_HOME
@@ -2286,6 +2566,8 @@ spec:
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files
+      nodeSelector:
+        kubernetes.io/os: linux
       serviceAccountName: argocd-repo-server
       volumes:
       - configMap:
@@ -2357,6 +2639,11 @@ spec:
         env:
         - name: ARGOCD_API_SERVER_REPLICAS
           value: "2"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
         - name: ARGOCD_SERVER_INSECURE
           valueFrom:
             configMapKeyRef:
@@ -2483,12 +2770,6 @@ spec:
               key: server.oidc.cache.expiration
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_SERVER_LOGIN_ATTEMPTS_EXPIRATION
-          valueFrom:
-            configMapKeyRef:
-              key: server.login.attempts.expiration
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_SERVER_STATIC_ASSETS
           valueFrom:
             configMapKeyRef:
@@ -2561,6 +2842,12 @@ spec:
               key: otlp.headers
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_OTLP_ATTRS
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.attrs
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
@@ -2583,6 +2870,60 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: server.k8sclient.retry.base.backoff
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_API_CONTENT_TYPES
+          valueFrom:
+            configMapKeyRef:
+              key: server.api.content.types
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: server.webhook.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.new.git.file.globbing
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.scm.root.ca.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.allowed.scm.providers
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.scm.providers
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.github.api.metrics
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_HYDRATOR_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: hydrator.enabled
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SYNC_WITH_REPLACE_ALLOWED
+          valueFrom:
+            configMapKeyRef:
+              key: server.sync.replace.allowed
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
@@ -2626,6 +2967,10 @@ spec:
           name: plugins-home
         - mountPath: /tmp
           name: tmp
+        - mountPath: /home/argocd/params
+          name: argocd-cmd-params-cm
+      nodeSelector:
+        kubernetes.io/os: linux
       serviceAccountName: argocd-server
       volumes:
       - emptyDir: {}
@@ -2658,6 +3003,13 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-dex-server-tls
+      - configMap:
+          items:
+          - key: server.profile.enabled
+            path: profiler.enabled
+          name: argocd-cmd-params-cm
+          optional: true
+        name: argocd-cmd-params-cm
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -2697,6 +3049,11 @@ spec:
       - args:
         - /usr/local/bin/argocd-application-controller
         env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
         - name: ARGOCD_CONTROLLER_REPLICAS
           value: "1"
         - name: ARGOCD_RECONCILIATION_TIMEOUT
@@ -2709,6 +3066,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: timeout.hard.reconciliation
+              name: argocd-cm
+              optional: true
+        - name: ARGOCD_RECONCILIATION_JITTER
+          valueFrom:
+            configMapKeyRef:
+              key: timeout.reconciliation.jitter
               name: argocd-cm
               optional: true
         - name: ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS
@@ -2753,6 +3116,12 @@ spec:
               key: controller.log.level
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
+          valueFrom:
+            configMapKeyRef:
+              key: log.format.timestamp
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_CACHE_EXPIRATION
           valueFrom:
             configMapKeyRef:
@@ -2763,6 +3132,36 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.self.heal.timeout.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_TIMEOUT_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.self.heal.backoff.timeout.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_FACTOR
+          valueFrom:
+            configMapKeyRef:
+              key: controller.self.heal.backoff.factor
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_CAP_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.self.heal.backoff.cap.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_COOLDOWN_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.self.heal.backoff.cooldown.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.sync.timeout.seconds
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT
@@ -2831,6 +3230,12 @@ spec:
               key: otlp.headers
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_ATTRS
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.attrs
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
@@ -2861,6 +3266,44 @@ spec:
               key: controller.k8sclient.retry.base.backoff
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF
+          valueFrom:
+            configMapKeyRef:
+              key: controller.diff.server.side
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_IGNORE_NORMALIZER_JQ_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.ignore.normalizer.jq.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_HYDRATOR_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: hydrator.enabled
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING
+          valueFrom:
+            configMapKeyRef:
+              key: controller.cluster.cache.batch.events.processing
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              key: controller.cluster.cache.events.processing.interval
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_COMMIT_SERVER
+          valueFrom:
+            configMapKeyRef:
+              key: commit.server
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: KUBECACHEDIR
+          value: /tmp/kubecache
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
@@ -2886,11 +3329,19 @@ spec:
           name: argocd-repo-server-tls
         - mountPath: /home/argocd
           name: argocd-home
+        - mountPath: /home/argocd/params
+          name: argocd-cmd-params-cm
+        - mountPath: /tmp
+          name: argocd-application-controller-tmp
         workingDir: /home/argocd
+      nodeSelector:
+        kubernetes.io/os: linux
       serviceAccountName: argocd-application-controller
       volumes:
       - emptyDir: {}
         name: argocd-home
+      - emptyDir: {}
+        name: argocd-application-controller-tmp
       - name: argocd-repo-server-tls
         secret:
           items:
@@ -2902,6 +3353,13 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
+      - configMap:
+          items:
+          - key: controller.profile.enabled
+            path: profiler.enabled
+          name: argocd-cmd-params-cm
+          optional: true
+        name: argocd-cmd-params-cm
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -2921,7 +3379,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: 69130412bda04eacad3530cb7bcf26cf121401e725e15d0959dd71a7380afe75
+        checksum/init-config: bd30e83dfdad9912b6c1cc32a8c26d7d01429a0730f5ee7af380fb593e874d54
       labels:
         app.kubernetes.io/name: argocd-redis-ha
     spec:
@@ -2938,7 +3396,13 @@ spec:
         - /data/conf/redis.conf
         command:
         - redis-server
-        image: redis:7.0.14-alpine
+        env:
+        - name: AUTH
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
+        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -2980,6 +3444,17 @@ spec:
           readOnlyRootFilesystem: true
           seccompProfile:
             type: RuntimeDefault
+        startupProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - /health/redis_readiness.sh
+          failureThreshold: 3
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 15
         volumeMounts:
         - mountPath: /readonly-config
           name: config
@@ -2992,9 +3467,21 @@ spec:
         - /data/conf/sentinel.conf
         command:
         - redis-sentinel
-        image: redis:7.0.14-alpine
+        env:
+        - name: AUTH
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
+        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
         imagePullPolicy: IfNotPresent
-        lifecycle: {}
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - sleep 30; redis-cli -p 26379 sentinel reset argocd
         livenessProbe:
           exec:
             command:
@@ -3029,6 +3516,17 @@ spec:
           readOnlyRootFilesystem: true
           seccompProfile:
             type: RuntimeDefault
+        startupProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - /health/sentinel_liveness.sh
+          failureThreshold: 3
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 15
         volumeMounts:
         - mountPath: /data
           name: data
@@ -3045,7 +3543,12 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:7.0.14-alpine
+        - name: AUTH
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
+        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
         imagePullPolicy: IfNotPresent
         name: split-brain-fix
         resources: {}
@@ -3075,7 +3578,12 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
-        image: redis:7.0.14-alpine
+        - name: AUTH
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
+        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
@@ -3114,6 +3622,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: application-controller
+    app.kubernetes.io/name: argocd-application-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-application-controller-network-policy
 spec:
   ingress:
@@ -3130,6 +3642,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: applicationset-controller
+    app.kubernetes.io/name: argocd-applicationset-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller-network-policy
 spec:
   ingress:
@@ -3149,6 +3665,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: dex-server
+    app.kubernetes.io/name: argocd-dex-server
+    app.kubernetes.io/part-of: argocd
   name: argocd-dex-server-network-policy
 spec:
   ingress:
@@ -3196,23 +3716,12 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-ha-haproxy
+    app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha-proxy-network-policy
 spec:
-  egress:
-  - ports:
-    - port: 6379
-      protocol: TCP
-    - port: 26379
-      protocol: TCP
-    to:
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/name: argocd-redis-ha
-  - ports:
-    - port: 53
-      protocol: UDP
-    - port: 53
-      protocol: TCP
   ingress:
   - from:
     - podSelector:
@@ -3234,11 +3743,14 @@ spec:
       app.kubernetes.io/name: argocd-redis-ha-haproxy
   policyTypes:
   - Ingress
-  - Egress
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-ha
+    app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha-server-network-policy
 spec:
   egress:
@@ -3279,6 +3791,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: repo-server
+    app.kubernetes.io/name: argocd-repo-server
+    app.kubernetes.io/part-of: argocd
   name: argocd-repo-server-network-policy
 spec:
   ingress:
@@ -3311,6 +3827,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: server
+    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/part-of: argocd
   name: argocd-server-network-policy
 spec:
   ingress:

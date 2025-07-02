@@ -2,7 +2,7 @@ package password
 
 import (
 	"crypto/subtle"
-	"fmt"
+	"errors"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -21,8 +21,10 @@ type BcryptPasswordHasher struct {
 	Cost int
 }
 
-var _ PasswordHasher = DummyPasswordHasher{}
-var _ PasswordHasher = BcryptPasswordHasher{0}
+var (
+	_ PasswordHasher = DummyPasswordHasher{}
+	_ PasswordHasher = BcryptPasswordHasher{0}
+)
 
 // PreferredHashers holds the list of preferred hashing algorithms, in order of most to least preferred.  Any password that does not validate with the primary algorithm will be considered "stale."  DO NOT ADD THE DUMMY HASHER FOR USE IN PRODUCTION.
 var preferredHashers = []PasswordHasher{
@@ -33,7 +35,7 @@ var preferredHashers = []PasswordHasher{
 func hashPasswordWithHashers(password string, hashers []PasswordHasher) (string, error) {
 	// Even though good hashers will disallow blank passwords, let's be explicit that ALL BLANK PASSWORDS ARE INVALID.  Full stop.
 	if password == "" {
-		return "", fmt.Errorf("blank passwords are not allowed")
+		return "", errors.New("blank passwords are not allowed")
 	}
 	return hashers[0].HashPassword(password)
 }
@@ -78,7 +80,7 @@ func (h DummyPasswordHasher) HashPassword(password string) (string, error) {
 
 // VerifyPassword validates whether a one-way digest ("hash") of a password was created from a given plaintext password.
 func (h DummyPasswordHasher) VerifyPassword(password, hashedPassword string) bool {
-	return 1 == subtle.ConstantTimeCompare([]byte(password), []byte(hashedPassword))
+	return subtle.ConstantTimeCompare([]byte(password), []byte(hashedPassword)) == 1
 }
 
 // HashPassword creates a one-way digest ("hash") of a password.  In the case of Bcrypt, a pseudorandom salt is included automatically by the underlying library.  For security reasons, the work factor is always at _least_ bcrypt.DefaultCost.

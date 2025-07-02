@@ -14,6 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 // StartInformer is a helper to start an informer, wait for its cache to sync and return a cancel func
@@ -76,7 +78,7 @@ func MustLoadFileToString(path string) string {
 }
 
 func YamlToUnstructured(yamlStr string) *unstructured.Unstructured {
-	obj := make(map[string]interface{})
+	obj := make(map[string]any)
 	err := yaml.Unmarshal([]byte(yamlStr), &obj)
 	if err != nil {
 		panic(err)
@@ -84,13 +86,22 @@ func YamlToUnstructured(yamlStr string) *unstructured.Unstructured {
 	return &unstructured.Unstructured{Object: obj}
 }
 
-// ToMap converts any object to a map[string]interface{}
-func ToMap(obj interface{}) map[string]interface{} {
+func YamlToApplication(yamlStr string) *v1alpha1.Application {
+	app := v1alpha1.Application{}
+	err := yaml.Unmarshal([]byte(yamlStr), &app)
+	if err != nil {
+		panic(err)
+	}
+	return &app
+}
+
+// ToMap converts any object to a map[string]any
+func ToMap(obj any) map[string]any {
 	data, err := json.Marshal(obj)
 	if err != nil {
 		panic(err)
 	}
-	var res map[string]interface{}
+	var res map[string]any
 	err = json.Unmarshal(data, &res)
 	if err != nil {
 		panic(err)
