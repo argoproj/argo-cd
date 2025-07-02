@@ -54,5 +54,5 @@ go install github.com/go-swagger/go-swagger/cmd/swagger@v0.28.0
 go install golang.org/x/tools/cmd/goimports@v0.1.8
 
 # renovate: datasource=go packageName=github.com/vektra/mockery/v3
-MOCKERY_VERSION=3.3.6
+MOCKERY_VERSION=3.5.0
 go install github.com/vektra/mockery/v3@v${MOCKERY_VERSION}
