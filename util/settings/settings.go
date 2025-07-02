@@ -216,22 +216,6 @@ type HelmRepoCredentials struct {
 	KeySecret      *corev1.SecretKeySelector `json:"keySecret,omitempty"`
 }
 
-// KustomizeVersion holds information about additional Kustomize version
-type KustomizeVersion struct {
-	// Name holds Kustomize version name
-	Name string
-	// Path holds corresponding binary path
-	Path string
-	// BuildOptions that are specific to Kustomize version
-	BuildOptions string
-}
-
-// KustomizeSettings holds kustomize settings
-type KustomizeSettings struct {
-	BuildOptions string
-	Versions     []KustomizeVersion
-}
-
 var (
 	ByClusterURLIndexer     = "byClusterURL"
 	byClusterURLIndexerFunc = func(obj any) ([]string, error) {
@@ -289,31 +273,6 @@ var (
 		}
 	}
 )
-
-func (ks *KustomizeSettings) GetOptions(source v1alpha1.ApplicationSource) (*v1alpha1.KustomizeOptions, error) {
-	binaryPath := ""
-	buildOptions := ""
-	if source.Kustomize != nil && source.Kustomize.Version != "" {
-		for _, ver := range ks.Versions {
-			if ver.Name == source.Kustomize.Version {
-				// add version specific path and build options
-				binaryPath = ver.Path
-				buildOptions = ver.BuildOptions
-				break
-			}
-		}
-		if binaryPath == "" {
-			return nil, fmt.Errorf("kustomize version %s is not registered", source.Kustomize.Version)
-		}
-	} else {
-		// add build options for the default version
-		buildOptions = ks.BuildOptions
-	}
-	return &v1alpha1.KustomizeOptions{
-		BuildOptions: buildOptions,
-		BinaryPath:   binaryPath,
-	}, nil
-}
 
 // Credentials for accessing a Git repository
 type Repository struct {
@@ -1153,18 +1112,18 @@ func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 }
 
 // GetKustomizeSettings loads the kustomize settings from argocd-cm ConfigMap
-func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
+func (mgr *SettingsManager) GetKustomizeSettings() (*v1alpha1.KustomizeOptions, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
-	kustomizeVersionsMap := map[string]KustomizeVersion{}
+	kustomizeVersionsMap := map[string]v1alpha1.KustomizeVersion{}
 	buildOptions := map[string]string{}
-	settings := &KustomizeSettings{}
+	options := &v1alpha1.KustomizeOptions{}
 
 	// extract build options for the default version
-	if options, ok := argoCDCM.Data[kustomizeBuildOptionsKey]; ok {
-		settings.BuildOptions = options
+	if buildOpts, ok := argoCDCM.Data[kustomizeBuildOptionsKey]; ok {
+		options.BuildOptions = buildOpts
 	}
 
 	// extract per-version binary paths and build options
@@ -1195,17 +1154,17 @@ func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
 		if _, ok := buildOptions[v.Name]; ok {
 			v.BuildOptions = buildOptions[v.Name]
 		}
-		settings.Versions = append(settings.Versions, v)
+		options.Versions = append(options.Versions, v)
 	}
-	return settings, nil
+	return options, nil
 }
 
-func addKustomizeVersion(prefix, name, path string, kvMap map[string]KustomizeVersion) error {
+func addKustomizeVersion(prefix, name, path string, kvMap map[string]v1alpha1.KustomizeVersion) error {
 	version := name[len(prefix)+1:]
 	if _, ok := kvMap[version]; ok {
 		return fmt.Errorf("found duplicate kustomize version: %s", version)
 	}
-	kvMap[version] = KustomizeVersion{
+	kvMap[version] = v1alpha1.KustomizeVersion{
 		Name: version,
 		Path: path,
 	}

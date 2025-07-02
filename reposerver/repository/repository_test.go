@@ -239,6 +239,37 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	assert.Len(t, res2.Manifests, 3)
 }
 
+func Test_GenerateManifest_KustomizeWithVersionOverride(t *testing.T) {
+	t.Parallel()
+
+	service := newService(t, "../../util/kustomize/testdata/kustomize-with-version-override")
+
+	src := v1alpha1.ApplicationSource{Path: "."}
+	q := apiclient.ManifestRequest{
+		Repo:               &v1alpha1.Repository{},
+		ApplicationSource:  &src,
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+		KustomizeOptions: &v1alpha1.KustomizeOptions{
+			Versions: []v1alpha1.KustomizeVersion{},
+		},
+	}
+
+	_, err := service.GenerateManifest(t.Context(), &q)
+	require.ErrorAs(t, err, &kustomizeVersionNotRegisteredError{"v1.2.3"})
+
+	q.KustomizeOptions.Versions = []v1alpha1.KustomizeVersion{
+		{
+			Name: "v1.2.3",
+			Path: "kustomize",
+		},
+	}
+
+	res, err := service.GenerateManifest(t.Context(), &q)
+	require.NoError(t, err)
+	assert.NotNil(t, res)
+}
+
 func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
 	t.Parallel()
 
@@ -1672,6 +1703,32 @@ func TestGetAppDetailsKustomize(t *testing.T) {
 	assert.Equal(t, "Kustomize", res.Type)
 	assert.NotNil(t, res.Kustomize)
 	assert.Equal(t, []string{"nginx:1.15.4", "registry.k8s.io/nginx-slim:0.8"}, res.Kustomize.Images)
+}
+
+func TestGetAppDetailsKustomize_CustomVersion(t *testing.T) {
+	service := newService(t, "../../util/kustomize/testdata/kustomize-with-version-override")
+
+	q := &apiclient.RepoServerAppDetailsQuery{
+		Repo: &v1alpha1.Repository{},
+		Source: &v1alpha1.ApplicationSource{
+			Path: ".",
+		},
+		KustomizeOptions: &v1alpha1.KustomizeOptions{},
+	}
+
+	_, err := service.GetAppDetails(t.Context(), q)
+	require.ErrorAs(t, err, &kustomizeVersionNotRegisteredError{Version: "v1.2.3"})
+
+	q.KustomizeOptions.Versions = []v1alpha1.KustomizeVersion{
+		{
+			Name: "v1.2.3",
+			Path: "kustomize",
+		},
+	}
+
+	res, err := service.GetAppDetails(t.Context(), q)
+	require.NoError(t, err)
+	assert.Equal(t, "Kustomize", res.Type)
 }
 
 func TestGetHelmCharts(t *testing.T) {
@@ -4521,4 +4578,44 @@ func TestGenerateManifest_OCISourceSkipsGitClient(t *testing.T) {
 
 	// verify that newGitClient was never invoked
 	assert.False(t, gitCalled, "GenerateManifest should not invoke Git for OCI sources")
+}
+
+func Test_getKustomizeBinaryPath(t *testing.T) {
+	ko := &v1alpha1.KustomizeOptions{
+		BuildOptions: "--opt1 val1",
+		Versions: []v1alpha1.KustomizeVersion{
+			{Name: "v1", Path: "path_v1"},
+			{Name: "v2", Path: "path_v2"},
+			{Name: "v3", Path: "path_v3", BuildOptions: "--opt2 val2"},
+		},
+	}
+
+	t.Run("VersionDoesNotExist", func(t *testing.T) {
+		_, err := getKustomizeBinaryPath(ko, &v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v4"},
+		})
+		require.Error(t, err)
+	})
+
+	t.Run("DefaultBuildOptions", func(t *testing.T) {
+		ver, err := getKustomizeBinaryPath(ko, &v1alpha1.ApplicationSource{})
+		require.NoError(t, err)
+		assert.Empty(t, ver)
+	})
+
+	t.Run("VersionExists", func(t *testing.T) {
+		ver, err := getKustomizeBinaryPath(ko, &v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v2"},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "path_v2", ver)
+	})
+
+	t.Run("VersionExistsWithBuildOption", func(t *testing.T) {
+		ver, err := getKustomizeBinaryPath(ko, &v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v3"},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "path_v3", ver)
+	})
 }

@@ -773,14 +773,6 @@ func verifyGenerateManifests(
 			})
 			continue
 		}
-		kustomizeOptions, err := kustomizeSettings.GetOptions(source)
-		if err != nil {
-			conditions = append(conditions, argoappv1.ApplicationCondition{
-				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("Error getting Kustomize options: %v", err),
-			})
-			continue
-		}
 		installationID, err := settingsMgr.GetInstallationID()
 		if err != nil {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
@@ -840,7 +832,7 @@ func verifyGenerateManifests(
 			Namespace:                       app.Spec.Destination.Namespace,
 			ApplicationSource:               &source,
 			AppLabelKey:                     appLabelKey,
-			KustomizeOptions:                kustomizeOptions,
+			KustomizeOptions:                kustomizeSettings,
 			KubeVersion:                     kubeVersion,
 			ApiVersions:                     apiVersions,
 			HelmOptions:                     helmOptions,

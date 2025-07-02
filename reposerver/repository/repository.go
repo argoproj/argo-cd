@@ -1498,9 +1498,10 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		targetObjs, command, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
 		commands = append(commands, command)
 	case v1alpha1.ApplicationSourceTypeKustomize:
-		kustomizeBinary := ""
-		if q.KustomizeOptions != nil {
-			kustomizeBinary = q.KustomizeOptions.BinaryPath
+		var kustomizeBinary string
+		kustomizeBinary, err = getKustomizeBinaryPath(q.KustomizeOptions, q.ApplicationSource)
+		if err != nil {
+			return nil, fmt.Errorf("error getting kustomize binary path: %w", err)
 		}
 		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
 		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
@@ -1669,7 +1670,42 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 	return nil
 }
 
-// GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
+type kustomizeVersionNotRegisteredError struct {
+	// Version is the Kustomize version that is not registered
+	Version string
+}
+
+func (e kustomizeVersionNotRegisteredError) Error() string {
+	return fmt.Sprintf("kustomize version %s is not registered", e.Version)
+}
+
+// getKustomizeBinaryPath returns the path to the kustomize binary based on the provided KustomizeOptions and ApplicationSource.
+func getKustomizeBinaryPath(ko *v1alpha1.KustomizeOptions, source *v1alpha1.ApplicationSource) (string, error) {
+	if ko == nil {
+		return "", nil
+	}
+	if source == nil {
+		return "", errors.New("cannot get kustomize version: source is nil")
+	}
+	if source.Kustomize != nil && source.Kustomize.Version != "" {
+		for _, ver := range ko.Versions {
+			if ver.Name == source.Kustomize.Version {
+				// add version specific path and build options
+				return ver.Path, nil
+			}
+		}
+		return "", kustomizeVersionNotRegisteredError{Version: source.Kustomize.Version}
+	}
+	if ko.BinaryPath != "" { // nolint:staticcheck // BinaryPath is deprecated, but still supported for backward compatibility
+		log.Warn("kustomizeOptions.binaryPath is deprecated, use KustomizeOptions.versions instead")
+		// nolint:staticcheck // BinaryPath is deprecated, but still supported for backward compatibility
+		return ko.BinaryPath, nil
+	}
+	return "", nil
+}
+
+// GetAppSourceType returns explicit application source type or examines a directory and determines its application source type.
+// Overrides are applied as a side effect on the given source.
 func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, appPath, repoPath, appName string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string, env []string) (v1alpha1.ApplicationSourceType, error) {
 	err := mergeSourceParameters(source, appPath, appName)
 	if err != nil {
@@ -2300,9 +2336,9 @@ func walkHelmValueFilesInPath(root string, valueFiles *[]string) filepath.WalkFu
 
 func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery, repoRoot string, appPath string, reversion string, credsStore git.CredsStore) error {
 	res.Kustomize = &apiclient.KustomizeAppSpec{}
-	kustomizeBinary := ""
-	if q.KustomizeOptions != nil {
-		kustomizeBinary = q.KustomizeOptions.BinaryPath
+	kustomizeBinary, err := getKustomizeBinaryPath(q.KustomizeOptions, q.Source)
+	if err != nil {
+		return fmt.Errorf("failed to get kustomize binary path: %w", err)
 	}
 	k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(credsStore), q.Repo.Repo, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
 	fakeManifestRequest := apiclient.ManifestRequest{

@@ -414,6 +414,13 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 	return nil
 }
 
+func RegisterKustomizeVersion(version, path string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["kustomize.version."+version] = path
+		return nil
+	})
+}
+
 func SetEnableManifestGeneration(val map[v1alpha1.ApplicationSourceType]bool) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range val {

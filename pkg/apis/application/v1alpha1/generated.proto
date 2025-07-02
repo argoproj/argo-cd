@@ -1308,7 +1308,12 @@ message KustomizeOptions {
   optional string buildOptions = 1;
 
   // BinaryPath holds optional path to kustomize binary
+  //
+  // Deprecated: Use Settings.Versions instead. If Settings is set, this field will be ignored.
   optional string binaryPath = 2;
+
+  // Versions is a list of Kustomize versions and their corresponding binary paths and build options.
+  repeated KustomizeVersion versions = 3;
 }
 
 message KustomizePatch {
@@ -1343,6 +1348,18 @@ message KustomizeSelector {
   optional string annotationSelector = 2;
 
   optional string labelSelector = 3;
+}
+
+// KustomizeVersion holds information about additional Kustomize versions
+message KustomizeVersion {
+  // Name holds Kustomize version name
+  optional string name = 1;
+
+  // Path holds the corresponding binary path
+  optional string path = 2;
+
+  // BuildOptions that are specific to a Kustomize version
+  optional string buildOptions = 3;
 }
 
 // ListGenerator include items info
