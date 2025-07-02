@@ -2,10 +2,10 @@
 
 ## argocd repo rm
 
-Remove repository credentials
+Remove configured repositories
 
 ```
-argocd repo rm REPO [flags]
+argocd repo rm REPO ... [flags]
 ```
 
 ### Options

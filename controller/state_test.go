@@ -717,8 +717,7 @@ func TestSetHealth(t *testing.T) {
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 
-	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
-	assert.False(t, compRes.healthStatus.LastTransitionTime.IsZero())
+	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus)
 }
 
 func TestPreserveStatusTimestamp(t *testing.T) {
@@ -754,8 +753,7 @@ func TestPreserveStatusTimestamp(t *testing.T) {
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 
-	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
-	assert.Equal(t, timestamp, *compRes.healthStatus.LastTransitionTime)
+	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus)
 }
 
 func TestSetHealthSelfReferencedApp(t *testing.T) {
@@ -792,8 +790,7 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 
-	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
-	assert.False(t, compRes.healthStatus.LastTransitionTime.IsZero())
+	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus)
 }
 
 func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
@@ -868,8 +865,7 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 
-	assert.Equal(t, health.HealthStatusUnknown, compRes.healthStatus.Status)
-	assert.False(t, compRes.healthStatus.LastTransitionTime.IsZero())
+	assert.Equal(t, health.HealthStatusUnknown, compRes.healthStatus)
 	assert.Equal(t, v1alpha1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
 }
 
@@ -1287,7 +1283,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 }
 
 func TestComparisonResult_GetHealthStatus(t *testing.T) {
-	status := &v1alpha1.HealthStatus{Status: health.HealthStatusMissing}
+	status := health.HealthStatusMissing
 	res := comparisonResult{
 		healthStatus: status,
 	}
@@ -1305,6 +1301,8 @@ func TestComparisonResult_GetSyncStatus(t *testing.T) {
 }
 
 func TestIsLiveResourceManaged(t *testing.T) {
+	t.Parallel()
+
 	managedObj := kube.MustToUnstructured(&corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -1826,4 +1824,32 @@ func Test_normalizeClusterScopeTracking(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.True(t, called, "normalization function should have called the callback function")
+}
+
+func TestCompareAppState_DoesNotCallUpdateRevisionForPaths_ForOCI(t *testing.T) {
+	app := newFakeApp()
+	// Enable the manifest-generate-paths annotation and set a synced revision
+	app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
+	app.Status.Sync = v1alpha1.SyncStatus{
+		Revision: "abc123",
+		Status:   v1alpha1.SyncStatusCodeSynced,
+	}
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}
+	ctrl := newFakeControllerWithResync(&data, time.Minute, nil, errors.New("this should not be called"))
+
+	source := app.Spec.GetSource()
+	source.RepoURL = "oci://example.com/argo/argo-cd"
+	sources := make([]v1alpha1.ApplicationSource, 0)
+	sources = append(sources, source)
+
+	_, _, _, err := ctrl.appStateManager.GetRepoObjs(app, sources, "abc123", []string{"123456"}, false, false, false, &defaultProj, false, false)
+	require.NoError(t, err)
 }

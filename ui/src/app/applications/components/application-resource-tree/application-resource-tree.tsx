@@ -210,7 +210,7 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
         const numberA = Number(a);
         const numberB = Number(b);
         if (isNaN(numberA) || isNaN(numberB)) {
-            return a.localeCompare(b);
+            return a.localeCompare(b, undefined, {numeric: true});
         }
         return Math.sign(numberA - numberB);
     }
@@ -229,13 +229,13 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
         return (
             orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
             compareRevision(getRevision(second), getRevision(first)) ||
-            nodeKey(first).localeCompare(nodeKey(second)) ||
+            nodeKey(first).localeCompare(nodeKey(second), undefined, {numeric: true}) ||
             0
         );
     }
     return (
         orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
-        nodeKey(first).localeCompare(nodeKey(second)) ||
+        nodeKey(first).localeCompare(nodeKey(second), undefined, {numeric: true}) ||
         compareRevision(getRevision(first), getRevision(second)) ||
         0
     );

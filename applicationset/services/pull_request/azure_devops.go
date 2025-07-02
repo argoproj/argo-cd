@@ -10,7 +10,10 @@ import (
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
 )
 
-const AZURE_DEVOPS_DEFAULT_URL = "https://dev.azure.com"
+const (
+	AZURE_DEVOPS_DEFAULT_URL             = "https://dev.azure.com"
+	AZURE_DEVOPS_PROJECT_NOT_FOUND_ERROR = "The following project does not exist"
+)
 
 type AzureDevOpsClientFactory interface {
 	// Returns an Azure Devops Client interface.
@@ -70,12 +73,21 @@ func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
 		SearchCriteria: &git.GitPullRequestSearchCriteria{},
 	}
 
+	pullRequests := []*PullRequest{}
+
 	azurePullRequests, err := client.GetPullRequestsByProject(ctx, args)
 	if err != nil {
+		// A standard Http 404 error is not returned for Azure DevOps,
+		// so checking the error message for a specific pattern.
+		// NOTE: Since the repos are filtered later, only existence of the project
+		// is relevant for AzureDevOps
+		if strings.Contains(err.Error(), AZURE_DEVOPS_PROJECT_NOT_FOUND_ERROR) {
+			// return a custom error indicating that the repository is not found,
+			// but also return the empty result since the decision to continue or not in this case is made by the caller
+			return pullRequests, NewRepositoryNotFoundError(err)
+		}
 		return nil, fmt.Errorf("failed to get pull requests by project: %w", err)
 	}
-
-	pullRequests := []*PullRequest{}
 
 	for _, pr := range *azurePullRequests {
 		if pr.Repository == nil ||

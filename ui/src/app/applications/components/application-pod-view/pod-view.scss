@@ -43,6 +43,9 @@ $pod-age-icon-clr: #ffce25;
         margin: 10px;
         margin-bottom: 14px !important;
         width: $pod-container-width + 2 * $padding;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
 
         &--large {
             width: $pod-container-width + (2 * $padding) + ($num-stats * ($stat-width + 2 * $gutter)) + 6 * $gutter;
@@ -52,6 +55,7 @@ $pod-age-icon-clr: #ffce25;
             &--header {
                 align-items: center;
                 margin-bottom: 1em;
+                height: 100%;
             }
             &--stats {
                 margin-left: -2 * $gutter;
@@ -76,11 +80,25 @@ $pod-age-icon-clr: #ffce25;
             border-radius: 3px;
             background-color: $argo-color-gray-3;
             color: $argo-color-gray-6;
-            div {
+            max-height: 100px;
+            overflow: auto;
+             &__item {
+                line-height: 20px;
                 display: flex;
-                & div:last-child {
+         
+                &__name {
+                    max-width: 60%;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+                &__value {
                     font-weight: 500;
                     margin-left: auto;
+                    max-width: 40%;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
                 }
             }
         }
