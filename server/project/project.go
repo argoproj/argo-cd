@@ -572,15 +572,3 @@ func (s *Server) NormalizeProjs() error {
 	}
 	return nil
 }
-
-func (s *Server) getProjectEnforceRBAC(ctx context.Context, action string, name string) (*v1alpha1.AppProject, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceProjects, action, name); err != nil {
-		return nil, err
-	}
-	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	proj.NormalizeJWTTokens()
-	return proj, nil
-}

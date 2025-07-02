@@ -8,16 +8,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
-
-	"github.com/argoproj/argo-cd/v3/util/assets"
-
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/ptr"
@@ -28,13 +26,13 @@ import (
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/server/deeplinks"
 	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/assets"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/settings"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 const (
