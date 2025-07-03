@@ -2,6 +2,8 @@ package hydrator
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -317,5 +319,101 @@ func TestLogsHydrationEvent_HydrationCompleted(t *testing.T) {
 	})
 	// // Verify all expectations were met
 	mockDeps.AssertExpectations(t)
+}
+func TestLogsHydrationEvent_HydrationFailed(t *testing.T) {
 
+	now := metav1.NewTime(time.Now())
+	oneHourAgo := metav1.NewTime(now.Add(-1 * time.Hour))
+
+	log.SetLevel(log.TraceLevel)
+
+	app := &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{v1alpha1.AnnotationKeyHydrate: "normal"},
+			Name:        "test-app",
+			Namespace:   "default",
+		},
+		Spec:   v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{DrySource: v1alpha1.DrySource{RepoURL: "https://example.com/repo.git", TargetRevision: "main"}, SyncSource: v1alpha1.SyncSource{Path: "dev", TargetBranch: "dev"}}},
+		Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{CurrentOperation: &v1alpha1.HydrateOperation{StartedAt: oneHourAgo}}},
+	}
+	// Create mock dependencies
+	mockDeps := &MockHydratorDependencies{}
+	// create commitServer mock	clientset
+	commitServerMockClientset := mockcommitclient.NewClientset(t)
+	// repoServer mocks
+	mockRepoClient := mockrepoclient.RepoServerServiceClient{}
+	mockRepoClientset := mockrepoclient.Clientset{RepoServerServiceClient: &mockRepoClient}
+	// Create a mock repoGetter
+	repoGetter := &MockRepoGetter{}
+	// create Hydrator instance
+	hydrator := &Hydrator{
+		dependencies:         mockDeps,
+		statusRefreshTimeout: time.Minute * 5,
+		commitClientset:      commitServerMockClientset,
+		repoClientset:        &mockRepoClientset,
+		repoGetter:           repoGetter,
+	}
+	// Set up mock expectations
+	mockDeps.On("LogHydrationPhaseEvent",
+		mock.Anything,
+		mock.AnythingOfType("*v1alpha1.Application"),
+		mock.MatchedBy(func(eventInfo argo.EventInfo) bool {
+			return eventInfo.Reason == argo.EventReasonHydrationStarted && eventInfo.Type == corev1.EventTypeNormal
+		}),
+		"Hydration started").Once()
+	mockDeps.On("LogHydrationPhaseEvent",
+		mock.Anything,
+		mock.AnythingOfType("*v1alpha1.Application"),
+		mock.MatchedBy(func(eventInfo argo.EventInfo) bool {
+			return eventInfo.Reason == argo.EventReasonHydrationFailed && eventInfo.Type == corev1.EventTypeWarning
+		}),
+		mock.MatchedBy(func(message string) bool {
+			return strings.Contains(message, "Failed to hydrate app")
+		})).Once()
+	mockDeps.On("PersistAppHydratorStatus", mock.Anything, mock.Anything).Twice()
+	mockDeps.On("AddHydrationQueueItem", mock.Anything, mock.Anything).Once()
+	mockDeps.On("GetProcessableApps").Return(&appv1.ApplicationList{
+		Items: []appv1.Application{
+			*app,
+		},
+	}, nil)
+	mockDeps.On("GetProcessableAppProj", mock.AnythingOfType("*v1alpha1.Application")).Return(&appv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "default",
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		},
+		Spec: appv1.AppProjectSpec{
+			SourceRepos: []string{"https://example.com/repo.git"},
+			Destinations: []appv1.ApplicationDestination{
+				{
+					Name:      "default",
+					Namespace: "default",
+				},
+			},
+		},
+	}, nil)
+	mockDeps.On("GetRepoObjs", mock.AnythingOfType("*v1alpha1.Application"), mock.AnythingOfType("v1alpha1.ApplicationSource"), mock.AnythingOfType("string"), mock.AnythingOfType("*v1alpha1.AppProject")).Return([]*unstructured.Unstructured{
+		{
+			Object: map[string]interface{}{
+				"apiVersion": "v1",
+				"kind":       "ConfigMap",
+				"metadata": map[string]interface{}{
+					"name":      "example-configmap",
+					"namespace": "default",
+				},
+				"data": map[string]interface{}{
+					"key": "value",
+				},
+			},
+		},
+	}, &reposerver.ManifestResponse{}, errors.New("Obj error")).Once()
+	hydrator.ProcessAppHydrateQueueItem(app)
+	hydrator.ProcessHydrationQueueItem(HydrationQueueKey{
+		SourceRepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
+		SourceTargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
+		DestinationBranch:    app.Spec.SourceHydrator.SyncSource.TargetBranch,
+	})
+	// // Verify all expectations were met
+	mockDeps.AssertExpectations(t)
 }
