@@ -93,7 +93,7 @@ func newAppProject() *unstructured.Unstructured {
 	appProject := v1alpha1.AppProject{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "AppProject",
-			APIVersion: "v1",
+			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "default",
@@ -123,7 +123,7 @@ func newApplication(namespace string) *unstructured.Unstructured {
 	app := v1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Application",
-			APIVersion: "v1",
+			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
@@ -146,7 +146,7 @@ func newApplicationSet(namespace string) *unstructured.Unstructured {
 	appSet := v1alpha1.ApplicationSet{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ApplicationSet",
-			APIVersion: "v1",
+			APIVersion: "argoproj.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-appset",
@@ -180,7 +180,7 @@ func Test_exportResources(t *testing.T) {
 			name:         "ConfigMap should be in the exported manifest",
 			object:       newConfigmapObject(),
 			expectExport: true,
-			expectedFileContent: `apiVersion: v1
+			expectedFileContent: `apiVersion: argoproj.io/v1alpha1
 kind: ConfigMap
 metadata:
   labels:
@@ -193,7 +193,7 @@ metadata:
 			name:         "Secret should be in the exported manifest",
 			object:       newSecretsObject(),
 			expectExport: true,
-			expectedFileContent: `apiVersion: v1
+			expectedFileContent: `apiVersion: argoproj.io/v1alpha1
 data:
   admin.password: null
   server.secretkey: null
@@ -210,7 +210,7 @@ metadata:
 			name:         "App Project should be in the exported manifest",
 			object:       newAppProject(),
 			expectExport: true,
-			expectedFileContent: `apiVersion: v1
+			expectedFileContent: `apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
   name: default
@@ -232,7 +232,7 @@ status: {}
 			object:       newApplication("argocd"),
 			namespace:    "argocd",
 			expectExport: true,
-			expectedFileContent: `apiVersion: v1
+			expectedFileContent: `apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: test
@@ -262,7 +262,7 @@ status:
 			namespace:         "dev",
 			enabledNamespaces: []string{"dev", "prod"},
 			expectExport:      true,
-			expectedFileContent: `apiVersion: v1
+			expectedFileContent: `apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: test
@@ -300,7 +300,7 @@ status:
 			object:       newApplicationSet("argocd"),
 			namespace:    "argocd",
 			expectExport: true,
-			expectedFileContent: `apiVersion: v1
+			expectedFileContent: `apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
   name: test-appset
@@ -329,7 +329,7 @@ status: {}
 			namespace:         "dev",
 			enabledNamespaces: []string{"dev", "prod"},
 			expectExport:      true,
-			expectedFileContent: `apiVersion: v1
+			expectedFileContent: `apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
   name: test-appset
@@ -405,7 +405,7 @@ func Test_importResources(t *testing.T) {
 		{
 			name: "Update live object when backup does not match skip label",
 			args: args{
-				bak: `apiVersion: v1
+				bak: `apiVersion: argoproj.io/v1alpha1
 kind: ConfigMap
 metadata:
   name: my-configmap
@@ -419,7 +419,7 @@ metadata:
 data:
   foo: bar
 `,
-				live: `apiVersion: v1
+				live: `apiVersion: argoproj.io/v1alpha1
 kind: ConfigMap
 metadata:
   name: my-configmap
@@ -442,7 +442,7 @@ data:
 		{
 			name: "Update live object when data differs from backup",
 			args: args{
-				bak: `apiVersion: v1
+				bak: `apiVersion: argoproj.io/v1alpha1
 kind: ConfigMap
 metadata:
   name: my-configmap
@@ -450,7 +450,7 @@ metadata:
 data:
   foo: bar
 `,
-				live: `apiVersion: v1
+				live: `apiVersion: argoproj.io/v1alpha1
 kind: ConfigMap
 metadata:
   name: my-configmap
@@ -465,7 +465,7 @@ data:
 		{
 			name: "Update live if spec differs from backup for Application",
 			args: args{
-				bak: `apiVersion: v1
+				bak: `apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: app
@@ -477,7 +477,7 @@ spec:
     namespace: default
     server: https://kubernetes.default.svc
 `,
-				live: `apiVersion: v1
+				live: `apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: app
@@ -496,7 +496,7 @@ spec:
 		{
 			name: "Update live if spec differs from backup for ApplicationSet",
 			args: args{
-				bak: `apiVersion: v1
+				bak: `apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
   name: my-appset
@@ -511,7 +511,7 @@ spec:
       name: '{{appName}}'
     spec: {}
 `,
-				live: `apiVersion: v1
+				live: `apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
   name: my-appset
@@ -533,7 +533,7 @@ spec:
 		{
 			name: "Should not update live object if it matches the backup",
 			args: args{
-				bak: `apiVersion: v1
+				bak: `apiVersion: argoproj.io/v1alpha1
 kind: ConfigMap
 metadata:
   name: my-cm
@@ -543,7 +543,7 @@ metadata:
 data:
   foo: bar
 `,
-				live: `apiVersion: v1
+				live: `apiVersion: argoproj.io/v1alpha1
 kind: ConfigMap
 metadata:
   name: my-cm
@@ -560,7 +560,7 @@ data:
 		{
 			name: "Create resource if it's missing from live",
 			args: args{
-				bak: `apiVersion: v1
+				bak: `apiVersion: argoproj.io/v1alpha1
 kind: ConfigMap
 metadata:
   name: my-cm
@@ -570,7 +570,7 @@ metadata:
 data:
   foo: bar
 `,
-				live: `apiVersion: v1
+				live: `apiVersion: argoproj.io/v1alpha1
 kind: ConfigMap
 metadata:
   name: my-cm
@@ -585,13 +585,13 @@ metadata:
 		{
 			name: "Prune live resources when not present in backup",
 			args: args{
-				bak: `apiVersion: v1
+				bak: `apiVersion: argoproj.io/v1alpha1
 kind: ConfigMap
 metadata:
   name: configmap-to-keep
   namespace: default
 `,
-				live: `apiVersion: v1
+				live: `apiVersion: argoproj.io/v1alpha1
 kind: ConfigMap
 metadata:
   name: configmap-to-keep
@@ -607,7 +607,7 @@ data:
 		{
 			name: "Clear the operation field when stopOperation is enabled",
 			args: args{
-				bak: `apiVersion: v1
+				bak: `apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: app
@@ -622,7 +622,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: default
 `,
-				live: `apiVersion: v1
+				live: `apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: app
@@ -645,7 +645,7 @@ status:
 		{
 			name: "Override live object on conflict with backup",
 			args: args{
-				bak: `apiVersion: v1
+				bak: `apiVersion: argoproj.io/v1alpha1
 kind: Secret
 metadata:
   name: my-secret
@@ -657,7 +657,7 @@ data:
   username: bar
   password: abc
 `,
-				live: `apiVersion: v1
+				live: `apiVersion: argoproj.io/v1alpha1
 kind: Secret
 metadata:
   name: my-secret
