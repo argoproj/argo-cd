@@ -2659,7 +2659,7 @@ func TestSelfHealExponentialBackoff(t *testing.T) {
 			app.Status.OperationState.FinishedAt = tc.finishedAt
 			duration := ctrl.selfHealRemainingBackoff(app)
 			shouldSelfHeal := duration <= 0
-			require.Equal(t, shouldSelfHeal, tc.shouldSelfHeal)
+			require.Equal(t, tc.shouldSelfHeal, shouldSelfHeal)
 			assertDurationAround(t, tc.expectedDuration, duration)
 		})
 	}
