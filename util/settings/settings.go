@@ -287,6 +287,11 @@ func (e KustomizeVersionNotRegisteredError) Error() string {
 
 // GetKustomizeBinaryPath returns the path to the kustomize binary based on the provided KustomizeOptions and ApplicationSource.
 func GetKustomizeBinaryPath(ks *v1alpha1.KustomizeOptions, source v1alpha1.ApplicationSource) (string, error) {
+	if ks == nil {
+		// No versions or binary path specified, stick with defaults.
+		return "", nil
+	}
+
 	if ks.BinaryPath != "" { // nolint:staticcheck // BinaryPath is deprecated, but still supported for backward compatibility
 		log.Warn("kustomizeOptions.binaryPath is deprecated, use KustomizeOptions.versions instead")
 		// nolint:staticcheck // BinaryPath is deprecated, but if it's set, we'll use it to ensure backward compatibility
