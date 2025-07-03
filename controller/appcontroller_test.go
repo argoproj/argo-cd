@@ -95,10 +95,10 @@ func (m *MockKubectl) DeleteResource(ctx context.Context, config *rest.Config, g
 }
 
 func newFakeController(data *fakeData, repoErr error) *ApplicationController {
-	return newFakeControllerWithResync(data, time.Minute, repoErr)
+	return newFakeControllerWithResync(data, time.Minute, repoErr, nil)
 }
 
-func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, repoErr error) *ApplicationController {
+func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, repoErr, revisionPathsErr error) *ApplicationController {
 	var clust corev1.Secret
 	err := yaml.Unmarshal([]byte(fakeCluster), &clust)
 	if err != nil {
@@ -124,7 +124,11 @@ func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, 
 		}
 	}
 
-	mockRepoClient.On("UpdateRevisionForPaths", mock.Anything, mock.Anything).Return(data.updateRevisionForPathsResponse, nil)
+	if revisionPathsErr != nil {
+		mockRepoClient.On("UpdateRevisionForPaths", mock.Anything, mock.Anything).Return(nil, revisionPathsErr)
+	} else {
+		mockRepoClient.On("UpdateRevisionForPaths", mock.Anything, mock.Anything).Return(data.updateRevisionForPathsResponse, nil)
+	}
 
 	mockRepoClientset := mockrepoclient.Clientset{RepoServerServiceClient: &mockRepoClient}
 
@@ -1862,7 +1866,7 @@ apps/Deployment:
     hs = {}
     hs.status = ""
     hs.message = ""
-    
+
     if obj.metadata ~= nil then
       if obj.metadata.labels ~= nil then
         current_status = obj.metadata.labels["status"]
@@ -1898,7 +1902,7 @@ apps/Deployment:
 			{},
 			{},
 		},
-	}, time.Millisecond*10, nil)
+	}, time.Millisecond*10, nil, nil)
 
 	testCases := []struct {
 		name           string
@@ -2059,7 +2063,7 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 	ctrl.processRequestedAppOperation(app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
-	assert.Equal(t, string(synccommon.OperationFailed), phase)
+	assert.Equal(t, string(synccommon.OperationError), phase)
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
 	assert.Contains(t, message, "application destination can't have both name and server defined: another-cluster https://localhost:6443")
 }
@@ -2346,20 +2350,17 @@ func Test_syncDeleteOption(t *testing.T) {
 	cm := newFakeCM()
 	t.Run("without delete option object is deleted", func(t *testing.T) {
 		cmObj := kube.MustToUnstructured(&cm)
-		delete := ctrl.shouldBeDeleted(app, cmObj)
-		assert.True(t, delete)
+		assert.True(t, ctrl.shouldBeDeleted(app, cmObj))
 	})
 	t.Run("with delete set to false object is retained", func(t *testing.T) {
 		cmObj := kube.MustToUnstructured(&cm)
 		cmObj.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": "Delete=false"})
-		delete := ctrl.shouldBeDeleted(app, cmObj)
-		assert.False(t, delete)
+		assert.False(t, ctrl.shouldBeDeleted(app, cmObj))
 	})
 	t.Run("with delete set to false object is retained", func(t *testing.T) {
 		cmObj := kube.MustToUnstructured(&cm)
 		cmObj.SetAnnotations(map[string]string{"helm.sh/resource-policy": "keep"})
-		delete := ctrl.shouldBeDeleted(app, cmObj)
-		assert.False(t, delete)
+		assert.False(t, ctrl.shouldBeDeleted(app, cmObj))
 	})
 }
 

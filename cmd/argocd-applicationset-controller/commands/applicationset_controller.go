@@ -74,6 +74,7 @@ func NewCommand() *cobra.Command {
 		allowedScmProviders          []string
 		globalPreservedAnnotations   []string
 		globalPreservedLabels        []string
+		enableGitHubAPIMetrics       bool
 		metricsAplicationsetLabels   []string
 		enableScmProviders           bool
 		webhookParallelism           int
@@ -176,7 +177,7 @@ func NewCommand() *cobra.Command {
 			argoSettingsMgr := argosettings.NewSettingsManager(ctx, k8sClient, namespace)
 			argoCDDB := db.NewDB(namespace, argoSettingsMgr, k8sClient)
 
-			scmConfig := generators.NewSCMConfig(scmRootCAPath, allowedScmProviders, enableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), tokenRefStrictMode)
+			scmConfig := generators.NewSCMConfig(scmRootCAPath, allowedScmProviders, enableScmProviders, enableGitHubAPIMetrics, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), tokenRefStrictMode)
 
 			tlsConfig := apiclient.TLSConfiguration{
 				DisableTLS:       repoServerPlaintext,
@@ -273,6 +274,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&globalPreservedLabels, "preserved-labels", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS", []string{}, ","), "Sets global preserved field values for labels")
 	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
 	command.Flags().StringSliceVar(&metricsAplicationsetLabels, "metrics-applicationset-labels", []string{}, "List of Application labels that will be added to the argocd_applicationset_labels metric")
+	command.Flags().BoolVar(&enableGitHubAPIMetrics, "enable-github-api-metrics", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS", false), "Enable GitHub API metrics for generators that use the GitHub API")
+
 	return &command
 }
 

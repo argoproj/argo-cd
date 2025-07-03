@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	"github.com/argoproj/argo-cd/v3/applicationset/services/github_app_auth"
 	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider"
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
@@ -31,20 +33,22 @@ type SCMProviderGenerator struct {
 	SCMConfig
 }
 type SCMConfig struct {
-	scmRootCAPath       string
-	allowedSCMProviders []string
-	enableSCMProviders  bool
-	GitHubApps          github_app_auth.Credentials
-	tokenRefStrictMode  bool
+	scmRootCAPath          string
+	allowedSCMProviders    []string
+	enableSCMProviders     bool
+	enableGitHubAPIMetrics bool
+	GitHubApps             github_app_auth.Credentials
+	tokenRefStrictMode     bool
 }
 
-func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool, gitHubApps github_app_auth.Credentials, tokenRefStrictMode bool) SCMConfig {
+func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool, enableGitHubAPIMetrics bool, gitHubApps github_app_auth.Credentials, tokenRefStrictMode bool) SCMConfig {
 	return SCMConfig{
-		scmRootCAPath:       scmRootCAPath,
-		allowedSCMProviders: allowedSCMProviders,
-		enableSCMProviders:  enableSCMProviders,
-		GitHubApps:          gitHubApps,
-		tokenRefStrictMode:  tokenRefStrictMode,
+		scmRootCAPath:          scmRootCAPath,
+		allowedSCMProviders:    allowedSCMProviders,
+		enableSCMProviders:     enableSCMProviders,
+		enableGitHubAPIMetrics: enableGitHubAPIMetrics,
+		GitHubApps:             gitHubApps,
+		tokenRefStrictMode:     tokenRefStrictMode,
 	}
 }
 
@@ -274,23 +278,36 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 }
 
 func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argoprojiov1alpha1.SCMProviderGeneratorGithub, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) (scm_provider.SCMProviderService, error) {
+	var metricsCtx *services.MetricsContext
+	var httpClient *http.Client
+
+	if g.enableGitHubAPIMetrics {
+		metricsCtx = &services.MetricsContext{
+			AppSetNamespace: applicationSetInfo.Namespace,
+			AppSetName:      applicationSetInfo.Name,
+		}
+		httpClient = services.NewGitHubMetricsClient(metricsCtx)
+	}
+
 	if github.AppSecretName != "" {
 		auth, err := g.GitHubApps.GetAuthSecret(ctx, github.AppSecretName)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Github app secret: %w", err)
 		}
 
-		return scm_provider.NewGithubAppProviderFor(
-			*auth,
-			github.Organization,
-			github.API,
-			github.AllBranches,
-		)
+		if g.enableGitHubAPIMetrics {
+			return scm_provider.NewGithubAppProviderFor(*auth, github.Organization, github.API, github.AllBranches, httpClient)
+		}
+		return scm_provider.NewGithubAppProviderFor(*auth, github.Organization, github.API, github.AllBranches)
 	}
 
 	token, err := utils.GetSecretRef(ctx, g.client, github.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching Github token: %w", err)
+	}
+
+	if g.enableGitHubAPIMetrics {
+		return scm_provider.NewGithubProvider(github.Organization, token, github.API, github.AllBranches, httpClient)
 	}
 	return scm_provider.NewGithubProvider(github.Organization, token, github.API, github.AllBranches)
 }

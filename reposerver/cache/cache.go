@@ -534,11 +534,11 @@ func (cmr *CachedManifestResponse) shallowCopy() *CachedManifestResponse {
 
 func (cmr *CachedManifestResponse) generateCacheEntryHash() (string, error) {
 	// Copy, then remove the old hash
-	copy := cmr.shallowCopy()
-	copy.CacheEntryHash = ""
+	shallowCopy := cmr.shallowCopy()
+	shallowCopy.CacheEntryHash = ""
 
 	// Hash the JSON representation into a base-64-encoded FNV 64a (we don't need a cryptographic hash algorithm, since this is only for detecting data corruption)
-	bytes, err := json.Marshal(copy)
+	bytes, err := json.Marshal(shallowCopy)
 	if err != nil {
 		return "", err
 	}

@@ -47,6 +47,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	statecache "github.com/argoproj/argo-cd/v3/controller/cache"
 	"github.com/argoproj/argo-cd/v3/controller/hydrator"
+	hydratortypes "github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	"github.com/argoproj/argo-cd/v3/controller/sharding"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
@@ -115,7 +116,7 @@ type ApplicationController struct {
 	appOperationQueue             workqueue.TypedRateLimitingInterface[string]
 	projectRefreshQueue           workqueue.TypedRateLimitingInterface[string]
 	appHydrateQueue               workqueue.TypedRateLimitingInterface[string]
-	hydrationQueue                workqueue.TypedRateLimitingInterface[hydrator.HydrationQueueKey]
+	hydrationQueue                workqueue.TypedRateLimitingInterface[hydratortypes.HydrationQueueKey]
 	appInformer                   cache.SharedIndexInformer
 	appLister                     applisters.ApplicationLister
 	projInformer                  cache.SharedIndexInformer
@@ -198,7 +199,7 @@ func NewApplicationController(
 		projectRefreshQueue:               workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter[string](rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "project_reconciliation_queue"}),
 		appComparisonTypeRefreshQueue:     workqueue.NewTypedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter[string](rateLimiterConfig)),
 		appHydrateQueue:                   workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter[string](rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "app_hydration_queue"}),
-		hydrationQueue:                    workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter[hydrator.HydrationQueueKey](rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[hydrator.HydrationQueueKey]{Name: "manifest_hydration_queue"}),
+		hydrationQueue:                    workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter[hydratortypes.HydrationQueueKey](rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[hydratortypes.HydrationQueueKey]{Name: "manifest_hydration_queue"}),
 		db:                                db,
 		statusRefreshTimeout:              appResyncPeriod,
 		statusHardRefreshTimeout:          appHardResyncPeriod,
@@ -328,7 +329,7 @@ func NewApplicationController(
 		}
 	}
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts)
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, stateCache, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
@@ -1436,22 +1437,15 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
 
-	// Call GetDestinationCluster to validate the destination cluster.
-	if _, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db); err != nil {
-		state.Phase = synccommon.OperationFailed
-		state.Message = err.Error()
-	} else {
-		ctrl.appStateManager.SyncAppState(app, state)
-	}
-	ts.AddCheckpoint("validate_and_sync_app_state_ms")
-
-	// Check whether application is allowed to use project
-	_, err := ctrl.getAppProj(app)
-	ts.AddCheckpoint("get_app_proj_ms")
+	project, err := ctrl.getAppProj(app)
 	if err != nil {
 		state.Phase = synccommon.OperationError
-		state.Message = err.Error()
+		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
+	} else {
+		// Start or resume the sync
+		ctrl.appStateManager.SyncAppState(app, project, state)
 	}
+	ts.AddCheckpoint("sync_app_state_ms")
 
 	switch state.Phase {
 	case synccommon.OperationRunning:
@@ -1459,12 +1453,6 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		// to clobber the Terminated state with Running. Get the latest app state to check for this.
 		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 		if err == nil {
-			// App may have lost permissions to use the project meanwhile.
-			_, err = ctrl.getAppProj(freshApp)
-			if err != nil {
-				state.Phase = synccommon.OperationFailed
-				state.Message = fmt.Sprintf("operation not allowed: %v", err)
-			}
 			if freshApp.Status.OperationState != nil && freshApp.Status.OperationState.Phase == synccommon.OperationTerminating {
 				state.Phase = synccommon.OperationTerminating
 				state.Message = "operation is terminating"
@@ -1478,7 +1466,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			now := metav1.Now()
 			state.FinishedAt = &now
 			if retryAt, err := state.Operation.Retry.NextRetryAt(now.Time, state.RetryCount); err != nil {
-				state.Phase = synccommon.OperationFailed
+				state.Phase = synccommon.OperationError
 				state.Message = fmt.Sprintf("%s (failed to retry: %v)", state.Message, err)
 			} else {
 				state.Phase = synccommon.OperationRunning
@@ -1587,6 +1575,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			destServer = destCluster.Server
 		}
 		ctrl.metricsServer.IncSync(app, destServer, state)
+		ctrl.metricsServer.IncAppSyncDuration(app, destServer, state)
 	}
 }
 
@@ -1759,7 +1748,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		sources = append(sources, app.Spec.GetSource())
 	}
 
-	compareResult, err := ctrl.appStateManager.CompareAppState(app, project, revisions, sources, refreshType == appv1.RefreshTypeHard, comparisonLevel == CompareWithLatestForceResolve, localManifests, hasMultipleSources, false)
+	compareResult, err := ctrl.appStateManager.CompareAppState(app, project, revisions, sources, refreshType == appv1.RefreshTypeHard, comparisonLevel == CompareWithLatestForceResolve, localManifests, hasMultipleSources)
 
 	ts.AddCheckpoint("compare_app_state_ms")
 
@@ -2010,12 +1999,12 @@ func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Applica
 	}
 }
 
-func createMergePatch(orig, new any) ([]byte, bool, error) {
+func createMergePatch(orig, newV any) ([]byte, bool, error) {
 	origBytes, err := json.Marshal(orig)
 	if err != nil {
 		return nil, false, err
 	}
-	newBytes, err := json.Marshal(new)
+	newBytes, err := json.Marshal(newV)
 	if err != nil {
 		return nil, false, err
 	}

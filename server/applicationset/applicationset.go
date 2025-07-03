@@ -62,6 +62,7 @@ type Server struct {
 	ScmRootCAPath            string
 	AllowedScmProviders      []string
 	EnableScmProviders       bool
+	EnableGitHubAPIMetrics   bool
 }
 
 // NewServer returns a new instance of the ApplicationSet service
@@ -83,6 +84,7 @@ func NewServer(
 	scmRootCAPath string,
 	allowedScmProviders []string,
 	enableScmProviders bool,
+	enableGitHubAPIMetrics bool,
 	enableK8sEvent []string,
 ) applicationset.ApplicationSetServiceServer {
 	s := &Server{
@@ -104,6 +106,7 @@ func NewServer(
 		ScmRootCAPath:            scmRootCAPath,
 		AllowedScmProviders:      allowedScmProviders,
 		EnableScmProviders:       enableScmProviders,
+		EnableGitHubAPIMetrics:   enableGitHubAPIMetrics,
 	}
 	return s
 }
@@ -119,7 +122,8 @@ func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetGetQue
 	if err != nil {
 		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
 	}
-	if err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionGet, a.RBACName(s.ns)); err != nil {
+	err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionGet, a.RBACName(s.ns))
+	if err != nil {
 		return nil, err
 	}
 
@@ -245,7 +249,8 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 	if !q.Upsert {
 		return nil, status.Errorf(codes.InvalidArgument, "existing ApplicationSet spec is different, use upsert flag to force update")
 	}
-	if err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionUpdate, appset.RBACName(s.ns)); err != nil {
+	err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionUpdate, appset.RBACName(s.ns))
+	if err != nil {
 		return nil, err
 	}
 	updated, err := s.updateAppSet(ctx, existing, appset, true)
@@ -258,7 +263,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.Entry, appset v1alpha1.ApplicationSet, namespace string) ([]v1alpha1.Application, error) {
 	argoCDDB := s.db
 
-	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true)
+	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, s.EnableGitHubAPIMetrics, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true)
 	argoCDService := services.NewArgoCDService(s.db, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
 	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, namespace, argoCDService, s.dynamicClient, scmConfig)
 
@@ -344,7 +349,8 @@ func (s *Server) ResourceTree(ctx context.Context, q *applicationset.Application
 	if err != nil {
 		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
 	}
-	if err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionGet, a.RBACName(s.ns)); err != nil {
+	err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionGet, a.RBACName(s.ns))
+	if err != nil {
 		return nil, err
 	}
 

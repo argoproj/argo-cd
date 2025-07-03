@@ -745,7 +745,7 @@ func (mgr *SettingsManager) getSecret() (*corev1.Secret, error) {
 	return mgr.GetSecretByName(common.ArgoCDSecretName)
 }
 
-// Returns the Secret with the given name from the cluster.
+// GetSecretByName returns the Secret with the given name from the cluster.
 func (mgr *SettingsManager) GetSecretByName(secretName string) (*corev1.Secret, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
@@ -1891,6 +1891,13 @@ func (a *ArgoCDSettings) OAuth2ClientSecret() string {
 		return a.DexOAuth2ClientSecret()
 	}
 	return ""
+}
+
+func (a *ArgoCDSettings) OAuth2UsePKCE() bool {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+		return oidcConfig.EnablePKCEAuthentication
+	}
+	return false
 }
 
 func (a *ArgoCDSettings) UseAzureWorkloadIdentity() bool {

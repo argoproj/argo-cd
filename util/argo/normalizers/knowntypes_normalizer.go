@@ -102,7 +102,8 @@ func normalize(obj map[string]any, field knownTypeField, fieldPath []string) err
 					}
 					items[j] = newItem
 				} else {
-					if err = normalize(item, field, subPath); err != nil {
+					err = normalize(item, field, subPath)
+					if err != nil {
 						return err
 					}
 				}

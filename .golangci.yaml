@@ -53,19 +53,16 @@ linters:
       # Most of these should probably be enabled one-by-one.
       disabled-checks:
         - appendAssign
-        - appendCombine
-        - assignOp
-        - builtinShadow
+        - appendCombine # Leave disabled, multi-line assigns can be more readable.
+        - assignOp # Leave disabled, assign operations can be more confusing than helpful.
         - commentedOutCode
         - deferInLoop
         - exitAfterDefer
         - exposedSyncMutex
-        - filepathJoin
         - hugeParam
         - importShadow
-        - paramTypeCombine
+        - paramTypeCombine # Leave disabled, there are too many failures to be worth fixing.
         - rangeValCopy
-        - sloppyReassign
         - tooManyResultsChecker
         - unnamedResult
         - whyNoLint

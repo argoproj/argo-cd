@@ -1591,6 +1591,9 @@ message PullRequestGenerator {
 
   // Values contains key/value pairs which are passed directly as parameters to the template
   map<string, string> values = 10;
+
+  // ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator parameters generation even if the repository is not found.
+  optional bool continueOnRepoNotFoundError = 11;
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
@@ -1663,6 +1666,8 @@ message PullRequestGeneratorFilter {
   optional string branchMatch = 1;
 
   optional string targetBranchMatch = 2;
+
+  optional string titleMatch = 3;
 }
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.
