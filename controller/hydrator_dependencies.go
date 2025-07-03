@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/argoproj/argo-cd/v3/controller/hydrator"
+	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/argo"
@@ -51,7 +51,7 @@ func (ctrl *ApplicationController) GetRepoObjs(origApp *appv1.Application, drySo
 	delete(app.Annotations, appv1.AnnotationKeyManifestGeneratePaths)
 
 	// FIXME: use cache and revision cache
-	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(app, drySources, appLabelKey, dryRevisions, true, true, false, project, false, false)
+	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(app, drySources, appLabelKey, dryRevisions, true, true, false, project, false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get repo objects: %w", err)
 	}
@@ -86,7 +86,7 @@ func (ctrl *ApplicationController) PersistAppHydratorStatus(orig *appv1.Applicat
 	ctrl.persistAppStatus(orig, status)
 }
 
-func (ctrl *ApplicationController) AddHydrationQueueItem(key hydrator.HydrationQueueKey) {
+func (ctrl *ApplicationController) AddHydrationQueueItem(key types.HydrationQueueKey) {
 	ctrl.hydrationQueue.AddRateLimited(key)
 }
 
