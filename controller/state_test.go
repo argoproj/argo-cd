@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller/testdata"
@@ -1481,7 +1482,6 @@ func TestIsLiveResourceManaged(t *testing.T) {
 
 func TestUseDiffCache(t *testing.T) {
 	t.Parallel()
-
 	type fixture struct {
 		testName             string
 		noCache              bool
@@ -1493,7 +1493,6 @@ func TestUseDiffCache(t *testing.T) {
 		expectedUseCache     bool
 		serverSideDiff       bool
 	}
-
 	manifestInfos := func(revision string) []*apiclient.ManifestResponse {
 		return []*apiclient.ManifestResponse{
 			{
@@ -1509,14 +1508,15 @@ func TestUseDiffCache(t *testing.T) {
 			},
 		}
 	}
-	sources := func() []v1alpha1.ApplicationSource {
-		return []v1alpha1.ApplicationSource{
-			{
-				RepoURL:        "https://some-repo.com",
-				Path:           "argocd/httpbin",
-				TargetRevision: "HEAD",
-			},
+	source := func() v1alpha1.ApplicationSource {
+		return v1alpha1.ApplicationSource{
+			RepoURL:        "https://some-repo.com",
+			Path:           "argocd/httpbin",
+			TargetRevision: "HEAD",
 		}
+	}
+	sources := func() []v1alpha1.ApplicationSource {
+		return []v1alpha1.ApplicationSource{source()}
 	}
 
 	app := func(namespace string, revision string, refresh bool, a *v1alpha1.Application) *v1alpha1.Application {
@@ -1526,11 +1526,7 @@ func TestUseDiffCache(t *testing.T) {
 				Namespace: namespace,
 			},
 			Spec: v1alpha1.ApplicationSpec{
-				Source: &v1alpha1.ApplicationSource{
-					RepoURL:        "https://some-repo.com",
-					Path:           "argocd/httpbin",
-					TargetRevision: "HEAD",
-				},
+				Source: ptr.To(source()),
 				Destination: v1alpha1.ApplicationDestination{
 					Server:    "https://kubernetes.default.svc",
 					Namespace: "httpbin",
@@ -1548,11 +1544,7 @@ func TestUseDiffCache(t *testing.T) {
 				Sync: v1alpha1.SyncStatus{
 					Status: v1alpha1.SyncStatusCodeSynced,
 					ComparedTo: v1alpha1.ComparedTo{
-						Source: v1alpha1.ApplicationSource{
-							RepoURL:        "https://some-repo.com",
-							Path:           "argocd/httpbin",
-							TargetRevision: "HEAD",
-						},
+						Source: source(),
 						Destination: v1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
 							Namespace: "httpbin",
@@ -1577,7 +1569,6 @@ func TestUseDiffCache(t *testing.T) {
 		}
 		return app
 	}
-
 	cases := []fixture{
 		{
 			testName:             "will use diff cache",
@@ -1594,7 +1585,7 @@ func TestUseDiffCache(t *testing.T) {
 			testName:             "will use diff cache with sync policy",
 			noCache:              false,
 			manifestInfos:        manifestInfos("rev1"),
-			sources:              sources(),
+			sources:              []v1alpha1.ApplicationSource{test.YamlToApplication(testdata.DiffCacheYaml).Status.Sync.ComparedTo.Source},
 			app:                  test.YamlToApplication(testdata.DiffCacheYaml),
 			manifestRevisions:    []string{"rev1"},
 			statusRefreshTimeout: time.Hour * 24,
@@ -1604,8 +1595,15 @@ func TestUseDiffCache(t *testing.T) {
 		{
 			testName:      "will use diff cache for multisource",
 			noCache:       false,
-			manifestInfos: manifestInfos("rev1"),
-			sources:       sources(),
+			manifestInfos: append(manifestInfos("rev1"), manifestInfos("rev2")...),
+			sources: v1alpha1.ApplicationSources{
+				{
+					RepoURL: "multisource repo1",
+				},
+				{
+					RepoURL: "multisource repo2",
+				},
+			},
 			app: app("httpbin", "", false, &v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{
 					Source: nil,
@@ -1743,16 +1741,13 @@ func TestUseDiffCache(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			// Given
 			t.Parallel()
 			logger, _ := logrustest.NewNullLogger()
 			log := logrus.NewEntry(logger)
-
 			// When
 			useDiffCache := useDiffCache(tc.noCache, tc.manifestInfos, tc.sources, tc.app, tc.manifestRevisions, tc.statusRefreshTimeout, tc.serverSideDiff, log)
-
 			// Then
 			assert.Equal(t, tc.expectedUseCache, useDiffCache)
 		})
