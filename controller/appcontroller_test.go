@@ -2583,7 +2583,7 @@ func assertDurationAround(t *testing.T, expected time.Duration, actual time.Dura
 	assert.LessOrEqual(t, expected, actual+delta)
 }
 
-func TestSelfHealExponentialBackoff(t *testing.T) {
+func TestSelfHealRemainingBackoff(t *testing.T) {
 	ctrl := newFakeController(&fakeData{}, nil)
 	ctrl.selfHealBackoff = &wait.Backoff{
 		Factor:   3,
@@ -2601,7 +2601,7 @@ func TestSelfHealExponentialBackoff(t *testing.T) {
 	}
 
 	testCases := []struct {
-		attempts         int64
+		attempts         int
 		finishedAt       *metav1.Time
 		expectedDuration time.Duration
 		shouldSelfHeal   bool
@@ -2655,9 +2655,8 @@ func TestSelfHealExponentialBackoff(t *testing.T) {
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
-			app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount = tc.attempts
 			app.Status.OperationState.FinishedAt = tc.finishedAt
-			duration := ctrl.selfHealRemainingBackoff(app)
+			duration := ctrl.selfHealRemainingBackoff(app, tc.attempts)
 			shouldSelfHeal := duration <= 0
 			require.Equal(t, tc.shouldSelfHeal, shouldSelfHeal)
 			assertDurationAround(t, tc.expectedDuration, duration)

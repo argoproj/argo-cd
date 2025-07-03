@@ -2169,18 +2169,19 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		// Self heal will trigger a new sync operation when the desired state changes and cause the application to
 		// be OutOfSync when it was previously synced Successfully. This means SelfHeal should only ever be attempted
 		// when the revisions have not changed, and where the previous sync to these revision was successful
-		if !ctrl.selfHealBackoffCooldownElapsed(app) {
-			remainingTime := ctrl.selfHealRemainingBackoff(app)
-			if remainingTime > 0 {
-				logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", desiredCommitSHA, ctrl.selfHealTimeout, remainingTime)
-				ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &remainingTime)
-				return nil, 0
-			}
 
-			// Only carry SelfHealAttemptsCount to be increased when the selfHealBackoffCooldown has not elapsed yet
+		// Only carry SelfHealAttemptsCount to be increased when the selfHealBackoffCooldown has not elapsed yet
+		if !ctrl.selfHealBackoffCooldownElapsed(app) {
 			if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
 				op.Sync.SelfHealAttemptsCount = app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount
 			}
+		}
+
+		remainingTime := ctrl.selfHealRemainingBackoff(app, int(op.Sync.SelfHealAttemptsCount))
+		if remainingTime > 0 {
+			logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", desiredCommitSHA, ctrl.selfHealTimeout, remainingTime)
+			ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &remainingTime)
+			return nil, 0
 		}
 
 		op.Sync.SelfHealAttemptsCount++
@@ -2273,7 +2274,7 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS
 	return reflect.DeepEqual(app.Spec.GetSource(), app.Status.OperationState.SyncResult.Source), app.Status.OperationState.Phase
 }
 
-func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Application) time.Duration {
+func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Application, selfHealAttemptsCount int) time.Duration {
 	if app.Status.OperationState == nil {
 		return time.Duration(0)
 	}
@@ -2292,7 +2293,7 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 		}
 	} else {
 		backOff := *ctrl.selfHealBackoff
-		backOff.Steps = int(app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount)
+		backOff.Steps = selfHealAttemptsCount
 		var delay time.Duration
 		steps := backOff.Steps
 		for i := 0; i < steps; i++ {
