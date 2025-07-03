@@ -52,11 +52,17 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 		State: gitea.StateOpen,
 	}
 	g.client.SetContext(ctx)
-	prs, _, err := g.client.ListRepoPullRequests(g.owner, g.repo, opts)
+	list := []*PullRequest{}
+	prs, resp, err := g.client.ListRepoPullRequests(g.owner, g.repo, opts)
 	if err != nil {
+		if resp != nil && resp.StatusCode == http.StatusNotFound {
+			// return a custom error indicating that the repository is not found,
+			// but also returning the empty result since the decision to continue or not in this case is made by the caller
+			return list, NewRepositoryNotFoundError(err)
+		}
 		return nil, err
 	}
-	list := []*PullRequest{}
+
 	for _, pr := range prs {
 		if !giteaContainLabels(g.labels, pr.Labels) {
 			continue
