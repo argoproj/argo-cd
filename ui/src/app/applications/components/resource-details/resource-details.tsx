@@ -41,6 +41,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const tab = new URLSearchParams(appContext.history.location.search).get('tab');
     const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
     const selectedNodeKey = selectedNodeInfo.key;
+    const isManaged = selectedNode ? AppUtils.isTopLevelResource(selectedNode, application) : false;
+
     const [pageNumber, setPageNumber] = React.useState(0);
     const [collapsedSources, setCollapsedSources] = React.useState(new Array<boolean>()); // For Sources tab to save collapse states
     const handleCollapse = (i: number, isCollapsed: boolean) => {
@@ -303,29 +305,33 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     </React.Fragment>
                                 )}
                                 {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
-                                <button
-                                    onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
-                                    style={{marginLeft: 'auto', marginRight: '5px'}}
-                                    className='argo-button argo-button--base'>
-                                    <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
-                                </button>
-                                <button
-                                    onClick={() => AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources)}
-                                    style={{marginRight: '5px'}}
-                                    className='argo-button argo-button--base'>
-                                    <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
-                                </button>
-                                {data.resourceActionsMenuItems?.length > 0 && (
-                                    <DropDown
-                                        isMenu={true}
-                                        anchor={() => (
-                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                <i className='fa fa-ellipsis-v' />
-                                            </button>
-                                        )}>
-                                        {() => AppUtils.renderResourceActionMenu(data.resourceActionsMenuItems)}
-                                    </DropDown>
-                                )}
+                                <div style={{display: 'flex', alignItems: 'center', marginLeft: 'auto'}}>
+                                    {isManaged && (
+                                        <button
+                                            onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
+                                            style={{marginRight: '5px'}}
+                                            className='argo-button argo-button--base'>
+                                            <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources)}
+                                        style={{marginRight: '5px'}}
+                                        className='argo-button argo-button--base'>
+                                        <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
+                                    </button>
+                                    {data.resourceActionsMenuItems?.length > 0 && (
+                                        <DropDown
+                                            isMenu={true}
+                                            anchor={() => (
+                                                <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                    <i className='fa fa-ellipsis-v' />
+                                                </button>
+                                            )}>
+                                            {() => AppUtils.renderResourceActionMenu(data.resourceActionsMenuItems)}
+                                        </DropDown>
+                                    )}
+                                </div>
                             </div>
                             <Tabs
                                 navTransparent={true}
