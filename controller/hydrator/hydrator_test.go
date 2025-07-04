@@ -1,7 +1,6 @@
 package hydrator
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -15,17 +14,15 @@ import (
 	mockrepoclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	log "github.com/sirupsen/logrus"
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	corev1 "k8s.io/api/core/v1"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/mocks"
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func Test_appNeedsHydration(t *testing.T) {
@@ -120,47 +117,6 @@ func Test_appNeedsHydration(t *testing.T) {
 	}
 }
 
-type MockHydratorDependencies struct {
-	mock.Mock
-}
-
-func (m *MockHydratorDependencies) LogHydrationPhaseEvent(ctx context.Context, app *appv1.Application, eventInfo argo.EventInfo, message string) {
-	m.Called(ctx, app, eventInfo, message)
-}
-
-func (m *MockHydratorDependencies) PersistAppHydratorStatus(origApp *appv1.Application, status *appv1.SourceHydratorStatus) {
-	m.Called(origApp, status)
-}
-
-func (m *MockHydratorDependencies) AddHydrationQueueItem(key HydrationQueueKey) {
-	m.Called(key)
-}
-
-func (m *MockHydratorDependencies) GetProcessableAppProj(app *appv1.Application) (*appv1.AppProject, error) {
-	args := m.Called(app)
-	return args.Get(0).(*appv1.AppProject), args.Error(1)
-}
-
-func (m *MockHydratorDependencies) GetProcessableApps() (*appv1.ApplicationList, error) {
-	args := m.Called()
-	return args.Get(0).(*appv1.ApplicationList), args.Error(1)
-}
-
-func (m *MockHydratorDependencies) GetRepoObjs(app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *reposerver.ManifestResponse, error) {
-	args := m.Called(app, source, revision, project)
-	return args.Get(0).([]*unstructured.Unstructured), args.Get(1).(*reposerver.ManifestResponse), args.Error(2)
-}
-
-func (m *MockHydratorDependencies) GetWriteCredentials(ctx context.Context, repoURL string, project string) (*appv1.Repository, error) {
-	args := m.Called(ctx, repoURL, project)
-	return args.Get(0).(*appv1.Repository), args.Error(1)
-}
-
-func (m *MockHydratorDependencies) RequestAppRefresh(appName string, appNamespace string) error {
-	args := m.Called(appName, appNamespace)
-	return args.Error(0)
-}
-
 func TestLogsHydrationEvent_HydrationStarted(t *testing.T) {
 
 	now := metav1.NewTime(time.Now())
@@ -171,7 +127,7 @@ func TestLogsHydrationEvent_HydrationStarted(t *testing.T) {
 		Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{CurrentOperation: &v1alpha1.HydrateOperation{StartedAt: oneHourAgo}}},
 	}
 	// Create mock dependencies
-	mockDeps := &MockHydratorDependencies{}
+	mockDeps := mocks.NewDependencies(t)
 
 	hydrator := &Hydrator{
 		dependencies:         mockDeps,
@@ -187,8 +143,8 @@ func TestLogsHydrationEvent_HydrationStarted(t *testing.T) {
 		}),
 		"Hydration started").Once()
 
-	mockDeps.On("PersistAppHydratorStatus", mock.Anything, mock.Anything).Once()
-	mockDeps.On("AddHydrationQueueItem", mock.Anything).Once()
+	mockDeps.On("PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	mockDeps.On("AddHydrationQueueItem", mock.Anything)
 
 	hydrator.ProcessAppHydrateQueueItem(app)
 
@@ -200,15 +156,6 @@ func TestLogsHydrationEvent_HydrationStarted(t *testing.T) {
 	assert.NotNil(t, app.Status.SourceHydrator.CurrentOperation.StartedAt)
 }
 
-type MockRepoGetter struct {
-	mock.Mock
-}
-
-func (m *MockRepoGetter) GetRepository(ctx context.Context, repoURL string, project string) (*v1alpha1.Repository, error) {
-	args := m.Called(ctx, repoURL, project)
-	return args.Get(0).(*v1alpha1.Repository), args.Error(1)
-}
-
 type MockCloser struct {
 	mock.Mock
 }
@@ -218,7 +165,7 @@ func (m *MockCloser) Close() error {
 	return args.Error(0)
 }
 
-func TestLogsHydrationEvent_HydrationCompleted(t *testing.T) {
+func Test_LogsHydrationEvent_HydrationCompleted(t *testing.T) {
 
 	now := metav1.NewTime(time.Now())
 	oneHourAgo := metav1.NewTime(now.Add(-1 * time.Hour))
@@ -230,7 +177,7 @@ func TestLogsHydrationEvent_HydrationCompleted(t *testing.T) {
 		Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{CurrentOperation: &v1alpha1.HydrateOperation{StartedAt: oneHourAgo}}},
 	}
 	// Create mock dependencies
-	mockDeps := &MockHydratorDependencies{}
+	mockDeps := mocks.NewDependencies(t)
 	// create commitServer mock	clientset
 	mockCommitClient := mockcommitclient.CommitServiceClient{}
 	commitServerMockClientset := mockcommitclient.NewClientset(t)
@@ -238,7 +185,7 @@ func TestLogsHydrationEvent_HydrationCompleted(t *testing.T) {
 	mockRepoClient := mockrepoclient.RepoServerServiceClient{}
 	mockRepoClientset := mockrepoclient.Clientset{RepoServerServiceClient: &mockRepoClient}
 	// Create a mock repoGetter
-	repoGetter := &MockRepoGetter{}
+	repoGetter := mocks.NewRepoGetter(t)
 	// create Hydrator instance
 	hydrator := &Hydrator{
 		dependencies:         mockDeps,
@@ -255,6 +202,7 @@ func TestLogsHydrationEvent_HydrationCompleted(t *testing.T) {
 			return eventInfo.Reason == argo.EventReasonHydrationStarted && eventInfo.Type == corev1.EventTypeNormal
 		}),
 		"Hydration started").Once()
+
 	mockDeps.On("LogHydrationPhaseEvent",
 		mock.Anything,
 		mock.AnythingOfType("*v1alpha1.Application"),
@@ -262,6 +210,7 @@ func TestLogsHydrationEvent_HydrationCompleted(t *testing.T) {
 			return eventInfo.Reason == argo.EventReasonHydrationCompleted && eventInfo.Type == corev1.EventTypeNormal
 		}),
 		"Hydration completed").Once()
+
 	mockDeps.On("PersistAppHydratorStatus", mock.Anything, mock.Anything).Twice()
 	mockDeps.On("AddHydrationQueueItem", mock.Anything, mock.Anything).Once()
 	mockDeps.On("GetProcessableApps").Return(&appv1.ApplicationList{
@@ -269,6 +218,7 @@ func TestLogsHydrationEvent_HydrationCompleted(t *testing.T) {
 			*app,
 		},
 	}, nil)
+
 	mockDeps.On("GetProcessableAppProj", mock.AnythingOfType("*v1alpha1.Application")).Return(&appv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
@@ -285,6 +235,7 @@ func TestLogsHydrationEvent_HydrationCompleted(t *testing.T) {
 			},
 		},
 	}, nil)
+
 	mockDeps.On("GetRepoObjs", mock.AnythingOfType("*v1alpha1.Application"), mock.AnythingOfType("v1alpha1.ApplicationSource"), mock.AnythingOfType("string"), mock.AnythingOfType("*v1alpha1.AppProject")).Return([]*unstructured.Unstructured{
 		{
 			Object: map[string]interface{}{
@@ -299,39 +250,34 @@ func TestLogsHydrationEvent_HydrationCompleted(t *testing.T) {
 				},
 			},
 		},
-	}, &reposerver.ManifestResponse{}, nil).Once()
+	}, &reposerver.ManifestResponse{}, nil)
+
 	// define expected response for commitHydratedManifests
-	mockCommitClient.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(&apiclient.CommitHydratedManifestsResponse{HydratedSha: "hydrated-sha"}, error(nil)).Once()
+	mockCommitClient.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(&apiclient.CommitHydratedManifestsResponse{HydratedSha: "hydrated-sha"}, error(nil))
 	mockCloser := &MockCloser{}
 	mockCloser.On("Close").Return(nil)
-	commitServerMockClientset.EXPECT().NewCommitServerClient().Return(mockCloser, &mockCommitClient, nil).Once()
+	commitServerMockClientset.EXPECT().NewCommitServerClient().Return(mockCloser, &mockCommitClient, nil)
 	// define expected response for GetRepository
-	repoGetter.On("GetRepository", mock.Anything, "https://example.com/repo.git", "default").Return(&appv1.Repository{
-		Repo: "https://example.com/repo.git",
-	}, nil).Once()
+	repoGetter.On("GetRepository", mock.Anything, "https://example.com/repo.git", "default").Return(&appv1.Repository{Repo: "https://example.com/repo.git"}, nil)
 	// define expected response for GetRevisionMetadata
-	mockRepoClient.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(&appv1.RevisionMetadata{
-		Message: "some-message",
-	}, nil).Once()
-	mockDeps.On("GetWriteCredentials", mock.Anything, "https://example.com/repo.git", "default").Return(&appv1.Repository{
-		Repo: "https://example.com/repo.git",
-	}, nil).Once()
-	mockDeps.On("RequestAppRefresh", app.Name, app.Namespace).Return(nil).Once()
+	mockRepoClient.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(&appv1.RevisionMetadata{Message: "some-message"}, nil)
+	mockDeps.On("GetWriteCredentials", mock.Anything, "https://example.com/repo.git", "default").Return(&appv1.Repository{Repo: "https://example.com/repo.git"}, nil)
+	mockDeps.On("RequestAppRefresh", app.Name, app.Namespace).Return(nil)
+	// Run the hydrator process
 	hydrator.ProcessAppHydrateQueueItem(app)
-	hydrator.ProcessHydrationQueueItem(HydrationQueueKey{
+	hydrator.ProcessHydrationQueueItem(types.HydrationQueueKey{
 		SourceRepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
 		SourceTargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
 		DestinationBranch:    app.Spec.SourceHydrator.SyncSource.TargetBranch,
 	})
-	// // Verify all expectations were met
+
+	// Verify all expectations were met
 	mockDeps.AssertExpectations(t)
 }
-func TestLogsHydrationEvent_HydrationFailed(t *testing.T) {
+func Test_LogsHydrationEvent_HydrationFailed(t *testing.T) {
 
 	now := metav1.NewTime(time.Now())
 	oneHourAgo := metav1.NewTime(now.Add(-1 * time.Hour))
-
-	log.SetLevel(log.TraceLevel)
 
 	app := &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
@@ -343,14 +289,14 @@ func TestLogsHydrationEvent_HydrationFailed(t *testing.T) {
 		Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{CurrentOperation: &v1alpha1.HydrateOperation{StartedAt: oneHourAgo}}},
 	}
 	// Create mock dependencies
-	mockDeps := &MockHydratorDependencies{}
+	mockDeps := mocks.NewDependencies(t)
 	// create commitServer mock	clientset
 	commitServerMockClientset := mockcommitclient.NewClientset(t)
 	// repoServer mocks
 	mockRepoClient := mockrepoclient.RepoServerServiceClient{}
 	mockRepoClientset := mockrepoclient.Clientset{RepoServerServiceClient: &mockRepoClient}
 	// Create a mock repoGetter
-	repoGetter := &MockRepoGetter{}
+	repoGetter := mocks.NewRepoGetter(t)
 	// create Hydrator instance
 	hydrator := &Hydrator{
 		dependencies:         mockDeps,
@@ -376,8 +322,8 @@ func TestLogsHydrationEvent_HydrationFailed(t *testing.T) {
 		mock.MatchedBy(func(message string) bool {
 			return strings.Contains(message, "Failed to hydrate app")
 		})).Once()
-	mockDeps.On("PersistAppHydratorStatus", mock.Anything, mock.Anything).Twice()
-	mockDeps.On("AddHydrationQueueItem", mock.Anything, mock.Anything).Once()
+	mockDeps.On("PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	mockDeps.On("AddHydrationQueueItem", mock.Anything, mock.Anything)
 	mockDeps.On("GetProcessableApps").Return(&appv1.ApplicationList{
 		Items: []appv1.Application{
 			*app,
@@ -414,13 +360,16 @@ func TestLogsHydrationEvent_HydrationFailed(t *testing.T) {
 			},
 		},
 	}, &reposerver.ManifestResponse{}, errors.New("Obj error")).Once()
+
+	// Run the hydrator process
 	hydrator.ProcessAppHydrateQueueItem(app)
-	hydrator.ProcessHydrationQueueItem(HydrationQueueKey{
+	hydrator.ProcessHydrationQueueItem(types.HydrationQueueKey{
 		SourceRepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
 		SourceTargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
 		DestinationBranch:    app.Spec.SourceHydrator.SyncSource.TargetBranch,
 	})
-	// // Verify all expectations were met
+
+	// Verify all expectations were met
 	mockDeps.AssertExpectations(t)
 }
 

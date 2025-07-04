@@ -35,6 +35,7 @@ packages:
   github.com/argoproj/argo-cd/v3/controller/hydrator:
     interfaces:
       Dependencies: {}
+      RepoGetter: {}
   github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster:
     interfaces:
       ClusterServiceServer: {}
