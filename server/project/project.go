@@ -412,7 +412,8 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		destCluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)
 		if err != nil {
 			if err.Error() != argo.ErrDestinationMissing {
-				return nil, err
+				// If cluster is not found, we should discard this app, as it's most likely already in error
+				continue
 			}
 			invalidDstCount++
 		}
