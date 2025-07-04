@@ -84,4 +84,25 @@ In VSCode use the following launch configuration to run argocd-server:
             }
         }
 ```
+### GoLand
+In GoLand use the following launch configuration to run argocd-server:
 
+1. Open **Run `>` Edit configurations...**
+2. Click **+ icon** and select **Go build**
+3. Add the following configuration:
+```text
+        Name: Run argocd-server
+        Run kind: File
+        File: cmd/argocd-server/main.go
+        Working directory: `path to your Argo CD repo root`
+```
+4. Set the environment variables:
+```text
+        ARGOCD_BINARY_NAME: argocd-server
+        CGO_ENABLED: 0
+        KUBECONFIG: (path to your .kubeconfig)
+```
+
+If you are using `.envrc.remote` from Telepresence you can use [Plugin](https://plugins.jetbrains.com/plugin/7861-envfile#) to load variables automatically.
+
+5. Click Apply and Run or Debug
