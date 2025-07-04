@@ -255,7 +255,7 @@ func TestManagedByURLAnnotation(t *testing.T) {
 		deeplinksObj := CreateDeepLinksObject(nil, unstructuredObj, nil, nil)
 
 		// Verify that no managed-by-url is set
-		assert.Nil(t, deeplinksObj[ManagedByURLKey])
+		assert.Empty(t, deeplinksObj[ManagedByURLKey])
 	})
 
 	t.Run("application with empty managed-by-url annotation", func(t *testing.T) {
@@ -278,7 +278,7 @@ func TestManagedByURLAnnotation(t *testing.T) {
 		deeplinksObj := CreateDeepLinksObject(nil, unstructuredObj, nil, nil)
 
 		// Verify that empty managed-by-url is set
-		assert.Equal(t, "", deeplinksObj[ManagedByURLKey])
+		assert.Empty(t, deeplinksObj[ManagedByURLKey])
 	})
 
 	t.Run("application with managed-by-url and other annotations", func(t *testing.T) {
