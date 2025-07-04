@@ -1,0 +1,42 @@
+apiVersion: jetstream.nats.io/v1beta2
+kind: Stream
+metadata:
+  name: stream-name
+spec:
+  allowDirect: false
+  allowRollup: false
+  compression: ''
+  creds: ''
+  denyDelete: false
+  denyPurge: false
+  discard: old
+  discardPerSubject: false
+  firstSequence: 0
+  maxAge: 24h
+  maxBytes: -1
+  maxConsumers: -1
+  maxMsgSize: -1
+  maxMsgs: -1
+  maxMsgsPerSubject: 0
+  mirrorDirect: false
+  name: stream-name
+  nkey: ''
+  noAck: false
+  preventDelete: false
+  preventUpdate: false
+  replicas: 3
+  retention: workqueue
+  sealed: false
+  servers: []
+  storage: file
+  subjects:
+    - subject.name
+  tlsFirst: false
+status:
+  conditions:
+    - lastTransitionTime: '2025-05-14T14:22:01.962295009Z'
+      message: Stream successfully created
+      reason: Created
+      status: 'True'
+      type: Ready
+  observedGeneration: 1
