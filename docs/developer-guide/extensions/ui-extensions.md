@@ -98,7 +98,7 @@ Make sure to use 'argoproj.io'/'Application' as group/kind and an extension will
 
 ## Application Status Panel Extensions
 
-The status panel is the bar at the top of the application view where the sync status is displayed. Argo CD allows you to add new items to the status panel of an application. The extension should be registered using the `extensionsAPI.registerStatusPanelExtension` method:
+The status panel is the bar at the top of the application view where the app status is displayed. Argo CD allows you to add new items to the status panel of an application. The extension should be registered using the `extensionsAPI.registerStatusPanelExtension` method:
 
 ```typescript
 registerStatusPanelExtension(component: StatusPanelExtensionComponent, title: string, id: string, flyout?: ExtensionComponent)
