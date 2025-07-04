@@ -20,6 +20,15 @@ import (
 	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
+type mockAddRateLimitingInterface struct {
+	addedItems []reconcile.Request
+}
+
+// Add checks the type, and adds it to the internal list of received additions
+func (obj *mockAddRateLimitingInterface) Add(item reconcile.Request) {
+	obj.addedItems = append(obj.addedItems, item)
+}
+
 func TestClusterEventHandler(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := argov1alpha1.AddToScheme(scheme)
@@ -554,15 +563,6 @@ func TestClusterEventHandler(t *testing.T) {
 			assert.ElementsMatch(t, mockAddRateLimitingInterface.addedItems, test.expectedRequests)
 		})
 	}
-}
-
-// Add checks the type, and adds it to the internal list of received additions
-func (obj *mockAddRateLimitingInterface) Add(item reconcile.Request) {
-	obj.addedItems = append(obj.addedItems, item)
-}
-
-type mockAddRateLimitingInterface struct {
-	addedItems []reconcile.Request
 }
 
 func TestNestedGeneratorHasClusterGenerator_NestedClusterGenerator(t *testing.T) {

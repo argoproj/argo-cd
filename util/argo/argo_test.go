@@ -268,32 +268,27 @@ func TestContainsSyncResource(t *testing.T) {
 // TestNilOutZerValueAppSources verifies we will nil out app source specs when they are their zero-value
 func TestNilOutZerValueAppSources(t *testing.T) {
 	var spec *argoappv1.ApplicationSpec
-	{
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NamePrefix: "foo"}}})
-		assert.NotNil(t, spec.GetSource().Kustomize)
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NamePrefix: ""}}})
-		source := spec.GetSource()
-		assert.Nil(t, source.Kustomize)
-	}
-	{
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NameSuffix: "foo"}}})
-		assert.NotNil(t, spec.GetSource().Kustomize)
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NameSuffix: ""}}})
-		source := spec.GetSource()
-		assert.Nil(t, source.Kustomize)
-	}
-	{
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"values.yaml"}}}})
-		assert.NotNil(t, spec.GetSource().Helm)
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{}}}})
-		assert.Nil(t, spec.GetSource().Helm)
-	}
-	{
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}})
-		assert.NotNil(t, spec.GetSource().Directory)
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: false}}})
-		assert.Nil(t, spec.GetSource().Directory)
-	}
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NamePrefix: "foo"}}})
+	assert.NotNil(t, spec.GetSource().Kustomize)
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NamePrefix: ""}}})
+	source := spec.GetSource()
+	assert.Nil(t, source.Kustomize)
+
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NameSuffix: "foo"}}})
+	assert.NotNil(t, spec.GetSource().Kustomize)
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NameSuffix: ""}}})
+	source = spec.GetSource()
+	assert.Nil(t, source.Kustomize)
+
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"values.yaml"}}}})
+	assert.NotNil(t, spec.GetSource().Helm)
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{}}}})
+	assert.Nil(t, spec.GetSource().Helm)
+
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}})
+	assert.NotNil(t, spec.GetSource().Directory)
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: false}}})
+	assert.Nil(t, spec.GetSource().Directory)
 }
 
 func TestValidatePermissionsEmptyDestination(t *testing.T) {
@@ -411,8 +406,10 @@ func TestValidateRepo(t *testing.T) {
 
 	db.On("GetRepository", t.Context(), app.Spec.Source.RepoURL, "").Return(repo, nil)
 	db.On("ListHelmRepositories", t.Context()).Return(helmRepos, nil)
+	db.On("ListOCIRepositories", t.Context()).Return([]*argoappv1.Repository{}, nil)
 	db.On("GetCluster", t.Context(), app.Spec.Destination.Server).Return(cluster, nil)
 	db.On("GetAllHelmRepositoryCredentials", t.Context()).Return(nil, nil)
+	db.On("GetAllOCIRepositoryCredentials", t.Context()).Return([]*argoappv1.RepoCreds{}, nil)
 
 	var receivedRequest *apiclient.ManifestRequest
 
@@ -1304,7 +1301,7 @@ func Test_GetRefSources(t *testing.T) {
 
 		refSources, err := GetRefSources(t.Context(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
 			return repo, nil
-		}, []string{}, false)
+		}, []string{})
 
 		expectedRefSource := argoappv1.RefTargetRevisionMapping{
 			"$source-1_2": &argoappv1.RefTarget{
@@ -1324,7 +1321,7 @@ func Test_GetRefSources(t *testing.T) {
 
 		refSources, err := GetRefSources(t.Context(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
 			return nil, errors.New("repo does not exist")
-		}, []string{}, false)
+		}, []string{})
 
 		require.Error(t, err)
 		assert.Empty(t, refSources)
@@ -1338,7 +1335,7 @@ func Test_GetRefSources(t *testing.T) {
 
 		refSources, err := GetRefSources(t.Context(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
 			return nil, err
-		}, []string{}, false)
+		}, []string{})
 
 		require.Error(t, err)
 		assert.Empty(t, refSources)
@@ -1352,7 +1349,7 @@ func Test_GetRefSources(t *testing.T) {
 
 		refSources, err := GetRefSources(t.Context(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
 			return nil, err
-		}, []string{}, false)
+		}, []string{})
 
 		require.Error(t, err)
 		assert.Empty(t, refSources)

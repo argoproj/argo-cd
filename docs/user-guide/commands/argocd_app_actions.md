@@ -59,5 +59,5 @@ argocd app actions [flags]
 
 * [argocd app](argocd_app.md)	 - Manage applications
 * [argocd app actions list](argocd_app_actions_list.md)	 - Lists available actions on a resource
-* [argocd app actions run](argocd_app_actions_run.md)	 - Runs an available action on resource(s)
+* [argocd app actions run](argocd_app_actions_run.md)	 - Runs an available action on resource(s) matching the specified filters.
 

@@ -169,6 +169,7 @@ type NodeInfo struct {
 	Name       string
 	Capacity   corev1.ResourceList
 	SystemInfo corev1.NodeSystemInfo
+	Labels     map[string]string
 }
 
 type ResourceInfo struct {
@@ -190,7 +191,6 @@ func NewLiveStateCache(
 	db db.ArgoDB,
 	appInformer cache.SharedIndexInformer,
 	settingsMgr *settings.SettingsManager,
-	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
 	clusterSharding sharding.ClusterShardingCache,
@@ -201,7 +201,6 @@ func NewLiveStateCache(
 		db:               db,
 		clusters:         make(map[string]clustercache.ClusterCache),
 		onObjectUpdated:  onObjectUpdated,
-		kubectl:          kubectl,
 		settingsMgr:      settingsMgr,
 		metricsServer:    metricsServer,
 		clusterSharding:  clusterSharding,
@@ -225,7 +224,6 @@ type liveStateCache struct {
 	db                   db.ArgoDB
 	appInformer          cache.SharedIndexInformer
 	onObjectUpdated      ObjectUpdatedHandler
-	kubectl              kube.Kubectl
 	settingsMgr          *settings.SettingsManager
 	metricsServer        *metrics.MetricsServer
 	clusterSharding      sharding.ClusterShardingCache
@@ -239,6 +237,10 @@ type liveStateCache struct {
 
 func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	appInstanceLabelKey, err := c.settingsMgr.GetAppInstanceLabelKey()
+	if err != nil {
+		return nil, err
+	}
+	trackingMethod, err := c.settingsMgr.GetTrackingMethod()
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +269,7 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 		ResourcesFilter:        resourcesFilter,
 	}
 
-	return &cacheSettings{clusterSettings, appInstanceLabelKey, argo.GetTrackingMethod(c.settingsMgr), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
+	return &cacheSettings{clusterSettings, appInstanceLabelKey, appv1.TrackingMethod(trackingMethod), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
 }
 
 func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {

@@ -107,7 +107,6 @@ Also you can set __Home URL__ to _/applications_ path and __Valid Post logout re
 The Valid Redirect URIs should be set to:
 - http://localhost:8085/auth/callback (needed for argo-cd cli, depends on value from [--sso-port](../../user-guide/commands/argocd_login.md))
 - https://{hostname}/auth/callback
-- https://{hostname}/pkce/verify
 
 ![Keycloak configure client](../../assets/keycloak-configure-client-pkce.png "Keycloak configure client")
 
@@ -221,6 +220,6 @@ If ArgoCD auth returns 401 or when the login attempt leads to the loop, then res
 kubectl rollout restart deployment argocd-server -n argocd
 ```
 
-If you migrate from Client authentification to PKCE, you can have the following error `invalid_request: Missing parameter: code_challenge_method`.
+If you migrate from Client authentication to PKCE, you can have the following error `invalid_request: Missing parameter: code_challenge_method`.
 
 It could be a redirect issue, try in private browsing or clean browser cookies.

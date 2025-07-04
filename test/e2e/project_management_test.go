@@ -344,7 +344,7 @@ func TestUseJWTToken(t *testing.T) {
 	// Create second role with kubectl, to test that it will not affect 1st role
 	_, err = fixture.Run("", "kubectl", "patch", "appproject", projectName, "--type", "merge",
 		"-n", fixture.TestNamespace(),
-		"-p", fmt.Sprintf(`{"spec":{"roles":[{"name":"%s"},{"name":"%s"}]}}`, roleName, roleName2))
+		"-p", fmt.Sprintf(`{"spec":{"roles":[{"name":%q},{"name":%q}]}}`, roleName, roleName2))
 	require.NoError(t, err)
 
 	_, err = fixture.RunCli("proj", "role", "create-token", projectName, roleName2)

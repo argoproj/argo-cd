@@ -51,7 +51,7 @@ func (ctrl *ApplicationController) executePostDeleteHooks(app *v1alpha1.Applicat
 		revisions = append(revisions, src.TargetRevision)
 	}
 
-	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, false, true)
+	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, true)
 	if err != nil {
 		return false, err
 	}
@@ -153,16 +153,17 @@ func (ctrl *ApplicationController) cleanupPostDeleteHooks(liveObjs map[kube.Reso
 
 	for _, obj := range hooks {
 		for _, policy := range hook.DeletePolicies(obj) {
-			if policy == common.HookDeletePolicyHookFailed && aggregatedHealth == health.HealthStatusDegraded || policy == common.HookDeletePolicyHookSucceeded && aggregatedHealth == health.HealthStatusHealthy {
-				pendingDeletionCount++
-				if obj.GetDeletionTimestamp() != nil {
-					continue
-				}
-				logCtx.Infof("Deleting post-delete hook %s/%s", obj.GetNamespace(), obj.GetName())
-				err = ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{})
-				if err != nil {
-					return false, err
-				}
+			if (policy != common.HookDeletePolicyHookFailed || aggregatedHealth != health.HealthStatusDegraded) && (policy != common.HookDeletePolicyHookSucceeded || aggregatedHealth != health.HealthStatusHealthy) {
+				continue
+			}
+			pendingDeletionCount++
+			if obj.GetDeletionTimestamp() != nil {
+				continue
+			}
+			logCtx.Infof("Deleting post-delete hook %s/%s", obj.GetNamespace(), obj.GetName())
+			err = ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{})
+			if err != nil {
+				return false, err
 			}
 		}
 	}

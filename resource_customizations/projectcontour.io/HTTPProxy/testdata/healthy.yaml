@@ -1,0 +1,27 @@
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  generation: 1
+  name: basic
+spec:
+  virtualhost:
+    fqdn: foo-basic.bar.com
+  routes:
+    - conditions:
+        - prefix: /
+      services:
+        - name: s1
+          port: 80
+status:
+  conditions:
+  - type: Valid
+    status: "True"
+    observedGeneration: 1
+    lastTransitionTime: "2025-04-07T10:00:00Z"
+    reason: Valid
+    message: Valid HTTPProxy
+  currentStatus: valid
+  description: Valid HTTPProxy
+  loadBalancer:
+    ingress:
+      - hostname: www.example.com

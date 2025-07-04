@@ -39,7 +39,7 @@ func setupAzureIdentity(t *testing.T) {
 	tokenFilePath := filepath.Join(tempDir, "token.txt")
 	tempFile, err := os.Create(tokenFilePath)
 	require.NoError(t, err)
-	_, err = tempFile.Write([]byte("serviceAccountToken"))
+	_, err = tempFile.WriteString("serviceAccountToken")
 	require.NoError(t, err)
 	t.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
 }
@@ -114,7 +114,7 @@ func (p *fakeProvider) Verify(_ string, _ *settings.ArgoCDSettings) (*gooidc.IDT
 func TestHandleCallback(t *testing.T) {
 	app := ClientApp{provider: &fakeProvider{}, settings: &settings.ArgoCDSettings{}}
 
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/foo", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/foo", http.NoBody)
 	req.Form = url.Values{
 		"error":             []string{"login-failed"},
 		"error_description": []string{"<script>alert('hello')</script>"},
@@ -127,7 +127,7 @@ func TestHandleCallback(t *testing.T) {
 }
 
 func TestClientApp_HandleLogin(t *testing.T) {
-	oidcTestServer := test.GetOIDCTestServer(t)
+	oidcTestServer := test.GetOIDCTestServer(t, nil)
 	t.Cleanup(oidcTestServer.Close)
 
 	dexTestServer := test.GetDexTestServer(t)
@@ -146,7 +146,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
-		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", nil)
+		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
 
 		w := httptest.NewRecorder()
 
@@ -183,7 +183,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
-		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", nil)
+		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
 
 		w := httptest.NewRecorder()
 
@@ -222,7 +222,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
-		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", nil)
+		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
 		w := httptest.NewRecorder()
 		app.HandleLogin(w, req)
 
@@ -255,7 +255,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
-		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", nil)
+		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
 		w := httptest.NewRecorder()
 		app.HandleLogin(w, req)
 
@@ -292,7 +292,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
-		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", nil)
+		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
 		w := httptest.NewRecorder()
 		app.HandleLogin(w, req)
 
@@ -331,7 +331,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		require.NoError(t, err)
 
 		t.Run("should accept login redirecting on the main domain", func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", nil)
+			req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
 
 			req.URL.RawQuery = url.Values{
 				"return_url": []string{"https://argocd.example.com/applications"},
@@ -350,7 +350,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		})
 
 		t.Run("should accept login redirecting on the alternative domains", func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "https://localhost:8080/auth/login", nil)
+			req := httptest.NewRequest(http.MethodGet, "https://localhost:8080/auth/login", http.NoBody)
 
 			req.URL.RawQuery = url.Values{
 				"return_url": []string{"https://localhost:8080/applications"},
@@ -369,7 +369,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		})
 
 		t.Run("should accept login redirecting on the alternative domains", func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "https://other.argocd.example.com/auth/login", nil)
+			req := httptest.NewRequest(http.MethodGet, "https://other.argocd.example.com/auth/login", http.NoBody)
 
 			req.URL.RawQuery = url.Values{
 				"return_url": []string{"https://other.argocd.example.com/applications"},
@@ -388,7 +388,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		})
 
 		t.Run("should deny login redirecting on the alternative domains", func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "https://not-argocd.example.com/auth/login", nil)
+			req := httptest.NewRequest(http.MethodGet, "https://not-argocd.example.com/auth/login", http.NoBody)
 
 			req.URL.RawQuery = url.Values{
 				"return_url": []string{"https://not-argocd.example.com/applications"},
@@ -408,7 +408,7 @@ func Test_Login_Flow(t *testing.T) {
 	// Show that SSO login works when no redirect URL is provided, and we fall back to the configured base href for the
 	// Argo CD instance.
 
-	oidcTestServer := test.GetOIDCTestServer(t)
+	oidcTestServer := test.GetOIDCTestServer(t, nil)
 	t.Cleanup(oidcTestServer.Close)
 
 	cdSettings := &settings.ArgoCDSettings{
@@ -416,8 +416,8 @@ func Test_Login_Flow(t *testing.T) {
 		OIDCConfigRAW: fmt.Sprintf(`
 name: Test
 issuer: %s
-clientID: xxx
-clientSecret: yyy
+clientID: test-client-id
+clientSecret: test-client-secret
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		OIDCTLSInsecureSkipVerify: true,
 	}
@@ -428,16 +428,16 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 	w := httptest.NewRecorder()
 
-	req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", nil)
+	req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
 
 	app.HandleLogin(w, req)
 
 	redirectURL, err := w.Result().Location()
 	require.NoError(t, err)
 
-	state := redirectURL.Query()["state"]
+	state := redirectURL.Query().Get("state")
 
-	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("https://argocd.example.com/auth/callback?state=%s&code=abc", state), nil)
+	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("https://argocd.example.com/auth/callback?state=%s&code=abc", state), http.NoBody)
 	for _, cookie := range w.Result().Cookies() {
 		req.AddCookie(cookie)
 	}
@@ -446,11 +446,65 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 	app.HandleCallback(w, req)
 
+	assert.Equal(t, 303, w.Code)
+	assert.NotContains(t, w.Body.String(), ErrInvalidRedirectURL.Error())
+}
+
+func Test_Login_Flow_With_PKCE(t *testing.T) {
+	var codeChallenge string
+
+	oidcTestServer := test.GetOIDCTestServer(t, func(r *http.Request) {
+		codeVerifier := r.FormValue("code_verifier")
+		assert.NotEmpty(t, codeVerifier)
+		assert.Equal(t, oauth2.S256ChallengeFromVerifier(codeVerifier), codeChallenge)
+	})
+	t.Cleanup(oidcTestServer.Close)
+
+	cdSettings := &settings.ArgoCDSettings{
+		URL: "https://example.com/argocd",
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+requestedScopes: ["oidc"]
+enablePKCEAuthentication: true`, oidcTestServer.URL),
+		OIDCTLSInsecureSkipVerify: true,
+	}
+	app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+
+	req := httptest.NewRequest(http.MethodGet, "https://example.com/argocd/auth/login", http.NoBody)
+
+	app.HandleLogin(w, req)
+
+	redirectURL, err := w.Result().Location()
+	require.NoError(t, err)
+
+	codeChallenge = redirectURL.Query().Get("code_challenge")
+
+	assert.NotEmpty(t, codeChallenge)
+	assert.Equal(t, "S256", redirectURL.Query().Get("code_challenge_method"))
+
+	state := redirectURL.Query().Get("state")
+
+	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("https://example.com/argocd/auth/callback?state=%s&code=abc", state), http.NoBody)
+	for _, cookie := range w.Result().Cookies() {
+		req.AddCookie(cookie)
+	}
+
+	w = httptest.NewRecorder()
+
+	app.HandleCallback(w, req)
+
+	assert.Equal(t, 303, w.Code)
 	assert.NotContains(t, w.Body.String(), ErrInvalidRedirectURL.Error())
 }
 
 func TestClientApp_HandleCallback(t *testing.T) {
-	oidcTestServer := test.GetOIDCTestServer(t)
+	oidcTestServer := test.GetOIDCTestServer(t, nil)
 	t.Cleanup(oidcTestServer.Close)
 
 	dexTestServer := test.GetDexTestServer(t)
@@ -469,7 +523,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
-		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/callback", nil)
+		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/callback", http.NoBody)
 
 		w := httptest.NewRecorder()
 
@@ -508,7 +562,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
-		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/callback", nil)
+		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/callback", http.NoBody)
 
 		w := httptest.NewRecorder()
 
@@ -636,7 +690,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
-		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/callback", nil)
+		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/callback", http.NoBody)
 		req.Form = url.Values{
 			"code":  {"abc"},
 			"state": {"123"},
@@ -758,27 +812,29 @@ func TestGenerateAppState(t *testing.T) {
 	app, err := NewClientApp(&settings.ArgoCDSettings{ServerSignature: signature, URL: expectedReturnURL}, "", nil, "", cache.NewInMemoryCache(24*time.Hour))
 	require.NoError(t, err)
 	generateResponse := httptest.NewRecorder()
-	state, err := app.generateAppState(expectedReturnURL, generateResponse)
+	expectedPKCEVerifier := oauth2.GenerateVerifier()
+	state, err := app.generateAppState(expectedReturnURL, expectedPKCEVerifier, generateResponse)
 	require.NoError(t, err)
 
 	t.Run("VerifyAppState_Successful", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 		for _, cookie := range generateResponse.Result().Cookies() {
 			req.AddCookie(cookie)
 		}
 
-		returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), state)
+		returnURL, pkceVerifier, err := app.verifyAppState(req, httptest.NewRecorder(), state)
 		require.NoError(t, err)
 		assert.Equal(t, expectedReturnURL, returnURL)
+		assert.Equal(t, expectedPKCEVerifier, pkceVerifier)
 	})
 
 	t.Run("VerifyAppState_Failed", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 		for _, cookie := range generateResponse.Result().Cookies() {
 			req.AddCookie(cookie)
 		}
 
-		_, err := app.verifyAppState(req, httptest.NewRecorder(), "wrong state")
+		_, _, err := app.verifyAppState(req, httptest.NewRecorder(), "wrong state")
 		require.Error(t, err)
 	})
 }
@@ -803,15 +859,15 @@ func TestGenerateAppState_XSS(t *testing.T) {
 
 		expectedReturnURL := "javascript: alert('hi')"
 		generateResponse := httptest.NewRecorder()
-		state, err := app.generateAppState(expectedReturnURL, generateResponse)
+		state, err := app.generateAppState(expectedReturnURL, "", generateResponse)
 		require.NoError(t, err)
 
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 		for _, cookie := range generateResponse.Result().Cookies() {
 			req.AddCookie(cookie)
 		}
 
-		returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), state)
+		returnURL, _, err := app.verifyAppState(req, httptest.NewRecorder(), state)
 		require.ErrorIs(t, err, ErrInvalidRedirectURL)
 		assert.Empty(t, returnURL)
 	})
@@ -819,15 +875,15 @@ func TestGenerateAppState_XSS(t *testing.T) {
 	t.Run("valid return URL succeeds", func(t *testing.T) {
 		expectedReturnURL := "https://argocd.example.com/some/path"
 		generateResponse := httptest.NewRecorder()
-		state, err := app.generateAppState(expectedReturnURL, generateResponse)
+		state, err := app.generateAppState(expectedReturnURL, "", generateResponse)
 		require.NoError(t, err)
 
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 		for _, cookie := range generateResponse.Result().Cookies() {
 			req.AddCookie(cookie)
 		}
 
-		returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), state)
+		returnURL, _, err := app.verifyAppState(req, httptest.NewRecorder(), state)
 		require.NoError(t, err)
 		assert.Equal(t, expectedReturnURL, returnURL)
 	})
@@ -840,14 +896,14 @@ func TestGenerateAppState_NoReturnURL(t *testing.T) {
 	key, err := cdSettings.GetServerEncryptionKey()
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	encrypted, err := crypto.Encrypt([]byte("123"), key)
 	require.NoError(t, err)
 	app, err := NewClientApp(cdSettings, "", nil, "/argo-cd", cache.NewInMemoryCache(24*time.Hour))
 	require.NoError(t, err)
 
 	req.AddCookie(&http.Cookie{Name: common.StateCookieName, Value: hex.EncodeToString(encrypted)})
-	returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), "123")
+	returnURL, _, err := app.verifyAppState(req, httptest.NewRecorder(), "123")
 	require.NoError(t, err)
 	assert.Equal(t, "/argo-cd", returnURL)
 }

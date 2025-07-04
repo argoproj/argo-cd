@@ -197,7 +197,7 @@ func TestSyncWithValidSAButDisallowedDestination(t *testing.T) {
 		When().
 		And(func() {
 			// Patch destination to disallow target destination namespace
-			patch := []byte(fmt.Sprintf(`{"spec": {"destinations": [{"namespace": "%s"}]}}`, "!"+fixture.DeploymentNamespace()))
+			patch := []byte(fmt.Sprintf(`{"spec": {"destinations": [{"namespace": %q}]}}`, "!"+fixture.DeploymentNamespace()))
 
 			_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Patch(t.Context(), projectName, types.MergePatchType, patch, metav1.PatchOptions{})
 			require.NoError(t, err)
