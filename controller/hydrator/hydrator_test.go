@@ -6,10 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
+	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	mockcommitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	reposerver "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	mockrepoclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v3/util/argo"
@@ -118,7 +117,6 @@ func Test_appNeedsHydration(t *testing.T) {
 }
 
 func TestLogsHydrationEvent_HydrationStarted(t *testing.T) {
-
 	now := metav1.NewTime(time.Now())
 	oneHourAgo := metav1.NewTime(now.Add(-1 * time.Hour))
 
@@ -152,7 +150,7 @@ func TestLogsHydrationEvent_HydrationStarted(t *testing.T) {
 	mockDeps.AssertExpectations(t)
 
 	// Additional assertions on app state
-	// assert.Equal(t, appv1.HydrateOperationPhaseHydrating, app.Status.SourceHydrator.CurrentOperation.Phase)
+	// assert.Equal(t, v1alpha1.HydrateOperationPhaseHydrating, app.Status.SourceHydrator.CurrentOperation.Phase)
 	assert.NotNil(t, app.Status.SourceHydrator.CurrentOperation.StartedAt)
 }
 
@@ -166,7 +164,6 @@ func (m *MockCloser) Close() error {
 }
 
 func Test_LogsHydrationEvent_HydrationCompleted(t *testing.T) {
-
 	now := metav1.NewTime(time.Now())
 	oneHourAgo := metav1.NewTime(now.Add(-1 * time.Hour))
 
@@ -213,21 +210,21 @@ func Test_LogsHydrationEvent_HydrationCompleted(t *testing.T) {
 
 	mockDeps.On("PersistAppHydratorStatus", mock.Anything, mock.Anything).Twice()
 	mockDeps.On("AddHydrationQueueItem", mock.Anything, mock.Anything).Once()
-	mockDeps.On("GetProcessableApps").Return(&appv1.ApplicationList{
-		Items: []appv1.Application{
+	mockDeps.On("GetProcessableApps").Return(&v1alpha1.ApplicationList{
+		Items: []v1alpha1.Application{
 			*app,
 		},
 	}, nil)
 
-	mockDeps.On("GetProcessableAppProj", mock.AnythingOfType("*v1alpha1.Application")).Return(&appv1.AppProject{
+	mockDeps.On("GetProcessableAppProj", mock.AnythingOfType("*v1alpha1.Application")).Return(&v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
 			Name:      "default",
 			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
 		},
-		Spec: appv1.AppProjectSpec{
+		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos: []string{"https://example.com/repo.git"},
-			Destinations: []appv1.ApplicationDestination{
+			Destinations: []v1alpha1.ApplicationDestination{
 				{
 					Name:      "default",
 					Namespace: "default",
@@ -238,14 +235,14 @@ func Test_LogsHydrationEvent_HydrationCompleted(t *testing.T) {
 
 	mockDeps.On("GetRepoObjs", mock.AnythingOfType("*v1alpha1.Application"), mock.AnythingOfType("v1alpha1.ApplicationSource"), mock.AnythingOfType("string"), mock.AnythingOfType("*v1alpha1.AppProject")).Return([]*unstructured.Unstructured{
 		{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "v1",
 				"kind":       "ConfigMap",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "example-configmap",
 					"namespace": "default",
 				},
-				"data": map[string]interface{}{
+				"data": map[string]any{
 					"key": "value",
 				},
 			},
@@ -253,15 +250,15 @@ func Test_LogsHydrationEvent_HydrationCompleted(t *testing.T) {
 	}, &reposerver.ManifestResponse{}, nil)
 
 	// define expected response for commitHydratedManifests
-	mockCommitClient.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(&apiclient.CommitHydratedManifestsResponse{HydratedSha: "hydrated-sha"}, error(nil))
+	mockCommitClient.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "hydrated-sha"}, error(nil))
 	mockCloser := &MockCloser{}
 	mockCloser.On("Close").Return(nil)
 	commitServerMockClientset.EXPECT().NewCommitServerClient().Return(mockCloser, &mockCommitClient, nil)
 	// define expected response for GetRepository
-	repoGetter.On("GetRepository", mock.Anything, "https://example.com/repo.git", "default").Return(&appv1.Repository{Repo: "https://example.com/repo.git"}, nil)
+	repoGetter.On("GetRepository", mock.Anything, "https://example.com/repo.git", "default").Return(&v1alpha1.Repository{Repo: "https://example.com/repo.git"}, nil)
 	// define expected response for GetRevisionMetadata
-	mockRepoClient.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(&appv1.RevisionMetadata{Message: "some-message"}, nil)
-	mockDeps.On("GetWriteCredentials", mock.Anything, "https://example.com/repo.git", "default").Return(&appv1.Repository{Repo: "https://example.com/repo.git"}, nil)
+	mockRepoClient.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{Message: "some-message"}, nil)
+	mockDeps.On("GetWriteCredentials", mock.Anything, "https://example.com/repo.git", "default").Return(&v1alpha1.Repository{Repo: "https://example.com/repo.git"}, nil)
 	mockDeps.On("RequestAppRefresh", app.Name, app.Namespace).Return(nil)
 	// Run the hydrator process
 	hydrator.ProcessAppHydrateQueueItem(app)
@@ -275,7 +272,6 @@ func Test_LogsHydrationEvent_HydrationCompleted(t *testing.T) {
 	mockDeps.AssertExpectations(t)
 }
 func Test_LogsHydrationEvent_HydrationFailed(t *testing.T) {
-
 	now := metav1.NewTime(time.Now())
 	oneHourAgo := metav1.NewTime(now.Add(-1 * time.Hour))
 
@@ -324,20 +320,20 @@ func Test_LogsHydrationEvent_HydrationFailed(t *testing.T) {
 		})).Once()
 	mockDeps.On("PersistAppHydratorStatus", mock.Anything, mock.Anything)
 	mockDeps.On("AddHydrationQueueItem", mock.Anything, mock.Anything)
-	mockDeps.On("GetProcessableApps").Return(&appv1.ApplicationList{
-		Items: []appv1.Application{
+	mockDeps.On("GetProcessableApps").Return(&v1alpha1.ApplicationList{
+		Items: []v1alpha1.Application{
 			*app,
 		},
 	}, nil)
-	mockDeps.On("GetProcessableAppProj", mock.AnythingOfType("*v1alpha1.Application")).Return(&appv1.AppProject{
+	mockDeps.On("GetProcessableAppProj", mock.AnythingOfType("*v1alpha1.Application")).Return(&v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
 			Name:      "default",
 			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
 		},
-		Spec: appv1.AppProjectSpec{
+		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos: []string{"https://example.com/repo.git"},
-			Destinations: []appv1.ApplicationDestination{
+			Destinations: []v1alpha1.ApplicationDestination{
 				{
 					Name:      "default",
 					Namespace: "default",
@@ -347,14 +343,14 @@ func Test_LogsHydrationEvent_HydrationFailed(t *testing.T) {
 	}, nil)
 	mockDeps.On("GetRepoObjs", mock.AnythingOfType("*v1alpha1.Application"), mock.AnythingOfType("v1alpha1.ApplicationSource"), mock.AnythingOfType("string"), mock.AnythingOfType("*v1alpha1.AppProject")).Return([]*unstructured.Unstructured{
 		{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "v1",
 				"kind":       "ConfigMap",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "example-configmap",
 					"namespace": "default",
 				},
-				"data": map[string]interface{}{
+				"data": map[string]any{
 					"key": "value",
 				},
 			},
