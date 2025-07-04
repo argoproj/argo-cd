@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -32,7 +31,7 @@ func TestManagedByURLWithAnnotation(t *testing.T) {
 		And(func() {
 			// Add managed-by-url annotation to the application with retry logic
 			for i := 0; i < 3; i++ {
-				appObj, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(context.Background(), fixture.Name(), metav1.GetOptions{})
+				appObj, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(t.Context(), fixture.Name(), metav1.GetOptions{})
 				require.NoError(t, err)
 
 				if appObj.Annotations == nil {
@@ -40,7 +39,7 @@ func TestManagedByURLWithAnnotation(t *testing.T) {
 				}
 				appObj.Annotations["argocd.argoproj.io/managed-by-url"] = managedByURL
 
-				_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Update(context.Background(), appObj, metav1.UpdateOptions{})
+				_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Update(t.Context(), appObj, metav1.UpdateOptions{})
 				if err == nil {
 					break
 				}
@@ -57,7 +56,7 @@ func TestManagedByURLWithAnnotation(t *testing.T) {
   description: "Open in managing ArgoCD instance"`
 
 			// Update the argocd-cm configmap to include our test deep links and URL
-			configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.ArgoCDNamespace).Get(context.Background(), "argocd-cm", metav1.GetOptions{})
+			configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.ArgoCDNamespace).Get(t.Context(), "argocd-cm", metav1.GetOptions{})
 			require.NoError(t, err)
 
 			if configMap.Data == nil {
@@ -66,7 +65,7 @@ func TestManagedByURLWithAnnotation(t *testing.T) {
 			configMap.Data["application.links"] = deepLinksConfig
 			configMap.Data["url"] = "https://argocd-test.example.com"
 
-			_, err = fixture.KubeClientset.CoreV1().ConfigMaps(fixture.ArgoCDNamespace).Update(context.Background(), configMap, metav1.UpdateOptions{})
+			_, err = fixture.KubeClientset.CoreV1().ConfigMaps(fixture.ArgoCDNamespace).Update(t.Context(), configMap, metav1.UpdateOptions{})
 			require.NoError(t, err)
 
 			// Wait a moment for the config to be picked up
@@ -82,7 +81,7 @@ func TestManagedByURLWithAnnotation(t *testing.T) {
 			require.NoError(t, err)
 			defer conn.Close()
 
-			links, err := appClient.ListLinks(context.Background(), &application.ListAppLinksRequest{
+			links, err := appClient.ListLinks(t.Context(), &application.ListAppLinksRequest{
 				Name: ptr.To(app.Name),
 			})
 			require.NoError(t, err)
@@ -104,13 +103,16 @@ func TestManagedByURLWithAnnotation(t *testing.T) {
 			}
 			assert.True(t, found, "Deep link should use managed-by-url: %s", expectedLink)
 		}).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Clean up: remove the test deep links configuration
-			configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.ArgoCDNamespace).Get(context.Background(), "argocd-cm", metav1.GetOptions{})
+			configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.ArgoCDNamespace).Get(t.Context(), "argocd-cm", metav1.GetOptions{})
 			if err == nil && configMap.Data != nil {
 				delete(configMap.Data, "application.links")
 				delete(configMap.Data, "url")
-				fixture.KubeClientset.CoreV1().ConfigMaps(fixture.ArgoCDNamespace).Update(context.Background(), configMap, metav1.UpdateOptions{})
+				_, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.ArgoCDNamespace).Update(t.Context(), configMap, metav1.UpdateOptions{})
+				if err != nil {
+					t.Logf("Failed to clean up configmap: %v", err)
+				}
 			}
 		})
 }
@@ -130,7 +132,7 @@ func TestManagedByURLFallbackToCurrentInstance(t *testing.T) {
   description: "Open in managing ArgoCD instance"`
 
 			// Update the argocd-cm configmap to include our test deep links and URL
-			configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.ArgoCDNamespace).Get(context.Background(), "argocd-cm", metav1.GetOptions{})
+			configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.ArgoCDNamespace).Get(t.Context(), "argocd-cm", metav1.GetOptions{})
 			require.NoError(t, err)
 
 			if configMap.Data == nil {
@@ -139,7 +141,7 @@ func TestManagedByURLFallbackToCurrentInstance(t *testing.T) {
 			configMap.Data["application.links"] = deepLinksConfig
 			configMap.Data["url"] = "https://argocd-test.example.com"
 
-			_, err = fixture.KubeClientset.CoreV1().ConfigMaps(fixture.ArgoCDNamespace).Update(context.Background(), configMap, metav1.UpdateOptions{})
+			_, err = fixture.KubeClientset.CoreV1().ConfigMaps(fixture.ArgoCDNamespace).Update(t.Context(), configMap, metav1.UpdateOptions{})
 			require.NoError(t, err)
 
 			// Wait a moment for the config to be picked up
@@ -152,7 +154,7 @@ func TestManagedByURLFallbackToCurrentInstance(t *testing.T) {
 			require.NoError(t, err)
 			defer conn.Close()
 
-			links, err := appClient.ListLinks(context.Background(), &application.ListAppLinksRequest{
+			links, err := appClient.ListLinks(t.Context(), &application.ListAppLinksRequest{
 				Name: ptr.To(app.Name),
 			})
 			require.NoError(t, err)
@@ -166,7 +168,7 @@ func TestManagedByURLFallbackToCurrentInstance(t *testing.T) {
 			require.NoError(t, err)
 			defer conn2.Close()
 
-			settings, err := settingsClient.Get(context.Background(), &settings.SettingsQuery{})
+			settings, err := settingsClient.Get(t.Context(), &settings.SettingsQuery{})
 			require.NoError(t, err)
 
 			// Check that the link uses the current instance URL as fallback
@@ -190,13 +192,16 @@ func TestManagedByURLFallbackToCurrentInstance(t *testing.T) {
 			}
 			assert.True(t, found, "Deep link should use current instance URL as fallback: %s", expectedLink)
 		}).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Clean up: remove the test deep links configuration
-			configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.ArgoCDNamespace).Get(context.Background(), "argocd-cm", metav1.GetOptions{})
+			configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.ArgoCDNamespace).Get(t.Context(), "argocd-cm", metav1.GetOptions{})
 			if err == nil && configMap.Data != nil {
 				delete(configMap.Data, "application.links")
 				delete(configMap.Data, "url")
-				fixture.KubeClientset.CoreV1().ConfigMaps(fixture.ArgoCDNamespace).Update(context.Background(), configMap, metav1.UpdateOptions{})
+				_, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.ArgoCDNamespace).Update(t.Context(), configMap, metav1.UpdateOptions{})
+				if err != nil {
+					t.Logf("Failed to clean up configmap: %v", err)
+				}
 			}
 		})
 }
