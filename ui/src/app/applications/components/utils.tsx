@@ -1423,7 +1423,7 @@ export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {
 }
 
 export function isAppRefreshing(app: appModels.Application) {
-    return !!(app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey]);
+    return !!(app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey]) && !hasSkipReconcile(app);
 }
 
 export function setAppRefreshing(app: appModels.Application) {
@@ -1435,8 +1435,13 @@ export function setAppRefreshing(app: appModels.Application) {
     }
 }
 
+// hasSkipReconcile checks if the application has the skip reconcile annotation is true
+export function hasSkipReconcile(app: appModels.Application) {
+    return app.metadata.annotations && app.metadata.annotations[appModels.AnnotationSkipReconcile] === 'true';
+}
+
 export function refreshLinkAttrs(app: appModels.Application) {
-    return {disabled: isAppRefreshing(app)};
+    return {disabled: isAppRefreshing(app) || hasSkipReconcile(app)};
 }
 
 export const SyncWindowStatusIcon = ({state, window}: {state: appModels.SyncWindowsState; window: appModels.SyncWindow}) => {
