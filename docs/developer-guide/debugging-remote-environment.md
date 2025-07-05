@@ -85,7 +85,7 @@ In VSCode use the following launch configuration to run argocd-server:
         }
 ```
 ### GoLand
-In GoLand use the following launch configuration to run argocd-server:
+In GoLand use the following launch configuration to run argocd-api-server:
 
 1. Open **Run `>` Edit configurations...**
 2. Click **+ icon** and select **Go build**
@@ -93,16 +93,33 @@ In GoLand use the following launch configuration to run argocd-server:
 ```text
         Name: Run argocd-server
         Run kind: File
-        File: cmd/argocd-server/main.go
-        Working directory: `path to your Argo CD repo root`
+        File: <path-to-your-argo-cd-repo>/cmd/main.go
+        Working directory: `path to your Argo CD repo root``
 ```
 4. Set the environment variables:
+    Refer to the [Procfile](https://github.com/argoproj/argo-cd/blob/master/Procfile) to configure the necessary environment variables for the component you are debugging.
+
+    For example, for `api-server`(as given in Procfile)
+```text
+        api-server: [ "$BIN_MODE" = 'true' ] && COMMAND=./dist/argocd || COMMAND='go run ./cmd/main.go' && sh -c "GOCOVERDIR=${ARGOCD_COVERAGE_DIR:-/tmp/coverage/api-server} FORCE_LOG_COLORS=1 ARGOCD_FAKE_IN_CLUSTER=true ARGOCD_TLS_DATA_PATH=${ARGOCD_TLS_DATA_PATH:-/tmp/argocd-local/tls} ARGOCD_SSH_DATA_PATH=${ARGOCD_SSH_DATA_PATH:-/tmp/argocd-local/ssh} ARGOCD_BINARY_NAME=argocd-server 
+        $COMMAND 
+        --loglevel debug --redis localhost:${ARGOCD_E2E_REDIS_PORT:-6379} --disable-auth=${ARGOCD_E2E_DISABLE_AUTH:-'true'} --insecure --dex-server http://localhost:${ARGOCD_E2E_DEX_PORT:-5556} --repo-server localhost:${ARGOCD_E2E_REPOSERVER_PORT:-8081} --port ${ARGOCD_E2E_APISERVER_PORT:-8080} --otlp-address=${ARGOCD_OTLP_ADDRESS} --application-namespaces=${ARGOCD_APPLICATION_NAMESPACES:-''} --hydrator-enabled=${ARGOCD_HYDRATOR_ENABLED:='false'}"
+```
 ```text
         ARGOCD_BINARY_NAME: argocd-server
-        CGO_ENABLED: 0
+        ARGOCD_FAKE_IN_CLUSTER=true
+        FORCE_LOG_COLORS=1
         KUBECONFIG: (path to your .kubeconfig)
+```
+
+**Note**:When debugging Argo CD locally, you must run the api-server alongside your component (either by debugging it separately in GoLand or by including it in `ARGOCD_START`).
+The local UI will fail to load data unless the api-server is running, as it handles the backend communication for the UI.
+
+For example,
+```text
+make start-local ARGOCD_START="redis repo-server"
 ```
 
 If you are using `.envrc.remote` from Telepresence you can use [Plugin](https://plugins.jetbrains.com/plugin/7861-envfile#) to load variables automatically.
 
-5. Click Apply and Run or Debug
+5. Click Apply and Run or Debug.
