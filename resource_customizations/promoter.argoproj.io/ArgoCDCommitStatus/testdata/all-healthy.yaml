@@ -1,0 +1,20 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: ArgoCDCommitStatus
+metadata:
+  name: test
+  generation: 2
+status:
+  conditions:
+    - type: Ready
+      status: True
+      observedGeneration: 2
+  applicationsSelected:
+    - name: app1
+      namespace: default
+      phase: success
+      sha: abc1234
+    - name: app2
+      namespace: default
+      phase: success
+      sha: def5678
+
