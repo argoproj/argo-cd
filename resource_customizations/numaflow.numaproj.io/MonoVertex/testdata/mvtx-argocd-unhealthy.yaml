@@ -1,0 +1,62 @@
+apiVersion: numaflow.numaproj.io/v1alpha1
+kind: MonoVertex
+metadata:
+  creationTimestamp: '2025-07-03T17:30:56Z'
+  generation: 1
+  labels:
+    numaplane.numaproj.io/parent-rollout-name: numaplane-test-mvtx
+    numaplane.numaproj.io/upgrade-state: in-progress
+  name: numaplane-test-mvtx-31
+  namespace: oss-analytics-numaplanetest1-qal
+  ownerReferences:
+    - apiVersion: numaplane.numaproj.io/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: MonoVertexRollout
+      name: numaplane-test-mvtx
+      uid: 83aef9c3-ef20-4d12-8a6a-4066b5c912a8
+  resourceVersion: '5765167247'
+  uid: 15d03f77-882c-482c-9c29-6103d7a7eeea
+spec:
+  scale:
+    max: 2
+    min: 2
+  sink:
+    udsink:
+      container:
+        image: docker.intuit.com/quay-rmt/numaio/numaflow-go/sink-log:stable
+  source:
+    udsource:
+      container:
+        image: >-
+          docker.intuit.com/quay-rmt/numaio/numaflow-go/source-simple-source:stable
+status:
+  conditions:
+    - lastTransitionTime: '2025-07-03T17:31:03Z'
+      message: Successful
+      reason: Successful
+      status: 'True'
+      type: DaemonHealthy
+    - lastTransitionTime: '2025-07-03T17:30:57Z'
+      message: Successful
+      reason: Successful
+      status: 'True'
+      type: Deployed
+    - lastTransitionTime: '2025-07-03T17:30:57Z'
+      message: All pods are healthy
+      reason: Running
+      status: 'True'
+      type: PodsHealthy
+  currentHash: 6b1bc060b551a020b16eda61bb3f81baf9f9c3c95872c34fa241794859fc8980
+  desiredReplicas: 2
+  lastScaledAt: '2025-07-03T17:30:57Z'
+  lastUpdated: '2025-07-03T17:31:04Z'
+  observedGeneration: 1
+  phase: Running
+  readyReplicas: 2
+  replicas: 2
+  selector: >-
+    app.kubernetes.io/component=mono-vertex,numaflow.numaproj.io/mono-vertex-name=numaplane-test-mvtx-31
+  updateHash: 6b1bc060b551a020b16eda61bb3f81baf9f9c3c95872c34fa241794859fc8980
+  updatedReadyReplicas: 2
+  updatedReplicas: 2

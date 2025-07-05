@@ -15,3 +15,7 @@ tests:
     status: Healthy
     message: "MonoVertex is paused"
   inputPath: testdata/paused.yaml
+- healthStatus:
+    status: Healthy
+    message: "MonoVertex is healthy"
+  inputPath: testdata/mvtx-argocd-unhealthy.yaml
