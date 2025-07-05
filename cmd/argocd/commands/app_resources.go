@@ -1,9 +1,14 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"text/tabwriter"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v3/cmd/util"
@@ -11,6 +16,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
@@ -22,15 +28,178 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
+func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		resourceName      string
+		kind              string
+		project           string
+		filteredFields    []string
+		showManagedFields bool
+		output            string
+	)
+	command := &cobra.Command{
+		Use:   "get-resource APPNAME",
+		Short: "Get live manifest of an application's resource",
+	}
+
+	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource, if none is included will output details of all resources with specified kind")
+	command.Flags().StringVar(&kind, "kind", "", "Kind of resource [REQUIRED]")
+	err := command.MarkFlagRequired("kind")
+	errors.CheckError(err)
+	command.Flags().StringVar(&project, "project", "", "Project of resource")
+	command.Flags().StringSliceVar(&filteredFields, "filter-fields", nil, "A comma separated list of fields to display, if empty will display entire manifest")
+	command.Flags().BoolVar(&showManagedFields, "show-managed-fields", false, "Show managed fields in the output manifest")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Format of the output, yaml or json")
+
+	command.Run = func(c *cobra.Command, args []string) {
+		ctx := c.Context()
+
+		if len(args) != 1 {
+			c.HelpFunc()(c, args)
+			os.Exit(1)
+		}
+
+		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+
+		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
+		defer utilio.Close(conn)
+
+		tree, err := appIf.ResourceTree(ctx, &applicationpkg.ResourcesQuery{
+			ApplicationName: &appName,
+			AppNamespace:    &appNs,
+		})
+		errors.CheckError(err)
+
+		// Get manifests of resources
+		// If resource name is "" find all resources of that kind
+		var resources []unstructured.Unstructured
+		for _, r := range tree.Nodes {
+			if (resourceName != "" && r.Name != resourceName) || r.Kind != kind {
+				continue
+			}
+			resource, err := appIf.GetResource(ctx, &applicationpkg.ApplicationResourceRequest{
+				Name:         &appName,
+				AppNamespace: &appNs,
+				Group:        &r.Group,
+				Kind:         &r.Kind,
+				Namespace:    &r.Namespace,
+				Project:      &project,
+				ResourceName: &r.Name,
+				Version:      &r.Version,
+			})
+			errors.CheckError(err)
+			manifest := resource.GetManifest()
+
+			var obj *unstructured.Unstructured
+			err = json.Unmarshal([]byte(manifest), &obj)
+			errors.CheckError(err)
+
+			if !showManagedFields {
+				unstructured.RemoveNestedField(obj.Object, "metadata", "managedFields")
+			}
+
+			if len(filteredFields) != 0 {
+				obj = filterFieldsFromObject(obj, filteredFields)
+			}
+
+			resources = append(resources, *obj)
+		}
+		printManifests(&resources, len(filteredFields) > 0, output)
+	}
+	return command
+}
+
+func filterFieldsFromObject(obj *unstructured.Unstructured, filteredFields []string) *unstructured.Unstructured {
+	var filteredObj unstructured.Unstructured
+	filteredObj.SetName(obj.GetName())
+
+	for _, f := range filteredFields {
+		keyHiearchy := strings.Split(f, ".")
+
+		value, exists, err := unstructured.NestedFieldCopy(obj.Object, keyHiearchy...)
+		errors.CheckError(err)
+		if exists {
+			err = unstructured.SetNestedField(filteredObj.Object, value, keyHiearchy...)
+			errors.CheckError(err)
+		}
+	}
+	return &filteredObj
+}
+
+func printManifests(objs *[]unstructured.Unstructured, filteredFields bool, output string) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(w, "FIELD\tRESOURCE NAME\tVALUE\n")
+
+	for i, o := range *objs {
+		name := o.GetName()
+		if filteredFields {
+			unstructured.RemoveNestedField(o.Object, "metadata")
+		}
+
+		if output != "wide" {
+			if filteredFields {
+				err := unstructured.SetNestedField(o.Object, name, "name")
+				errors.CheckError(err)
+			}
+
+			var formattedManifest []byte
+			var err error
+			if output == "json" {
+				formattedManifest, err = json.MarshalIndent(o.Object, "", " ")
+			} else {
+				formattedManifest, err = yaml.Marshal(o.Object)
+			}
+			errors.CheckError(err)
+
+			fmt.Println(string(formattedManifest))
+			if len(*objs) > 1 && i != len(*objs)-1 {
+				fmt.Println("---")
+			}
+		} else {
+			printManifestAsTable(w, name, o.Object, "")
+		}
+		log.Infof("Resource '%s' fetched", o.GetName())
+	}
+
+	if output != "json" && output != "yaml" {
+		err := w.Flush()
+		errors.CheckError(err)
+	}
+}
+
+func printManifestAsTable(w *tabwriter.Writer, name string, obj map[string]any, parentField string) {
+	for key, value := range obj {
+		field := parentField + key
+		switch v := value.(type) {
+		case map[string]any:
+			printManifestAsTable(w, name, v, field+".")
+		case []any:
+			for i, e := range v {
+				index := "[" + strconv.Itoa(i) + "]"
+
+				if innerObj, ok := e.(map[string]any); ok {
+					printManifestAsTable(w, name, innerObj, field+index+".")
+				} else {
+					fmt.Fprintf(w, "%v\t%v\t%v\n", field+index, name, e)
+				}
+			}
+		default:
+			fmt.Fprintf(w, "%v\t%v\t%v\n", field, name, v)
+		}
+	}
+}
+
 func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var patch string
-	var patchType string
-	var resourceName string
-	var namespace string
-	var kind string
-	var group string
-	var all bool
-	var project string
+	var (
+		patch        string
+		patchType    string
+		resourceName string
+		namespace    string
+		kind         string
+		group        string
+		all          bool
+		project      string
+	)
 	command := &cobra.Command{
 		Use:   "patch-resource APPNAME",
 		Short: "Patch resource in an application",
@@ -90,14 +259,16 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 }
 
 func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var resourceName string
-	var namespace string
-	var kind string
-	var group string
-	var force bool
-	var orphan bool
-	var all bool
-	var project string
+	var (
+		resourceName string
+		namespace    string
+		kind         string
+		group        string
+		force        bool
+		orphan       bool
+		all          bool
+		project      string
+	)
 	command := &cobra.Command{
 		Use:   "delete-resource APPNAME",
 		Short: "Delete resource in an application",
@@ -253,13 +424,16 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 			}
 		}
 	}
-	_ = w.Flush()
+	err := w.Flush()
+	errors.CheckError(err)
 }
 
 func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var orphaned bool
-	var output string
-	var project string
+	var (
+		orphaned bool
+		output   string
+		project  string
+	)
 	command := &cobra.Command{
 		Use:   "resources APPNAME",
 		Short: "List resource of application",
