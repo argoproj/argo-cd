@@ -12154,12 +12154,16 @@ spec:
                                     - project
                                     - repo
                                     type: object
+                                  continueOnRepoNotFoundError:
+                                    type: boolean
                                   filters:
                                     items:
                                       properties:
                                         branchMatch:
                                           type: string
                                         targetBranchMatch:
+                                          type: string
+                                        titleMatch:
                                           type: string
                                       type: object
                                     type: array
@@ -17994,12 +17998,16 @@ spec:
                                     - project
                                     - repo
                                     type: object
+                                  continueOnRepoNotFoundError:
+                                    type: boolean
                                   filters:
                                     items:
                                       properties:
                                         branchMatch:
                                           type: string
                                         targetBranchMatch:
+                                          type: string
+                                        titleMatch:
                                           type: string
                                       type: object
                                     type: array
@@ -21123,12 +21131,16 @@ spec:
                           - project
                           - repo
                           type: object
+                        continueOnRepoNotFoundError:
+                          type: boolean
                         filters:
                           items:
                             properties:
                               branchMatch:
                                 type: string
                               targetBranchMatch:
+                                type: string
+                              titleMatch:
                                 type: string
                             type: object
                           type: array

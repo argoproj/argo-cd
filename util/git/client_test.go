@@ -1103,20 +1103,22 @@ func (m *mockCreds) GetUserInfo(_ context.Context) (string, string, error) {
 	return "", "", nil
 }
 
-func Test_getReferences(t *testing.T) {
+func Test_GetReferences(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
 
 	tests := []struct {
-		name     string
-		input    string
-		expected []RevisionReference
+		name               string
+		input              string
+		expectedReferences []RevisionReference
+		expectedMessage    string
 	}{
 		{
-			name:     "No trailers",
-			input:    "This is a commit message without trailers.",
-			expected: nil,
+			name:               "No trailers",
+			input:              "This is a commit message without trailers.",
+			expectedReferences: nil,
+			expectedMessage:    "This is a commit message without trailers.\n",
 		},
 		{
 			name: "Invalid trailers",
@@ -1126,25 +1128,36 @@ Argocd-reference-commit-sha: xyz123
 Argocd-reference-commit-body: this isn't json
 Argocd-reference-commit-author: % not email %
 Argocd-reference-commit-bogus:`,
-			expected: nil,
+			expectedReferences: nil,
+			expectedMessage: `Argocd-reference-commit-repourl: % invalid %
+Argocd-reference-commit-date: invalid-date
+Argocd-reference-commit-sha: xyz123
+Argocd-reference-commit-body: this isn't json
+Argocd-reference-commit-author: % not email %
+Argocd-reference-commit-bogus:
+`,
 		},
 		{
-			name:     "Unknown trailers",
-			input:    "Argocd-reference-commit-unknown: foobar",
-			expected: nil,
+			name:               "Unknown trailers",
+			input:              "Argocd-reference-commit-unknown: foobar",
+			expectedReferences: nil,
+			expectedMessage:    "Argocd-reference-commit-unknown: foobar\n",
 		},
 		{
 			name: "Some valid and Invalid trailers",
 			input: `Argocd-reference-commit-sha: abc123
 Argocd-reference-commit-repourl: % invalid %
 Argocd-reference-commit-date: invalid-date`,
-			expected: []RevisionReference{
+			expectedReferences: []RevisionReference{
 				{
 					Commit: &CommitMetadata{
 						SHA: "abc123",
 					},
 				},
 			},
+			expectedMessage: `Argocd-reference-commit-repourl: % invalid %
+Argocd-reference-commit-date: invalid-date
+`,
 		},
 		{
 			name: "Valid trailers",
@@ -1154,7 +1167,7 @@ Argocd-reference-commit-date: %s
 Argocd-reference-commit-subject: Fix bug
 Argocd-reference-commit-body: "Fix bug\n\nSome: trailer"
 Argocd-reference-commit-sha: abc123`, now.Format(time.RFC3339)),
-			expected: []RevisionReference{
+			expectedReferences: []RevisionReference{
 				{
 					Commit: &CommitMetadata{
 						Author: mail.Address{
@@ -1169,18 +1182,20 @@ Argocd-reference-commit-sha: abc123`, now.Format(time.RFC3339)),
 					},
 				},
 			},
+			expectedMessage: "",
 		},
 		{
 			name: "Duplicate trailers",
 			input: `Argocd-reference-commit-repourl: https://github.com/org/repo.git
 Argocd-reference-commit-repourl: https://github.com/another/repo.git`,
-			expected: []RevisionReference{
+			expectedReferences: []RevisionReference{
 				{
 					Commit: &CommitMetadata{
 						RepoURL: "https://github.com/another/repo.git",
 					},
 				},
 			},
+			expectedMessage: "",
 		},
 	}
 
@@ -1189,8 +1204,9 @@ Argocd-reference-commit-repourl: https://github.com/another/repo.git`,
 			t.Parallel()
 
 			logCtx := log.WithFields(log.Fields{})
-			result := getReferences(logCtx, tt.input)
-			assert.Equal(t, tt.expected, result)
+			result, message := GetReferences(logCtx, tt.input)
+			assert.Equal(t, tt.expectedReferences, result)
+			assert.Equal(t, tt.expectedMessage, message)
 		})
 	}
 }

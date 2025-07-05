@@ -374,7 +374,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			fields: fields{repo: store, tagsFunc: func(context.Context, string) (tags []string, err error) {
 				return []string{"1.0.0", "1.1.0", "1.2.0", "2.0.0"}, nil
 			}},
-			expectedError: errors.New("no version for constraints: failed to determine semver constraint: improper constraint: sha256:abc123"),
+			expectedError: errors.New("cannot get digest for revision sha256:abc123: sha256:abc123: not found"),
 		},
 		{
 			name:     "resolve latest tag",

@@ -449,7 +449,7 @@ func validateRepo(ctx context.Context,
 		sources = []argoappv1.ApplicationSource{app.Spec.SourceHydrator.GetDrySource()}
 	}
 
-	refSources, err := GetRefSources(ctx, sources, app.Spec.Project, db.GetRepository, []string{}, false)
+	refSources, err := GetRefSources(ctx, sources, app.Spec.Project, db.GetRepository, []string{})
 	if err != nil {
 		return nil, fmt.Errorf("error getting ref sources: %w", err)
 	}
@@ -478,7 +478,7 @@ func validateRepo(ctx context.Context,
 // GetRefSources creates a map of ref keys (from the sources' 'ref' fields) to information about the referenced source.
 // This function also validates the references use allowed characters and does not define the same ref key more than
 // once (which would lead to ambiguous references).
-func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, project string, getRepository func(ctx context.Context, url string, project string) (*argoappv1.Repository, error), revisions []string, isRollback bool) (argoappv1.RefTargetRevisionMapping, error) {
+func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, project string, getRepository func(ctx context.Context, url string, project string) (*argoappv1.Repository, error), revisions []string) (argoappv1.RefTargetRevisionMapping, error) {
 	refSources := make(argoappv1.RefTargetRevisionMapping)
 	if len(sources) > 1 {
 		// Validate first to avoid unnecessary DB calls.
@@ -502,13 +502,14 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 			if source.Ref == "" {
 				continue
 			}
+
 			repo, err := getRepository(ctx, source.RepoURL, project)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get repository %s: %w", source.RepoURL, err)
 			}
 			refKey := "$" + source.Ref
 			revision := source.TargetRevision
-			if isRollback {
+			if len(revisions) > i && revisions[i] != "" {
 				revision = revisions[i]
 			}
 			refSources[refKey] = &argoappv1.RefTarget{

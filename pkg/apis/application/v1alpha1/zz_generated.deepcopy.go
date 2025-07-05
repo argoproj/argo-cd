@@ -3294,6 +3294,11 @@ func (in *PullRequestGeneratorFilter) DeepCopyInto(out *PullRequestGeneratorFilt
 		*out = new(string)
 		**out = **in
 	}
+	if in.TitleMatch != nil {
+		in, out := &in.TitleMatch, &out.TitleMatch
+		*out = new(string)
+		**out = **in
+	}
 	return
 }
 
