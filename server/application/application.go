@@ -541,10 +541,6 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				return fmt.Errorf("error getting kustomize settings: %w", err)
 			}
 
-			kustomizeOptions, err := kustomizeSettings.GetOptions(source)
-			if err != nil {
-				return fmt.Errorf("error getting kustomize settings options: %w", err)
-			}
 			installationID, err := s.settingsMgr.GetInstallationID()
 			if err != nil {
 				return fmt.Errorf("error getting installation ID: %w", err)
@@ -574,7 +570,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				Namespace:                       a.Spec.Destination.Namespace,
 				ApplicationSource:               &source,
 				Repos:                           repos,
-				KustomizeOptions:                kustomizeOptions,
+				KustomizeOptions:                kustomizeSettings,
 				KubeVersion:                     serverVersion,
 				ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
 				HelmRepoCreds:                   helmRepoCreds,
@@ -686,10 +682,6 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 		if err != nil {
 			return fmt.Errorf("error getting kustomize settings: %w", err)
 		}
-		kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource())
-		if err != nil {
-			return fmt.Errorf("error getting kustomize settings options: %w", err)
-		}
 
 		req := &apiclient.ManifestRequest{
 			Repo:                            repo,
@@ -699,7 +691,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			Namespace:                       a.Spec.Destination.Namespace,
 			ApplicationSource:               &source,
 			Repos:                           helmRepos,
-			KustomizeOptions:                kustomizeOptions,
+			KustomizeOptions:                kustomizeSettings,
 			KubeVersion:                     serverVersion,
 			ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
 			HelmRepoCreds:                   helmCreds,
@@ -825,15 +817,11 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 			if err != nil {
 				return fmt.Errorf("error getting trackingMethod from settings: %w", err)
 			}
-			kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource())
-			if err != nil {
-				return fmt.Errorf("error getting kustomize settings options: %w", err)
-			}
 			_, err = client.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 				Repo:               repo,
 				Source:             &source,
 				AppName:            appName,
-				KustomizeOptions:   kustomizeOptions,
+				KustomizeOptions:   kustomizeSettings,
 				Repos:              helmRepos,
 				NoCache:            true,
 				TrackingMethod:     trackingMethod,
