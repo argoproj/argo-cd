@@ -1,5 +1,27 @@
 # Running Argo CD locally
 
+### ?????Run Argo CD
+
+```shell
+cd argo-cd
+make start-local ARGOCD_GPG_ENABLED=false
+```
+
+By default, Argo CD uses Docker. To use Podman instead, set the `DOCKER` environment variable to `podman` before running the `make` command:
+
+```shell
+cd argo-cd
+DOCKER=podman make start-local ARGOCD_GPG_ENABLED=false
+```
+
+- Navigate to [localhost:4000](http://localhost:4000) in your browser to load the Argo CD UI
+- It may take a few minutes for the UI to be responsive
+
+!!! note
+    If the UI is not working, check the logs from `make start-local`. The logs are `DEBUG` level by default. If the logs are
+    too noisy to find the problem, try editing log levels for the commands in the `Procfile` in the root of the Argo CD repo.
+?????
+
 ## Run Argo CD outside of Kubernetes
 
 During development, it might be viable to run Argo CD outside a Kubernetes cluster. This will greatly speed up development, as you don't have to constantly build, push and install new Argo CD Docker images with your latest changes.
