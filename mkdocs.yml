@@ -203,12 +203,15 @@ nav:
   - Application Specification Reference: user-guide/application-specification.md
 - Developer Guide:
   - developer-guide/index.md
+  - Development Environment: developer-guide/development-environment.md
+  - Development Cycle: developer-guide/development-cycle.md
+  - Submit Your PR: developer-guide/submit-your-pr.md
   - Architecture:
     - developer-guide/architecture/authz-authn.md
     - developer-guide/architecture/components.md
   - Code Contribution Guide: developer-guide/code-contributions.md
   - Toolchain Guide: developer-guide/toolchain-guide.md
-  - developer-guide/contributors-quickstart.md
+  - developer-guide/mac-users.md
   - developer-guide/release-process-and-cadence.md
   - developer-guide/running-locally.md
   - developer-guide/debugging-remote-environment.md

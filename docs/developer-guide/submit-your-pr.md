@@ -1,5 +1,9 @@
 # Submitting PRs
 
+## Prerequisites
+1. [Development Environment](development-environment.md)   
+2. [Toolchain Guide](toolchain-guide.md)
+
 ## Preface
 
 !!!note "Before you start"
