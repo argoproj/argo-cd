@@ -207,7 +207,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                             title: 'SYNC STATUS',
                             helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
                         },
-                        () => showMetadataInfo(application.status.sync ? 'SYNC_STATUS_REVISION' : null)
+                        application.status.sync.revision ? () => showMetadataInfo('SYNC_STATUS_REVISION') : null
                     )}
                     <div className={`application-status-panel__item-value${appOperationState?.phase ? ` application-status-panel__item-value--${appOperationState.phase}` : ''}`}>
                         <div>
