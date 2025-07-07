@@ -1,4 +1,6 @@
-# Required Tools Overview
+# Setting Up the Development Environment
+
+## Required Tools Overview
 
 You will need to install the following tools with the specified minimum versions:
 
@@ -9,16 +11,16 @@ You will need to install the following tools with the specified minimum versions
 
 
 
-# Install Required Tools
+## Install Required Tools
 
-## Install Git
+### Install Git
 
 Obviously, you will need a `git` client for pulling source code and pushing back your changes.
 
 <https://github.com/git-guides/install-git>
 
 
-## Install Go
+### Install Go
 
 You will need a Go SDK and related tools (such as GNU `make`) installed and working on your development environment.
 
@@ -29,9 +31,9 @@ We will assume that your Go workspace is at `~/go`.
 
 Verify: run `go version`
 
-## Install Docker or Podman
+### Install Docker or Podman
 
-### Installation guide for docker:
+#### Installation guide for docker
 
 <https://docs.docker.com/engine/install/>
 
@@ -39,30 +41,30 @@ You will need a working Docker runtime environment, to be able to build and run 
 
 Verify: run `docker version`
 
-### Installation guide for podman:
+#### Installation guide for podman
 
 <https://podman.io/docs/installation>
 
-## Install a Local K8s Cluster
+### Install a Local K8s Cluster
 
 You won't need a fully blown multi-master, multi-node cluster, but you will need something like K3S, K3d, Minikube, Kind or microk8s. You will also need a working Kubernetes client (`kubectl`) configuration in your development environment. The configuration must reside in `~/.kube/config`.
 
-### Kind:
+#### Kind
 
-#### [Installation guide](https://kind.sigs.k8s.io/docs/user/quick-start)
+##### [Installation guide](https://kind.sigs.k8s.io/docs/user/quick-start)
 
 You can use `kind` to run Kubernetes inside Docker. But pointing to any other development cluster works fine as well as long as Argo CD can reach it.
 
-#### Start the Cluster:
+##### Start the Cluster
 ```shell
 kind create cluster
 ```
 
-### Minikube:
+#### Minikube
 
-#### [Installation guide](https://minikube.sigs.k8s.io/docs/start)
+##### [Installation guide](https://minikube.sigs.k8s.io/docs/start)
 
-#### Start the Cluster: 
+##### Start the Cluster
 ```shell
 minikube start
 ```
@@ -73,16 +75,16 @@ Or, if you are using minikube with podman driver:
 minikube start --driver=podman
 ```
 
-### K3d:
+#### K3d
 
-#### [Installation guide](https://k3d.io/stable/#quick-start)
+##### [Installation guide](https://k3d.io/stable/#quick-start)
 
-## Verify:
+### Verify cluster installation
 
 * Run `kubectl version` 
 
 
-# Fork and Clone the Repository
+## Fork and Clone the Repository
 1. Fork the Argo CD repository to your personal GitHub Account
 2. Clone the forked repository:
 ```shell
@@ -97,7 +99,7 @@ git clone https://github.com/YOUR-USERNAME/argo-cd.git
    git remote add upstream https://github.com/argoproj/argo-cd.git
    ```
 
-# Install Additional Required Development Tools
+## Install Additional Required Development Tools
 
 
 ```shell
@@ -105,7 +107,7 @@ make install-go-tools-local
 make install-codegen-tools-local
 ```
 
-# Install Latest Argo CD on Your Local Cluster
+## Install Latest Argo CD on Your Local Cluster
 
 ```shell
 kubectl create namespace argocd &&
