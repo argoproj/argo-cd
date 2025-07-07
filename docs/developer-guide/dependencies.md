@@ -54,7 +54,7 @@ and others. Although you can make changes to these files and run them locally, i
     * `cd ../argo-cd/ui`
     * `yarn link argo-ui`
 
-    Once `argo-ui` package has been successfully linked, test out changes in your local development environment. 
+    Once the `argo-ui` package has been successfully linked, test changes in your local development environment. 
 
 6. Commit changes and open a PR to [Argo UI](https://github.com/argoproj/argo-ui). 
 
