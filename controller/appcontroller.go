@@ -126,7 +126,7 @@ type ApplicationController struct {
 	statusHardRefreshTimeout      time.Duration
 	statusRefreshJitter           time.Duration
 	selfHealTimeout               time.Duration
-	selfHealBackOff               *wait.Backoff
+	selfHealBackoff               *wait.Backoff
 	selfHealBackoffCooldown       time.Duration
 	syncTimeout                   time.Duration
 	db                            db.ArgoDB
@@ -209,7 +209,7 @@ func NewApplicationController(
 		auditLogger:                       argo.NewAuditLogger(kubeClientset, common.ApplicationController, enableK8sEvent),
 		settingsMgr:                       settingsMgr,
 		selfHealTimeout:                   selfHealTimeout,
-		selfHealBackOff:                   selfHealBackoff,
+		selfHealBackoff:                   selfHealBackoff,
 		selfHealBackoffCooldown:           selfHealBackoffCooldown,
 		syncTimeout:                       syncTimeout,
 		clusterSharding:                   clusterSharding,
@@ -329,7 +329,7 @@ func NewApplicationController(
 		}
 	}
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts)
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, stateCache, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
@@ -1437,22 +1437,15 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
 
-	// Call GetDestinationCluster to validate the destination cluster.
-	if _, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db); err != nil {
-		state.Phase = synccommon.OperationFailed
-		state.Message = err.Error()
-	} else {
-		ctrl.appStateManager.SyncAppState(app, state)
-	}
-	ts.AddCheckpoint("validate_and_sync_app_state_ms")
-
-	// Check whether application is allowed to use project
-	_, err := ctrl.getAppProj(app)
-	ts.AddCheckpoint("get_app_proj_ms")
+	project, err := ctrl.getAppProj(app)
 	if err != nil {
 		state.Phase = synccommon.OperationError
-		state.Message = err.Error()
+		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
+	} else {
+		// Start or resume the sync
+		ctrl.appStateManager.SyncAppState(app, project, state)
 	}
+	ts.AddCheckpoint("sync_app_state_ms")
 
 	switch state.Phase {
 	case synccommon.OperationRunning:
@@ -1460,12 +1453,6 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		// to clobber the Terminated state with Running. Get the latest app state to check for this.
 		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 		if err == nil {
-			// App may have lost permissions to use the project meanwhile.
-			_, err = ctrl.getAppProj(freshApp)
-			if err != nil {
-				state.Phase = synccommon.OperationFailed
-				state.Message = fmt.Sprintf("operation not allowed: %v", err)
-			}
 			if freshApp.Status.OperationState != nil && freshApp.Status.OperationState.Phase == synccommon.OperationTerminating {
 				state.Phase = synccommon.OperationTerminating
 				state.Message = "operation is terminating"
@@ -1479,12 +1466,12 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			now := metav1.Now()
 			state.FinishedAt = &now
 			if retryAt, err := state.Operation.Retry.NextRetryAt(now.Time, state.RetryCount); err != nil {
-				state.Phase = synccommon.OperationFailed
+				state.Phase = synccommon.OperationError
 				state.Message = fmt.Sprintf("%s (failed to retry: %v)", state.Message, err)
 			} else {
 				state.Phase = synccommon.OperationRunning
 				state.RetryCount++
-				state.Message = fmt.Sprintf("%s. Retrying attempt #%d at %s.", state.Message, state.RetryCount, retryAt.Format(time.Kitchen))
+				state.Message = fmt.Sprintf("%s due to application controller sync timeout. Retrying attempt #%d at %s.", state.Message, state.RetryCount, retryAt.Format(time.Kitchen))
 			}
 		} else if state.RetryCount > 0 {
 			state.Message = fmt.Sprintf("%s (retried %d times).", state.Message, state.RetryCount)
@@ -2151,35 +2138,41 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	// and parameter overrides are different from our most recent sync operation.
 	alreadyAttempted, lastAttemptedRevisions, lastAttemptedPhase := alreadyAttemptedSync(app, desiredRevisions, shouldCompareRevisions)
 	ts.AddCheckpoint("already_attempted_sync_ms")
-	if alreadyAttempted && (!app.Spec.SyncPolicy.Automated.SelfHeal || !lastAttemptedPhase.Successful()) {
-		if !lastAttemptedPhase.Successful() {
+	if alreadyAttempted {
+		if !attemptPhase.Successful() {
 			logCtx.Warnf("Skipping auto-sync: failed previous sync attempt to %s and will not retry for %s", lastAttemptedRevisions, desiredRevisions)
-			message := fmt.Sprintf("Failed last sync attempt to %s: %s", lastAttemptedRevisions, app.Status.OperationState.Message)
+			message := fmt.Sprintf("Failed sync attempt to %s: %s", lastAttemptedRevisions, app.Status.OperationState.Message)
 			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}, 0
 		}
-		logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredRevisions)
-		return nil, 0
-	} else if app.Spec.SyncPolicy.Automated.SelfHeal {
-		shouldSelfHeal, retryAfter := ctrl.shouldSelfHeal(app, alreadyAttempted)
-		if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
-			op.Sync.SelfHealAttemptsCount = app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount
+		if !selfHeal {
+			logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredRevisions)
+			return nil, 0
+		}
+		// Self heal will trigger a new sync operation when the desired state changes and cause the application to
+		// be OutOfSync when it was previously synced Successfully. This means SelfHeal should only ever be attempted
+		// when the revisions have not changed, and where the previous sync to these revision was successful
+
+		// Only carry SelfHealAttemptsCount to be increased when the selfHealBackoffCooldown has not elapsed yet
+		if !ctrl.selfHealBackoffCooldownElapsed(app) {
+			if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
+				op.Sync.SelfHealAttemptsCount = app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount
+			}
 		}
 
-		if alreadyAttempted {
-			if !shouldSelfHeal {
-				logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", desiredRevisions, ctrl.selfHealTimeout, retryAfter)
-				ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
-				return nil, 0
-			}
-			op.Sync.SelfHealAttemptsCount++
-			for _, resource := range resources {
-				if resource.Status != appv1.SyncStatusCodeSynced {
-					op.Sync.Resources = append(op.Sync.Resources, appv1.SyncOperationResource{
-						Kind:  resource.Kind,
-						Group: resource.Group,
-						Name:  resource.Name,
-					})
-				}
+		if remainingTime := ctrl.selfHealRemainingBackoff(app, int(op.Sync.SelfHealAttemptsCount)); remainingTime > 0 {
+			logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", lastAttemptedRevisions, ctrl.selfHealTimeout, remainingTime)
+			ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &remainingTime)
+			return nil, 0
+		}
+
+		op.Sync.SelfHealAttemptsCount++
+		for _, resource := range resources {
+			if resource.Status != appv1.SyncStatusCodeSynced {
+				op.Sync.Resources = append(op.Sync.Resources, appv1.SyncOperationResource{
+					Kind:  resource.Kind,
+					Group: resource.Group,
+					Name:  resource.Name,
+				})
 			}
 		}
 	}
@@ -2263,9 +2256,9 @@ func alreadyAttemptedSync(app *appv1.Application, desiredRevisions []string, new
 	return reflect.DeepEqual(app.Spec.GetSource(), app.Status.OperationState.SyncResult.Source), []string{app.Status.OperationState.SyncResult.Revision}, app.Status.OperationState.Phase
 }
 
-func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application, alreadyAttempted bool) (bool, time.Duration) {
+func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Application, selfHealAttemptsCount int) time.Duration {
 	if app.Status.OperationState == nil {
-		return true, time.Duration(0)
+		return time.Duration(0)
 	}
 
 	var timeSinceOperation *time.Duration
@@ -2273,34 +2266,41 @@ func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application, alread
 		timeSinceOperation = ptr.To(time.Since(app.Status.OperationState.FinishedAt.Time))
 	}
 
-	// Reset counter if the prior sync was successful and the cooldown period is over OR if the revision has changed
-	if !alreadyAttempted || (timeSinceOperation != nil && *timeSinceOperation >= ctrl.selfHealBackoffCooldown && app.Status.Sync.Status == appv1.SyncStatusCodeSynced) {
-		app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount = 0
-	}
-
 	var retryAfter time.Duration
-	if ctrl.selfHealBackOff == nil {
+	if ctrl.selfHealBackoff == nil {
 		if timeSinceOperation == nil {
 			retryAfter = ctrl.selfHealTimeout
 		} else {
 			retryAfter = ctrl.selfHealTimeout - *timeSinceOperation
 		}
 	} else {
-		backOff := *ctrl.selfHealBackOff
-		backOff.Steps = int(app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount)
+		backOff := *ctrl.selfHealBackoff
+		backOff.Steps = selfHealAttemptsCount
 		var delay time.Duration
 		steps := backOff.Steps
 		for i := 0; i < steps; i++ {
 			delay = backOff.Step()
 		}
-
 		if timeSinceOperation == nil {
 			retryAfter = delay
 		} else {
 			retryAfter = delay - *timeSinceOperation
 		}
 	}
-	return retryAfter <= 0, retryAfter
+	return retryAfter
+}
+
+// selfHealBackoffCooldownElapsed returns true when the last successful sync has occurred since longer
+// than then self heal cooldown. This means that the application has been in sync for long enough to
+// reset the self healing backoff to its initial state
+func (ctrl *ApplicationController) selfHealBackoffCooldownElapsed(app *appv1.Application) bool {
+	if app.Status.OperationState == nil || app.Status.OperationState.FinishedAt == nil {
+		// Something is in progress, or about to be. In that case, selfHeal attempt should be zero anyway
+		return true
+	}
+
+	timeSinceLastOperation := time.Since(app.Status.OperationState.FinishedAt.Time)
+	return timeSinceLastOperation >= ctrl.selfHealBackoffCooldown && app.Status.OperationState.Phase.Successful()
 }
 
 // isAppNamespaceAllowed returns whether the application is allowed in the
