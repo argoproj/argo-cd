@@ -30,7 +30,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	"github.com/argoproj/argo-cd/v3/controller/syncid"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	listersv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/diff"
@@ -87,7 +86,7 @@ func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Clust
 	return ops, cleanup, nil
 }
 
-func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
+func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
 	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult field.
@@ -168,23 +167,16 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		}
 	}
 
-	proj, err := argo.GetAppProject(context.TODO(), app, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr, m.db)
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
-		return
-	} else {
-		isBlocked, err := syncWindowPreventsSync(app, proj)
-		if isBlocked {
-			// If the operation is currently running, simply let the user know the sync is blocked by a current sync window
-			if state.Phase == common.OperationRunning {
-				state.Message = "Sync operation blocked by sync window"
-				if err != nil {
-					state.Message = fmt.Sprintf("%s: %v", state.Message, err)
-				}
+	isBlocked, err := syncWindowPreventsSync(app, project)
+	if isBlocked {
+		// If the operation is currently running, simply let the user know the sync is blocked by a current sync window
+		if state.Phase == common.OperationRunning {
+			state.Message = "Sync operation blocked by sync window"
+			if err != nil {
+				state.Message = fmt.Sprintf("%s: %v", state.Message, err)
 			}
-			return
 		}
+		return
 	}
 
 	if !isMultiSourceRevision {
@@ -193,7 +185,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 
 	// ignore error if CompareStateRepoError, this shouldn't happen as noRevisionCache is true
-	compareResult, err := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, isMultiSourceRevision, rollback)
+	compareResult, err := m.CompareAppState(app, project, revisions, sources, false, true, syncOp.Manifests, isMultiSourceRevision)
 	if err != nil && !stderrors.Is(err, ErrCompareStateRepo) {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
@@ -324,7 +316,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 	if impersonationEnabled {
-		serviceAccountToImpersonate, err := deriveServiceAccountToImpersonate(proj, app, destCluster)
+		serviceAccountToImpersonate, err := deriveServiceAccountToImpersonate(project, app, destCluster)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to find a matching service account to impersonate: %v", err)
@@ -344,11 +336,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
 		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *metav1.APIResource) error {
-			if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), res.Namespaced) {
-				return fmt.Errorf("resource %s:%s is not permitted in project %s", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, proj.Name)
+			if !project.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), res.Namespaced) {
+				return fmt.Errorf("resource %s:%s is not permitted in project %s", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, project.Name)
 			}
 			if res.Namespaced {
-				permitted, err := proj.IsDestinationPermitted(destCluster, un.GetNamespace(), func(project string) ([]*v1alpha1.Cluster, error) {
+				permitted, err := project.IsDestinationPermitted(destCluster, un.GetNamespace(), func(project string) ([]*v1alpha1.Cluster, error) {
 					return m.db.GetProjectClusters(context.TODO(), project)
 				})
 				if err != nil {
@@ -356,7 +348,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 				}
 
 				if !permitted {
-					return fmt.Errorf("namespace %v is not permitted in project '%s'", un.GetNamespace(), proj.Name)
+					return fmt.Errorf("namespace %v is not permitted in project '%s'", un.GetNamespace(), project.Name)
 				}
 			}
 			return nil
