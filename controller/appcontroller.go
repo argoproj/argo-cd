@@ -2139,12 +2139,12 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	alreadyAttempted, lastAttemptedRevisions, lastAttemptedPhase := alreadyAttemptedSync(app, desiredRevisions, shouldCompareRevisions)
 	ts.AddCheckpoint("already_attempted_sync_ms")
 	if alreadyAttempted {
-		if !attemptPhase.Successful() {
+		if !lastAttemptedPhase.Successful() {
 			logCtx.Warnf("Skipping auto-sync: failed previous sync attempt to %s and will not retry for %s", lastAttemptedRevisions, desiredRevisions)
 			message := fmt.Sprintf("Failed sync attempt to %s: %s", lastAttemptedRevisions, app.Status.OperationState.Message)
 			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}, 0
 		}
-		if !selfHeal {
+		if !app.Spec.SyncPolicy.Automated.SelfHeal {
 			logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredRevisions)
 			return nil, 0
 		}
