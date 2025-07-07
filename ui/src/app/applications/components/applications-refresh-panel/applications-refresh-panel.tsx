@@ -74,30 +74,28 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
                         }}
                         getApi={setForm}>
                         {formApi => (
-                            <React.Fragment>
-                                <div className='argo-form-row' style={{marginTop: 0}}>
-                                    <h4>Refresh app(s)</h4>
-                                    {progress !== null && <ProgressPopup onClose={() => setProgress(null)} percentage={progress.percentage} title={progress.title} />}
-                                    <div style={{marginBottom: '1em'}}>
-                                        <label>Refresh Type</label>
-                                        <div className='row application-sync-options'>
-                                            {RefreshTypes.map(refreshType => (
-                                                <label key={refreshType} style={{paddingRight: '1.5em', marginTop: '0.4em'}}>
-                                                    <input
-                                                        type='radio'
-                                                        value={refreshType}
-                                                        checked={formApi.values.refreshType === refreshType}
-                                                        onChange={() => formApi.setValue('refreshType', refreshType)}
-                                                        style={{marginRight: '5px', transform: 'translateY(2px)'}}
-                                                    />
-                                                    {refreshType}
-                                                </label>
-                                            ))}
-                                        </div>
+                            <div className='argo-form-row' style={{marginTop: 0}}>
+                                <h4>Refresh app(s)</h4>
+                                {progress !== null && <ProgressPopup onClose={() => setProgress(null)} percentage={progress.percentage} title={progress.title} />}
+                                <div style={{marginBottom: '1em'}}>
+                                    <label>Refresh Type</label>
+                                    <div className='row application-sync-options'>
+                                        {RefreshTypes.map(refreshType => (
+                                            <label key={refreshType} style={{paddingRight: '1.5em', marginTop: '0.4em'}}>
+                                                <input
+                                                    type='radio'
+                                                    value={refreshType}
+                                                    checked={formApi.values.refreshType === refreshType}
+                                                    onChange={() => formApi.setValue('refreshType', refreshType)}
+                                                    style={{marginRight: '5px', transform: 'translateY(2px)'}}
+                                                />
+                                                {refreshType}
+                                            </label>
+                                        ))}
                                     </div>
-                                    <ApplicationSelector apps={apps} formApi={formApi} />
                                 </div>
-                            </React.Fragment>
+                                <ApplicationSelector apps={apps} formApi={formApi} />
+                            </div>
                         )}
                     </Form>
                 </SlidingPanel>

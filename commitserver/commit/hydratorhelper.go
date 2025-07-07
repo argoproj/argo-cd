@@ -18,6 +18,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
@@ -48,8 +49,10 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 
 	subject, body, _ := strings.Cut(message, "\n\n")
 
+	_, bodyMinusTrailers := git.GetReferences(log.WithFields(log.Fields{"repo": repoUrl, "revision": drySha}), body)
+
 	// Write the top-level readme.
-	err := writeMetadata(root, "", hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl, Author: author, Subject: subject, Body: body, Date: date, References: references})
+	err := writeMetadata(root, "", hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl, Author: author, Subject: subject, Body: bodyMinusTrailers, Date: date, References: references})
 	if err != nil {
 		return fmt.Errorf("failed to write top-level hydrator metadata: %w", err)
 	}

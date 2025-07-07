@@ -318,16 +318,14 @@ export const ApplicationParameters = (props: {
             <div key={'app_params_expanded_' + index} className={classNames('white-box', 'editable-panel')} style={{marginBottom: '18px', paddingBottom: '20px'}}>
                 <div key={'app_params_panel_' + index} className='white-box__details'>
                     {collapsible && (
-                        <React.Fragment>
-                            <div className='editable-panel__collapsible-button'>
-                                <i
-                                    className={`fa fa-angle-up filter__collapse editable-panel__collapsible-button__override`}
-                                    onClick={() => {
-                                        props.handleCollapse(index, !props.collapsedSources[index]);
-                                    }}
-                                />
-                            </div>
-                        </React.Fragment>
+                        <div className='editable-panel__collapsible-button'>
+                            <i
+                                className={`fa fa-angle-up filter__collapse editable-panel__collapsible-button__override`}
+                                onClick={() => {
+                                    props.handleCollapse(index, !props.collapsedSources[index]);
+                                }}
+                            />
+                        </div>
                     )}
                     <DataLoader
                         key={'app_params_source_' + index}

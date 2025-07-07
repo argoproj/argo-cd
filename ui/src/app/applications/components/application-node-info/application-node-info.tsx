@@ -60,12 +60,9 @@ const RenderContainerState = (props: {container: any}) => {
                         {' '}
                         It exited with <span className='application-node-info__container--highlight'>exit code {props.container.state.terminated.exitCode}.</span>
                     </>
-                )}
-                <>
-                    {' '}
-                    It is <span className='application-node-info__container--highlight'>{props.container?.started ? 'started' : 'not started'}</span>
-                    <span className='application-node-info__container--highlight'>{status === 'Completed' ? '.' : props.container?.ready ? ' and ready.' : ' and not ready.'}</span>
-                </>
+                )}{' '}
+                It is <span className='application-node-info__container--highlight'>{props.container?.started ? 'started' : 'not started'}</span>
+                <span className='application-node-info__container--highlight'>{status === 'Completed' ? '.' : props.container?.ready ? ' and ready.' : ' and not ready.'}</span>
                 <br />
                 {lastState && (
                     <>
