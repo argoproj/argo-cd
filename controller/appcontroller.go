@@ -1476,7 +1476,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			} else {
 				state.Phase = synccommon.OperationRunning
 				state.RetryCount++
-				state.Message = fmt.Sprintf("%s. Retrying attempt #%d at %s.", state.Message, state.RetryCount, retryAt.Format(time.Kitchen))
+				state.Message = fmt.Sprintf("%s due to application controller sync timeout. Retrying attempt #%d at %s.", state.Message, state.RetryCount, retryAt.Format(time.Kitchen))
 			}
 		} else if state.RetryCount > 0 {
 			state.Message = fmt.Sprintf("%s (retried %d times).", state.Message, state.RetryCount)
