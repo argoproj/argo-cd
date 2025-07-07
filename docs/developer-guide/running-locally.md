@@ -3,6 +3,7 @@
 ## Prerequisites
 1. [Development Environment](development-environment.md)   
 2. [Toolchain Guide](toolchain-guide.md)
+3. [Development Cycle](development-cycle.md)
 
 ## Preface
 During development, it is recommended to start with Argo CD running locally (outside of a K8s cluster). This will greatly speed up development, as you don't have to constantly build, push and install new Argo CD Docker images with your latest changes.
@@ -45,7 +46,7 @@ kubectl -n argocd scale deployment/argocd-notifications-controller --replicas 0
 
 ## Running Argo CD locally, outside of K8s cluster
 #### Prerequisites
-1. [Install Argo CD resources to your cluster](running-locally.md#install-argo-cd-resources-to-your-cluster)   
+1. [Deploy Argo CD resources to your cluster](running-locally.md#deploy-argo-cd-resources-to-your-cluster)   
 2. [Scale down any Argo CD instance in your cluster](running-locally.md#scale-down-any-argo-cd-instance-in-your-cluster)
 
 ### Start local services (virtualized toolchain)
@@ -79,14 +80,21 @@ export ARGOCD_OPTS="--plaintext --insecure"
 ```
 
 ### Start local services (local toolchain)
-When you use the local toolchain, starting local services is as simple as running
+When you use the local toolchain, starting local services can be performed in 2 ways:
 
+1. With `start-local`
 ```shell
 cd argo-cd
 make start-local ARGOCD_GPG_ENABLED=false
 ```
 
-This will start all Argo CD services and the UI:
+2. With `run`
+```shell
+cd argo-cd
+make run ARGOCD_GPG_ENABLED=false
+```
+
+Any of those options will start all Argo CD services and the UI:
 
 * The Argo CD API server on port 8080
 * The Argo CD UI server on port 4000

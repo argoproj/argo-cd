@@ -214,6 +214,7 @@ nav:
   - developer-guide/mac-users.md
   - developer-guide/release-process-and-cadence.md
   - developer-guide/running-locally.md
+  - developer-guide/debugging-locally.md
   - developer-guide/debugging-remote-environment.md
   - developer-guide/api-docs.md
   - developer-guide/test-e2e.md

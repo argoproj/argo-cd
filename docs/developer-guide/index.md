@@ -35,7 +35,8 @@ As is the case with the development process, this document is under constant cha
 - [Lint your code base](development-cycle.md#lint-your-code-base)
 - [Run e2e tests](development-cycle.md#run-end-to-end-tests)
 - How to contribute to documentation: [build and run documentation site](docs-site/) on your machine for manual testing
-- [Run Argo CD on your machine for debugging and manual testing](running-locally.md)
+- [Run Argo CD on your machine for manual testing](running-locally.md)
+- [Debug Argo CD on your machine](debugging-locally.md)
   
 ### Submit your PR
 - [Before submitting a PR](submit-your-pr.md#before-submitting-a-pr)
