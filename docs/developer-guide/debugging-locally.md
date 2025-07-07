@@ -7,7 +7,9 @@
 4. [Running Locally](running-locally.md)
 
 ## Preface
-When running Argo CD locally for manual tests, the quickest way to do so is to run all the Argo CD components together, as described in [Running Locally](running-locally.md).
+Please make sure you are familiar with running Argo CD locally using the [local toolchain](running-locally.md#start-local-services-local-toolchain).
+
+When running Argo CD locally for manual tests, the quickest way to do so is to run all the Argo CD components together, as described in [Running Locally](running-locally.md), 
 
 However, when you need to debug a single Argo CD component (for example, api-server, repo-server, etc), you will need to run this component separately in your IDE, using your IDE launch and debug configuration, while the other components will be running as described previously, using the local toolchain.
 
