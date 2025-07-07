@@ -29,7 +29,7 @@ As build dependencies change over time, you have to synchronize your development
 
 * `make dep-ui` or `make dep-ui-local`
 
-Argo CD recently migrated to Go modules. Usually, dependencies will be downloaded on build time, but the Makefile provides two targets to download and vendor all dependencies:
+Argo CD recently migrated to Go modules. Usually, dependencies will be downloaded at build time, but the Makefile provides two targets to download and vendor all dependencies:
 
 * `make mod-download` or `make mod-download-local` will download all required Go modules and
 * `make mod-vendor` or `make mod-vendor-local` will vendor those dependencies into the Argo CD source tree
