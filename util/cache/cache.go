@@ -147,7 +147,7 @@ func loadRedisCredsFromSecret(mountPath string, opt Options) *redisCreds {
 		readAuthDetailsFromFile := func(filename string) string {
 			data, err := os.ReadFile(filepath.Join(mountPath, filename))
 			if err != nil {
-				log.Infof("Could not read Redis credential file %s: %v. Falling back to environment variable if available.", filepath.Join(mountPath, filename), err)
+				log.Warnf("Could not read Redis credential file %s: %v. Falling back to environment variable if available.", filepath.Join(mountPath, filename), err)
 				return ""
 			}
 			return strings.TrimSpace(string(data))
