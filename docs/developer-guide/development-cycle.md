@@ -5,7 +5,7 @@
 2. [Toolchain Guide](toolchain-guide.md)
 
 ## Preface 
-When you have developed and possibly manually tested the code you want to contribute, you should ensure that everything will build correctly. Commit your changes to the local copy of your Git branch and perform the following steps, for each step the commands for both local and virtualized toolchain are available. 
+When you have developed and possibly manually tested the code you want to contribute, you should ensure that everything builds correctly. Commit your changes locally and perform the following steps, for each step the commands for both local and virtualized toolchain are listed. 
 
 ### Docker priviliges for virtualized chain users
 [These instructions](toolchain-guide.md#docker-privileges) are relevant for most of the steps below 
