@@ -97,6 +97,7 @@ Here are some frequently used make targets (all will run on your machine):
 * `make test-e2e-local` - Run end-to-end tests
 * `make serve-docs-local` - Serve documentation
 * `make start-local` - Start Argo CD
+* `make cli-local` - Build Argo CD CLI binary
 
 ### Virtualized Toolchain Make Targets
 
