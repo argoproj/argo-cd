@@ -16,7 +16,7 @@ When you have developed and possibly manually tested the code you want to contri
 ## Development cycle steps
 ### Set kubectl context to argocd namespace
 
-Set kubectl config to argocd namespace is required for all the following steps to succeed.
+Setting kubectl config to the argocd namespace is required for these steps to succeed.
 All following commands in this guide assume the namespace is already set.
 
 ```shell
