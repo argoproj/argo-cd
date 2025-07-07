@@ -50,29 +50,27 @@ export class ApplicationParametersSource<T = {}> extends React.Component<Applica
                 {ctx => (
                     <div className={classNames({'editable-panel--disabled': this.state.savingTop})}>
                         {this.props.floatingTitle && <div className='white-box--additional-top-space editable-panel__sticky-title'>{this.props.floatingTitle}</div>}
-                        <React.Fragment>
-                            <EditableSection
-                                uniqueId={'top_' + this.props.index}
-                                title={this.props.titleTop}
-                                view={this.props.viewTop}
-                                values={this.props.valuesTop}
-                                items={this.props.itemsTop}
-                                validate={this.props.validateTop}
-                                save={this.props.saveTop}
-                                onModeSwitch={() => this.onModeSwitch()}
-                                noReadonlyMode={this.props.noReadonlyMode}
-                                edit={this.props.editTop}
-                                collapsible={this.props.collapsible}
-                                ctx={ctx}
-                                isTopSection={true}
-                                disabledState={this.state.editTop || this.state.editTop === null}
-                                disabledDelete={this.props.numberOfSources <= 1}
-                                updateButtons={editClicked => {
-                                    this.setState({editBottom: editClicked});
-                                }}
-                                deleteSource={this.props.deleteSource}
-                            />
-                        </React.Fragment>
+                        <EditableSection
+                            uniqueId={'top_' + this.props.index}
+                            title={this.props.titleTop}
+                            view={this.props.viewTop}
+                            values={this.props.valuesTop}
+                            items={this.props.itemsTop}
+                            validate={this.props.validateTop}
+                            save={this.props.saveTop}
+                            onModeSwitch={() => this.onModeSwitch()}
+                            noReadonlyMode={this.props.noReadonlyMode}
+                            edit={this.props.editTop}
+                            collapsible={this.props.collapsible}
+                            ctx={ctx}
+                            isTopSection={true}
+                            disabledState={this.state.editTop || this.state.editTop === null}
+                            disabledDelete={this.props.numberOfSources <= 1}
+                            updateButtons={editClicked => {
+                                this.setState({editBottom: editClicked});
+                            }}
+                            deleteSource={this.props.deleteSource}
+                        />
                         {this.props.itemsTop && (
                             <React.Fragment>
                                 <div className='row white-box__details-row'>
@@ -81,27 +79,25 @@ export class ApplicationParametersSource<T = {}> extends React.Component<Applica
                                 <div className='white-box--no-padding editable-panel__divider' />
                             </React.Fragment>
                         )}
-                        <React.Fragment>
-                            <EditableSection
-                                uniqueId={'bottom_' + this.props.index}
-                                title={this.props.titleBottom}
-                                view={this.props.viewBottom}
-                                values={this.props.valuesBottom}
-                                items={this.props.itemsBottom}
-                                validate={this.props.validateBottom}
-                                save={this.props.saveBottom}
-                                onModeSwitch={() => this.onModeSwitch()}
-                                noReadonlyMode={this.props.noReadonlyMode}
-                                edit={this.props.editBottom}
-                                collapsible={this.props.collapsible}
-                                ctx={ctx}
-                                isTopSection={false}
-                                disabledState={this.state.editBottom || this.state.editBottom === null}
-                                updateButtons={editClicked => {
-                                    this.setState({editTop: editClicked});
-                                }}
-                            />
-                        </React.Fragment>
+                        <EditableSection
+                            uniqueId={'bottom_' + this.props.index}
+                            title={this.props.titleBottom}
+                            view={this.props.viewBottom}
+                            values={this.props.valuesBottom}
+                            items={this.props.itemsBottom}
+                            validate={this.props.validateBottom}
+                            save={this.props.saveBottom}
+                            onModeSwitch={() => this.onModeSwitch()}
+                            noReadonlyMode={this.props.noReadonlyMode}
+                            edit={this.props.editBottom}
+                            collapsible={this.props.collapsible}
+                            ctx={ctx}
+                            isTopSection={false}
+                            disabledState={this.state.editBottom || this.state.editBottom === null}
+                            updateButtons={editClicked => {
+                                this.setState({editTop: editClicked});
+                            }}
+                        />
                     </div>
                 )}
             </Consumer>
