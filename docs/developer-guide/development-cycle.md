@@ -10,7 +10,7 @@ When you have developed and possibly manually tested the code you want to contri
 ### Docker priviliges for virtualized toolchain users
 [These instructions](toolchain-guide.md#docker-privileges) are relevant for most of the steps below 
 
-### Using Podman for virtualized chain users
+### Using Podman for virtualized toolchain users
 [These instructions](toolchain-guide.md#using-podman) are relevant for most of the steps below 
 
 ## Development cycle steps
