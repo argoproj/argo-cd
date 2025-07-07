@@ -2051,7 +2051,7 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	assert.Equal(t, string(synccommon.OperationRunning), phase)
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
-	assert.Contains(t, message, "Retrying attempt #1")
+	assert.Contains(t, message, "due to application controller sync timeout. Retrying attempt #1")
 	retryCount, _, _ := unstructured.NestedFloat64(receivedPatch, "status", "operationState", "retryCount")
 	assert.InEpsilon(t, float64(1), retryCount, 0.0001)
 }
