@@ -7,7 +7,7 @@
 ## Preface 
 When you have developed and possibly manually tested the code you want to contribute, you should ensure that everything builds correctly. Commit your changes locally and perform the following steps, for each step the commands for both local and virtualized toolchain are listed. 
 
-### Docker priviliges for virtualized chain users
+### Docker priviliges for virtualized toolchain users
 [These instructions](toolchain-guide.md#docker-privileges) are relevant for most of the steps below 
 
 ### Using Podman for virtualized chain users
