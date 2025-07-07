@@ -72,7 +72,7 @@ If you touched UI code, you should also run the Yarn linter on it:
 
 ### Run end-to-end tests
 
-The final step is running the End-to-End testsuite, which makes sure that your Kubernetes dependencies are working properly. This will involve starting all the Argo CD components on your computer. The end-to-end tests consists of two parts: a server component, and a client component.
+The final step is running the End-to-End testsuite, which ensures that your Kubernetes dependencies are working properly. This will involve starting all the Argo CD components on your computer. The end-to-end tests consists of two parts: a server component, and a client component.
 
 * First, start the End-to-End server: `make start-e2e` or `make start-e2e-local`. This will spawn a number of processes and services on your system.
 * When all components have started, run `make test-e2e` or `make test-e2e-local` to run the end-to-end tests against your local services.
