@@ -2502,7 +2502,13 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]v1alpha1.Resou
 // Deprecated: use RunResourceActionV2 instead. This version does not support resource action parameters but is
 // maintained for backward compatibility. It will be removed in a future release.
 func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceActionRunRequest) (*application.ApplicationResponse, error) {
-	log.Warn("RunResourceAction was called. RunResourceAction is deprecated and will be removed in a future release. Use RunResourceActionV2 instead.")
+	log.WithFields(log.Fields{
+		"action":        q.Action,
+		"application":   q.Name,
+		"app-namespace": q.AppNamespace,
+		"project":       q.Project,
+		"user":          session.Username(ctx),
+	}).Warn("RunResourceAction was called. RunResourceAction is deprecated and will be removed in a future release. Use RunResourceActionV2 instead.")
 	qV2 := &application.ResourceActionRunRequestV2{
 		Name:         q.Name,
 		AppNamespace: q.AppNamespace,
