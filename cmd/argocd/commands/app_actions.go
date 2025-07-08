@@ -203,6 +203,9 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 				Action:       ptr.To(actionName),
 				// TODO: add support for parameters
 			})
+			if err == nil {
+				continue
+			}
 			if grpc.UnwrapGRPCStatus(err).Code() != codes.Unimplemented {
 				errors.CheckError(err)
 			}
