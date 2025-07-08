@@ -481,8 +481,9 @@ func testHookFinalizer(t *testing.T, hookType HookType) {
 		Expect(ResourceResultIs(ResourceResult{Group: "batch", Version: "v1", Kind: "Job", Namespace: DeploymentNamespace(), Name: "hook", Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Message: "Resource has finalizer", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
 }
 
-func TestJobHookWithSyncOptionsForceReplaceAndWeights(t *testing.T) {
-	// Test for a job hook that uses Replace=true and Force=true with a weight lower than some other resource.
+func TestJobHookPreSyncReplaceForce(t *testing.T) {
+	// Test for a PreSync job hook that uses Replace=true and Force=true. All we're testing here is that a subsequent
+	// sync hooks, i.e. deleting the hook works.
 	Given(t).
 		Path("hook-force-replace-weight").
 		When().
