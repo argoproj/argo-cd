@@ -1708,6 +1708,8 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		repo         string
 		appNamespace string
 		cluster      string
+		path         string
+		files        []string
 	)
 	command := &cobra.Command{
 		Use:   "list",
@@ -1744,6 +1746,13 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				appList = argo.FilterByCluster(appList, cluster)
 			}
 
+			if path != "" {
+				appList = argo.FilterByPath(appList, path)
+			}
+			if len(files) != 0 {
+				appList = argo.FilterByFiles(appList, files)
+			}
+
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(appList, output, false)
@@ -1763,6 +1772,8 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&repo, "repo", "r", "", "List apps by source repo URL")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only list applications in namespace")
 	command.Flags().StringVarP(&cluster, "cluster", "c", "", "List apps by cluster name or url")
+	command.Flags().StringVarP(&path, "path", "P", "", "Filter apps by source path")
+	command.Flags().StringArrayVarP(&files, "files", "f", []string{}, "Filter Apps by files")
 	return command
 }
 
