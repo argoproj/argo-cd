@@ -1,12 +1,15 @@
 package cli
 
 import (
+	"errors"
 	"flag"
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"os/exec"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-cd/v3/common"
 
 	"github.com/stretchr/testify/require"
 )
@@ -73,7 +76,8 @@ func TestSetLogFormat(t *testing.T) {
 				cmd := exec.Command(os.Args[0], "-test.run="+t.Name())
 				cmd.Env = append(os.Environ(), "TEST_FATAL=1")
 				err := cmd.Run()
-				if e, ok := err.(*exec.ExitError); ok && !e.Success() {
+				e := &exec.ExitError{}
+				if errors.As(err, &e) {
 					return
 				}
 				t.Fatalf("expected fatal exit for invalid log format")
@@ -128,5 +132,4 @@ func TestSetGLogLevel(t *testing.T) {
 
 	logToStderrFlag := flag.Lookup("logtostderr")
 	assert.Equal(t, "true", logToStderrFlag.Value.String())
-
 }
