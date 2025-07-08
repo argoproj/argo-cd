@@ -11,14 +11,13 @@ argocd app get-resource APPNAME [flags]
 ### Options
 
 ```
-      --group string           Group, if none is provided will default to nothing
-  -h, --help                   help for get-resource
-      --kind string            Kind of resource [REQUIRED]
-      --namespace string       Namespace, if none is provided will default to that of the resource
-      --output string          Format of the output, yaml or json (default "yaml")
-      --project string         Project of resource
-      --resource-name string   Name of resource [REQUIRED]
-      --show-managed-fields    Show managed fields in the output manifest
+      --filter-fields strings   A comma separated list of fields to display, if empty will display entire manifest
+  -h, --help                    help for get-resource
+      --kind string             Kind of resource [REQUIRED]
+  -o, --output string           Format of the output, yaml or json (default "wide")
+      --project string          Project of resource
+      --resource-name string    Name of resource, if none is included will output details of all resources with specified kind
+      --show-managed-fields     Show managed fields in the output manifest
 ```
 
 ### Options inherited from parent commands
