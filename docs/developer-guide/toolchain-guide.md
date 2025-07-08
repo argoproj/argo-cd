@@ -7,7 +7,7 @@
 
 Argo CD provides a fully virtualized development and testing toolchain using Docker images. Those images provide the same runtime environment as the final product, and it is much easier to keep up-to-date with changes to the toolchain and dependencies. The virtualized toolchain runs the build and programs inside a Docker container using the test tools image. That makes everything repeatable. The dynamic nature of requirements is another reason to choose this toolchain. This setup may also require configuring the default K8s API URL that comes with installing a local K8s cluster.
 
-The local toolchain results in a faster development and testing cycle. Particularly on macOS where Docker and the Linux kernel run inside a VM, you may want to try developing fully locally. This setup also requires installing additional tools on your machine. 
+The local toolchain results in a faster development and testing cycle. Particularly on macOS where Docker and the Linux kernel run inside a VM, you may want to try developing fully locally. Local toolchain also requires installing additional tools on your machine. This toolchain is a good choice for working with an IDE debugger. 
 
 Most relevant targets for the build & test cycles in the `Makefile` provide two variants, one of them suffixed with `-local`. For example, `make test` will run unit tests in the Docker container (virtualized toolchain), `make test-local` (local toolchain) will run it natively on your local system.
 

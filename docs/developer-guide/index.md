@@ -21,11 +21,13 @@ As is the case with the development process, this document is under constant cha
 - [Fork and clone Argo CD repository](development-environment.md#fork-and-clone-the-repository)
 - [Install additional required development tools](development-environment.md#install-additional-required-development-tools)
 - [Install latest Argo CD on your local cluster](development-environment.md#install-latest-argo-cd-on-your-local-cluster)
-- Set up a development toolchain (local or virtualized)
-    - [Understand the differences between the toolchains](toolchain-guide.md#local-vs-virtualized-toolchain)
-    - Choose a development toolchain
-        - Either [set up a local toolchain](toolchain-guide.md#setting-up-a-local-toolchain)
-        - Or [set up a virtualized toolchain](toolchain-guide.md#setting-up-a-virtualized-toolchain)
+
+### Set up a development toolchain (local or virtualized)
+- [Understand the differences between the toolchains](toolchain-guide.md#local-vs-virtualized-toolchain)
+- Choose a development toolchain
+
+    - Either [set up a local toolchain](toolchain-guide.md#setting-up-a-local-toolchain)
+    - Or [set up a virtualized toolchain](toolchain-guide.md#setting-up-a-virtualized-toolchain)
 
 ### Perform the development cycle 
 - [Set kubectl context to argocd namespace](development-cycle.md#set-kubectl-context-to-argocd-namespace)
@@ -35,8 +37,10 @@ As is the case with the development process, this document is under constant cha
 - [Lint your code base](development-cycle.md#lint-your-code-base)
 - [Run e2e tests](development-cycle.md#run-end-to-end-tests)
 - How to contribute to documentation: [build and run documentation site](docs-site/) on your machine for manual testing
+
+### Run and debug Argo CD locally
 - [Run Argo CD on your machine for manual testing](running-locally.md)
-- [Debug Argo CD on your machine](debugging-locally.md)
+- [Debug Argo CD in an IDE on your machine](debugging-locally.md)
   
 ### Submit your PR
 - [Before submitting a PR](submit-your-pr.md#before-submitting-a-pr)

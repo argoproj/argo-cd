@@ -80,18 +80,24 @@ export ARGOCD_OPTS="--plaintext --insecure"
 ```
 
 ### Start local services (local toolchain)
-When you use the local toolchain, starting local services can be performed in 2 ways:
+When you use the local toolchain, starting local services can be performed in 3 ways:
 
-1. With `start-local`
+#### With "make start-local"
 ```shell
 cd argo-cd
 make start-local ARGOCD_GPG_ENABLED=false
 ```
 
-2. With `run`
+#### With "make run"
 ```shell
 cd argo-cd
 make run ARGOCD_GPG_ENABLED=false
+```
+
+#### With "goreman start"
+```shell
+cd argo-cd
+ARGOCD_GPG_ENABLED=false && goreman start
 ```
 
 Any of those options will start all Argo CD services and the UI:

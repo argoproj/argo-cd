@@ -120,12 +120,15 @@ So for the case of debugging the `api-server`, run:
 So for the case of debugging the `api-server`, run:
 `make run exclude=api-server` 
 
-### Run the other components in your K8s cluster
-It is also possible to run the other components in your K8s cluster, by scaling out their relevant deployments/stateful sets replicas to 1.
-In our example of debugging the `api-server`, all the other Argo CD deployments/stateful sets will need to be scaled up to 1 replica, and `argocd-server` will remain with 0 replicas.
+#### Run with "goreman start"
+`goreman start` runs all the components by default, but it is also possible to run it with a whitelist of components, enabling the separation we need.
+
+So for the case of debugging the `api-server`, run:
+`goreman start notification applicationset-controller repo-server redis dex controller ui` 
+
 
 ## Run Argo CD debugged component from your IDE
 Finally, run the component you wish to debug from your IDE and make sure it does not have any errors.
 
 ## Important
-In any of the above methods for running the other Argo CD components separately, you need to make sure they don't step on each other's feet - meaning that each component needs to be up exactly once, be it up in the cluster, run locally with the local toolchain or run from your IDE. Otherwise you may be getting errors about ports not available or even debugging a process that does not run your changed code. 
+In any of the above methods for running the other Argo CD components separately, you need to make sure components don't step on each other's feet - meaning that each component needs to be up exactly once, be it run locally with the local toolchain or run from your IDE. Otherwise you may be getting errors about ports not available or even debugging a process that does not run your changed code. 
