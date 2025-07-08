@@ -1,0 +1,108 @@
+{
+    "apiVersion": "apps/v1",
+    "kind": "Deployment",
+    "metadata": {
+        "annotations": {
+            "deployment.kubernetes.io/revision": "5",
+            "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"annotations\":{},\"labels\":{\"app.kubernetes.io/instance\":\"guestbook\"},\"name\":\"guestbook-ui\",\"namespace\":\"default\"},\"spec\":{\"replicas\":1,\"revisionHistoryLimit\":3,\"selector\":{\"matchLabels\":{\"app\":\"guestbook-ui\"}},\"template\":{\"metadata\":{\"labels\":{\"app\":\"guestbook-ui\"}},\"spec\":{\"containers\":[{\"env\":[{\"name\":\"VAR1\",\"value\":\"something\"}],\"image\":\"gcr.io/heptio-images/ks-guestbook-demo:0.2\",\"name\":\"guestbook-ui\",\"ports\":[{\"containerPort\":80}]}]}}}}\n"
+        },
+        "creationTimestamp": "2020-06-25T19:25:05Z",
+        "generation": 5,
+        "labels": {
+            "app.kubernetes.io/instance": "guestbook"
+        },
+        "name": "guestbook-ui",
+        "namespace": "default",
+        "resourceVersion": "1208550",
+        "selfLink": "/apis/apps/v1/namespaces/default/deployments/guestbook-ui",
+        "uid": "165ca30d-8dca-44ae-b0ba-6ea26160ac9f"
+    },
+    "spec": {
+        "progressDeadlineSeconds": 600,
+        "replicas": 1,
+        "revisionHistoryLimit": 3,
+        "selector": {
+            "matchLabels": {
+                "app": "guestbook-ui"
+            }
+        },
+        "strategy": {
+            "rollingUpdate": {
+                "maxSurge": "25%",
+                "maxUnavailable": "25%"
+            },
+            "type": "RollingUpdate"
+        },
+        "template": {
+            "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                    "app": "guestbook-ui"
+                }
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "env": [
+                            {
+                                "name": "VAR2",
+                                "valueFrom": {
+                                    "fieldRef": {
+                                        "apiVersion": "v1",
+                                        "fieldPath": "metadata.name"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "VAR1",
+                                "value": "something"
+                            }
+                        ],
+                        "image": "gcr.io/heptio-images/ks-guestbook-demo:0.2",
+                        "imagePullPolicy": "IfNotPresent",
+                        "name": "guestbook-ui",
+                        "ports": [
+                            {
+                                "containerPort": 80,
+                                "protocol": "TCP"
+                            }
+                        ],
+                        "resources": {},
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File"
+                    }
+                ],
+                "dnsPolicy": "ClusterFirst",
+                "restartPolicy": "Always",
+                "schedulerName": "default-scheduler",
+                "securityContext": {},
+                "terminationGracePeriodSeconds": 30
+            }
+        }
+    },
+    "status": {
+        "availableReplicas": 1,
+        "conditions": [
+            {
+                "lastTransitionTime": "2020-06-25T19:25:07Z",
+                "lastUpdateTime": "2020-06-25T19:25:07Z",
+                "message": "Deployment has minimum availability.",
+                "reason": "MinimumReplicasAvailable",
+                "status": "True",
+                "type": "Available"
+            },
+            {
+                "lastTransitionTime": "2020-06-25T19:25:05Z",
+                "lastUpdateTime": "2020-06-30T19:39:35Z",
+                "message": "ReplicaSet \"guestbook-ui-6f7c7fc4b6\" has successfully progressed.",
+                "reason": "NewReplicaSetAvailable",
+                "status": "True",
+                "type": "Progressing"
+            }
+        ],
+        "observedGeneration": 5,
+        "readyReplicas": 1,
+        "replicas": 1,
+        "updatedReplicas": 1
+    }
+}
