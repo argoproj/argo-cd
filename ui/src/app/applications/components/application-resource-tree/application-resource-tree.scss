@@ -328,6 +328,7 @@
         top: 0;
         bottom: 0;
         animation: shadow-pulse 1s 1;
+        pointer-events: none;
     }
 
     @keyframes shadow-pulse {
