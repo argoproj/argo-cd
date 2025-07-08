@@ -1,45 +1,27 @@
 package workloadidentity
 
 import (
-	"context"
-
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
-	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"time"
 )
 
 const (
 	EmptyGuid = "00000000-0000-0000-0000-000000000000" //nolint:revive //FIXME(var-naming)
 )
 
-type TokenProvider interface {
-	GetToken(scope string) (string, error)
+type Token struct {
+	AccessToken string
+	ExpiresOn   time.Time
 }
 
-type WorkloadIdentityTokenProvider struct {
-	tokenCredential azcore.TokenCredential
+type TokenProvider interface {
+	GetToken(scope string) (*Token, error)
 }
 
 // Used to propagate initialization error if any
 var initError error
 
-func NewWorkloadIdentityTokenProvider() TokenProvider {
-	cred, err := azidentity.NewDefaultAzureCredential(&azidentity.DefaultAzureCredentialOptions{})
-	initError = err
-	return WorkloadIdentityTokenProvider{tokenCredential: cred}
-}
-
-func (c WorkloadIdentityTokenProvider) GetToken(scope string) (string, error) {
-	if initError != nil {
-		return "", initError
-	}
-
-	token, err := c.tokenCredential.GetToken(context.Background(), policy.TokenRequestOptions{
-		Scopes: []string{scope},
-	})
-	if err != nil {
-		return "", err
-	}
-
-	return token.Token, nil
+func CalculateCacheExpiryBasedOnTokenExpiry(tokenExpiry time.Time) time.Duration {
+	// Calculate the cache expiry as 5 minutes before the token expires
+	cacheExpiry := time.Until(tokenExpiry) - time.Minute*5
+	return cacheExpiry
 }

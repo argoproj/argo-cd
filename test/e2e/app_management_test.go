@@ -1807,7 +1807,7 @@ func TestSourceNamespaceCanBeMigratedToManagedNamespaceWithoutBeingPrunedOrOutOf
 		Prune(true).
 		Path("guestbook-with-plain-namespace-manifest").
 		When().
-		PatchFile("guestbook-ui-namespace.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/name", "value": "%s"}]`, fixture.DeploymentNamespace())).
+		PatchFile("guestbook-ui-namespace.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/name", "value": %q}]`, fixture.DeploymentNamespace())).
 		CreateApp().
 		Sync().
 		Then().
@@ -1840,7 +1840,7 @@ func TestSelfManagedApps(t *testing.T) {
 	Given(t).
 		Path("self-managed-app").
 		When().
-		PatchFile("resources.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/spec/source/repoURL", "value": "%s"}]`, fixture.RepoURL(fixture.RepoURLTypeFile))).
+		PatchFile("resources.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/spec/source/repoURL", "value": %q}]`, fixture.RepoURL(fixture.RepoURLTypeFile))).
 		CreateApp().
 		Sync().
 		Then().
@@ -2350,7 +2350,7 @@ spec:
 		And(func(app *Application) {
 			assert.Equal(t, map[string]string{"labels.local/from-file": "file", "labels.local/from-args": "args"}, app.Labels)
 			assert.Equal(t, map[string]string{"annotations.local/from-file": "file"}, app.Annotations)
-			assert.Equal(t, []string{"resources-finalizer.argocd.argoproj.io"}, app.Finalizers)
+			assert.Equal(t, []string{ResourcesFinalizerName}, app.Finalizers)
 			assert.Equal(t, path, app.Spec.GetSource().Path)
 			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.GetSource().Helm.Parameters)
 		})

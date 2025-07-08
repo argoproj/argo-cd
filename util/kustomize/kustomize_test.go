@@ -25,6 +25,7 @@ const (
 	kustomization6 = "kustomization_yaml_components"
 	kustomization7 = "label_without_selector"
 	kustomization8 = "kustomization_yaml_patches_empty"
+	kustomization9 = "kustomization_yaml_components_monorepo"
 )
 
 func testDataDir(tb testing.TB, testData string) (string, error) {
@@ -512,6 +513,31 @@ func TestKustomizeBuildComponents(t *testing.T) {
 	assert.Equal(t, int64(3), replicas)
 }
 
+func TestKustomizeBuildComponentsMonoRepo(t *testing.T) {
+	rootPath, err := testDataDir(t, kustomization9)
+	require.NoError(t, err)
+	appPath := path.Join(rootPath, "envs/inseng-pdx-egert-sandbox/namespaces/inst-system/apps/hello-world")
+	kustomize := NewKustomizeApp(rootPath, appPath, git.NopCreds{}, "", "", "", "")
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
+		Components:              []string{"../../../../../../kustomize/components/all"},
+		IgnoreMissingComponents: true,
+	}
+	objs, _, _, err := kustomize.Build(&kustomizeSource, nil, nil, nil)
+	require.NoError(t, err)
+	obj := objs[2]
+	require.Equal(t, "hello-world-kustomize", obj.GetName())
+	require.Equal(t, map[string]string{
+		"app.kubernetes.io/name":  "hello-world-kustomize",
+		"app.kubernetes.io/owner": "fire-team",
+	}, obj.GetLabels())
+	replicas, ok, err := unstructured.NestedSlice(obj.Object, "spec", "template", "spec", "tolerations")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Len(t, replicas, 1)
+	require.Equal(t, "my-special-toleration", replicas[0].(map[string]any)["key"])
+	require.Equal(t, "Exists", replicas[0].(map[string]any)["operator"])
+}
+
 func TestKustomizeBuildPatches(t *testing.T) {
 	appPath, err := testDataDir(t, kustomization5)
 	require.NoError(t, err)
@@ -587,4 +613,45 @@ func TestFailKustomizeBuildPatches(t *testing.T) {
 
 	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil)
 	require.EqualError(t, err, "kustomization file not found in the path")
+}
+
+func Test_getImageParameters_sorted(t *testing.T) {
+	apps := []*unstructured.Unstructured{
+		{
+			Object: map[string]any{
+				"kind": "Deployment",
+				"spec": map[string]any{
+					"template": map[string]any{
+						"spec": map[string]any{
+							"containers": []any{
+								map[string]any{
+									"name":  "nginx",
+									"image": "nginx:1.15.6",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Object: map[string]any{
+				"kind": "Deployment",
+				"spec": map[string]any{
+					"template": map[string]any{
+						"spec": map[string]any{
+							"containers": []any{
+								map[string]any{
+									"name":  "nginx",
+									"image": "nginx:1.15.5",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	params := getImageParameters(apps)
+	assert.Equal(t, []string{"nginx:1.15.5", "nginx:1.15.6"}, params)
 }

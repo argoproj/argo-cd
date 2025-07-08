@@ -104,7 +104,7 @@ func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	a.context.t.Helper()
 	tmpFile, err := os.CreateTemp("", "")
 	require.NoError(a.context.t, err)
-	_, err = tmpFile.Write([]byte(data))
+	_, err = tmpFile.WriteString(data)
 	require.NoError(a.context.t, err)
 
 	args := append([]string{
@@ -243,7 +243,13 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	if a.context.drySourceRevision != "" || a.context.drySourcePath != "" || a.context.syncSourcePath != "" || a.context.syncSourceBranch != "" || a.context.hydrateToBranch != "" {
 		args = append(args, "--dry-source-repo", fixture.RepoURL(a.context.repoURLType))
 	} else {
-		args = append(args, "--repo", fixture.RepoURL(a.context.repoURLType))
+		var repo string
+		if a.context.ociRegistryPath != "" && a.context.repoURLType == fixture.RepoURLTypeOCI {
+			repo = fmt.Sprintf("%s/%s", a.context.ociRegistry, a.context.ociRegistryPath)
+		} else {
+			repo = fixture.RepoURL(a.context.repoURLType)
+		}
+		args = append(args, "--repo", repo)
 	}
 
 	if a.context.destName != "" && a.context.isDestServerInferred && !slices.Contains(args, "--dest-server") {

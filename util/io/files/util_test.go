@@ -9,6 +9,8 @@ import (
 )
 
 func TestRelativePath(t *testing.T) {
+	t.Parallel()
+
 	type testcase struct {
 		name        string
 		fullpath    string
@@ -91,6 +93,8 @@ func TestRelativePath(t *testing.T) {
 }
 
 func TestInbound(t *testing.T) {
+	t.Parallel()
+
 	type testcase struct {
 		name      string
 		candidate string

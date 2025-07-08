@@ -2,11 +2,11 @@
 # Config Management Plugins
 
 Argo CD's "native" config management tools are Helm, Jsonnet, and Kustomize. If you want to use a different config
-management tools, or if Argo CD's native tool support does not include a feature you need, you might need to turn to
+management tool, or if Argo CD's native tool support does not include a feature you need, you might need to turn to
 a Config Management Plugin (CMP).
 
 The Argo CD "repo server" component is in charge of building Kubernetes manifests based on some source files from a
-Helm, OCI, or git repository. When a config management plugin is correctly configured, the repo server may delegate the
+Helm, OCI, or Git repository. When a config management plugin is correctly configured, the repo server may delegate the
 task of building manifests to the plugin.
 
 The following sections will describe how to create, install, and use plugins. Check out the
@@ -63,7 +63,7 @@ spec:
     # directory. If there is a match, this plugin may be used for the Application.
     fileName: "./subdir/s*.yaml"
     find:
-      # This does the same thing as fileName, but it supports double-start (nested directory) glob patterns.
+      # This does the same thing as fileName, but it supports double-star (nested directory) glob patterns.
       glob: "**/Chart.yaml"
       # The find command runs in the repository's root directory. To match, it must exit with status code 0 _and_ 
       # produce non-empty output to standard out.
@@ -327,6 +327,8 @@ If you don't need to set any environment variables, you can set an empty plugin 
     and let the automatic discovery to identify the plugin.
 !!! note
     If a CMP renders blank manfiests, and `prune` is set to `true`, Argo CD will automatically remove resources. CMP plugin authors should ensure errors are part of the exit code. Commonly something like `kustomize build . | cat` won't pass errors because of the pipe. Consider setting `set -o pipefail` so anything piped will pass errors on failure.
+!!! note
+    If a CMP command fails to gracefully exit on `ARGOCD_EXEC_TIMEOUT`, it will be forcefully killed after an additional timeout of `ARGOCD_EXEC_FATAL_TIMEOUT`.
 
 ## Debugging a CMP
 
@@ -340,7 +342,7 @@ If you are actively developing a sidecar-installed CMP, keep a few things in min
 3. CMP errors are cached by the repo-server in Redis. Restarting the repo-server Pod will not clear the cache. Always
    do a "Hard Refresh" when actively developing a CMP so you have the latest output.
 4. Verify your sidecar has started properly by viewing the Pod and seeing that two containers are running `kubectl get pod -l app.kubernetes.io/component=repo-server -n argocd`
-5. Write log message to stderr and set the `--loglevel=info` flag in the sidecar. This will print everything written to stderr, even on successfull command execution.
+5. Write log message to stderr and set the `--loglevel=info` flag in the sidecar. This will print everything written to stderr, even on successful command execution.
 
 
 ### Other Common Errors

@@ -139,3 +139,29 @@ func GetGroups(mapClaims jwtgo.MapClaims, scopes []string) []string {
 func IsValid(token string) bool {
 	return len(strings.SplitN(token, ".", 3)) == 3
 }
+
+// GetUserIdentifier returns a consistent user identifier, checking federated_claims.user_id when Dex is in use
+func GetUserIdentifier(c jwtgo.MapClaims) string {
+	if c == nil {
+		return ""
+	}
+
+	// Fallback to sub if federated_claims.user_id is not set.
+	fallback := StringField(c, "sub")
+
+	f := c["federated_claims"]
+	if f == nil {
+		return fallback
+	}
+	federatedClaims, ok := f.(map[string]any)
+	if !ok {
+		return fallback
+	}
+
+	userId, ok := federatedClaims["user_id"].(string)
+	if !ok || userId == "" {
+		return fallback
+	}
+
+	return userId
+}

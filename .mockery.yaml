@@ -66,6 +66,9 @@ packages:
   github.com/argoproj/argo-cd/v3/util/helm:
     interfaces:
       Client: {}
+  github.com/argoproj/argo-cd/v3/util/oci:
+    interfaces:
+      Client: {}
   github.com/argoproj/argo-cd/v3/util/io:
     interfaces:
       TempPaths: {}

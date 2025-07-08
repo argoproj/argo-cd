@@ -117,7 +117,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 				os.Exit(1)
 			}
 			if setFinalizer {
-				app.Finalizers = append(app.Finalizers, "resources-finalizer.argocd.argoproj.io")
+				app.Finalizers = append(app.Finalizers, v1alpha1.ResourcesFinalizerName)
 			}
 			out, closer, err := getOutWriter(inline, fileURL)
 			errors.CheckError(err)
@@ -390,7 +390,7 @@ func reconcileApplications(
 		return true
 	}, func(_ *http.Request) error {
 		return nil
-	}, []string{}, []string{})
+	}, []string{}, []string{}, argoDB)
 	if err != nil {
 		return nil, fmt.Errorf("error starting new metrics server: %w", err)
 	}
@@ -479,5 +479,5 @@ func reconcileApplications(
 }
 
 func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache {
-	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
+	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
 }
