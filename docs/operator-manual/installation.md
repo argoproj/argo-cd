@@ -82,7 +82,8 @@ resources:
 - https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
 
-> Note: In the above example the lastet stable version will be used. In production environment, you might want to fix it by changing `stable` in the URL to the desired version you wish to use.
+!!!note 
+In the above example, the latest stable version is used. In a production environment, it is recommended to change the `stable` version to the desired Argo CD version you wish to use.
 
 For an example of this, see the [kustomization.yaml](https://github.com/argoproj/argoproj-deployments/blob/master/argocd/kustomization.yaml)
 used to deploy the [Argoproj CI/CD infrastructure](https://github.com/argoproj/argoproj-deployments#argoproj-deployments).
