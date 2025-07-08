@@ -794,6 +794,30 @@ func TestSkipAutoSync(t *testing.T) {
 		assert.Nil(t, app.Operation)
 	})
 
+	t.Run("PreviousSyncAttemptError", func(t *testing.T) {
+		app := newFakeApp()
+		app.Status.OperationState = &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{},
+			},
+			Phase: synccommon.OperationError,
+			SyncResult: &v1alpha1.SyncOperationResult{
+				Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+				Source:   *app.Spec.Source.DeepCopy(),
+			},
+		}
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
+		syncStatus := v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeOutOfSync,
+			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		}
+		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		assert.NotNil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Nil(t, app.Operation)
+	})
+
 	t.Run("NeedsToPruneResourcesOnlyButAutomatedPruneDisabled", func(t *testing.T) {
 		app := newFakeApp()
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
@@ -1866,7 +1890,7 @@ apps/Deployment:
     hs = {}
     hs.status = ""
     hs.message = ""
-    
+
     if obj.metadata ~= nil then
       if obj.metadata.labels ~= nil then
         current_status = obj.metadata.labels["status"]
@@ -2063,7 +2087,7 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 	ctrl.processRequestedAppOperation(app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
-	assert.Equal(t, string(synccommon.OperationFailed), phase)
+	assert.Equal(t, string(synccommon.OperationError), phase)
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
 	assert.Contains(t, message, "application destination can't have both name and server defined: another-cluster https://localhost:6443")
 }
@@ -2090,7 +2114,7 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	assert.Equal(t, string(synccommon.OperationRunning), phase)
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
-	assert.Contains(t, message, "Retrying attempt #1")
+	assert.Contains(t, message, "due to application controller sync timeout. Retrying attempt #1")
 	retryCount, _, _ := unstructured.NestedFloat64(receivedPatch, "status", "operationState", "retryCount")
 	assert.InEpsilon(t, float64(1), retryCount, 0.0001)
 }
@@ -2559,14 +2583,13 @@ func assertDurationAround(t *testing.T, expected time.Duration, actual time.Dura
 	assert.LessOrEqual(t, expected, actual+delta)
 }
 
-func TestSelfHealExponentialBackoff(t *testing.T) {
+func TestSelfHealRemainingBackoff(t *testing.T) {
 	ctrl := newFakeController(&fakeData{}, nil)
-	ctrl.selfHealBackOff = &wait.Backoff{
+	ctrl.selfHealBackoff = &wait.Backoff{
 		Factor:   3,
 		Duration: 2 * time.Second,
 		Cap:      2 * time.Minute,
 	}
-
 	app := &v1alpha1.Application{
 		Status: v1alpha1.ApplicationStatus{
 			OperationState: &v1alpha1.OperationState{
@@ -2578,107 +2601,110 @@ func TestSelfHealExponentialBackoff(t *testing.T) {
 	}
 
 	testCases := []struct {
-		attempts         int64
-		expectedAttempts int64
+		attempts         int
 		finishedAt       *metav1.Time
 		expectedDuration time.Duration
 		shouldSelfHeal   bool
-		alreadyAttempted bool
-		syncStatus       v1alpha1.SyncStatusCode
 	}{{
 		attempts:         0,
 		finishedAt:       ptr.To(metav1.Now()),
 		expectedDuration: 0,
 		shouldSelfHeal:   true,
-		alreadyAttempted: true,
-		expectedAttempts: 0,
-		syncStatus:       v1alpha1.SyncStatusCodeOutOfSync,
 	}, {
 		attempts:         1,
 		finishedAt:       ptr.To(metav1.Now()),
 		expectedDuration: 2 * time.Second,
 		shouldSelfHeal:   false,
-		alreadyAttempted: true,
-		expectedAttempts: 1,
-		syncStatus:       v1alpha1.SyncStatusCodeOutOfSync,
 	}, {
 		attempts:         2,
 		finishedAt:       ptr.To(metav1.Now()),
 		expectedDuration: 6 * time.Second,
 		shouldSelfHeal:   false,
-		alreadyAttempted: true,
-		expectedAttempts: 2,
-		syncStatus:       v1alpha1.SyncStatusCodeOutOfSync,
 	}, {
 		attempts:         3,
 		finishedAt:       nil,
 		expectedDuration: 18 * time.Second,
 		shouldSelfHeal:   false,
-		alreadyAttempted: true,
-		expectedAttempts: 3,
-		syncStatus:       v1alpha1.SyncStatusCodeOutOfSync,
 	}, {
 		attempts:         4,
 		finishedAt:       nil,
 		expectedDuration: 54 * time.Second,
 		shouldSelfHeal:   false,
-		alreadyAttempted: true,
-		expectedAttempts: 4,
-		syncStatus:       v1alpha1.SyncStatusCodeOutOfSync,
 	}, {
 		attempts:         5,
 		finishedAt:       nil,
 		expectedDuration: 120 * time.Second,
 		shouldSelfHeal:   false,
-		alreadyAttempted: true,
-		expectedAttempts: 5,
-		syncStatus:       v1alpha1.SyncStatusCodeOutOfSync,
 	}, {
 		attempts:         6,
 		finishedAt:       nil,
 		expectedDuration: 120 * time.Second,
 		shouldSelfHeal:   false,
-		alreadyAttempted: true,
-		expectedAttempts: 6,
-		syncStatus:       v1alpha1.SyncStatusCodeOutOfSync,
 	}, {
-		attempts:         6,
-		finishedAt:       nil,
-		expectedDuration: 0,
-		shouldSelfHeal:   true,
-		alreadyAttempted: false,
-		expectedAttempts: 0,
-		syncStatus:       v1alpha1.SyncStatusCodeOutOfSync,
-	}, { // backoff will not reset as finished tme isn't >= cooldown
 		attempts:         6,
 		finishedAt:       ptr.To(metav1.Now()),
 		expectedDuration: 120 * time.Second,
 		shouldSelfHeal:   false,
-		alreadyAttempted: true,
-		expectedAttempts: 6,
-		syncStatus:       v1alpha1.SyncStatusCodeSynced,
-	}, { // backoff will reset as finished time is >= cooldown
+	}, {
 		attempts:         40,
-		finishedAt:       &metav1.Time{Time: time.Now().Add(-(1 * time.Minute))},
-		expectedDuration: -60 * time.Second,
-		shouldSelfHeal:   true,
-		alreadyAttempted: true,
-		expectedAttempts: 0,
-		syncStatus:       v1alpha1.SyncStatusCodeSynced,
+		finishedAt:       &metav1.Time{Time: time.Now().Add(-1 * time.Minute)},
+		expectedDuration: 60 * time.Second,
+		shouldSelfHeal:   false,
 	}}
 
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
-			app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount = tc.attempts
 			app.Status.OperationState.FinishedAt = tc.finishedAt
-			app.Status.Sync.Status = tc.syncStatus
-			ok, duration := ctrl.shouldSelfHeal(app, tc.alreadyAttempted)
-			require.Equal(t, ok, tc.shouldSelfHeal)
-			require.Equal(t, tc.expectedAttempts, app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount)
+			duration := ctrl.selfHealRemainingBackoff(app, tc.attempts)
+			shouldSelfHeal := duration <= 0
+			require.Equal(t, tc.shouldSelfHeal, shouldSelfHeal)
 			assertDurationAround(t, tc.expectedDuration, duration)
 		})
 	}
+}
+
+func TestSelfHealBackoffCooldownElapsed(t *testing.T) {
+	cooldown := time.Second * 30
+	ctrl := newFakeController(&fakeData{}, nil)
+	ctrl.selfHealBackoffCooldown = cooldown
+
+	app := &v1alpha1.Application{
+		Status: v1alpha1.ApplicationStatus{
+			OperationState: &v1alpha1.OperationState{
+				Phase: synccommon.OperationSucceeded,
+			},
+		},
+	}
+
+	t.Run("operation not completed", func(t *testing.T) {
+		app := app.DeepCopy()
+		app.Status.OperationState.FinishedAt = nil
+		elapsed := ctrl.selfHealBackoffCooldownElapsed(app)
+		assert.True(t, elapsed)
+	})
+
+	t.Run("successful operation finised after cooldown", func(t *testing.T) {
+		app := app.DeepCopy()
+		app.Status.OperationState.FinishedAt = &metav1.Time{Time: time.Now().Add(-cooldown)}
+		elapsed := ctrl.selfHealBackoffCooldownElapsed(app)
+		assert.True(t, elapsed)
+	})
+
+	t.Run("unsuccessful operation finised after cooldown", func(t *testing.T) {
+		app := app.DeepCopy()
+		app.Status.OperationState.Phase = synccommon.OperationFailed
+		app.Status.OperationState.FinishedAt = &metav1.Time{Time: time.Now().Add(-cooldown)}
+		elapsed := ctrl.selfHealBackoffCooldownElapsed(app)
+		assert.False(t, elapsed)
+	})
+
+	t.Run("successful operation finised before cooldown", func(t *testing.T) {
+		app := app.DeepCopy()
+		app.Status.OperationState.FinishedAt = &metav1.Time{Time: time.Now()}
+		elapsed := ctrl.selfHealBackoffCooldownElapsed(app)
+		assert.False(t, elapsed)
+	})
 }
 
 func TestSyncTimeout(t *testing.T) {
