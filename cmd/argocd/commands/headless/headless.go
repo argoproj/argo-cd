@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	runtimeUtil "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
@@ -25,20 +25,20 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/initialize"
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
-	repoapiclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/server"
-	servercache "github.com/argoproj/argo-cd/v3/server/cache"
-	"github.com/argoproj/argo-cd/v3/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
-	"github.com/argoproj/argo-cd/v3/util/cli"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
-	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
-	"github.com/argoproj/argo-cd/v3/util/localconfig"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/server"
+	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	"github.com/argoproj/argo-cd/v2/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
+	"github.com/argoproj/argo-cd/v2/util/localconfig"
 )
 
 type forwardCacheClient struct {
@@ -88,7 +88,7 @@ func (c *forwardCacheClient) Rename(oldKey string, newKey string, expiration tim
 	})
 }
 
-func (c *forwardCacheClient) Get(key string, obj any) error {
+func (c *forwardCacheClient) Get(key string, obj interface{}) error {
 	return c.doLazy(func(client cache.CacheClient) error {
 		return client.Get(key, obj)
 	})
@@ -122,14 +122,14 @@ type forwardRepoClientset struct {
 	kubeClientset  kubernetes.Interface
 }
 
-func (c *forwardRepoClientset) NewRepoServerClient() (utilio.Closer, repoapiclient.RepoServerServiceClient, error) {
+func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.RepoServerServiceClient, error) {
 	c.init.Do(func() {
 		overrides := clientcmd.ConfigOverrides{
 			CurrentContext: c.context,
 		}
 		repoServerName := c.repoServerName
 		repoServererviceLabelSelector := common.LabelKeyComponentRepoServer + "=" + common.LabelValueComponentRepoServer
-		repoServerServices, err := c.kubeClientset.CoreV1().Services(c.namespace).List(context.Background(), metav1.ListOptions{LabelSelector: repoServererviceLabelSelector})
+		repoServerServices, err := c.kubeClientset.CoreV1().Services(c.namespace).List(context.Background(), metaV1.ListOptions{LabelSelector: repoServererviceLabelSelector})
 		if err != nil {
 			c.err = err
 			return
@@ -164,7 +164,7 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 	if err != nil {
 		return fmt.Errorf("failed to create version client: %w", err)
 	}
-	defer utilio.Close(closer)
+	defer io.Close(closer)
 	_, err = versionClient.Version(ctx, &empty.Empty{})
 	if err != nil {
 		return fmt.Errorf("failed to get version: %w", err)
@@ -212,13 +212,13 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		address = ptr.To("localhost")
 	}
 	if port == nil || *port == 0 {
-		addr := *address + ":0"
+		addr := fmt.Sprintf("%s:0", *address)
 		ln, err := net.Listen("tcp", addr)
 		if err != nil {
 			return fmt.Errorf("failed to listen on %q: %w", addr, err)
 		}
 		port = &ln.Addr().(*net.TCPAddr).Port
-		utilio.Close(ln)
+		io.Close(ln)
 	}
 
 	restConfig, err := clientConfig.ClientConfig()
