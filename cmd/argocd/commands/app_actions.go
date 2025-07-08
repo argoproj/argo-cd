@@ -192,7 +192,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			obj := filteredObjects[i]
 			gvk := obj.GroupVersionKind()
 			objResourceName := obj.GetName()
-			_, err := appIf.RunResourceAction(ctx, &applicationpkg.ResourceActionRunRequest{
+			_, err := appIf.RunResourceActionV2(ctx, &applicationpkg.ResourceActionRunRequestV2{
 				Name:         &appName,
 				AppNamespace: &appNs,
 				Namespace:    ptr.To(obj.GetNamespace()),
@@ -201,6 +201,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 				Kind:         ptr.To(gvk.Kind),
 				Version:      ptr.To(gvk.GroupVersion().Version),
 				Action:       ptr.To(actionName),
+				// TODO: add support for parameters
 			})
 			errors.CheckError(err)
 		}
