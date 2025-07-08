@@ -28,6 +28,7 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
+// NewApplicationGetResourceCommand returns a new instance of the `app get-resource` command
 func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		resourceName      string
@@ -109,39 +110,88 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 	return command
 }
 
+// filterFieldsFromObject creates a new unstructured object containing only the specified fields from the source object.
 func filterFieldsFromObject(obj *unstructured.Unstructured, filteredFields []string) *unstructured.Unstructured {
 	var filteredObj unstructured.Unstructured
-	filteredObj.SetName(obj.GetName())
+	filteredObj.Object = make(map[string]any)
 
 	for _, f := range filteredFields {
-		keyHiearchy := strings.Split(f, ".")
+		fields := strings.Split(f, ".")
 
-		value, exists, err := unstructured.NestedFieldCopy(obj.Object, keyHiearchy...)
-		errors.CheckError(err)
+		value, exists, err := unstructured.NestedFieldCopy(obj.Object, fields...)
 		if exists {
-			err = unstructured.SetNestedField(filteredObj.Object, value, keyHiearchy...)
 			errors.CheckError(err)
+			err = unstructured.SetNestedField(filteredObj.Object, value, fields...)
+			errors.CheckError(err)
+		} else {
+			// If doesn't exist assume its a nested inside a list of objects
+			value := extractNestedItem(obj.Object, fields, 0)
+			filteredObj.Object = value
 		}
 	}
+	filteredObj.SetName(obj.GetName())
 	return &filteredObj
 }
 
+// extractNestedItem recursively extracts an item that may be nested inside a list of objects.
+func extractNestedItem(obj map[string]any, fields []string, depth int) map[string]any {
+	if depth >= len(fields) {
+		return nil
+	}
+
+	value, exists, _ := unstructured.NestedFieldCopy(obj, fields[:depth+1]...)
+	list, ok := value.([]any)
+	if !exists || !ok {
+		return extractNestedItem(obj, fields, depth+1)
+	}
+
+	extractedItems := extractItemsFromList(list, fields[depth+1:])
+	if len(extractedItems) == 0 {
+		for _, e := range list {
+			if o, ok := e.(map[string]any); ok {
+				result := extractNestedItem(o, fields[depth+1:], 0)
+				extractedItems = append(extractedItems, result)
+			}
+		}
+	}
+
+	filteredObj := reconstructObject(extractedItems, fields, depth)
+	return filteredObj
+}
+
+// extractItemsFromList processes a list of objects and extracts specific fields from each item.
+func extractItemsFromList(list []any, fields []string) []any {
+	var extratedObjs []any
+	for _, e := range list {
+		extractedObj := make(map[string]any)
+		if o, ok := e.(map[string]any); ok {
+			value, exists, _ := unstructured.NestedFieldCopy(o, fields...)
+			if !exists {
+				continue
+			}
+			err := unstructured.SetNestedField(extractedObj, value, fields...)
+			errors.CheckError(err)
+			extratedObjs = append(extratedObjs, extractedObj)
+		}
+	}
+	return extratedObjs
+}
+
+// reconstructObject rebuilds the original object structure by placing extracted items back into their proper nested location.
+func reconstructObject(extracted []any, keyHiearychy []string, depth int) map[string]any {
+	obj := make(map[string]any)
+	err := unstructured.SetNestedField(obj, extracted, keyHiearychy[:depth+1]...)
+	errors.CheckError(err)
+	return obj
+}
+
+// printManifests outputs resource manifests in the specified format (wide, JSON, or YAML).
 func printManifests(objs *[]unstructured.Unstructured, filteredFields bool, output string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(w, "FIELD\tRESOURCE NAME\tVALUE\n")
 
 	for i, o := range *objs {
-		name := o.GetName()
-		if filteredFields {
-			unstructured.RemoveNestedField(o.Object, "metadata")
-		}
-
 		if output != "wide" {
-			if filteredFields {
-				err := unstructured.SetNestedField(o.Object, name, "name")
-				errors.CheckError(err)
-			}
-
 			var formattedManifest []byte
 			var err error
 			if output == "json" {
@@ -156,6 +206,11 @@ func printManifests(objs *[]unstructured.Unstructured, filteredFields bool, outp
 				fmt.Println("---")
 			}
 		} else {
+			name := o.GetName()
+			if filteredFields {
+				unstructured.RemoveNestedField(o.Object, "metadata", "name")
+			}
+
 			printManifestAsTable(w, name, o.Object, "")
 		}
 		log.Infof("Resource '%s' fetched", o.GetName())
