@@ -108,7 +108,9 @@ patches:
     target:
       kind: ClusterRoleBinding
 ```
-> Note: In the above example the lastet stable version will be used. In production environment, you might want to fix it by changing `stable` in the URL to the desired version you wish to use.
+
+!!!note 
+In the above example, the latest stable version is used. In a production environment, it is recommended to change the `stable` version to the desired Argo CD version you wish to use.
 
 This patch ensures that the ClusterRoleBinding correctly maps to the ServiceAccount in your custom namespace, preventing any permission-related issues during the deployment.
 
