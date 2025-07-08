@@ -1,0 +1,15 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: hook-job
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/sync-options: Replace=true,Force=true
+spec:
+  template:
+    spec:
+      containers:
+      - name: main
+        image: quay.io/argoprojlabs/argocd-e2e-container:0.1
+        command: ["sh", "-c", "echo job running; sleep 1"]
+      restartPolicy: Never

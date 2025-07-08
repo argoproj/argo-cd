@@ -480,3 +480,22 @@ func testHookFinalizer(t *testing.T, hookType HookType) {
 		Expect(ResourceResultNumbering(2)).
 		Expect(ResourceResultIs(ResourceResult{Group: "batch", Version: "v1", Kind: "Job", Namespace: DeploymentNamespace(), Name: "hook", Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Message: "Resource has finalizer", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
 }
+
+func TestJobHookWithSyncOptionsForceReplaceAndWeights(t *testing.T) {
+	// Test for a job hook that uses Replace=true and Force=true with a weight lower than some other resource.
+	Given(t).
+		Path("hook-force-replace-weight").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		// Knock the app out of sync by changing the image of the deployment
+		PatchFile("deployment.yaml", `[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "quay.io/argoprojlabs/argocd-e2e-container:0.2"}]`).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
