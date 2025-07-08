@@ -104,6 +104,7 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 			}
 
 			resources = append(resources, *obj)
+			log.Infof("Resource '%s' fetched", obj.GetName())
 		}
 		printManifests(&resources, len(filteredFields) > 0, output)
 	}
@@ -213,7 +214,6 @@ func printManifests(objs *[]unstructured.Unstructured, filteredFields bool, outp
 
 			printManifestAsTable(w, name, o.Object, "")
 		}
-		log.Infof("Resource '%s' fetched", o.GetName())
 	}
 
 	if output != "json" && output != "yaml" {

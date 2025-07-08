@@ -2,11 +2,13 @@ package commands
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 	"text/tabwriter"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -116,4 +118,171 @@ func TestPrintResourcesTree(t *testing.T) {
 	expectation := "GROUP   KIND   NAMESPACE  NAME  ORPHANED\ngroup   kind   ns         rs1   No\ngroup2  kind2  ns2        rs2   Yes\n"
 
 	assert.Equal(t, expectation, output)
+}
+
+func TestFilterFieldsFromObject(t *testing.T) {
+	tests := []struct {
+		name             string
+		obj              unstructured.Unstructured
+		filteredFields   []string
+		expectedFields   []string
+		unexpectedFields []string
+	}{
+		{
+			name: "filter nested field",
+			obj: unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "vX",
+					"kind":       "kind",
+					"metadata": map[string]any{
+						"name": "test",
+					},
+					"spec": map[string]any{
+						"testfield": map[string]any{
+							"nestedtest": "test",
+						},
+						"testfield2": "test",
+					},
+				},
+			},
+			filteredFields:   []string{"spec.testfield.nestedtest"},
+			expectedFields:   []string{"spec.testfield.nestedtest"},
+			unexpectedFields: []string{"spec.testfield2"},
+		},
+		{
+			name: "filter multiple fields",
+			obj: unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "vX",
+					"kind":       "kind",
+					"metadata": map[string]any{
+						"name": "test",
+					},
+					"spec": map[string]any{
+						"testfield": map[string]any{
+							"nestedtest": "test",
+						},
+						"testfield2": "test",
+						"testfield3": "deleteme",
+					},
+				},
+			},
+			filteredFields:   []string{"spec.testfield.nestedtest", "spec.testfield3"},
+			expectedFields:   []string{"spec.testfield.nestedtest"},
+			unexpectedFields: []string{"spec.testfield2"},
+		},
+		{
+			name: "filter nested list object",
+			obj: unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "vX",
+					"kind":       "kind",
+					"metadata": map[string]any{
+						"name": "test",
+					},
+					"spec": map[string]any{
+						"testfield": map[string]any{
+							"nestedtest": "test",
+						},
+						"testfield2": "test",
+					},
+				},
+			},
+			filteredFields:   []string{"spec.testfield.nestedtest"},
+			expectedFields:   []string{"spec.testfield.nestedtest"},
+			unexpectedFields: []string{"spec.testfield2"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.obj.SetName("test-object")
+
+			filtered := filterFieldsFromObject(&tt.obj, tt.filteredFields)
+
+			for _, field := range tt.expectedFields {
+				fieldPath := strings.Split(field, ".")
+				_, exists, err := unstructured.NestedFieldCopy(filtered.Object, fieldPath...)
+				require.NoError(t, err)
+				assert.True(t, exists, "Expected field %s to exist", field)
+			}
+
+			for _, field := range tt.unexpectedFields {
+				fieldPath := strings.Split(field, ".")
+				_, exists, err := unstructured.NestedFieldCopy(filtered.Object, fieldPath...)
+				require.NoError(t, err)
+				assert.False(t, exists, "Expected field %s to not exist", field)
+			}
+
+			assert.Equal(t, tt.obj.GetName(), filtered.GetName())
+		})
+	}
+}
+
+func TestPrintManifests(t *testing.T) {
+	obj := unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "vX",
+			"kind":       "test",
+			"metadata": map[string]any{
+				"name": "unit-test",
+			},
+			"spec": map[string]any{
+				"testfield": "testvalue",
+			},
+		},
+	}
+
+	expectedYAML := `apiVersion: vX
+kind: test
+metadata:
+    name: unit-test
+spec:
+    testfield: testvalue
+`
+
+	output, _ := captureOutput(func() error {
+		printManifests(&[]unstructured.Unstructured{obj}, false, "yaml")
+		return nil
+	})
+	assert.Equal(t, expectedYAML+"\n", output, "Incorrect yaml output for printManifests")
+
+	output, _ = captureOutput(func() error {
+		printManifests(&[]unstructured.Unstructured{obj, obj}, false, "yaml")
+		return nil
+	})
+	assert.Equal(t, expectedYAML+"\n---\n"+expectedYAML+"\n", output, "Incorrect yaml output with multiple objs.")
+
+	expectedJSON := `{
+ "apiVersion": "vX",
+ "kind": "test",
+ "metadata": {
+  "name": "unit-test"
+ },
+ "spec": {
+  "testfield": "testvalue"
+ }
+}`
+
+	output, _ = captureOutput(func() error {
+		printManifests(&[]unstructured.Unstructured{obj}, false, "json")
+		return nil
+	})
+	assert.Equal(t, expectedJSON+"\n", output, "Incorrect json output.")
+
+	output, _ = captureOutput(func() error {
+		printManifests(&[]unstructured.Unstructured{obj, obj}, false, "json")
+		return nil
+	})
+	assert.Equal(t, expectedJSON+"\n---\n"+expectedJSON+"\n", output, "Incorrect json output with multiple objs.")
+
+	output, _ = captureOutput(func() error {
+		printManifests(&[]unstructured.Unstructured{obj}, true, "wide")
+		return nil
+	})
+	assert.Contains(t, output, "FIELD           RESOURCE NAME  VALUE", "Missing a line in the table")
+	assert.Contains(t, output, "apiVersion      unit-test      vX", "Missing a line in the table")
+	assert.Contains(t, output, "kind            unit-test      test", "Missing a line in the table")
+	assert.Contains(t, output, "spec.testfield  unit-test      testvalue", "Missing a line in the table")
+	assert.NotContains(t, output, "metadata.name   unit-test      testvalue")
 }
