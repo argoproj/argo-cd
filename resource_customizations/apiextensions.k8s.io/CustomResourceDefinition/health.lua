@@ -20,23 +20,29 @@ if #obj.status.conditions == 0 then
 end
 
 local isEstablished
-local isTerminating
-local namesNotAccepted
-local hasViolations
 local conditionMsg = ""
 
 for _, condition in pairs(obj.status.conditions) do
 
     -- Check if CRD is terminating
     if condition.type == "Terminating" and condition.status == "True" then
-        isTerminating = true
-        conditionMsg = condition.message
+        hs.status = "Progressing"
+        hs.message = "CRD is terminating: " .. condition.message
+        return hs
     end
 
     -- Check if K8s has accepted names for this CRD
     if condition.type == "NamesAccepted" and condition.status == "False" then
-        namesNotAccepted = true
-        conditionMsg = condition.message
+        hs.status = "Degraded"
+        hs.message = "CRD names have not been accepted: " .. condition.message
+        return hs
+    end
+
+    -- Checking if CRD has violations
+    if condition.type == "NonStructuralSchema" and condition.status == "True" then
+        hs.status = "Degraded"
+        hs.message = "Schema violations found: " .. condition.message
+        return hs
     end
 
     -- Checking if CRD is established
@@ -44,36 +50,11 @@ for _, condition in pairs(obj.status.conditions) do
         isEstablished = true
         conditionMsg = condition.message
     end
-
-    -- Checking if CRD has violations
-    if condition.type == "NonStructuralSchema" and condition.status == "True" then
-        hasViolations = true
-        conditionMsg = condition.message
-    end
-
-end
-
-if isTerminating then
-    hs.status = "Progressing"
-    hs.message = "CRD is terminating: " .. conditionMsg
-    return hs
-end
-
-if namesNotAccepted then
-    hs.status = "Degraded"
-    hs.message = "CRD names have not been accepted: " .. conditionMsg
-    return hs
 end
 
 if not isEstablished then
     hs.status = "Degraded"
     hs.message = "CRD is not established"
-    return hs
-end
-
-if hasViolations then
-    hs.status = "Degraded"
-    hs.message = "Schema violations found: " .. conditionMsg
     return hs
 end
 
