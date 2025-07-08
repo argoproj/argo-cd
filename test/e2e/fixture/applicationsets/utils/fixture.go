@@ -306,10 +306,7 @@ func waitForSuccess(condition func() error, expireTime time.Time) error {
 	}
 	sleepIntervalsIdx := -1
 
-	for {
-		if time.Now().After(expireTime) {
-			break
-		}
+	for !time.Now().After(expireTime) {
 
 		conditionErr := condition()
 		if conditionErr != nil {

@@ -418,7 +418,7 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error
 	defer os.Remove(f.Name())
 
 	for _, k := range pgpKeys {
-		_, err := f.WriteString(fmt.Sprintf("%s:%d\n", k.KeyID, trust))
+		_, err := fmt.Fprintf(f, "%s:%d\n", k.KeyID, trust)
 		if err != nil {
 			return err
 		}

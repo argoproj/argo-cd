@@ -143,7 +143,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
   argocd app create nginx-ingress --repo https://charts.helm.sh/stable --helm-chart nginx-ingress --revision 1.24.3 --dest-namespace default --dest-server https://kubernetes.default.svc
 
   # Create a Kustomize app
-  argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image gcr.io/heptio-images/ks-guestbook-demo:0.1
+  argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image quay.io/argoprojlabs/argocd-e2e-container:0.1
 
   # Create a MultiSource app while yaml file contains an application with multiple sources
   argocd app create guestbook --file <path-to-yaml-file>
@@ -196,7 +196,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					action = "updated"
 				}
 
-				fmt.Printf("application '%s' %s\n", created.ObjectMeta.Name, action)
+				fmt.Printf("application '%s' %s\n", created.Name, action)
 			}
 		},
 	}
@@ -266,7 +266,7 @@ func hasAppChanged(appReq, appRes *argoappv1.Application, upsert bool) bool {
 
 	if reflect.DeepEqual(appRes.Spec, appReq.Spec) &&
 		reflect.DeepEqual(appRes.Labels, appReq.Labels) &&
-		reflect.DeepEqual(appRes.ObjectMeta.Annotations, appReq.Annotations) &&
+		reflect.DeepEqual(appRes.Annotations, appReq.Annotations) &&
 		reflect.DeepEqual(appRes.Finalizers, appReq.Finalizers) {
 		return false
 	}
@@ -1200,7 +1200,7 @@ func groupObjsByKey(localObs []*unstructured.Unstructured, liveObjs []*unstructu
 	objByKey := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	for i := range localObs {
 		obj := localObs[i]
-		if !(hook.IsHook(obj) || ignore.Ignore(obj)) {
+		if !hook.IsHook(obj) && !ignore.Ignore(obj) {
 			objByKey[kube.GetResourceKey(obj)] = obj
 		}
 	}
@@ -1532,7 +1532,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			var isTerminal bool = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
+			isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 			promptFlag := c.Flag("yes")
 			if promptFlag.Changed && promptFlag.Value.String() == "true" {
 				noPrompt = true
@@ -2835,7 +2835,7 @@ func findRevisionHistory(application *argoappv1.Application, historyId int64) (*
 	if historyId == -1 {
 		l := len(application.Status.History)
 		if l < 2 {
-			return nil, fmt.Errorf("Application '%s' should have at least two successful deployments", application.ObjectMeta.Name)
+			return nil, fmt.Errorf("Application '%s' should have at least two successful deployments", application.Name)
 		}
 		return &application.Status.History[l-2], nil
 	}
@@ -2844,7 +2844,7 @@ func findRevisionHistory(application *argoappv1.Application, historyId int64) (*
 			return &di, nil
 		}
 	}
-	return nil, fmt.Errorf("Application '%s' does not have deployment id '%d' in history\n", application.ObjectMeta.Name, historyId)
+	return nil, fmt.Errorf("Application '%s' does not have deployment id '%d' in history\n", application.Name, historyId)
 }
 
 // NewApplicationRollbackCommand returns a new instance of an `argocd app rollback` command
@@ -3282,7 +3282,7 @@ func NewApplicationAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cob
 				})
 				errors.CheckError(err)
 
-				fmt.Printf("Application '%s' updated successfully\n", app.ObjectMeta.Name)
+				fmt.Printf("Application '%s' updated successfully\n", app.Name)
 			} else {
 				errors.CheckError(fmt.Errorf("Cannot add source: application %s does not have spec.sources defined", appName))
 			}
@@ -3370,7 +3370,7 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 				})
 				errors.CheckError(err)
 
-				fmt.Printf("Application '%s' updated successfully\n", app.ObjectMeta.Name)
+				fmt.Printf("Application '%s' updated successfully\n", app.Name)
 			} else {
 				fmt.Println("The command to delete the source was cancelled")
 			}
@@ -3422,7 +3422,7 @@ func NewApplicationConfirmDeletionCommand(clientOpts *argocdclient.ClientOptions
 			})
 			errors.CheckError(err)
 
-			fmt.Printf("Application '%s' updated successfully\n", app.ObjectMeta.Name)
+			fmt.Printf("Application '%s' updated successfully\n", app.Name)
 		},
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the target application where the source will be appended")

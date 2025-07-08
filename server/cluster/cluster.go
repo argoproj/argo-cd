@@ -475,7 +475,7 @@ func (s *Server) toAPIResponse(clust *appv1.Cluster) *appv1.Cluster {
 
 	clust.Config.Password = ""
 	clust.Config.BearerToken = ""
-	clust.Config.TLSClientConfig.KeyData = nil
+	clust.Config.KeyData = nil
 	if clust.Config.ExecProviderConfig != nil {
 		// We can't know what the user has put into args or
 		// env vars on the exec provider that might be sensitive

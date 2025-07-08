@@ -1700,7 +1700,7 @@ func TestGetAppEventLabels(t *testing.T) {
 			argoDB := db.NewDB("default", settingsMgr, kubeClient)
 
 			eventLabels := GetAppEventLabels(&app, applisters.NewAppProjectLister(informer.GetIndexer()), test.FakeArgoCDNamespace, settingsMgr, argoDB, ctx)
-			assert.Equal(t, len(tt.expectedEventLabels), len(eventLabels))
+			assert.Len(t, eventLabels, len(tt.expectedEventLabels))
 			for ek, ev := range tt.expectedEventLabels {
 				v, found := eventLabels[ek]
 				assert.True(t, found)
