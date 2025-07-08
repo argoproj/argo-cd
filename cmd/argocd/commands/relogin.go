@@ -20,9 +20,10 @@ import (
 // NewReloginCommand returns a new instance of `argocd relogin` command
 func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		password         string
-		ssoPort          int
-		ssoLaunchBrowser bool
+		password           string
+		ssoListenerAddress string
+		ssoPort            int
+		ssoLaunchBrowser   bool
 	)
 	command := &cobra.Command{
 		Use:   "relogin",
@@ -73,7 +74,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				errors.CheckError(err)
 				oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
 				errors.CheckError(err)
-				tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser)
+				tokenString, refreshToken = oauth2Login(ctx, ssoListenerAddress, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser)
 			}
 
 			localCfg.UpsertUser(localconfig.User{
@@ -85,7 +86,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			errors.CheckError(err)
 			fmt.Printf("Context '%s' updated\n", localCfg.CurrentContext)
 		},
-		Example: `  
+		Example: `
 # Reinitiates the login with previous contexts
 argocd relogin
 
@@ -99,6 +100,7 @@ argocd login cd.argoproj.io --core
 # The command - "argocd relogin" will Reinitiates SSO login and updates the server context`,
 	}
 	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
+	command.Flags().StringVar(&ssoListenerAddress, "sso-listener-address", DefaultSSOListenerAddress, "Address to listen on for OAuth2 login application")
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
 	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the default browser when performing SSO login")
 	return command
