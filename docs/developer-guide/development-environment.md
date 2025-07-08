@@ -100,7 +100,6 @@ git clone https://github.com/YOUR-USERNAME/argo-cd.git
 
 ## Install Additional Required Development Tools
 
-
 ```shell
 make install-go-tools-local
 make install-codegen-tools-local
