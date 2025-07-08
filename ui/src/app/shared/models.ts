@@ -137,6 +137,7 @@ export interface ResourceResult {
     message: string;
     hookType: HookType;
     hookPhase: OperationPhase;
+    images?: string[];
 }
 
 export type SyncResourceResult = ResourceResult & {
@@ -551,10 +552,6 @@ export interface AuthSettings {
     };
     oidcConfig: {
         name: string;
-        issuer: string;
-        clientID: string;
-        scopes: string[];
-        enablePKCEAuthentication: boolean;
     };
     help: {
         chatUrl: string;
@@ -1005,6 +1002,7 @@ export interface Node {
     name: string;
     systemInfo: NodeSystemInfo;
     resourcesInfo: HostResourceInfo[];
+    labels: {[name: string]: string};
 }
 
 export interface NodeSystemInfo {

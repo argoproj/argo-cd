@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
-	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
@@ -233,7 +232,7 @@ func (s *Server) prepareRepoList(ctx context.Context, resourceType string, repos
 	sort.Slice(items, func(i, j int) bool {
 		first := items[i]
 		second := items[j]
-		return strings.Compare(fmt.Sprintf("%s/%s", first.Project, first.Repo), fmt.Sprintf("%s/%s", second.Project, second.Repo)) < 0
+		return fmt.Sprintf("%s/%s", first.Project, first.Repo) < fmt.Sprintf("%s/%s", second.Project, second.Repo)
 	})
 	return items, nil
 }
@@ -395,7 +394,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	refSources := make(v1alpha1.RefTargetRevisionMapping)
 	if app != nil && app.Spec.HasMultipleSources() {
 		// Store the map of all sources having ref field into a map for applications with sources field
-		refSources, err = argo.GetRefSources(ctx, app.Spec.Sources, q.AppProject, s.db.GetRepository, []string{}, false)
+		refSources, err = argo.GetRefSources(ctx, app.Spec.Sources, q.AppProject, s.db.GetRepository, []string{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to get ref sources: %w", err)
 		}
@@ -705,6 +704,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		Proxy:                      q.Proxy,
 		GCPServiceAccountKey:       q.GcpServiceAccountKey,
 		InsecureOCIForceHttp:       q.InsecureOciForceHttp,
+		UseAzureWorkloadIdentity:   q.UseAzureWorkloadIdentity,
 	}
 
 	// If repo does not have credentials, check if there are credentials stored
@@ -754,6 +754,7 @@ func (s *Server) ValidateWriteAccess(ctx context.Context, q *repositorypkg.RepoA
 		GitHubAppEnterpriseBaseURL: q.GithubAppEnterpriseBaseUrl,
 		Proxy:                      q.Proxy,
 		GCPServiceAccountKey:       q.GcpServiceAccountKey,
+		UseAzureWorkloadIdentity:   q.UseAzureWorkloadIdentity,
 	}
 
 	err := s.testRepo(ctx, repo)

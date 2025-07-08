@@ -245,6 +245,15 @@ func TestGetTrackingMethod(t *testing.T) {
 	})
 }
 
+func TestGetInstallationID(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"installationID": "123456789",
+	})
+	id, err := settingsManager.GetInstallationID()
+	require.NoError(t, err)
+	assert.Equal(t, "123456789", id)
+}
+
 func TestApplicationFineGrainedRBACInheritanceDisabledDefault(t *testing.T) {
 	_, settingsManager := fixtures(nil)
 	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled()
@@ -1578,6 +1587,8 @@ rootCA: "invalid"`},
 }
 
 func Test_OAuth2AllowedAudiences(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name     string
 		settings *ArgoCDSettings
@@ -1659,7 +1670,7 @@ func TestReplaceStringSecret(t *testing.T) {
 
 func TestRedirectURLForRequest(t *testing.T) {
 	generateRequest := func(url string) *http.Request {
-		r, err := http.NewRequest(http.MethodPost, url, nil)
+		r, err := http.NewRequest(http.MethodPost, url, http.NoBody)
 		require.NoError(t, err)
 		return r
 	}
@@ -1886,6 +1897,45 @@ func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {
 				resourceSensitiveAnnotationsKey: tt.input,
 			})
 			keys := settingsManager.GetSensitiveAnnotations()
+			assert.Len(t, keys, len(tt.output))
+			assert.Equal(t, tt.output, keys)
+		})
+	}
+}
+
+func TestSettingsManager_GetAllowedNodeLabels(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		output []string
+	}{
+		{
+			name:   "Empty input",
+			input:  "",
+			output: []string{},
+		},
+		{
+			name:   "Comma separated data",
+			input:  "example.com/label,label1,label2",
+			output: []string{"example.com/label", "label1", "label2"},
+		},
+		{
+			name:   "Comma separated data with space",
+			input:  "example.com/label, label1,    label2",
+			output: []string{"example.com/label", "label1", "label2"},
+		},
+		{
+			name:   "Comma separated data with invalid label",
+			input:  "example.com/label,_invalid,label1,label2",
+			output: []string{"example.com/label", "label1", "label2"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, settingsManager := fixtures(map[string]string{
+				allowedNodeLabelsKey: tt.input,
+			})
+			keys := settingsManager.GetAllowedNodeLabels()
 			assert.Len(t, keys, len(tt.output))
 			assert.Equal(t, tt.output, keys)
 		})

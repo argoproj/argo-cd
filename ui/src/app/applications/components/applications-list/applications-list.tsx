@@ -263,7 +263,13 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
                 </React.Fragment>
             )}
             onSelect={val => {
-                ctx.navigation.goto(`./${val}`);
+                const selectedApp = apps?.find(app => {
+                    const qualifiedName = AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
+                    return qualifiedName === val;
+                });
+                if (selectedApp) {
+                    ctx.navigation.goto(`/${AppUtils.getAppUrl(selectedApp)}`);
+                }
             }}
             onChange={e => ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
             value={content || ''}
@@ -534,7 +540,10 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                             </EmptyState>
                                                                         )}
                                                                         sortOptions={[
-                                                                            {title: 'Name', compare: (a, b) => a.metadata.name.localeCompare(b.metadata.name)},
+                                                                            {
+                                                                                title: 'Name',
+                                                                                compare: (a, b) => a.metadata.name.localeCompare(b.metadata.name, undefined, {numeric: true})
+                                                                            },
                                                                             {
                                                                                 title: 'Created At',
                                                                                 compare: (b, a) => a.metadata.creationTimestamp.localeCompare(b.metadata.creationTimestamp)

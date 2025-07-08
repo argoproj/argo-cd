@@ -131,6 +131,8 @@ func newEnforcer() *rbac.Enforcer {
 }
 
 func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name    string
 		request cluster.ClusterUpdateRequest
@@ -605,6 +607,8 @@ func getClientset(config map[string]string, ns string, objects ...runtime.Object
 }
 
 func TestListCluster(t *testing.T) {
+	t.Parallel()
+
 	db := &dbmocks.ArgoDB{}
 
 	fooCluster := v1alpha1.Cluster{

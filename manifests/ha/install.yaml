@@ -12154,12 +12154,16 @@ spec:
                                     - project
                                     - repo
                                     type: object
+                                  continueOnRepoNotFoundError:
+                                    type: boolean
                                   filters:
                                     items:
                                       properties:
                                         branchMatch:
                                           type: string
                                         targetBranchMatch:
+                                          type: string
+                                        titleMatch:
                                           type: string
                                       type: object
                                     type: array
@@ -17994,12 +17998,16 @@ spec:
                                     - project
                                     - repo
                                     type: object
+                                  continueOnRepoNotFoundError:
+                                    type: boolean
                                   filters:
                                     items:
                                       properties:
                                         branchMatch:
                                           type: string
                                         targetBranchMatch:
+                                          type: string
+                                        titleMatch:
                                           type: string
                                       type: object
                                     type: array
@@ -21123,12 +21131,16 @@ spec:
                           - project
                           - repo
                           type: object
+                        continueOnRepoNotFoundError:
+                          type: boolean
                         filters:
                           items:
                             properties:
                               branchMatch:
                                 type: string
                               targetBranchMatch:
+                                type: string
+                              titleMatch:
                                 type: string
                             type: object
                           type: array
@@ -26017,6 +26029,12 @@ spec:
               key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.github.api.metrics
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT
           valueFrom:
             configMapKeyRef:
@@ -27099,6 +27117,12 @@ spec:
               key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.github.api.metrics
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_HYDRATOR_ENABLED
           valueFrom:
             configMapKeyRef:
@@ -27481,6 +27505,12 @@ spec:
               key: controller.cluster.cache.events.processing.interval
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_COMMIT_SERVER
+          valueFrom:
+            configMapKeyRef:
+              key: commit.server
+              name: argocd-cmd-params-cm
+              optional: true
         - name: KUBECACHEDIR
           value: /tmp/kubecache
         image: quay.io/argoproj/argocd:latest
@@ -27801,6 +27831,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: application-controller
+    app.kubernetes.io/name: argocd-application-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-application-controller-network-policy
 spec:
   ingress:
@@ -27817,6 +27851,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: applicationset-controller
+    app.kubernetes.io/name: argocd-applicationset-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller-network-policy
 spec:
   ingress:
@@ -27836,6 +27874,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: dex-server
+    app.kubernetes.io/name: argocd-dex-server
+    app.kubernetes.io/part-of: argocd
   name: argocd-dex-server-network-policy
 spec:
   ingress:
@@ -27883,6 +27925,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-ha-haproxy
+    app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha-proxy-network-policy
 spec:
   ingress:
@@ -27910,6 +27956,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis-ha
+    app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha-server-network-policy
 spec:
   egress:
@@ -27950,6 +28000,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: repo-server
+    app.kubernetes.io/name: argocd-repo-server
+    app.kubernetes.io/part-of: argocd
   name: argocd-repo-server-network-policy
 spec:
   ingress:
@@ -27982,6 +28036,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: server
+    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/part-of: argocd
   name: argocd-server-network-policy
 spec:
   ingress:

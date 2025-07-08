@@ -11,7 +11,9 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 )
 
@@ -97,6 +99,12 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 	defer cleanup()
 
+	root, err := os.OpenRoot(dirPath)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to open root dir: %w", err)
+	}
+	defer io.Close(root)
+
 	logCtx.Debugf("Checking out sync branch %s", r.SyncBranch)
 	var out string
 	out, err = gitClient.CheckoutOrOrphan(r.SyncBranch, false)
@@ -117,7 +125,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 
 	logCtx.Debug("Writing manifests")
-	err = WriteForPaths(dirPath, r.Repo.Repo, r.DrySha, r.Paths)
+	err = WriteForPaths(root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}
@@ -204,21 +212,38 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 }
 
 type hydratorMetadataFile struct {
-	RepoURL  string   `json:"repoURL"`
-	DrySHA   string   `json:"drySha"`
-	Commands []string `json:"commands"`
+	RepoURL  string   `json:"repoURL,omitempty"`
+	DrySHA   string   `json:"drySha,omitempty"`
+	Commands []string `json:"commands,omitempty"`
+	Author   string   `json:"author,omitempty"`
+	Date     string   `json:"date,omitempty"`
+	// Subject is the subject line of the DRY commit message, i.e. `git show --format=%s`.
+	Subject string `json:"subject,omitempty"`
+	// Body is the body of the DRY commit message, excluding the subject line, i.e. `git show --format=%b`.
+	// Known Argocd- trailers with valid values are removed, but all other trailers are kept.
+	Body       string                       `json:"body,omitempty"`
+	References []v1alpha1.RevisionReference `json:"references,omitempty"`
 }
 
 // TODO: make this configurable via ConfigMap.
-var manifestHydrationReadmeTemplate = `
-# Manifest Hydration
+var manifestHydrationReadmeTemplate = `# Manifest Hydration
 
 To hydrate the manifests in this repository, run the following commands:
 
-` + "```shell\n" + `
+` + "```shell" + `
 git clone {{ .RepoURL }}
 # cd into the cloned directory
 git checkout {{ .DrySHA }}
 {{ range $command := .Commands -}}
 {{ $command }}
-{{ end -}}` + "```"
+{{ end -}}` + "```" + `
+{{ if .References -}}
+
+## References
+
+{{ range $ref := .References -}}
+{{ if $ref.Commit -}}
+* [{{ $ref.Commit.SHA | mustRegexFind "[0-9a-f]+" | trunc 7 }}]({{ $ref.Commit.RepoURL }}): {{ $ref.Commit.Subject }} ({{ $ref.Commit.Author }})
+{{ end -}}
+{{ end -}}
+{{ end -}}`

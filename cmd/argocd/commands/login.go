@@ -185,8 +185,7 @@ argocd login cd.argoproj.io --core`,
 	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
 	command.Flags().BoolVar(&sso, "sso", false, "Perform SSO login")
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
-	command.Flags().
-		BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
+	command.Flags().BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
 	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the system default browser when performing SSO login")
 	return command
 }
