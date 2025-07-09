@@ -526,6 +526,8 @@ type ApplicationSourceHelm struct {
 	SkipTests bool `json:"skipTests,omitempty" protobuf:"bytes,14,opt,name=skipTests"`
 	// SkipSchemaValidation skips JSON schema validation (Helm's --skip-schema-validation)
 	SkipSchemaValidation bool `json:"skipSchemaValidation,omitempty" protobuf:"bytes,15,opt,name=skipSchemaValidation"`
+	// Specifies the maximum depth of JSON objects to include in logs. Any properties nested deeper than this level will be replaced with a "...(truncated)" placeholder to reduce log verbosity and avoid excessively large log entries.
+	LogJsonMaxDepth int64 `json:"logJsonMaxDepth,omitempty" protobuf:"varint,16,opt,name=logJsonMaxDepth"`
 }
 
 // HelmParameter is a parameter that's passed to helm template during manifest generation

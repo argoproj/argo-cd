@@ -9,10 +9,11 @@ import (
 
 func TestValues_SetString(t *testing.T) {
 	testCases := []struct {
-		name        string
-		inputValue  string
-		expectError bool
-		expectValue string
+		name            string
+		inputValue      string
+		expectError     bool
+		expectValue     string
+		logJsonMaxDepth int64
 	}{
 		{
 			name:        "an empty string should not throw an error",
@@ -59,12 +60,20 @@ func TestValues_SetString(t *testing.T) {
 			inputValue:  `{"a": {"nested": "object"}, "an": ["array"], "bool": true, "number": 1, "some": "string"}`,
 			expectValue: "a:\n  nested: object\nan:\n- array\nbool: true\nnumber: 1\nsome: string",
 		},
+		{
+			name:            "a complex object with max depth parameter should not throw an error. should be truncated object",
+			inputValue:      `{"a": {"nested": "object"}, "an": ["array"], "bool": true, "number": 1, "some": "string"}`,
+			expectValue:     "a: '...(truncated)'\nan: '...(truncated)'\nbool: true\nnumber: 1\nsome: string",
+			logJsonMaxDepth: 1,
+		},
 	}
 
 	for _, testCase := range testCases {
 		var err error
 		t.Run(testCase.name, func(t *testing.T) {
-			source := &ApplicationSourceHelm{}
+			source := &ApplicationSourceHelm{
+				LogJsonMaxDepth: testCase.logJsonMaxDepth,
+			}
 			err = source.SetValuesString(testCase.inputValue)
 
 			if !testCase.expectError {

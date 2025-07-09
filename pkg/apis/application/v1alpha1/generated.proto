@@ -541,6 +541,9 @@ message ApplicationSourceHelm {
 
   // SkipSchemaValidation skips JSON schema validation (Helm's --skip-schema-validation)
   optional bool skipSchemaValidation = 15;
+
+  // Specifies the maximum depth of JSON objects to include in logs. Any properties nested deeper than this level will be replaced with a "...(truncated)" placeholder to reduce log verbosity and avoid excessively large log entries.
+  optional int64 logJsonMaxDepth = 16;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
