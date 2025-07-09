@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v69/github"
+	"github.com/google/go-github/v66/github"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -31,7 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	argoutils "github.com/argoproj/argo-cd/v3/util"
 	certutil "github.com/argoproj/argo-cd/v3/util/cert"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	argoioutils "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 )
 
@@ -252,7 +252,7 @@ func (creds HTTPSCreds) Environ() (io.Closer, []string, error) {
 	}
 	nonce := creds.store.Add(text.FirstNonEmpty(creds.username, githubAccessTokenUsername), creds.password)
 	env = append(env, creds.store.Environ(nonce)...)
-	return utilio.NewCloser(func() error {
+	return argoioutils.NewCloser(func() error {
 		creds.store.Remove(nonce)
 		return httpCloser.Close()
 	}), env, nil
@@ -455,7 +455,7 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 	}
 	nonce := g.store.Add(githubAccessTokenUsername, token)
 	env = append(env, g.store.Environ(nonce)...)
-	return utilio.NewCloser(func() error {
+	return argoioutils.NewCloser(func() error {
 		g.store.Remove(nonce)
 		return httpCloser.Close()
 	}), env, nil
@@ -534,7 +534,7 @@ func (g GitHubAppCreds) getAppTransport() (*ghinstallation.AppsTransport, error)
 func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, error) {
 	// Compute hash of creds for lookup in cache
 	h := sha256.New()
-	_, err := fmt.Fprintf(h, "%s %d %d %s", g.privateKey, g.appID, g.appInstallId, g.baseURL)
+	_, err := h.Write([]byte(fmt.Sprintf("%s %d %d %s", g.privateKey, g.appID, g.appInstallId, g.baseURL)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get get SHA256 hash for GitHub app credentials: %w", err)
 	}
@@ -625,7 +625,7 @@ func (c GoogleCloudCreds) Environ() (io.Closer, []string, error) {
 	nonce := c.store.Add(username, token)
 	env := c.store.Environ(nonce)
 
-	return utilio.NewCloser(func() error {
+	return argoioutils.NewCloser(func() error {
 		c.store.Remove(nonce)
 		return NopCloser{}.Close()
 	}), env, nil
@@ -720,7 +720,7 @@ func (creds AzureWorkloadIdentityCreds) Environ() (io.Closer, []string, error) {
 	nonce := creds.store.Add("", token)
 	env := creds.store.Environ(nonce)
 
-	return utilio.NewCloser(func() error {
+	return argoioutils.NewCloser(func() error {
 		creds.store.Remove(nonce)
 		return nil
 	}), env, nil
@@ -735,7 +735,7 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 
 	t, found := azureTokenCache.Get(key)
 	if found {
-		return t.(string), nil
+		return t.(*workloadidentity.Token).AccessToken, nil
 	}
 
 	token, err := creds.tokenProvider.GetToken(scope)
@@ -743,8 +743,11 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 		return "", fmt.Errorf("failed to get Azure access token: %w", err)
 	}
 
-	azureTokenCache.Set(key, token, 2*time.Hour)
-	return token, nil
+	cacheExpiry := workloadidentity.CalculateCacheExpiryBasedOnTokenExpiry(token.ExpiresOn)
+	if cacheExpiry > 0 {
+		azureTokenCache.Set(key, token, cacheExpiry)
+	}
+	return token.AccessToken, nil
 }
 
 func (creds AzureWorkloadIdentityCreds) GetAzureDevOpsAccessToken() (string, error) {

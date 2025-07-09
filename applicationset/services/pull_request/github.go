@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/google/go-github/v69/github"
+	"github.com/google/go-github/v66/github"
 )
 
 type GithubService struct {
@@ -33,7 +33,11 @@ func NewGithubService(token, url, owner, repo string, labels []string) (PullRequ
 		}
 	} else {
 		var err error
-		client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)
+		if token == "" {
+			client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)
+		} else {
+			client, err = github.NewClient(httpClient).WithAuthToken(token).WithEnterpriseURLs(url, url)
+		}
 		if err != nil {
 			return nil, err
 		}

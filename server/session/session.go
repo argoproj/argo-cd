@@ -12,7 +12,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	util "github.com/argoproj/argo-cd/v3/util/io"
 	sessionmgr "github.com/argoproj/argo-cd/v3/util/session"
 )
 
@@ -22,7 +22,7 @@ type Server struct {
 	settingsMgr        *settings.SettingsManager
 	authenticator      Authenticator
 	policyEnf          *rbacpolicy.RBACPolicyEnforcer
-	limitLoginAttempts func() (utilio.Closer, error)
+	limitLoginAttempts func() (util.Closer, error)
 }
 
 type Authenticator interface {
@@ -30,7 +30,7 @@ type Authenticator interface {
 }
 
 // NewServer returns a new instance of the Session service
-func NewServer(mgr *sessionmgr.SessionManager, settingsMgr *settings.SettingsManager, authenticator Authenticator, policyEnf *rbacpolicy.RBACPolicyEnforcer, rateLimiter func() (utilio.Closer, error)) *Server {
+func NewServer(mgr *sessionmgr.SessionManager, settingsMgr *settings.SettingsManager, authenticator Authenticator, policyEnf *rbacpolicy.RBACPolicyEnforcer, rateLimiter func() (util.Closer, error)) *Server {
 	return &Server{mgr, settingsMgr, authenticator, policyEnf, rateLimiter}
 }
 
@@ -42,7 +42,7 @@ func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*se
 		if err != nil {
 			return nil, err
 		}
-		defer utilio.Close(closer)
+		defer util.Close(closer)
 	}
 
 	if q.Token != "" {

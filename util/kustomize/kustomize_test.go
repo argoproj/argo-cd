@@ -7,13 +7,13 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/git"
 )
 
@@ -25,6 +25,7 @@ const (
 	kustomization6 = "kustomization_yaml_components"
 	kustomization7 = "label_without_selector"
 	kustomization8 = "kustomization_yaml_patches_empty"
+	kustomization9 = "kustomization_yaml_components_monorepo"
 )
 
 func testDataDir(tb testing.TB, testData string) (string, error) {
@@ -148,7 +149,7 @@ func TestIsKustomization(t *testing.T) {
 }
 
 func TestParseKustomizeBuildOptions(t *testing.T) {
-	built := parseKustomizeBuildOptions(&kustomize{path: "guestbook"}, "-v 6 --logtostderr", &BuildOpts{
+	built := parseKustomizeBuildOptions("guestbook", "-v 6 --logtostderr", &BuildOpts{
 		KubeVersion: "1.27", APIVersions: []string{"foo", "bar"},
 	})
 	// Helm is not enabled so helm options are not in the params
@@ -156,7 +157,7 @@ func TestParseKustomizeBuildOptions(t *testing.T) {
 }
 
 func TestParseKustomizeBuildHelmOptions(t *testing.T) {
-	built := parseKustomizeBuildOptions(&kustomize{path: "guestbook"}, "-v 6 --logtostderr --enable-helm", &BuildOpts{
+	built := parseKustomizeBuildOptions("guestbook", "-v 6 --logtostderr --enable-helm", &BuildOpts{
 		KubeVersion: "1.27",
 		APIVersions: []string{"foo", "bar"},
 	})
@@ -174,14 +175,8 @@ func TestVersion(t *testing.T) {
 	assert.NotEmpty(t, ver)
 }
 
-func TestVersionWithBinaryPath(t *testing.T) {
-	ver, err := versionWithBinaryPath(&kustomize{binaryPath: "kustomize"})
-	require.NoError(t, err)
-	assert.NotEmpty(t, ver)
-}
-
 func TestGetSemver(t *testing.T) {
-	ver, err := getSemver(&kustomize{})
+	ver, err := getSemver()
 	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
@@ -510,6 +505,31 @@ func TestKustomizeBuildComponents(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ok)
 	assert.Equal(t, int64(3), replicas)
+}
+
+func TestKustomizeBuildComponentsMonoRepo(t *testing.T) {
+	rootPath, err := testDataDir(t, kustomization9)
+	require.NoError(t, err)
+	appPath := path.Join(rootPath, "envs/inseng-pdx-egert-sandbox/namespaces/inst-system/apps/hello-world")
+	kustomize := NewKustomizeApp(rootPath, appPath, git.NopCreds{}, "", "", "", "")
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
+		Components:              []string{"../../../../../../kustomize/components/all"},
+		IgnoreMissingComponents: true,
+	}
+	objs, _, _, err := kustomize.Build(&kustomizeSource, nil, nil, nil)
+	require.NoError(t, err)
+	obj := objs[2]
+	require.Equal(t, "hello-world-kustomize", obj.GetName())
+	require.Equal(t, map[string]string{
+		"app.kubernetes.io/name":  "hello-world-kustomize",
+		"app.kubernetes.io/owner": "fire-team",
+	}, obj.GetLabels())
+	replicas, ok, err := unstructured.NestedSlice(obj.Object, "spec", "template", "spec", "tolerations")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Len(t, replicas, 1)
+	require.Equal(t, "my-special-toleration", replicas[0].(map[string]any)["key"])
+	require.Equal(t, "Exists", replicas[0].(map[string]any)["operator"])
 }
 
 func TestKustomizeBuildPatches(t *testing.T) {
