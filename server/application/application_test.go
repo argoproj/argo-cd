@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -540,6 +541,29 @@ spec:
     server: https://cluster-api.example.com
 `
 
+const fakeAppWithSyncPolicy = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-app
+  namespace: default
+  annotations:
+    test.annotation: test
+spec:
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    ksonnet:
+      environment: default
+  destination:
+    namespace: ` + test.FakeDestNamespace + `
+    server: https://cluster-api.example.com
+  syncPolicy:
+    automated:
+      prune: true
+`
+
 func newTestAppWithDestName(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
 	return createTestApp(fakeAppWithDestName, opts...)
 }
@@ -550,6 +574,10 @@ func newTestApp(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
 
 func newTestAppWithAnnotations(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
 	return createTestApp(fakeAppWithAnnotations, opts...)
+}
+
+func newTestAppWithSyncPolicy(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
+	return createTestApp(fakeAppWithSyncPolicy, opts...)
 }
 
 func createTestApp(testApp string, opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
@@ -1274,6 +1302,436 @@ func TestListAppWithProjects(t *testing.T) {
 	})
 }
 
+func newTestApplicationQueryOption(opt application.ApplicationListOptions) application.ApplicationQuery {
+	return application.ApplicationQuery{Options: &opt}
+}
+
+func TestListAppWithMinName(t *testing.T) {
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App1"
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App2"
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "app3"
+	}))
+
+	t.Run("List apps with min name filter set", func(t *testing.T) {
+		minName := "App"
+		expectedApps := []string{"App1", "App2"}
+		appQuery := newTestApplicationQueryOption(application.ApplicationListOptions{MinName: &minName})
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		var apps []string
+		for i := range appList.Items {
+			apps = append(apps, appList.Items[i].Name)
+		}
+		assert.Equal(t, expectedApps, apps)
+	})
+}
+
+func TestListAppWithMaxName(t *testing.T) {
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App1"
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App2"
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App3"
+	}))
+
+	t.Run("List apps with min name filter set", func(t *testing.T) {
+		maxName := "p2"
+		expectedApps := []string{"App2"}
+		appQuery := newTestApplicationQueryOption(application.ApplicationListOptions{MaxName: &maxName})
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		var apps []string
+		for i := range appList.Items {
+			apps = append(apps, appList.Items[i].Name)
+		}
+		assert.Equal(t, expectedApps, apps)
+	})
+}
+
+func TestListAppWithSearch(t *testing.T) {
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App1"
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App2"
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App3"
+	}))
+
+	t.Run("List apps with min name filter set", func(t *testing.T) {
+		search := "p2"
+		expectedApps := []string{"App2"}
+		appQuery := newTestApplicationQueryOption(application.ApplicationListOptions{Search: &search})
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		var apps []string
+		for i := range appList.Items {
+			apps = append(apps, appList.Items[i].Name)
+		}
+		assert.Equal(t, expectedApps, apps)
+	})
+}
+
+func TestListAppWithRepos(t *testing.T) {
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App1"
+		app.Spec.Source.RepoURL = "https://github.com/argoproj/test.git"
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App2"
+		app.Spec.Source.RepoURL = "https://github.com/argoproj/test.git"
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App3"
+		app.Spec.Source.RepoURL = "https://github.com/argoproj/test1.git"
+	}))
+
+	validTests := []struct {
+		testName       string
+		repo           *string
+		repos          []string
+		expectedResult []string
+	}{
+		{
+			testName:       "List apps with repo filter set",
+			repo:           ptr.To("https://github.com/argoproj/test.git"),
+			expectedResult: []string{"App1", "App2"},
+		},
+		{
+			testName:       "List apps with repos filter set",
+			repos:          []string{"https://github.com/argoproj/test.git"},
+			expectedResult: []string{"App1", "App2"},
+		},
+		{
+			testName:       "List apps with repos filters set",
+			repos:          []string{"https://github.com/argoproj/test.git", "https://github.com/argoproj/test1.git"},
+			expectedResult: []string{"App1", "App2", "App3"},
+		},
+		{
+			testName:       "List apps with repo and repos filters set",
+			repo:           ptr.To("https://github.com/argoproj/test.git"),
+			repos:          []string{"https://github.com/argoproj/test1.git"},
+			expectedResult: []string{"App1", "App2"},
+		},
+	}
+	for _, validTest := range validTests {
+		t.Run(validTest.testName, func(t *testing.T) {
+			appQuery := application.ApplicationQuery{
+				Repo: validTest.repo,
+				Options: &application.ApplicationListOptions{
+					Repos: validTest.repos,
+				},
+			}
+			appList, err := appServer.List(t.Context(), &appQuery)
+			require.NoError(t, err)
+			var apps []string
+			for i := range appList.Items {
+				apps = append(apps, appList.Items[i].Name)
+			}
+			assert.Equal(t, validTest.expectedResult, apps)
+		})
+	}
+}
+
+func TestListAppWithCluster(t *testing.T) {
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App1"
+		app.Spec.Destination.Server = "https://cluster1"
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App2"
+		app.Spec.Destination.Server = "https://cluster1"
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App3"
+		app.Spec.Destination.Server = "https://cluster2"
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App4"
+		app.Spec.Destination.Name = "cluster1"
+	}))
+
+	validTests := []struct {
+		testName       string
+		clusters       []string
+		expectedResult []string
+	}{
+		{
+			testName:       "List apps with clusters filter set",
+			clusters:       []string{"https://cluster1"},
+			expectedResult: []string{"App1", "App2"},
+		},
+		{
+			testName:       "List apps with cluster name filter set",
+			clusters:       []string{"cluster1"},
+			expectedResult: []string{"App4"},
+		},
+		{
+			testName:       "List apps with clusters filters set",
+			clusters:       []string{"https://cluster1", "https://cluster2"},
+			expectedResult: []string{"App1", "App2", "App3"},
+		},
+	}
+	for _, validTest := range validTests {
+		t.Run(validTest.testName, func(t *testing.T) {
+			appQuery := newTestApplicationQueryOption(application.ApplicationListOptions{Clusters: validTest.clusters})
+			appList, err := appServer.List(t.Context(), &appQuery)
+			require.NoError(t, err)
+			var apps []string
+			for i := range appList.Items {
+				apps = append(apps, appList.Items[i].Name)
+			}
+			assert.Equal(t, validTest.expectedResult, apps)
+		})
+	}
+}
+
+func TestListAppWithNamespace(t *testing.T) {
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App1"
+		app.Spec.Destination.Namespace = "default"
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App2"
+		app.Spec.Destination.Namespace = "test1"
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App3"
+		app.Spec.Destination.Namespace = "test2"
+	}))
+
+	t.Run("List apps with namespace filter set", func(t *testing.T) {
+		expectedResult := []string{"App2", "App3"}
+		appQuery := newTestApplicationQueryOption(application.ApplicationListOptions{Namespaces: []string{"test1", "test2"}})
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		var apps []string
+		for i := range appList.Items {
+			apps = append(apps, appList.Items[i].Name)
+		}
+		assert.Equal(t, expectedResult, apps)
+	})
+}
+
+func TestListAppWithSyncStatus(t *testing.T) {
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App1"
+		app.Status.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App2"
+		app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App3"
+		app.Status.Sync.Status = v1alpha1.SyncStatusCodeUnknown
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App4"
+	}))
+
+	t.Run("List apps with sync status filter set", func(t *testing.T) {
+		expectedResult := []string{"App1", "App2"}
+		appQuery := newTestApplicationQueryOption(application.ApplicationListOptions{SyncStatuses: []string{"OutOfSync", "Synced"}})
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		var apps []string
+		for i := range appList.Items {
+			apps = append(apps, appList.Items[i].Name)
+		}
+		assert.Equal(t, expectedResult, apps)
+	})
+}
+
+func TestListAppWithHealthStatus(t *testing.T) {
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App1"
+		app.Status.Health.Status = health.HealthStatusProgressing
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App2"
+		app.Status.Health.Status = health.HealthStatusHealthy
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App3"
+		app.Status.Health.Status = health.HealthStatusMissing
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App4"
+	}))
+
+	t.Run("List apps with health status filter set", func(t *testing.T) {
+		expectedResult := []string{"App1", "App2"}
+		appQuery := newTestApplicationQueryOption(application.ApplicationListOptions{HealthStatuses: []string{"Progressing", "Healthy"}})
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		var apps []string
+		for i := range appList.Items {
+			apps = append(apps, appList.Items[i].Name)
+		}
+		assert.Equal(t, expectedResult, apps)
+	})
+}
+
+func TestListAppWithAutomated(t *testing.T) {
+	appServer := newTestAppServer(t, newTestAppWithSyncPolicy(func(app *v1alpha1.Application) {
+		app.Name = "App1"
+		app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{}
+	}), newTestAppWithSyncPolicy(func(app *v1alpha1.Application) {
+		app.Name = "App2"
+		app.Spec.SyncPolicy.Automated = nil
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App3"
+	}))
+
+	t.Run("List apps with automated filter set", func(t *testing.T) {
+		expectedResult := []string{"App1"}
+		appQuery := newTestApplicationQueryOption(application.ApplicationListOptions{AutoSyncEnabled: ptr.To(true)})
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		var apps []string
+		for i := range appList.Items {
+			apps = append(apps, appList.Items[i].Name)
+		}
+		assert.Equal(t, expectedResult, apps)
+	})
+
+	t.Run("List apps with automated filter set false", func(t *testing.T) {
+		expectedResult := []string{"App2", "App3"}
+		appQuery := newTestApplicationQueryOption(application.ApplicationListOptions{AutoSyncEnabled: ptr.To(false)})
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		var apps []string
+		for i := range appList.Items {
+			apps = append(apps, appList.Items[i].Name)
+		}
+		assert.Equal(t, expectedResult, apps)
+	})
+}
+
+func ptrToInt64(v int) *int64 {
+	vv := int64(v)
+	return &vv
+}
+
+func TestListAppWithPagination(t *testing.T) {
+	apps := []runtime.Object{}
+	for i := 0; i < 100; i++ {
+		apps = append(apps, newTestApp(func(app *v1alpha1.Application) {
+			app.Name = fmt.Sprintf("App%.2d", i)
+		}))
+	}
+	appServer := newTestAppServer(t, apps...)
+
+	newOffsetLimit := func(offset, limit int64) application.ApplicationQuery {
+		return application.ApplicationQuery{
+			Options: &application.ApplicationListOptions{
+				Offset: ptr.To(offset),
+				Limit:  ptr.To(limit),
+			},
+		}
+	}
+
+	t.Run("List apps with pagination", func(t *testing.T) {
+		appQuery := newOffsetLimit(0, 10)
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		assert.Len(t, appList.Items, 10)
+		assert.Equal(t, "App00", appList.Items[0].Name)
+		assert.Equal(t, "App09", appList.Items[9].Name)
+	})
+
+	t.Run("List apps with offset 10", func(t *testing.T) {
+		appQuery := newOffsetLimit(10, 10)
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		assert.Len(t, appList.Items, 10)
+		assert.Equal(t, "App10", appList.Items[0].Name)
+		assert.Equal(t, "App19", appList.Items[9].Name)
+	})
+
+	t.Run("List apps with offset 99", func(t *testing.T) {
+		appQuery := newOffsetLimit(99, 10)
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		assert.Len(t, appList.Items, 1)
+		assert.Equal(t, "App99", appList.Items[0].Name)
+	})
+
+	t.Run("List apps with offset 101", func(t *testing.T) {
+		appQuery := newOffsetLimit(101, 10)
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		assert.Empty(t, appList.Items)
+	})
+
+	t.Run("List apps with limit 0", func(t *testing.T) {
+		appQuery := newOffsetLimit(0, 0)
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		assert.Empty(t, appList.Items)
+	})
+
+	t.Run("List apps with offset -1", func(t *testing.T) {
+		appQuery := newOffsetLimit(-1, 10)
+		_, err := appServer.List(t.Context(), &appQuery)
+		assert.ErrorContains(t, err, "must be a non-negative integer")
+	})
+
+	t.Run("List apps with limit -1", func(t *testing.T) {
+		appQuery := newOffsetLimit(0, -1)
+		_, err := appServer.List(t.Context(), &appQuery)
+		assert.ErrorContains(t, err, "must be a non-negative integer")
+	})
+}
+
+func TestListAppsWithSort(t *testing.T) {
+	t1 := metav1.Now()
+	t2, t3 := metav1.NewTime(t1.Add(time.Hour)), metav1.NewTime(t1.Add(2*time.Hour))
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "abc"
+		app.CreationTimestamp = t1
+		app.Status.OperationState = &v1alpha1.OperationState{FinishedAt: &t1}
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "bcd"
+		app.CreationTimestamp = t2
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "def"
+		app.CreationTimestamp = t3
+		app.Status.OperationState = &v1alpha1.OperationState{FinishedAt: &t3}
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "fgh"
+		app.CreationTimestamp = t3
+	}))
+
+	newSortBy := func(sortBy application.ApplicationSortBy) application.ApplicationQuery {
+		return application.ApplicationQuery{Options: &application.ApplicationListOptions{SortBy: ptr.To(sortBy)}}
+	}
+
+	t.Run("List apps with sort by name", func(t *testing.T) {
+		appQuery := newSortBy(application.ApplicationSortBy_ASB_NAME)
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		var names []string
+		for i := range appList.Items {
+			names = append(names, appList.Items[i].Name)
+		}
+		assert.Equal(t, []string{"abc", "bcd", "def", "fgh"}, names)
+	})
+
+	t.Run("List apps with sort by created at in descending order", func(t *testing.T) {
+		appQuery := newSortBy(application.ApplicationSortBy_ASB_CREATED_AT)
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		var names []string
+		for i := range appList.Items {
+			names = append(names, appList.Items[i].Name)
+		}
+		assert.Equal(t, []string{"def", "fgh", "bcd", "abc"}, names)
+	})
+
+	t.Run("List apps with sort by synchronized in descending order", func(t *testing.T) {
+		appQuery := newSortBy(application.ApplicationSortBy_ASB_SYNCHRONIZED)
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		var names []string
+		for i := range appList.Items {
+			names = append(names, appList.Items[i].Name)
+		}
+		assert.Equal(t, []string{"bcd", "fgh", "def", "abc"}, names)
+	})
+}
+
 func TestListApps(t *testing.T) {
 	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "bcd"
@@ -1333,6 +1791,104 @@ g, group-49, role:test3
 		names = append(names, res.Items[i].Name)
 	}
 	assert.Len(t, names, 300)
+}
+
+// sort slice to make the test deterministic
+func sortStats(stats *application.ApplicationListStats) {
+	sort.Slice(stats.Destinations, func(i, j int) bool {
+		return stats.Destinations[i].Name < stats.Destinations[j].Name
+	})
+	sort.Slice(stats.Labels, func(i, j int) bool {
+		return stats.Labels[i].GetKey() < stats.Labels[j].GetKey()
+	})
+	for i := range stats.Labels {
+		sort.Strings(stats.Labels[i].Values)
+	}
+}
+
+func TestGetAppsStats(t *testing.T) {
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App1"
+	}), newTestAppWithDestName(func(app *v1alpha1.Application) {
+		app.Name = "App2"
+	}), newTestAppWithSyncPolicy(func(app *v1alpha1.Application) {
+		app.Name = "App3"
+		app.Spec.Project = "proj1"
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App4"
+		app.Labels = map[string]string{"key1": "value1"}
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App5"
+		app.Labels = map[string]string{"key1": "value2", "key2": "value2"}
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App6"
+		app.Spec.Project = "proj1"
+		app.Status.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
+		app.Status.Health.Status = health.HealthStatusProgressing
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App7"
+		app.Spec.Project = "proj1"
+		app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+		app.Status.Health.Status = health.HealthStatusHealthy
+	}))
+
+	t.Run("Get apps stats", func(t *testing.T) {
+		appList, err := appServer.List(t.Context(), &application.ApplicationQuery{})
+		require.NoError(t, err)
+		sortStats(appList.Stats)
+		assert.Equal(t, &application.ApplicationListStats{
+			Total: ptrToInt64(7),
+			TotalBySyncStatus: map[string]int64{
+				"OutOfSync": 1,
+				"Synced":    1,
+				"":          5,
+			},
+			TotalByHealthStatus: map[string]int64{
+				"Progressing": 1,
+				"Healthy":     1,
+				"":            5,
+			},
+			AutoSyncEnabledCount: ptrToInt64(1),
+			Destinations: []*v1alpha1.ApplicationDestination{
+				{Server: "https://cluster-api.example.com", Namespace: "fake-dest-ns"},
+				{Name: "fake-cluster", Namespace: "fake-dest-ns"},
+			},
+			Namespaces: []string{"fake-dest-ns"},
+			Labels: []*application.ApplicationLabelStats{
+				{Key: ptr.To("key1"), Values: []string{"value1", "value2"}},
+				{Key: ptr.To("key2"), Values: []string{"value2"}},
+			},
+		}, appList.Stats)
+	})
+
+	t.Run("Get apps stats with projects filter set", func(t *testing.T) {
+		appList, err := appServer.List(t.Context(), &application.ApplicationQuery{Projects: []string{"proj1"}})
+		require.NoError(t, err)
+		sortStats(appList.Stats)
+		assert.Equal(t, &application.ApplicationListStats{
+			Total: ptrToInt64(3),
+			TotalBySyncStatus: map[string]int64{
+				"OutOfSync": 1,
+				"Synced":    1,
+				"":          1,
+			},
+			TotalByHealthStatus: map[string]int64{
+				"Progressing": 1,
+				"Healthy":     1,
+				"":            1,
+			},
+			AutoSyncEnabledCount: ptrToInt64(1),
+			Destinations: []*v1alpha1.ApplicationDestination{
+				{Server: "https://cluster-api.example.com", Namespace: "fake-dest-ns"},
+				{Name: "fake-cluster", Namespace: "fake-dest-ns"},
+			},
+			Namespaces: []string{"fake-dest-ns"},
+			Labels: []*application.ApplicationLabelStats{
+				{Key: ptr.To("key1"), Values: []string{"value1", "value2"}},
+				{Key: ptr.To("key2"), Values: []string{"value2"}},
+			},
+		}, appList.Stats)
+	})
 }
 
 func generateTestApp(num int) []*v1alpha1.Application {
@@ -2653,8 +3209,10 @@ func TestIsApplicationPermitted(t *testing.T) {
 	t.Run("Incorrect project", func(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
-		projects := map[string]bool{"test-app": false}
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, "test", "default", projects, *testApp)
+		filter := argo.NewStringPropertyFilter([]string{"test"}, func(app *v1alpha1.Application) string {
+			return app.Spec.Project
+		})
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, "test", "default", filter, *testApp)
 		assert.False(t, permitted)
 	})
 
@@ -2698,6 +3256,143 @@ func TestIsApplicationPermitted(t *testing.T) {
 		appServer.enabledNamespaces = []string{testApp.Namespace}
 		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, *testApp)
 		assert.True(t, permitted)
+	})
+
+	permittedTests := []struct {
+		testName string
+		query    application.ApplicationQuery
+	}{
+		{
+			testName: "Permitted with cluster url filter",
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{Clusters: []string{"https://cluster-api.example.com"}},
+			},
+		},
+		{
+			testName: "Permitted with namespace filter",
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{Namespaces: []string{test.FakeDestNamespace}},
+			},
+		},
+		{
+			testName: "Permitted with repo filter",
+			query:    application.ApplicationQuery{Repo: ptr.To("https://github.com/argoproj/argocd-example-apps.git")},
+		},
+		{
+			testName: "Permitted with project filter",
+			query:    application.ApplicationQuery{Projects: []string{"proj"}},
+		},
+		{
+			testName: "Permitted with minName filter",
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{MinName: ptr.To("test-")},
+			},
+		},
+		{
+			testName: "Permitted with maxName filter",
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{MaxName: ptr.To("app")},
+			},
+		},
+		{
+			testName: "Permitted with search filter",
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{Search: ptr.To("est")},
+			},
+		},
+		{
+			testName: "Permitted with sync filter",
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{SyncStatuses: []string{"Synced"}},
+			},
+		},
+		{
+			testName: "Permitted with health filter",
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{HealthStatuses: []string{"Healthy"}},
+			},
+		},
+	}
+	t.Run("Application is permitted with query filters", func(t *testing.T) {
+		for _, tt := range permittedTests {
+			t.Run(tt.testName, func(t *testing.T) {
+				testApp := newTestApp()
+				testApp.Spec.Project = "proj"
+				testApp.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+				testApp.Status.Health.Status = health.HealthStatusHealthy
+				appServer := newTestAppServer(t, testApp)
+				filter := argo.BuildFilter(tt.query)
+				permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, filter, *testApp)
+				assert.True(t, permitted)
+			})
+		}
+	})
+
+	forbiddenTests := []struct {
+		testName string
+		query    application.ApplicationQuery
+	}{
+		{
+			testName: "Forbidden with cluster url filter",
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{Clusters: []string{"https://invalid.example.com"}},
+			},
+		},
+		{
+			testName: "Forbidden with namespace filter",
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{Namespaces: []string{"invalid"}},
+			},
+		},
+		{
+			testName: "Forbidden with repo filter",
+			query:    application.ApplicationQuery{Repo: ptr.To("https://github.com/argoproj/test-apps.git")},
+		},
+		{
+			testName: "Forbidden with project filter",
+			query:    application.ApplicationQuery{Projects: []string{"proj"}},
+		},
+		{
+			testName: "Forbidden with minName filter",
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{MinName: ptr.To("-test")},
+			},
+		},
+		{
+			testName: "Forbidden with maxName filter",
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{MaxName: ptr.To("app-")},
+			},
+		},
+		{
+			testName: "Forbidden with search filter",
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{Search: ptr.To("xxx")},
+			},
+		},
+		{
+			testName: "Forbidden with sync filter",
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{SyncStatuses: []string{"OutOfSync"}},
+			},
+		},
+		{
+			testName: "Forbidden with health filter",
+			query: application.ApplicationQuery{
+				Options: &application.ApplicationListOptions{HealthStatuses: []string{"Degraded"}},
+			},
+		},
+	}
+	t.Run("Application is not permitted with query filters", func(t *testing.T) {
+		for _, tt := range forbiddenTests {
+			t.Run(tt.testName, func(t *testing.T) {
+				testApp := newTestApp()
+				appServer := newTestAppServer(t, testApp)
+				filter := argo.BuildFilter(tt.query)
+				permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, filter, *testApp)
+				assert.False(t, permitted)
+			})
+		}
 	})
 }
 

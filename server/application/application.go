@@ -84,7 +84,6 @@ type Server struct {
 	kubeclientset          kubernetes.Interface
 	appclientset           appclientset.Interface
 	appLister              applisters.ApplicationLister
-	appInformer            cache.SharedIndexInformer
 	appBroadcaster         Broadcaster
 	repoClientset          apiclient.Clientset
 	kubectl                kube.Kubectl
@@ -130,7 +129,6 @@ func NewServer(
 		ns:                     namespace,
 		appclientset:           &deepCopyAppClientset{appclientset},
 		appLister:              &deepCopyApplicationLister{appLister},
-		appInformer:            appInformer,
 		appBroadcaster:         appBroadcaster,
 		kubeclientset:          kubeclientset,
 		cache:                  cache,
@@ -267,7 +265,7 @@ func (s *Server) getApplicationEnforceRBACClient(ctx context.Context, action, pr
 }
 
 // List returns list of applications
-func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1alpha1.ApplicationList, error) {
+func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*application.ApplicationListResponse, error) {
 	selector, err := labels.Parse(q.GetSelector())
 	if err != nil {
 		return nil, fmt.Errorf("error parsing the selector: %w", err)
@@ -282,42 +280,25 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 		return nil, fmt.Errorf("error listing apps with selectors: %w", err)
 	}
 
-	filteredApps := apps
-	// Filter applications by name
-	if q.Name != nil {
-		filteredApps = argo.FilterByNameP(filteredApps, *q.Name)
-	}
-
-	// Filter applications by projects
-	filteredApps = argo.FilterByProjectsP(filteredApps, getProjectsFromApplicationQuery(*q))
-
-	// Filter applications by source repo URL
-	filteredApps = argo.FilterByRepoP(filteredApps, q.GetRepo())
-
-	newItems := make([]v1alpha1.Application, 0)
-	for _, a := range filteredApps {
+	newItems := make([]*v1alpha1.Application, 0)
+	for _, a := range apps {
 		// Skip any application that is neither in the control plane's namespace
 		// nor in the list of enabled namespaces.
 		if !s.isNamespaceEnabled(a.Namespace) {
 			continue
 		}
 		if s.enf.Enforce(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionGet, a.RBACName(s.ns)) {
-			newItems = append(newItems, *a)
+			newItems = append(newItems, a)
 		}
 	}
-
-	// Sort found applications by name
-	sort.Slice(newItems, func(i, j int) bool {
-		return newItems[i].Name < newItems[j].Name
-	})
-
-	appList := v1alpha1.ApplicationList{
-		ListMeta: metav1.ListMeta{
-			ResourceVersion: s.appInformer.LastSyncResourceVersion(),
-		},
-		Items: newItems,
+	newItems, stats, err := argo.Paginate(newItems, *q)
+	if err != nil {
+		return nil, fmt.Errorf("error paginating applications: %w", err)
 	}
-	return &appList, nil
+	return &application.ApplicationListResponse{
+		Items: newItems,
+		Stats: stats,
+	}, nil
 }
 
 // Create creates an application
@@ -762,7 +743,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 	appNs := s.appNamespaceOrDefault(q.GetAppNamespace())
 
 	project := ""
-	projects := getProjectsFromApplicationQuery(*q)
+	projects := argo.GetProjectsFromApplicationQuery(*q)
 	if len(projects) == 1 {
 		project = projects[0]
 	} else if len(projects) > 1 {
@@ -1193,16 +1174,16 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, a v1alpha1.Application) bool {
-	if len(projects) > 0 && !projects[a.Spec.GetProject()] {
-		return false
-	}
-
+func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, filter argo.Filter, a v1alpha1.Application) bool {
 	if appVersion, err := strconv.Atoi(a.ResourceVersion); err == nil && appVersion < minVersion {
 		return false
 	}
 	matchedEvent := (appName == "" || (a.Name == appName && a.Namespace == appNs)) && selector.Matches(labels.Set(a.Labels))
 	if !matchedEvent {
+		return false
+	}
+
+	if filter != nil && !filter.IsValid(&a) {
 		return false
 	}
 
@@ -1225,10 +1206,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	if q.Name != nil {
 		logCtx = logCtx.WithField("application", *q.Name)
 	}
-	projects := map[string]bool{}
-	for _, project := range getProjectsFromApplicationQuery(*q) {
-		projects[project] = true
-	}
+	filter := argo.BuildFilter(*q)
 	claims := ws.Context().Value("claims")
 	selector, err := labels.Parse(q.GetSelector())
 	if err != nil {
@@ -1240,11 +1218,10 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 			minVersion = 0
 		}
 	}
-
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
 	sendIfPermitted := func(a v1alpha1.Application, eventType watch.EventType) {
-		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, a)
+		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, filter, a)
 		if !permitted {
 			return
 		}
@@ -2804,13 +2781,4 @@ func (s *Server) appNamespaceOrDefault(appNs string) string {
 
 func (s *Server) isNamespaceEnabled(namespace string) bool {
 	return security.IsNamespaceEnabled(namespace, s.ns, s.enabledNamespaces)
-}
-
-// getProjectsFromApplicationQuery gets the project names from a query. If the legacy "project" field was specified, use
-// that. Otherwise, use the newer "projects" field.
-func getProjectsFromApplicationQuery(q application.ApplicationQuery) []string {
-	if q.Project != nil {
-		return q.Project
-	}
-	return q.Projects
 }
