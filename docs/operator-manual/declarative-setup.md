@@ -1007,15 +1007,15 @@ Azure cluster secret example using argocd-k8s-auth and [kubelogin](https://githu
 |Variable Name|Description|
 |-------------|-----------|
 |AAD_LOGIN_METHOD|One of devicecode, spn, ropc, msi, azurecli, or workloadidentity|
-|AAD_SERVICE_PRINCIPAL_CLIENT_CERTIFICATE|AAD client cert in pfx.  Used in spn login|
-|AAD_SERVICE_PRINCIPAL_CLIENT_ID|AAD client application ID|
-|AAD_SERVICE_PRINCIPAL_CLIENT_SECRET|AAD client application secret|
+|AZURE_CLIENT_CERTIFICATE_PATH|Path to AAD client cert in pfx.  Used in spn login and WorkloadIdentityLogin flow|
+|AZURE_CLIENT_CERTIFICATE_PASSWORD|Password for the client cert in pfx.  Used in spn login|
+|AZURE_CLIENT_ID|AAD client application ID|
+|AZURE_CLIENT_SECRET|AAD client application secret|
 |AAD_USER_PRINCIPAL_NAME|Used in the ropc flow|
 |AAD_USER_PRINCIPAL_PASSWORD|Used in the ropc flow|
 |AZURE_TENANT_ID|The AAD tenant ID.|
 |AZURE_AUTHORITY_HOST|Used in the WorkloadIdentityLogin flow|
 |AZURE_FEDERATED_TOKEN_FILE|Used in the WorkloadIdentityLogin flow|
-|AZURE_CLIENT_ID|Used in the WorkloadIdentityLogin flow|
 
 In addition to the environment variables above, argocd-k8s-auth accepts two extra environment variables to set the AAD environment, and to set the AAD server application ID.  The AAD server application ID will default to 6dae42f8-4368-4678-94ff-3960e28e3630 if not specified.  See [here](https://github.com/azure/kubelogin#exec-plugin-format) for details.
 
@@ -1089,9 +1089,9 @@ stringData:
         "command": "argocd-k8s-auth",
         "env": {
           "AAD_ENVIRONMENT_NAME": "AzurePublicCloud",
-          "AAD_SERVICE_PRINCIPAL_CLIENT_SECRET": "fill in your service principal client secret",
+          "AZURE_CLIENT_SECRET": "fill in your service principal client secret",
           "AZURE_TENANT_ID": "fill in tenant id",
-          "AAD_SERVICE_PRINCIPAL_CLIENT_ID": "fill in your service principal client id",
+          "AZURE_CLIENT_ID": "fill in your service principal client id",
           "AAD_LOGIN_METHOD": "spn"
         },
         "args": ["azure"],

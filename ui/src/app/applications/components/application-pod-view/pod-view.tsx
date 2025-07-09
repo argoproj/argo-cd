@@ -122,7 +122,7 @@ export class PodView extends React.Component<PodViewProps> {
                                 <div className='pod-view__nodes-container'>
                                     {groups.map(group => {
                                         if (group.type === 'node' && group.name === 'Unschedulable' && podPrefs.hideUnschedulable) {
-                                            return <React.Fragment />;
+                                            return null;
                                         }
                                         return (
                                             <div className={`pod-view__node white-box ${group.kind === 'node' && 'pod-view__node--large'}`} key={group.fullName || group.name}>
@@ -427,7 +427,7 @@ export class PodView extends React.Component<PodViewProps> {
             }
         });
 
-        Object.values(groupRefs).forEach(group => group.pods.sort((first, second) => nodeKey(first).localeCompare(nodeKey(second))));
+        Object.values(groupRefs).forEach(group => group.pods.sort((first, second) => nodeKey(first).localeCompare(nodeKey(second), undefined, {numeric: true})));
 
         return Object.values(groupRefs)
             .sort((a, b) => (a.name > b.name ? 1 : a.name === b.name ? 0 : -1)) // sort by name

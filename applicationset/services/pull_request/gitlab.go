@@ -76,6 +76,11 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 	for {
 		mrs, resp, err := g.client.MergeRequests.ListProjectMergeRequests(g.project, opts, gitlab.WithContext(ctx))
 		if err != nil {
+			if resp != nil && resp.StatusCode == http.StatusNotFound {
+				// return a custom error indicating that the repository is not found,
+				// but also returning the empty result since the decision to continue or not in this case is made by the caller
+				return pullRequests, NewRepositoryNotFoundError(err)
+			}
 			return nil, fmt.Errorf("error listing merge requests for project '%s': %w", g.project, err)
 		}
 		for _, mr := range mrs {

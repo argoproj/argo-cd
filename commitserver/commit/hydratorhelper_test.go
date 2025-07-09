@@ -9,7 +9,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -73,9 +72,13 @@ func TestWriteForPaths(t *testing.T) {
 
 	now := metav1.NewTime(time.Now())
 	metadata := &appsv1.RevisionMetadata{
-		Author:  "test-author",
-		Date:    &now,
-		Message: "test-message",
+		Author: "test-author",
+		Date:   &now,
+		Message: `test-message
+
+Signed-off-by: Test User <test@example.com>
+Argocd-reference-commit-sha: abc123
+`,
 		References: []appsv1.RevisionReference{
 			{
 				Commit: &appsv1.CommitMetadata{
@@ -97,16 +100,15 @@ func TestWriteForPaths(t *testing.T) {
 	topMetadataBytes, err := os.ReadFile(topMetadataPath)
 	require.NoError(t, err)
 
-	expectedSubject, expectedBody, _ := strings.Cut(metadata.Message, "\n\n")
-
 	var topMetadata hydratorMetadataFile
 	err = json.Unmarshal(topMetadataBytes, &topMetadata)
 	require.NoError(t, err)
 	assert.Equal(t, repoURL, topMetadata.RepoURL)
 	assert.Equal(t, drySha, topMetadata.DrySHA)
 	assert.Equal(t, metadata.Author, topMetadata.Author)
-	assert.Equal(t, expectedSubject, topMetadata.Subject)
-	assert.Equal(t, expectedBody, topMetadata.Body)
+	assert.Equal(t, "test-message", topMetadata.Subject)
+	// The body should exclude the Argocd- trailers.
+	assert.Equal(t, "Signed-off-by: Test User <test@example.com>\n", topMetadata.Body)
 	assert.Equal(t, metadata.Date.Format(time.RFC3339), topMetadata.Date)
 	assert.Equal(t, metadata.References, topMetadata.References)
 
