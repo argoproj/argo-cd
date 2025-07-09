@@ -2449,6 +2449,47 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 	assert.Nil(t, testApp.Status.Resources[1].Health)
 }
 
+func TestInferResourcesStatusHealthWithAppInAnyNamespace(t *testing.T) {
+	cacheClient := cache.NewCache(cache.NewInMemoryCache(1 * time.Hour))
+
+	testApp := newTestApp()
+	testApp.Namespace = "otherNamespace"
+	testApp.Status.ResourceHealthSource = v1alpha1.ResourceHealthLocationAppTree
+	testApp.Status.Resources = []v1alpha1.ResourceStatus{{
+		Group:     "apps",
+		Kind:      "Deployment",
+		Name:      "guestbook",
+		Namespace: "otherNamespace",
+	}, {
+		Group:     "apps",
+		Kind:      "StatefulSet",
+		Name:      "guestbook-stateful",
+		Namespace: "otherNamespace",
+	}}
+	appServer := newTestAppServer(t, testApp)
+	appStateCache := appstate.NewCache(cacheClient, time.Minute)
+	err := appStateCache.SetAppResourcesTree("otherNamespace"+"_"+testApp.Name, &v1alpha1.ApplicationTree{Nodes: []v1alpha1.ResourceNode{{
+		ResourceRef: v1alpha1.ResourceRef{
+			Group:     "apps",
+			Kind:      "Deployment",
+			Name:      "guestbook",
+			Namespace: "otherNamespace",
+		},
+		Health: &v1alpha1.HealthStatus{
+			Status: health.HealthStatusDegraded,
+		},
+	}}})
+
+	require.NoError(t, err)
+
+	appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute)
+
+	appServer.inferResourcesStatusHealth(testApp)
+
+	assert.Equal(t, health.HealthStatusDegraded, testApp.Status.Resources[0].Health.Status)
+	assert.Nil(t, testApp.Status.Resources[1].Health)
+}
+
 func TestRunNewStyleResourceAction(t *testing.T) {
 	cacheClient := cache.NewCache(cache.NewInMemoryCache(1 * time.Hour))
 
