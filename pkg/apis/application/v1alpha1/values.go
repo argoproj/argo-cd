@@ -31,6 +31,13 @@ func (h *ApplicationSourceHelm) SetValuesString(value string) error {
 		default:
 			return fmt.Errorf("invalid type %q", reflect.TypeOf(v))
 		}
+		if h.LogJsonMaxDepth > 0 {
+			var err error
+			data, err = TruncateByDepth(data, h.LogJsonMaxDepth)
+			if err != nil {
+				return fmt.Errorf("failed to truncate values: %w", err)
+			}
+		}
 		h.ValuesObject = &runtime.RawExtension{Raw: data}
 		h.Values = ""
 	}
