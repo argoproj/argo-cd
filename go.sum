@@ -903,8 +903,8 @@ github.com/yuin/goldmark v1.4.1/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
 github.com/yuin/gopher-lua v1.1.1 h1:kYKnWBjvbNP4XLT3+bPEwAXJx262OhaHDWDVOPjL46M=
 github.com/yuin/gopher-lua v1.1.1/go.mod h1:GBR0iDaNXjAgGg9zfCvksxSRnQx76gclCIb7kdAd1Pw=
-gitlab.com/gitlab-org/api/client-go v0.133.0 h1:Y+t86XrCUY24A1yLMU1mYgC1/kvUTohLPG7bUJs692M=
-gitlab.com/gitlab-org/api/client-go v0.133.0/go.mod h1:crkp9sCwMQ8gDwuMLgk11sDT336t6U3kESBT0BGsOBo=
+gitlab.com/gitlab-org/api/client-go v0.134.0 h1:J4i6qPN5hRLsqatPxVbe9w2C0A3JEItyCQrzsP52S2k=
+gitlab.com/gitlab-org/api/client-go v0.134.0/go.mod h1:crkp9sCwMQ8gDwuMLgk11sDT336t6U3kESBT0BGsOBo=
 go.mongodb.org/mongo-driver v1.17.1 h1:Wic5cJIwJgSpBhe3lx3+/RybR5PiYRMpVFgO7cOHyIM=
 go.mongodb.org/mongo-driver v1.17.1/go.mod h1:wwWm/+BuOddhcq3n68LKRmgk2wXzmF6s0SFOa0GINL4=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
