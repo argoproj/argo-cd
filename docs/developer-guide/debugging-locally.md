@@ -18,7 +18,7 @@ For the next steps, we will use Argo CD `api-server` as an example of running a 
 ## Configure your IDE
 
 ### Locate your component configuration in `Procfile`
-The `Procfile` is used by Goreman when running Argo CD locally with the local toolchain. It has all the needed component run configuration, and you will need to copy parts of this configuration to your IDE.
+The `Procfile` is used by Goreman when running Argo CD locally with the local toolchain. The file is located in the top-level directory in your cloned Argo CD repo folder, you can view it's latest version [here](https://github.com/argoproj/argo-cd/blob/master/Procfile). It contains all the needed component run configuration, and you will need to copy parts of this configuration to your IDE. 
 
 Example for `api-server` configuration in `Procfile`:
 ``` text
@@ -43,6 +43,10 @@ ARGOCD_TLS_DATA_PATH=/tmp/argocd-local/tls
 ARGOCD_TRACING_ENABLED=1
 FORCE_LOG_COLORS=1
 KUBECONFIG=~/.kube/config
+... 
+# and so on, for example: when you test the app-in-any-namespace feature, 
+# you'll need to add ARGOCD_APPLICATION_NAMESPACES to this list 
+# only for testing this functionality and remove it afterwards.
 ```
 
 ### Configure component IDE launch configuration
