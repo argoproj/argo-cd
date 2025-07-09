@@ -347,7 +347,7 @@ export class ApplicationsService {
         resourceActionParameters: models.ResourceActionParam[]
     ): Promise<models.ResourceAction[]> {
         return requests
-            .post(`/applications/${name}/resource/actions`)
+            .post(`/applications/${name}/resource/actions/v2`)
             .send(
                 JSON.stringify({
                     appNamespace,
