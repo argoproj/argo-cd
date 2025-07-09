@@ -13,7 +13,7 @@ func TestValues_SetString(t *testing.T) {
 		inputValue      string
 		expectError     bool
 		expectValue     string
-		logJsonMaxDepth int64
+		logJSONMaxDepth int64
 	}{
 		{
 			name:        "an empty string should not throw an error",
@@ -64,7 +64,7 @@ func TestValues_SetString(t *testing.T) {
 			name:            "a complex object with max depth parameter should not throw an error. should be truncated object",
 			inputValue:      `{"a": {"nested": "object"}, "an": ["array"], "bool": true, "number": 1, "some": "string"}`,
 			expectValue:     "a: '...(truncated)'\nan: '...(truncated)'\nbool: true\nnumber: 1\nsome: string",
-			logJsonMaxDepth: 1,
+			logJSONMaxDepth: 1,
 		},
 	}
 
@@ -72,7 +72,7 @@ func TestValues_SetString(t *testing.T) {
 		var err error
 		t.Run(testCase.name, func(t *testing.T) {
 			source := &ApplicationSourceHelm{
-				LogJsonMaxDepth: testCase.logJsonMaxDepth,
+				LogJSONMaxDepth: testCase.logJSONMaxDepth,
 			}
 			err = source.SetValuesString(testCase.inputValue)
 

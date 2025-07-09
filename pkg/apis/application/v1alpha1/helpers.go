@@ -21,10 +21,10 @@ func TruncateByDepth(raw []byte, maxDepth int64) ([]byte, error) {
 	return result, nil
 }
 
-func truncateRecursively(val interface{}, depth, maxDepth int64) interface{} {
+func truncateRecursively(val any, depth, maxDepth int64) interface{} {
 	if depth >= maxDepth {
 		switch val.(type) {
-		case map[string]interface{}, []interface{}:
+		case map[string]any, []any:
 			return "...(truncated)"
 		default:
 			return val
@@ -32,14 +32,14 @@ func truncateRecursively(val interface{}, depth, maxDepth int64) interface{} {
 	}
 
 	switch v := val.(type) {
-	case map[string]interface{}:
-		m := map[string]interface{}{}
+	case map[string]any:
+		m := map[string]any{}
 		for k, child := range v {
 			m[k] = truncateRecursively(child, depth+1, maxDepth)
 		}
 		return m
 	case []interface{}:
-		arr := make([]interface{}, len(v))
+		arr := make([]any, len(v))
 		for i, child := range v {
 			arr[i] = truncateRecursively(child, depth+1, maxDepth)
 		}

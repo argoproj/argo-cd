@@ -24,8 +24,8 @@ const (
 	// RevisionHistoryLimit is the max number of successful sync to keep in history
 	RevisionHistoryLimit = 10
 
-	// LogJsonDefaultMaxDepth is the maximum depth of JSON objects to include in logs. zero means unlimited.
-	LogJsonDefaultMaxDepth = 0
+	// LogJSONDefaultMaxDepth is the maximum depth of JSON objects to include in logs. zero means unlimited.
+	LogJSONDefaultMaxDepth = 0
 
 	// KubernetesInternalAPIServerAddr is address of the k8s API server when accessing internal to the cluster
 	KubernetesInternalAPIServerAddr = "https://kubernetes.default.svc"
