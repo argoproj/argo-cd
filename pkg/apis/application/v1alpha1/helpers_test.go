@@ -39,7 +39,7 @@ func TestTruncateByDepth_OK(t *testing.T) {
 			result, err := TruncateByDepth([]byte(tt.input), tt.maxDepth)
 			require.NoError(t, err)
 
-			var wantObj, gotObj interface{}
+			var wantObj, gotObj any
 			require.NoError(t, json.Unmarshal([]byte(tt.want), &wantObj))
 			require.NoError(t, json.Unmarshal(result, &gotObj))
 
