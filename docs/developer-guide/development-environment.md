@@ -83,7 +83,6 @@ minikube start --driver=podman
 
 * Run `kubectl version` 
 
-
 ## Fork and Clone the Repository
 1. Fork the Argo CD repository to your personal GitHub Account
 2. Clone the forked repository:
@@ -100,7 +99,6 @@ git clone https://github.com/YOUR-USERNAME/argo-cd.git
    ```
 
 ## Install Additional Required Development Tools
-
 
 ```shell
 make install-go-tools-local
