@@ -18,7 +18,7 @@ For the next steps, we will use Argo CD `api-server` as an example of running a 
 ## Configure your IDE
 
 ### Locate your component configuration in `Procfile`
-The `Profile` is used by Goreman when running Argo CD locally with the local toolchain. It has all the needed component run configuration, and you will need to copy parts of this configuration to your IDE.
+The `Procfile` is used by Goreman when running Argo CD locally with the local toolchain. It has all the needed component run configuration, and you will need to copy parts of this configuration to your IDE.
 
 Example for `api-server` configuration in `Procfile`:
 ``` text
