@@ -1045,7 +1045,18 @@ func RunCliWithStdin(stdin string, isKubeConextOnlyCli bool, args ...string) (st
 
 	args = append(args, "--insecure")
 
-	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
+	// Create a redactor that only redacts the auth token value
+	redactor := func(text string) string {
+		if token == "" {
+			return text
+		}
+		// Use a more precise approach to only redact the exact auth token
+		// Look for --auth-token followed by the exact token value
+		authTokenPattern := "--auth-token " + token
+		return strings.ReplaceAll(text, authTokenPattern, "--auth-token ******")
+	}
+
+	return RunWithStdinWithRedactor(stdin, "", "../../dist/argocd", redactor, args...)
 }
 
 // RunPluginCli executes an Argo CD CLI plugin with optional stdin input.

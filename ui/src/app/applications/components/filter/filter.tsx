@@ -71,7 +71,7 @@ export const FiltersGroup = (props: {
                         </button>
                     </div>
                 )}
-                <>{props.children}</>
+                {props.children}
                 <div className='filters-group__content'>{props.content}</div>
             </div>
         )

@@ -745,7 +745,7 @@ func (mgr *SettingsManager) getSecret() (*corev1.Secret, error) {
 	return mgr.GetSecretByName(common.ArgoCDSecretName)
 }
 
-// Returns the Secret with the given name from the cluster.
+// GetSecretByName returns the Secret with the given name from the cluster.
 func (mgr *SettingsManager) GetSecretByName(secretName string) (*corev1.Secret, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
