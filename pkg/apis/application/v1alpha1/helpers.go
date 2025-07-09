@@ -6,7 +6,7 @@ import (
 )
 
 func TruncateByDepth(raw []byte, maxDepth int64) ([]byte, error) {
-	var obj interface{}
+	var obj any
 	if err := json.Unmarshal(raw, &obj); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal json: %w", err)
 	}
@@ -21,7 +21,7 @@ func TruncateByDepth(raw []byte, maxDepth int64) ([]byte, error) {
 	return result, nil
 }
 
-func truncateRecursively(val any, depth, maxDepth int64) interface{} {
+func truncateRecursively(val any, depth, maxDepth int64) any {
 	if depth >= maxDepth {
 		switch val.(type) {
 		case map[string]any, []any:
@@ -38,7 +38,7 @@ func truncateRecursively(val any, depth, maxDepth int64) interface{} {
 			m[k] = truncateRecursively(child, depth+1, maxDepth)
 		}
 		return m
-	case []interface{}:
+	case []any:
 		arr := make([]any, len(v))
 		for i, child := range v {
 			arr[i] = truncateRecursively(child, depth+1, maxDepth)
