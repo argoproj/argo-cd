@@ -57,6 +57,12 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 		return fmt.Errorf("failed to write top-level hydrator metadata: %w", err)
 	}
 
+	// Write .gitattributes
+	err = writeGitAttributes(root, "")
+	if err != nil {
+		return fmt.Errorf("failed to write git attributes: %w", err)
+	}
+
 	for _, p := range paths {
 		hydratePath := p.Path
 		if hydratePath == "." {
@@ -134,6 +140,27 @@ func writeReadme(root *os.Root, dirPath string, metadata hydratorMetadataFile) e
 	if err != nil {
 		return fmt.Errorf("failed to execute readme template: %w", err)
 	}
+	return nil
+}
+
+func writeGitAttributes(root *os.Root, dirPath string) error {
+	gitAttributesPath := filepath.Join(dirPath, ".gitattributes")
+	gitAttributesFile, err := root.Create(gitAttributesPath)
+	if err != nil && !os.IsExist(err) {
+		return fmt.Errorf("failed to create git attributes file: %w", err)
+	}
+
+	fileContents := "*/README.md linguist-generated=true\n*/hydrator.metadata linguist-generated=true\n"
+	_, err = gitAttributesFile.WriteString(fileContents)
+	if err != nil {
+		return fmt.Errorf("failed to write git attributes: %w", err)
+	}
+
+	closeErr := gitAttributesFile.Close()
+	if closeErr != nil {
+		log.WithError(closeErr).Error("failed to close git attributes file")
+	}
+
 	return nil
 }
 
