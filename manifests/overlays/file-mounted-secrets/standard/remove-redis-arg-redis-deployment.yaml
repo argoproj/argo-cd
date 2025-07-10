@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-redis
+spec:
+  template:
+    spec:
+      containers:
+      - name: redis
+        args:
+        - "--save"
+          $patch: delete
+        - ""
+          $patch: delete
+        - "--appendonly"
+          $patch: delete
+        - "no"
+          $patch: delete
+        - "--requirepass $(REDIS_PASSWORD)"
+          $patch: delete

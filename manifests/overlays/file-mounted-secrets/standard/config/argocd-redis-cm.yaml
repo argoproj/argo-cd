@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-redis-configmap
+  labels:
+    app.kubernetes.io/name: argocd-redis
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: redis
+data:
+  init.sh: |
+    #!/bin/sh
+
+    set -eu
+
+    REDIS_CONF=/data/conf/redis.conf
+    REDIS_PASSWORD_FILE="${REDIS_CREDS_FILE_PATH}/auth"
+
+    mkdir -p /data/conf
+
+    echo "Copying default redis config.."
+    cp /readonly-config/redis.conf "${REDIS_CONF}"
+
+    echo "Reading Redis password from file.."
+    if [ -f "$REDIS_PASSWORD_FILE" ]; then
+      REDIS_PASSWORD=$(cat "$REDIS_PASSWORD_FILE")
+    else
+      echo "Error: Redis password file not found!"
+      exit 1
+    fi
+
+    # Escape special chars for sed - handle more special characters
+    ESCAPED_AUTH=$(printf '%s\n' "$REDIS_PASSWORD" | sed 's/[[\.*^$()+?{|]/\\&/g')
+    sed -i "s/replace-default-auth/${ESCAPED_AUTH}/" "${REDIS_CONF}"
+
+    echo "Redis config updated at ${REDIS_CONF}"
+
+  redis.conf: |
+    # Redis configuration file template
+
+    dir "/data"
+    port 6379
+    bind 0.0.0.0
+    appendonly no
+    save ""
+    requirepass replace-default-auth
