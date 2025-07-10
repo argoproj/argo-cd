@@ -69,6 +69,7 @@ const (
 	NotifiedAnnotationKey             = "notified.notifications.argoproj.io"
 	ReconcileRequeueOnValidationError = time.Minute * 3
 	ReverseDeletionOrder              = "Reverse"
+	AllAtOnceDeletionOrder            = "AllAtOnce"
 )
 
 var defaultPreservedAnnotations = []string{
@@ -1081,8 +1082,8 @@ func progressiveSyncsRollingSyncStrategyEnabled(appset *argov1alpha1.Application
 }
 
 func isProgressiveSyncDeletionOrderReversed(appset *argov1alpha1.ApplicationSet) bool {
-	// When progressive sync is enabled + deletionOrder is set to Reverse
-	return progressiveSyncsRollingSyncStrategyEnabled(appset) && appset.Spec.Strategy.DeletionOrder == ReverseDeletionOrder
+	// When progressive sync is enabled + deletionOrder is set to Reverse (case-insensitive)
+	return progressiveSyncsRollingSyncStrategyEnabled(appset) && strings.EqualFold(appset.Spec.Strategy.DeletionOrder, ReverseDeletionOrder)
 }
 
 func isApplicationHealthy(app argov1alpha1.Application) bool {
