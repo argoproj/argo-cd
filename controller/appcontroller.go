@@ -2182,7 +2182,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	if app.Spec.SyncPolicy.Automated.Prune && !app.Spec.SyncPolicy.Automated.AllowEmpty {
 		bAllNeedPrune := true
 		for _, r := range resources {
-			if !r.RequiresPruning {
+			if r.IsSelfReferencedObj && !r.RequiresPruning {
 				bAllNeedPrune = false
 			}
 		}

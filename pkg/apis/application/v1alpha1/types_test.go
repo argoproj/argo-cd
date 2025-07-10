@@ -4543,3 +4543,92 @@ func TestCluster_ParseProxyUrl(t *testing.T) {
 		}
 	}
 }
+
+// TestResourceStatus_IsSelfReferencedObj tests the IsSelfReferencedObj field serialization and deserialization
+func TestResourceStatus_IsSelfReferencedObj(t *testing.T) {
+	t.Run("IsSelfReferencedObj field serialization", func(t *testing.T) {
+		resourceStatus := ResourceStatus{
+			Namespace:           "test-namespace",
+			Name:                "test-resource",
+			Kind:                "Deployment",
+			Version:             "v1",
+			Group:               "apps",
+			IsSelfReferencedObj: true,
+			RequiresPruning:     true,
+		}
+
+		jsonData, err := json.Marshal(resourceStatus)
+		require.NoError(t, err)
+
+		var unmarshaledResourceStatus ResourceStatus
+		err = json.Unmarshal(jsonData, &unmarshaledResourceStatus)
+		require.NoError(t, err)
+
+		assert.Equal(t, resourceStatus.Namespace, unmarshaledResourceStatus.Namespace)
+		assert.Equal(t, resourceStatus.Name, unmarshaledResourceStatus.Name)
+		assert.Equal(t, resourceStatus.Kind, unmarshaledResourceStatus.Kind)
+		assert.Equal(t, resourceStatus.Version, unmarshaledResourceStatus.Version)
+		assert.Equal(t, resourceStatus.Group, unmarshaledResourceStatus.Group)
+		assert.Equal(t, resourceStatus.IsSelfReferencedObj, unmarshaledResourceStatus.IsSelfReferencedObj)
+		assert.Equal(t, resourceStatus.RequiresPruning, unmarshaledResourceStatus.RequiresPruning)
+	})
+
+	t.Run("IsSelfReferencedObj field defaults to false", func(t *testing.T) {
+		resourceStatus := ResourceStatus{
+			Namespace:       "test-namespace",
+			Name:            "test-resource",
+			Kind:            "Deployment",
+			Version:         "v1",
+			Group:           "apps",
+			RequiresPruning: false,
+		}
+
+		jsonData, err := json.Marshal(resourceStatus)
+		require.NoError(t, err)
+
+		var unmarshaledResourceStatus ResourceStatus
+		err = json.Unmarshal(jsonData, &unmarshaledResourceStatus)
+		require.NoError(t, err)
+
+		assert.False(t, unmarshaledResourceStatus.IsSelfReferencedObj)
+	})
+
+	t.Run("IsSelfReferencedObj field with JSON omitempty", func(t *testing.T) {
+		resourceStatus := ResourceStatus{
+			Namespace:           "test-namespace",
+			Name:                "test-resource",
+			Kind:                "Deployment",
+			Version:             "v1",
+			Group:               "apps",
+			IsSelfReferencedObj: false,
+			RequiresPruning:     false,
+		}
+
+		jsonData, err := json.Marshal(resourceStatus)
+		require.NoError(t, err)
+
+		// Verify that the field is not included in JSON when false due to omitempty
+		jsonStr := string(jsonData)
+		assert.NotContains(t, jsonStr, "isSelfReferencedObj")
+	})
+
+	t.Run("IsSelfReferencedObj field with true value", func(t *testing.T) {
+		resourceStatus := ResourceStatus{
+			Namespace:           "test-namespace",
+			Name:                "test-resource",
+			Kind:                "Deployment",
+			Version:             "v1",
+			Group:               "apps",
+			IsSelfReferencedObj: true,
+			RequiresPruning:     false,
+		}
+
+		jsonData, err := json.Marshal(resourceStatus)
+		require.NoError(t, err)
+
+		// Verify that the field is included in JSON when true
+		jsonStr := string(jsonData)
+		assert.Contains(t, jsonStr, "isSelfReferencedObj")
+		assert.Contains(t, jsonStr, "true")
+	})
+}
