@@ -1,0 +1,39 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Base configuration to build upon
+resources:
+- ../../../base
+- config/argocd-redis-cm.yaml
+
+
+# Patches to modify base resources
+patches:
+- path: redis-deployment-patch.yaml
+  target:
+    kind: Deployment
+    name: argocd-redis
+- path: server-deployment-patch.yaml
+  target:
+    kind: Deployment
+    name: argocd-server
+- path: repo-server-deployment-patch.yaml
+  target:
+    kind: Deployment
+    name: argocd-repo-server
+- path: application-controller-statefulset-patch.yaml
+  target:
+    kind: StatefulSet
+    name: argocd-application-controller
+- path: remove-redis-password-server.yaml
+  target:
+    kind: Deployment
+    name: argocd-server
+- path: remove-redis-password-repo-server.yaml
+  target:
+    kind: Deployment
+    name: argocd-repo-server
+- path: remove-redis-password-application-controller.yaml
+  target:
+    kind: StatefulSet
+    name: argocd-application-controller
