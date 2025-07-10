@@ -260,6 +260,7 @@ local_resource(
     'make lint-local',
     deps = code_deps,
     allow_parallel=True,
+    resource_deps=['vendor']
 )
 
 local_resource(
