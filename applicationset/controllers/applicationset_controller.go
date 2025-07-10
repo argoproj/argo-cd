@@ -68,6 +68,7 @@ const (
 	//   https://github.com/argoproj-labs/argocd-notifications/blob/33d345fa838829bb50fca5c08523aba380d2c12b/pkg/controller/state.go#L17
 	NotifiedAnnotationKey             = "notified.notifications.argoproj.io"
 	ReconcileRequeueOnValidationError = time.Minute * 3
+	ReverseDeletionOrder              = "Reverse"
 )
 
 var defaultPreservedAnnotations = []string{
@@ -145,7 +146,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			}
 			logCtx.Debugf("ownerReferences referring %s is deleted from generated applications", appsetName)
 		}
-		if isRollingSyncDeletionReversed(&applicationSetInfo) {
+		if isProgressiveSyncDeletionOrderReversed(&applicationSetInfo) {
 			logCtx.Debugf("DeletionOrder is set as Reverse on %s", appsetName)
 			currentApplications, err := r.getCurrentApplications(ctx, applicationSetInfo)
 			if err != nil {
@@ -378,11 +379,9 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 func (r *ApplicationSetReconciler) performReverseDeletion(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, currentApps []argov1alpha1.Application) (time.Duration, error) {
 	requeueTime := 10 * time.Second
-	// get deletionOrder using current Apps
 	stepLength := len(appset.Spec.Strategy.RollingSync.Steps)
-	if stepLength == 0 {
-		logCtx.Info("no rolling sync steps found")
-	}
+
+	// map applications by name using current applications
 	appMap := make(map[string]*argov1alpha1.Application)
 	for _, app := range currentApps {
 		appMap[app.Name] = &app
@@ -400,11 +399,6 @@ func (r *ApplicationSetReconciler) performReverseDeletion(ctx context.Context, l
 		return reverseDeleteAppSteps[i].Step < reverseDeleteAppSteps[j].Step
 	})
 
-	// TODO delete this block from logs after testing
-	logCtx.Debugf("reverse deletion steps of Appset %v", appset.Name)
-	for _, step := range reverseDeleteAppSteps {
-		logCtx.Debugf("step %v : app %v", step.Step, step.AppName)
-	}
 	for _, step := range reverseDeleteAppSteps {
 		logCtx.Infof("step %v : app %v", step.Step, step.AppName)
 		app := appMap[step.AppName]
@@ -415,9 +409,9 @@ func (r *ApplicationSetReconciler) performReverseDeletion(ctx context.Context, l
 				continue
 			}
 		}
-		// Check if the application is already being deleted - remove finalizer
+		// Check if the application is already being deleted
 		if retrievedApp.DeletionTimestamp != nil {
-			logCtx.Infof("Deletion of the application %v has been triggered, has a deletion timestamp but not completed deletion", step.AppName)
+			logCtx.Infof("application %s has been marked for deletion, but object not removed yet", step.AppName)
 			if time.Since(retrievedApp.DeletionTimestamp.Time) > 2*time.Minute {
 				return 0, errors.New("application has not been deleted in over 2 minutes")
 			}
@@ -1086,8 +1080,9 @@ func progressiveSyncsRollingSyncStrategyEnabled(appset *argov1alpha1.Application
 	return isRollingSyncStrategy(appset) && len(appset.Spec.Strategy.RollingSync.Steps) > 0
 }
 
-func isRollingSyncDeletionReversed(appset *argov1alpha1.ApplicationSet) bool {
-	return progressiveSyncsRollingSyncStrategyEnabled(appset) && appset.Spec.Strategy.DeletionOrder == "Reverse"
+func isProgressiveSyncDeletionOrderReversed(appset *argov1alpha1.ApplicationSet) bool {
+	// When progressive sync is enabled + deletionOrder is set to Reverse
+	return progressiveSyncsRollingSyncStrategyEnabled(appset) && appset.Spec.Strategy.DeletionOrder == ReverseDeletionOrder
 }
 
 func isApplicationHealthy(app argov1alpha1.Application) bool {
