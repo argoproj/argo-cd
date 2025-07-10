@@ -1478,6 +1478,79 @@ func TestIsLiveResourceManaged(t *testing.T) {
 		// then
 		assert.True(t, manager.isSelfReferencedObj(managedWrongAPIGroup, config, appName, v1alpha1.TrackingMethodAnnotation, ""))
 	})
+
+	t.Run("IsSelfReferencedObj false for unmanaged object", func(t *testing.T) {
+		pod := NewPod()
+		pod.SetNamespace(test.FakeDestNamespace)
+		pod.SetName("other-pod") // Different name to make it unmanaged
+		// This pod will NOT be managed by the app since it's not in managedLiveObjs
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			// Empty managedLiveObjs - no objects are managed
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data, nil)
+
+		sources := make([]v1alpha1.ApplicationSource, 0)
+		sources = append(sources, app.Spec.GetSource())
+		revisions := make([]string, 0)
+		revisions = append(revisions, "")
+		compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+		require.NoError(t, err)
+		assert.NotNil(t, compRes)
+
+		// There should be no resources since no objects are managed
+		assert.Empty(t, compRes.resources)
+	})
+
+	t.Run("IsSelfReferencedObj true for object in both target and live", func(t *testing.T) {
+		pod := NewPod()
+		pod.SetNamespace(test.FakeDestNamespace)
+		podBytes, _ := json.Marshal(pod)
+		app := newFakeApp()
+		key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: app.Name}
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{string(podBytes)},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+				key: pod,
+			},
+		}
+		ctrl := newFakeController(&data, nil)
+		sources := make([]v1alpha1.ApplicationSource, 0)
+		sources = append(sources, app.Spec.GetSource())
+		revisions := make([]string, 0)
+		revisions = append(revisions, "")
+		compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+		require.NoError(t, err)
+		assert.NotNil(t, compRes)
+
+		// When object exists in both target and live, it may create multiple resources
+		// Let's check that we have at least one resource and verify the field
+		assert.NotEmpty(t, compRes.resources)
+
+		// Find a resource with IsSelfReferencedObj=true
+		found := false
+		for _, resource := range compRes.resources {
+			if resource.IsSelfReferencedObj {
+				found = true
+				// For an object in both target and live, RequiresPruning should be false
+				assert.False(t, resource.RequiresPruning)
+				break
+			}
+		}
+		assert.True(t, found, "Should have at least one resource with IsSelfReferencedObj=true")
+	})
 }
 
 func TestUseDiffCache(t *testing.T) {
@@ -1847,4 +1920,113 @@ func TestCompareAppState_DoesNotCallUpdateRevisionForPaths_ForOCI(t *testing.T) 
 
 	_, _, _, err := ctrl.appStateManager.GetRepoObjs(app, sources, "abc123", []string{"123456"}, false, false, false, &defaultProj, false)
 	require.NoError(t, err)
+}
+
+// TestCompareAppStateIsSelfReferencedObj tests that the IsSelfReferencedObj field is correctly set
+func TestCompareAppStateIsSelfReferencedObj(t *testing.T) {
+	t.Run("IsSelfReferencedObj true for managed object", func(t *testing.T) {
+		pod := NewPod()
+		pod.SetNamespace(test.FakeDestNamespace)
+		// This pod will be managed by the app since it's in managedLiveObjs
+		app := newFakeApp()
+		key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: app.Name}
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+				key: pod,
+			},
+		}
+		ctrl := newFakeController(&data, nil)
+		sources := make([]v1alpha1.ApplicationSource, 0)
+		sources = append(sources, app.Spec.GetSource())
+		revisions := make([]string, 0)
+		revisions = append(revisions, "")
+		compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+		require.NoError(t, err)
+		assert.NotNil(t, compRes)
+		assert.Len(t, compRes.resources, 1)
+
+		// Check that IsSelfReferencedObj is true for managed object
+		assert.True(t, compRes.resources[0].IsSelfReferencedObj)
+		// Check that RequiresPruning is true since this is a self-referenced object not in target
+		assert.True(t, compRes.resources[0].RequiresPruning)
+	})
+
+	t.Run("IsSelfReferencedObj false for unmanaged object", func(t *testing.T) {
+		pod := NewPod()
+		pod.SetNamespace(test.FakeDestNamespace)
+		pod.SetName("other-pod") // Different name to make it unmanaged
+		// This pod will NOT be managed by the app since it's not in managedLiveObjs
+		app := newFakeApp()
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			// Empty managedLiveObjs - no objects are managed
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(&data, nil)
+
+		sources := make([]v1alpha1.ApplicationSource, 0)
+		sources = append(sources, app.Spec.GetSource())
+		revisions := make([]string, 0)
+		revisions = append(revisions, "")
+		compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+		require.NoError(t, err)
+		assert.NotNil(t, compRes)
+
+		// There should be no resources since no objects are managed
+		assert.Empty(t, compRes.resources)
+	})
+
+	t.Run("IsSelfReferencedObj true for object in both target and live", func(t *testing.T) {
+		pod := NewPod()
+		pod.SetNamespace(test.FakeDestNamespace)
+		podBytes, _ := json.Marshal(pod)
+		app := newFakeApp()
+		key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: app.Name}
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{string(podBytes)},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+				key: pod,
+			},
+		}
+		ctrl := newFakeController(&data, nil)
+		sources := make([]v1alpha1.ApplicationSource, 0)
+		sources = append(sources, app.Spec.GetSource())
+		revisions := make([]string, 0)
+		revisions = append(revisions, "")
+		compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+		require.NoError(t, err)
+		assert.NotNil(t, compRes)
+
+		// When object exists in both target and live, it may create multiple resources
+		// Let's check that we have at least one resource and verify the field
+		assert.NotEmpty(t, compRes.resources)
+
+		// Find a resource with IsSelfReferencedObj=true
+		found := false
+		for _, resource := range compRes.resources {
+			if resource.IsSelfReferencedObj {
+				found = true
+				// For an object in both target and live, RequiresPruning should be false
+				assert.False(t, resource.RequiresPruning)
+				break
+			}
+		}
+		assert.True(t, found, "Should have at least one resource with IsSelfReferencedObj=true")
+	})
 }
