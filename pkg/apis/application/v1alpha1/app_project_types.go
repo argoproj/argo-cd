@@ -241,7 +241,7 @@ func (proj *AppProject) ValidateProject() error {
 			}
 			windowHash := window.Hash()
 			if _, ok := existingWindows[windowHash]; ok {
-				return status.Errorf(codes.AlreadyExists, "window '%s':'%s':'%s' already exists, update or edit", window.Kind, window.Schedule, window.Duration)
+				return status.Errorf(codes.AlreadyExists, "sync window with kind '%s', schedule '%s', and duration '%s' already exists (hash=%d, duplicate detected)", window.Kind, window.Schedule, window.Duration, windowHash)
 			}
 			err := window.Validate()
 			if err != nil {
