@@ -2234,6 +2234,23 @@ type Cluster struct {
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,13,opt,name=annotations"`
 }
 
+func (c *Cluster) Sanitized() *Cluster {
+	clust := *c
+	clust.Config.Username = ""
+	clust.Config.Password = ""
+	clust.Config.BearerToken = ""
+	clust.Config.KeyData = nil
+	if clust.Config.ExecProviderConfig != nil {
+		// We can't know what the user has put into args or
+		// env vars on the exec provider that might be sensitive
+		// (e.g. --private-key=XXX, PASSWORD=XXX)
+		// Implicitly assumes the command executable name is non-sensitive
+		clust.Config.ExecProviderConfig.Env = make(map[string]string)
+		clust.Config.ExecProviderConfig.Args = nil
+	}
+	return &clust
+}
+
 // Equals returns true if two cluster objects are considered to be equal
 func (c *Cluster) Equals(other *Cluster) bool {
 	if c.Server != other.Server {
