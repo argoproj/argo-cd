@@ -33,6 +33,36 @@ After your GitOps Engine PR has been merged, ArgoCD needs to be updated to pull 
 - See https://github.com/argoproj/argo-cd/pull/4434 as an example
 - The PR might require additional, dependent changes in ArgoCD that are directly impacted by the changes made in the engine.
 
+## Notifications Engine (`github.com/argoproj/notifications-engine`)
+
+### Repository
+
+[notifications-engine](https://github.com/argoproj/notifications-engine)
+
+### Pulling changes from `notifications-engine`
+
+After your Notifications Engine PR has been merged, ArgoCD needs to be updated to pull in the version of the notifications engine that contains your change. Here are the steps:
+
+- Retrieve the SHA hash for your commit. You will use this in the next step.
+- From the `argo-cd` folder, run the following command
+
+  `go get github.com/argoproj/notifications-engine@<git-commit-sha>`
+
+  If you get an error message `invalid version: unknown revision` then you got the wrong SHA hash
+
+- Run:
+
+  `go mod tidy`
+
+- The following files are changed:
+
+  - `go.mod`
+  - `go.sum`
+
+- If your notifications engine PR included docs changes, run `nake codegen` or `make codegen-local`.
+
+- Create an ArgoCD PR with a `refactor:` type in its title for the above file changes.
+
 ## Argo UI Components (`github.com/argoproj/argo-ui`)
 ### Contributing to Argo CD UI
 
