@@ -227,7 +227,7 @@ func TestWriteManifests(t *testing.T) {
 func TestWriteGitAttributes(t *testing.T) {
 	root := tempRoot(t)
 
-	err := writeGitAttributes(root, "")
+	err := writeGitAttributes(root)
 	require.NoError(t, err)
 
 	gitAttributesPath := filepath.Join(root.Name(), ".gitattributes")

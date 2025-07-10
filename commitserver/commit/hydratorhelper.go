@@ -17,12 +17,16 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v3/common"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
 var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
+
+const gitAttributesContents = `*/README.md linguist-generated=true
+*/hydrator.metadata linguist-generated=true`
 
 func init() {
 	// Avoid allowing the user to learn things about the environment.
@@ -58,7 +62,7 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 	}
 
 	// Write .gitattributes
-	err = writeGitAttributes(root, "")
+	err = writeGitAttributes(root)
 	if err != nil {
 		return fmt.Errorf("failed to write git attributes: %w", err)
 	}
@@ -143,22 +147,25 @@ func writeReadme(root *os.Root, dirPath string, metadata hydratorMetadataFile) e
 	return nil
 }
 
-func writeGitAttributes(root *os.Root, dirPath string) error {
-	gitAttributesPath := filepath.Join(dirPath, ".gitattributes")
-	gitAttributesFile, err := root.Create(gitAttributesPath)
-	if err != nil && !os.IsExist(err) {
+func writeGitAttributes(root *os.Root) error {
+	gitAttributesFile, err := root.Create(".gitattributes")
+	if err != nil {
 		return fmt.Errorf("failed to create git attributes file: %w", err)
 	}
 
-	fileContents := "*/README.md linguist-generated=true\n*/hydrator.metadata linguist-generated=true\n"
-	_, err = gitAttributesFile.WriteString(fileContents)
+	defer func() {
+		err = gitAttributesFile.Close()
+		if err != nil {
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
+			}).Errorf("error closing file %q: %v", gitAttributesFile.Name(), err)
+		}
+	}()
+
+	_, err = gitAttributesFile.WriteString(gitAttributesContents)
 	if err != nil {
 		return fmt.Errorf("failed to write git attributes: %w", err)
-	}
-
-	closeErr := gitAttributesFile.Close()
-	if closeErr != nil {
-		log.WithError(closeErr).Error("failed to close git attributes file")
 	}
 
 	return nil
