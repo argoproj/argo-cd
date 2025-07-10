@@ -935,6 +935,37 @@ message Command {
   repeated string args = 2;
 }
 
+// CommitMetadata contains metadata about a commit that is related in some way to another commit.
+message CommitMetadata {
+  // Author is the author of the commit, i.e. `git show -s --format=%an <%ae>`.
+  // Must be formatted according to RFC 5322 (mail.Address.String()).
+  // Comes from the Argocd-reference-commit-author trailer.
+  optional string author = 1;
+
+  // Date is the date of the commit, formatted as by `git show -s --format=%aI` (RFC 3339).
+  // It can also be an empty string if the date is unknown.
+  // Comes from the Argocd-reference-commit-date trailer.
+  optional string date = 2;
+
+  // Subject is the commit message subject line, i.e. `git show -s --format=%s`.
+  // Comes from the Argocd-reference-commit-subject trailer.
+  optional string subject = 3;
+
+  // Body is the commit message body minus the subject line, i.e. `git show -s --format=%b`.
+  // Comes from the Argocd-reference-commit-body trailer.
+  optional string body = 4;
+
+  // SHA is the commit hash.
+  // Comes from the Argocd-reference-commit-sha trailer.
+  optional string sha = 5;
+
+  // RepoURL is the URL of the repository where the commit is located.
+  // Comes from the Argocd-reference-commit-repourl trailer.
+  // This value is not validated and should not be used to construct UI links unless it is properly
+  // validated and/or sanitized first.
+  optional string repoUrl = 6;
+}
+
 // ComparedTo contains application source and target which was used for resources comparison
 message ComparedTo {
   // Source is a reference to the application's source used for comparison
@@ -1097,7 +1128,7 @@ message GnuPGPublicKey {
   // Trust holds the level of trust assigned to this key
   optional string trust = 4;
 
-  // SubType holds the key's sub type (e.g. rsa4096)
+  // SubType holds the key's subtype (e.g. rsa4096)
   optional string subType = 5;
 
   // KeyData holds the raw key data, in base64 encoded format
@@ -1161,6 +1192,9 @@ message HostInfo {
 
   // SystemInfo contains detailed system-level information about the host, such as OS, kernel version, and architecture.
   optional .k8s.io.api.core.v1.NodeSystemInfo systemInfo = 3;
+
+  // Labels holds the labels attached to the host.
+  map<string, string> labels = 4;
 }
 
 // HostResourceInfo represents resource usage details for a specific resource type on a host.
@@ -1377,6 +1411,23 @@ message NestedMergeGenerator {
   repeated string mergeKeys = 2;
 }
 
+// OCIMetadata contains metadata for a specific revision in an OCI repository
+message OCIMetadata {
+  optional string createdAt = 1;
+
+  optional string authors = 2;
+
+  optional string imageUrl = 3;
+
+  optional string docsUrl = 4;
+
+  optional string sourceUrl = 5;
+
+  optional string version = 6;
+
+  optional string description = 7;
+}
+
 // Operation contains information about a requested or running operation
 message Operation {
   // Sync contains parameters for the operation
@@ -1540,6 +1591,9 @@ message PullRequestGenerator {
 
   // Values contains key/value pairs which are passed directly as parameters to the template
   map<string, string> values = 10;
+
+  // ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator parameters generation even if the repository is not found.
+  optional bool continueOnRepoNotFoundError = 11;
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
@@ -1612,6 +1666,8 @@ message PullRequestGeneratorFilter {
   optional string branchMatch = 1;
 
   optional string targetBranchMatch = 2;
+
+  optional string titleMatch = 3;
 }
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.
@@ -1744,6 +1800,9 @@ message RepoCreds {
 
   // BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
   optional string bearerToken = 25;
+
+  // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
+  optional bool insecureOCIForceHttp = 26;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1830,6 +1889,9 @@ message Repository {
 
   // BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
   optional string bearerToken = 25;
+
+  // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
+  optional bool insecureOCIForceHttp = 26;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
@@ -2181,7 +2243,8 @@ message RevisionHistory {
   optional OperationInitiator initiatedBy = 10;
 }
 
-// RevisionMetadata contains metadata for a specific revision in a Git repository
+// RevisionMetadata contains metadata for a specific revision in a Git repository. This field is used by the
+// Source Hydrator feature which may be removed in the future.
 message RevisionMetadata {
   // who authored this revision,
   // typically their name and email, e.g. "John Doe <john_doe@my-company.com>",
@@ -2200,6 +2263,16 @@ message RevisionMetadata {
 
   // SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
   optional string signatureInfo = 5;
+
+  // References contains references to information that's related to this commit in some way.
+  repeated RevisionReference references = 6;
+}
+
+// RevisionReference contains a reference to a some information that is related in some way to another commit. For now,
+// it supports only references to a commit. In the future, it may support other types of references.
+message RevisionReference {
+  // Commit contains metadata about the commit that is related in some way to another commit.
+  optional CommitMetadata commit = 1;
 }
 
 // SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.

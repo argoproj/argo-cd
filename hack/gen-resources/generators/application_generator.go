@@ -22,11 +22,10 @@ import (
 type ApplicationGenerator struct {
 	argoClientSet *appclientset.Clientset
 	clientSet     *kubernetes.Clientset
-	db            db.ArgoDB
 }
 
-func NewApplicationGenerator(argoClientSet *appclientset.Clientset, clientSet *kubernetes.Clientset, db db.ArgoDB) Generator {
-	return &ApplicationGenerator{argoClientSet, clientSet, db}
+func NewApplicationGenerator(argoClientSet *appclientset.Clientset, clientSet *kubernetes.Clientset) Generator {
+	return &ApplicationGenerator{argoClientSet, clientSet}
 }
 
 func (generator *ApplicationGenerator) buildRandomSource(repositories []*v1alpha1.Repository) (*v1alpha1.ApplicationSource, error) {

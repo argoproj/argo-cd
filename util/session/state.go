@@ -38,6 +38,8 @@ func NewUserStateStorage(redis *redis.Client) *userStateStorage {
 	}
 }
 
+// Init sets up watches on the revoked tokens and starts a ticker to periodically resync the revoked tokens from Redis.
+// Don't call this until after setting up all hooks on the Redis client, or you might encounter race conditions.
 func (storage *userStateStorage) Init(ctx context.Context) {
 	go storage.watchRevokedTokens(ctx)
 	ticker := time.NewTicker(storage.resyncDuration)
@@ -108,9 +110,8 @@ func (storage *userStateStorage) loadRevokedTokens() error {
 	return nil
 }
 
-func (storage *userStateStorage) GetLoginAttempts(attempts *map[string]LoginAttempts) error {
-	*attempts = storage.attempts
-	return nil
+func (storage *userStateStorage) GetLoginAttempts() map[string]LoginAttempts {
+	return storage.attempts
 }
 
 func (storage *userStateStorage) SetLoginAttempts(attempts map[string]LoginAttempts) error {
@@ -142,7 +143,7 @@ func (storage *userStateStorage) GetLockObject() *sync.RWMutex {
 type UserStateStorage interface {
 	Init(ctx context.Context)
 	// GetLoginAttempts return number of concurrent login attempts
-	GetLoginAttempts(attempts *map[string]LoginAttempts) error
+	GetLoginAttempts() map[string]LoginAttempts
 	// SetLoginAttempts sets number of concurrent login attempts
 	SetLoginAttempts(attempts map[string]LoginAttempts) error
 	// RevokeToken revokes token with given id (information about revocation expires after specified timeout)

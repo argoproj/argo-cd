@@ -367,13 +367,13 @@ func cleanSetParameters(val string) string {
 	return val
 }
 
-func replaceAllWithLookbehind(val string, old rune, new string, lookbehind rune) string {
+func replaceAllWithLookbehind(val string, old rune, newV string, lookbehind rune) string {
 	var result strings.Builder
 	var prevR rune
 	for _, r := range val {
 		if r == old {
 			if prevR != lookbehind {
-				result.WriteString(new)
+				result.WriteString(newV)
 			} else {
 				result.WriteRune(old)
 			}

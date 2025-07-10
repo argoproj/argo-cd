@@ -222,19 +222,18 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []byte, values map[string]string, useGoTemplate bool, goTemplateOptions []string, pathParamPrefix string) ([]map[string]any, error) {
 	objectsFound := []map[string]any{}
 
-	// First, we attempt to parse as an array
-	err := yaml.Unmarshal(fileContent, &objectsFound)
-	if err != nil {
-		// If unable to parse as an array, attempt to parse as a single object
-		singleObj := make(map[string]any)
-		err = yaml.Unmarshal(fileContent, &singleObj)
+	// First, we attempt to parse as a single object.
+	// This will also succeed for empty files.
+	singleObj := map[string]any{}
+	err := yaml.Unmarshal(fileContent, &singleObj)
+	if err == nil {
+		objectsFound = append(objectsFound, singleObj)
+	} else {
+		// If unable to parse as an object, try to parse as an array
+		err = yaml.Unmarshal(fileContent, &objectsFound)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse file: %w", err)
 		}
-		objectsFound = append(objectsFound, singleObj)
-	} else if len(objectsFound) == 0 {
-		// If file is valid but empty, add a default empty item
-		objectsFound = append(objectsFound, map[string]any{})
 	}
 
 	res := []map[string]any{}
@@ -278,7 +277,7 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 			params[pathParamName+".basenameNormalized"] = utils.SanitizeName(path.Base(params[pathParamName].(string)))
 			params[pathParamName+".filenameNormalized"] = utils.SanitizeName(path.Base(params[pathParamName+".filename"].(string)))
 			for k, v := range strings.Split(params[pathParamName].(string), "/") {
-				if len(v) > 0 {
+				if v != "" {
 					params[pathParamName+"["+strconv.Itoa(k)+"]"] = v
 				}
 			}
@@ -353,7 +352,7 @@ func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGene
 			params[pathParamName+".basename"] = path.Base(a)
 			params[pathParamName+".basenameNormalized"] = utils.SanitizeName(path.Base(a))
 			for k, v := range strings.Split(params[pathParamName].(string), "/") {
-				if len(v) > 0 {
+				if v != "" {
 					params[pathParamName+"["+strconv.Itoa(k)+"]"] = v
 				}
 			}

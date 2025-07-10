@@ -59,17 +59,17 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                     <div className='argo-table-list__head'>
                         <div className='row'>
                             <div className='columns small-1 xxxlarge-1' />
-                            <div className='columns small-2 xxxlarge-1'>NAME</div>
+                            <div className='columns small-2 xxxlarge-2'>NAME</div>
                             <div className='columns small-1 xxxlarge-1'>GROUP/KIND</div>
                             <div className='columns small-1 xxxlarge-1'>SYNC ORDER</div>
                             <div className='columns small-2 xxxlarge-1'>NAMESPACE</div>
                             {isSameKind && props.resources[0].kind === 'ReplicaSet' && <div className='columns small-1 xxxlarge-1'>REVISION</div>}
-                            <div className='columns small-2 xxxlarge-1'>CREATED AT</div>
+                            <div className='columns small-2 xxxlarge-2'>CREATED AT</div>
                             <div className='columns small-2 xxxlarge-1'>STATUS</div>
                         </div>
                     </div>
                     {props.resources
-                        .sort((first, second) => -createdOrNodeKey(first).localeCompare(createdOrNodeKey(second)))
+                        .sort((first, second) => -createdOrNodeKey(first).localeCompare(createdOrNodeKey(second), undefined, {numeric: true}))
                         .map(res => {
                             const groupkindjoin = [res.group, res.kind].filter(item => !!item).join('/');
                             return (
@@ -88,7 +88,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                             </div>
                                         </div>
                                         <Tooltip content={res.name} enabled={!!res.name}>
-                                            <div className='columns small-2 xxxlarge-1 application-details__item'>
+                                            <div className='columns small-2 xxxlarge-2 application-details__item'>
                                                 <span className='application-details__item_text'>{res.name}</span>
                                                 {res.kind === 'Application' && (
                                                     <Consumer>
@@ -128,7 +128,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                                     );
                                                 })}
                                         <Tooltip content={res.createdAt} enabled={!!res.createdAt}>
-                                            <div className='columns small-2 xxxlarge-1'>
+                                            <div className='columns small-2 xxxlarge-2'>
                                                 {res.createdAt && (
                                                     <span>
                                                         <Moment fromNow={true} ago={true}>

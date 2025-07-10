@@ -131,6 +131,7 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/3.0-3.1.md
     - operator-manual/upgrading/2.14-3.0.md
     - operator-manual/upgrading/2.13-2.14.md
     - operator-manual/upgrading/2.12-2.13.md
@@ -161,6 +162,7 @@ nav:
   - user-guide/application_sources.md
   - user-guide/kustomize.md
   - user-guide/helm.md
+  - user-guide/oci.md
   - user-guide/import.md
   - user-guide/jsonnet.md
   - user-guide/directory.md
@@ -221,6 +223,7 @@ nav:
     - developer-guide/extensions/ui-extensions.md
     - developer-guide/extensions/proxy-extensions.md
   - developer-guide/faq.md
+  - developer-guide/tilt.md
 - faq.md
 - security_considerations.md
 - Support: SUPPORT.md
