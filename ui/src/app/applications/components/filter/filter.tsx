@@ -95,6 +95,18 @@ export const Filter = (props: FilterProps) => {
     const labels = props.labels || options.map(o => o.label);
 
     React.useEffect(() => {
+        const hasUndefinedValues: boolean = Object.values(values).some(value => value === undefined);
+        if (hasUndefinedValues) {
+            const cleanedValues = {} as {[label: string]: boolean};
+            Object.keys(values).forEach(key => {
+                if (values[key] !== undefined) {
+                    cleanedValues[key] = values[key];
+                }
+            });
+            setValues(cleanedValues);
+            return;
+        }
+
         const map: string[] = Object.keys(values).filter(s => values[s]);
         props.setSelected(map);
         if (props.field) {
