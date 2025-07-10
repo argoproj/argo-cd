@@ -2041,7 +2041,12 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 }
 
 func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Application, syncReq *application.ApplicationSyncRequest) (string, string, []string, []string, error) {
-	externalRevisionIsOverride, _ := s.settingsMgr.ExternalRevisionConsideredOverride()
+	externalRevisionIsOverride, err := s.settingsMgr.ExternalRevisionConsideredOverride()
+	if err != nil {
+		// continue, but log error
+		log.WithError(err).Warn("error getting ExternalRevisionConsideredOverride setting, defaulting to false")
+		externalRevisionIsOverride = false
+	}
 	if a.Spec.HasMultipleSources() {
 		numOfSources := int64(len(a.Spec.GetSources()))
 		sourceRevisions := make([]string, numOfSources)
@@ -2059,7 +2064,9 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 					return "", "", nil, nil, err
 				}
 				if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
-					return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, "Cannot sync source %s to %s: auto-sync currently set to %s", a.Spec.GetSources()[index].RepoURL, desiredRevision, a.Spec.Sources[index].TargetRevision)
+					return "", "", nil, nil, status.Errorf(codes.FailedPrecondition,
+						"Cannot sync source %s to %s: auto-sync currently set to %s",
+						a.Spec.GetSources()[index].RepoURL, desiredRevision, a.Spec.Sources[index].TargetRevision)
 				}
 			}
 			revision, displayRevision, err := s.resolveRevision(ctx, a, syncReq, index)
@@ -2072,11 +2079,13 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 		return "", "", sourceRevisions, displayRevisions, nil
 	}
 	source := a.Spec.GetSource()
-	if syncReq.GetRevision() != "" && syncReq.GetRevision() != text.FirstNonEmpty(source.TargetRevision, "HEAD") {
+	if syncReq.GetRevision() != "" &&
+		syncReq.GetRevision() != text.FirstNonEmpty(source.TargetRevision, "HEAD") {
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionOverride, a.RBACName(s.ns)); err != nil && externalRevisionIsOverride {
 			return "", "", nil, nil, err
 		}
-		if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
+		if a.Spec.SyncPolicy != nil &&
+			a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
 			return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), source.TargetRevision)
 		}
 	}
