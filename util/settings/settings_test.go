@@ -1858,7 +1858,7 @@ func TestIsImpersonationEnabled(t *testing.T) {
 		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must not return any error")
 }
 
-func TestExternalRevisionConsideredOverride(t *testing.T) {
+func TestExternalRevisionConsideredOverrideNoConfigMap(t *testing.T) {
 	// When there is no argocd-cm itself,
 	// Then ExternalRevisionConsideredOverride() must return false (default value) and an error with appropriate error message.
 	kubeClient := fake.NewClientset()
@@ -1868,37 +1868,56 @@ func TestExternalRevisionConsideredOverride(t *testing.T) {
 		"with no argocd-cm config map, ExternalRevisionConsideredOverride() must return return false (default value)")
 	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
 		"with no argocd-cm config map, ExternalRevisionConsideredOverride() must return an error")
+}
 
-	// When there is no impersonation feature flag present in the argocd-cm,
+func TestExternalRevisionConsideredOverrideEmptyConfigMap(t *testing.T) {
+	// When there is no feature flag present in the argocd-cm,
 	// Then ExternalRevisionConsideredOverride() must return false (default value) and nil error.
-	_, settingsManager = fixtures(map[string]string{})
-	featureFlag, err = settingsManager.ExternalRevisionConsideredOverride()
+	_, settingsManager := fixtures(map[string]string{})
+	featureFlag, err := settingsManager.ExternalRevisionConsideredOverride()
 	require.False(t, featureFlag,
 		"with empty argocd-cm config map, ExternalRevisionConsideredOverride() must return false (default value)")
 	require.NoError(t, err,
 		"with empty argocd-cm config map, ExternalRevisionConsideredOverride() must not return any error")
+}
 
+func TestExternalRevisionConsideredOverrideFalse(t *testing.T) {
 	// When user disables the feature explicitly,
 	// Then ExternalRevisionConsideredOverride() must return false and nil error.
-	_, settingsManager = fixtures(map[string]string{
+	_, settingsManager := fixtures(map[string]string{
 		"application.sync.externalRevisionConsideredOverride": "false",
 	})
-	featureFlag, err = settingsManager.ExternalRevisionConsideredOverride()
+	featureFlag, err := settingsManager.ExternalRevisionConsideredOverride()
 	require.False(t, featureFlag,
-		"when user enables the flag in argocd-cm config map, ExternalRevisionConsideredOverride() must return user set value")
+		"when user disables the flag in argocd-cm config map, ExternalRevisionConsideredOverride() must return user set value")
 	require.NoError(t, err,
-		"when user enables the flag in argocd-cm config map, ExternalRevisionConsideredOverride() must not return any error")
+		"when user disables the flag in argocd-cm config map, ExternalRevisionConsideredOverride() must not return any error")
+}
 
+func TestExternalRevisionConsideredOverrideTrue(t *testing.T) {
 	// When user enables the feature explicitly,
 	// Then ExternalRevisionConsideredOverride() must return true and nil error.
-	_, settingsManager = fixtures(map[string]string{
+	_, settingsManager := fixtures(map[string]string{
 		"application.sync.externalRevisionConsideredOverride": "true",
 	})
-	featureFlag, err = settingsManager.ExternalRevisionConsideredOverride()
+	featureFlag, err := settingsManager.ExternalRevisionConsideredOverride()
 	require.True(t, featureFlag,
 		"when user enables the flag in argocd-cm config map, ExternalRevisionConsideredOverride() must return user set value")
 	require.NoError(t, err,
 		"when user enables the flag in argocd-cm config map, ExternalRevisionConsideredOverride() must not return any error")
+}
+
+func TestExternalRevisionConsideredOverrideParseError(t *testing.T) {
+	// When a value is set that cannot be parsed as boolean,
+	// Then ExternalRevisionConsideredOverride() must return false and nil error.
+	_, settingsManager := fixtures(map[string]string{
+		"application.sync.externalRevisionConsideredOverride": "BANANA",
+	})
+	featureFlag, err := settingsManager.ExternalRevisionConsideredOverride()
+	require.False(t, featureFlag,
+		"when user set the flag to unparseable value in argocd-cm config map, ExternalRevisionConsideredOverride() must return false (default value)")
+	require.ErrorContains(t, err, "invalid syntax",
+		"with no argocd-cm config map, ExternalRevisionConsideredOverride() must return an error")
 }
 
 func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {

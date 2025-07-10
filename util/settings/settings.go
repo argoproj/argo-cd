@@ -1260,7 +1260,12 @@ func (mgr *SettingsManager) ExternalRevisionConsideredOverride() (bool, error) {
 		return false, nil
 	}
 
-	return strconv.ParseBool(argoCDCM.Data[externalRevisionConsideredOverrideKey])
+	maybeBooleanFlageValue, err := strconv.ParseBool(argoCDCM.Data[externalRevisionConsideredOverrideKey])
+	if err != nil {
+		return false, fmt.Errorf("error parsing %s value: %w, expected true or false",
+			externalRevisionConsideredOverrideKey, err)
+	}
+	return maybeBooleanFlageValue, nil
 }
 
 // GetSettings retrieves settings from the ArgoCDConfigMap and secret.
