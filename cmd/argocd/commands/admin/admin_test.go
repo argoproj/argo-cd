@@ -7,6 +7,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	dynfake "k8s.io/client-go/dynamic/fake"
+
+	"github.com/argoproj/argo-cd/v3/common"
 )
 
 func TestGetAdditionalNamespaces(t *testing.T) {
@@ -36,12 +38,12 @@ func TestGetAdditionalNamespaces(t *testing.T) {
 		},
 		{
 			description:   "empty strings in respective keys in cm shoud return empty namespace list",
-			CmdParamsKeys: map[string]any{applicationsetNamespacesCmdParamsKey: "", applicationNamespacesCmdParamsKey: ""},
+			CmdParamsKeys: map[string]any{applicationsetNamespacesCmdParamsKey: "", common.ApplicationNamespacesCmdParamsKey: ""},
 			expected:      argocdAdditionalNamespaces{applicationNamespaces: []string{}, applicationsetNamespaces: []string{}},
 		},
 		{
 			description:   "when only one of the keys in the cm is set only correct respective list of namespaces should be returned",
-			CmdParamsKeys: map[string]any{applicationNamespacesCmdParamsKey: "foo, bar*"},
+			CmdParamsKeys: map[string]any{common.ApplicationNamespacesCmdParamsKey: "foo, bar*"},
 			expected:      argocdAdditionalNamespaces{applicationsetNamespaces: []string{}, applicationNamespaces: []string{"foo", "bar*"}},
 		},
 		{
@@ -51,7 +53,7 @@ func TestGetAdditionalNamespaces(t *testing.T) {
 		},
 		{
 			description:   "whitespaces are removed for both multiple and single namespace",
-			CmdParamsKeys: map[string]any{applicationNamespacesCmdParamsKey: "  bar    ", applicationsetNamespacesCmdParamsKey: " foo , bar*  "},
+			CmdParamsKeys: map[string]any{common.ApplicationNamespacesCmdParamsKey: "  bar    ", applicationsetNamespacesCmdParamsKey: " foo , bar*  "},
 			expected:      argocdAdditionalNamespaces{applicationNamespaces: []string{"bar"}, applicationsetNamespaces: []string{"foo", "bar*"}},
 		},
 	}
