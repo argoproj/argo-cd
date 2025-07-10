@@ -604,6 +604,7 @@ install-test-tools-local:
 .PHONY: install-codegen-tools-local
 install-codegen-tools-local:
 	./hack/install.sh codegen-tools
+	./hack/install.sh codegen-go-tools
 
 # Installs all tools required for running codegen (Go packages)
 .PHONY: install-go-tools-local

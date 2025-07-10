@@ -347,7 +347,7 @@ export class ApplicationsService {
         resourceActionParameters: models.ResourceActionParam[]
     ): Promise<models.ResourceAction[]> {
         return requests
-            .post(`/applications/${name}/resource/actions`)
+            .post(`/applications/${name}/resource/actions/v2`)
             .send(
                 JSON.stringify({
                     appNamespace,
@@ -547,7 +547,7 @@ export class ApplicationsService {
     public async getApplicationSet(name: string, namespace: string): Promise<models.ApplicationSet> {
         return requests
             .get(`/applicationsets/${name}`)
-            .query({namespace})
+            .query({appsetNamespace: namespace})
             .then(res => res.body as models.ApplicationSet);
     }
 }
