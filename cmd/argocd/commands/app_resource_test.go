@@ -280,19 +280,19 @@ spec:
 		printManifests(&[]unstructured.Unstructured{obj}, true, true, "wide")
 		return nil
 	})
-	assert.Contains(t, output, "FIELD           RESOURCE NAME  VALUE", "Missing a line in the table")
-	assert.Contains(t, output, "apiVersion      unit-test      vX", "Missing a line in the table")
-	assert.Contains(t, output, "kind            unit-test      test", "Missing a line in the table")
-	assert.Contains(t, output, "spec.testfield  unit-test      testvalue", "Missing a line in the table")
-	assert.NotContains(t, output, "metadata.name   unit-test      testvalue")
+	assert.Contains(t, output, "FIELD           RESOURCE NAME  VALUE", "Missing or incorrect header line for table print with showing names.")
+	assert.Contains(t, output, "apiVersion      unit-test      vX", "Missing or incorrect row in table related to apiVersion with showing names.")
+	assert.Contains(t, output, "kind            unit-test      test", "Missing or incorrect line in the table related to kind with showing names.")
+	assert.Contains(t, output, "spec.testfield  unit-test      testvalue", "Missing or incorrect line in the table related to spec.testfield with showing names.")
+	assert.NotContains(t, output, "metadata.name   unit-test      testvalue", "Missing or incorrect line in the table related to metadata.name with showing names.")
 
 	output, _ = captureOutput(func() error {
 		printManifests(&[]unstructured.Unstructured{obj}, true, false, "wide")
 		return nil
 	})
-	assert.Contains(t, output, "FIELD           VALUE", "Missing a line in the table")
-	assert.Contains(t, output, "apiVersion      vX", "Missing a line in the table")
-	assert.Contains(t, output, "kind            test", "Missing a line in the table")
-	assert.Contains(t, output, "spec.testfield  testvalue", "Missing a line in the table")
-	assert.NotContains(t, output, "metadata.name   testvalue")
+	assert.Contains(t, output, "FIELD           VALUE", "Missing or incorrect header line for table print with not showing names.")
+	assert.Contains(t, output, "apiVersion      vX", "Missing or incorrect row in table related to apiVersion with not showing names.")
+	assert.Contains(t, output, "kind            test", "Missing or incorrect row in the table related to kind with not showing names.")
+	assert.Contains(t, output, "spec.testfield  testvalue", "Missing or incorrect row in the table related to spec.testefield with not showing names.")
+	assert.NotContains(t, output, "metadata.name   testvalue", "Missing or incorrect row in the tbale related to metadata.name with not showing names.")
 }
