@@ -39,8 +39,9 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 		output            string
 	)
 	command := &cobra.Command{
-		Use:   "get-resource APPNAME",
-		Short: "Get live manifest of an application's resource",
+		Use:     "get-resource APPNAME",
+		Short:   "Get details about the live Kubernetes manifests of a resource in an application. The filter-fields flag can be used to only display fields you want to see.",
+		Example: `  #`,
 	}
 
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource, if none is included will output details of all resources with specified kind")
@@ -106,7 +107,7 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 			resources = append(resources, *obj)
 			log.Infof("Resource '%s' fetched", obj.GetName())
 		}
-		printManifests(&resources, len(filteredFields) > 0, output)
+		printManifests(&resources, len(filteredFields) > 0, resourceName == "", output)
 	}
 	return command
 }
@@ -179,20 +180,24 @@ func extractItemsFromList(list []any, fields []string) []any {
 }
 
 // reconstructObject rebuilds the original object structure by placing extracted items back into their proper nested location.
-func reconstructObject(extracted []any, keyHiearychy []string, depth int) map[string]any {
+func reconstructObject(extracted []any, fields []string, depth int) map[string]any {
 	obj := make(map[string]any)
-	err := unstructured.SetNestedField(obj, extracted, keyHiearychy[:depth+1]...)
+	err := unstructured.SetNestedField(obj, extracted, fields[:depth+1]...)
 	errors.CheckError(err)
 	return obj
 }
 
 // printManifests outputs resource manifests in the specified format (wide, JSON, or YAML).
-func printManifests(objs *[]unstructured.Unstructured, filteredFields bool, output string) {
+func printManifests(objs *[]unstructured.Unstructured, filteredFields bool, showName bool, output string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "FIELD\tRESOURCE NAME\tVALUE\n")
+	if showName {
+		fmt.Fprintf(w, "FIELD\tRESOURCE NAME\tVALUE\n")
+	} else {
+		fmt.Fprintf(w, "FIELD\tVALUE\n")
+	}
 
 	for i, o := range *objs {
-		if output != "wide" {
+		if output == "json" || output == "yaml" {
 			var formattedManifest []byte
 			var err error
 			if output == "json" {
@@ -212,7 +217,7 @@ func printManifests(objs *[]unstructured.Unstructured, filteredFields bool, outp
 				unstructured.RemoveNestedField(o.Object, "metadata", "name")
 			}
 
-			printManifestAsTable(w, name, o.Object, "")
+			printManifestAsTable(w, name, showName, o.Object, "")
 		}
 	}
 
@@ -222,24 +227,33 @@ func printManifests(objs *[]unstructured.Unstructured, filteredFields bool, outp
 	}
 }
 
-func printManifestAsTable(w *tabwriter.Writer, name string, obj map[string]any, parentField string) {
+// printManifestAsTable recursively prints a manifest object as a tabular view with nested fields flattened.
+func printManifestAsTable(w *tabwriter.Writer, name string, showName bool, obj map[string]any, parentField string) {
 	for key, value := range obj {
 		field := parentField + key
 		switch v := value.(type) {
 		case map[string]any:
-			printManifestAsTable(w, name, v, field+".")
+			printManifestAsTable(w, name, showName, v, field+".")
 		case []any:
 			for i, e := range v {
 				index := "[" + strconv.Itoa(i) + "]"
 
 				if innerObj, ok := e.(map[string]any); ok {
-					printManifestAsTable(w, name, innerObj, field+index+".")
+					printManifestAsTable(w, name, showName, innerObj, field+index+".")
 				} else {
-					fmt.Fprintf(w, "%v\t%v\t%v\n", field+index, name, e)
+					if showName {
+						fmt.Fprintf(w, "%v\t%v\t%v\n", field+index, name, e)
+					} else {
+						fmt.Fprintf(w, "%v\t%v\n", field+index, e)
+					}
 				}
 			}
 		default:
-			fmt.Fprintf(w, "%v\t%v\t%v\n", field, name, v)
+			if showName {
+				fmt.Fprintf(w, "%v\t%v\t%v\n", field, name, v)
+			} else {
+				fmt.Fprintf(w, "%v\t%v\n", field, v)
+			}
 		}
 	}
 }

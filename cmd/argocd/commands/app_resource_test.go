@@ -242,13 +242,13 @@ spec:
 `
 
 	output, _ := captureOutput(func() error {
-		printManifests(&[]unstructured.Unstructured{obj}, false, "yaml")
+		printManifests(&[]unstructured.Unstructured{obj}, false, true, "yaml")
 		return nil
 	})
 	assert.Equal(t, expectedYAML+"\n", output, "Incorrect yaml output for printManifests")
 
 	output, _ = captureOutput(func() error {
-		printManifests(&[]unstructured.Unstructured{obj, obj}, false, "yaml")
+		printManifests(&[]unstructured.Unstructured{obj, obj}, false, true, "yaml")
 		return nil
 	})
 	assert.Equal(t, expectedYAML+"\n---\n"+expectedYAML+"\n", output, "Incorrect yaml output with multiple objs.")
@@ -265,19 +265,19 @@ spec:
 }`
 
 	output, _ = captureOutput(func() error {
-		printManifests(&[]unstructured.Unstructured{obj}, false, "json")
+		printManifests(&[]unstructured.Unstructured{obj}, false, true, "json")
 		return nil
 	})
 	assert.Equal(t, expectedJSON+"\n", output, "Incorrect json output.")
 
 	output, _ = captureOutput(func() error {
-		printManifests(&[]unstructured.Unstructured{obj, obj}, false, "json")
+		printManifests(&[]unstructured.Unstructured{obj, obj}, false, true, "json")
 		return nil
 	})
 	assert.Equal(t, expectedJSON+"\n---\n"+expectedJSON+"\n", output, "Incorrect json output with multiple objs.")
 
 	output, _ = captureOutput(func() error {
-		printManifests(&[]unstructured.Unstructured{obj}, true, "wide")
+		printManifests(&[]unstructured.Unstructured{obj}, true, true, "wide")
 		return nil
 	})
 	assert.Contains(t, output, "FIELD           RESOURCE NAME  VALUE", "Missing a line in the table")
@@ -285,4 +285,14 @@ spec:
 	assert.Contains(t, output, "kind            unit-test      test", "Missing a line in the table")
 	assert.Contains(t, output, "spec.testfield  unit-test      testvalue", "Missing a line in the table")
 	assert.NotContains(t, output, "metadata.name   unit-test      testvalue")
+
+	output, _ = captureOutput(func() error {
+		printManifests(&[]unstructured.Unstructured{obj}, true, false, "wide")
+		return nil
+	})
+	assert.Contains(t, output, "FIELD           VALUE", "Missing a line in the table")
+	assert.Contains(t, output, "apiVersion      vX", "Missing a line in the table")
+	assert.Contains(t, output, "kind            test", "Missing a line in the table")
+	assert.Contains(t, output, "spec.testfield  testvalue", "Missing a line in the table")
+	assert.NotContains(t, output, "metadata.name   testvalue")
 }
