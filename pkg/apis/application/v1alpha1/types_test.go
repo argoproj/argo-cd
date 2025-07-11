@@ -825,6 +825,29 @@ func TestAppProject_ValidateSyncWindowList(t *testing.T) {
 		err = p.ValidateProject()
 		require.NoError(t, err)
 	})
+
+	t.Run("HasDuplicateSyncWindow", func(t *testing.T) {
+		p := newTestProjectWithSyncWindows()
+		err := p.ValidateProject()
+		require.NoError(t, err)
+		dup := *p.Spec.SyncWindows[0]
+		p.Spec.SyncWindows = append(p.Spec.SyncWindows, &dup)
+		err = p.ValidateProject()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "already exists")
+	})
+
+	t.Run("HasRequiredFields", func(t *testing.T) {
+		p := newTestProjectWithSyncWindows()
+		err := p.ValidateProject()
+		require.NoError(t, err)
+		p.Spec.SyncWindows[0].Applications = []string{}
+		p.Spec.SyncWindows[0].Namespaces = []string{}
+		p.Spec.SyncWindows[0].Clusters = []string{}
+		err = p.ValidateProject()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "requires one of application, cluster or namespace")
+	})
 }
 
 // TestInvalidPolicyRules checks various errors in policy rules
