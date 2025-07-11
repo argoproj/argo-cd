@@ -22,7 +22,9 @@ import {
     NodeId,
     nodeKey,
     PodHealthIcon,
-    getUsrMsgKeyToDisplay
+    getUsrMsgKeyToDisplay,
+    getApplicationLinkURL,
+    getManagedByURL
 } from '../utils';
 import {NodeUpdateAnimation} from './node-update-animation';
 import {PodGroup} from '../application-pod-view/pod-view';
@@ -487,11 +489,19 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                         {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
                         {appNode && !rootNode && (
                             <Consumer>
-                                {ctx => (
-                                    <a href={ctx.baseHref + 'applications/' + node.namespace + '/' + node.name} title='Open application'>
-                                        <i className='fa fa-external-link-alt' />
-                                    </a>
-                                )}
+                                {ctx => {
+                                    const linkInfo = getApplicationLinkURL(props.app, ctx.baseHref);
+                                    return (
+                                        <a
+                                            href={linkInfo.url}
+                                            target={linkInfo.isExternal ? '_blank' : undefined}
+                                            rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
+                                            title={`Link: ${linkInfo.url}\nmanaged-by-url: ${getManagedByURL(props.app) || 'none'}`}
+                                        >
+                                            <i className='fa fa-external-link-alt' />
+                                        </a>
+                                    );
+                                }}
                             </Consumer>
                         )}
                         <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
@@ -770,11 +780,19 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
                     {appNode && !rootNode && (
                         <Consumer>
-                            {ctx => (
-                                <a href={ctx.baseHref + 'applications/' + node.namespace + '/' + node.name} title='Open application'>
-                                    <i className='fa fa-external-link-alt' />
-                                </a>
-                            )}
+                            {ctx => {
+                                const linkInfo = getApplicationLinkURL(props.app, ctx.baseHref);
+                                return (
+                                    <a
+                                        href={linkInfo.url}
+                                        target={linkInfo.isExternal ? '_blank' : undefined}
+                                        rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
+                                        title={`Link: ${linkInfo.url}\nmanaged-by-url: ${getManagedByURL(props.app) || 'none'}`}
+                                    >
+                                        <i className='fa fa-external-link-alt' />
+                                    </a>
+                                );
+                            }}
                         </Consumer>
                     )}
                     <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />

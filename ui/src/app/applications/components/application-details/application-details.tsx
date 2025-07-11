@@ -1174,8 +1174,20 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         return from(services.applications.get(name, appNamespace))
             .pipe(
                 mergeMap(app => {
+                    // Check if this application is managed by another Argo CD instance
+                    const managedByURL = AppUtils.getManagedByURL(app);
+                    if (managedByURL) {
+                        console.log('🔍 Application is managed by external instance:', managedByURL);
+                        // Redirect to the external instance
+                        const externalUrl = managedByURL + '/applications/' + app.metadata.namespace + '/' + app.metadata.name;
+                        console.log('🔍 Redirecting to external URL:', externalUrl);
+                        window.open(externalUrl, '_blank');
+                        // Throw an error to be caught by the error handler
+                        throw new Error(`This application is managed by another Argo CD instance. Redirecting to ${externalUrl}`);
+                    }
+                    
                     const fallbackTree = {
-                        nodes: app.status.resources.map(res => ({...res, parentRefs: [], info: [], resourceVersion: '', uid: ''})),
+                        nodes: app.status.resources.map(res => ({...res, parentRefs: [] as any[], info: [] as any[], resourceVersion: '', uid: ''})),
                         orphanedNodes: [],
                         hosts: []
                     } as appModels.ApplicationTree;
