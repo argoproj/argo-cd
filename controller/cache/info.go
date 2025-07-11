@@ -68,6 +68,10 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 		case "ServiceEntry":
 			populateIstioServiceEntryInfo(un, res)
 		}
+	case "argoproj.io":
+		if gvk.Kind == "Application" {
+			populateApplicationInfo(un, res)
+		}
 	}
 }
 
@@ -485,6 +489,13 @@ func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		Capacity:   node.Status.Capacity,
 		SystemInfo: node.Status.NodeInfo,
 		Labels:     node.Labels,
+	}
+}
+
+func populateApplicationInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	// Add managed-by-url annotation to info if present
+	if managedByURL, ok := un.GetAnnotations()["argocd.argoproj.io/managed-by-url"]; ok {
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "managed-by-url", Value: managedByURL})
 	}
 }
 
