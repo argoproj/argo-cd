@@ -32,7 +32,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/v3/util/oidc"
 	"github.com/argoproj/argo-cd/v3/util/rand"
-	oidcconfig "github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // NewLoginCommand returns a new instance of `argocd login` command
@@ -309,7 +308,6 @@ func oauth2Login(
 
 	// Redirect user to login & consent page to ask for permission for the scopes specified above.
 	var url string
-	var oidcconfig oidcconfig.OIDCConfig
 	grantType := oidcutil.InferGrantType(oidcConf)
 	opts := []oauth2.AuthCodeOption{oauth2.AccessTypeOffline}
 	if claimsRequested := oidcSettings.GetIDTokenClaims(); claimsRequested != nil {
@@ -320,9 +318,6 @@ func oauth2Login(
 	case oidcutil.GrantTypeAuthorizationCode:
 		opts = append(opts, oauth2.SetAuthURLParam("code_challenge", codeChallenge))
 		opts = append(opts, oauth2.SetAuthURLParam("code_challenge_method", "S256"))
-		if oidcconfig.DomainHint != "" {
-			opts = append(opts, oauth2.SetAuthURLParam("domain_hint", oidcconfig.DomainHint))
-		}
 		url = oauth2conf.AuthCodeURL(stateNonce, opts...)
 	case oidcutil.GrantTypeImplicit:
 		url, err = oidcutil.ImplicitFlowURL(oauth2conf, stateNonce, opts...)
