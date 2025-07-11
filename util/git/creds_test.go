@@ -328,9 +328,18 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 	// Previously, if the proxy URL was invalid, a temporary file would be left in /dev/shm. This ensures the file is cleaned up in this case.
 
-	// countDev returns the number of files in /dev/shm (argoutilio.TempDir)
+	// argoio.TempDir will be /dev/shm or "" (on an OS without /dev/shm).
+	// In this case os.CreateTemp(), which is used by creds.Environ(),
+	// will use os.TempDir for the temporary directory.
+	// Reproducing this logic here:
+	argoioTempDir := argoio.TempDir
+	if argoioTempDir == "" {
+		argoioTempDir = os.TempDir()
+	}
+
+	// countDev returns the number of files in the temporary directory
 	countFilesInDevShm := func() int {
-		entries, err := os.ReadDir(argoio.TempDir)
+		entries, err := os.ReadDir(argoioTempDir)
 		require.NoError(t, err)
 
 		return len(entries)
