@@ -184,7 +184,7 @@ func ResourceResultIs(result v1alpha1.ResourceResult) Expectation {
 	return func(c *Consequences) (state, string) {
 		results := c.app().Status.OperationState.SyncResult.Resources
 		for _, res := range results {
-			if *res == result {
+			if reflect.DeepEqual(*res, result) {
 				return succeeded, fmt.Sprintf("found resource result %v", result)
 			}
 		}

@@ -272,7 +272,7 @@ The most common instance of this error is with `env:` fields for `containers`.
 ## How to rotate Redis secret?
 * Delete `argocd-redis` secret in the namespace where Argo CD is installed.
 ```bash
-kubectl delete secret argocd-redis -n <argocd namesapce>
+kubectl delete secret argocd-redis -n <argocd namespace>
 ```
 * If you are running Redis in HA mode, restart Redis in HA.
 ```bash

@@ -23,6 +23,8 @@ import (
 )
 
 func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
 		clientSet   *fake.Clientset
 		repoBackend *secretsRepositoryBackend

@@ -51,13 +51,28 @@ While the ApplicationSet spec provides a basic form of templating, it is not int
 
 ### Deploying ApplicationSet resources as part of a Helm chart
 
-ApplicationSet uses the same templating notation as Helm (`{{}}`). If the ApplicationSet templates aren't written as
-Helm string literals, Helm will throw an error like `function "cluster" not defined`. To avoid that error, write the
-template as a Helm string literal. For example:
+ApplicationSet uses the same templating notation as Helm (`{{}}`). When Helm renders the chart templates, it will also
+process the template meant for ApplicationSet rendering. If the ApplicationSet template uses a function like:
 
 ```yaml
     metadata:
-      name: '{{`{{ .nameNormalized }}`}}-guestbook'
+      name: '{{ "guestbook" | normalize }}'
+```
+
+Helm will throw an error like: `function "normalize" not defined`. If the ApplicationSet template uses a generator parameter like:
+
+```yaml
+    metadata:
+      name: '{{.cluster}}-guestbook'
+```
+
+Helm will silently replace `.cluster` with an empty string.
+
+To avoid those errors, write the template as a Helm string literal. For example:
+
+```yaml
+    metadata:
+      name: '{{`{{ .cluster | normalize }}`}}-guestbook'
 ```
 
 This _only_ applies if you use Helm to deploy your ApplicationSet resources.

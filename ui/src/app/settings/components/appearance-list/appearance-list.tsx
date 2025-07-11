@@ -18,7 +18,7 @@ export const AppearanceList = () => {
                         <div className='argo-container'>
                             <div className='appearance-list__panel'>
                                 <div className='row'>
-                                    <span>Dark Theme</span>
+                                    <span>Theme</span>
                                     <Select
                                         value={pref.theme}
                                         onChange={(value: SelectOption) => services.viewPreferences.updatePreferences({theme: value.value})}

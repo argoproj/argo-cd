@@ -14,7 +14,7 @@ fi
 
 # Target (version) tag must match version scheme vMAJOR.MINOR.PATCH with an
 # optional pre-release tag.
-if ! echo "${NEW_TAG}" | egrep -q '^v[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)*$'; then
+if ! echo "${NEW_TAG}" | grep -E -q '^v[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)*$'; then
 	echo "!! Malformed version tag: '${NEW_TAG}', must match 'vMAJOR.MINOR.PATCH(-rcX)'" >&2
 	exit 1
 fi

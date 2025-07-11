@@ -23,7 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
-	ioutil "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 // NewCommand returns a new instance of an argocd-commit-server command
@@ -71,7 +71,7 @@ func NewCommand() *cobra.Command {
 					if err != nil {
 						return err
 					}
-					defer ioutil.Close(conn)
+					defer utilio.Close(conn)
 					client := grpc_health_v1.NewHealthClient(conn)
 					res, err := client.Check(r.Context(), &grpc_health_v1.HealthCheckRequest{})
 					if err != nil {

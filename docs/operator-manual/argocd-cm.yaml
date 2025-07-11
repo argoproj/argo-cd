@@ -277,6 +277,9 @@ data:
   # If omitted, Argo CD injects the app name into the label: 'app.kubernetes.io/instance'
   application.instanceLabelKey: mycompany.com/appname
 
+  # An optional comma-separated list of node labels to propagate to the application pod view.
+  application.allowedNodeLabels: topology.kubernetes.io/zone,node.kubernetes.io/instance-type
+
   # You can change the resource tracking method Argo CD uses by changing the
   # setting application.resourceTrackingMethod to the desired method.
   # The following methods are available:

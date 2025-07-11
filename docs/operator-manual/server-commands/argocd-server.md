@@ -30,6 +30,7 @@ argocd-server [flags]
       --app-state-cache-expiration duration             Cache expiration for app state (default 1h0m0s)
       --application-namespaces strings                  List of additional namespaces where application resources can be managed in
       --appset-allowed-scm-providers strings            The list of allowed custom SCM provider API URLs. This restriction does not apply to SCM or PR generators which do not accept a custom API URL. (Default: Empty = all)
+      --appset-enable-github-api-metrics                Enable GitHub API metrics for generators that use the GitHub API
       --appset-enable-new-git-file-globbing             Enable new globbing in Git files generator.
       --appset-enable-scm-providers                     Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true) (default true)
       --appset-scm-root-ca-path string                  Provide Root CA Path for self-signed TLS Certificates
@@ -60,7 +61,7 @@ argocd-server [flags]
       --insecure-skip-tls-verify                        If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                               Path to a kube config. Only required if out-of-cluster
       --logformat string                                Set the logging format. One of: json|text (default "json")
-      --login-attempts-expiration duration              Cache expiration for failed login attempts (default 24h0m0s)
+      --login-attempts-expiration duration              Cache expiration for failed login attempts. DEPRECATED: this flag is unused and will be removed in a future version. (default 24h0m0s)
       --loglevel string                                 Set the logging level. One of: debug|info|warn|error (default "info")
       --metrics-address string                          Listen for metrics on given address (default "0.0.0.0")
       --metrics-port int                                Start metrics on given port (default 8083)

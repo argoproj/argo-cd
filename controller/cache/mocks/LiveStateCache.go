@@ -77,14 +77,20 @@ type LiveStateCache_GetClusterCache_Call struct {
 }
 
 // GetClusterCache is a helper method to define mock.On call
-//   - server
+//   - server *v1alpha1.Cluster
 func (_e *LiveStateCache_Expecter) GetClusterCache(server interface{}) *LiveStateCache_GetClusterCache_Call {
 	return &LiveStateCache_GetClusterCache_Call{Call: _e.mock.On("GetClusterCache", server)}
 }
 
 func (_c *LiveStateCache_GetClusterCache_Call) Run(run func(server *v1alpha1.Cluster)) *LiveStateCache_GetClusterCache_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*v1alpha1.Cluster))
+		var arg0 *v1alpha1.Cluster
+		if args[0] != nil {
+			arg0 = args[0].(*v1alpha1.Cluster)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -179,16 +185,32 @@ type LiveStateCache_GetManagedLiveObjs_Call struct {
 }
 
 // GetManagedLiveObjs is a helper method to define mock.On call
-//   - destCluster
-//   - a
-//   - targetObjs
+//   - destCluster *v1alpha1.Cluster
+//   - a *v1alpha1.Application
+//   - targetObjs []*unstructured.Unstructured
 func (_e *LiveStateCache_Expecter) GetManagedLiveObjs(destCluster interface{}, a interface{}, targetObjs interface{}) *LiveStateCache_GetManagedLiveObjs_Call {
 	return &LiveStateCache_GetManagedLiveObjs_Call{Call: _e.mock.On("GetManagedLiveObjs", destCluster, a, targetObjs)}
 }
 
 func (_c *LiveStateCache_GetManagedLiveObjs_Call) Run(run func(destCluster *v1alpha1.Cluster, a *v1alpha1.Application, targetObjs []*unstructured.Unstructured)) *LiveStateCache_GetManagedLiveObjs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*v1alpha1.Cluster), args[1].(*v1alpha1.Application), args[2].([]*unstructured.Unstructured))
+		var arg0 *v1alpha1.Cluster
+		if args[0] != nil {
+			arg0 = args[0].(*v1alpha1.Cluster)
+		}
+		var arg1 *v1alpha1.Application
+		if args[1] != nil {
+			arg1 = args[1].(*v1alpha1.Application)
+		}
+		var arg2 []*unstructured.Unstructured
+		if args[2] != nil {
+			arg2 = args[2].([]*unstructured.Unstructured)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
 	})
 	return _c
 }
@@ -237,15 +259,26 @@ type LiveStateCache_GetNamespaceTopLevelResources_Call struct {
 }
 
 // GetNamespaceTopLevelResources is a helper method to define mock.On call
-//   - server
-//   - namespace
+//   - server *v1alpha1.Cluster
+//   - namespace string
 func (_e *LiveStateCache_Expecter) GetNamespaceTopLevelResources(server interface{}, namespace interface{}) *LiveStateCache_GetNamespaceTopLevelResources_Call {
 	return &LiveStateCache_GetNamespaceTopLevelResources_Call{Call: _e.mock.On("GetNamespaceTopLevelResources", server, namespace)}
 }
 
 func (_c *LiveStateCache_GetNamespaceTopLevelResources_Call) Run(run func(server *v1alpha1.Cluster, namespace string)) *LiveStateCache_GetNamespaceTopLevelResources_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*v1alpha1.Cluster), args[1].(string))
+		var arg0 *v1alpha1.Cluster
+		if args[0] != nil {
+			arg0 = args[0].(*v1alpha1.Cluster)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -300,14 +333,20 @@ type LiveStateCache_GetVersionsInfo_Call struct {
 }
 
 // GetVersionsInfo is a helper method to define mock.On call
-//   - server
+//   - server *v1alpha1.Cluster
 func (_e *LiveStateCache_Expecter) GetVersionsInfo(server interface{}) *LiveStateCache_GetVersionsInfo_Call {
 	return &LiveStateCache_GetVersionsInfo_Call{Call: _e.mock.On("GetVersionsInfo", server)}
 }
 
 func (_c *LiveStateCache_GetVersionsInfo_Call) Run(run func(server *v1alpha1.Cluster)) *LiveStateCache_GetVersionsInfo_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*v1alpha1.Cluster))
+		var arg0 *v1alpha1.Cluster
+		if args[0] != nil {
+			arg0 = args[0].(*v1alpha1.Cluster)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -398,15 +437,26 @@ type LiveStateCache_IsNamespaced_Call struct {
 }
 
 // IsNamespaced is a helper method to define mock.On call
-//   - server
-//   - gk
+//   - server *v1alpha1.Cluster
+//   - gk schema.GroupKind
 func (_e *LiveStateCache_Expecter) IsNamespaced(server interface{}, gk interface{}) *LiveStateCache_IsNamespaced_Call {
 	return &LiveStateCache_IsNamespaced_Call{Call: _e.mock.On("IsNamespaced", server, gk)}
 }
 
 func (_c *LiveStateCache_IsNamespaced_Call) Run(run func(server *v1alpha1.Cluster, gk schema.GroupKind)) *LiveStateCache_IsNamespaced_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*v1alpha1.Cluster), args[1].(schema.GroupKind))
+		var arg0 *v1alpha1.Cluster
+		if args[0] != nil {
+			arg0 = args[0].(*v1alpha1.Cluster)
+		}
+		var arg1 schema.GroupKind
+		if args[1] != nil {
+			arg1 = args[1].(schema.GroupKind)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -444,16 +494,32 @@ type LiveStateCache_IterateHierarchy_Call struct {
 }
 
 // IterateHierarchy is a helper method to define mock.On call
-//   - server
-//   - key
-//   - action
+//   - server *v1alpha1.Cluster
+//   - key kube.ResourceKey
+//   - action func(child v1alpha1.ResourceNode, appName string) bool
 func (_e *LiveStateCache_Expecter) IterateHierarchy(server interface{}, key interface{}, action interface{}) *LiveStateCache_IterateHierarchy_Call {
 	return &LiveStateCache_IterateHierarchy_Call{Call: _e.mock.On("IterateHierarchy", server, key, action)}
 }
 
 func (_c *LiveStateCache_IterateHierarchy_Call) Run(run func(server *v1alpha1.Cluster, key kube.ResourceKey, action func(child v1alpha1.ResourceNode, appName string) bool)) *LiveStateCache_IterateHierarchy_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*v1alpha1.Cluster), args[1].(kube.ResourceKey), args[2].(func(child v1alpha1.ResourceNode, appName string) bool))
+		var arg0 *v1alpha1.Cluster
+		if args[0] != nil {
+			arg0 = args[0].(*v1alpha1.Cluster)
+		}
+		var arg1 kube.ResourceKey
+		if args[1] != nil {
+			arg1 = args[1].(kube.ResourceKey)
+		}
+		var arg2 func(child v1alpha1.ResourceNode, appName string) bool
+		if args[2] != nil {
+			arg2 = args[2].(func(child v1alpha1.ResourceNode, appName string) bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
 	})
 	return _c
 }
@@ -491,16 +557,32 @@ type LiveStateCache_IterateHierarchyV2_Call struct {
 }
 
 // IterateHierarchyV2 is a helper method to define mock.On call
-//   - server
-//   - keys
-//   - action
+//   - server *v1alpha1.Cluster
+//   - keys []kube.ResourceKey
+//   - action func(child v1alpha1.ResourceNode, appName string) bool
 func (_e *LiveStateCache_Expecter) IterateHierarchyV2(server interface{}, keys interface{}, action interface{}) *LiveStateCache_IterateHierarchyV2_Call {
 	return &LiveStateCache_IterateHierarchyV2_Call{Call: _e.mock.On("IterateHierarchyV2", server, keys, action)}
 }
 
 func (_c *LiveStateCache_IterateHierarchyV2_Call) Run(run func(server *v1alpha1.Cluster, keys []kube.ResourceKey, action func(child v1alpha1.ResourceNode, appName string) bool)) *LiveStateCache_IterateHierarchyV2_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*v1alpha1.Cluster), args[1].([]kube.ResourceKey), args[2].(func(child v1alpha1.ResourceNode, appName string) bool))
+		var arg0 *v1alpha1.Cluster
+		if args[0] != nil {
+			arg0 = args[0].(*v1alpha1.Cluster)
+		}
+		var arg1 []kube.ResourceKey
+		if args[1] != nil {
+			arg1 = args[1].([]kube.ResourceKey)
+		}
+		var arg2 func(child v1alpha1.ResourceNode, appName string) bool
+		if args[2] != nil {
+			arg2 = args[2].(func(child v1alpha1.ResourceNode, appName string) bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
 	})
 	return _c
 }
@@ -538,15 +620,26 @@ type LiveStateCache_IterateResources_Call struct {
 }
 
 // IterateResources is a helper method to define mock.On call
-//   - server
-//   - callback
+//   - server *v1alpha1.Cluster
+//   - callback func(res *cache.Resource, info *cache0.ResourceInfo)
 func (_e *LiveStateCache_Expecter) IterateResources(server interface{}, callback interface{}) *LiveStateCache_IterateResources_Call {
 	return &LiveStateCache_IterateResources_Call{Call: _e.mock.On("IterateResources", server, callback)}
 }
 
 func (_c *LiveStateCache_IterateResources_Call) Run(run func(server *v1alpha1.Cluster, callback func(res *cache.Resource, info *cache0.ResourceInfo))) *LiveStateCache_IterateResources_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*v1alpha1.Cluster), args[1].(func(res *cache.Resource, info *cache0.ResourceInfo)))
+		var arg0 *v1alpha1.Cluster
+		if args[0] != nil {
+			arg0 = args[0].(*v1alpha1.Cluster)
+		}
+		var arg1 func(res *cache.Resource, info *cache0.ResourceInfo)
+		if args[1] != nil {
+			arg1 = args[1].(func(res *cache.Resource, info *cache0.ResourceInfo))
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -584,14 +677,20 @@ type LiveStateCache_Run_Call struct {
 }
 
 // Run is a helper method to define mock.On call
-//   - ctx
+//   - ctx context.Context
 func (_e *LiveStateCache_Expecter) Run(ctx interface{}) *LiveStateCache_Run_Call {
 	return &LiveStateCache_Run_Call{Call: _e.mock.On("Run", ctx)}
 }
 
 func (_c *LiveStateCache_Run_Call) Run(run func(ctx context.Context)) *LiveStateCache_Run_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -629,14 +728,20 @@ type LiveStateCache_UpdateShard_Call struct {
 }
 
 // UpdateShard is a helper method to define mock.On call
-//   - shard
+//   - shard int
 func (_e *LiveStateCache_Expecter) UpdateShard(shard interface{}) *LiveStateCache_UpdateShard_Call {
 	return &LiveStateCache_UpdateShard_Call{Call: _e.mock.On("UpdateShard", shard)}
 }
 
 func (_c *LiveStateCache_UpdateShard_Call) Run(run func(shard int)) *LiveStateCache_UpdateShard_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(int))
+		var arg0 int
+		if args[0] != nil {
+			arg0 = args[0].(int)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }

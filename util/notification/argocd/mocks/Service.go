@@ -73,15 +73,26 @@ type Service_GetAppDetails_Call struct {
 }
 
 // GetAppDetails is a helper method to define mock.On call
-//   - ctx
-//   - app
+//   - ctx context.Context
+//   - app *v1alpha1.Application
 func (_e *Service_Expecter) GetAppDetails(ctx interface{}, app interface{}) *Service_GetAppDetails_Call {
 	return &Service_GetAppDetails_Call{Call: _e.mock.On("GetAppDetails", ctx, app)}
 }
 
 func (_c *Service_GetAppDetails_Call) Run(run func(ctx context.Context, app *v1alpha1.Application)) *Service_GetAppDetails_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*v1alpha1.Application))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *v1alpha1.Application
+		if args[1] != nil {
+			arg1 = args[1].(*v1alpha1.Application)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -130,17 +141,38 @@ type Service_GetCommitMetadata_Call struct {
 }
 
 // GetCommitMetadata is a helper method to define mock.On call
-//   - ctx
-//   - repoURL
-//   - commitSHA
-//   - project
+//   - ctx context.Context
+//   - repoURL string
+//   - commitSHA string
+//   - project string
 func (_e *Service_Expecter) GetCommitMetadata(ctx interface{}, repoURL interface{}, commitSHA interface{}, project interface{}) *Service_GetCommitMetadata_Call {
 	return &Service_GetCommitMetadata_Call{Call: _e.mock.On("GetCommitMetadata", ctx, repoURL, commitSHA, project)}
 }
 
 func (_c *Service_GetCommitMetadata_Call) Run(run func(ctx context.Context, repoURL string, commitSHA string, project string)) *Service_GetCommitMetadata_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
 	})
 	return _c
 }

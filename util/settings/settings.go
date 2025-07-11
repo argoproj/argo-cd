@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/validation"
 	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
@@ -458,6 +459,8 @@ const (
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
 	// settingsResourceTrackingMethodKey is the key to configure tracking method for application resources
 	settingsResourceTrackingMethodKey = "application.resourceTrackingMethod"
+	// allowedNodeLabelsKey is the key to the list of allowed node labels for the application pod view
+	allowedNodeLabelsKey = "application.allowedNodeLabels"
 	// settingsInstallationID holds the key for the instance installation ID
 	settingsInstallationID = "installationID"
 	// resourcesCustomizationsKey is the key to the map of resource overrides
@@ -572,8 +575,6 @@ type SettingsManager struct {
 	// mutex protects concurrency sensitive parts of settings manager: access to subscribers list and initialization flag
 	mutex                 *sync.Mutex
 	initContextCancel     func()
-	reposCache            []Repository
-	repoCredsCache        []RepositoryCredentials
 	reposOrClusterChanged func()
 }
 
@@ -719,8 +720,6 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*corev1.ConfigMap) err
 		return err
 	}
 
-	mgr.invalidateCache()
-
 	return mgr.ResyncInformers()
 }
 
@@ -751,7 +750,7 @@ func (mgr *SettingsManager) getSecret() (*corev1.Secret, error) {
 	return mgr.GetSecretByName(common.ArgoCDSecretName)
 }
 
-// Returns the Secret with the given name from the cluster.
+// GetSecretByName returns the Secret with the given name from the cluster.
 func (mgr *SettingsManager) GetSecretByName(secretName string) (*corev1.Secret, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
@@ -1296,15 +1295,6 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	return &settings, nil
 }
 
-// Clears cached settings on configmap/secret change
-func (mgr *SettingsManager) invalidateCache() {
-	mgr.mutex.Lock()
-	defer mgr.mutex.Unlock()
-
-	mgr.reposCache = nil
-	mgr.repoCredsCache = nil
-}
-
 func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	tweakConfigMap := func(options *metav1.ListOptions) {
 		cmLabelSelector := fields.ParseSelectorOrDie(partOfArgoCDSelector)
@@ -1313,7 +1303,6 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 
 	eventHandler := cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(_, _ any) {
-			mgr.invalidateCache()
 			mgr.onRepoOrClusterChanged()
 		},
 		AddFunc: func(_ any) {
@@ -1929,6 +1918,13 @@ func (a *ArgoCDSettings) OAuth2ClientSecret() string {
 	return ""
 }
 
+func (a *ArgoCDSettings) OAuth2UsePKCE() bool {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+		return oidcConfig.EnablePKCEAuthentication
+	}
+	return false
+}
+
 func (a *ArgoCDSettings) UseAzureWorkloadIdentity() bool {
 	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.Azure != nil {
 		return oidcConfig.Azure.UseWorkloadIdentity
@@ -2324,4 +2320,27 @@ func (mgr *SettingsManager) IsImpersonationEnabled() (bool, error) {
 		return defaultImpersonationEnabledFlag, fmt.Errorf("error checking %s property in configmap: %w", impersonationEnabledKey, err)
 	}
 	return cm.Data[impersonationEnabledKey] == "true", nil
+}
+
+func (mgr *SettingsManager) GetAllowedNodeLabels() []string {
+	labelKeys := []string{}
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		log.Error(fmt.Errorf("failed getting allowedNodeLabels from configmap: %w", err))
+		return labelKeys
+	}
+	value, ok := argoCDCM.Data[allowedNodeLabelsKey]
+	if !ok || value == "" {
+		return labelKeys
+	}
+	value = strings.ReplaceAll(value, " ", "")
+	keys := strings.SplitSeq(value, ",")
+	for k := range keys {
+		if errs := validation.IsQualifiedName(k); len(errs) > 0 {
+			log.Warnf("Invalid node label key '%s' in configmap: %v", k, errs)
+			continue
+		}
+		labelKeys = append(labelKeys, k)
+	}
+	return labelKeys
 }

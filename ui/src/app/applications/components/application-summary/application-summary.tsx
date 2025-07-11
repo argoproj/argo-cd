@@ -67,6 +67,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
 
     const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
 
+    const repoType = source.repoURL.startsWith('oci://') ? 'oci' : (source.hasOwnProperty('chart') && 'helm') || 'git';
+
     const attributes = [
         {
             title: 'PROJECT',
@@ -235,7 +237,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                               hasMultipleSources ? (
                                   helpTip('TARGET REVISION is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
                               ) : (
-                                  <RevisionFormField helpIconTop={'0'} hideLabel={true} formApi={formApi} repoURL={source.repoURL} />
+                                  <RevisionFormField helpIconTop={'0'} hideLabel={true} formApi={formApi} repoURL={source.repoURL} repoType={repoType} />
                               )
                       },
                       {
@@ -340,19 +342,17 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         attributes.push({
             title: 'URLs',
             view: (
-                <React.Fragment>
-                    <div className='application-summary__links-rows'>
-                        {urls
-                            .map(item => item.split('|'))
-                            .map((parts, i) => (
-                                <div className='application-summary__links-row'>
-                                    <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='_blank'>
-                                        {parts[0]} &nbsp;
-                                    </a>
-                                </div>
-                            ))}
-                    </div>
-                </React.Fragment>
+                <div className='application-summary__links-rows'>
+                    {urls
+                        .map(item => item.split('|'))
+                        .map((parts, i) => (
+                            <div className='application-summary__links-row'>
+                                <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='_blank'>
+                                    {parts[0]} &nbsp;
+                                </a>
+                            </div>
+                        ))}
+                </div>
             )
         });
     }
@@ -491,7 +491,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         <div className='application-summary'>
             <EditablePanel
                 save={updateApp}
-                view={hasMultipleSources ? <>This is a multi-source app, see the Sources tab for repository URLs and source-related information.</> : <></>}
+                view={hasMultipleSources ? <>This is a multi-source app, see the Sources tab for repository URLs and source-related information.</> : null}
                 validate={input => ({
                     'spec.project': !input.spec.project && 'Project name is required',
                     'spec.destination.server': !input.spec.destination.server && input.spec.destination.hasOwnProperty('server') && 'Cluster server is required',

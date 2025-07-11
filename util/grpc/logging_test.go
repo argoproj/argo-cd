@@ -38,7 +38,7 @@ func Test_JSONLogging(t *testing.T) {
 	require.NoError(t, err)
 
 	out := buf.String()
-	assert.Contains(t, out, fmt.Sprintf(`"grpc.request.content":{"name":"%s"`, req.Name))
+	assert.Contains(t, out, fmt.Sprintf(`"grpc.request.content":{"name":%q`, req.Name))
 }
 
 func Test_logRequest(t *testing.T) {
