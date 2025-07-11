@@ -22,7 +22,9 @@ import {
     NodeId,
     nodeKey,
     PodHealthIcon,
-    getUsrMsgKeyToDisplay
+    getUsrMsgKeyToDisplay,
+    getApplicationLinkURLFromNode,
+    getManagedByURLFromNode
 } from '../utils';
 import {NodeUpdateAnimation} from './node-update-animation';
 import {PodGroup} from '../application-pod-view/pod-view';
@@ -486,13 +488,21 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                         {node.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                         {healthState != null && <HealthStatusIcon state={healthState} />}
                         {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
-                        {appNode && !rootNode && (
+                        {appNode && (
                             <Consumer>
-                                {ctx => (
-                                    <a href={ctx.baseHref + 'applications/' + node.namespace + '/' + node.name} title='Open application'>
-                                        <i className='fa fa-external-link-alt' />
-                                    </a>
-                                )}
+                                {ctx => {
+                                    // For nested applications, use the node's data to construct the URL
+                                    const linkInfo = getApplicationLinkURLFromNode(node, ctx.baseHref);
+                                    return (
+                                        <a
+                                            href={linkInfo.url}
+                                            target={linkInfo.isExternal ? '_blank' : undefined}
+                                            rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
+                                            title={`Link: ${linkInfo.url}\nmanaged-by-url: ${getManagedByURLFromNode(node) || 'none'}`}>
+                                            <i className='fa fa-external-link-alt' />
+                                        </a>
+                                    );
+                                }}
                             </Consumer>
                         )}
                         <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
@@ -769,13 +779,21 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     {node.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                     {healthState != null && <HealthStatusIcon state={healthState} />}
                     {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
-                    {appNode && !rootNode && (
+                    {appNode && (
                         <Consumer>
-                            {ctx => (
-                                <a href={ctx.baseHref + 'applications/' + node.namespace + '/' + node.name} title='Open application'>
-                                    <i className='fa fa-external-link-alt' />
-                                </a>
-                            )}
+                            {ctx => {
+                                // For nested applications, use the node's data to construct the URL
+                                const linkInfo = getApplicationLinkURLFromNode(node, ctx.baseHref);
+                                return (
+                                    <a
+                                        href={linkInfo.url}
+                                        target={linkInfo.isExternal ? '_blank' : undefined}
+                                        rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
+                                        title={`Link: ${linkInfo.url}\nmanaged-by-url: ${getManagedByURLFromNode(node) || 'none'}`}>
+                                        <i className='fa fa-external-link-alt' />
+                                    </a>
+                                );
+                            }}
                         </Consumer>
                     )}
                     <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />

@@ -53,6 +53,7 @@ const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => 
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
 
 function loadApplications(projects: string[], appNamespace: string): Observable<models.Application[]> {
+    console.log('🔍 Loading applications for projects:', projects, 'and namespace:', appNamespace);
     return from(services.applications.list(projects, {appNamespace, fields: APP_LIST_FIELDS})).pipe(
         mergeMap(applicationsList => {
             const applications = applicationsList.items;
@@ -398,6 +399,7 @@ export const ApplicationsList = () => {
                                             </div>
                                         )}>
                                         {(applications: models.Application[]) => {
+                                            console.log('🔍 ApplicationsList applications:', applications);
                                             const healthBarPrefs = pref.statusBarView || ({} as HealthStatusBarPreferences);
                                             const {filteredApps, filterResults} = filterApps(applications, pref, pref.search);
                                             const handleCreatePanelClose = async () => {
