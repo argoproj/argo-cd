@@ -2,10 +2,16 @@
 
 ## argocd app get-resource
 
-Get live manifest of an application's resource
+Get details about the live Kubernetes manifests of a resource in an application. The filter-fields flag can be used to only display fields you want to see.
 
 ```
 argocd app get-resource APPNAME [flags]
+```
+
+### Examples
+
+```
+  #
 ```
 
 ### Options
