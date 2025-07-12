@@ -1732,3 +1732,59 @@ export const getProgressiveSyncStatusColor = (status: string): string => {
             return COLORS.sync.unknown;
     }
 };
+
+/**
+ * Gets the managed-by-url annotation from an application if it exists
+ * @param app The application object
+ * @returns The managed-by-url value or null if not present
+ */
+export function getManagedByURL(app: any): string | null {
+    console.log('🔍 getManagedByURL called with app:', {
+        hasApp: !!app,
+        hasMetadata: !!app?.metadata,
+        hasAnnotations: !!app?.metadata?.annotations,
+        annotations: app?.metadata?.annotations,
+        managedByURL: app?.metadata?.annotations?.['argocd.argoproj.io/managed-by-url']
+    });
+    
+    const result = app?.metadata?.annotations?.['argocd.argoproj.io/managed-by-url'] || null;
+    console.log('🔍 getManagedByURL returning:', result);
+    return result;
+}
+
+/**
+ * Gets the correct URL for an application link, considering managed-by-url annotation
+ * @param app The application object
+ * @param baseHref The current instance's base href
+ * @returns The URL to use for the application link
+ */
+export function getApplicationLinkURL(app: any, baseHref: string): {url: string; isExternal: boolean} {
+    console.log('🔍 getApplicationLinkURL called with:', {
+        appName: app?.metadata?.name,
+        appNamespace: app?.metadata?.namespace,
+        baseHref,
+        annotations: app?.metadata?.annotations,
+        managedByURL: app?.metadata?.annotations?.['argocd.argoproj.io/managed-by-url']
+    });
+    
+    const managedByURL = getManagedByURL(app);
+    console.log('🔍 managedByURL:', managedByURL);
+    
+    if (managedByURL) {
+        // If managed-by-url is present, use it as an external link
+        const externalUrl = managedByURL + '/applications/' + app.metadata.namespace + '/' + app.metadata.name;
+        console.log('🔍 Using external URL:', externalUrl);
+        return {
+            url: externalUrl,
+            isExternal: true
+        };
+    } else {
+        // Otherwise, use the local instance URL
+        const localUrl = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
+        console.log('🔍 Using local URL:', localUrl);
+        return {
+            url: localUrl,
+            isExternal: false
+        };
+    }
+}
