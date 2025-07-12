@@ -23,9 +23,48 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/argoproj/argo-cd/v3/common"
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
+
+func TestAddSafeDirectories(t *testing.T) {
+	t.Run("should return error if safe directory is a file", func(t *testing.T) {
+		tmpfile, err := os.CreateTemp(t.TempDir(), "test-file")
+		require.NoError(t, err)
+		defer tmpfile.Close()
+
+		t.Setenv(common.EnvGitSafeDirectories, tmpfile.Name())
+
+		err = AddSafeDirectories()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), fmt.Sprintf("path %q is not a directory", tmpfile.Name()))
+	})
+
+	t.Run("should return error if safe directory does not exist", func(t *testing.T) {
+		nonExistentPath := filepath.Join(t.TempDir(), "non-existent-dir")
+		t.Setenv(common.EnvGitSafeDirectories, nonExistentPath)
+
+		err := AddSafeDirectories()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid path provided for git safe directory")
+	})
+
+	t.Run("should succeed if safe directory is valid", func(t *testing.T) {
+		tmpdir, err := os.MkdirTemp(t.TempDir(), "test-dir")
+		require.NoError(t, err)
+
+		t.Setenv(common.EnvGitSafeDirectories, tmpdir)
+		err = AddSafeDirectories()
+		require.NoError(t, err)
+
+		// clean up
+		_, _ = executil.Run(exec.Command("git", "config", "--global", "--unset", "safe.directory", tmpdir))
+	})
+}
 
 func runCmd(ctx context.Context, workingDir string, name string, args ...string) error {
 	cmd := exec.CommandContext(ctx, name, args...)
