@@ -4765,6 +4765,10 @@ spec:
                       description: Hook is true if the resource is used as a lifecycle
                         hook in an Argo CD application.
                       type: boolean
+                    isSelfReferencedObj:
+                      description: IsSelfReferencedObj is true if the resource is
+                        managed by the application.
+                      type: boolean
                     kind:
                       description: Kind specifies the type of the resource (e.g.,
                         "Deployment", "Service").
