@@ -549,7 +549,7 @@ func newTestApp(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
 }
 
 func newMultiSourceTestApp(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
-	multiSourceApp := newTestApp(opts)
+	multiSourceApp := newTestApp(opts...)
 	multiSourceApp.Name = "multi-source-app"
 	multiSourceApp.Spec = v1alpha1.ApplicationSpec{
 		Sources: []v1alpha1.ApplicationSource{
