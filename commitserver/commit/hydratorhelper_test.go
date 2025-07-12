@@ -223,3 +223,16 @@ func TestWriteManifests(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(manifestBytes), "kind")
 }
+
+func TestWriteGitAttributes(t *testing.T) {
+	root := tempRoot(t)
+
+	err := writeGitAttributes(root)
+	require.NoError(t, err)
+
+	gitAttributesPath := filepath.Join(root.Name(), ".gitattributes")
+	gitAttributesBytes, err := os.ReadFile(gitAttributesPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(gitAttributesBytes), "*/README.md linguist-generated=true")
+	assert.Contains(t, string(gitAttributesBytes), "*/hydrator.metadata linguist-generated=true")
+}

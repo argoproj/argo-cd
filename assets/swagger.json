@@ -7260,6 +7260,10 @@
       "description": "ApplicationSetStrategy configures how generated Applications are updated in sequence.",
       "type": "object",
       "properties": {
+        "deletionOrder": {
+          "type": "string",
+          "title": "DeletionOrder allows specifying the order for deleting generated apps when progressive sync is enabled.\naccepts values \"AllAtOnce\" and \"Reverse\""
+        },
         "rollingSync": {
           "$ref": "#/definitions/v1alpha1ApplicationSetRolloutStrategy"
         },
