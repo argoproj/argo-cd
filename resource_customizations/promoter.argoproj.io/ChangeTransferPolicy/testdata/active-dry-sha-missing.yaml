@@ -1,0 +1,18 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: ChangeTransferPolicy
+metadata:
+  name: test
+  generation: 2
+status:
+  conditions:
+    - type: Ready
+      status: True
+      observedGeneration: 2
+  active:
+    dry: {}
+    commitStatuses: []
+  proposed:
+    dry:
+      sha: abc1234
+    commitStatuses: []
+
