@@ -549,7 +549,7 @@ func newTestApp(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
 }
 
 func newMultiSourceTestApp(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
-	multiSourceApp := newTestApp()
+	multiSourceApp := newTestApp(opts)
 	multiSourceApp.Name = "multi-source-app"
 	multiSourceApp.Spec = v1alpha1.ApplicationSpec{
 		Sources: []v1alpha1.ApplicationSource{
@@ -1838,6 +1838,7 @@ p, test-user, applications, update/fake.io/PodTest/*, default/test-app, deny
 
 func TestSyncRBACOverrideTrue_DiffRevNoOverrideDenied(t *testing.T) {
 	ctx := t.Context()
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 
 	f := func(enf *rbac.Enforcer) {
@@ -1883,6 +1884,7 @@ func TestSyncRBACOverrideTrue_DiffRevNoOverrideDenied(t *testing.T) {
 
 func TestSyncRBACOverrideTrue_SameRevNoOverrideAllowed(t *testing.T) {
 	ctx := t.Context()
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 
 	f := func(enf *rbac.Enforcer) {
@@ -1930,6 +1932,7 @@ func TestSyncRBACOverrideTrue_SameRevNoOverrideAllowed(t *testing.T) {
 
 func TestSyncRBACOverrideTrue_NoRevNoOverrideAllowed(t *testing.T) {
 	ctx := t.Context()
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 
 	f := func(enf *rbac.Enforcer) {
@@ -1973,6 +1976,7 @@ func TestSyncRBACOverrideTrue_NoRevNoOverrideAllowed(t *testing.T) {
 
 func TestSyncRBACOverrideTrue_DiffRevWithOverrideAllowed(t *testing.T) {
 	ctx := t.Context()
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 
 	f := func(enf *rbac.Enforcer) {
@@ -2022,7 +2026,7 @@ func TestSyncRBACOverrideTrue_DiffRevWithOverrideAllowed(t *testing.T) {
 
 func TestSyncMultiSource_PosTooLarge(t *testing.T) {
 	ctx := t.Context()
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	appServer := newTestAppServer(t)
 
@@ -2049,7 +2053,7 @@ func TestSyncMultiSource_PosTooLarge(t *testing.T) {
 
 func TestSyncMultiSource_PosTooSmall(t *testing.T) {
 	ctx := t.Context()
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	appServer := newTestAppServer(t)
 
@@ -2077,6 +2081,7 @@ func TestSyncMultiSource_PosTooSmall(t *testing.T) {
 
 func TestSync_SyncWithoutSyncPermissionShouldFail(t *testing.T) {
 	ctx := t.Context()
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	appServer := newTestAppServer(t)
 	_ = appServer.enf.SetBuiltinPolicy(`
@@ -2108,6 +2113,7 @@ func TestSync_SyncWithoutSyncPermissionShouldFail(t *testing.T) {
 
 func TestSyncRBACOverrideFalse_DiffRevNoOverrideAllowed(t *testing.T) {
 	ctx := t.Context()
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	appServer := newTestAppServer(t)
 	_ = appServer.enf.SetBuiltinPolicy(`
@@ -2154,6 +2160,7 @@ func TestSyncRBACOverrideFalse_DiffRevNoOverrideAllowed(t *testing.T) {
 
 func TestSyncRBACOverrideFalse_SameRevNoOverrideAllowed(t *testing.T) {
 	ctx := t.Context()
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	appServer := newTestAppServer(t)
 	_ = appServer.enf.SetBuiltinPolicy(`
@@ -2193,6 +2200,7 @@ func TestSyncRBACOverrideFalse_SameRevNoOverrideAllowed(t *testing.T) {
 
 func TestSyncRBACOverrideFalse_EmptyRevNoOverrideAllowed(t *testing.T) {
 	ctx := t.Context()
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	appServer := newTestAppServer(t)
 	_ = appServer.enf.SetBuiltinPolicy(`
@@ -2233,6 +2241,7 @@ func TestSyncRBACOverrideFalse_EmptyRevNoOverrideAllowed(t *testing.T) {
 
 func TestSyncRBACOverrideFalse_DiffRevWithOverrideAllowed(t *testing.T) {
 	ctx := t.Context()
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	appServer := newTestAppServer(t)
 	_ = appServer.enf.SetBuiltinPolicy(`
@@ -2271,11 +2280,11 @@ func TestSyncRBACOverrideFalse_DiffRevWithOverrideAllowed(t *testing.T) {
 	assert.NotNil(t, syncedApp)
 	assert.Equal(t, "appbranch1", syncedApp.Spec.Sources[0].TargetRevision)
 	assert.Equal(t, "appbranch2", syncedApp.Spec.Sources[1].TargetRevision)
-
 }
 
 func TestSyncRBACOverrideFalse_DiffRevWithAutosyncPrevented(t *testing.T) {
 	ctx := t.Context()
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	appServer := newTestAppServer(t)
 	_ = appServer.enf.SetBuiltinPolicy(`
