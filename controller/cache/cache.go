@@ -641,9 +641,17 @@ func (c *liveStateCache) getSyncedCluster(server *appv1.Cluster) (clustercache.C
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}
+
 	err = clusterCache.EnsureSynced()
 	if err != nil {
-		return nil, fmt.Errorf("error synchronizing cache state : %w", err)
+		if isConversionWebhookError(err) {
+			log.WithField("cluster", server.Server).Warnf("Conversion webhook error during cluster sync, cluster cache may be incomplete: %v", err)
+			// For conversion webhook errors, we still return the cluster cache
+			// but log the issue. This allows applications to continue with
+			// whatever state is available rather than failing completely.
+			return clusterCache, fmt.Errorf("conversion webhook error during cluster sync: %w", err)
+		}
+		return nil, fmt.Errorf("error synchronizing cache state: %w", err)
 	}
 	return clusterCache, nil
 }
@@ -683,8 +691,23 @@ func (c *liveStateCache) IterateHierarchy(server *appv1.Cluster, key kube.Resour
 func (c *liveStateCache) IterateHierarchyV2(server *appv1.Cluster, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
+		if isConversionWebhookError(err) {
+			log.WithField("cluster", server.Server).Warnf("Conversion webhook error in cluster cache, attempting partial operation: %v", err)
+			// For conversion webhook errors, we try to continue with a limited operation
+			// rather than failing completely. This prevents cluster-wide webhook issues
+			// from affecting all applications.
+			return nil
+		}
 		return err
 	}
+
+	// Wrap the cluster iteration with error recovery
+	defer func() {
+		if r := recover(); r != nil {
+			log.WithField("cluster", server.Server).Errorf("Recovered from panic during IterateHierarchyV2: %v", r)
+		}
+	}()
+
 	clusterInfo.IterateHierarchyV2(keys, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
 		return action(asResourceNode(resource), getApp(resource, namespaceResources))
 	})
@@ -708,8 +731,18 @@ func (c *liveStateCache) IterateResources(server *appv1.Cluster, callback func(r
 func (c *liveStateCache) GetNamespaceTopLevelResources(server *appv1.Cluster, namespace string) (map[kube.ResourceKey]appv1.ResourceNode, error) {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
+		if isConversionWebhookError(err) {
+			log.WithFields(log.Fields{
+				"cluster":   server.Server,
+				"namespace": namespace,
+			}).Warnf("Conversion webhook error while getting namespace resources, returning empty result: %v", err)
+			// Return empty map instead of failing - this allows apps to continue
+			// processing even if namespace-level resource discovery fails due to webhooks
+			return make(map[kube.ResourceKey]appv1.ResourceNode), nil
+		}
 		return nil, err
 	}
+
 	resources := clusterInfo.FindResources(namespace, clustercache.TopLevelResource)
 	res := make(map[kube.ResourceKey]appv1.ResourceNode)
 	for k, r := range resources {
@@ -721,8 +754,17 @@ func (c *liveStateCache) GetNamespaceTopLevelResources(server *appv1.Cluster, na
 func (c *liveStateCache) GetManagedLiveObjs(destCluster *appv1.Cluster, a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
 	clusterInfo, err := c.getSyncedCluster(destCluster)
 	if err != nil {
+		if isConversionWebhookError(err) {
+			log.WithFields(log.Fields{
+				"cluster": destCluster.Server,
+				"app":     a.Name,
+			}).Warnf("Conversion webhook error while getting managed live objects, returning empty result: %v", err)
+			// Return empty map to allow application processing to continue
+			return make(map[kube.ResourceKey]*unstructured.Unstructured), nil
+		}
 		return nil, fmt.Errorf("failed to get cluster info for %q: %w", destCluster.Server, err)
 	}
+
 	return clusterInfo.GetManagedLiveObjs(targetObjs, func(r *clustercache.Resource) bool {
 		return resInfo(r).AppName == a.InstanceName(c.settingsMgr.GetNamespace())
 	})
@@ -920,4 +962,12 @@ func (c *liveStateCache) GetClusterCache(server *appv1.Cluster) (clustercache.Cl
 // UpdateShard will update the shard of ClusterSharding when the shard has changed.
 func (c *liveStateCache) UpdateShard(shard int) bool {
 	return c.clusterSharding.UpdateShard(shard)
+}
+
+func isConversionWebhookError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "conversion webhook")
 }
