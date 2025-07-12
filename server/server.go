@@ -27,6 +27,11 @@ import (
 	"syscall"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/pkg/v2/sync"
 	"github.com/golang-jwt/jwt/v5"
@@ -319,6 +324,8 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister()
 
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
+	ssoClientApp, err := oidc.NewClientApp(settings, opts.DexServerAddr, opts.DexTLSConfig, opts.BaseHRef, cacheutil.NewRedisCache(opts.RedisClient, settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
+	errorsutil.CheckError(err)
 	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
@@ -378,6 +385,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		appsetLister:       appsetLister,
 		policyEnforcer:     policyEnf,
 		userStateStorage:   userStateStorage,
+		ssoClientApp:       ssoClientApp,
 		staticAssets:       http.FS(staticFS),
 		db:                 dbInstance,
 		apiFactory:         apiFactory,
@@ -1104,33 +1112,17 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 func (server *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.ResponseWriter, resp golang_proto.Message) error {
 	if sessionResp, ok := resp.(*sessionpkg.SessionResponse); ok {
 		token := sessionResp.Token
-		err := server.setTokenCookie(token, w)
+		err := httputil.SetTokenCookie(token, server.BaseHRef, !server.Insecure, w)
 		if err != nil {
 			return fmt.Errorf("error setting token cookie from session response: %w", err)
 		}
 	} else if md, ok := runtime.ServerMetadataFromContext(ctx); ok {
 		renewToken := md.HeaderMD[renewTokenKey]
 		if len(renewToken) > 0 {
-			return server.setTokenCookie(renewToken[0], w)
+			return httputil.SetTokenCookie(renewToken[0], server.BaseHRef, !server.Insecure, w)
 		}
 	}
 
-	return nil
-}
-
-func (server *ArgoCDServer) setTokenCookie(token string, w http.ResponseWriter) error {
-	cookiePath := "path=/" + strings.TrimRight(strings.TrimLeft(server.BaseHRef, "/"), "/")
-	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
-	if !server.Insecure {
-		flags = append(flags, "Secure")
-	}
-	cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, token, flags...)
-	if err != nil {
-		return fmt.Errorf("error creating cookie metadata: %w", err)
-	}
-	for _, cookie := range cookies {
-		w.Header().Add("Set-Cookie", cookie)
-	}
 	return nil
 }
 
@@ -1172,8 +1164,8 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 		Handler: &handlerSwitcher{
 			handler: mux,
 			urlToHandler: map[string]http.Handler{
-				"/api/badge":          badge.NewHandler(server.AppClientset, server.settingsMgr, server.Namespace, server.ApplicationNamespaces),
-				common.LogoutEndpoint: logout.NewHandler(server.settingsMgr, server.sessionMgr, server.RootPath, server.BaseHRef),
+				"/api/badge":          otelhttp.NewHandler(badge.NewHandler(server.AppClientset, server.settingsMgr, server.Namespace, server.ApplicationNamespaces), "badge"),
+				common.LogoutEndpoint: otelhttp.NewHandler(logout.NewHandler(server.settingsMgr, server.sessionMgr, server.RootPath, server.BaseHRef), "logout"),
 			},
 			contentTypeToHandler: map[string]http.Handler{
 				"application/grpc-web+proto": grpcWebHandler,
@@ -1290,7 +1282,7 @@ func registerExtensions(mux *http.ServeMux, a *ArgoCDServer, metricsReg HTTPMetr
 	extHandler := http.HandlerFunc(a.extensionManager.CallExtension())
 	authMiddleware := a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth)
 	// auth middleware ensures that requests to all extensions are authenticated first
-	mux.Handle(extension.URLPrefix+"/", authMiddleware(extHandler))
+	mux.Handle(extension.URLPrefix+"/", otelhttp.NewHandler(authMiddleware(extHandler), "server.SessionManager.AuthMiddlewareFunc"))
 
 	a.extensionManager.AddMetricsRegistry(metricsReg)
 
@@ -1348,12 +1340,10 @@ func (server *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 		return
 	}
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
-	var err error
-	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(server.DexServerAddr, server.BaseHRef, server.DexTLSConfig))
-	server.ssoClientApp, err = oidc.NewClientApp(server.settings, server.DexServerAddr, server.DexTLSConfig, server.BaseHRef, cacheutil.NewRedisCache(server.RedisClient, server.settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
-	errorsutil.CheckError(err)
-	mux.HandleFunc(common.LoginEndpoint, server.ssoClientApp.HandleLogin)
-	mux.HandleFunc(common.CallbackEndpoint, server.ssoClientApp.HandleCallback)
+	mux.Handle(common.DexAPIEndpoint+"/", otelhttp.NewHandler(http.HandlerFunc(dexutil.NewDexHTTPReverseProxy(server.DexServerAddr, server.BaseHRef, server.DexTLSConfig)), "dex"))
+
+	mux.Handle(common.LoginEndpoint, otelhttp.NewHandler(http.HandlerFunc(server.ssoClientApp.HandleLogin), "oidc.ClientApp.HandleLogin"))
+	mux.Handle(common.CallbackEndpoint, otelhttp.NewHandler(http.HandlerFunc(server.ssoClientApp.HandleCallback), "oidc.ClientApp.HandleCallback"))
 }
 
 // newRedirectServer returns an HTTP server which does a 307 redirect to the HTTPS server
@@ -1510,6 +1500,9 @@ func replaceBaseHRef(data string, replaceWith string) string {
 
 // Authenticate checks for the presence of a valid token when accessing server-side resources.
 func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error) {
+	var span trace.Span
+	ctx, span = otel.Tracer("auth").Start(ctx, "ArgoCDServer.Authenticate")
+	defer span.End()
 	if server.DisableAuth {
 		return ctx, nil
 	}
@@ -1548,16 +1541,23 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 }
 
 func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, error) {
+	var span trace.Span
+	ctx, span = otel.Tracer("auth").Start(ctx, "ArgoCDServer.getClaims")
+	defer span.End()
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
+		span.RecordError(ErrNoSession)
 		return nil, "", ErrNoSession
 	}
 	tokenString := getToken(md)
 	if tokenString == "" {
+		span.RecordError(ErrNoSession)
 		return nil, "", ErrNoSession
 	}
-	claims, newToken, err := server.sessionMgr.VerifyToken(tokenString)
+	claims, newToken, err := server.sessionMgr.VerifyToken(ctx, tokenString)
 	if err != nil {
+		span.SetAttributes(attribute.String("token", tokenString))
+		span.RecordError(err)
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
 
@@ -1572,8 +1572,21 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 		}
 	}
 	iss := jwtutil.StringField(groupClaims, "iss")
+	sub := jwtutil.StringField(groupClaims, "sub")
+
+	if server.settings.IsSSOConfigured() {
+		refreshedToken, err := server.ssoClientApp.CheckAndGetRefreshToken(ctx, groupClaims, server.settings.OIDCRefreshTokenThreshold)
+		if err != nil {
+			span.RecordError(err)
+			log.Errorf("error checking and refreshing token: %v", err)
+		}
+		if tokenString != refreshedToken {
+			newToken = refreshedToken
+			log.Infof("refreshed token for subject: %v", sub)
+		}
+	}
 	if iss != util_session.SessionManagerClaimsIssuer && server.settings.UserInfoGroupsEnabled() && server.settings.UserInfoPath() != "" {
-		userInfo, unauthorized, err := server.ssoClientApp.GetUserInfo(groupClaims, server.settings.IssuerURL(), server.settings.UserInfoPath())
+		userInfo, unauthorized, err := server.ssoClientApp.GetUserInfo(ctx, groupClaims, server.settings.IssuerURL(), server.settings.UserInfoPath())
 		if unauthorized {
 			log.Errorf("error while quering userinfo endpoint: %v", err)
 			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session")
