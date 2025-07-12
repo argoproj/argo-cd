@@ -117,6 +117,7 @@ export const ApplicationCreatePanel = (props: {
     const debouncedOnAppChanged = debounce(props.onAppChanged, 800);
     const [destinationFieldChanges, setDestinationFieldChanges] = React.useState({destFormat: 'URL', destFormatChanged: null});
     const comboSwitchedFromPanel = React.useRef(false);
+    const currentRepoType = React.useRef(undefined);
     let destinationComboValue = destinationFieldChanges.destFormat;
 
     React.useEffect(() => {
@@ -198,7 +199,7 @@ export const ApplicationCreatePanel = (props: {
                 const repos = reposInfo.map(info => info.repo).sort();
                 const repoInfo = reposInfo.find(info => info.repo === app.spec.source.repoURL);
                 if (repoInfo) {
-                    normalizeAppSource(app, repoInfo.type || 'git');
+                    normalizeAppSource(app, repoInfo.type || currentRepoType.current || 'git');
                 }
                 return (
                     <div className='application-create-panel'>
@@ -333,10 +334,30 @@ export const ApplicationCreatePanel = (props: {
                                                                     title: type.toUpperCase(),
                                                                     action: () => {
                                                                         if (repoType !== type) {
+                                                                            currentRepoType.current = type;
                                                                             const updatedApp = api.getFormState().values as models.Application;
-                                                                            if (normalizeAppSource(updatedApp, type)) {
-                                                                                api.setAllValues(updatedApp);
+                                                                            const source = getAppDefaultSource(updatedApp);
+                                                                            if (type === 'git' || type === 'oci') {
+                                                                                if (source.hasOwnProperty('chart')) {
+                                                                                    source.path = source.chart;
+                                                                                    delete source.chart;
+                                                                                    source.targetRevision = 'HEAD';
+                                                                                }
+                                                                            } else if (type === 'helm') {
+                                                                                if (source.hasOwnProperty('path')) {
+                                                                                    source.chart = source.path;
+                                                                                    delete source.path;
+                                                                                    source.targetRevision = '';
+                                                                                }
                                                                             }
+                                                                            if (!repoInfo) {
+                                                                                if (type === 'oci') {
+                                                                                    updatedApp.spec.source.repoURL = 'oci://';
+                                                                                } else {
+                                                                                    updatedApp.spec.source.repoURL = '';
+                                                                                }
+                                                                            }
+                                                                            api.setAllValues(updatedApp);
                                                                         }
                                                                     }
                                                                 }))}
