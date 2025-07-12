@@ -79,8 +79,11 @@ kind: Kustomization
 
 namespace: argocd
 resources:
-- https://raw.githubusercontent.com/argoproj/argo-cd/v2.7.2/manifests/install.yaml
+- https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
+
+!!!note 
+In the above example, the latest stable version is used. In a production environment, it is recommended to change the `stable` version to the desired Argo CD version you wish to use.
 
 For an example of this, see the [kustomization.yaml](https://github.com/argoproj/argoproj-deployments/blob/master/argocd/kustomization.yaml)
 used to deploy the [Argoproj CI/CD infrastructure](https://github.com/argoproj/argoproj-deployments#argoproj-deployments).
@@ -95,7 +98,7 @@ kind: Kustomization
 
 namespace: <your-custom-namespace>
 resources:
-  - https://raw.githubusercontent.com/argoproj/argo-cd/v2.7.2/manifests/install.yaml
+  - https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 patches:
   - patch: |-
@@ -105,6 +108,9 @@ patches:
     target:
       kind: ClusterRoleBinding
 ```
+
+!!!note 
+In the above example, the latest stable version is used. In a production environment, it is recommended to change the `stable` version to the desired Argo CD version you wish to use.
 
 This patch ensures that the ClusterRoleBinding correctly maps to the ServiceAccount in your custom namespace, preventing any permission-related issues during the deployment.
 
