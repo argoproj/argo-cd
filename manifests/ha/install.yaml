@@ -26857,6 +26857,12 @@ spec:
               key: reposerver.git.request.timeout
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_GIT_SAFE_DIRECTORIES
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.git.safe.directories
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_GRPC_MAX_SIZE_MB
           valueFrom:
             configMapKeyRef:
