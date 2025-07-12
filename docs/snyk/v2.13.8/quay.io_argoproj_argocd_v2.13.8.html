@@ -487,7 +487,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">June 29th 2025, 12:36:01 am (UTC+00:00)</p>
+                <p class="timestamp">July 6th 2025, 12:35:53 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -1021,7 +1021,7 @@
         <p>A vulnerability was found in systemd-coredump. This flaw allows an attacker to force a SUID process to crash and replace it with a non-SUID binary to access the original&#39;s privileged process coredump, allowing the attacker to read sensitive data, such as /etc/shadow content, loaded by the original process.</p>
         <p>A SUID binary or process has a special type of permission, which allows the process to run with the file owner&#39;s permissions, regardless of the user executing the binary. This allows the process to access more restricted data than unprivileged users or processes would be able to. An attacker can leverage this flaw by forcing a SUID process to crash and force the Linux kernel to recycle the process PID before systemd-coredump can analyze the /proc/pid/auxv file. If the attacker wins the race condition, they gain access to the original&#39;s SUID process coredump file. They can read sensitive content loaded into memory by the original binary, affecting data confidentiality.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:24.04</code> <code>systemd</code>.</p>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>systemd</code> to version 255.4-1ubuntu8.8 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-4598">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-4598</a></li>
@@ -1270,6 +1270,9 @@
         <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2372512">https://bugzilla.redhat.com/show_bug.cgi?id=2372512</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2025/06/17/1">http://www.openwall.com/lists/oss-security/2025/06/17/1</a></li>
         <li><a href="https://access.redhat.com/errata/RHSA-2025:9526">https://access.redhat.com/errata/RHSA-2025:9526</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:10024">https://access.redhat.com/errata/RHSA-2025:10024</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:10027">https://access.redhat.com/errata/RHSA-2025:10027</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2025:10180">https://access.redhat.com/errata/RHSA-2025:10180</a></li>
         </ul>
         
               <hr/>
@@ -2676,7 +2679,7 @@
               <h2 id="overview">Overview</h2>
         <p>Affected versions of this package are vulnerable to Generation of Error Message Containing Sensitive Information when syncing invalid Kubernetes Secret resources. An attacker with write access to the repository can expose secret values by committing an invalid Secret to repository and triggering a Sync, which then become visible to any user with read access to Argo CD.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>A fix was pushed into the <code>master</code> branch but not yet published.</p>
+        <p>Upgrade <code>github.com/argoproj/gitops-engine/pkg/utils/kube</code> to version 0.7.1-0.20250129155113-7e21b91e9d0f or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="https://github.com/argoproj/argo-cd/commit/6f5537bdf15ddbaa0f27a1a678632ff0743e4107">GitHub Commit</a></li>
@@ -2747,7 +2750,7 @@
               <h2 id="overview">Overview</h2>
         <p>Affected versions of this package are vulnerable to Generation of Error Message Containing Sensitive Information when syncing invalid Kubernetes Secret resources. An attacker with write access to the repository can expose secret values by committing an invalid Secret to repository and triggering a Sync, which then become visible to any user with read access to Argo CD.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>A fix was pushed into the <code>master</code> branch but not yet published.</p>
+        <p>Upgrade <code>github.com/argoproj/gitops-engine/pkg/diff</code> to version 0.7.1-0.20250129155113-7e21b91e9d0f or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="https://github.com/argoproj/argo-cd/commit/6f5537bdf15ddbaa0f27a1a678632ff0743e4107">GitHub Commit</a></li>
