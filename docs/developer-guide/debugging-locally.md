@@ -135,4 +135,4 @@ To debug the `api-server`, run:
 Finally, run the component you wish to debug from your IDE and make sure it does not have any errors.
 
 ## Important
-In any of the above methods for running the other Argo CD components separately, you need to make sure components don't step on each other's feet - meaning that each component needs to be up exactly once, be it run locally with the local toolchain or run from your IDE. Otherwise you may be getting errors about ports not available or even debugging a process that does not run your changed code. 
+When running Argo CD components separately, ensure components aren't creating conflicts - each component needs to be up exactly once, be it running locally with the local toolchain or running from your IDE. Otherwise you may get errors about ports not available or even debugging a process that does not contain your code changes. 
