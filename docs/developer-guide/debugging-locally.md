@@ -127,7 +127,7 @@ So for the case of debugging the `api-server`, run:
 #### Run with "goreman start"
 `goreman start` runs all the components by default, but it is also possible to run it with a whitelist of components, enabling separation as needed.
 
-So for the case of debugging the `api-server`, run:
+To debug the `api-server`, run:
 `goreman start notification applicationset-controller repo-server redis dex controller ui` 
 
 
