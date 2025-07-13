@@ -8,23 +8,23 @@ import (
 	"strconv"
 	"text/tabwriter"
 
-	"github.com/argoproj/argo-cd/v3/util/templates"
-
-	"github.com/argoproj/argo-cd/v3/cmd/util"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc/codes"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v3/cmd/util"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/grpc"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/templates"
 )
 
 type DisplayedAction struct {
@@ -192,7 +192,26 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			obj := filteredObjects[i]
 			gvk := obj.GroupVersionKind()
 			objResourceName := obj.GetName()
-			_, err := appIf.RunResourceAction(ctx, &applicationpkg.ResourceActionRunRequest{
+			_, err := appIf.RunResourceActionV2(ctx, &applicationpkg.ResourceActionRunRequestV2{
+				Name:         &appName,
+				AppNamespace: &appNs,
+				Namespace:    ptr.To(obj.GetNamespace()),
+				ResourceName: ptr.To(objResourceName),
+				Group:        ptr.To(gvk.Group),
+				Kind:         ptr.To(gvk.Kind),
+				Version:      ptr.To(gvk.GroupVersion().Version),
+				Action:       ptr.To(actionName),
+				// TODO: add support for parameters
+			})
+			if err == nil {
+				continue
+			}
+			if grpc.UnwrapGRPCStatus(err).Code() != codes.Unimplemented {
+				errors.CheckError(err)
+			}
+			fmt.Println("RunResourceActionV2 is not supported by the server, falling back to RunResourceAction.")
+			//nolint:staticcheck // RunResourceAction is deprecated, but we still need to support it for backward compatibility.
+			_, err = appIf.RunResourceAction(ctx, &applicationpkg.ResourceActionRunRequest{
 				Name:         &appName,
 				AppNamespace: &appNs,
 				Namespace:    ptr.To(obj.GetNamespace()),
