@@ -1836,7 +1836,7 @@ p, test-user, applications, update/fake.io/PodTest/*, default/test-app, deny
 	})
 }
 
-func TestSyncRBACOverrideTrue_DiffRevNoOverrideDenied(t *testing.T) {
+func TestSyncRBACOverrideRequired_DiffRevDenied(t *testing.T) {
 	ctx := t.Context()
 	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
@@ -1846,7 +1846,7 @@ func TestSyncRBACOverrideTrue_DiffRevNoOverrideDenied(t *testing.T) {
 		enf.SetDefaultRole("role:admin")
 	}
 	appServer := newTestAppServerWithEnforcerConfigure(t, f,
-		map[string]string{"application.sync.externalRevisionConsideredOverride": "true"})
+		map[string]string{"application.sync.requireOverridePrivilegeForRevisionSync": "true"})
 
 	_ = appServer.enf.SetBuiltinPolicy(`
         p, test-user, applications, get, default/*, allow
@@ -1882,7 +1882,7 @@ func TestSyncRBACOverrideTrue_DiffRevNoOverrideDenied(t *testing.T) {
 		"should not be able to sync to different revision without override permission, multi-source app")
 }
 
-func TestSyncRBACOverrideTrue_SameRevNoOverrideAllowed(t *testing.T) {
+func TestSyncRBACOverrideRequired_SameRevisionAllowed(t *testing.T) {
 	ctx := t.Context()
 	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
@@ -1892,7 +1892,7 @@ func TestSyncRBACOverrideTrue_SameRevNoOverrideAllowed(t *testing.T) {
 		enf.SetDefaultRole("role:admin")
 	}
 	appServer := newTestAppServerWithEnforcerConfigure(t, f,
-		map[string]string{"application.sync.externalRevisionConsideredOverride": "true"})
+		map[string]string{"application.sync.requireOverridePrivilegeForRevisionSync": "true"})
 	_ = appServer.enf.SetBuiltinPolicy(`
         p, test-user, applications, get, default/*, allow
         p, test-user, applications, create, default/*, allow
@@ -1930,7 +1930,7 @@ func TestSyncRBACOverrideTrue_SameRevNoOverrideAllowed(t *testing.T) {
 	assert.NotNil(t, syncedApp)
 }
 
-func TestSyncRBACOverrideTrue_NoRevNoOverrideAllowed(t *testing.T) {
+func TestSyncRBACOverrideRequired_WithoutRevisionAllowed(t *testing.T) {
 	ctx := t.Context()
 	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
@@ -1940,7 +1940,7 @@ func TestSyncRBACOverrideTrue_NoRevNoOverrideAllowed(t *testing.T) {
 		enf.SetDefaultRole("role:admin")
 	}
 	appServer := newTestAppServerWithEnforcerConfigure(t, f,
-		map[string]string{"application.sync.externalRevisionConsideredOverride": "true"})
+		map[string]string{"application.sync.requireOverridePrivilegeForRevisionSync": "true"})
 
 	_ = appServer.enf.SetBuiltinPolicy(`
         p, test-user, applications, get, default/*, allow
@@ -1974,7 +1974,7 @@ func TestSyncRBACOverrideTrue_NoRevNoOverrideAllowed(t *testing.T) {
 	assert.NotNil(t, syncedApp)
 }
 
-func TestSyncRBACOverrideTrue_DiffRevWithOverrideAllowed(t *testing.T) {
+func TestSyncRBACOverrideGranted_DiffRevisionAllowed(t *testing.T) {
 	ctx := t.Context()
 	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
@@ -1984,7 +1984,7 @@ func TestSyncRBACOverrideTrue_DiffRevWithOverrideAllowed(t *testing.T) {
 		enf.SetDefaultRole("role:admin")
 	}
 	appServer := newTestAppServerWithEnforcerConfigure(t, f,
-		map[string]string{"application.sync.externalRevisionConsideredOverride": "true"})
+		map[string]string{"application.sync.requireOverridePrivilegeForRevisionSync": "true"})
 
 	_ = appServer.enf.SetBuiltinPolicy(`
         p, test-user, applications, get, default/*, allow
@@ -2158,7 +2158,7 @@ func TestSyncRBACOverrideFalse_DiffRevNoOverrideAllowed(t *testing.T) {
 	assert.Equal(t, "appbranch2", syncedApp.Spec.Sources[1].TargetRevision)
 }
 
-func TestSyncRBACOverrideFalse_SameRevNoOverrideAllowed(t *testing.T) {
+func TestSyncRBACOverrideNotRequired_SameRevisionAllowed(t *testing.T) {
 	ctx := t.Context()
 	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
@@ -2198,7 +2198,7 @@ func TestSyncRBACOverrideFalse_SameRevNoOverrideAllowed(t *testing.T) {
 	assert.NotNil(t, syncedApp)
 }
 
-func TestSyncRBACOverrideFalse_EmptyRevNoOverrideAllowed(t *testing.T) {
+func TestSyncRBACOverrideNotRequired_EmptyRevisionAllowed(t *testing.T) {
 	ctx := t.Context()
 	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
@@ -2239,7 +2239,7 @@ func TestSyncRBACOverrideFalse_EmptyRevNoOverrideAllowed(t *testing.T) {
 	assert.Equal(t, "appbranch2", syncedApp.Spec.Sources[1].TargetRevision)
 }
 
-func TestSyncRBACOverrideFalse_DiffRevWithOverrideAllowed(t *testing.T) {
+func TestSyncRBACOverrideNotRequired_DiffRevisionAllowed(t *testing.T) {
 	ctx := t.Context()
 	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
@@ -2282,7 +2282,7 @@ func TestSyncRBACOverrideFalse_DiffRevWithOverrideAllowed(t *testing.T) {
 	assert.Equal(t, "appbranch2", syncedApp.Spec.Sources[1].TargetRevision)
 }
 
-func TestSyncRBACOverrideFalse_DiffRevWithAutosyncPrevented(t *testing.T) {
+func TestSyncRBACOverrideNotRequired_DiffRevisionWithAutosyncPrevented(t *testing.T) {
 	ctx := t.Context()
 	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})

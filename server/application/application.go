@@ -2105,11 +2105,11 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 }
 
 func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Application, syncReq *application.ApplicationSyncRequest) (string, string, []string, []string, error) {
-	externalRevisionIsOverride, err := s.settingsMgr.ExternalRevisionConsideredOverride()
+	requireOverridePrivilegeForRevisionSync, err := s.settingsMgr.RequireOverridePrivilegeForRevisionSync()
 	if err != nil {
 		// continue, but log error
-		log.WithError(err).Warn("error getting ExternalRevisionConsideredOverride setting, defaulting to false")
-		externalRevisionIsOverride = false
+		log.WithError(err).Warn("error getting RequireOverridePrivilegeForRevisionSync setting, defaulting to false")
+		requireOverridePrivilegeForRevisionSync = false
 	}
 	if a.Spec.HasMultipleSources() {
 		numOfSources := int64(len(a.Spec.GetSources()))
@@ -2124,7 +2124,7 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 		}
 		for index, desiredRevision := range desiredRevisions {
 			if desiredRevision != "" && desiredRevision != text.FirstNonEmpty(a.Spec.GetSources()[index].TargetRevision, "HEAD") {
-				if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionOverride, a.RBACName(s.ns)); err != nil && externalRevisionIsOverride {
+				if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionOverride, a.RBACName(s.ns)); err != nil && requireOverridePrivilegeForRevisionSync {
 					return "", "", nil, nil, err
 				}
 				if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
@@ -2145,7 +2145,7 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 	source := a.Spec.GetSource()
 	if syncReq.GetRevision() != "" &&
 		syncReq.GetRevision() != text.FirstNonEmpty(source.TargetRevision, "HEAD") {
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionOverride, a.RBACName(s.ns)); err != nil && externalRevisionIsOverride {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionOverride, a.RBACName(s.ns)); err != nil && requireOverridePrivilegeForRevisionSync {
 			return "", "", nil, nil, err
 		}
 		if a.Spec.SyncPolicy != nil &&

@@ -129,9 +129,9 @@ type ArgoCDSettings struct {
 	// ImpersonationEnabled indicates whether Application sync privileges can be decoupled from control plane
 	// privileges using impersonation
 	ImpersonationEnabled bool `json:"impersonationEnabled"`
-	// ExternalRevisionConsideredOverride indicates whether giving an external revision during snyc is considered an override.
-	// Up to revision 3.0.0, this was always false. It is now still false by default, in order to not breaking existing usage.
-	ExternalRevisionConsideredOverride bool `json:"externalRevisionConsideredOverride"`
+	// RequireOverridePrivilegeForRevisionSync indicates whether giving an external revision during snyc is considered an override.
+	// Up to revision 3.2, this was always false. It is now still false by default, in order to not breaking existing usage.
+	RequireOverridePrivilegeForRevisionSync bool `json:"requireOverridePrivilegeForRevisionSync"`
 }
 
 type GoogleAnalytics struct {
@@ -544,8 +544,8 @@ const (
 	RespectRBACValueNormal = "normal"
 	// impersonationEnabledKey is the key to configure whether the application sync decoupling through impersonation feature is enabled
 	impersonationEnabledKey = "application.sync.impersonation.enabled"
-	// externalRevisionConsideredOverrideKey is the key to configure whether giving an external revision during sync is considered an override
-	externalRevisionConsideredOverrideKey = "application.sync.externalRevisionConsideredOverride"
+	// requireOverridePrivilegeForRevisionSyncKey is the key to configure whether giving an external revision during sync is considered an override
+	requireOverridePrivilegeForRevisionSyncKey = "application.sync.requireOverridePrivilegeForRevisionSync"
 )
 
 const (
@@ -1248,21 +1248,22 @@ func (mgr *SettingsManager) GetHelp() (*Help, error) {
 	}, nil
 }
 
-func (mgr *SettingsManager) ExternalRevisionConsideredOverride() (bool, error) {
+func (mgr *SettingsManager) RequireOverridePrivilegeForRevisionSync() (bool, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return false, err
 	}
 
 	// false is default in order to not break exisiting installations
-	if argoCDCM.Data[externalRevisionConsideredOverrideKey] == "" {
+	if argoCDCM.Data[requireOverridePrivilegeForRevisionSyncKey] == "" {
 		return false, nil
 	}
 
-	maybeBooleanFlageValue, err := strconv.ParseBool(argoCDCM.Data[externalRevisionConsideredOverrideKey])
-	if err != nil {
+	maybeBooleanFlageValue, err2 := strconv.ParseBool(
+		argoCDCM.Data[requireOverridePrivilegeForRevisionSyncKey])
+	if err2 != nil {
 		return false, fmt.Errorf("error parsing %s value: %w, expected true or false",
-			externalRevisionConsideredOverrideKey, err)
+			requireOverridePrivilegeForRevisionSyncKey, err2)
 	}
 	return maybeBooleanFlageValue, nil
 }
@@ -1474,7 +1475,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"
 	settings.ExtensionConfig = getExtensionConfigs(argoCDCM.Data)
 	settings.ImpersonationEnabled = argoCDCM.Data[impersonationEnabledKey] == "true"
-	settings.ExternalRevisionConsideredOverride = argoCDCM.Data[externalRevisionConsideredOverrideKey] == "true"
+	settings.RequireOverridePrivilegeForRevisionSync = argoCDCM.Data[requireOverridePrivilegeForRevisionSyncKey] == "true"
 }
 
 func getExtensionConfigs(cmData map[string]string) map[string]string {
