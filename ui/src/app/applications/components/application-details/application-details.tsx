@@ -1185,7 +1185,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                         // Throw an error to be caught by the error handler
                         throw new Error(`This application is managed by another Argo CD instance. Redirecting to ${externalUrl}`);
                     }
-                    
+
                     const fallbackTree = {
                         nodes: app.status.resources.map(res => ({...res, parentRefs: [] as any[], info: [] as any[], resourceVersion: '', uid: ''})),
                         orphanedNodes: [],

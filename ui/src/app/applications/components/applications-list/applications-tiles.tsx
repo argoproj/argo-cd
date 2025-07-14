@@ -5,7 +5,6 @@ import {Key, KeybindingContext, NumKey, NumKeyToNumber, NumPadKey, useNav} from 
 import {Cluster} from '../../../shared/components';
 import {Consumer, Context, AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
-import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
 import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL} from '../utils';
 import {services} from '../../../shared/services';
@@ -107,12 +106,10 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                         return (
                             <div className='applications-tiles argo-table-list argo-table-list--clickable' ref={appContainerRef}>
                                 {applications.map((app, i) => {
-                                    console.log('🔍 ApplicationsTiles rendering app:', app.metadata.name, 'with annotations:', app.metadata.annotations);
                                     const source = getAppDefaultSource(app);
                                     const isOci = source?.repoURL?.startsWith('oci://');
                                     const targetRevision = source ? source.targetRevision || 'HEAD' : 'Unknown';
                                     const linkInfo = getApplicationLinkURL(app, ctx.baseHref);
-                                    console.log('🔍 ApplicationsTiles linkInfo for', app.metadata.name, ':', linkInfo);
                                     return (
                                         <div
                                             key={AppUtils.appInstanceName(app)}
@@ -146,8 +143,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                                     href={linkInfo.url}
                                                                     target={linkInfo.isExternal ? '_blank' : undefined}
                                                                     rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
-                                                                    title={`Link: ${linkInfo.url}\nmanaged-by-url: ${getManagedByURL(app) || 'none'}`}
-                                                                >
+                                                                    title={`Link: ${linkInfo.url}\nmanaged-by-url: ${getManagedByURL(app) || 'none'}`}>
                                                                     <i className='fa fa-external-link-alt' />
                                                                 </a>
                                                                 <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>

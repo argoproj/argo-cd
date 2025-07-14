@@ -53,7 +53,6 @@ export const ApplicationsTable = (props: {
                         return (
                             <div className='applications-table argo-table-list argo-table-list--clickable'>
                                 {props.applications.map((app, i) => {
-                                    console.log('+++++Annotations for', app.metadata.name, app.metadata.annotations);
                                     return (
                                         <div
                                             key={AppUtils.appInstanceName(app)}
@@ -107,17 +106,14 @@ export const ApplicationsTable = (props: {
                                                             </Tooltip>
                                                             {/* External link icon for managed-by-url */}
                                                             {(() => {
-                                                                console.log('🔍 ApplicationsTable rendering app:', app.metadata.name, 'with annotations:', app.metadata.annotations);
                                                                 const linkInfo = getApplicationLinkURL(app, ctx.baseHref);
-                                                                console.log('🔍 ApplicationsTable linkInfo for', app.metadata.name, ':', linkInfo);
                                                                 return (
                                                                     <a
                                                                         href={linkInfo.url}
                                                                         target={linkInfo.isExternal ? '_blank' : undefined}
                                                                         rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
                                                                         style={{marginLeft: '0.5em'}}
-                                                                        title={`Link: ${linkInfo.url}\nmanaged-by-url: ${getManagedByURL(app) || 'none'}`}
-                                                                    >
+                                                                        title={`Link: ${linkInfo.url}\nmanaged-by-url: ${getManagedByURL(app) || 'none'}`}>
                                                                         <i className='fa fa-external-link-alt' />
                                                                     </a>
                                                                 );
