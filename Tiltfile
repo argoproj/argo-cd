@@ -69,7 +69,7 @@ docker_build_with_restart(
     ],
     platform=platform,
     live_update=[
-        sync('.tilt-bin/argocd_linux_amd64', '/usr/local/bin/argocd'),
+        sync('.tilt-bin/argocd_linux', '/usr/local/bin/argocd'),
     ],
     only=[
         '.tilt-bin',
@@ -260,6 +260,7 @@ local_resource(
     'make lint-local',
     deps = code_deps,
     allow_parallel=True,
+    resource_deps=['vendor']
 )
 
 local_resource(

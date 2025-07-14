@@ -14,7 +14,7 @@ import (
 
 var ErrDisallowedSecretAccess = fmt.Errorf("secret must have label %q=%q", common.LabelKeySecretType, common.LabelValueSecretTypeSCMCreds)
 
-// getSecretRef gets the value of the key for the specified Secret resource.
+// GetSecretRef gets the value of the key for the specified Secret resource.
 func GetSecretRef(ctx context.Context, k8sClient client.Client, ref *argoprojiov1alpha1.SecretRef, namespace string, tokenRefStrictMode bool) (string, error) {
 	if ref == nil {
 		return "", nil
