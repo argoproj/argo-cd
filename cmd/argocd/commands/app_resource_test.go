@@ -2,6 +2,7 @@ package commands
 
 import (
 	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 	"text/tabwriter"
@@ -295,4 +296,48 @@ spec:
 	assert.Contains(t, output, "kind            test", "Missing or incorrect row in the table related to kind with not showing names.")
 	assert.Contains(t, output, "spec.testfield  testvalue", "Missing or incorrect row in the table related to spec.testefield with not showing names.")
 	assert.NotContains(t, output, "metadata.name   testvalue", "Missing or incorrect row in the tbale related to metadata.name with not showing names.")
+}
+
+func TestPrintManifests_FilterNestedListObject_Wide(t *testing.T) {
+	obj := unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "vX",
+			"kind":       "kind",
+			"metadata": map[string]any{
+				"name": "unit-test",
+			},
+			"status": map[string]any{
+				"podIPs": []map[string]any{
+					{
+						"IP": "127.0.0.1",
+					},
+					{
+						"IP": "127.0.0.2",
+					},
+				},
+			},
+		},
+	}
+
+	output, _ := captureOutput(func() error {
+		v, err := json.Marshal(&obj)
+		if err != nil {
+			return nil
+		}
+
+		var obj2 *unstructured.Unstructured
+		err = json.Unmarshal([]byte(v), &obj2)
+		if err != nil {
+			return nil
+		}
+		printManifests(&[]unstructured.Unstructured{*obj2}, false, true, "wide")
+		return nil
+	})
+
+	// Verify table header
+	assert.Contains(t, output, "FIELD                RESOURCE NAME  VALUE", "Missing a line in the table")
+	assert.Contains(t, output, "apiVersion           unit-test      vX", "Test for apiVersion field failed for wide output")
+	assert.Contains(t, output, "kind                 unit-test      kind", "Test for kind field failed for wide output")
+	assert.Contains(t, output, "status.podIPs[0].IP  unit-test      127.0.0.1", "Test for podIP array index 0 field failed for wide output")
+	assert.Contains(t, output, "status.podIPs[1].IP  unit-test      127.0.0.2", "Test for podIP array index 1 field failed for wide output")
 }
