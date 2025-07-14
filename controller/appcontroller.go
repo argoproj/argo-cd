@@ -1445,7 +1445,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		state.Phase = synccommon.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
 	}
-	ts.AddCheckpoint("validate_and_sync_app_state_ms")
+	ts.AddCheckpoint("sync_app_state_ms")
 
 	switch state.Phase {
 	case synccommon.OperationRunning:
