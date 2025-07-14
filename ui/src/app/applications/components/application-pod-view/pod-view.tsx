@@ -1,6 +1,6 @@
 import {DataLoader, DropDown, DropDownMenu, MenuItem, Tooltip} from 'argo-ui';
 import * as React from 'react';
-import {Fragment, ReactNode, useContext} from 'react';
+import {ReactNode, useContext} from 'react';
 import Moment from 'react-moment';
 
 import {Context, ContextApis} from '../../../shared/context';
@@ -68,7 +68,7 @@ export function PodView(props: PodViewProps) {
                 }
 
                 return (
-                    <Fragment>
+                    <>
                         <div className='pod-view__settings'>
                             <div className='pod-view__settings__section'>
                                 GROUP BY:&nbsp;
@@ -256,7 +256,7 @@ export function PodView(props: PodViewProps) {
                                 <h5>Try switching to tree or list view</h5>
                             </EmptyState>
                         )}
-                    </Fragment>
+                    </>
                 );
             }}
         </DataLoader>
@@ -267,9 +267,9 @@ function sortOrderItemsFor(orders: SortOrder[], prefs: ViewPreferences, ctx: Con
     const podPrefs = prefs.appDetails.podView || ({} as PodViewPreferences);
     return orders.map(order => ({
         title: (
-            <Fragment>
+            <>
                 {podPrefs.sortOrder === order && <i className='fa fa-check' />} {labelForSortOrder[order]}{' '}
-            </Fragment>
+            </>
         ),
         action: () => {
             ctx.navigation.goto('.', {podSortOrder: order});
@@ -287,9 +287,9 @@ function menuItemsFor(modes: PodGroupType[], prefs: ViewPreferences, ctx: Contex
     const podPrefs = prefs.appDetails.podView || ({} as PodViewPreferences);
     return modes.map(mode => ({
         title: (
-            <Fragment>
+            <>
                 {podPrefs.sortMode === mode && <i className='fa fa-check' />} {labelForSortMode[mode]}{' '}
-            </Fragment>
+            </>
         ),
         action: () => {
             ctx.navigation.goto('.', {podSortMode: mode});
@@ -468,7 +468,7 @@ function renderStats(info: HostResourceInfo) {
             <Tooltip
                 key={info.resourceName}
                 content={
-                    <Fragment>
+                    <>
                         <div>{info.resourceName.toUpperCase()}:</div>
                         <div className='pod-view__node__pod__stat-tooltip'>
                             <div>Requests:</div>
@@ -482,7 +482,7 @@ function renderStats(info: HostResourceInfo) {
                             </div>
                             <div>Capacity: {formatMetric(info.resourceName, info.capacity)}</div>
                         </div>
-                    </Fragment>
+                    </>
                 }>
                 <div className='pod-view__node__pod__stat__bar'>
                     <div className='pod-view__node__pod__stat__bar--fill pod-view__node__pod__stat__bar--neighbors' style={{height: `${neighborsHeight}%`}} />
