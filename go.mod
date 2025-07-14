@@ -5,7 +5,7 @@ go 1.24.4
 require (
 	code.gitea.io/sdk/gitea v0.21.0
 	dario.cat/mergo v1.0.2
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.18.0
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.18.1
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.10.1
 	github.com/Azure/kubelogin v0.2.9
 	github.com/Masterminds/semver/v3 v3.4.0
@@ -20,7 +20,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.16.0
-	github.com/casbin/casbin/v2 v2.108.0
+	github.com/casbin/casbin/v2 v2.109.0
 	github.com/casbin/govaluate v1.8.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/chainguard-dev/git-urls v1.0.2
@@ -91,11 +91,11 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.36.0
 	go.opentelemetry.io/otel/sdk v1.36.0
 	go.uber.org/automaxprocs v1.6.0
-	golang.org/x/crypto v0.39.0
-	golang.org/x/net v0.41.0
+	golang.org/x/crypto v0.40.0
+	golang.org/x/net v0.42.0
 	golang.org/x/oauth2 v0.30.0
-	golang.org/x/sync v0.15.0
-	golang.org/x/term v0.32.0
+	golang.org/x/sync v0.16.0
+	golang.org/x/term v0.33.0
 	golang.org/x/time v0.12.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250519155744-55703ea1f237
 	google.golang.org/grpc v1.73.0
@@ -268,9 +268,9 @@ require (
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.3 // indirect
 	golang.org/x/mod v0.25.0 // indirect
-	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/text v0.26.0 // indirect
-	golang.org/x/tools v0.33.0 // indirect
+	golang.org/x/sys v0.34.0 // indirect
+	golang.org/x/text v0.27.0 // indirect
+	golang.org/x/tools v0.34.0 // indirect
 	gomodules.xyz/envconfig v1.3.1-0.20190308184047-426f31af0d45 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	gomodules.xyz/notify v0.1.1 // indirect
