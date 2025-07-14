@@ -87,9 +87,10 @@ type comparisonResult struct {
 	// appSourceTypes stores the SourceType for each application source under sources field
 	appSourceTypes []v1alpha1.ApplicationSourceType
 	// timings maps phases of comparison to the duration it took to complete (for statistical purposes)
-	timings                 map[string]time.Duration
-	diffResultList          *diff.DiffResultList
-	hasPostDeleteHooks      bool
+	timings            map[string]time.Duration
+	diffResultList     *diff.DiffResultList
+	hasPostDeleteHooks bool
+	// revisionsMayHaveChanges indicates if there are any possibilities that the revisions contain changes
 	revisionsMayHaveChanges bool
 }
 

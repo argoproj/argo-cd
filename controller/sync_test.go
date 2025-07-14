@@ -1516,17 +1516,17 @@ func TestSyncWithImpersonate(t *testing.T) {
 					Source: &v1alpha1.ApplicationSource{},
 				},
 			},
-			Phase: common.OperationRunning,
+			Phase: synccommon.OperationRunning,
 		}
 
 		f.application.Spec.Destination.Server = ""
 		f.application.Spec.Destination.Name = "minikube"
 
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, opState)
+		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
 
 		// then app sync should not fail
-		assert.Equal(t, common.OperationSucceeded, opState.Phase)
+		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
 		assert.Contains(t, opState.Message, opMessage)
 	})
 }

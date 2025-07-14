@@ -118,14 +118,14 @@ func newSyncOperationResult(app *v1alpha1.Application, op v1alpha1.SyncOperation
 }
 
 func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState) {
-  syncId, err := syncid.Generate()
+	syncId, err := syncid.Generate()
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to generate sync ID: %v", err)
 		return
 	}
 	logEntry := log.WithFields(applog.GetAppLogFields(app)).WithField("syncId", syncId)
-  
+
 	if state.Operation.Sync == nil {
 		state.Phase = common.OperationError
 		state.Message = "Invalid operation request: no operation specified"
@@ -175,6 +175,15 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") && hasSharedResource {
 		state.Phase = common.OperationFailed
 		state.Message = "Shared resource found: " + sharedResourceMessage
+		return
+	}
+
+	// validates if it should fail the sync if it finds shared resources
+	hasSharedResource, sharedResourceMessage := hasSharedResourceCondition(app)
+	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") &&
+		hasSharedResource {
+		state.Phase = common.OperationFailed
+		state.Message = "Shared resource found: %s" + sharedResourceMessage
 		return
 	}
 

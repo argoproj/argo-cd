@@ -1482,7 +1482,6 @@ func TestIsLiveResourceManaged(t *testing.T) {
 
 func TestUseDiffCache(t *testing.T) {
 	t.Parallel()
-
 	type fixture struct {
 		testName             string
 		noCache              bool
@@ -1494,7 +1493,6 @@ func TestUseDiffCache(t *testing.T) {
 		expectedUseCache     bool
 		serverSideDiff       bool
 	}
-
 	manifestInfos := func(revision string) []*apiclient.ManifestResponse {
 		return []*apiclient.ManifestResponse{
 			{
@@ -1571,7 +1569,6 @@ func TestUseDiffCache(t *testing.T) {
 		}
 		return app
 	}
-
 	cases := []fixture{
 		{
 			testName:             "will use diff cache",
@@ -1749,10 +1746,8 @@ func TestUseDiffCache(t *testing.T) {
 			t.Parallel()
 			logger, _ := logrustest.NewNullLogger()
 			log := logrus.NewEntry(logger)
-
 			// When
 			useDiffCache := useDiffCache(tc.noCache, tc.manifestInfos, tc.sources, tc.app, tc.manifestRevisions, tc.statusRefreshTimeout, tc.serverSideDiff, log)
-
 			// Then
 			assert.Equal(t, tc.expectedUseCache, useDiffCache)
 		})
@@ -1850,6 +1845,6 @@ func TestCompareAppState_DoesNotCallUpdateRevisionForPaths_ForOCI(t *testing.T) 
 	sources := make([]v1alpha1.ApplicationSource, 0)
 	sources = append(sources, source)
 
-	_, _, _, err := ctrl.appStateManager.GetRepoObjs(app, sources, "abc123", []string{"123456"}, false, false, false, &defaultProj, false, false)
+	_, _, _, err := ctrl.appStateManager.GetRepoObjs(app, sources, "abc123", []string{"123456"}, false, false, false, &defaultProj, false)
 	require.NoError(t, err)
 }
