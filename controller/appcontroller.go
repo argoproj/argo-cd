@@ -2218,9 +2218,11 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	return nil, setOpTime
 }
 
-// alreadyAttemptedSync returns whether the most recent sync was performed against the
-// desiredRevisions and with the same app source config which are currently set in the app.
-// It also returns the last synced revisions and the result of that operation.
+// alreadyAttemptedSync returns whether the most recent sync was performed against the desiredRevisions.
+// and for the same application source. If the revisions have changed or the Application source configuration has been updated,
+// it will return false, indicating that a new sync should be attempted.
+// When newRevisionHasChanges is false, due to commits not having direct change on the application, it will not compare the revisions, but only the sources.
+// It also returns the last synced revisions if any, and the result of that last sync operation.
 func alreadyAttemptedSync(app *appv1.Application, desiredRevisions []string, newRevisionHasChanges bool) (bool, []string, synccommon.OperationPhase) {
 	if app.Status.OperationState == nil {
 		// The operation state may be removed when new operations are triggered
