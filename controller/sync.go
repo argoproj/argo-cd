@@ -178,15 +178,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		return
 	}
 
-	// validates if it should fail the sync if it finds shared resources
-	hasSharedResource, sharedResourceMessage := hasSharedResourceCondition(app)
-	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") &&
-		hasSharedResource {
-		state.Phase = common.OperationFailed
-		state.Message = "Shared resource found: %s" + sharedResourceMessage
-		return
-	}
-
 	// If there are any comparison or spec errors error conditions do not perform the operation
 	if errConditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
 		v1alpha1.ApplicationConditionComparisonError:  true,
