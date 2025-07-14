@@ -76,7 +76,7 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(Condition(ApplicationConditionSyncError, "Failed sync attempt")).
+		Expect(Condition(ApplicationConditionSyncError, "Failed last sync attempt")).
 		When().
 		// SyncError condition should be removed after successful sync
 		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 1}]`).
