@@ -1,7 +1,7 @@
 import * as classNames from 'classnames';
 
 import {Autocomplete, AutocompleteApi, AutocompleteOption} from 'argo-ui';
-import React, {FC, useRef, useState, MouseEvent, ChangeEvent} from 'react';
+import React, {useRef, useState, MouseEvent, ChangeEvent} from 'react';
 
 export interface TagsInputProps {
     tags: string[];
@@ -12,7 +12,7 @@ export interface TagsInputProps {
 
 require('./tags-input.scss');
 
-export const TagsInput: FC<TagsInputProps> = ({tags: initialTags, autocomplete, onChange, placeholder}) => {
+export const TagsInput = ({tags: initialTags, autocomplete, onChange, placeholder}: TagsInputProps) => {
     const [tags, setTags] = useState(initialTags || []);
     const [input, setInput] = useState('');
     const [focused, setFocused] = useState(false);
