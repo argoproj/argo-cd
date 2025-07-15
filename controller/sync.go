@@ -86,8 +86,8 @@ func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Clust
 	return ops, cleanup, nil
 }
 
-func NewOperationState(operation v1alpha1.Operation) v1alpha1.OperationState {
-	return v1alpha1.OperationState{
+func NewOperationState(operation v1alpha1.Operation) *v1alpha1.OperationState {
+	return &v1alpha1.OperationState{
 		Phase:     common.OperationRunning,
 		Operation: operation,
 		StartedAt: metav1.Now(),
