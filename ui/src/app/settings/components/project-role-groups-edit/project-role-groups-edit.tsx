@@ -1,7 +1,8 @@
 import {FormField} from 'argo-ui';
-import * as React from 'react';
 import * as ReactForm from 'react-form';
 import {Form, Text} from 'react-form';
+
+import React from 'react';
 
 interface ProjectRoleGroupsProps {
     projName: string;
@@ -61,6 +62,11 @@ export const ProjectRoleGroupsEdit = (props: ProjectRoleGroupsProps) => (
     </React.Fragment>
 );
 
+function removeEl(items: any[], index: number) {
+    items.splice(index, 1);
+    return items;
+}
+
 interface GroupProps {
     projName: string;
     roleName: string;
@@ -69,22 +75,15 @@ interface GroupProps {
     deleteGroup: () => void;
 }
 
-function removeEl(items: any[], index: number) {
-    items.splice(index, 1);
-    return items;
-}
-
-class GroupWrapper extends React.Component<GroupProps, any> {
-    public render() {
-        return (
-            <div className='row'>
-                <div className='columns small-11'>{this.props.groupName}</div>
-                <div className='columns small-1'>
-                    <i className='fa fa-times' onClick={() => this.props.deleteGroup()} style={{cursor: 'pointer'}} />
-                </div>
+const GroupWrapper = ({groupName, deleteGroup}: GroupProps) => {
+    return (
+        <div className='row'>
+            <div className='columns small-11'>{groupName}</div>
+            <div className='columns small-1'>
+                <i className='fa fa-times' onClick={deleteGroup} style={{cursor: 'pointer'}} />
             </div>
-        );
-    }
-}
+        </div>
+    );
+};
 
 const Group = ReactForm.FormField(GroupWrapper);
