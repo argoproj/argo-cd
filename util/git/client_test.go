@@ -23,12 +23,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
 
+<<<<<<< HEAD
 func TestAddSafeDirectories(t *testing.T) {
 	t.Run("should return error if safe directory is a file", func(t *testing.T) {
 		tmpfile, err := os.CreateTemp(t.TempDir(), "test-file")
@@ -68,6 +67,10 @@ func TestAddSafeDirectories(t *testing.T) {
 
 func runCmd(ctx context.Context, workingDir string, name string, args ...string) error {
 	cmd := exec.CommandContext(ctx, name, args...)
+=======
+func runCmd(workingDir string, name string, args ...string) error {
+	cmd := exec.Command(name, args...)
+>>>>>>> 8b74ba748 (feat(repo-server): add support for specifying git safe directories)
 	cmd.Dir = workingDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
