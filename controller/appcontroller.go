@@ -2183,6 +2183,9 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	if app.Spec.SyncPolicy.Automated.Prune && !app.Spec.SyncPolicy.Automated.AllowEmpty {
 		bAllNeedPrune := true
 		for _, r := range resources {
+                         // If at least one resource is a self-referenced object (belongs to this app)
+                        // and does *not* require pruning (i.e., still present in desired state),
+                       // then we are not wiping out everything — so no need to block the sync.
 			if r.IsSelfReferencedObj && !r.RequiresPruning {
 				bAllNeedPrune = false
 			}
