@@ -5,9 +5,3 @@ metadata:
   labels:
     app.kubernetes.io/name: argocd-git-config-cm
     app.kubernetes.io/part-of: argocd
-data:
-  .gitconfig: |
-    # Placeholder for git configuration.
-    # For example, to mark all repositories as safe:
-    # [safe]
-    #   directory = *
