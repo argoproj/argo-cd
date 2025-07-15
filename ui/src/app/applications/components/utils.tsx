@@ -1739,31 +1739,72 @@ export const getProgressiveSyncStatusColor = (status: string): string => {
  * @returns The managed-by-url value or null if not present
  */
 export function getManagedByURL(app: any): string | null {
-    return app?.metadata?.annotations?.['argocd.argoproj.io/managed-by-url'] || null;
+    const managedByURL = app?.metadata?.annotations?.['argocd.argoproj.io/managed-by-url'] || null;
+    console.log('[getManagedByURL] app:', app?.metadata?.name, 'managedByURL:', managedByURL);
+    return managedByURL;
+}
+
+/**
+ * Gets the managed-by-url from a resource node's info field
+ * @param node The resource node object
+ * @returns The managed-by-url value or null if not present
+ */
+export function getManagedByURLFromNode(node: any): string | null {
+    if (!node?.info) {
+        return null;
+    }
+    
+    const managedByURLInfo = node.info.find((info: any) => info.name === 'managed-by-url');
+    const managedByURL = managedByURLInfo?.value || null;
+    console.log('[getManagedByURLFromNode] node:', node?.name, 'managedByURL:', managedByURL);
+    return managedByURL;
 }
 
 /**
  * Gets the correct URL for an application link, considering managed-by-url annotation
  * @param app The application object
  * @param baseHref The current instance's base href
+ * @param node Optional resource node to get managed-by-url from info field
  * @returns The URL to use for the application link
  */
-export function getApplicationLinkURL(app: any, baseHref: string): {url: string; isExternal: boolean} {
-    const managedByURL = getManagedByURL(app);
-
-    if (managedByURL) {
-        // If managed-by-url is present, use it as an external link
-        const externalUrl = managedByURL + '/applications/' + app.metadata.namespace + '/' + app.metadata.name;
-        return {
-            url: externalUrl,
-            isExternal: true
-        };
-    } else {
-        // Otherwise, use the local instance URL
-        const localUrl = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
-        return {
-            url: localUrl,
-            isExternal: false
-        };
+export function getApplicationLinkURL(app: any, baseHref: string, node?: any): {url: string; isExternal: boolean} {
+    // First try to get managed-by-url from the node's info field (for nested applications)
+    let managedByURL = node ? getManagedByURLFromNode(node) : null;
+    
+    // If not found in node, try the application's metadata
+    if (!managedByURL) {
+        managedByURL = getManagedByURL(app);
     }
+    
+    let url, isExternal;
+    if (managedByURL) {
+        url = managedByURL + '/applications/' + app.metadata.namespace + '/' + app.metadata.name;
+        isExternal = true;
+    } else {
+        url = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
+        isExternal = false;
+    }
+    console.log('[getApplicationLinkURL] app:', app?.metadata?.name, 'url:', url, 'isExternal:', isExternal);
+    return { url, isExternal };
+}
+
+/**
+ * Gets the correct URL for an application link from a resource node, considering managed-by-url annotation
+ * @param node The resource node representing an application
+ * @param baseHref The current instance's base href
+ * @returns The URL to use for the application link
+ */
+export function getApplicationLinkURLFromNode(node: any, baseHref: string): {url: string; isExternal: boolean} {
+    const managedByURL = getManagedByURLFromNode(node);
+    
+    let url, isExternal;
+    if (managedByURL) {
+        url = managedByURL + '/applications/' + node.namespace + '/' + node.name;
+        isExternal = true;
+    } else {
+        url = baseHref + 'applications/' + node.namespace + '/' + node.name;
+        isExternal = false;
+    }
+    console.log('[getApplicationLinkURLFromNode] node:', node?.name, 'url:', url, 'isExternal:', isExternal);
+    return { url, isExternal };
 }

@@ -778,7 +778,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 	s.inferResourcesStatusHealth(a)
 
 	if q.Refresh == nil {
-		return a, nil
+		return a.DeepCopy(), nil
 	}
 
 	refreshType := v1alpha1.RefreshTypeNormal
