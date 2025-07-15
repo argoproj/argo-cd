@@ -15,9 +15,11 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; namespac
             isMenu={true}
             anchor={() => (
                 <>
-                    <i className='fa fa-search' /> {' '}<span>
+                    <i className='fa fa-search' />{' '}
+                    <span>
                         {props.namespace ? `${props.namespace}/` : ''}
-                        {props.appName}</span>
+                        {props.appName}
+                    </span>
                 </>
             )}>
             {opened && (
