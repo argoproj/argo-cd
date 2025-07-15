@@ -1753,7 +1753,7 @@ export function getManagedByURLFromNode(node: any): string | null {
     if (!node?.info) {
         return null;
     }
-    
+
     const managedByURLInfo = node.info.find((info: any) => info.name === 'managed-by-url');
     const managedByURL = managedByURLInfo?.value || null;
     console.log('[getManagedByURLFromNode] node:', node?.name, 'managedByURL:', managedByURL);
@@ -1770,12 +1770,12 @@ export function getManagedByURLFromNode(node: any): string | null {
 export function getApplicationLinkURL(app: any, baseHref: string, node?: any): {url: string; isExternal: boolean} {
     // First try to get managed-by-url from the node's info field (for nested applications)
     let managedByURL = node ? getManagedByURLFromNode(node) : null;
-    
+
     // If not found in node, try the application's metadata
     if (!managedByURL) {
         managedByURL = getManagedByURL(app);
     }
-    
+
     let url, isExternal;
     if (managedByURL) {
         url = managedByURL + '/applications/' + app.metadata.namespace + '/' + app.metadata.name;
@@ -1785,7 +1785,7 @@ export function getApplicationLinkURL(app: any, baseHref: string, node?: any): {
         isExternal = false;
     }
     console.log('[getApplicationLinkURL] app:', app?.metadata?.name, 'url:', url, 'isExternal:', isExternal);
-    return { url, isExternal };
+    return {url, isExternal};
 }
 
 /**
@@ -1796,7 +1796,7 @@ export function getApplicationLinkURL(app: any, baseHref: string, node?: any): {
  */
 export function getApplicationLinkURLFromNode(node: any, baseHref: string): {url: string; isExternal: boolean} {
     const managedByURL = getManagedByURLFromNode(node);
-    
+
     let url, isExternal;
     if (managedByURL) {
         url = managedByURL + '/applications/' + node.namespace + '/' + node.name;
@@ -1806,5 +1806,5 @@ export function getApplicationLinkURLFromNode(node: any, baseHref: string): {url
         isExternal = false;
     }
     console.log('[getApplicationLinkURLFromNode] node:', node?.name, 'url:', url, 'isExternal:', isExternal);
-    return { url, isExternal };
+    return {url, isExternal};
 }

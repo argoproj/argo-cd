@@ -23,9 +23,7 @@ import {
     nodeKey,
     PodHealthIcon,
     getUsrMsgKeyToDisplay,
-    getApplicationLinkURL,
     getApplicationLinkURLFromNode,
-    getManagedByURL,
     getManagedByURLFromNode
 } from '../utils';
 import {NodeUpdateAnimation} from './node-update-animation';
