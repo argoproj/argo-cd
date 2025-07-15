@@ -100,10 +100,6 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 		return nil, fmt.Errorf("failed to initialize the repo service: %w", err)
 	}
 
-	if err := git.AddSafeDirectories(); err != nil {
-		log.Warnf("failed to add safe directories: %v", err)
-	}
-
 	return &ArgoCDRepoServer{
 		opts:        serverOpts,
 		repoService: repoService,

@@ -1156,28 +1156,3 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 	}
 	return executil.RunWithExecRunOpts(cmd, opts)
 }
-
-func AddSafeDirectories() error {
-	safeDirectories := env.StringFromEnv(common.EnvGitSafeDirectories, "")
-	if safeDirectories == "" {
-		return nil
-	}
-
-	dirs := strings.Split(safeDirectories, ",")
-	for _, path := range dirs {
-		fileInfo, err := os.Stat(path)
-		if err != nil {
-			return fmt.Errorf("invalid path provided for git safe directory: %w", err)
-		}
-		if !fileInfo.IsDir() {
-			return fmt.Errorf("path %q is not a directory", path)
-		}
-		cmd := exec.Command("git", "config", "--global", "--add", "safe.directory", path)
-		_, err = executil.Run(cmd)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
