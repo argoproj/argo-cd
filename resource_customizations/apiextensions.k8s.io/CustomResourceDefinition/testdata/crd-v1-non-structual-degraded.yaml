@@ -47,15 +47,15 @@ status:
       reason: NoConflicts
       status: 'True'
       type: NamesAccepted
-    - lastTransitionTime: '2024-05-19T23:35:28Z'
-      message: the initial names have been accepted
-      reason: InitialNamesAccepted
-      status: 'True'
-      type: Established
     - lastTransitionTime: '2024-10-26T19:44:57Z'
       message: 'spec.preserveUnknownFields: Invalid value: true: must be false'
       reason: Violations
       status: 'True'
       type: NonStructuralSchema
+    - lastTransitionTime: '2024-05-19T23:35:28Z'
+      message: the initial names have been accepted
+      reason: InitialNamesAccepted
+      status: 'True'
+      type: Established
   storedVersions:
     - v1alpha1

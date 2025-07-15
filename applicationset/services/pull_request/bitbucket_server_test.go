@@ -510,3 +510,29 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 	})
 	require.Error(t, err)
 }
+
+func TestBitbucketServerListReturnsRepositoryNotFoundError(t *testing.T) {
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	path := "/rest/api/1.0/projects/nonexistent/repos/nonexistent/pull-requests?limit=100"
+
+	mux.HandleFunc(path, func(w http.ResponseWriter, _ *http.Request) {
+		// Return 404 status to simulate repository not found
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
+	})
+
+	svc, err := NewBitbucketServiceNoAuth(t.Context(), server.URL, "nonexistent", "nonexistent", "", false, nil)
+	require.NoError(t, err)
+
+	prs, err := svc.List(t.Context())
+
+	// Should return empty pull requests list
+	assert.Empty(t, prs)
+
+	// Should return RepositoryNotFoundError
+	require.Error(t, err)
+	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
+}

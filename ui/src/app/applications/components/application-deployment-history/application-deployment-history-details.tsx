@@ -61,17 +61,15 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
 
     const getExpandedSection = (index?: number): React.ReactFragment => {
         return (
-            <React.Fragment>
-                <div id={index ? `'show-parameters-'${index}` : 'show-parameters'} className='editable-panel__collapsible-button' style={{zIndex: 1001}}>
-                    <i
-                        className={`fa fa-angle-up filter__collapse editable-panel__collapsible-button__override`}
-                        onClick={() => {
-                            setShowParameterDetails(!showParameterDetails);
-                            updateMap(index);
-                        }}
-                    />
-                </div>
-            </React.Fragment>
+            <div id={index ? `'show-parameters-'${index}` : 'show-parameters'} className='editable-panel__collapsible-button' style={{zIndex: 1001}}>
+                <i
+                    className={`fa fa-angle-up filter__collapse editable-panel__collapsible-button__override`}
+                    onClick={() => {
+                        setShowParameterDetails(!showParameterDetails);
+                        updateMap(index);
+                    }}
+                />
+            </div>
         );
     };
 

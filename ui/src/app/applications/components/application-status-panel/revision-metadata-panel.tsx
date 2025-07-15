@@ -5,7 +5,7 @@ import {services} from '../../../shared/services';
 
 export const RevisionMetadataPanel = (props: {appName: string; appNamespace: string; type: string; revision: string; versionId: number}) => {
     if (props.type === 'helm' || props.type === 'oci') {
-        return <React.Fragment />;
+        return null;
     }
     if (props.type === 'oci') {
         return (

@@ -258,7 +258,8 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                 <div className='columns large-1 small-2'>STATUS</div>
                                 <div className='columns large-1 small-2'>HEALTH</div>
                                 <div className='columns large-1 show-for-large'>HOOK</div>
-                                <div className='columns large-4 small-8'>MESSAGE</div>
+                                <div className='columns large-3 small-4'>MESSAGE</div>
+                                <div className='columns large-1 small-2'>IMAGES</div>
                             </div>
                         </div>
                         {filtered.length > 0 ? (
@@ -296,8 +297,29 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                         <div className='columns large-1 show-for-large' title={resource.hookType}>
                                             {resource.hookType}
                                         </div>
-                                        <div className='columns large-4 small-8' title={resource.message}>
+                                        <div className='columns large-3 small-4' title={resource.message}>
                                             <div className='application-operation-state__message'>{resource.message}</div>
+                                        </div>
+                                        <div className='columns large-1  small-2'>
+                                            {resource.images && resource.images.length > 0 ? (
+                                                <Tooltip
+                                                    placement='top'
+                                                    content={
+                                                        <div>
+                                                            <ul className='application-operation-state__images-list' style={{margin: '10px'}}>
+                                                                {resource.images.map((image, idx) => (
+                                                                    <li key={idx}>{image}</li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                    }>
+                                                    <span className='application-operation-state__images-count'>
+                                                        {resource.images.length} image{resource.images.length !== 1 ? 's' : ''}
+                                                    </span>
+                                                </Tooltip>
+                                            ) : (
+                                                '-'
+                                            )}
                                         </div>
                                     </div>
                                 </div>

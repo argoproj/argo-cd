@@ -245,6 +245,15 @@ func TestGetTrackingMethod(t *testing.T) {
 	})
 }
 
+func TestGetInstallationID(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"installationID": "123456789",
+	})
+	id, err := settingsManager.GetInstallationID()
+	require.NoError(t, err)
+	assert.Equal(t, "123456789", id)
+}
+
 func TestApplicationFineGrainedRBACInheritanceDisabledDefault(t *testing.T) {
 	_, settingsManager := fixtures(nil)
 	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled()
