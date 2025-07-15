@@ -1751,7 +1751,7 @@ export function getManagedByURLFromNode(node: any): string | null {
     if (!node?.info) {
         return null;
     }
-    
+
     const managedByURLInfo = node.info.find((info: any) => info.name === 'managed-by-url');
     return managedByURLInfo?.value || null;
 }
