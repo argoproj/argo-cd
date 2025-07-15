@@ -2178,14 +2178,14 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	ts.AddCheckpoint("already_attempted_check_ms")
 
 	// If pruning is enabled and the app is *not* allowed to have an empty desired state,
-    // we need to ensure we're not about to accidentally wipe out all resources.
-    // This is a safety mechanism to prevent full deletion due to automation errors (e.g., empty Git path).
+	// we need to ensure we're not about to accidentally wipe out all resources.
+	// This is a safety mechanism to prevent full deletion due to automation errors (e.g., empty Git path).
 	if app.Spec.SyncPolicy.Automated.Prune && !app.Spec.SyncPolicy.Automated.AllowEmpty {
 		bAllNeedPrune := true
 		for _, r := range resources {
-            // If at least one resource is a self-referenced object (belongs to this app)
-            // and does *not* require pruning (i.e., still present in desired state),
-            // then we are not wiping out everything — so no need to block the sync.
+			// If at least one resource is a self-referenced object (belongs to this app)
+			// and does *not* require pruning (i.e., still present in desired state),
+			// then we are not wiping out everything — so no need to block the sync.
 			if r.IsSelfReferencedObj && !r.RequiresPruning {
 				bAllNeedPrune = false
 				break
