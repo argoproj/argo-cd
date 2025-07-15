@@ -1739,9 +1739,7 @@ export const getProgressiveSyncStatusColor = (status: string): string => {
  * @returns The managed-by-url value or null if not present
  */
 export function getManagedByURL(app: any): string | null {
-    const managedByURL = app?.metadata?.annotations?.['argocd.argoproj.io/managed-by-url'] || null;
-    console.log('[getManagedByURL] app:', app?.metadata?.name, 'managedByURL:', managedByURL);
-    return managedByURL;
+    return app?.metadata?.annotations?.['argocd.argoproj.io/managed-by-url'] || null;
 }
 
 /**
@@ -1753,11 +1751,9 @@ export function getManagedByURLFromNode(node: any): string | null {
     if (!node?.info) {
         return null;
     }
-
+    
     const managedByURLInfo = node.info.find((info: any) => info.name === 'managed-by-url');
-    const managedByURL = managedByURLInfo?.value || null;
-    console.log('[getManagedByURLFromNode] node:', node?.name, 'managedByURL:', managedByURL);
-    return managedByURL;
+    return managedByURLInfo?.value || null;
 }
 
 /**
@@ -1784,7 +1780,6 @@ export function getApplicationLinkURL(app: any, baseHref: string, node?: any): {
         url = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
         isExternal = false;
     }
-    console.log('[getApplicationLinkURL] app:', app?.metadata?.name, 'url:', url, 'isExternal:', isExternal);
     return {url, isExternal};
 }
 
@@ -1805,6 +1800,5 @@ export function getApplicationLinkURLFromNode(node: any, baseHref: string): {url
         url = baseHref + 'applications/' + node.namespace + '/' + node.name;
         isExternal = false;
     }
-    console.log('[getApplicationLinkURLFromNode] node:', node?.name, 'url:', url, 'isExternal:', isExternal);
     return {url, isExternal};
 }
