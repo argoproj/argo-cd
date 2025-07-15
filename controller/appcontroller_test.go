@@ -2986,4 +2986,43 @@ func TestAutoSyncPruneWithIsSelfReferencedObj(t *testing.T) {
 		assert.Equal(t, v1alpha1.ApplicationConditionSyncError, cond.Type)
 		assert.Contains(t, cond.Message, "auto-sync will wipe out all resources")
 	})
+
+	t.Run("Should trigger sync when non-self-referenced resources require sync", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.SyncPolicy.Automated.Prune = true
+		app.Spec.SyncPolicy.Automated.AllowEmpty = false
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
+		syncStatus := v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeOutOfSync,
+			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		}
+
+		// Mix of self-referenced and non-self-referenced resources
+		// The self-referenced resource that doesn't require pruning prevents the "wipe out all resources" condition
+		resources := []v1alpha1.ResourceStatus{
+			{
+				Name:                "self-referenced-resource",
+				Kind:                kube.DeploymentKind,
+				Status:              v1alpha1.SyncStatusCodeOutOfSync,
+				IsSelfReferencedObj: true,
+				RequiresPruning:     false, // This prevents the "wipe out all resources" condition
+			},
+			{
+				Name:                "non-self-referenced-resource",
+				Kind:                kube.DeploymentKind,
+				Status:              v1alpha1.SyncStatusCodeOutOfSync,
+				IsSelfReferencedObj: false,
+				RequiresPruning:     true, // This non-self-referenced resource requires sync
+			},
+		}
+
+		cond, _ := ctrl.autoSync(app, &syncStatus, resources, true)
+		assert.Nil(t, cond)
+
+		updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.NotNil(t, updatedApp.Operation)
+		assert.NotNil(t, updatedApp.Operation.Sync)
+		assert.True(t, updatedApp.Operation.Sync.Prune)
+	})
 }
