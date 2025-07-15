@@ -2188,6 +2188,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
                        // then we are not wiping out everything — so no need to block the sync.
 			if r.IsSelfReferencedObj && !r.RequiresPruning {
 				bAllNeedPrune = false
+				break
 			}
 		}
 		if bAllNeedPrune {
