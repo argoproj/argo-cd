@@ -32,6 +32,36 @@ spec:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
+        - name: config-init
+          image: redis:7.2.7-alpine
+          command: 
+          - "sh"
+          - "/readonly-config/init.sh"
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: auth
+                  name: argocd-redis
+            - name: REDIS_CREDS_FILE_PATH
+              value: "/run/secrets/argocd/redis-auth"
+          volumeMounts:
+            - name: config
+              mountPath: /readonly-config
+            - name: data
+              mountPath: /data
+            - name: redis-creds
+              mountPath: "/run/secrets/argocd/redis-auth"
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault      
       securityContext:
         runAsNonRoot: true
         runAsUser: 999
@@ -43,17 +73,8 @@ spec:
         image: redis:8.2.1-alpine
         imagePullPolicy: Always
         args:
-        - "--save"
-        - ""
-        - "--appendonly"
-        - "no"
-        - --requirepass $(REDIS_PASSWORD)
-        env:
-          - name: REDIS_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                key: auth
-                name: argocd-redis
+        - "redis-server"
+        - "/data/conf/redis.conf"
         ports:
         - containerPort: 6379
         securityContext:
@@ -62,6 +83,22 @@ spec:
           capabilities:
             drop:
             - ALL
+        volumeMounts:
+          - name: data
+            mountPath: /data   
+      volumes:
+        - name: config
+          configMap:
+            name: argocd-redis-configmap
+        - name: data
+          emptyDir: {}
+        - name: redis-creds
+          secret:
+            secretName: argocd-redis
+            items:
+              - key: auth
+                path: auth
+            optional: true  
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
