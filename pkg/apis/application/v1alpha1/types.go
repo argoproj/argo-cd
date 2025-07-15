@@ -3198,7 +3198,8 @@ type KustomizeOptions struct {
 
 	// BinaryPath holds optional path to kustomize binary
 	//
-	// Deprecated: Use Settings.Versions instead. If this field is set, it will be used as the Kustomize binary path.
+	// Deprecated: Use settings.Settings instead. See: settings.Settings.KustomizeVersions.
+	// If this field is set, it will be used as the Kustomize binary path.
 	// Otherwise, Versions is used.
 	BinaryPath string `protobuf:"bytes,2,opt,name=binaryPath"`
 
