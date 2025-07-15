@@ -37,6 +37,7 @@ export interface AppDetailsPreferences {
 export interface PodViewPreferences {
     sortMode: PodGroupType;
     hideUnschedulable: boolean;
+    sortOrder?: 'asc' | 'desc';
 }
 
 export interface HealthStatusBarPreferences {

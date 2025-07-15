@@ -11,6 +11,7 @@ interface RevisionFormFieldProps {
     hideLabel?: boolean;
     repoURL: string;
     fieldValue?: string;
+    repoType?: string;
 }
 
 export class RevisionFormField extends React.PureComponent<RevisionFormFieldProps, {filterType: string}> {
@@ -30,53 +31,58 @@ export class RevisionFormField extends React.PureComponent<RevisionFormFieldProp
         return (
             <div className={'row' + rowClass}>
                 <div className='columns small-10'>
-                    <React.Fragment>
-                        <DataLoader
-                            input={{repoURL: this.props.repoURL, filterType: selectedFilter}}
-                            load={async (src: any): Promise<string[]> => {
-                                if (src.repoURL) {
-                                    return services.repos
-                                        .revisions(src.repoURL)
-                                        .then(revisionsRes =>
-                                            ['HEAD']
-                                                .concat(selectedFilter === 'Branches' ? revisionsRes.branches || [] : [])
-                                                .concat(selectedFilter === 'Tags' ? revisionsRes.tags || [] : [])
-                                        )
-                                        .catch(() => []);
-                                }
-                                return [];
-                            }}>
-                            {(revisions: string[]) => (
-                                <FormField
-                                    formApi={this.props.formApi}
-                                    label={this.props.hideLabel ? undefined : 'Revision'}
-                                    field={this.props.fieldValue ? this.props.fieldValue : 'spec.source.targetRevision'}
-                                    component={AutocompleteField}
-                                    componentProps={{
-                                        items: revisions,
-                                        filterSuggestions: true
-                                    }}
-                                />
-                            )}
-                        </DataLoader>
-                        <RevisionHelpIcon type='git' top={this.props.helpIconTop} right='0em' />
-                    </React.Fragment>
+                    <DataLoader
+                        input={{repoURL: this.props.repoURL, filterType: selectedFilter}}
+                        load={async (src: any): Promise<string[]> => {
+                            if (this.props.repoType === 'oci' && src.repoURL) {
+                                return services.repos
+                                    .ociTags(src.repoURL)
+                                    .then(revisionsRes => ['HEAD'].concat(revisionsRes.tags || []))
+                                    .catch(() => []);
+                            } else if (src.repoURL) {
+                                return services.repos
+                                    .revisions(src.repoURL)
+                                    .then(revisionsRes =>
+                                        ['HEAD']
+                                            .concat(selectedFilter === 'Branches' ? revisionsRes.branches || [] : [])
+                                            .concat(selectedFilter === 'Tags' ? revisionsRes.tags || [] : [])
+                                    )
+                                    .catch(() => []);
+                            }
+                            return [];
+                        }}>
+                        {(revisions: string[]) => (
+                            <FormField
+                                formApi={this.props.formApi}
+                                label={this.props.hideLabel ? undefined : 'Revision'}
+                                field={this.props.fieldValue ? this.props.fieldValue : 'spec.source.targetRevision'}
+                                component={AutocompleteField}
+                                componentProps={{
+                                    items: revisions,
+                                    filterSuggestions: true
+                                }}
+                            />
+                        )}
+                    </DataLoader>
+                    <RevisionHelpIcon type='git' top={this.props.helpIconTop} right='0em' />
                 </div>
                 <div style={{paddingTop: extraPadding}} className='columns small-2'>
-                    <DropDownMenu
-                        anchor={() => (
-                            <p>
-                                {this.state.filterType} <i className='fa fa-caret-down' />
-                            </p>
-                        )}
-                        qeId='application-create-dropdown-revision'
-                        items={['Branches', 'Tags'].map((type: 'Branches' | 'Tags') => ({
-                            title: type,
-                            action: () => {
-                                this.setFilter(type);
-                            }
-                        }))}
-                    />
+                    {this.props.repoType !== 'oci' && (
+                        <DropDownMenu
+                            anchor={() => (
+                                <p>
+                                    {this.state.filterType} <i className='fa fa-caret-down' />
+                                </p>
+                            )}
+                            qeId='application-create-dropdown-revision'
+                            items={['Branches', 'Tags'].map((type: 'Branches' | 'Tags') => ({
+                                title: type,
+                                action: () => {
+                                    this.setFilter(type);
+                                }
+                            }))}
+                        />
+                    )}
                 </div>
             </div>
         );

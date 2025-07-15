@@ -210,12 +210,48 @@ func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
 }
 
 func TestGetAppInstanceLabelKey(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
-		"application.instanceLabelKey": "testLabel",
+	t.Run("should get custom instanceLabelKey", func(t *testing.T) {
+		_, settingsManager := fixtures(map[string]string{
+			"application.instanceLabelKey": "testLabel",
+		})
+		label, err := settingsManager.GetAppInstanceLabelKey()
+		require.NoError(t, err)
+		assert.Equal(t, "testLabel", label)
 	})
-	label, err := settingsManager.GetAppInstanceLabelKey()
+
+	t.Run("should get default instanceLabelKey if custom not defined", func(t *testing.T) {
+		_, settingsManager := fixtures(map[string]string{})
+		label, err := settingsManager.GetAppInstanceLabelKey()
+		require.NoError(t, err)
+		assert.Equal(t, common.LabelKeyAppInstance, label)
+	})
+}
+
+func TestGetTrackingMethod(t *testing.T) {
+	t.Run("should get custom trackingMethod", func(t *testing.T) {
+		_, settingsManager := fixtures(map[string]string{
+			"application.resourceTrackingMethod": string(v1alpha1.TrackingMethodLabel),
+		})
+		label, err := settingsManager.GetTrackingMethod()
+		require.NoError(t, err)
+		assert.Equal(t, string(v1alpha1.TrackingMethodLabel), label)
+	})
+
+	t.Run("should get default trackingMethod if custom not defined", func(t *testing.T) {
+		_, settingsManager := fixtures(map[string]string{})
+		label, err := settingsManager.GetTrackingMethod()
+		require.NoError(t, err)
+		assert.Equal(t, string(v1alpha1.TrackingMethodAnnotation), label)
+	})
+}
+
+func TestGetInstallationID(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"installationID": "123456789",
+	})
+	id, err := settingsManager.GetInstallationID()
 	require.NoError(t, err)
-	assert.Equal(t, "testLabel", label)
+	assert.Equal(t, "123456789", id)
 }
 
 func TestApplicationFineGrainedRBACInheritanceDisabledDefault(t *testing.T) {
@@ -330,7 +366,7 @@ func TestGetResourceOverrides(t *testing.T) {
 	crdOverrides := overrides[crdGK]
 	assert.NotNil(t, crdOverrides)
 	assert.Equal(t, v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
-		JSONPointers:      []string{"/webhooks/0/clientConfig/caBundle", "/status", "/spec/preserveUnknownFields"},
+		JSONPointers:      []string{"/webhooks/0/clientConfig/caBundle", "/status"},
 		JQPathExpressions: []string{".webhooks[0].clientConfig.caBundle"},
 	}}, crdOverrides)
 
@@ -1551,6 +1587,8 @@ rootCA: "invalid"`},
 }
 
 func Test_OAuth2AllowedAudiences(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name     string
 		settings *ArgoCDSettings
@@ -1632,7 +1670,7 @@ func TestReplaceStringSecret(t *testing.T) {
 
 func TestRedirectURLForRequest(t *testing.T) {
 	generateRequest := func(url string) *http.Request {
-		r, err := http.NewRequest(http.MethodPost, url, nil)
+		r, err := http.NewRequest(http.MethodPost, url, http.NoBody)
 		require.NoError(t, err)
 		return r
 	}
@@ -1859,6 +1897,45 @@ func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {
 				resourceSensitiveAnnotationsKey: tt.input,
 			})
 			keys := settingsManager.GetSensitiveAnnotations()
+			assert.Len(t, keys, len(tt.output))
+			assert.Equal(t, tt.output, keys)
+		})
+	}
+}
+
+func TestSettingsManager_GetAllowedNodeLabels(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		output []string
+	}{
+		{
+			name:   "Empty input",
+			input:  "",
+			output: []string{},
+		},
+		{
+			name:   "Comma separated data",
+			input:  "example.com/label,label1,label2",
+			output: []string{"example.com/label", "label1", "label2"},
+		},
+		{
+			name:   "Comma separated data with space",
+			input:  "example.com/label, label1,    label2",
+			output: []string{"example.com/label", "label1", "label2"},
+		},
+		{
+			name:   "Comma separated data with invalid label",
+			input:  "example.com/label,_invalid,label1,label2",
+			output: []string{"example.com/label", "label1", "label2"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, settingsManager := fixtures(map[string]string{
+				allowedNodeLabelsKey: tt.input,
+			})
+			keys := settingsManager.GetAllowedNodeLabels()
 			assert.Len(t, keys, len(tt.output))
 			assert.Equal(t, tt.output, keys)
 		})

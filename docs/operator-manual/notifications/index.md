@@ -14,7 +14,7 @@ So you can just use them instead of reinventing new ones.
     kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/notifications_catalog/install.yaml
     ```
 
-* Add Email username and password token to `argocd-notifications-secret` secret
+* Add email username and password token to the `argocd-notifications-secret` secret
 
     ```bash
     EMAIL_USER=<your-username>
@@ -32,7 +32,7 @@ So you can just use them instead of reinventing new ones.
     EOF
     ```
 
-* Register Email notification service
+* Register email notification service
 
     ```bash
     kubectl patch cm argocd-notifications-cm -n argocd --type merge -p '{"data": {"service.email.gmail": "{ username: $email-username, password: $email-password, host: smtp.gmail.com, port: 465, from: $email-username }" }}'

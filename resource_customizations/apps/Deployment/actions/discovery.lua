@@ -7,4 +7,13 @@ if obj.spec.paused ~= nil then
     actions["pause"] = {paused}
 end
 actions["resume"] = {["disabled"] = not(paused)}
+
+actions["scale"] = {
+    ["params"] = {
+        {
+            ["name"] = "replicas",
+            ["default"] = tostring(obj.spec.replicas)
+        }
+    },
+}
 return actions
