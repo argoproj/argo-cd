@@ -446,7 +446,8 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
         <div
             className={classNames('application-resource-tree__node', {
                 'active': fullName === props.selectedNodeFullName,
-                'application-resource-tree__node--orphaned': node.orphaned
+                'application-resource-tree__node--orphaned': node.orphaned,
+                'application-resource-tree__node--grouped-node': !showPodGroupByStatus
             })}
             title={describeNode(node)}
             style={{
