@@ -90,7 +90,8 @@ type comparisonResult struct {
 	timings            map[string]time.Duration
 	diffResultList     *diff.DiffResultList
 	hasPostDeleteHooks bool
-	revisionUpdated    bool
+	// revisionsMayHaveChanges indicates if there are any possibilities that the revisions contain changes
+	revisionsMayHaveChanges bool
 }
 
 func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
@@ -222,9 +223,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		return nil, nil, false, fmt.Errorf("failed to get ref sources: %w", err)
 	}
 
-	revisionUpdated := false
-
-	atLeastOneRevisionIsNotPossibleToBeUpdated := false
+	revisionsMayHaveChanges := false
 
 	keyManifestGenerateAnnotationVal, keyManifestGenerateAnnotationExists := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 
@@ -281,7 +280,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 				return nil, nil, false, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
 			}
 			if updateRevisionResult.Changes {
-				revisionUpdated = true
+				revisionsMayHaveChanges = true
 			}
 
 			// Generate manifests should use same revision as updateRevisionForPaths, because HEAD revision may be different between these two calls
@@ -289,8 +288,8 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 				revision = updateRevisionResult.Revision
 			}
 		} else {
-			// revisionUpdated is set to true if at least one revision is not possible to be updated,
-			atLeastOneRevisionIsNotPossibleToBeUpdated = true
+			// revisionsMayHaveChanges is set to true if at least one revision is not possible to be updated
+			revisionsMayHaveChanges = true
 		}
 
 		repos := permittedHelmRepos
@@ -351,13 +350,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 	logCtx.Info("GetRepoObjs stats")
 
-	// If a revision in any of the sources cannot be updated,
-	// we should trigger self-healing whenever there are changes to the manifests.
-	if atLeastOneRevisionIsNotPossibleToBeUpdated {
-		revisionUpdated = true
-	}
-
-	return targetObjs, manifestInfos, revisionUpdated, nil
+	return targetObjs, manifestInfos, revisionsMayHaveChanges, nil
 }
 
 // ResolveGitRevision will resolve the given revision to a full commit SHA. Only works for git.
@@ -589,7 +582,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	var manifestInfos []*apiclient.ManifestResponse
 	targetNsExists := false
 
-	var revisionUpdated bool
+	// revisionsMayHaveChanges if there are any possibilities that the revisions contain changes
+	var revisionsMayHaveChanges bool
 
 	if len(localManifests) == 0 {
 		// If the length of revisions is not same as the length of sources,
@@ -601,7 +595,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 
-		targetObjs, manifestInfos, revisionUpdated, err = m.GetRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project, true)
+		targetObjs, manifestInfos, revisionsMayHaveChanges, err = m.GetRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project, true)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			msg := "Failed to load target state: " + err.Error()
@@ -994,15 +988,15 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 
 	compRes := comparisonResult{
-		syncStatus:           &syncStatus,
-		healthStatus:         healthStatus,
-		resources:            resourceSummaries,
-		managedResources:     managedResources,
-		reconciliationResult: reconciliation,
-		diffConfig:           diffConfig,
-		diffResultList:       diffResults,
-		hasPostDeleteHooks:   hasPostDeleteHooks,
-		revisionUpdated:      revisionUpdated,
+		syncStatus:              &syncStatus,
+		healthStatus:            healthStatus,
+		resources:               resourceSummaries,
+		managedResources:        managedResources,
+		reconciliationResult:    reconciliation,
+		diffConfig:              diffConfig,
+		diffResultList:          diffResults,
+		hasPostDeleteHooks:      hasPostDeleteHooks,
+		revisionsMayHaveChanges: revisionsMayHaveChanges,
 	}
 
 	if hasMultipleSources {
