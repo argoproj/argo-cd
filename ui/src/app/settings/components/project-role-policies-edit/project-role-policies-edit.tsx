@@ -1,5 +1,5 @@
-import * as React from 'react';
 import * as ReactForm from 'react-form';
+import React from 'react';
 
 import {DataLoader} from '../../../shared/components';
 import {Application} from '../../../shared/models';
@@ -84,152 +84,152 @@ function removeEl(items: any[], index: number) {
     return items;
 }
 
-class PolicyWrapper extends React.Component<PolicyProps, any> {
-    public render() {
-        return (
-            <div className='row project-role-policies-edit__wrapper-row'>
-                <div className='columns small-3'>
-                    <datalist id='resource'>
-                        <option>applications</option>
-                        <option>applicationsets</option>
-                        <option>clusters</option>
-                        <option>repositories</option>
-                        <option>logs</option>
-                        <option>exec</option>
-                    </datalist>
-                    <input
-                        className='argo-field'
-                        list='resource'
-                        value={this.getResource()}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            this.setResource(e.target.value);
-                        }}
-                    />
-                </div>
-                <div className='columns small-3'>
-                    <datalist id='action'>
-                        {this.props.actions !== undefined && this.props.actions.length > 0 && this.props.actions.map(action => <option key={action}>{action}</option>)}
-                        <option key='wildcard'>*</option>
-                    </datalist>
-                    <input
-                        className='argo-field'
-                        list='action'
-                        value={this.getAction()}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            this.setAction(e.target.value);
-                        }}
-                    />
-                </div>
-                <div className='columns small-3'>
-                    <datalist id='object'>
-                        {this.props.availableApps !== undefined &&
-                            this.props.availableApps.length > 0 &&
-                            this.props.availableApps.map(app => (
-                                <option key={app.metadata.name}>
-                                    {this.props.projName}/{app.metadata.name}
-                                </option>
-                            ))}
-                        <option key='wildcard'>{`${this.props.projName}/*`}</option>
-                    </datalist>
-                    <input
-                        className='argo-field'
-                        list='object'
-                        value={this.getObject()}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            this.setObject(e.target.value);
-                        }}
-                    />
-                </div>
-                <div className='columns small-3'>
-                    <datalist id='permission'>
-                        <option>allow</option>
-                        <option>deny</option>
-                    </datalist>
-                    <input
-                        className='argo-field'
-                        list='permission'
-                        value={this.getPermission()}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            this.setPermission(e.target.value);
-                        }}
-                    />
-                </div>
-                <div style={{position: 'absolute', right: '0.5em'}}>
-                    <i className='fa fa-times' onClick={() => this.props.deletePolicy()} style={{cursor: 'pointer'}} />
-                </div>
-            </div>
-        );
-    }
-
-    private getResource(): string {
-        const fields = (this.props.fieldApi.getValue() as string).split(',');
+const PolicyWrapper = ({projName, roleName, fieldApi, actions, availableApps, deletePolicy}: PolicyProps) => {
+    const getResource = (): string => {
+        const fields = (fieldApi.getValue() as string).split(',');
         if (fields.length !== 6) {
             return '';
         }
         return fields[2].trim();
-    }
-    private setResource(resource: string) {
-        const fields = (this.props.fieldApi.getValue() as string).split(',');
+    };
+
+    const setResource = (resource: string) => {
+        const fields = (fieldApi.getValue() as string).split(',');
         if (fields.length !== 6) {
-            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, resource, '', '', ''));
+            fieldApi.setValue(generatePolicy(projName, roleName, resource, '', '', ''));
             return;
         }
         fields[2] = ` ${resource}`;
-        this.props.fieldApi.setValue(fields.join());
-    }
+        fieldApi.setValue(fields.join());
+    };
 
-    private getAction(): string {
-        const fields = (this.props.fieldApi.getValue() as string).split(',');
+    const getAction = (): string => {
+        const fields = (fieldApi.getValue() as string).split(',');
         if (fields.length !== 6) {
             return '';
         }
         return fields[3].trim();
-    }
+    };
 
-    private setAction(action: string) {
-        const fields = (this.props.fieldApi.getValue() as string).split(',');
+    const setAction = (action: string) => {
+        const fields = (fieldApi.getValue() as string).split(',');
         if (fields.length !== 6) {
-            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, '', action, '', ''));
+            fieldApi.setValue(generatePolicy(projName, roleName, '', action, '', ''));
             return;
         }
         fields[3] = ` ${action}`;
-        this.props.fieldApi.setValue(fields.join());
-    }
+        fieldApi.setValue(fields.join());
+    };
 
-    private getObject(): string {
-        const fields = (this.props.fieldApi.getValue() as string).split(',');
+    const getObject = (): string => {
+        const fields = (fieldApi.getValue() as string).split(',');
         if (fields.length !== 6) {
             return '';
         }
         return fields[4].trim();
-    }
+    };
 
-    private setObject(object: string) {
-        const fields = (this.props.fieldApi.getValue() as string).split(',');
+    const setObject = (object: string) => {
+        const fields = (fieldApi.getValue() as string).split(',');
         if (fields.length !== 6) {
-            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, '', '', object, ''));
+            fieldApi.setValue(generatePolicy(projName, roleName, '', '', object, ''));
             return;
         }
         fields[4] = ` ${object}`;
-        this.props.fieldApi.setValue(fields.join());
-    }
+        fieldApi.setValue(fields.join());
+    };
 
-    private getPermission(): string {
-        const fields = (this.props.fieldApi.getValue() as string).split(',');
+    const getPermission = (): string => {
+        const fields = (fieldApi.getValue() as string).split(',');
         if (fields.length !== 6) {
             return '';
         }
         return fields[5].trim();
-    }
-    private setPermission(permission: string) {
-        const fields = (this.props.fieldApi.getValue() as string).split(',');
+    };
+
+    const setPermission = (permission: string) => {
+        const fields = (fieldApi.getValue() as string).split(',');
         if (fields.length !== 6) {
-            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, '', '', '', permission));
+            fieldApi.setValue(generatePolicy(projName, roleName, '', '', '', permission));
             return;
         }
         fields[5] = ` ${permission}`;
-        this.props.fieldApi.setValue(fields.join());
-    }
-}
+        fieldApi.setValue(fields.join());
+    };
+
+    return (
+        <div className='row project-role-policies-edit__wrapper-row'>
+            <div className='columns small-3'>
+                <datalist id='resource'>
+                    <option>applications</option>
+                    <option>applicationsets</option>
+                    <option>clusters</option>
+                    <option>repositories</option>
+                    <option>logs</option>
+                    <option>exec</option>
+                </datalist>
+                <input
+                    className='argo-field'
+                    list='resource'
+                    value={getResource()}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                        setResource(e.target.value);
+                    }}
+                />
+            </div>
+            <div className='columns small-3'>
+                <datalist id='action'>
+                    {actions !== undefined && actions.length > 0 && actions.map(action => <option key={action}>{action}</option>)}
+                    <option key='wildcard'>*</option>
+                </datalist>
+                <input
+                    className='argo-field'
+                    list='action'
+                    value={getAction()}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                        setAction(e.target.value);
+                    }}
+                />
+            </div>
+            <div className='columns small-3'>
+                <datalist id='object'>
+                    {availableApps !== undefined &&
+                        availableApps.length > 0 &&
+                        availableApps.map(app => (
+                            <option key={app.metadata.name}>
+                                {projName}/{app.metadata.name}
+                            </option>
+                        ))}
+                    <option key='wildcard'>{`${projName}/*`}</option>
+                </datalist>
+                <input
+                    className='argo-field'
+                    list='object'
+                    value={getObject()}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                        setObject(e.target.value);
+                    }}
+                />
+            </div>
+            <div className='columns small-3'>
+                <datalist id='permission'>
+                    <option>allow</option>
+                    <option>deny</option>
+                </datalist>
+                <input
+                    className='argo-field'
+                    list='permission'
+                    value={getPermission()}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                        setPermission(e.target.value);
+                    }}
+                />
+            </div>
+            <div style={{position: 'absolute', right: '0.5em'}}>
+                <i className='fa fa-times' onClick={deletePolicy} style={{cursor: 'pointer'}} />
+            </div>
+        </div>
+    );
+};
 
 const Policy = ReactForm.FormField(PolicyWrapper);
