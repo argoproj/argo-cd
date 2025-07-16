@@ -1,18 +1,20 @@
 import * as React from 'react';
+import {useState, useRef, useEffect} from 'react';
 
-export class NodeUpdateAnimation extends React.PureComponent<{resourceVersion: string}, {ready: boolean}> {
-    constructor(props: {resourceVersion: string}) {
-        super(props);
-        this.state = {ready: false};
-    }
+interface Props {
+    resourceVersion: string;
+}
 
-    public render() {
-        return this.state.ready && <div key={this.props.resourceVersion} className='application-resource-tree__node-animation' />;
-    }
+export function NodeUpdateAnimation({resourceVersion}: Props) {
+    const [ready, setReady] = useState(false);
+    const prevVersionRef = useRef<string | null>(null);
 
-    public componentDidUpdate(prevProps: {resourceVersion: string}) {
-        if (prevProps.resourceVersion && this.props.resourceVersion !== prevProps.resourceVersion) {
-            this.setState({ready: true});
+    useEffect(() => {
+        if (prevVersionRef.current !== null && prevVersionRef.current !== resourceVersion) {
+            setReady(true);
         }
-    }
+        prevVersionRef.current = resourceVersion;
+    }, [resourceVersion]);
+
+    return ready ? <div key={resourceVersion} className='application-resource-tree__node-animation' /> : null;
 }
