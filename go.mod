@@ -1,6 +1,8 @@
 module github.com/argoproj/argo-cd/v2
 
-go 1.22.0
+go 1.23.0
+
+toolchain go1.24.4
 
 require (
 	code.gitea.io/sdk/gitea v0.19.0
@@ -25,12 +27,12 @@ require (
 	github.com/cyphar/filepath-securejoin v0.3.6
 	github.com/dustin/go-humanize v1.0.1
 	github.com/evanphx/json-patch v5.9.0+incompatible
-	github.com/expr-lang/expr v1.16.9
+	github.com/expr-lang/expr v1.17.0
 	github.com/felixge/httpsnoop v1.0.4
 	github.com/fsnotify/fsnotify v1.8.0
 	github.com/gfleury/go-bitbucket-v1 v0.0.0-20220301131131-8e7ed04b843e
 	github.com/go-git/go-git/v5 v5.13.2
-	github.com/go-jose/go-jose/v3 v3.0.3
+	github.com/go-jose/go-jose/v3 v3.0.4
 	github.com/go-logr/logr v1.4.2
 	github.com/go-openapi/loads v0.22.0
 	github.com/go-openapi/runtime v0.28.0
@@ -83,12 +85,12 @@ require (
 	go.opentelemetry.io/otel v1.33.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.32.0
 	go.opentelemetry.io/otel/sdk v1.33.0
-	golang.org/x/crypto v0.32.0
+	golang.org/x/crypto v0.39.0
 	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
-	golang.org/x/net v0.34.0
-	golang.org/x/oauth2 v0.24.0
-	golang.org/x/sync v0.10.0
-	golang.org/x/term v0.28.0
+	golang.org/x/net v0.40.0
+	golang.org/x/oauth2 v0.30.0
+	golang.org/x/sync v0.16.0
+	golang.org/x/term v0.32.0
 	golang.org/x/time v0.8.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20241104194629-dd2ea8efbc28
 	google.golang.org/grpc v1.68.1
@@ -132,11 +134,12 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.21.7 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.26.7 // indirect
 	github.com/aws/smithy-go v1.19.0 // indirect
+	github.com/cloudflare/circl v1.3.7 // indirect
 	github.com/davidmz/go-pageant v1.0.2 // indirect
 	github.com/distribution/reference v0.5.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/go-fed/httpsig v1.1.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.0.2 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.1 // indirect
 	github.com/golang-jwt/jwt/v5 v5.2.2 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/s2a-go v0.1.7 // indirect
@@ -150,10 +153,10 @@ require (
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.53.0 // indirect
 	go.starlark.net v0.0.0-20230525235612-a134d8f9ddca // indirect
-	golang.org/x/mod v0.22.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
-	golang.org/x/tools v0.27.0 // indirect
+	golang.org/x/mod v0.25.0 // indirect
+	golang.org/x/sys v0.34.0 // indirect
+	golang.org/x/text v0.26.0 // indirect
+	golang.org/x/tools v0.33.0 // indirect
 	google.golang.org/api v0.171.0 // indirect
 	google.golang.org/genproto v0.0.0-20240213162025-012b6fc9bca9 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241104194629-dd2ea8efbc28 // indirect
@@ -184,7 +187,6 @@ require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
-	github.com/cloudflare/circl v1.3.7 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
@@ -209,7 +211,7 @@ require (
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/go-openapi/validate v0.24.0 // indirect
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1 // indirect
-	github.com/golang/glog v1.2.2 // indirect
+	github.com/golang/glog v1.2.4 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/go-github/v41 v41.0.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
@@ -294,6 +296,9 @@ require (
 )
 
 replace (
+	// Avoid GO-2025-3754
+	github.com/cloudflare/circl => github.com/cloudflare/circl v1.6.1
+
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 => github.com/OvyFlash/telegram-bot-api/v5 v5.0.0-20240108230938-63e5c59035bf
 
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
