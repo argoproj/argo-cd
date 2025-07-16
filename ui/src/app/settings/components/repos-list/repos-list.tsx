@@ -1179,7 +1179,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                     <HelpIcon title='This setting is ignored when creating as credential template.' />
                                                 </div>
                                                 {formApi.getFormState().values.type === 'git' && (
-                                                    <React.Fragment>
+                                                    <>
                                                         <div className='argo-form-row'>
                                                             <FormField formApi={formApi} label='Force HTTP basic auth' field='forceHttpBasicAuth' component={CheckboxField} />
                                                         </div>
@@ -1187,7 +1187,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                             <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
                                                             <HelpIcon title='This setting is ignored when creating as credential template.' />
                                                         </div>
-                                                    </React.Fragment>
+                                                    </>
                                                 )}
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
@@ -1253,7 +1253,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                     <HelpIcon title='This setting is ignored when creating as credential template.' />
                                                 </div>
                                                 {formApi.getFormState().values.ghType === 'GitHub Enterprise' && (
-                                                    <React.Fragment>
+                                                    <>
                                                         <div className='argo-form-row'>
                                                             <FormField formApi={formApi} label='TLS client certificate (optional)' field='tlsClientCertData' component={TextArea} />
                                                         </div>
@@ -1265,7 +1265,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                                 component={TextArea}
                                                             />
                                                         </div>
-                                                    </React.Fragment>
+                                                    </>
                                                 )}
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
