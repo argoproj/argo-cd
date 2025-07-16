@@ -1411,15 +1411,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			}
 			retryAfter := time.Until(retryAt)
 
-			// abort ongoing operation and retry if auto-refresh is enabled and a new revision is available
-			hasRevisionToRefresh := state.Operation.Retry.Refresh && state.Phase == synccommon.OperationRunning && app.Status.Sync.Revision != state.Operation.Sync.Revision
-			if hasRevisionToRefresh {
-				logCtx.Infof("A new revision is available, refreshing and terminating app, was phase: %s, message: %s", state.Phase, state.Message)
-
-				state.Message = fmt.Sprintf("Sync revision of %s refreshed with %s", state.Operation.Sync.Revision, app.Status.Sync.Revision)
-				state.Operation.Sync.Revision = app.Status.Sync.Revision
-			} else if retryAfter > 0 {
-				// Do not delay retry if there are revisions to refresh
+			if retryAfter > 0 {
 				logCtx.Infof("Skipping retrying in-progress operation. Attempting again at: %s", retryAt.Format(time.RFC3339))
 				ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
 				return
@@ -1474,8 +1466,14 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			}
 		}
 	case synccommon.OperationFailed, synccommon.OperationError:
-		if !terminating && (state.RetryCount < state.Operation.Retry.Limit || state.Operation.Retry.Limit < 0) {
-			now := metav1.Now()
+		now := metav1.Now()
+		if !terminating && hasNewCommitToResync(app, state, logCtx) {
+			// Do not retry with old commit if there is a new one. Keep the "error" Phase.
+			state.FinishedAt = &now
+			state.Message = fmt.Sprintf("%s (retry terminated - new changes)", state.Message)
+			// Start from 0 with new change
+			state.RetryCount = 0
+		} else if !terminating && (state.RetryCount < state.Operation.Retry.Limit || state.Operation.Retry.Limit < 0) {
 			state.FinishedAt = &now
 			if retryAt, err := state.Operation.Retry.NextRetryAt(now.Time, state.RetryCount); err != nil {
 				state.Phase = synccommon.OperationError
@@ -2080,6 +2078,24 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	return patchDuration
 }
 
+func hasNewCommitToResync(app *appv1.Application, state *appv1.OperationState, logCtx *log.Entry) bool {
+	if app.Spec.SyncPolicy == nil || !app.Spec.SyncPolicy.IsAutomatedSyncEnabled() {
+		return false
+	}
+
+	desiredRevisions := []string{app.Status.Sync.Revision}
+	if app.Spec.HasMultipleSources() {
+		desiredRevisions = app.Status.Sync.Revisions
+	}
+
+	alreadyAttempted, lastRevs, lastPhase := alreadyAttemptedSync(app, desiredRevisions, true)
+	if !alreadyAttempted && len(lastRevs) != 0 {
+		logCtx.Infof("A new revision is available after %s with %s: %s", lastPhase, lastRevs, state.Message)
+		return true
+	}
+	return false
+}
+
 // autoSync will initiate a sync operation for an application configured with automated sync
 func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus, shouldCompareRevisions bool) (*appv1.ApplicationCondition, time.Duration) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
@@ -2189,6 +2205,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		}
 	}
 	ts.AddCheckpoint("already_attempted_check_ms")
+	logCtx.Infof("FLARE: Detected change after %s/%s, desired %s", lastAttemptedPhase, lastAttemptedRevisions, desiredRevisions)
 
 	if app.Spec.SyncPolicy.Automated.Prune && !app.Spec.SyncPolicy.Automated.AllowEmpty {
 		bAllNeedPrune := true
