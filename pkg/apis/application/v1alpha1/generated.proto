@@ -222,7 +222,7 @@ message ApplicationSetApplicationStatus {
   // Message contains human-readable message indicating details about the status
   optional string message = 3;
 
-  // Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)
+  // Status contains the AppSet's perceived status of the managed Application resource
   optional string status = 4;
 
   // Step tracks which step this Application should be updated in
