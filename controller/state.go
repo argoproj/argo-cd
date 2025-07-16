@@ -687,11 +687,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		log.Warnf("Could not get compare options from ConfigMap (assuming defaults): %v", err)
 		compareOptions = settings.GetDefaultDiffOptions()
 	}
-	manifestRevisions := make([]string, 0)
-
-	for _, manifestInfo := range cmp.manifestInfos {
-		manifestRevisions = append(manifestRevisions, manifestInfo.Revision)
-	}
 
 	serverSideDiff := m.serverSideDiff ||
 		resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=true")
@@ -702,6 +697,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		serverSideDiff = false
 	}
 
+	manifestRevisions := cmp.manifestRevisions()
 	useDiffCache := cmp.useDiffCache(sources, manifestRevisions, m.statusRefreshTimeout, serverSideDiff)
 
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
@@ -961,19 +957,27 @@ type appStateCmp struct {
 	conditions       []v1alpha1.ApplicationCondition
 }
 
-func (a *appStateCmp) addConditions(condition ...v1alpha1.ApplicationCondition) {
-	a.conditions = append(a.conditions, condition...)
+func (cmp *appStateCmp) addConditions(condition ...v1alpha1.ApplicationCondition) {
+	cmp.conditions = append(cmp.conditions, condition...)
 }
 
-func (a *appStateCmp) addNewCondition(t string, m string) {
-	a.conditions = append(a.conditions, v1alpha1.ApplicationCondition{
+func (cmp *appStateCmp) addNewCondition(t string, m string) {
+	cmp.conditions = append(cmp.conditions, v1alpha1.ApplicationCondition{
 		Type:               t,
 		Message:            m,
-		LastTransitionTime: &a.now,
+		LastTransitionTime: &cmp.now,
 	})
 }
 
-func (a *appStateCmp) deduplicateTargets(app *v1alpha1.Application, targetObjsInout *[]*unstructured.Unstructured, resFilter *settings.ResourcesFilter, destCluster *v1alpha1.Cluster) bool {
+func (cmp *appStateCmp) manifestRevisions() []string {
+	manifestRevisions := make([]string, 0)
+	for _, manifestInfo := range cmp.manifestInfos {
+		manifestRevisions = append(manifestRevisions, manifestInfo.Revision)
+	}
+	return manifestRevisions
+}
+
+func (cmp *appStateCmp) deduplicateTargets(app *v1alpha1.Application, targetObjsInout *[]*unstructured.Unstructured, resFilter *settings.ResourcesFilter, destCluster *v1alpha1.Cluster) bool {
 	// Passed as pointers to a slice so changes are propagated
 	targetObjs := *targetObjsInout
 
@@ -986,7 +990,7 @@ func (a *appStateCmp) deduplicateTargets(app *v1alpha1.Application, targetObjsIn
 		gvk := targetObj.GroupVersionKind()
 		if resFilter.IsExcludedResource(gvk.Group, gvk.Kind, destCluster.Server) {
 			targetObjs = append(targetObjs[:i], targetObjs[i+1:]...)
-			a.addConditions(v1alpha1.ApplicationCondition{
+			cmp.addConditions(v1alpha1.ApplicationCondition{
 				Type:               v1alpha1.ApplicationConditionExcludedResourceWarning,
 				Message:            fmt.Sprintf("Resource %s/%s %s is excluded in the settings", gvk.Group, gvk.Kind, targetObj.GetName()),
 				LastTransitionTime: &now,
@@ -1203,7 +1207,9 @@ func (m *appStateManager) fetchManifests(cmp *appStateCmp, revisions []string, s
 			}
 		}
 
-		cmp.targetObjs, cmp.manifestInfos, revisionsMayHaveChanges, err = m.GetRepoObjs(cmp.app, sources, appLabelKey, revisions, cmp.noCache, noRevisionCache, cmp.verifySignature, cmp.project, true)
+		cmp.targetObjs, cmp.manifestInfos, revisionsMayHaveChanges, err = m.GetRepoObjs(
+			cmp.app, sources, appLabelKey, revisions, cmp.noCache, noRevisionCache, cmp.verifySignature, cmp.project, true,
+		)
 		if err != nil {
 			cmp.targetObjs = make([]*unstructured.Unstructured, 0)
 			cmp.addNewCondition(
@@ -1212,7 +1218,7 @@ func (m *appStateManager) fetchManifests(cmp *appStateCmp, revisions []string, s
 			)
 			if firstSeen, ok := m.repoErrorCache.Load(cmp.app.Name); ok {
 				if time.Since(firstSeen.(time.Time)) <= m.repoErrorGracePeriod && !noRevisionCache {
-					// if first seen is less than grace period and it's not a Level 3 comparison,
+					// if first seen is less than grace period, and it's not a Level 3 comparison,
 					// ignore error and short circuit
 					cmp.logCtx.Debugf("Ignoring repo error %v, already encountered error in grace period", err.Error())
 					return false, ErrCompareStateRepo
@@ -1247,7 +1253,7 @@ func (m *appStateManager) fetchManifests(cmp *appStateCmp, revisions []string, s
 				cmp.failedToLoadObjs = true
 			}
 		}
-		// empty out manifestInfoMap
+		// empty out manifestInfos
 		cmp.manifestInfos = make([]*apiclient.ManifestResponse, 0)
 	}
 
