@@ -187,4 +187,4 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
     );
 };
 
-withRouter(GpgKeysList);
+export default withRouter(GpgKeysList);
