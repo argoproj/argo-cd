@@ -29,4 +29,5 @@ find . -name '*.go' -not -path "./vendor/*" -not -path "./dist/*" -exec sed -i.b
 echo "Incrementing the major version in go.mod..."
 sed -i.bak "s/github\.com\/argoproj\/argo-cd\/v${CURRENT_VERSION}/github\.com\/argoproj\/argo-cd\/v$((CURRENT_VERSION + 1))/g" go.mod && echo "  Updated go.mod" && rm go.mod.bak
 
+# shellcheck disable=SC2016
 echo 'Finished! Now run `make codegen-local && make lint-local && make test-local` to ensure everything is working as expected.'

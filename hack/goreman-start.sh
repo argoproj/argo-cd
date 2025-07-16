@@ -2,13 +2,13 @@
 
 declare -a services=("controller" "api-server" "redis" "repo-server" "cmp-server" "ui" "applicationset-controller" "commit-server" "notification" "dex" "git-server" "helm-registry" "dev-mounter")
 
-EXCLUDE=$exclude
+EXCLUDE="$exclude"
 
 declare -a servicesToRun=()
 
 if [ "$EXCLUDE" != "" ]; then
-    # Parse services list by ',' character
-    servicesToExclude=($(echo "$EXCLUDE" | tr ',' '\n'))
+    # Split services list by ',' character
+    readarray -t servicesToExclude < <(tr ',' '\n' <<< "$EXCLUDE")
 
     # Find subset of items from services array that not include servicesToExclude items
     for element in "${services[@]}"
@@ -21,17 +21,16 @@ if [ "$EXCLUDE" != "" ]; then
           fi
         done
         if [[ "$found" == false ]]; then
-          servicesToRun+=($element)
+          servicesToRun+=("$element")
         fi
     done
 fi
 
-command="goreman start "
+command=("goreman" "start")
 
 for element in "${servicesToRun[@]}"
 do
-  command+=$element
-  command+=" "
+  command+=("$element")
 done
 
-eval $command
+"${command[@]}"

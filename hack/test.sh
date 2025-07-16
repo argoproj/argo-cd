@@ -13,6 +13,8 @@ if test "${ARGOCD_TEST_VERBOSE:-}" != ""; then
 	TEST_FLAGS="$TEST_FLAGS -v"
 fi
 
-mkdir -p $TEST_RESULTS
+mkdir -p "$TEST_RESULTS"
 
-GODEBUG="tarinsecurepath=0,zipinsecurepath=0" gotestsum --rerun-fails-report=rerunreport.txt --junitfile=$TEST_RESULTS/junit.xml --format=testname --rerun-fails="$RERUN_FAILS" --packages="$PACKAGES" -- -cover $TEST_FLAGS $*
+GODEBUG="tarinsecurepath=0,zipinsecurepath=0" \
+    gotestsum --rerun-fails-report=rerunreport.txt --junitfile="$TEST_RESULTS/junit.xml" --format=testname \
+    --rerun-fails="$RERUN_FAILS" --packages="$PACKAGES" -- -cover "$TEST_FLAGS" "$@"
