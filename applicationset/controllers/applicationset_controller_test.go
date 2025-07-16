@@ -708,7 +708,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
 						Source: &v1alpha1.ApplicationSource{
-							// Directory and jsonnet block are removed 
+							// Directory and jsonnet block are removed
 						},
 					},
 				},
