@@ -658,7 +658,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         clearConnectRepoForm();
         ctx.history.push({
             pathname: match.url,
-            search: val ? '?addRepo=true' : ''
+            search: `?addRepo=${val}`
         });
     };
 
