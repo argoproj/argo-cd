@@ -17708,6 +17708,8 @@ spec:
                       type: object
                     hook:
                       type: boolean
+                    isSelfReferencedObj:
+                      type: boolean
                     kind:
                       type: string
                     name:
