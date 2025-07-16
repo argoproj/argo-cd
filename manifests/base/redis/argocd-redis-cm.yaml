@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: argocd-redis-configmap
+  name: argocd-redis-cm
   labels:
     app.kubernetes.io/name: argocd-redis
     app.kubernetes.io/part-of: argocd
@@ -18,22 +18,25 @@ data:
 
     # Determine which source to use for the Redis password
     if [ -n "${REDIS_CREDS_FILE_PATH}" ] && [ -f "${REDIS_CREDS_FILE_PATH}/auth" ]; then
-        REDIS_PASSWORD_FILE="${REDIS_CREDS_FILE_PATH}/auth"
-        file_auth="$(< "$REDIS_PASSWORD_FILE" tr -d '\n\r')"
-        if [ -n "$file_auth" ]; then
-            echo "Retrieved Redis credentials from file"
-            REDIS_PASSWORD="$file_auth"
-        else
-            echo "WARNING: Redis credential file is empty"
-            # fall through to try env
-        fi
-    fi
-    if [ -n "${REDIS_PASSWORD:-}" ]; then
-        echo "Retrieved Redis password from environment"
+      file_auth="$(< "${REDIS_CREDS_FILE_PATH}/auth" tr -d '\n\r')"
+      if [ -n "$file_auth" ]; then
+        echo "Retrieved Redis credentials from file."
+        REDIS_PASSWORD="$file_auth"
+      elif [ -n "${REDIS_PASSWORD:-}" ]; then
+        echo "Retrieved Redis password from environment (file was empty)."
+      else
+        echo "ERROR: Redis credential file is empty and no environment variable set."
+        exit 1
+      fi
+
+    elif [ -n "${REDIS_PASSWORD:-}" ]; then
+      # No valid file, but env var is set
+      echo "Retrieved Redis password from environment."
     else
-        echo "WARNING: Redis password not set via file or environment."
+      # Neither source provided anything
+      echo "WARNING: Redis password not set via file or environment."
+      exit 1
     fi
-    }
 
     echo "Setting redis auth values.."
     ESCAPED_AUTH=$(echo "${REDIS_PASSWORD}" | sed -e 's/[\/&]/\\&/g');

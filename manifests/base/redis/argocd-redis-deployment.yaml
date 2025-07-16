@@ -89,7 +89,7 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: argocd-redis-configmap
+            name: argocd-redis-cm
         - name: data
           emptyDir: {}
         - name: redis-creds

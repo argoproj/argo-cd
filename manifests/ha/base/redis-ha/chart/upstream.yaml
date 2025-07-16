@@ -395,22 +395,24 @@ data:
     # Load AUTH from file or env
     echo "Loading redis credentials"
     if [ -n "${REDIS_CREDS_FILE_PATH}" ] && [ -f "${REDIS_CREDS_FILE_PATH}/auth" ]; then
-        REDIS_PASSWORD_FILE="${REDIS_CREDS_FILE_PATH}/auth"
-        file_auth="$(< "$REDIS_PASSWORD_FILE" tr -d '\r\n')"
-        if [ -n "$file_auth" ]; then
-            echo "Retrieved Redis credentials from file"
-            AUTH="$file_auth"
-            return 0
-        else
-            echo "WARNING: Redis credential file is empty"
-            # fall through to try env
-        fi
-    fi
-    if [ -n "${AUTH:-}" ]; then
-        echo "Retrieved Redis credentials from environment"
-    else
-        echo "ERROR: Redis credentials not set via file or environment"
+      file_auth="$(< "${REDIS_CREDS_FILE_PATH}/auth" tr -d '\n\r')"
+      if [ -n "$file_auth" ]; then
+        echo "Retrieved Redis credentials from file."
+        AUTH="$file_auth"
+      elif [ -n "${AUTH:-}" ]; then
+        echo "Retrieved Redis password from environment (file was empty)."
+      else
+        echo "ERROR: Redis credential file is empty and no environment variable set."
         exit 1
+      fi
+
+    elif [ -n "${AUTH:-}" ]; then
+      # No valid file, but env var is set
+      echo "Retrieved Redis password from environment."
+    else
+      # Neither source provided anything
+      echo "WARNING: Redis password not set via file or environment."
+      exit 1
     fi
 
     set -eu
@@ -795,22 +797,24 @@ data:
     # Load AUTH from file or env
     echo "Loading redis credentials"
     if [ -n "${REDIS_CREDS_FILE_PATH}" ] && [ -f "${REDIS_CREDS_FILE_PATH}/auth" ]; then
-        REDIS_PASSWORD_FILE="${REDIS_CREDS_FILE_PATH}/auth"
-        file_auth="$(< "$REDIS_PASSWORD_FILE" tr -d '\r\n')"
-        if [ -n "$file_auth" ]; then
-            echo "Retrieved Redis credentials from file"
-            AUTH="$file_auth"
-            return 0
-        else
-            echo "WARNING: Redis credential file is empty"
-            # fall through to try env
-        fi
-    fi
-    if [ -n "${AUTH:-}" ]; then
-        echo "Retrieved Redis credentials from environment"
-    else
-        echo "ERROR: Redis credentials not set via file or environment"
+      file_auth="$(< "${REDIS_CREDS_FILE_PATH}/auth" tr -d '\n\r')"
+      if [ -n "$file_auth" ]; then
+        echo "Retrieved Redis credentials from file."
+        AUTH="$file_auth"
+      elif [ -n "${AUTH:-}" ]; then
+        echo "Retrieved Redis password from environment (file was empty)."
+      else
+        echo "ERROR: Redis credential file is empty and no environment variable set."
         exit 1
+      fi
+
+    elif [ -n "${AUTH:-}" ]; then
+      # No valid file, but env var is set
+      echo "Retrieved Redis password from environment."
+    else
+      # Neither source provided anything
+      echo "WARNING: Redis password not set via file or environment."
+      exit 1
     fi
 
     # Inject AUTH into haproxy config
@@ -851,22 +855,24 @@ data:
     # Load AUTH from file or env
     echo "Loading redis credentials"
     if [ -n "${REDIS_CREDS_FILE_PATH}" ] && [ -f "${REDIS_CREDS_FILE_PATH}/auth" ]; then
-        REDIS_PASSWORD_FILE="${REDIS_CREDS_FILE_PATH}/auth"
-        file_auth="$(< "$REDIS_PASSWORD_FILE" tr -d '\r\n')"
-        if [ -n "$file_auth" ]; then
-            echo "Retrieved Redis credentials from file"
-            AUTH="$file_auth"
-            return 0
-        else
-            echo "WARNING: Redis credential file is empty"
-            # fall through to try env
-        fi
-    fi
-    if [ -n "${AUTH:-}" ]; then
-        echo "Retrieved Redis credentials from environment"
-    else
-        echo "ERROR: Redis credentials not set via file or environment"
+      file_auth="$(< "${REDIS_CREDS_FILE_PATH}/auth" tr -d '\n\r')"
+      if [ -n "$file_auth" ]; then
+        echo "Retrieved Redis credentials from file."
+        REDIS_PASAUTHSWORD="$file_auth"
+      elif [ -n "${AUTH:-}" ]; then
+        echo "Retrieved Redis password from environment (file was empty)."
+      else
+        echo "ERROR: Redis credential file is empty and no environment variable set."
         exit 1
+      fi
+
+    elif [ -n "${AUTH:-}" ]; then
+      # No valid file, but env var is set
+      echo "Retrieved Redis password from environment."
+    else
+      # Neither source provided anything
+      echo "WARNING: Redis password not set via file or environment."
+      exit 1
     fi
 
     get_redis_role() {
@@ -916,22 +922,24 @@ data:
     # Load AUTH from file or env
     echo "Loading redis credentials"
     if [ -n "${REDIS_CREDS_FILE_PATH}" ] && [ -f "${REDIS_CREDS_FILE_PATH}/auth" ]; then
-        REDIS_PASSWORD_FILE="${REDIS_CREDS_FILE_PATH}/auth"
-        file_auth="$(< "$REDIS_PASSWORD_FILE" tr -d '\r\n')"
-        if [ -n "$file_auth" ]; then
-            echo "Retrieved Redis credentials from file"
-            AUTH="$file_auth"
-            return 0
-        else
-            echo "WARNING: Redis credential file is empty"
-            # fall through to try env
-        fi
-    fi
-    if [ -n "${AUTH:-}" ]; then
-        echo "Retrieved Redis credentials from environment"
-    else
-        echo "ERROR: Redis credentials not set via file or environment"
+      file_auth="$(< "${REDIS_CREDS_FILE_PATH}/auth" tr -d '\n\r')"
+      if [ -n "$file_auth" ]; then
+        echo "Retrieved Redis credentials from file."
+        AUTH="$file_auth"
+      elif [ -n "${AUTH:-}" ]; then
+        echo "Retrieved Redis password from environment (file was empty)."
+      else
+        echo "ERROR: Redis credential file is empty and no environment variable set."
         exit 1
+      fi
+
+    elif [ -n "${AUTH:-}" ]; then
+      # No valid file, but env var is set
+      echo "Retrieved Redis password from environment."
+    else
+      # Neither source provided anything
+      echo "WARNING: Redis password not set via file or environment."
+      exit 1
     fi
 
     response=$(
@@ -951,22 +959,24 @@ data:
     # Load AUTH from file or env
     echo "Loading redis credentials"
     if [ -n "${REDIS_CREDS_FILE_PATH}" ] && [ -f "${REDIS_CREDS_FILE_PATH}/auth" ]; then
-        REDIS_PASSWORD_FILE="${REDIS_CREDS_FILE_PATH}/auth"
-        file_auth="$(< "$REDIS_PASSWORD_FILE" tr -d '\r\n')"
-        if [ -n "$file_auth" ]; then
-            echo "Retrieved Redis credentials from file"
-            AUTH="$file_auth"
-            return 0
-        else
-            echo "WARNING: Redis credential file is empty"
-            # fall through to try env
-        fi
-    fi
-    if [ -n "${AUTH:-}" ]; then
-        echo "Retrieved Redis credentials from environment"
-    else
-        echo "ERROR: Redis credentials not set via file or environment"
+      file_auth="$(< "${REDIS_CREDS_FILE_PATH}/auth" tr -d '\n\r')"
+      if [ -n "$file_auth" ]; then
+        echo "Retrieved Redis credentials from file."
+        AUTH="$file_auth"
+      elif [ -n "${AUTH:-}" ]; then
+        echo "Retrieved Redis password from environment (file was empty)."
+      else
+        echo "ERROR: Redis credential file is empty and no environment variable set."
         exit 1
+      fi
+
+    elif [ -n "${AUTH:-}" ]; then
+      # No valid file, but env var is set
+      echo "Retrieved Redis password from environment."
+    else
+      # Neither source provided anything
+      echo "WARNING: Redis password not set via file or environment."
+      exit 1
     fi
 
     response=$(
@@ -1375,7 +1385,7 @@ spec:
           secretName: argocd-redis
           items:
             - key: auth
-              path: auth
+              path: test
           optional: true
       - name: config-volume
         configMap:
