@@ -22840,6 +22840,8 @@ spec:
                 type: object
               strategy:
                 properties:
+                  deletionOrder:
+                    type: string
                   rollingSync:
                     properties:
                       steps:
