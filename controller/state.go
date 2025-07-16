@@ -588,18 +588,18 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, msg)
 	}
 
-	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Namespace, cmp.targetObjs, infoProvider)
+	var dedupConditions []v1alpha1.ApplicationCondition
+	cmp.targetObjs, dedupConditions, err = DeduplicateTargetObjects(app.Spec.Destination.Namespace, cmp.targetObjs, infoProvider)
 	if err != nil {
 		msg := "Failed to deduplicate target state: " + err.Error()
 		cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, msg)
 	}
 	cmp.addConditions(dedupConditions...)
 
-	targetNsExists := false
-	targetNsExists = cmp.deduplicateTargets(app, &targetObjs, resFilter, destCluster)
+	targetNsExists := cmp.deduplicateTargets(resFilter, destCluster)
 	ts.AddCheckpoint("dedup_ms")
 
-	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(destCluster, app, targetObjs)
+	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(destCluster, app, cmp.targetObjs)
 	if err != nil {
 		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
 		msg := "Failed to load live state: " + err.Error()
@@ -667,19 +667,19 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, err.Error())
 					cmp.failedToLoadObjs = true
 				} else {
-					targetObjs = append(targetObjs, managedNs)
+					cmp.targetObjs = append(cmp.targetObjs, managedNs)
 				}
 			}
 		}
 	}
 	hasPostDeleteHooks := false
-	for _, obj := range targetObjs {
+	for _, obj := range cmp.targetObjs {
 		if isPostDeleteHook(obj) {
 			hasPostDeleteHooks = true
 		}
 	}
 
-	reconciliation := sync.Reconcile(targetObjs, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
+	reconciliation := sync.Reconcile(cmp.targetObjs, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 	ts.AddCheckpoint("live_ms")
 
 	compareOptions, err := m.settingsMgr.GetResourceCompareOptions()
@@ -977,30 +977,24 @@ func (cmp *appStateCmp) manifestRevisions() []string {
 	return manifestRevisions
 }
 
-func (cmp *appStateCmp) deduplicateTargets(app *v1alpha1.Application, targetObjsInout *[]*unstructured.Unstructured, resFilter *settings.ResourcesFilter, destCluster *v1alpha1.Cluster) bool {
-	// Passed as pointers to a slice so changes are propagated
-	targetObjs := *targetObjsInout
-
-	now := metav1.Now()
-
+func (cmp *appStateCmp) deduplicateTargets(resFilter *settings.ResourcesFilter, destCluster *v1alpha1.Cluster) bool {
 	targetNsExists := false
 	// Iterating backwards because elements can be removed from the slice
-	for i := len(targetObjs) - 1; i >= 0; i-- {
-		targetObj := targetObjs[i]
+	for i := len(cmp.targetObjs) - 1; i >= 0; i-- {
+		targetObj := cmp.targetObjs[i]
 		gvk := targetObj.GroupVersionKind()
 		if resFilter.IsExcludedResource(gvk.Group, gvk.Kind, destCluster.Server) {
-			targetObjs = append(targetObjs[:i], targetObjs[i+1:]...)
-			cmp.addConditions(v1alpha1.ApplicationCondition{
-				Type:               v1alpha1.ApplicationConditionExcludedResourceWarning,
-				Message:            fmt.Sprintf("Resource %s/%s %s is excluded in the settings", gvk.Group, gvk.Kind, targetObj.GetName()),
-				LastTransitionTime: &now,
-			})
+			cmp.targetObjs = append(cmp.targetObjs[:i], cmp.targetObjs[i+1:]...)
+			cmp.addNewCondition(
+				v1alpha1.ApplicationConditionExcludedResourceWarning,
+				fmt.Sprintf("Resource %s/%s %s is excluded in the settings", gvk.Group, gvk.Kind, targetObj.GetName()),
+			)
 		}
 
 		// If we reach this path, this means that a namespace has been both defined in Git, as well in the
 		// application's managedNamespaceMetadata. We want to ensure that this manifest is the one being used instead
 		// of what is present in managedNamespaceMetadata.
-		if isManagedNamespace(targetObj, app) {
+		if isManagedNamespace(targetObj, cmp.app) {
 			targetNsExists = true
 		}
 	}
