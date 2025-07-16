@@ -320,3 +320,7 @@ patches:
     kind: Deployment
     name: argocd-redis-ha-haproxy
   path: overlays/deployment-initContainers.yaml
+
+# Enable file mounted secret  
+- path: overlays/redis-ha-haproxy-file-mounted-secret.yaml
+- path: overlays/redis-ha-statefulset-file-mounted-secret.yaml
