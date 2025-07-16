@@ -542,7 +542,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	// return unknown comparison result if basic comparison settings cannot be loaded
 	if err != nil {
-		return unknownComparisonResults(app, hasMultipleSources, revisions, sources)
+		return unknownComparisonResults(app, hasMultipleSources, revisions, sources), nil
 	}
 
 	// do best effort loading live and target state to present as much information about app state as possible
@@ -597,7 +597,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 	cmp.addConditions(dedupConditions...)
 
-	targetNsExists := cmp.deduplicateTargets(resFilter, destCluster)
+	targetNsExists := cmp.filterResources(resFilter, destCluster)
 	ts.AddCheckpoint("dedup_ms")
 
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(destCluster, app, cmp.targetObjs)
@@ -673,13 +673,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 	}
-	hasPostDeleteHooks := false
-	for _, obj := range cmp.targetObjs {
-		if isPostDeleteHook(obj) {
-			hasPostDeleteHooks = true
-		}
-	}
-
 	reconciliation := sync.Reconcile(cmp.targetObjs, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 	ts.AddCheckpoint("live_ms")
 
@@ -913,7 +906,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		reconciliationResult:    reconciliation,
 		diffConfig:              diffConfig,
 		diffResultList:          diffResults,
-		hasPostDeleteHooks:      hasPostDeleteHooks,
+		hasPostDeleteHooks:      cmp.hasPostDeleteHooks(),
 		revisionsMayHaveChanges: revisionsMayHaveChanges,
 	}
 
@@ -972,9 +965,9 @@ func (cmp *appStateCmp) manifestRevisions() []string {
 	return manifestRevisions
 }
 
-func (cmp *appStateCmp) deduplicateTargets(resFilter *settings.ResourcesFilter, destCluster *v1alpha1.Cluster) bool {
+func (cmp *appStateCmp) filterResources(resFilter *settings.ResourcesFilter, destCluster *v1alpha1.Cluster) bool {
 	targetNsExists := false
-	// Iterating backwards because elements can be removed from the slice
+	// Iterating backwards so elements can be removed from the slice
 	for i := len(cmp.targetObjs) - 1; i >= 0; i-- {
 		targetObj := cmp.targetObjs[i]
 		gvk := targetObj.GroupVersionKind()
@@ -996,25 +989,29 @@ func (cmp *appStateCmp) deduplicateTargets(resFilter *settings.ResourcesFilter, 
 	return targetNsExists
 }
 
-func unknownComparisonResults(app *v1alpha1.Application, hasMultipleSources bool, revisions []string, sources []v1alpha1.ApplicationSource) (*comparisonResult, error) {
-	if hasMultipleSources {
-		return &comparisonResult{
-			syncStatus: &v1alpha1.SyncStatus{
-				ComparedTo: app.Spec.BuildComparedToStatus(sources),
-				Status:     v1alpha1.SyncStatusCodeUnknown,
-				Revisions:  revisions,
-			},
-			healthStatus: health.HealthStatusUnknown,
-		}, nil
+func (cmp *appStateCmp) hasPostDeleteHooks() bool {
+	for _, obj := range cmp.targetObjs {
+		if isPostDeleteHook(obj) {
+			return true
+		}
 	}
-	return &comparisonResult{
+	return false
+}
+
+func unknownComparisonResults(app *v1alpha1.Application, hasMultipleSources bool, revisions []string, sources []v1alpha1.ApplicationSource) *comparisonResult {
+	cr := &comparisonResult{
 		syncStatus: &v1alpha1.SyncStatus{
 			ComparedTo: app.Spec.BuildComparedToStatus(sources),
 			Status:     v1alpha1.SyncStatusCodeUnknown,
-			Revision:   revisions[0],
 		},
 		healthStatus: health.HealthStatusUnknown,
-	}, nil
+	}
+	if hasMultipleSources {
+		cr.syncStatus.Revisions = revisions
+	} else {
+		cr.syncStatus.Revision = revisions[0]
+	}
+	return cr
 }
 
 // useDiffCache will determine if the diff should be calculated based
