@@ -52,6 +52,7 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	iomocks "github.com/argoproj/argo-cd/v3/util/io/mocks"
 	ocimocks "github.com/argoproj/argo-cd/v3/util/oci/mocks"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const testSignature = `gpg: Signature made Wed Feb 26 23:22:34 2020 CET
@@ -237,6 +238,37 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	res2, err := GenerateManifests(t.Context(), "./testdata/concatenated", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 	require.NoError(t, err)
 	assert.Len(t, res2.Manifests, 3)
+}
+
+func Test_GenerateManifest_KustomizeWithVersionOverride(t *testing.T) {
+	t.Parallel()
+
+	service := newService(t, "../../util/kustomize/testdata/kustomize-with-version-override")
+
+	src := v1alpha1.ApplicationSource{Path: "."}
+	q := apiclient.ManifestRequest{
+		Repo:               &v1alpha1.Repository{},
+		ApplicationSource:  &src,
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+		KustomizeOptions: &v1alpha1.KustomizeOptions{
+			Versions: []v1alpha1.KustomizeVersion{},
+		},
+	}
+
+	_, err := service.GenerateManifest(t.Context(), &q)
+	require.ErrorAs(t, err, &settings.KustomizeVersionNotRegisteredError{Version: "v1.2.3"})
+
+	q.KustomizeOptions.Versions = []v1alpha1.KustomizeVersion{
+		{
+			Name: "v1.2.3",
+			Path: "kustomize",
+		},
+	}
+
+	res, err := service.GenerateManifest(t.Context(), &q)
+	require.NoError(t, err)
+	assert.NotNil(t, res)
 }
 
 func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
@@ -1672,6 +1704,32 @@ func TestGetAppDetailsKustomize(t *testing.T) {
 	assert.Equal(t, "Kustomize", res.Type)
 	assert.NotNil(t, res.Kustomize)
 	assert.Equal(t, []string{"nginx:1.15.4", "registry.k8s.io/nginx-slim:0.8"}, res.Kustomize.Images)
+}
+
+func TestGetAppDetailsKustomize_CustomVersion(t *testing.T) {
+	service := newService(t, "../../util/kustomize/testdata/kustomize-with-version-override")
+
+	q := &apiclient.RepoServerAppDetailsQuery{
+		Repo: &v1alpha1.Repository{},
+		Source: &v1alpha1.ApplicationSource{
+			Path: ".",
+		},
+		KustomizeOptions: &v1alpha1.KustomizeOptions{},
+	}
+
+	_, err := service.GetAppDetails(t.Context(), q)
+	require.ErrorAs(t, err, &settings.KustomizeVersionNotRegisteredError{Version: "v1.2.3"})
+
+	q.KustomizeOptions.Versions = []v1alpha1.KustomizeVersion{
+		{
+			Name: "v1.2.3",
+			Path: "kustomize",
+		},
+	}
+
+	res, err := service.GetAppDetails(t.Context(), q)
+	require.NoError(t, err)
+	assert.Equal(t, "Kustomize", res.Type)
 }
 
 func TestGetHelmCharts(t *testing.T) {
