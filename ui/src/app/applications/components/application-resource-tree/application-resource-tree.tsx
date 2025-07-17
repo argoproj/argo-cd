@@ -488,7 +488,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                         {node.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                         {healthState != null && <HealthStatusIcon state={healthState} />}
                         {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
-                        {appNode && !rootNode && (
+                        {appNode && (
                             <Consumer>
                                 {ctx => {
                                     // For nested applications, use the node's data to construct the URL
@@ -779,7 +779,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     {node.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                     {healthState != null && <HealthStatusIcon state={healthState} />}
                     {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
-                    {appNode && !rootNode && (
+                    {appNode && (
                         <Consumer>
                             {ctx => {
                                 // For nested applications, use the node's data to construct the URL
