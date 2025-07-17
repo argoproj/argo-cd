@@ -13,7 +13,7 @@ interface ProjectRoleGroupsProps {
 }
 
 export const ProjectRoleGroupsEdit = (props: ProjectRoleGroupsProps) => (
-    <React.Fragment>
+    <>
         <p>GROUPS</p>
         <div>OIDC group names to bind to this role</div>
         {
@@ -59,7 +59,7 @@ export const ProjectRoleGroupsEdit = (props: ProjectRoleGroupsProps) => (
                 </div>
             )}
         </Form>
-    </React.Fragment>
+    </>
 );
 
 function removeEl(items: any[], index: number) {
