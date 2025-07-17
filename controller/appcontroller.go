@@ -1467,13 +1467,12 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		}
 	case synccommon.OperationFailed, synccommon.OperationError:
 		now := metav1.Now()
-		if !terminating && hasNewCommitToResync(app, state, logCtx) {
-			// Do not retry with old commit if there is a new one. Keep the "error" Phase.
+		switch {
+		case !terminating && state.Operation.Retry.Refresh && hasNewCommitToResync(app, state, logCtx):
 			state.FinishedAt = &now
-			state.Message = fmt.Sprintf("%s (retry terminated - new changes)", state.Message)
-			// Start from 0 with new change
+			state.Message = state.Message + " (retry terminated - new changes)"
 			state.RetryCount = 0
-		} else if !terminating && (state.RetryCount < state.Operation.Retry.Limit || state.Operation.Retry.Limit < 0) {
+		case !terminating && (state.RetryCount < state.Operation.Retry.Limit || state.Operation.Retry.Limit < 0):
 			state.FinishedAt = &now
 			if retryAt, err := state.Operation.Retry.NextRetryAt(now.Time, state.RetryCount); err != nil {
 				state.Phase = synccommon.OperationError
@@ -1483,7 +1482,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				state.RetryCount++
 				state.Message = fmt.Sprintf("%s due to application controller sync timeout. Retrying attempt #%d at %s.", state.Message, state.RetryCount, retryAt.Format(time.Kitchen))
 			}
-		} else if state.RetryCount > 0 {
+		case state.RetryCount > 0:
 			state.Message = fmt.Sprintf("%s (retried %d times).", state.Message, state.RetryCount)
 		}
 	}
