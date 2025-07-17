@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -10,10 +11,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
-	clientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1/mocks"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	clientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1/mocks"
 )
 
 func Test_deepCopyAppProjectClient_Get(t *testing.T) {
@@ -40,7 +41,7 @@ func Test_deepCopyAppProjectClient_Get(t *testing.T) {
 			fields: fields{
 				AppProjectInterface: func() clientset.AppProjectInterface {
 					appProject := mocks.AppProjectInterface{}
-					appProject.On("Get", t.Context(), "appproject2", metav1.GetOptions{}).Return(nil, errors.New("error"))
+					appProject.On("Get", context.Background(), "appproject2", metav1.GetOptions{}).Return(nil, errors.New("error"))
 					return &appProject
 				}(),
 			},
@@ -56,7 +57,7 @@ func Test_deepCopyAppProjectClient_Get(t *testing.T) {
 			d := &deepCopyAppProjectClient{
 				AppProjectInterface: tt.fields.AppProjectInterface,
 			}
-			got, err := d.Get(t.Context(), tt.args.name, metav1.GetOptions{})
+			got, err := d.Get(context.Background(), tt.args.name, metav1.GetOptions{})
 			if !tt.wantErr(t, err, fmt.Sprintf("Get(%v)", tt.args.name)) {
 				return
 			}
@@ -85,7 +86,7 @@ func Test_deepCopyAppProjectClient_List(t *testing.T) {
 		{name: "Error listing app project", fields: fields{
 			AppProjectInterface: func() clientset.AppProjectInterface {
 				appProject := mocks.AppProjectInterface{}
-				appProject.On("List", t.Context(), metav1.ListOptions{}).Return(nil, errors.New("error"))
+				appProject.On("List", context.Background(), metav1.ListOptions{}).Return(nil, errors.New("error"))
 				return &appProject
 			}(),
 		}, want: nil, wantErr: assert.Error},
@@ -95,7 +96,7 @@ func Test_deepCopyAppProjectClient_List(t *testing.T) {
 			d := &deepCopyAppProjectClient{
 				AppProjectInterface: tt.fields.AppProjectInterface,
 			}
-			got, err := d.List(t.Context(), metav1.ListOptions{})
+			got, err := d.List(context.Background(), metav1.ListOptions{})
 			if !tt.wantErr(t, err, "List") {
 				return
 			}

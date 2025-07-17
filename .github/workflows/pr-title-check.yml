@@ -12,8 +12,8 @@ permissions: {}
 # workflow being trigger a number of times. This limits it
 # to one run per PR.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+
 
 jobs:
   validate:

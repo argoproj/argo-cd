@@ -14,7 +14,7 @@ So you can just use them instead of reinventing new ones.
     kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/notifications_catalog/install.yaml
     ```
 
-* Add email username and password token to the `argocd-notifications-secret` secret
+* Add Email username and password token to `argocd-notifications-secret` secret
 
     ```bash
     EMAIL_USER=<your-username>
@@ -32,7 +32,7 @@ So you can just use them instead of reinventing new ones.
     EOF
     ```
 
-* Register email notification service
+* Register Email notification service
 
     ```bash
     kubectl patch cm argocd-notifications-cm -n argocd --type merge -p '{"data": {"service.email.gmail": "{ username: $email-username, password: $email-password, host: smtp.gmail.com, port: 465, from: $email-username }" }}'
@@ -112,4 +112,4 @@ metadata:
     When the same notification service and trigger are defined in controller level configuration and application level configuration,
     both notifications will be sent according to its own configuration.
 
-[Defining and using secrets within notification templates](templates/#defining-and-using-secrets-within-notification-templates) function is not available when flag `--self-service-notification-enable` is on.
+[Defining and using secrets within notification templates](templates.md/#defining-and-using-secrets-within-notification-templates) function is not available when flag `--self-service-notification-enable` is on.

@@ -21,14 +21,14 @@ arbitrary value in the secret. This value will be used when configuring the webh
 
 To prevent DDoS attacks with unauthenticated webhook events (the `/api/webhook` endpoint currently lacks rate limiting protection), it is recommended to limit the payload size. You can achieve this by configuring the `argocd-cm` ConfigMap with the `webhook.maxPayloadSizeMB` attribute. The default value is 50MB.
 
-### Github
+## Github
 
 ![Add Webhook](../assets/webhook-config.png "Add Webhook")
 
 !!! note
     When creating the webhook in GitHub, the "Content type" needs to be set to "application/json". The default value "application/x-www-form-urlencoded" is not supported by the library used to handle the hooks
 
-### Azure DevOps
+## Azure DevOps
 
 ![Add Webhook](../assets/azure-devops-webhook-config.png "Add Webhook")
 
@@ -109,17 +109,3 @@ Syntax: `$<k8s_secret_name>:<a_key_in_that_k8s_secret>`
 > NOTE: Secret must have label `app.kubernetes.io/part-of: argocd`
 
 For more information refer to the corresponding section in the [User Management Documentation](user-management/index.md#alternative).
-
-## Special handling for BitBucket Cloud
-BitBucket does not include the list of changed files in the webhook request body.
-This prevents the [Manifest Paths Annotation](high_availability.md#manifest-paths-annotation) feature from working with repositories hosted on BitBucket Cloud.
-BitBucket provides the `diffstat` API to determine the list of changed files between two commits.
-To address the missing changed files list in the webhook, the Argo CD webhook handler makes an API callback to the originating server.
-To prevent Server-side request forgery (SSRF) attacks, Argo CD server supports the callback mechanism only for encrypted webhook requests.
-The incoming webhook must include `X-Hook-UUID` request header. The corresponding UUID must be provided as `webhook.bitbucket.uuid` in `argocd-secret` for verification.
-The callback mechanism supports both public and private repositories on BitBucket Cloud.
-For public repositories, the Argo CD webhook handler uses a no-auth client for the API callback.
-For private repositories, the Argo CD webhook handler searches for a valid repository OAuth token for the HTTP/HTTPS URL.
-The webhook handler uses this OAuth token to make the API request to the originating server.
-If the Argo CD webhook handler cannot find a matching repository credential, the list of changed files would remain empty.
-If errors occur during the callback, the list of changed files will be empty.

@@ -12,7 +12,6 @@ stringData:
   url: https://github.com/argoproj/argocd-example-apps
   password: my-password
   username: my-username
-  bearerToken: my-token
   project: my-project
   insecure: "true" # Ignore validity of server's TLS certificate. Defaults to "false"
   forceHttpBasicAuth: "true" # Skip auth method negotiation and force usage of HTTP basic auth. Defaults to "false"
@@ -70,18 +69,3 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   url: https://github.com/argoproj/private-repo
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: aci-private-repo
-  namespace: argocd
-  labels:
-    argocd.argoproj.io/secret-type: repository
-stringData:
-  type: helm
-  url: contoso.azurecr.io/charts
-  name: contosocharts
-  enableOCI: "true"
-  useAzureWorkloadIdentity: "true"
-  

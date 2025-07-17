@@ -63,7 +63,7 @@ Of course, you can also use this in combination with the `--username` and `--pas
 Your TLS client certificate and corresponding key can also be configured using the UI, see instructions for adding Git repos using HTTPS.
 
 !!! note
-    Your client certificate and key data must be in PEM format, other formats (such as PKCS12) are not supported. Also make sure that your certificate's key is not password protected, otherwise it cannot be used by Argo CD.
+    Your client certificate and key data must be in PEM format, other formats (such as PKCS12) are not understood. Also make sure that your certificate's key is not password protected, otherwise it cannot be used by Argo CD.
 
 !!! note
     When pasting TLS client certificate and key in the text areas in the web UI, make sure they contain no unintended line breaks or additional characters.
@@ -119,19 +119,14 @@ Using the CLI:
 argocd repo add https://github.com/argoproj/argocd-example-apps.git --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem
 ```
 
-!!!note
-    To add a private Git repository on GitHub Enterprise using the CLI add `--github-app-enterprise-base-url https://ghe.example.com/api/v3` flag.
-
 Using the UI:
 
 1. Navigate to `Settings/Repositories`
 
     ![connect repo overview](../assets/repo-add-overview.png)
 
-2. Click `Connect Repo using GitHub App` button, choose type: `GitHub` or `GitHub Enterprise`, enter the URL, App Id, Installation Id, and the app's private key.
+2. Click `Connect Repo using GitHub App` button, enter the URL, App Id, Installation Id, and the app's private key.
 
-!!!note
-    Enter the GitHub Enterprise Base URL for type `GitHub Enterprise`.
     ![connect repo](../assets/repo-add-github-app.png)
 
 3. Click `Connect` to test the connection and have the repository added
@@ -165,75 +160,6 @@ Using the UI:
    ![connect repo](../assets/repo-add-google-cloud-source.png)
 
 3. Click `Connect` to test the connection and have the repository added
-
-
-### Azure Container Registry/Azure Repos using Azure Workload Identity
-
-Before using this feature, you must perform the following steps to enable workload identity configuration in Argo CD:
-
-- **Label the Pods:** Add the `azure.workload.identity/use: "true"` label to the repo-server pods.
-- **Create Federated Identity Credential:** Generate an Azure federated identity credential for the repo-server service account. Refer to the [Federated Identity Credential](https://azure.github.io/azure-workload-identity/docs/topics/federated-identity-credential.html) documentation for detailed instructions.
-- **Add Annotation to Service Account:** Add `azure.workload.identity/client-id: "$CLIENT_ID"` annotation to the repo-server service account, using the `CLIENT_ID` from the workload identity.
-- Setup the permissions for Azure Container Registry/Azure Repos for the workload identity.
-
-Using CLI for Helm OCI with Azure workload identity:
-
-```
-argocd repo add contoso.azurecr.io/charts --type helm --enable-oci --use-azure-workload-identity
-```
-
-Using CLI for Azure Repos with Azure workload identity:
-
-```
-argocd repo add https://contoso@dev.azure.com/my-projectcollection/my-project/_git/my-repo --use-azure-workload-identity
-```
-
-Using the UI:
-
-- Navigate to `Settings/Repositories`
-
-   ![connect repo overview](../assets/repo-add-overview.png)
-- Click on `+ Connect Repo`
-- On the connection page:
-    - Choose Connection Method as `VIA HTTPS`
-    - Select the type as `git` or `helm`
-    - Enter the Repository URL
-    - Enter name, if the repo type is helm
-    - Select `Enable OCI`, if repo type is helm
-    - Select `Use Azure Workload Identity`
-
-    ![connect repo](../assets/repo-add-azure-workload-identity.png)
-- Click `Connect`
-
-Using secret definition:
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: helm-private-repo
-  namespace: argocd
-  labels:
-    argocd.argoproj.io/secret-type: repository
-stringData:
-  type: helm
-  url: contoso.azurecr.io/charts
-  name: contosocharts
-  enableOCI: "true"
-  useAzureWorkloadIdentity: "true"
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: git-private-repo
-  namespace: argocd
-  labels:
-    argocd.argoproj.io/secret-type: repository
-stringData:
-  type: git
-  url: https://contoso@dev.azure.com/my-projectcollection/my-project/_git/my-repo
-  useAzureWorkloadIdentity: "true"
-```
 
 ## Credential templates
 
@@ -434,51 +360,6 @@ It is possible to add and remove SSH known hosts entries using the ArgoCD web UI
 ### Managing SSH known hosts data using declarative setup
 
 You can also manage SSH known hosts entries in a declarative, self-managed ArgoCD setup. All SSH public host keys are stored in the ConfigMap object `argocd-ssh-known-hosts-cm`. For more details, please refer to the [Operator Manual](../operator-manual/declarative-setup.md#ssh-known-host-public-keys).
-
-## Helm
-
-Helm charts can be sourced from protected Helm repositories or OCI registries. You can configure access to protected Helm charts by using either the CLI or the UI by speciying `helm` as the _type_ of HTTPS based repository.
-
-Using the CLI:
-
-Specify the `--type` flag of the `argocd repo add` command:
-
-```bash
-argocd repo add https://argoproj.github.io/argo-helm --type=helm <additional-flags>
-```
-
-Using the UI:
-
-1. Navigate to `Settings/Repositories`
-
-    ![connect repo overview](../assets/repo-add-overview.png)
-
-2. Click the `Connect Repo` button
-
-3. Select `VIA HTTPS` as the Connection Method
-
-4. Select `helm` as the Type.
-
-    ![helm repository type](../assets/repo-type-helm.png)
-
-5. Click `Connect` to test the connection and have the repository added
-
-Helm charts stored in protected OCI registries should use the steps described previously as well as explicitly specifying that the source is an Helm chart stored in an OCI registry.
-
-Using CLI:
-
-Specify the `--enable-oci` flag of the `argocd repo add` command:
-
-```bash
-argocd repo add registry-1.docker.io/bitnamicharts --type=helm --enable-oci=true <additional-flags>
-```
-
-!!! note
-    The protocol, such as `oci://` should be omitted when referencing an OCI registry
-
-Using the UI:
-
-Select the _Enable OCI_ checkbox when adding a HTTPS based _helm_ repository.
 
 ## Git Submodules
 

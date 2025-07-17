@@ -123,7 +123,7 @@ $ goreman run status
 [...]
 ```
 
-If some of the processes fail to start (not marked with `*`), check logs to see why they are not running.
+If not all critical processes run (marked with `*`), check logs to see why they terminated.
 
 In case of an error like `gpg: key generation failed: Unknown elliptic curve` (a [gnupg bug](https://dev.gnupg.org/T5444)), disable GPG verification before running `make start-local`:
 

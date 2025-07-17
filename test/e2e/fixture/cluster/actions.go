@@ -5,17 +5,16 @@ import (
 	"errors"
 	"log"
 	"strings"
-	"time"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/clusterauth"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/clusterauth"
 
-	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 )
 
 // this implements the "when" part of given/when/then
@@ -39,7 +38,7 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 	return a
 }
 
-func (a *Actions) Create() *Actions {
+func (a *Actions) Create(args ...string) *Actions {
 	_, clusterClient, _ := fixture.ArgoCDClientset.NewClusterClient()
 
 	_, err := clusterClient.Create(context.Background(), &clusterpkg.ClusterCreateRequest{
@@ -68,7 +67,7 @@ func (a *Actions) Create() *Actions {
 	return a
 }
 
-func (a *Actions) CreateWithRBAC() *Actions {
+func (a *Actions) CreateWithRBAC(args ...string) *Actions {
 	pathOpts := clientcmd.NewDefaultPathOptions()
 	config, err := pathOpts.GetStartingConfig()
 	if err != nil {
@@ -132,7 +131,6 @@ func (a *Actions) DeleteByServer() *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
-	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a}
 }
 

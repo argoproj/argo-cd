@@ -6,7 +6,7 @@
 
 Follow these steps to install `Kind` for local development and set it up with Argo CD.
 
-To run an Argo CD development environment review the [developer guide for running locally](./developer-guide/running-locally.md).
+To run an Argo CD development environment [review the developer guide for running locally](../developer-guide/running-locally).
 
 ## Install Kind
 
@@ -50,4 +50,4 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.pas
 ```
 Use the admin username and the retrieved password to log in.
 
-You can now move on to step #2 in the [Getting Started Guide](getting_started.md).
+You can now move on to step #2 in the [Getting Started Guide](getting_started.md].

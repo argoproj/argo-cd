@@ -14,20 +14,17 @@ redis-ha:
     IPv6:
       enabled: false
     image:
-      tag: 3.0.8-alpine
+      tag: 2.6.17-alpine
+    containerSecurityContext: null
     timeout:
       server: 6m
       client: 6m
     checkInterval: 3s
     metrics:
       enabled: true
-    extraConfig: |
-      global
-        maxconn 4096
-    serviceAccount:
-      automountToken: true
   image:
-    tag: 7.2.7-alpine
+    tag: 7.0.15-alpine
+  containerSecurityContext: null
   sentinel:
     bind: '0.0.0.0'
     lifecycle:

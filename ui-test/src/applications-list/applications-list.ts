@@ -27,7 +27,7 @@ export class ApplicationsList extends Base {
         try {
             const tile = await UiTestUtilities.findUiElement(this.driver, this.getApplicationTileLocator(appName));
             await tile.click();
-        } catch (err: any) {
+        } catch (err) {
             throw new Error(err);
         }
     }
@@ -39,7 +39,7 @@ export class ApplicationsList extends Base {
         try {
             const newAppButton = await UiTestUtilities.findUiElement(this.driver, NEW_APP_BUTTON);
             await newAppButton.click();
-        } catch (err: any) {
+        } catch (err) {
             throw new Error(err);
         }
         return this.applicationCreatePanel;
@@ -57,7 +57,7 @@ export class ApplicationsList extends Base {
             // Wait until the Synchronize sliding panel appears
             const synchronizeButton = await this.driver.wait(until.elementLocated(SYNC_PANEL_SYNCHRONIZE_BUTTON), Const.TEST_TIMEOUT);
             await this.driver.wait(until.elementIsVisible(synchronizeButton), Const.TEST_TIMEOUT);
-        } catch (err: any) {
+        } catch (err) {
             throw new Error(err);
         }
         return this.applicationsSyncPanel;
@@ -72,7 +72,7 @@ export class ApplicationsList extends Base {
         try {
             const deleteButton = await UiTestUtilities.findUiElement(this.driver, this.getDeleteButtonLocatorForApp(appName));
             await deleteButton.click();
-        } catch (err: any) {
+        } catch (err) {
             throw new Error(err);
         }
         return this.popupManager;
@@ -95,7 +95,7 @@ export class ApplicationsList extends Base {
             const refreshButton = await UiTestUtilities.findUiElement(this.driver, this.getRefreshButtonLocatorForApp(appName));
             await this.driver.wait(until.elementIsVisible(refreshButton), Const.TEST_TIMEOUT);
             await refreshButton.click();
-        } catch (err: any) {
+        } catch (err) {
             throw new Error(err);
         }
     }
@@ -111,7 +111,7 @@ export class ApplicationsList extends Base {
             await this.driver.wait(async () => {
                 return UiTestUtilities.untilAttributeIs(healthStatusElement, 'title', 'Healthy');
             }, Const.TEST_TIMEOUT);
-        } catch (err: any) {
+        } catch (err) {
             throw new Error(err);
         }
     }
@@ -127,7 +127,7 @@ export class ApplicationsList extends Base {
             await this.driver.wait(async () => {
                 return UiTestUtilities.untilAttributeIs(statusElement, 'title', 'Synced');
             }, Const.TEST_TIMEOUT);
-        } catch (err: any) {
+        } catch (err) {
             throw new Error(err);
         }
     }

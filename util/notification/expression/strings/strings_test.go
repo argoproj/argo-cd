@@ -1,6 +1,7 @@
 package strings
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -49,7 +50,7 @@ func TestUpperAndLower(t *testing.T) {
 	exprs := NewExprs()
 
 	for _, testCase := range testCases {
-		t.Run("With success case: Func: "+testCase.fn, func(t *testing.T) {
+		t.Run(fmt.Sprintf("With success case: Func: %s", testCase.fn), func(tc *testing.T) {
 			toUpperFn, ok := exprs[testCase.fn].(func(s string) string)
 			assert.True(t, ok)
 

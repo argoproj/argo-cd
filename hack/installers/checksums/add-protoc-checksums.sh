@@ -1,8 +1,6 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
 # Usage: ./add-protoc-checksums.sh 27.2  # use the desired version
-
-[[ $OSTYPE == 'darwin'* ]] && sha256sum() { shasum -a 256 "$@" ; }
 
 set -e
 for arch in aarch_64 ppcle_64 s390_64 x86_64; do

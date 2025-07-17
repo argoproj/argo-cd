@@ -1,6 +1,7 @@
 package scm_provider
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -12,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
@@ -1150,8 +1151,8 @@ func TestGitlabListRepos(t *testing.T) {
 	}))
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewGitlabProvider("test-argocd-proton", "", ts.URL, c.allBranches, c.includeSubgroups, c.includeSharedProjects, c.insecure, "", c.topic, nil)
-			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
+			provider, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, c.allBranches, c.includeSubgroups, c.includeSharedProjects, c.insecure, "", c.topic, nil)
+			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)
 			} else {
@@ -1189,7 +1190,7 @@ func TestGitlabHasPath(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gitlabMockHandler(t)(w, r)
 	}))
-	host, _ := NewGitlabProvider("test-argocd-proton", "", ts.URL, false, true, true, false, "", "", nil)
+	host, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, false, true, true, false, "", "", nil)
 	repo := &Repository{
 		Organization: "test-argocd-proton",
 		Repository:   "argocd",
@@ -1234,7 +1235,7 @@ func TestGitlabHasPath(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ok, err := host.RepoHasPath(t.Context(), repo, c.path)
+			ok, err := host.RepoHasPath(context.Background(), repo, c.path)
 			require.NoError(t, err)
 			assert.Equal(t, c.exists, ok)
 		})
@@ -1245,14 +1246,14 @@ func TestGitlabGetBranches(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gitlabMockHandler(t)(w, r)
 	}))
-	host, _ := NewGitlabProvider("test-argocd-proton", "", ts.URL, false, true, true, false, "", "", nil)
+	host, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, false, true, true, false, "", "", nil)
 
 	repo := &Repository{
 		RepositoryId: 27084533,
 		Branch:       "master",
 	}
 	t.Run("branch exists", func(t *testing.T) {
-		repos, err := host.GetBranches(t.Context(), repo)
+		repos, err := host.GetBranches(context.Background(), repo)
 		require.NoError(t, err)
 		assert.Equal(t, "master", repos[0].Branch)
 	})
@@ -1262,7 +1263,7 @@ func TestGitlabGetBranches(t *testing.T) {
 		Branch:       "foo",
 	}
 	t.Run("unknown branch", func(t *testing.T) {
-		_, err := host.GetBranches(t.Context(), repo2)
+		_, err := host.GetBranches(context.Background(), repo2)
 		require.NoError(t, err)
 	})
 }
@@ -1309,7 +1310,7 @@ func TestGetBranchesTLS(t *testing.T) {
 			defer ts.Close()
 
 			var certs []byte
-			if test.passCerts {
+			if test.passCerts == true {
 				for _, cert := range ts.TLS.Certificates {
 					for _, c := range cert.Certificate {
 						parsedCert, err := x509.ParseCertificate(c)
@@ -1322,13 +1323,13 @@ func TestGetBranchesTLS(t *testing.T) {
 				}
 			}
 
-			host, err := NewGitlabProvider("test-argocd-proton", "", ts.URL, false, true, true, test.tlsInsecure, "", "", certs)
+			host, err := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, false, true, true, test.tlsInsecure, "", "", certs)
 			require.NoError(t, err)
 			repo := &Repository{
 				RepositoryId: 27084533,
 				Branch:       "master",
 			}
-			_, err = host.GetBranches(t.Context(), repo)
+			_, err = host.GetBranches(context.Background(), repo)
 			if test.requireErr {
 				require.Error(t, err)
 			} else {

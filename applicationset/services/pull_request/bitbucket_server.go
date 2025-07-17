@@ -8,7 +8,7 @@ import (
 	bitbucketv1 "github.com/gfleury/go-bitbucket-v1"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 )
 
 type BitbucketService struct {
@@ -64,7 +64,7 @@ func newBitbucketService(ctx context.Context, bitbucketConfig *bitbucketv1.Confi
 }
 
 func (b *BitbucketService) List(_ context.Context) ([]*PullRequest, error) {
-	paged := map[string]any{
+	paged := map[string]interface{}{
 		"limit": 100,
 	}
 
@@ -72,11 +72,6 @@ func (b *BitbucketService) List(_ context.Context) ([]*PullRequest, error) {
 	for {
 		response, err := b.client.DefaultApi.GetPullRequestsPage(b.projectKey, b.repositorySlug, paged)
 		if err != nil {
-			if response != nil && response.Response != nil && response.StatusCode == http.StatusNotFound {
-				// return a custom error indicating that the repository is not found,
-				// but also return the empty result since the decision to continue or not in this case is made by the caller
-				return pullRequests, NewRepositoryNotFoundError(err)
-			}
 			return nil, fmt.Errorf("error listing pull requests for %s/%s: %w", b.projectKey, b.repositorySlug, err)
 		}
 		pulls, err := bitbucketv1.GetPullRequestsResponse(response)

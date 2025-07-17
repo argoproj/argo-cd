@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"os/exec"
@@ -46,13 +47,13 @@ func GetCallback(proxy string, noProxy string) func(*http.Request) (*url.URL, er
 }
 
 func httpProxy(url string) string {
-	return "http_proxy=" + url
+	return fmt.Sprintf("http_proxy=%s", url)
 }
 
 func httpsProxy(url string) string {
-	return "https_proxy=" + url
+	return fmt.Sprintf("https_proxy=%s", url)
 }
 
 func noProxyVar(noProxy string) string {
-	return "no_proxy=" + noProxy
+	return fmt.Sprintf("no_proxy=%s", noProxy)
 }

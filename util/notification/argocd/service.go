@@ -3,15 +3,15 @@ package service
 import (
 	"context"
 
-	"github.com/argoproj/argo-cd/v3/util/notification/expression/shared"
+	"github.com/argoproj/argo-cd/v2/util/notification/expression/shared"
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type Service interface {
@@ -66,6 +66,14 @@ func (svc *argoCDService) GetCommitMetadata(ctx context.Context, repoURL string,
 	}, nil
 }
 
+func (svc *argoCDService) getKustomizeOptions(source *v1alpha1.ApplicationSource) (*v1alpha1.KustomizeOptions, error) {
+	kustomizeSettings, err := svc.settingsMgr.GetKustomizeSettings()
+	if err != nil {
+		return nil, err
+	}
+	return kustomizeSettings.GetOptions(*source)
+}
+
 func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Application) (*shared.AppDetail, error) {
 	appSource := app.Spec.GetSourcePtrByIndex(0)
 
@@ -78,7 +86,7 @@ func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Appli
 	if err != nil {
 		return nil, err
 	}
-	kustomizeOptions, err := svc.settingsMgr.GetKustomizeSettings()
+	kustomizeOptions, err := svc.getKustomizeOptions(appSource)
 	if err != nil {
 		return nil, err
 	}

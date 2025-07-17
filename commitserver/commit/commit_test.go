@@ -1,18 +1,19 @@
 package commit
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
-	"github.com/argoproj/argo-cd/v3/commitserver/commit/mocks"
-	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/git"
-	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
+	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v2/commitserver/commit/mocks"
+	"github.com/argoproj/argo-cd/v2/commitserver/metrics"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	gitmocks "github.com/argoproj/argo-cd/v2/util/git/mocks"
 )
 
 func Test_CommitHydratedManifests(t *testing.T) {
@@ -32,7 +33,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 
 		service, _ := newServiceWithMocks(t)
 		request := &apiclient.CommitHydratedManifestsRequest{}
-		_, err := service.CommitHydratedManifests(t.Context(), request)
+		_, err := service.CommitHydratedManifests(context.Background(), request)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "repo is required")
 	})
@@ -44,7 +45,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		request := &apiclient.CommitHydratedManifestsRequest{
 			Repo: &v1alpha1.Repository{},
 		}
-		_, err := service.CommitHydratedManifests(t.Context(), request)
+		_, err := service.CommitHydratedManifests(context.Background(), request)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "repo URL is required")
 	})
@@ -58,7 +59,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 				Repo: "https://github.com/argoproj/argocd-example-apps.git",
 			},
 		}
-		_, err := service.CommitHydratedManifests(t.Context(), request)
+		_, err := service.CommitHydratedManifests(context.Background(), request)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "target branch is required")
 	})
@@ -73,7 +74,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 			},
 			TargetBranch: "main",
 		}
-		_, err := service.CommitHydratedManifests(t.Context(), request)
+		_, err := service.CommitHydratedManifests(context.Background(), request)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "sync branch is required")
 	})
@@ -84,7 +85,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		service, mockRepoClientFactory := newServiceWithMocks(t)
 		mockRepoClientFactory.On("NewClient", mock.Anything, mock.Anything).Return(nil, assert.AnError).Once()
 
-		_, err := service.CommitHydratedManifests(t.Context(), validRequest)
+		_, err := service.CommitHydratedManifests(context.Background(), validRequest)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, assert.AnError)
 	})
@@ -104,7 +105,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockGitClient.On("CommitSHA").Return("it-worked!", nil).Once()
 		mockRepoClientFactory.On("NewClient", mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
 
-		resp, err := service.CommitHydratedManifests(t.Context(), validRequest)
+		resp, err := service.CommitHydratedManifests(context.Background(), validRequest)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.Equal(t, "it-worked!", resp.HydratedSha)

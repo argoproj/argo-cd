@@ -6,8 +6,8 @@ import (
 
 var now = time.Now
 
-func NewExprs() map[string]any {
-	return map[string]any{
+func NewExprs() map[string]interface{} {
+	return map[string]interface{}{
 		// Functions
 		"Parse": parse,
 		"Now":   now,

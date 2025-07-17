@@ -23,7 +23,7 @@ $ argocd admin initial-password reset
 
 ```
   -h, --help               help for admin
-      --logformat string   Set the logging format. One of: json|text (default "json")
+      --logformat string   Set the logging format. One of: text|json (default "text")
       --loglevel string    Set the logging level. One of: debug|info|warn|error (default "info")
 ```
 

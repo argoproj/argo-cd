@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -164,17 +164,6 @@ func Test_setKustomizeOpt(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setKustomizeOpt(&src, kustomizeOpts{commonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}, labelWithoutSelector: true})
 		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{CommonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}, LabelWithoutSelector: true}, src.Kustomize)
-	})
-	t.Run("Label include templates", func(t *testing.T) {
-		src := v1alpha1.ApplicationSource{}
-		setKustomizeOpt(&src, kustomizeOpts{commonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}, labelIncludeTemplates: true})
-		assert.Equal(t, &v1alpha1.ApplicationSourceKustomize{CommonLabels: map[string]string{"foo1": "bar1", "foo2": "bar2"}, LabelIncludeTemplates: true}, src.Kustomize)
-	})
-	t.Run("IgnoreMissingComponents", func(t *testing.T) {
-		src := v1alpha1.ApplicationSource{}
-		setKustomizeOpt(&src, kustomizeOpts{ignoreMissingComponents: true})
-		t.Logf("HERE IS THE SOURCE\n %+v\n", src)
-		assert.True(t, src.Kustomize.IgnoreMissingComponents)
 	})
 }
 
@@ -554,7 +543,7 @@ func TestFilterResources(t *testing.T) {
 		}
 
 		filteredResources, err := FilterResources(false, resources, "g", "Service", "argocd-unknown", "test-helm", true)
-		require.ErrorContains(t, err, "no matching resource found")
+		require.ErrorContains(t, err, "No matching resource found")
 		assert.Nil(t, filteredResources)
 	})
 
@@ -569,7 +558,7 @@ func TestFilterResources(t *testing.T) {
 		}
 
 		filteredResources, err := FilterResources(false, resources, "g", "Service", "argocd", "test-helm", false)
-		require.ErrorContains(t, err, "use the --all flag")
+		require.ErrorContains(t, err, "Use the --all flag")
 		assert.Nil(t, filteredResources)
 	})
 }

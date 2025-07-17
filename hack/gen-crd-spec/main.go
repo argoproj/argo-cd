@@ -8,10 +8,10 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 )
@@ -22,7 +22,7 @@ var kindToCRDPath = map[string]string{
 	application.ApplicationSetFullName: "manifests/crds/applicationset-crd.yaml",
 }
 
-func getCustomResourceDefinitions() map[string]*apiextensionsv1.CustomResourceDefinition {
+func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefinition {
 	crdYamlBytes, err := exec.Command(
 		"controller-gen",
 		"paths=./pkg/apis/application/...",
@@ -41,7 +41,7 @@ func getCustomResourceDefinitions() map[string]*apiextensionsv1.CustomResourceDe
 
 	objs, err := kube.SplitYAML(crdYamlBytes)
 	checkErr(err)
-	crds := make(map[string]*apiextensionsv1.CustomResourceDefinition)
+	crds := make(map[string]*extensionsobj.CustomResourceDefinition)
 	for i := range objs {
 		un := objs[i]
 
@@ -80,27 +80,27 @@ func removeValidation(un *unstructured.Unstructured, path string) {
 	unstructured.RemoveNestedField(un.Object, schemaPath...)
 }
 
-func toCRD(un *unstructured.Unstructured, removeDesc bool) *apiextensionsv1.CustomResourceDefinition {
+func toCRD(un *unstructured.Unstructured, removeDesc bool) *extensionsobj.CustomResourceDefinition {
 	if removeDesc {
 		removeDescription(un.Object)
 	}
 	unBytes, err := json.Marshal(un)
 	checkErr(err)
 
-	var crd apiextensionsv1.CustomResourceDefinition
+	var crd extensionsobj.CustomResourceDefinition
 	err = json.Unmarshal(unBytes, &crd)
 	checkErr(err)
 
 	return &crd
 }
 
-func removeDescription(v any) {
+func removeDescription(v interface{}) {
 	switch v := v.(type) {
-	case []any:
+	case []interface{}:
 		for _, v := range v {
 			removeDescription(v)
 		}
-	case map[string]any:
+	case map[string]interface{}:
 		if _, ok := v["description"]; ok {
 			_, ok := v["description"].(string)
 			if ok {
@@ -134,7 +134,7 @@ func main() {
 	}
 }
 
-func writeCRDintoFile(crd *apiextensionsv1.CustomResourceDefinition, path string) {
+func writeCRDintoFile(crd *extensionsobj.CustomResourceDefinition, path string) {
 	jsonBytes, err := json.Marshal(crd)
 	checkErr(err)
 

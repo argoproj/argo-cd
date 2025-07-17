@@ -1,10 +1,7 @@
 package admin
 
 import (
-	"time"
-
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/admin/utils"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/admin/utils"
 )
 
 // this implements the "then" part of given/when/then
@@ -26,8 +23,8 @@ func (c *Consequences) AndCLIOutput(block func(output string, err error)) *Conse
 }
 
 // For use after running export with the exported resources desirialized
-func (c *Consequences) AndExportedResources(block func(resources *utils.ExportedResources, err error)) {
-	result, err := utils.GetExportedResourcesFromOutput(c.actions.lastOutput)
+func (c *Consequences) AndExportedResources(block func(resources *ExportedResources, err error)) {
+	result, err := GetExportedResourcesFromOutput(c.actions.lastOutput)
 	block(&result, err)
 }
 
@@ -36,6 +33,5 @@ func (c *Consequences) Given() *Context {
 }
 
 func (c *Consequences) When() *Actions {
-	time.Sleep(fixture.WhenThenSleepInterval)
 	return c.actions
 }

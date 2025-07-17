@@ -31,8 +31,7 @@ export class ApplicationCreatePanel extends Base {
         try {
             const appNameField = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_FIELD_APP_NAME);
             await appNameField.sendKeys(appName);
-        } catch (err: any) {
-            UiTestUtilities.log('Error caught while setting app name: ' + err);
+        } catch (err) {
             throw new Error(err);
         }
     }
@@ -41,8 +40,7 @@ export class ApplicationCreatePanel extends Base {
         try {
             const project = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_FIELD_PROJECT);
             await project.sendKeys(projectName);
-        } catch (err: any) {
-            UiTestUtilities.log('Error caught while setting project name: ' + err);
+        } catch (err) {
             throw new Error(err);
         }
     }
@@ -51,8 +49,7 @@ export class ApplicationCreatePanel extends Base {
         try {
             const reposUrl = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_FIELD_REPOSITORY_URL);
             await reposUrl.sendKeys(sourceRepoUrl);
-        } catch (err: any) {
-            UiTestUtilities.log('Error caught while setting source repo URL: ' + err);
+        } catch (err) {
             throw new Error(err);
         }
     }
@@ -61,8 +58,7 @@ export class ApplicationCreatePanel extends Base {
         try {
             const path = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_FIELD_REPOSITORY_PATH);
             await path.sendKeys(sourceRepoPath);
-        } catch (err: any) {
-            UiTestUtilities.log('Error caught while setting source repo path: ' + err);
+        } catch (err) {
             throw new Error(err);
         }
     }
@@ -82,8 +78,7 @@ export class ApplicationCreatePanel extends Base {
             if (destinationClusterFieldValue) {
                 await this.setDestinationClusterUrl(destinationClusterFieldValue);
             }
-        } catch (err: any) {
-            UiTestUtilities.log('Error caught while selecting destination cluster URL menu: ' + err);
+        } catch (err) {
             throw new Error(err);
         }
     }
@@ -103,8 +98,7 @@ export class ApplicationCreatePanel extends Base {
             if (destinationClusterFieldValue) {
                 await this.setDestinationClusterName(destinationClusterFieldValue);
             }
-        } catch (err: any) {
-            UiTestUtilities.log('Error caught while selecting destination cluster name menu: ' + err);
+        } catch (err) {
             throw new Error(err);
         }
     }
@@ -114,8 +108,7 @@ export class ApplicationCreatePanel extends Base {
             const clusterName = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_FIELD_CLUSTER_NAME);
             await clusterName.sendKeys(destinationClusterName);
             // await clusterName.sendKeys('\r');
-        } catch (err: any) {
-            UiTestUtilities.log('Error caught while setting destination cluster name: ' + err);
+        } catch (err) {
             throw new Error(err);
         }
     }
@@ -124,8 +117,7 @@ export class ApplicationCreatePanel extends Base {
         try {
             const clusterUrl = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_FIELD_CLUSTER_URL);
             await clusterUrl.sendKeys(destinationClusterUrl);
-        } catch (err: any) {
-            UiTestUtilities.log('Error caught while setting destination cluster URL: ' + err);
+        } catch (err) {
             throw new Error(err);
         }
     }
@@ -134,8 +126,7 @@ export class ApplicationCreatePanel extends Base {
         try {
             const namespace = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_FIELD_CLUSTER_NAMESPACE);
             await namespace.sendKeys(destinationNamespace);
-        } catch (err: any) {
-            UiTestUtilities.log('Error caught while setting destination namespace: ' + err);
+        } catch (err) {
             throw new Error(err);
         }
     }
@@ -149,13 +140,12 @@ export class ApplicationCreatePanel extends Base {
             await createButton.click();
 
             // Wait until the Create Application Sliding Panel disappears
-            await this.driver.wait(until.elementIsNotVisible(createButton), Const.TEST_SLIDING_PANEL_TIMEOUT).catch((e) => {
+            await this.driver.wait(until.elementIsNotVisible(createButton), Const.TEST_SLIDING_PANEL_TIMEOUT).catch(e => {
                 UiTestUtilities.logError('The Create Application Sliding Panel did not disappear');
                 throw e;
             });
             await this.driver.sleep(1000);
-        } catch (err: any) {
-            UiTestUtilities.log('Error caught while clicking Create button: ' + err);
+        } catch (err) {
             throw new Error(err);
         }
     }
@@ -169,12 +159,11 @@ export class ApplicationCreatePanel extends Base {
             await cancelButton.click();
 
             // Wait until the Create Application Sliding Panel disappears
-            await this.driver.wait(until.elementIsNotVisible(cancelButton), Const.TEST_SLIDING_PANEL_TIMEOUT).catch((e) => {
+            await this.driver.wait(until.elementIsNotVisible(cancelButton), Const.TEST_SLIDING_PANEL_TIMEOUT).catch(e => {
                 UiTestUtilities.logError('The Create Application Sliding Panel did not disappear');
                 throw e;
             });
-        } catch (err: any) {
-            UiTestUtilities.log('Error caught while clicking Cancel button: ' + err);
+        } catch (err) {
             throw new Error(err);
         }
     }
@@ -209,7 +198,7 @@ export class ApplicationCreatePanel extends Base {
             await this.selectDestinationClusterNameMenu(destinationClusterName);
             await this.setDestinationNamespace(destinationNamespace);
             await this.clickCreateButton();
-        } catch (err: any) {
+        } catch (err) {
             throw new Error(err);
         }
     }

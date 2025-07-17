@@ -17,8 +17,7 @@ argocd proj windows add PROJECT \
     --kind allow \
     --schedule "0 22 * * *" \
     --duration 1h \
-    --applications "*" \
-    --description "Ticket 123"
+    --applications "*"
 
 #Add a deny sync window with the ability to manually sync.
 argocd proj windows add PROJECT \
@@ -28,8 +27,7 @@ argocd proj windows add PROJECT \
     --applications "prod-\\*,website" \
     --namespaces "default,\\*-prod" \
     --clusters "prod,staging" \
-    --manual-sync \
-    --description "Ticket 123"
+    --manual-sync
 	
 ```
 
@@ -38,7 +36,6 @@ argocd proj windows add PROJECT \
 ```
       --applications strings   Applications that the schedule will be applied to. Comma separated, wildcards supported (e.g. --applications prod-\*,website)
       --clusters strings       Clusters that the schedule will be applied to. Comma separated, wildcards supported (e.g. --clusters prod,staging)
-      --description string     Sync window description
       --duration string        Sync window duration. (e.g. --duration 1h)
   -h, --help                   help for add
   -k, --kind string            Sync window kind, either allow or deny
@@ -46,7 +43,6 @@ argocd proj windows add PROJECT \
       --namespaces strings     Namespaces that the schedule will be applied to. Comma separated, wildcards supported (e.g. --namespaces default,\*-prod)
       --schedule string        Sync window schedule in cron format. (e.g. --schedule "0 22 * * *")
       --time-zone string       Time zone of the sync window (default "UTC")
-      --use-and-operator       Use AND operator for matching applications, namespaces and clusters instead of the default OR operator
 ```
 
 ### Options inherited from parent commands
@@ -65,7 +61,7 @@ argocd proj windows add PROJECT \
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: json|text (default "json")
+      --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding

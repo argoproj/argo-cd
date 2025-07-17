@@ -14,7 +14,7 @@ var (
 
 type Item struct {
 	Key             string
-	Object          any
+	Object          interface{}
 	CacheActionOpts CacheActionOpts
 }
 
@@ -30,7 +30,7 @@ type CacheActionOpts struct {
 type CacheClient interface {
 	Set(item *Item) error
 	Rename(oldKey string, newKey string, expiration time.Duration) error
-	Get(key string, obj any) error
+	Get(key string, obj interface{}) error
 	Delete(key string) error
 	OnUpdated(ctx context.Context, key string, callback func() error) error
 	NotifyUpdated(key string) error

@@ -8,26 +8,26 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v2/common"
 )
 
 // DoHttpRequest executes a http request against the Argo CD API server
-func DoHttpRequest(method string, path string, host string, data ...byte) (*http.Response, error) { //nolint:revive //FIXME(var-naming)
-	reqURL, err := url.Parse(path)
+func DoHttpRequest(method string, path string, host string, data ...byte) (*http.Response, error) {
+	reqUrl, err := url.Parse(path)
 	if err != nil {
 		return nil, err
 	}
-	reqURL.Scheme = "http"
+	reqUrl.Scheme = "http"
 	if host != "" {
-		reqURL.Host = host
+		reqUrl.Host = host
 	} else {
-		reqURL.Host = apiServerAddress
+		reqUrl.Host = apiServerAddress
 	}
 	var body io.Reader
 	if data != nil {
 		body = bytes.NewReader(data)
 	}
-	req, err := http.NewRequest(method, reqURL.String(), body)
+	req, err := http.NewRequest(method, reqUrl.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func DoHttpRequest(method string, path string, host string, data ...byte) (*http
 }
 
 // DoHttpJsonRequest executes a http request against the Argo CD API server and unmarshals the response body as JSON
-func DoHttpJsonRequest(method string, path string, result any, data ...byte) error { //nolint:revive //FIXME(var-naming)
+func DoHttpJsonRequest(method string, path string, result interface{}, data ...byte) error {
 	resp, err := DoHttpRequest(method, path, "", data...)
 	if err != nil {
 		return err

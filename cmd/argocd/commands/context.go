@@ -1,7 +1,6 @@
 package commands
 
 import (
-	stderrors "errors"
 	"fmt"
 	"os"
 	"path"
@@ -11,14 +10,14 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/localconfig"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/localconfig"
 )
 
 // NewContextCommand returns a new instance of an `argocd ctx` command
 func NewContextCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var deletion bool
+	var delete bool
 	command := &cobra.Command{
 		Use:     "context [CONTEXT]",
 		Aliases: []string{"ctx"},
@@ -35,7 +34,7 @@ argocd context cd.argoproj.io --delete`,
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errors.CheckError(err)
 
-			if deletion {
+			if delete {
 				if len(args) == 0 {
 					c.HelpFunc()(c, args)
 					os.Exit(1)
@@ -78,7 +77,7 @@ argocd context cd.argoproj.io --delete`,
 			fmt.Printf("Switched to context '%s'\n", localCfg.CurrentContext)
 		},
 	}
-	command.Flags().BoolVar(&deletion, "delete", false, "Delete the context instead of switching to it")
+	command.Flags().BoolVar(&delete, "delete", false, "Delete the context instead of switching to it")
 	return command
 }
 
@@ -86,12 +85,12 @@ func deleteContext(context, configPath string) error {
 	localCfg, err := localconfig.ReadLocalConfig(configPath)
 	errors.CheckError(err)
 	if localCfg == nil {
-		return stderrors.New("nothing to logout from")
+		return fmt.Errorf("Nothing to logout from")
 	}
 
 	serverName, ok := localCfg.RemoveContext(context)
 	if !ok {
-		return fmt.Errorf("context %s does not exist", context)
+		return fmt.Errorf("Context %s does not exist", context)
 	}
 	_ = localCfg.RemoveUser(context)
 	_ = localCfg.RemoveServer(serverName)
@@ -105,7 +104,7 @@ func deleteContext(context, configPath string) error {
 		}
 		err = localconfig.ValidateLocalConfig(*localCfg)
 		if err != nil {
-			return stderrors.New("error in logging out")
+			return fmt.Errorf("Error in logging out")
 		}
 		err = localconfig.WriteLocalConfig(*localCfg, configPath)
 		errors.CheckError(err)

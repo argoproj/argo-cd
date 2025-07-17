@@ -48,12 +48,6 @@ spec:
                 name: argocd-cmd-params-cm
                 key: commitserver.log.level
                 optional: true
-          - name: ARGOCD_LOG_FORMAT_TIMESTAMP
-            valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: log.format.timestamp
-                optional: true
         ports:
         - containerPort: 8086
         - containerPort: 8087
@@ -92,6 +86,26 @@ spec:
         # We need a writeable temp directory for the askpass socket file.
         - name: tmp
           mountPath: /tmp
+      initContainers:
+      - command:
+        - /bin/cp
+        - -n
+        - /usr/local/bin/argocd
+        - /var/run/argocd/argocd-cmp-server
+        image: quay.io/argoproj/argocd:latest
+        name: copyutil
+        securityContext:
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - mountPath: /var/run/argocd
+          name: var-files
       volumes:
         - name: ssh-known-hosts
           configMap:
@@ -117,6 +131,8 @@ spec:
               path: tls.key
             - key: ca.crt
               path: ca.crt
+        - emptyDir: {}
+          name: var-files
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

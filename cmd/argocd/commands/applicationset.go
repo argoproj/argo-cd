@@ -11,18 +11,18 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/admin"
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
-	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
-	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
-	arogappsetv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/grpc"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/templates"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
+	arogappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/grpc"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 var appSetExample = templates.Examples(`
@@ -80,7 +80,7 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			}
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationSetClientOrDie()
-			defer utilio.Close(conn)
+			defer argoio.Close(conn)
 
 			appSetName, appSetNs := argo.ParseFromQualifiedName(args[0], "")
 
@@ -135,8 +135,8 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 				os.Exit(1)
 			}
 			argocdClient := headless.NewClientOrDie(clientOpts, c)
-			fileURL := args[0]
-			appsets, err := cmdutil.ConstructApplicationSet(fileURL)
+			fileUrl := args[0]
+			appsets, err := cmdutil.ConstructApplicationSet(fileUrl)
 			errors.CheckError(err)
 
 			if len(appsets) == 0 {
@@ -146,11 +146,12 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 
 			for _, appset := range appsets {
 				if appset.Name == "" {
-					errors.Fatal(errors.ErrorGeneric, fmt.Sprintf("Error creating ApplicationSet %s. ApplicationSet does not have Name field set", appset))
+					err := fmt.Errorf("Error creating ApplicationSet %s. ApplicationSet does not have Name field set", appset)
+					errors.CheckError(err)
 				}
 
 				conn, appIf := argocdClient.NewApplicationSetClientOrDie()
-				defer utilio.Close(conn)
+				defer argoio.Close(conn)
 
 				// Get app before creating to see if it is being updated or no change
 				existing, err := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{Name: appset.Name, AppsetNamespace: appset.Namespace})
@@ -172,16 +173,15 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 				}
 
 				var action string
-				switch {
-				case existing == nil:
+				if existing == nil {
 					action = "created"
-				case !hasAppSetChanged(existing, created, upsert):
+				} else if !hasAppSetChanged(existing, created, upsert) {
 					action = "unchanged"
-				default:
+				} else {
 					action = "updated"
 				}
 
-				c.PrintErrf("ApplicationSet '%s' %s%s\n", created.Name, action, dryRunMsg)
+				c.PrintErrf("ApplicationSet '%s' %s%s\n", created.ObjectMeta.Name, action, dryRunMsg)
 
 				switch output {
 				case "yaml", "json":
@@ -227,8 +227,8 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 				os.Exit(1)
 			}
 			argocdClient := headless.NewClientOrDie(clientOpts, c)
-			fileURL := args[0]
-			appsets, err := cmdutil.ConstructApplicationSet(fileURL)
+			fileUrl := args[0]
+			appsets, err := cmdutil.ConstructApplicationSet(fileUrl)
 			errors.CheckError(err)
 
 			if len(appsets) != 1 {
@@ -237,11 +237,12 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 			}
 			appset := appsets[0]
 			if appset.Name == "" {
-				errors.Fatal(errors.ErrorGeneric, fmt.Sprintf("Error generating apps for ApplicationSet %s. ApplicationSet does not have Name field set", appset))
+				err := fmt.Errorf("Error generating apps for ApplicationSet %s. ApplicationSet does not have Name field set", appset)
+				errors.CheckError(err)
 			}
 
 			conn, appIf := argocdClient.NewApplicationSetClientOrDie()
-			defer utilio.Close(conn)
+			defer argoio.Close(conn)
 
 			req := applicationset.ApplicationSetGenerateRequest{
 				ApplicationSet: appset,
@@ -256,7 +257,7 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 
 			switch output {
 			case "yaml", "json":
-				var resources []any
+				var resources []interface{}
 				for i := range appsList {
 					app := appsList[i]
 					// backfill api version and kind because k8s client always return empty values for these fields
@@ -292,11 +293,11 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	# List all ApplicationSets
 	argocd appset list
 		`),
-		Run: func(c *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie()
-			defer utilio.Close(conn)
+			defer argoio.Close(conn)
 			appsets, err := appIf.List(ctx, &applicationset.ApplicationSetListQuery{Selector: selector, Projects: projects, AppsetNamespace: appSetNamespace})
 			errors.CheckError(err)
 
@@ -341,8 +342,8 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 				os.Exit(1)
 			}
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie()
-			defer utilio.Close(conn)
-			isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
+			defer argoio.Close(conn)
+			var isTerminal bool = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 			numOfApps := len(args)
 			promptFlag := c.Flag("yes")
 			if promptFlag.Changed && promptFlag.Value.String() == "true" {
@@ -395,7 +396,7 @@ func printApplicationSetNames(apps []arogappsetv1.ApplicationSet) {
 func printApplicationSetTable(apps []arogappsetv1.ApplicationSet, output *string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	var fmtStr string
-	headers := []any{"NAME", "PROJECT", "SYNCPOLICY", "CONDITIONS"}
+	headers := []interface{}{"NAME", "PROJECT", "SYNCPOLICY", "CONDITIONS"}
 	if *output == "wide" {
 		fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
 		headers = append(headers, "REPO", "PATH", "TARGET")
@@ -410,7 +411,7 @@ func printApplicationSetTable(apps []arogappsetv1.ApplicationSet, output *string
 				conditions = append(conditions, condition)
 			}
 		}
-		vals := []any{
+		vals := []interface{}{
 			app.QualifiedName(),
 			app.Spec.Template.Spec.Project,
 			app.Spec.SyncPolicy,
@@ -458,7 +459,7 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 		syncPolicyStr string
 		syncPolicy    = appSet.Spec.Template.Spec.SyncPolicy
 	)
-	if syncPolicy != nil && syncPolicy.IsAutomatedSyncEnabled() {
+	if syncPolicy != nil && syncPolicy.Automated != nil {
 		syncPolicyStr = "Automated"
 		if syncPolicy.Automated.Prune {
 			syncPolicyStr += " (Prune)"
@@ -495,7 +496,7 @@ func hasAppSetChanged(appReq, appRes *arogappsetv1.ApplicationSet, upsert bool) 
 
 	if reflect.DeepEqual(appRes.Spec, appReq.Spec) &&
 		reflect.DeepEqual(appRes.Labels, appReq.Labels) &&
-		reflect.DeepEqual(appRes.Annotations, appReq.Annotations) &&
+		reflect.DeepEqual(appRes.ObjectMeta.Annotations, appReq.Annotations) &&
 		reflect.DeepEqual(appRes.Finalizers, appReq.Finalizers) {
 		return false
 	}

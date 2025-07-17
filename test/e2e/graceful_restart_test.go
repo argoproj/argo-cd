@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"testing"
@@ -8,13 +9,15 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 func checkHealth(t *testing.T, requireHealthy bool) {
 	t.Helper()
-	resp, err := fixture.DoHttpRequest("GET", "/healthz?full=true", "")
+	resp, err := DoHttpRequest("GET", "/healthz?full=true", "")
 	if requireHealthy {
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -30,12 +33,12 @@ func checkHealth(t *testing.T, requireHealthy bool) {
 }
 
 func TestAPIServerGracefulRestart(t *testing.T) {
-	fixture.EnsureCleanState(t)
+	EnsureCleanState(t)
 
 	// Should be healthy.
 	checkHealth(t, true)
 	// Should trigger API server restart.
-	require.NoError(t, fixture.SetParamInSettingConfigMap("url", "http://test-api-server-graceful-restart"))
+	errors.CheckError(fixture.SetParamInSettingConfigMap("url", "http://test-api-server-graceful-restart"))
 
 	// Wait for ~5 seconds
 	for i := 0; i < 50; i++ {
@@ -44,12 +47,12 @@ func TestAPIServerGracefulRestart(t *testing.T) {
 	}
 	// One final time, should be healthy, or restart is considered too slow for tests
 	checkHealth(t, true)
-	closer, settingsClient, err := fixture.ArgoCDClientset.NewSettingsClient()
+	closer, settingsClient, err := ArgoCDClientset.NewSettingsClient()
 	if closer != nil {
 		defer closer.Close()
 	}
 	require.NoError(t, err)
-	settings, err := settingsClient.Get(t.Context(), &settings.SettingsQuery{})
+	settings, err := settingsClient.Get(context.Background(), &settings.SettingsQuery{})
 	require.NoError(t, err)
 	require.Equal(t, "http://test-api-server-graceful-restart", settings.URL)
 }

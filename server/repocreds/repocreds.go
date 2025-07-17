@@ -4,31 +4,39 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	repocredspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repocreds"
-	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/rbac"
+	repocredspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 // Server provides a Repository service
 type Server struct {
-	db  db.ArgoDB
-	enf *rbac.Enforcer
+	db            db.ArgoDB
+	repoClientset apiclient.Clientset
+	enf           *rbac.Enforcer
+	settings      *settings.SettingsManager
 }
 
 // NewServer returns a new instance of the Repository service
 func NewServer(
+	repoClientset apiclient.Clientset,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
+	settings *settings.SettingsManager,
 ) *Server {
 	return &Server{
-		db:  db,
-		enf: enf,
+		db:            db,
+		repoClientset: repoClientset,
+		enf:           enf,
+		settings:      settings,
 	}
 }
 

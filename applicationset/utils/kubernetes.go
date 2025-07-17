@@ -4,17 +4,17 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v2/common"
 
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 var ErrDisallowedSecretAccess = fmt.Errorf("secret must have label %q=%q", common.LabelKeySecretType, common.LabelValueSecretTypeSCMCreds)
 
-// GetSecretRef gets the value of the key for the specified Secret resource.
+// getSecretRef gets the value of the key for the specified Secret resource.
 func GetSecretRef(ctx context.Context, k8sClient client.Client, ref *argoprojiov1alpha1.SecretRef, namespace string, tokenRefStrictMode bool) (string, error) {
 	if ref == nil {
 		return "", nil

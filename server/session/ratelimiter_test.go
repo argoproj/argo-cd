@@ -6,12 +6,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/session"
+	util "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/session"
 )
 
 func TestRateLimiter(t *testing.T) {
-	var closers []utilio.Closer
+	var closers []util.Closer
 	limiter := NewLoginRateLimiter(10)
 	for i := 0; i < 10; i++ {
 		closer, err := limiter()

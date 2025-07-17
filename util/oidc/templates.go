@@ -51,7 +51,7 @@ func renderToken(w http.ResponseWriter, redirectURL, idToken, refreshToken strin
 	})
 }
 
-func renderTemplate(w http.ResponseWriter, tmpl *template.Template, data any) {
+func renderTemplate(w http.ResponseWriter, tmpl *template.Template, data interface{}) {
 	err := tmpl.Execute(w, data)
 	if err == nil {
 		return

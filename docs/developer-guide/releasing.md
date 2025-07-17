@@ -20,9 +20,8 @@ triggered. This will be automated in the very near future.
 
 * Update `CHANGELOG.md` with changes for this release
 * Commit & push changes to `CHANGELOG.md`
-* Update `goreleaser.yaml` with the updated blog post link in the `Release Notes Blog Post` section.
 
-**The `Init ArgoCD Release` workflow will perform the following steps:**
+**The `Init ARGOCD Release` workflow will perform the following steps:**
 
 * Update `VERSION` file in the release branch
 * Update manifests with image tags of the new version in the release branch
