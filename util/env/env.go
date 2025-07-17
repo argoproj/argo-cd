@@ -99,7 +99,7 @@ func ParseFloat64FromEnv(env string, defaultValue, minimum, maximum float64) flo
 
 	num, err := strconv.ParseFloat(str, 64)
 	if err != nil {
-		log.Warnf("Could not parse '%s' as a float32 from environment %s", str, env)
+		log.Warnf("Could not parse '%s' as a float64 from environment %s", str, env)
 		return defaultValue
 	}
 	if num < minimum {
@@ -117,7 +117,7 @@ func ParseFloat64FromEnv(env string, defaultValue, minimum, maximum float64) flo
 // default if env is not set, is not parseable to a duration, exceeds maximum (if
 // maximum is greater than 0) or is less than minimum.
 //
-// nolinit:unparam
+// nolint:unparam
 func ParseDurationFromEnv(env string, defaultValue, minimum, maximum time.Duration) time.Duration {
 	str := os.Getenv(env)
 	if str == "" {
@@ -173,7 +173,7 @@ func StringsFromEnv(env string, defaultValue []string, separator string) []strin
 // ParseBoolFromEnv retrieves a boolean value from given environment envVar.
 // Returns default value if envVar is not set.
 //
-// nolinit:unparam
+// nolint:unparam
 func ParseBoolFromEnv(envVar string, defaultValue bool) bool {
 	if val := os.Getenv(envVar); val != "" {
 		if strings.EqualFold(val, "true") {

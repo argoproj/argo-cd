@@ -100,3 +100,30 @@ func TestAddingApp(t *testing.T) {
 		Then().
 		Expect(DoesNotExist())
 }
+
+func TestKustomizeVersionOverride(t *testing.T) {
+	Given(t).
+		Name("test-kustomize-version-override").
+		DrySourcePath("kustomize-with-version-override").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("kustomize-with-version-override").
+		SyncSourceBranch("env/test").
+		When().
+		// Skip validation, otherwise app creation will fail on the unsupported kustomize version.
+		CreateApp("--validate=false").
+		Refresh(RefreshTypeNormal).
+		Then().
+		// Expect a failure at first because the kustomize version is not supported.
+		Expect(HydrationPhaseIs(HydrateOperationPhaseFailed)).
+		// Now register the kustomize version override and try again.
+		Given().
+		RegisterKustomizeVersion("v1.2.3", "kustomize").
+		When().
+		// Hard refresh so we don't use the cached error.
+		Refresh(RefreshTypeHard).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
