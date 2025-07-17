@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"testing"
+	"time"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
@@ -97,7 +98,7 @@ func TestAutoSyncSelfHealRetryAndRefreshEnabled(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
-		// app should be auto-synced once created
+		// Correctly configured app should be auto-synced once created
 		CreateFromFile(func(app *Application) {
 			app.Spec.SyncPolicy = &SyncPolicy{
 				Automated: &SyncPolicyAutomated{SelfHeal: true},
@@ -110,30 +111,32 @@ func TestAutoSyncSelfHealRetryAndRefreshEnabled(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		// Broken commit should make the app stuck retrying indefinitely
 		When().
-		// app should be attempted to auto-synced once and marked with error after failed attempt detected
-		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "add", "path": "/spec/selector/matchLabels/foo", "value": "bar"}, {"op": "add", "path": "/spec/template/metadata/labels/foo", "value": "bar"}]`).
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
 		Refresh(RefreshTypeNormal).
 		Then().
-		Expect(OperationPhaseIs(OperationFailed)).
-		When().
-		// Trigger refresh again to make sure controller notices previously failed sync attempt before expectation timeout expires
-		Refresh(RefreshTypeNormal).
-		Then().
+		Expect(OperationPhaseIs(OperationRunning)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(Condition(ApplicationConditionSyncError, "Failed sync attempt")).
+		Expect(OperationMessageContains("one or more objects failed to apply")).
+		Expect(OperationMessageContains("Retrying attempt #1")).
+		// Wait to make sure the condition is consistent
+		And(func(_ *Application) {
+			time.Sleep(10 * time.Second)
+		}).
+		Expect(OperationPhaseIs(OperationRunning)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(OperationMessageContains("one or more objects failed to apply")).
+		Expect(OperationMessageContains("Retrying attempt #2")).
+
+		// Push fix commit and see the app pick it up
 		When().
-		// SyncError condition should be removed after successful sync
-		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "remove", "path": "/spec/selector/matchLabels/foo"}, {"op": "remove", "path": "/spec/template/metadata/labels/foo"}]`).
+		RevertCommit(). // Fix declaration
 		Refresh(RefreshTypeNormal).
+		// Wait for the sync retry to pick up new commit
 		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		When().
-		// Trigger refresh twice to make sure controller notices successful attempt and removes condition
-		Refresh(RefreshTypeNormal).
-		Then().
+		Expect(NoConditions()).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			assert.Len(t, app.Status.Conditions, 0)
-		})
+		Expect(OperationPhaseIs(OperationSucceeded))
 }
