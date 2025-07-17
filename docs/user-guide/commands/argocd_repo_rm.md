@@ -11,6 +11,7 @@ argocd repo rm REPO ... [flags]
 ### Examples
 
 ```
+
   # Remove a single repository
   argocd repo rm https://github.com/yourusername/your-repo.git
 
@@ -22,6 +23,7 @@ argocd repo rm REPO ... [flags]
 
   # Remove repository using SSH URL
   argocd repo rm git@github.com:yourusername/your-repo.git
+
 ```
 
 ### Options
