@@ -8,6 +8,30 @@ List configured repositories
 argocd repo list [flags]
 ```
 
+### Examples
+
+```
+
+  # List all repositories
+  argocd repo list
+
+  # List repositories in wide format
+  argocd repo list -o wide
+
+  # List repositories in YAML format
+  argocd repo list -o yaml
+
+  # List repositories in JSON format
+  argocd repo list -o json
+
+  # List urls of repositories
+  argocd repo list -o url
+
+  # Force refresh of cached repository connection status
+  argocd repo list --refresh hard
+
+```
+
 ### Options
 
 ```
