@@ -3181,12 +3181,30 @@ type HelmOptions struct {
 	ValuesFileSchemes []string `protobuf:"bytes,1,opt,name=valuesFileSchemes"`
 }
 
+// KustomizeVersion holds information about additional Kustomize versions
+type KustomizeVersion struct {
+	// Name holds Kustomize version name
+	Name string `protobuf:"bytes,1,opt,name=name"`
+	// Path holds the corresponding binary path
+	Path string `protobuf:"bytes,2,opt,name=path"`
+	// BuildOptions that are specific to a Kustomize version
+	BuildOptions string `protobuf:"bytes,3,opt,name=buildOptions"`
+}
+
 // KustomizeOptions are options for kustomize to use when building manifests
 type KustomizeOptions struct {
 	// BuildOptions is a string of build parameters to use when calling `kustomize build`
 	BuildOptions string `protobuf:"bytes,1,opt,name=buildOptions"`
+
 	// BinaryPath holds optional path to kustomize binary
+	//
+	// Deprecated: Use settings.Settings instead. See: settings.Settings.KustomizeVersions.
+	// If this field is set, it will be used as the Kustomize binary path.
+	// Otherwise, Versions is used.
 	BinaryPath string `protobuf:"bytes,2,opt,name=binaryPath"`
+
+	// Versions is a list of Kustomize versions and their corresponding binary paths and build options.
+	Versions []KustomizeVersion `protobuf:"bytes,3,rep,name=versions"`
 }
 
 // ApplicationDestinationServiceAccount holds information about the service account to be impersonated for the application sync operation.
