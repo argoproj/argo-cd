@@ -77,8 +77,8 @@ To find these logs, search for `"Requesting app refresh caused by object update"
 fields for `api-version` and `kind`. Counting the number of refreshes triggered, by api-version/kind should
 reveal the high-churn resource kinds.
 
-!!! note
-    These logs are at the `debug` level. Configure the application-controller's log level to `debug`.
+!!!note
+These logs are at the `debug` level. Configure the application-controller's log level to `debug`.
 
 Once you have identified some resources which change often, you can try to determine which fields are changing. Here is
 one approach:
@@ -87,7 +87,7 @@ one approach:
 kubectl get <resource> -o yaml > /tmp/before.yaml
 # Wait a minute or two.
 kubectl get <resource> -o yaml > /tmp/after.yaml
-diff /tmp/before.yaml /tmp/after.yaml
+diff /tmp/before.yaml /tmp/after
 ```
 
 The diff can give you a sense for which fields are changing and should perhaps be ignored.
@@ -99,8 +99,8 @@ Whenever Argo CD skips a refresh due to an ignored resource update, the controll
 
 Search the application-controller logs for this line to confirm that your resource ignore rules are being applied.
 
-!!! note
-    These logs are at the `debug` level. Configure the application-controller's log level to `debug`.
+!!!note
+These logs are at the `debug` level. Configure the application-controller's log level to `debug`.
 
 ## Examples
 

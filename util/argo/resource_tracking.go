@@ -15,9 +15,9 @@ import (
 )
 
 var (
-	ErrWrongResourceTrackingFormat = errors.New("wrong resource tracking format, should be <application-name>:<group>/<kind>:<namespace>/<name>")
-	LabelMaxLength                 = 63
-	OkEndPattern                   = regexp.MustCompile("[a-zA-Z0-9]$")
+	WrongResourceTrackingFormat = errors.New("wrong resource tracking format, should be <application-name>:<group>/<kind>:<namespace>/<name>")
+	LabelMaxLength              = 63
+	OkEndPattern                = regexp.MustCompile("[a-zA-Z0-9]$")
 )
 
 // ResourceTracking defines methods which allow setup and retrieve tracking information to resource
@@ -181,15 +181,15 @@ func (rt *resourceTracking) ParseAppInstanceValue(value string) (*AppInstanceVal
 	parts := strings.SplitN(value, ":", 3)
 	appInstanceValue.ApplicationName = parts[0]
 	if len(parts) != 3 {
-		return nil, ErrWrongResourceTrackingFormat
+		return nil, WrongResourceTrackingFormat
 	}
 	groupParts := strings.Split(parts[1], "/")
 	if len(groupParts) != 2 {
-		return nil, ErrWrongResourceTrackingFormat
+		return nil, WrongResourceTrackingFormat
 	}
 	nsParts := strings.Split(parts[2], "/")
 	if len(nsParts) != 2 {
-		return nil, ErrWrongResourceTrackingFormat
+		return nil, WrongResourceTrackingFormat
 	}
 	appInstanceValue.Group = groupParts[0]
 	appInstanceValue.Kind = groupParts[1]

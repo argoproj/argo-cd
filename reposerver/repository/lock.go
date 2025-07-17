@@ -5,7 +5,7 @@ import (
 	"io"
 	"sync"
 
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	ioutil "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 func NewRepositoryLock() *repositoryLock {
@@ -27,7 +27,7 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 	}
 	r.lock.Unlock()
 
-	closer := utilio.NewCloser(func() error {
+	closer := ioutil.NewCloser(func() error {
 		state.cond.L.Lock()
 		notify := false
 		state.processCount--

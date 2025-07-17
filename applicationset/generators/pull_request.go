@@ -4,23 +4,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"strconv"
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/gosimple/slug"
-	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	pullrequest "github.com/argoproj/argo-cd/v3/applicationset/services/pull_request"
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
+var _ Generator = (*PullRequestGenerator)(nil)
+
 const (
-	DefaultPullRequestRequeueAfter = 30 * time.Minute
+	DefaultPullRequestRequeueAfterSeconds = 30 * time.Minute
 )
 
 type PullRequestGenerator struct {
@@ -45,11 +44,7 @@ func (g *PullRequestGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alph
 		return time.Duration(*appSetGenerator.PullRequest.RequeueAfterSeconds) * time.Second
 	}
 
-	return DefaultPullRequestRequeueAfter
-}
-
-func (g *PullRequestGenerator) GetContinueOnRepoNotFoundError(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) bool {
-	return appSetGenerator.PullRequest.ContinueOnRepoNotFoundError
+	return DefaultPullRequestRequeueAfterSeconds
 }
 
 func (g *PullRequestGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
@@ -58,11 +53,11 @@ func (g *PullRequestGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.A
 
 func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
-		return nil, ErrEmptyAppSetGenerator
+		return nil, EmptyAppSetGeneratorError
 	}
 
 	if appSetGenerator.PullRequest == nil {
-		return nil, ErrEmptyAppSetGenerator
+		return nil, EmptyAppSetGeneratorError
 	}
 
 	ctx := context.Background()
@@ -72,15 +67,10 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	}
 
 	pulls, err := pullrequest.ListPullRequests(ctx, svc, appSetGenerator.PullRequest.Filters)
-	params := make([]map[string]any, 0, len(pulls))
 	if err != nil {
-		if pullrequest.IsRepositoryNotFoundError(err) && g.GetContinueOnRepoNotFoundError(appSetGenerator) {
-			log.WithError(err).WithField("generator", g).
-				Warn("Skipping params generation for this repository since it was not found.")
-			return params, nil
-		}
 		return nil, fmt.Errorf("error listing repos: %w", err)
 	}
+	params := make([]map[string]any, 0, len(pulls))
 
 	// In order to follow the DNS label standard as defined in RFC 1123,
 	// we need to limit the 'branch' to 50 to give room to append/suffix-ing it
@@ -167,8 +157,7 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %w", err)
 		}
-
-		return pullrequest.NewGiteaService(token, providerConfig.API, providerConfig.Owner, providerConfig.Repo, providerConfig.Labels, providerConfig.Insecure)
+		return pullrequest.NewGiteaService(token, providerConfig.API, providerConfig.Owner, providerConfig.Repo, providerConfig.Insecure)
 	}
 	if generatorConfig.BitbucketServer != nil {
 		providerConfig := generatorConfig.BitbucketServer
@@ -224,26 +213,11 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 }
 
 func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alpha1.PullRequestGeneratorGithub, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
-	var metricsCtx *services.MetricsContext
-	var httpClient *http.Client
-
-	if g.enableGitHubAPIMetrics {
-		metricsCtx = &services.MetricsContext{
-			AppSetNamespace: applicationSetInfo.Namespace,
-			AppSetName:      applicationSetInfo.Name,
-		}
-		httpClient = services.NewGitHubMetricsClient(metricsCtx)
-	}
-
 	// use an app if it was configured
 	if cfg.AppSecretName != "" {
 		auth, err := g.GitHubApps.GetAuthSecret(ctx, cfg.AppSecretName)
 		if err != nil {
 			return nil, fmt.Errorf("error getting GitHub App secret: %w", err)
-		}
-
-		if g.enableGitHubAPIMetrics {
-			return pullrequest.NewGithubAppService(*auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, httpClient)
 		}
 		return pullrequest.NewGithubAppService(*auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
 	}
@@ -252,10 +226,6 @@ func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alph
 	token, err := utils.GetSecretRef(ctx, g.client, cfg.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching Secret token: %w", err)
-	}
-
-	if g.enableGitHubAPIMetrics {
-		return pullrequest.NewGithubService(token, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, httpClient)
 	}
 	return pullrequest.NewGithubService(token, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
 }

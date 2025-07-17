@@ -16,12 +16,11 @@ import (
 func TestPullRequestGithubGenerateParams(t *testing.T) {
 	ctx := t.Context()
 	cases := []struct {
-		selectFunc                  func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
-		values                      map[string]string
-		expected                    []map[string]any
-		expectedErr                 error
-		applicationSet              argoprojiov1alpha1.ApplicationSet
-		continueOnRepoNotFoundError bool
+		selectFunc     func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
+		values         map[string]string
+		expected       []map[string]any
+		expectedErr    error
+		applicationSet argoprojiov1alpha1.ApplicationSet
 	}{
 		{
 			selectFunc: func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
@@ -176,30 +175,6 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 			selectFunc: func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
 				return pullrequest.NewFakeService(
 					ctx,
-					nil,
-					pullrequest.NewRepositoryNotFoundError(errors.New("repository not found")),
-				)
-			},
-			expected:                    []map[string]any{},
-			expectedErr:                 nil,
-			continueOnRepoNotFoundError: true,
-		},
-		{
-			selectFunc: func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
-				return pullrequest.NewFakeService(
-					ctx,
-					nil,
-					pullrequest.NewRepositoryNotFoundError(errors.New("repository not found")),
-				)
-			},
-			expected:                    nil,
-			expectedErr:                 errors.New("error listing repos: repository not found"),
-			continueOnRepoNotFoundError: false,
-		},
-		{
-			selectFunc: func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
-				return pullrequest.NewFakeService(
-					ctx,
 					[]*pullrequest.PullRequest{
 						{
 							Number:       1,
@@ -285,8 +260,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 		}
 		generatorConfig := argoprojiov1alpha1.ApplicationSetGenerator{
 			PullRequest: &argoprojiov1alpha1.PullRequestGenerator{
-				Values:                      c.values,
-				ContinueOnRepoNotFoundError: c.continueOnRepoNotFoundError,
+				Values: c.values,
 			},
 		}
 
@@ -301,8 +275,6 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 }
 
 func TestAllowedSCMProviderPullRequest(t *testing.T) {
-	t.Parallel()
-
 	cases := []struct {
 		name           string
 		providerConfig *argoprojiov1alpha1.PullRequestGenerator
@@ -353,7 +325,7 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 				"gitea.myorg.com",
 				"bitbucket.myorg.com",
 				"azuredevops.myorg.com",
-			}, true, true, nil, true))
+			}, true, nil, true))
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -376,7 +348,7 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 }
 
 func TestSCMProviderDisabled_PRGenerator(t *testing.T) {
-	generator := NewPullRequestGenerator(nil, NewSCMConfig("", []string{}, false, true, nil, true))
+	generator := NewPullRequestGenerator(nil, NewSCMConfig("", []string{}, false, nil, true))
 
 	applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{

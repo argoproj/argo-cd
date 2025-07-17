@@ -5,7 +5,7 @@
 Get a configured repository by URL
 
 ```
-argocd repo get REPO [flags]
+argocd repo get [flags]
 ```
 
 ### Options

@@ -1,5 +1,0 @@
-tests:
-  - healthStatus:
-      status: Healthy
-      message: "Resource is up-to-date."
-    inputPath: testdata/providerconfig_healthy.yaml

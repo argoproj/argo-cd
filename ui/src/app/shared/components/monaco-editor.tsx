@@ -73,7 +73,7 @@ const MonacoEditorLazy = React.lazy(() =>
                                         ...props.editor.options,
                                         scrollBeyondLastLine: props.vScrollBar,
                                         scrollbar: {
-                                            alwaysConsumeMouseWheel: false,
+                                            handleMouseWheel: false,
                                             vertical: props.vScrollBar ? 'visible' : 'hidden'
                                         }
                                     });

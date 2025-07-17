@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"reflect"
 	"regexp"
@@ -59,14 +58,14 @@ func copyValueIntoUnexported(destination, value reflect.Value) {
 		Set(value)
 }
 
-func copyUnexported(destination, original reflect.Value) {
+func copyUnexported(copy, original reflect.Value) {
 	unexported := reflect.NewAt(original.Type(), unsafe.Pointer(original.UnsafeAddr())).Elem()
-	copyValueIntoUnexported(destination, unexported)
+	copyValueIntoUnexported(copy, unexported)
 }
 
 func IsJSONStr(str string) bool {
 	str = strings.TrimSpace(str)
-	return str != "" && str[0] == '{'
+	return len(str) > 0 && str[0] == '{'
 }
 
 func ConvertYAMLToJSON(str string) (string, error) {
@@ -82,7 +81,7 @@ func ConvertYAMLToJSON(str string) (string, error) {
 
 // This function is in charge of searching all String fields of the object recursively and apply templating
 // thanks to https://gist.github.com/randallmlough/1fd78ec8a1034916ca52281e3b886dc7
-func (r *Render) deeplyReplace(destination, original reflect.Value, replaceMap map[string]any, useGoTemplate bool, goTemplateOptions []string) error {
+func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[string]any, useGoTemplate bool, goTemplateOptions []string) error {
 	switch original.Kind() {
 	// The first cases handle nested structures and translate them recursively
 	// If it is a pointer we need to unwrap and call once again
@@ -97,12 +96,12 @@ func (r *Render) deeplyReplace(destination, original reflect.Value, replaceMap m
 		}
 		// Allocate a new object and set the pointer to it
 		if originalValue.CanSet() {
-			destination.Set(reflect.New(originalValue.Type()))
+			copy.Set(reflect.New(originalValue.Type()))
 		} else {
-			copyUnexported(destination, original)
+			copyUnexported(copy, original)
 		}
 		// Unwrap the newly created pointer
-		if err := r.deeplyReplace(destination.Elem(), originalValue, replaceMap, useGoTemplate, goTemplateOptions); err != nil {
+		if err := r.deeplyReplace(copy.Elem(), originalValue, replaceMap, useGoTemplate, goTemplateOptions); err != nil {
 			// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 			return err
 		}
@@ -127,7 +126,7 @@ func (r *Render) deeplyReplace(destination, original reflect.Value, replaceMap m
 				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 				return err
 			}
-			destination.Set(copyValue)
+			copy.Set(copyValue)
 		}
 
 	// If it is a struct we translate each field
@@ -136,7 +135,7 @@ func (r *Render) deeplyReplace(destination, original reflect.Value, replaceMap m
 			currentType := fmt.Sprintf("%s.%s", original.Type().Field(i).Name, original.Type().PkgPath())
 			// specific case time
 			if currentType == "time.Time" {
-				destination.Field(i).Set(original.Field(i))
+				copy.Field(i).Set(original.Field(i))
 			} else if currentType == "Raw.k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1" || currentType == "Raw.k8s.io/apimachinery/pkg/runtime" {
 				var unmarshaled any
 				originalBytes := original.Field(i).Bytes()
@@ -159,8 +158,8 @@ func (r *Render) deeplyReplace(destination, original reflect.Value, replaceMap m
 				if err != nil {
 					return fmt.Errorf("failed to marshal templated JSON field: %w", err)
 				}
-				destination.Field(i).Set(reflect.ValueOf(data))
-			} else if err := r.deeplyReplace(destination.Field(i), original.Field(i), replaceMap, useGoTemplate, goTemplateOptions); err != nil {
+				copy.Field(i).Set(reflect.ValueOf(data))
+			} else if err := r.deeplyReplace(copy.Field(i), original.Field(i), replaceMap, useGoTemplate, goTemplateOptions); err != nil {
 				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 				return err
 			}
@@ -168,14 +167,14 @@ func (r *Render) deeplyReplace(destination, original reflect.Value, replaceMap m
 
 	// If it is a slice we create a new slice and translate each element
 	case reflect.Slice:
-		if destination.CanSet() {
-			destination.Set(reflect.MakeSlice(original.Type(), original.Len(), original.Cap()))
+		if copy.CanSet() {
+			copy.Set(reflect.MakeSlice(original.Type(), original.Len(), original.Cap()))
 		} else {
-			copyValueIntoUnexported(destination, reflect.MakeSlice(original.Type(), original.Len(), original.Cap()))
+			copyValueIntoUnexported(copy, reflect.MakeSlice(original.Type(), original.Len(), original.Cap()))
 		}
 
 		for i := 0; i < original.Len(); i++ {
-			if err := r.deeplyReplace(destination.Index(i), original.Index(i), replaceMap, useGoTemplate, goTemplateOptions); err != nil {
+			if err := r.deeplyReplace(copy.Index(i), original.Index(i), replaceMap, useGoTemplate, goTemplateOptions); err != nil {
 				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 				return err
 			}
@@ -183,10 +182,10 @@ func (r *Render) deeplyReplace(destination, original reflect.Value, replaceMap m
 
 	// If it is a map we create a new map and translate each value
 	case reflect.Map:
-		if destination.CanSet() {
-			destination.Set(reflect.MakeMap(original.Type()))
+		if copy.CanSet() {
+			copy.Set(reflect.MakeMap(original.Type()))
 		} else {
-			copyValueIntoUnexported(destination, reflect.MakeMap(original.Type()))
+			copyValueIntoUnexported(copy, reflect.MakeMap(original.Type()))
 		}
 		for _, key := range original.MapKeys() {
 			originalValue := original.MapIndex(key)
@@ -211,7 +210,7 @@ func (r *Render) deeplyReplace(destination, original reflect.Value, replaceMap m
 				key = reflect.ValueOf(templatedKey)
 			}
 
-			destination.SetMapIndex(key, copyValue)
+			copy.SetMapIndex(key, copyValue)
 		}
 
 	// Otherwise we cannot traverse anywhere so this finishes the recursion
@@ -223,19 +222,19 @@ func (r *Render) deeplyReplace(destination, original reflect.Value, replaceMap m
 			// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 			return err
 		}
-		if destination.CanSet() {
-			destination.SetString(templated)
+		if copy.CanSet() {
+			copy.SetString(templated)
 		} else {
-			copyValueIntoUnexported(destination, reflect.ValueOf(templated))
+			copyValueIntoUnexported(copy, reflect.ValueOf(templated))
 		}
 		return nil
 
 	// And everything else will simply be taken from the original
 	default:
-		if destination.CanSet() {
-			destination.Set(original)
+		if copy.CanSet() {
+			copy.Set(original)
 		} else {
-			copyUnexported(destination, original)
+			copyUnexported(copy, original)
 		}
 	}
 	return nil
@@ -261,13 +260,13 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 	}
 
 	original := reflect.ValueOf(tmpl)
-	destination := reflect.New(original.Type()).Elem()
+	copy := reflect.New(original.Type()).Elem()
 
-	if err := r.deeplyReplace(destination, original, params, useGoTemplate, goTemplateOptions); err != nil {
+	if err := r.deeplyReplace(copy, original, params, useGoTemplate, goTemplateOptions); err != nil {
 		return nil, err
 	}
 
-	replacedTmpl := destination.Interface().(*argoappsv1.Application)
+	replacedTmpl := copy.Interface().(*argoappsv1.Application)
 
 	// Add the 'resources-finalizer' finalizer if:
 	// The template application doesn't have any finalizers, and:
@@ -275,8 +274,8 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 	// b) there IS a syncPolicy, but preserveResourcesOnDeletion is set to false
 	// See TestRenderTemplateParamsFinalizers in util_test.go for test-based definition of behaviour
 	if (syncPolicy == nil || !syncPolicy.PreserveResourcesOnDeletion) &&
-		len(replacedTmpl.Finalizers) == 0 {
-		replacedTmpl.Finalizers = []string{argoappsv1.ResourcesFinalizerName}
+		len(replacedTmpl.ObjectMeta.Finalizers) == 0 {
+		replacedTmpl.ObjectMeta.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
 	}
 
 	return replacedTmpl, nil
@@ -292,13 +291,13 @@ func (r *Render) RenderGeneratorParams(gen *argoappsv1.ApplicationSetGenerator, 
 	}
 
 	original := reflect.ValueOf(gen)
-	destination := reflect.New(original.Type()).Elem()
+	copy := reflect.New(original.Type()).Elem()
 
-	if err := r.deeplyReplace(destination, original, params, useGoTemplate, goTemplateOptions); err != nil {
+	if err := r.deeplyReplace(copy, original, params, useGoTemplate, goTemplateOptions); err != nil {
 		return nil, fmt.Errorf("failed to replace parameters in generator: %w", err)
 	}
 
-	replacedGen := destination.Interface().(*argoappsv1.ApplicationSetGenerator)
+	replacedGen := copy.Interface().(*argoappsv1.ApplicationSetGenerator)
 
 	return replacedGen, nil
 }
@@ -336,8 +335,8 @@ func (r *Render) Replace(tmpl string, replaceMap map[string]any, useGoTemplate b
 	replacedTmpl := fstTmpl.ExecuteFuncString(func(w io.Writer, tag string) (int, error) {
 		trimmedTag := strings.TrimSpace(tag)
 		replacement, ok := replaceMap[trimmedTag].(string)
-		if trimmedTag == "" || !ok {
-			return fmt.Fprintf(w, "{{%s}}", tag)
+		if len(trimmedTag) == 0 || !ok {
+			return w.Write([]byte(fmt.Sprintf("{{%s}}", tag)))
 		}
 		return w.Write([]byte(replacement))
 	})
@@ -354,12 +353,12 @@ func CheckInvalidGenerators(applicationSetInfo *argoappsv1.ApplicationSet) error
 			gnames = append(gnames, n)
 		}
 		sort.Strings(gnames)
-		aname := applicationSetInfo.Name
+		aname := applicationSetInfo.ObjectMeta.Name
 		msg := "ApplicationSet %s contains unrecognized generators: %s"
 		errorMessage = fmt.Errorf(msg, aname, strings.Join(gnames, ", "))
 		log.Warnf(msg, aname, strings.Join(gnames, ", "))
 	} else if hasInvalidGenerators {
-		name := applicationSetInfo.Name
+		name := applicationSetInfo.ObjectMeta.Name
 		msg := "ApplicationSet %s contains unrecognized generators"
 		errorMessage = fmt.Errorf(msg, name)
 		log.Warnf(msg, name)
@@ -395,7 +394,7 @@ func invalidGenerators(applicationSetInfo *argoappsv1.ApplicationSet) (bool, map
 
 func addInvalidGeneratorNames(names map[string]bool, applicationSetInfo *argoappsv1.ApplicationSet, index int) {
 	// The generator names are stored in the "kubectl.kubernetes.io/last-applied-configuration" annotation
-	config := applicationSetInfo.Annotations["kubectl.kubernetes.io/last-applied-configuration"]
+	config := applicationSetInfo.ObjectMeta.Annotations["kubectl.kubernetes.io/last-applied-configuration"]
 	var values map[string]any
 	err := json.Unmarshal([]byte(config), &values)
 	if err != nil {
@@ -526,11 +525,4 @@ func GetTlsConfig(scmRootCAPath string, insecure bool, caCerts []byte) *tls.Conf
 		tlsConfig.InsecureSkipVerify = true
 	}
 	return tlsConfig
-}
-
-func GetOptionalHTTPClient(optionalHTTPClient ...*http.Client) *http.Client {
-	if len(optionalHTTPClient) > 0 && optionalHTTPClient[0] != nil {
-		return optionalHTTPClient[0]
-	}
-	return &http.Client{}
 }

@@ -12,14 +12,11 @@ import {
     getAppDefaultSyncRevisionExtra,
     getAppOperationState,
     HydrateOperationPhaseIcon,
-    hydrationStatusMessage,
-    getProgressiveSyncStatusColor,
-    getProgressiveSyncStatusIcon
+    hydrationStatusMessage
 } from '../utils';
 import {getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage, getAppDefaultSyncRevision, getAppDefaultOperationSyncRevision} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 import * as utils from '../utils';
-import {COLORS} from '../../../shared/components/colors';
 
 import './application-status-panel.scss';
 
@@ -58,74 +55,7 @@ const sectionHeader = (info: SectionInfo, onClick?: () => any) => {
     );
 };
 
-const hasRollingSyncEnabled = (application: models.Application): boolean => {
-    return application.metadata.ownerReferences?.some(ref => ref.kind === 'ApplicationSet') || false;
-};
-
-const ProgressiveSyncStatus = ({application}: {application: models.Application}) => {
-    if (!hasRollingSyncEnabled(application)) {
-        return null;
-    }
-
-    const appSetRef = application.metadata.ownerReferences.find(ref => ref.kind === 'ApplicationSet');
-    if (!appSetRef) {
-        return null;
-    }
-
-    return (
-        <DataLoader
-            input={application}
-            load={async () => {
-                const appSet = await services.applications.getApplicationSet(appSetRef.name, application.metadata.namespace);
-                return appSet?.spec?.strategy?.type === 'RollingSync' ? appSet : null;
-            }}>
-            {(appSet: models.ApplicationSet) => {
-                if (!appSet) {
-                    return (
-                        <div className='application-status-panel__item'>
-                            {sectionHeader({
-                                title: 'PROGRESSIVE SYNC',
-                                helpContent: 'Shows the current status of progressive sync for applications managed by an ApplicationSet with RollingSync strategy.'
-                            })}
-                            <div className='application-status-panel__item-value'>
-                                <i className='fa fa-question-circle' style={{color: COLORS.sync.unknown}} /> Unknown
-                            </div>
-                        </div>
-                    );
-                }
-
-                // Get the current application's status from the ApplicationSet resources
-                const appResource = appSet.status?.applicationStatus?.find(status => status.application === application.metadata.name);
-
-                return (
-                    <div className='application-status-panel__item'>
-                        {sectionHeader({
-                            title: 'PROGRESSIVE SYNC',
-                            helpContent: 'Shows the current status of progressive sync for applications managed by an ApplicationSet with RollingSync strategy.'
-                        })}
-                        <div className='application-status-panel__item-value' style={{color: getProgressiveSyncStatusColor(appResource.status)}}>
-                            {getProgressiveSyncStatusIcon({status: appResource.status})}&nbsp;{appResource.status}
-                        </div>
-                        <div className='application-status-panel__item-value'>Wave: {appResource.step}</div>
-                        <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
-                            Last Transition: <br />
-                            <Timestamp date={appResource.lastTransitionTime} />
-                        </div>
-                        {appResource.message && <div className='application-status-panel__item-name'>{appResource.message}</div>}
-                    </div>
-                );
-            }}
-        </DataLoader>
-    );
-};
-
 export const ApplicationStatusPanel = ({application, showDiff, showOperation, showHydrateOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
-    const [showProgressiveSync, setShowProgressiveSync] = React.useState(false);
-
-    React.useEffect(() => {
-        setShowProgressiveSync(hasRollingSyncEnabled(application));
-    }, [application]);
-
     const today = new Date();
 
     let daysSinceLastSynchronized = 0;
@@ -152,7 +82,6 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
     const errors = cntByCategory.get('error');
     const source = getAppDefaultSource(application);
     const hasMultipleSources = application.spec.sources?.length > 0;
-    const revisionType = source?.repoURL?.startsWith('oci://') ? 'oci' : source?.chart ? 'helm' : 'git';
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item'>
@@ -201,83 +130,87 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                 </div>
             )}
             <div className='application-status-panel__item'>
-                {sectionHeader(
-                    {
-                        title: 'SYNC STATUS',
-                        helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
-                    },
-                    () => showMetadataInfo(application.status.sync ? 'SYNC_STATUS_REVISION' : null)
-                )}
-                <div className={`application-status-panel__item-value${appOperationState?.phase ? ` application-status-panel__item-value--${appOperationState.phase}` : ''}`}>
-                    <div>
-                        {application.status.sync.status === models.SyncStatuses.OutOfSync ? (
-                            <a onClick={() => showDiff && showDiff()}>
-                                <ComparisonStatusIcon status={application.status.sync.status} label={true} isButton={true} />
-                            </a>
-                        ) : (
-                            <ComparisonStatusIcon status={application.status.sync.status} label={true} />
-                        )}
-                    </div>
-                    <div className='application-status-panel__item-value__revision show-for-large'>{syncStatusMessage(application)}</div>
-                </div>
-                <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
-                    {application.spec.syncPolicy?.automated ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}
-                </div>
-                {application.status &&
-                    application.status.sync &&
-                    (hasMultipleSources
-                        ? application.status.sync.revisions && application.status.sync.revisions[0] && application.spec.sources && !application.spec.sources[0].chart
-                        : application.status.sync.revision && !application.spec?.source?.chart) && (
-                        <div className='application-status-panel__item-name'>
-                            <RevisionMetadataPanel
-                                appName={application.metadata.name}
-                                appNamespace={application.metadata.namespace}
-                                type={revisionType}
-                                revision={revision}
-                                versionId={utils.getAppCurrentVersion(application)}
-                            />
-                        </div>
+                <React.Fragment>
+                    {sectionHeader(
+                        {
+                            title: 'SYNC STATUS',
+                            helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
+                        },
+                        () => showMetadataInfo(application.status.sync ? 'SYNC_STATUS_REVISION' : null)
                     )}
+                    <div className={`application-status-panel__item-value${appOperationState?.phase ? ` application-status-panel__item-value--${appOperationState.phase}` : ''}`}>
+                        <div>
+                            {application.status.sync.status === models.SyncStatuses.OutOfSync ? (
+                                <a onClick={() => showDiff && showDiff()}>
+                                    <ComparisonStatusIcon status={application.status.sync.status} label={true} isButton={true} />
+                                </a>
+                            ) : (
+                                <ComparisonStatusIcon status={application.status.sync.status} label={true} />
+                            )}
+                        </div>
+                        <div className='application-status-panel__item-value__revision show-for-large'>{syncStatusMessage(application)}</div>
+                    </div>
+                    <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
+                        {application.spec.syncPolicy?.automated ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}
+                    </div>
+                    {application.status &&
+                        application.status.sync &&
+                        (hasMultipleSources
+                            ? application.status.sync.revisions && application.status.sync.revisions[0] && application.spec.sources && !application.spec.sources[0].chart
+                            : application.status.sync.revision && !application.spec?.source?.chart) && (
+                            <div className='application-status-panel__item-name'>
+                                <RevisionMetadataPanel
+                                    appName={application.metadata.name}
+                                    appNamespace={application.metadata.namespace}
+                                    type={source?.chart && 'helm'}
+                                    revision={revision}
+                                    versionId={utils.getAppCurrentVersion(application)}
+                                />
+                            </div>
+                        )}
+                </React.Fragment>
             </div>
             {appOperationState && (
                 <div className='application-status-panel__item'>
-                    {sectionHeader(
-                        {
-                            title: 'LAST SYNC',
-                            helpContent:
-                                'Whether or not your last app sync was successful. It has been ' +
-                                daysSinceLastSynchronized +
-                                ' days since last sync. Click for the status of that sync.'
-                        },
-                        () =>
-                            showMetadataInfo(
-                                appOperationState.syncResult && (appOperationState.syncResult.revisions || appOperationState.syncResult.revision)
-                                    ? 'OPERATION_STATE_REVISION'
-                                    : null
-                            )
-                    )}
-                    <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
-                        <a onClick={() => showOperation && showOperation()}>
-                            <OperationState app={application} isButton={true} />{' '}
-                        </a>
-                        {appOperationState.syncResult && (appOperationState.syncResult.revision || appOperationState.syncResult.revisions) && (
-                            <div className='application-status-panel__item-value__revision show-for-large'>
-                                to <Revision repoUrl={source.repoURL} revision={operationStateRevision} /> {getAppDefaultSyncRevisionExtra(application)}
-                            </div>
+                    <React.Fragment>
+                        {sectionHeader(
+                            {
+                                title: 'LAST SYNC',
+                                helpContent:
+                                    'Whether or not your last app sync was successful. It has been ' +
+                                    daysSinceLastSynchronized +
+                                    ' days since last sync. Click for the status of that sync.'
+                            },
+                            () =>
+                                showMetadataInfo(
+                                    appOperationState.syncResult && (appOperationState.syncResult.revisions || appOperationState.syncResult.revision)
+                                        ? 'OPERATION_STATE_REVISION'
+                                        : null
+                                )
                         )}
-                    </div>
-                    <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
-                        {appOperationState.phase} <Timestamp date={appOperationState.finishedAt || appOperationState.startedAt} />
-                    </div>
-                    {(appOperationState.syncResult && operationStateRevision && (
-                        <RevisionMetadataPanel
-                            appName={application.metadata.name}
-                            appNamespace={application.metadata.namespace}
-                            type={revisionType}
-                            revision={operationStateRevision}
-                            versionId={utils.getAppCurrentVersion(application)}
-                        />
-                    )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
+                        <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
+                            <a onClick={() => showOperation && showOperation()}>
+                                <OperationState app={application} isButton={true} />{' '}
+                            </a>
+                            {appOperationState.syncResult && (appOperationState.syncResult.revision || appOperationState.syncResult.revisions) && (
+                                <div className='application-status-panel__item-value__revision show-for-large'>
+                                    to <Revision repoUrl={source.repoURL} revision={operationStateRevision} /> {getAppDefaultSyncRevisionExtra(application)}
+                                </div>
+                            )}
+                        </div>
+                        <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
+                            {appOperationState.phase} <Timestamp date={appOperationState.finishedAt || appOperationState.startedAt} />
+                        </div>
+                        {(appOperationState.syncResult && operationStateRevision && (
+                            <RevisionMetadataPanel
+                                appName={application.metadata.name}
+                                appNamespace={application.metadata.namespace}
+                                type={source?.chart && 'helm'}
+                                revision={operationStateRevision}
+                                versionId={utils.getAppCurrentVersion(application)}
+                            />
+                        )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
+                    </React.Fragment>
                 </div>
             )}
             {application.status.conditions && (
@@ -328,7 +261,6 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     </React.Fragment>
                 )}
             </DataLoader>
-            {showProgressiveSync && <ProgressiveSyncStatus application={application} />}
             {statusExtensions && statusExtensions.map(ext => <ext.component key={ext.title} application={application} openFlyout={() => showExtension && showExtension(ext.id)} />)}
         </div>
     );

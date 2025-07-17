@@ -18,6 +18,7 @@ type Context struct {
 	name              string
 	namespace         string
 	switchToNamespace utils.ExternalNamespace
+	project           string
 	path              string
 }
 
@@ -39,6 +40,11 @@ func (c *Context) Sleep(seconds time.Duration) *Context {
 
 func (c *Context) And(block func()) *Context {
 	block()
+	return c
+}
+
+func (c *Context) Project(project string) *Context {
+	c.project = project
 	return c
 }
 

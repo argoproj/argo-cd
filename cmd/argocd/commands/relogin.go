@@ -12,7 +12,7 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	argoio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 	"github.com/argoproj/argo-cd/v3/util/session"
 )
@@ -65,7 +65,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			} else {
 				fmt.Println("Reinitiating SSO login")
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
-				defer utilio.Close(setConn)
+				defer argoio.Close(setConn)
 				httpClient, err := acdClient.HTTPClient()
 				errors.CheckError(err)
 				ctx = oidc.ClientContext(ctx, httpClient)

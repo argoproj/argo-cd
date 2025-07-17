@@ -245,15 +245,6 @@ func TestGetTrackingMethod(t *testing.T) {
 	})
 }
 
-func TestGetInstallationID(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
-		"installationID": "123456789",
-	})
-	id, err := settingsManager.GetInstallationID()
-	require.NoError(t, err)
-	assert.Equal(t, "123456789", id)
-}
-
 func TestApplicationFineGrainedRBACInheritanceDisabledDefault(t *testing.T) {
 	_, settingsManager := fixtures(nil)
 	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled()
@@ -713,7 +704,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, "foo", options.BuildOptions)
-		assert.Equal(t, []v1alpha1.KustomizeVersion{{Name: "v3.2.1", Path: "somePath"}}, options.Versions)
+		assert.Equal(t, []KustomizeVersion{{Name: "v3.2.1", Path: "somePath"}}, options.Versions)
 	})
 
 	t.Run("Kustomize settings per-version", func(t *testing.T) {
@@ -731,22 +722,22 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, "--global true", got.BuildOptions)
-		want := &v1alpha1.KustomizeOptions{
+		want := &KustomizeSettings{
 			BuildOptions: "--global true",
-			Versions: []v1alpha1.KustomizeVersion{
+			Versions: []KustomizeVersion{
 				{Name: "v3.2.1", Path: "/path_3.2.1"},
 				{Name: "v3.2.3", Path: "/path_3.2.3", BuildOptions: "--options v3.2.3"},
 				{Name: "v3.2.4", Path: "/path_3.2.4", BuildOptions: "--options v3.2.4"},
 			},
 		}
-		sortVersionsByName := func(versions []v1alpha1.KustomizeVersion) {
+		sortVersionsByName := func(versions []KustomizeVersion) {
 			sort.Slice(versions, func(i, j int) bool {
 				return versions[i].Name > versions[j].Name
 			})
 		}
 		sortVersionsByName(want.Versions)
 		sortVersionsByName(got.Versions)
-		assert.Equal(t, want, got)
+		assert.EqualValues(t, want, got)
 	})
 
 	t.Run("Kustomize settings per-version with duplicate versions", func(t *testing.T) {
@@ -814,10 +805,10 @@ func TestSettingsManager_GetEventLabelKeys(t *testing.T) {
 	}
 }
 
-func Test_GetKustomizeBinaryPath(t *testing.T) {
-	ko := &v1alpha1.KustomizeOptions{
+func TestKustomizeSettings_GetOptions(t *testing.T) {
+	settings := KustomizeSettings{
 		BuildOptions: "--opt1 val1",
-		Versions: []v1alpha1.KustomizeVersion{
+		Versions: []KustomizeVersion{
 			{Name: "v1", Path: "path_v1"},
 			{Name: "v2", Path: "path_v2"},
 			{Name: "v3", Path: "path_v3", BuildOptions: "--opt2 val2"},
@@ -825,42 +816,35 @@ func Test_GetKustomizeBinaryPath(t *testing.T) {
 	}
 
 	t.Run("VersionDoesNotExist", func(t *testing.T) {
-		_, err := GetKustomizeBinaryPath(ko, v1alpha1.ApplicationSource{
+		_, err := settings.GetOptions(v1alpha1.ApplicationSource{
 			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v4"},
 		})
 		require.Error(t, err)
 	})
 
 	t.Run("DefaultBuildOptions", func(t *testing.T) {
-		ver, err := GetKustomizeBinaryPath(ko, v1alpha1.ApplicationSource{})
+		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{})
 		require.NoError(t, err)
-		assert.Empty(t, ver)
+		assert.Equal(t, "", ver.BinaryPath)
+		assert.Equal(t, "--opt1 val1", ver.BuildOptions)
 	})
 
 	t.Run("VersionExists", func(t *testing.T) {
-		ver, err := GetKustomizeBinaryPath(ko, v1alpha1.ApplicationSource{
+		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{
 			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v2"},
 		})
 		require.NoError(t, err)
-		assert.Equal(t, "path_v2", ver)
+		assert.Equal(t, "path_v2", ver.BinaryPath)
+		assert.Equal(t, "", ver.BuildOptions)
 	})
 
 	t.Run("VersionExistsWithBuildOption", func(t *testing.T) {
-		ver, err := GetKustomizeBinaryPath(ko, v1alpha1.ApplicationSource{
+		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{
 			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v3"},
 		})
 		require.NoError(t, err)
-		assert.Equal(t, "path_v3", ver)
-	})
-
-	t.Run("ExplicitVersionSet", func(t *testing.T) {
-		// nolint:staticcheck // test for backwards compatibility with deprecated field
-		ko.BinaryPath = "custom_path"
-		ver, err := GetKustomizeBinaryPath(ko, v1alpha1.ApplicationSource{
-			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v3"},
-		})
-		require.NoError(t, err)
-		assert.Equal(t, "custom_path", ver)
+		assert.Equal(t, "path_v3", ver.BinaryPath)
+		assert.Equal(t, "--opt2 val2", ver.BuildOptions)
 	})
 }
 
@@ -1594,8 +1578,6 @@ rootCA: "invalid"`},
 }
 
 func Test_OAuth2AllowedAudiences(t *testing.T) {
-	t.Parallel()
-
 	testCases := []struct {
 		name     string
 		settings *ArgoCDSettings
@@ -1669,7 +1651,7 @@ func TestReplaceStringSecret(t *testing.T) {
 	assert.Equal(t, "$invalid-secret-key", result)
 
 	result = ReplaceStringSecret("", secretValues)
-	assert.Empty(t, result)
+	assert.Equal(t, "", result)
 
 	result = ReplaceStringSecret("my-value", secretValues)
 	assert.Equal(t, "my-value", result)
@@ -1677,7 +1659,7 @@ func TestReplaceStringSecret(t *testing.T) {
 
 func TestRedirectURLForRequest(t *testing.T) {
 	generateRequest := func(url string) *http.Request {
-		r, err := http.NewRequest(http.MethodPost, url, http.NoBody)
+		r, err := http.NewRequest(http.MethodPost, url, nil)
 		require.NoError(t, err)
 		return r
 	}
@@ -1904,45 +1886,6 @@ func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {
 				resourceSensitiveAnnotationsKey: tt.input,
 			})
 			keys := settingsManager.GetSensitiveAnnotations()
-			assert.Len(t, keys, len(tt.output))
-			assert.Equal(t, tt.output, keys)
-		})
-	}
-}
-
-func TestSettingsManager_GetAllowedNodeLabels(t *testing.T) {
-	tests := []struct {
-		name   string
-		input  string
-		output []string
-	}{
-		{
-			name:   "Empty input",
-			input:  "",
-			output: []string{},
-		},
-		{
-			name:   "Comma separated data",
-			input:  "example.com/label,label1,label2",
-			output: []string{"example.com/label", "label1", "label2"},
-		},
-		{
-			name:   "Comma separated data with space",
-			input:  "example.com/label, label1,    label2",
-			output: []string{"example.com/label", "label1", "label2"},
-		},
-		{
-			name:   "Comma separated data with invalid label",
-			input:  "example.com/label,_invalid,label1,label2",
-			output: []string{"example.com/label", "label1", "label2"},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, settingsManager := fixtures(map[string]string{
-				allowedNodeLabelsKey: tt.input,
-			})
-			keys := settingsManager.GetAllowedNodeLabels()
 			assert.Len(t, keys, len(tt.output))
 			assert.Equal(t, tt.output, keys)
 		})

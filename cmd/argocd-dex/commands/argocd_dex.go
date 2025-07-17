@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -127,7 +126,7 @@ func NewRunDexCommand() *cobra.Command {
 					newSettings := <-updateCh
 					newDexCfgBytes, err := dex.GenerateDexConfigYAML(newSettings, disableTLS)
 					errors.CheckError(err)
-					if !bytes.Equal(newDexCfgBytes, dexCfgBytes) {
+					if string(newDexCfgBytes) != string(dexCfgBytes) {
 						prevSettings = newSettings
 						log.Infof("dex config modified. restarting dex")
 						if cmd != nil && cmd.Process != nil {
@@ -221,18 +220,17 @@ func NewGenDexConfigCommand() *cobra.Command {
 }
 
 func iterateStringFields(obj any, callback func(name string, val string) string) {
-	switch obj := obj.(type) {
-	case map[string]any:
-		for field, val := range obj {
+	if mapField, ok := obj.(map[string]any); ok {
+		for field, val := range mapField {
 			if strVal, ok := val.(string); ok {
-				obj[field] = callback(field, strVal)
+				mapField[field] = callback(field, strVal)
 			} else {
 				iterateStringFields(val, callback)
 			}
 		}
-	case []any:
-		for i := range obj {
-			iterateStringFields(obj[i], callback)
+	} else if arrayField, ok := obj.([]any); ok {
+		for i := range arrayField {
+			iterateStringFields(arrayField[i], callback)
 		}
 	}
 }

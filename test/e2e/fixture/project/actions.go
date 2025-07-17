@@ -18,6 +18,7 @@ import (
 // using the Then()
 type Actions struct {
 	context      *Context
+	lastOutput   string
 	lastError    error
 	ignoreErrors bool
 }
@@ -118,7 +119,7 @@ func (a *Actions) Then() *Consequences {
 
 func (a *Actions) runCli(args ...string) {
 	a.context.t.Helper()
-	_, a.lastError = fixture.RunCli(args...)
+	a.lastOutput, a.lastError = fixture.RunCli(args...)
 	if !a.ignoreErrors {
 		require.NoError(a.context.t, a.lastError)
 	}

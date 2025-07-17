@@ -263,13 +263,7 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
                 </React.Fragment>
             )}
             onSelect={val => {
-                const selectedApp = apps?.find(app => {
-                    const qualifiedName = AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
-                    return qualifiedName === val;
-                });
-                if (selectedApp) {
-                    ctx.navigation.goto(`/${AppUtils.getAppUrl(selectedApp)}`);
-                }
+                ctx.navigation.goto(`./${val}`);
             }}
             onChange={e => ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
             value={content || ''}
@@ -291,18 +285,16 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
                                 {toolbar.actionMenu && (
                                     <React.Fragment>
                                         {toolbar.actionMenu.items.map((item, i) => (
-                                            <Tooltip className='custom-tooltip' content={item.title}>
-                                                <button
-                                                    disabled={!!item.disabled}
-                                                    qe-id={item.qeId}
-                                                    className='argo-button argo-button--base'
-                                                    onClick={() => item.action()}
-                                                    style={{marginRight: 2}}
-                                                    key={i}>
-                                                    {item.iconClassName && <i className={item.iconClassName} style={{marginLeft: '-5px', marginRight: '5px'}} />}
-                                                    <span className='show-for-large'>{item.title}</span>
-                                                </button>
-                                            </Tooltip>
+                                            <button
+                                                disabled={!!item.disabled}
+                                                qe-id={item.qeId}
+                                                className='argo-button argo-button--base'
+                                                onClick={() => item.action()}
+                                                style={{marginRight: 2}}
+                                                key={i}>
+                                                {item.iconClassName && <i className={item.iconClassName} style={{marginLeft: '-5px', marginRight: '5px'}} />}
+                                                <span className='show-for-large'>{item.title}</span>
+                                            </button>
                                         ))}
                                     </React.Fragment>
                                 )}
@@ -540,10 +532,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                             </EmptyState>
                                                                         )}
                                                                         sortOptions={[
-                                                                            {
-                                                                                title: 'Name',
-                                                                                compare: (a, b) => a.metadata.name.localeCompare(b.metadata.name, undefined, {numeric: true})
-                                                                            },
+                                                                            {title: 'Name', compare: (a, b) => a.metadata.name.localeCompare(b.metadata.name)},
                                                                             {
                                                                                 title: 'Created At',
                                                                                 compare: (b, a) => a.metadata.creationTimestamp.localeCompare(b.metadata.creationTimestamp)

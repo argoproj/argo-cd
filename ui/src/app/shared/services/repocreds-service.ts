@@ -8,11 +8,8 @@ export interface HTTPSCreds {
     bearerToken: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
-    type: string;
     proxy: string;
     noProxy: string;
-    enableOCI: boolean;
-    insecureOCIForceHttp: boolean;
 }
 
 export interface SSHCreds {
