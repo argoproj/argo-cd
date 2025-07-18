@@ -393,7 +393,8 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	)
 
 	// For better readability and easier formatting
-	repoGetExamples := `  # Get Git or Helm repository details in wide format (default, '-o wide')
+	repoGetExamples := `
+  # Get Git or Helm repository details in wide format (default, '-o wide')
   argocd repo get https://git.example.com/repos/repo
 
   # Get repository details in YAML format
