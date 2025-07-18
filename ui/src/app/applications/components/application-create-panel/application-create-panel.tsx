@@ -118,6 +118,8 @@ export const ApplicationCreatePanel = (props: {
     const [destinationFieldChanges, setDestinationFieldChanges] = React.useState({destFormat: 'URL', destFormatChanged: null});
     const comboSwitchedFromPanel = React.useRef(false);
     const currentRepoType = React.useRef(undefined);
+    const lastGitOrHelmUrl = React.useRef('');
+    const lastOciUrl = React.useRef('');
     let destinationComboValue = destinationFieldChanges.destFormat;
 
     React.useEffect(() => {
@@ -334,28 +336,38 @@ export const ApplicationCreatePanel = (props: {
                                                                     title: type.toUpperCase(),
                                                                     action: () => {
                                                                         if (repoType !== type) {
-                                                                            currentRepoType.current = type;
                                                                             const updatedApp = api.getFormState().values as models.Application;
                                                                             const source = getAppDefaultSource(updatedApp);
-                                                                            if (type === 'git' || type === 'oci') {
-                                                                                if (source.hasOwnProperty('chart')) {
-                                                                                    source.path = source.chart;
-                                                                                    delete source.chart;
-                                                                                    source.targetRevision = 'HEAD';
-                                                                                }
-                                                                            } else if (type === 'helm') {
-                                                                                if (source.hasOwnProperty('path')) {
-                                                                                    source.chart = source.path;
-                                                                                    delete source.path;
-                                                                                    source.targetRevision = '';
-                                                                                }
+                                                                            // Save the previous URL value for later use
+                                                                            if (repoType === 'git' || repoType === 'helm') {
+                                                                                lastGitOrHelmUrl.current = source.repoURL;
+                                                                            } else {
+                                                                                lastOciUrl.current = source.repoURL;
                                                                             }
-                                                                            if (!repoInfo) {
-                                                                                if (type === 'oci') {
-                                                                                    updatedApp.spec.source.repoURL = 'oci://';
-                                                                                } else {
-                                                                                    updatedApp.spec.source.repoURL = '';
-                                                                                }
+                                                                            currentRepoType.current = type;
+                                                                            switch (type) {
+                                                                                case 'git':
+                                                                                case 'oci':
+                                                                                    if (source.hasOwnProperty('chart')) {
+                                                                                        source.path = source.chart;
+                                                                                        delete source.chart;
+                                                                                    }
+                                                                                    source.targetRevision = 'HEAD';
+                                                                                    source.repoURL =
+                                                                                        type === 'git'
+                                                                                            ? lastGitOrHelmUrl.current
+                                                                                            : lastOciUrl.current === ''
+                                                                                              ? 'oci://'
+                                                                                              : lastOciUrl.current;
+                                                                                    break;
+                                                                                case 'helm':
+                                                                                    if (source.hasOwnProperty('path')) {
+                                                                                        source.chart = source.path;
+                                                                                        delete source.path;
+                                                                                    }
+                                                                                    source.targetRevision = '';
+                                                                                    source.repoURL = lastGitOrHelmUrl.current;
+                                                                                    break;
                                                                             }
                                                                             api.setAllValues(updatedApp);
                                                                         }
