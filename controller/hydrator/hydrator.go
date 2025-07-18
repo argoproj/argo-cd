@@ -10,6 +10,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	corev1 "k8s.io/api/core/v1"
+
 	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -18,7 +20,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // RepoGetter is an interface that defines methods for getting repository objects. It's a subset of the DB interface to

@@ -6,13 +6,15 @@ import (
 	"testing"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	mockcommitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	reposerver "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	mockrepoclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v3/util/argo"
-	log "github.com/sirupsen/logrus"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -271,6 +273,7 @@ func Test_LogsHydrationEvent_HydrationCompleted(t *testing.T) {
 	// Verify all expectations were met
 	mockDeps.AssertExpectations(t)
 }
+
 func Test_LogsHydrationEvent_HydrationFailed(t *testing.T) {
 	now := metav1.NewTime(time.Now())
 	oneHourAgo := metav1.NewTime(now.Add(-1 * time.Hour))
