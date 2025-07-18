@@ -16,24 +16,9 @@
         "go"
       ],
       "matchPackageNames": [
-        "github.com/golangci/golangci-lint",
-        "github.com/vektra/mockery/v3"
+        "github.com/golangci/golangci-lint"
       ],
       "enabled": true
-    },
-    {
-      "description": "Run make mockgen after updating mockery",
-      "matchDatasources": [
-        "go"
-      ],
-      "matchPackageNames": [
-        "github.com/vektra/mockery/v3"
-      ],
-      "postUpgradeTasks": {
-        "commands": ["make mockgen"],
-        "fileFilters": ["**/*.go"],
-        "executionMode": "branch"
-      }
     },
     {
       "description": "Enable updates from specified github releases",

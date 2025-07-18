@@ -382,6 +382,10 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err != nil {
 		return nil, err
 	}
+	kustomizeOptions, err := kustomizeSettings.GetOptions(*q.Source)
+	if err != nil {
+		return nil, err
+	}
 	helmOptions, err := s.settings.GetHelmSettings()
 	if err != nil {
 		return nil, err
@@ -390,7 +394,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	refSources := make(v1alpha1.RefTargetRevisionMapping)
 	if app != nil && app.Spec.HasMultipleSources() {
 		// Store the map of all sources having ref field into a map for applications with sources field
-		refSources, err = argo.GetRefSources(ctx, app.Spec.Sources, q.AppProject, s.db.GetRepository, []string{})
+		refSources, err = argo.GetRefSources(ctx, app.Spec.Sources, q.AppProject, s.db.GetRepository, []string{}, false)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get ref sources: %w", err)
 		}
@@ -400,7 +404,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		Repo:             repo,
 		Source:           q.Source,
 		Repos:            helmRepos,
-		KustomizeOptions: kustomizeSettings,
+		KustomizeOptions: kustomizeOptions,
 		HelmOptions:      helmOptions,
 		AppName:          q.AppName,
 		RefSources:       refSources,

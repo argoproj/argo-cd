@@ -330,25 +330,6 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "list",
 		Short: "List configured repositories",
-		Example: `
-  # List all repositories
-  argocd repo list
-
-  # List repositories in wide format
-  argocd repo list -o wide
-
-  # List repositories in YAML format
-  argocd repo list -o yaml
-
-  # List repositories in JSON format
-  argocd repo list -o json
-
-  # List urls of repositories
-  argocd repo list -o url
-
-  # Force refresh of cached repository connection status
-  argocd repo list --refresh hard
-`,
 		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 

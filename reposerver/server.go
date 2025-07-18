@@ -91,7 +91,6 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
 			},
 		),
-		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	}
 
 	// We do allow for non-TLS servers to be created, in case of mTLS will be

@@ -342,17 +342,19 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         attributes.push({
             title: 'URLs',
             view: (
-                <div className='application-summary__links-rows'>
-                    {urls
-                        .map(item => item.split('|'))
-                        .map((parts, i) => (
-                            <div className='application-summary__links-row'>
-                                <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='_blank'>
-                                    {parts[0]} &nbsp;
-                                </a>
-                            </div>
-                        ))}
-                </div>
+                <React.Fragment>
+                    <div className='application-summary__links-rows'>
+                        {urls
+                            .map(item => item.split('|'))
+                            .map((parts, i) => (
+                                <div className='application-summary__links-row'>
+                                    <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='_blank'>
+                                        {parts[0]} &nbsp;
+                                    </a>
+                                </div>
+                            ))}
+                    </div>
+                </React.Fragment>
             )
         });
     }
@@ -491,7 +493,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         <div className='application-summary'>
             <EditablePanel
                 save={updateApp}
-                view={hasMultipleSources ? <>This is a multi-source app, see the Sources tab for repository URLs and source-related information.</> : null}
+                view={hasMultipleSources ? <>This is a multi-source app, see the Sources tab for repository URLs and source-related information.</> : <></>}
                 validate={input => ({
                     'spec.project': !input.spec.project && 'Project name is required',
                     'spec.destination.server': !input.spec.destination.server && input.spec.destination.hasOwnProperty('server') && 'Cluster server is required',

@@ -137,7 +137,6 @@ export interface ResourceResult {
     message: string;
     hookType: HookType;
     hookPhase: OperationPhase;
-    images?: string[];
 }
 
 export type SyncResourceResult = ResourceResult & {
