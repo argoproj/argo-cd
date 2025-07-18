@@ -108,14 +108,19 @@ export const ApplicationsTable = (props: {
                                                             {(() => {
                                                                 const linkInfo = getApplicationLinkURL(app, ctx.baseHref);
                                                                 return (
-                                                                    <a
-                                                                        href={linkInfo.url}
-                                                                        target={linkInfo.isExternal ? '_blank' : undefined}
-                                                                        rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
+                                                                    <button
+                                                                        onClick={e => {
+                                                                            e.stopPropagation();
+                                                                            if (linkInfo.isExternal) {
+                                                                                window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
+                                                                            } else {
+                                                                                ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`);
+                                                                            }
+                                                                        }}
                                                                         style={{marginLeft: '0.5em'}}
                                                                         title={`Link: ${linkInfo.url}\nmanaged-by-url: ${getManagedByURL(app) || 'none'}`}>
                                                                         <i className='fa fa-external-link-alt' />
-                                                                    </a>
+                                                                    </button>
                                                                 );
                                                             })()}
                                                         </div>

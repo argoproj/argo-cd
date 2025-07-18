@@ -139,13 +139,18 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         </div>
                                                         <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-2' : 'columns small-1'}>
                                                             <div className='applications-list__external-link'>
-                                                                <a
-                                                                    href={linkInfo.url}
-                                                                    target={linkInfo.isExternal ? '_blank' : undefined}
-                                                                    rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
+                                                                <button
+                                                                    onClick={e => {
+                                                                        e.stopPropagation();
+                                                                        if (linkInfo.isExternal) {
+                                                                            window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
+                                                                        } else {
+                                                                            ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`);
+                                                                        }
+                                                                    }}
                                                                     title={`Link: ${linkInfo.url}\nmanaged-by-url: ${getManagedByURL(app) || 'none'}`}>
                                                                     <i className='fa fa-external-link-alt' />
-                                                                </a>
+                                                                </button>
                                                                 <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
                                                                     <button
                                                                         className='large-text-height'
