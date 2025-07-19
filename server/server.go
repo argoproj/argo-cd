@@ -1179,18 +1179,37 @@ func compressHandler(handler http.Handler) http.Handler {
 	})
 }
 
+func requestTimeoutHTTPInterceptor(next http.Handler, requestTimeout time.Duration) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if requestTimeout == 0 {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), requestTimeout)
+		defer cancel()
+
+		r = r.WithContext(ctx)
+		next.ServeHTTP(w, r)
+	})
+}
+
 // newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
 // using grpc-gateway as a proxy to the gRPC server.
 func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandler http.Handler, appResourceTreeFn application.AppResourceTreeFn, conn *grpc.ClientConn, metricsReg HTTPMetricsRegistry) *http.Server {
 	endpoint := fmt.Sprintf("localhost:%d", port)
 	mux := http.NewServeMux()
+	reqTimeout := server.ArgoCDServerOpts.RequestTimeout
+
 	httpS := http.Server{
 		Addr: endpoint,
 		Handler: &handlerSwitcher{
 			handler: mux,
 			urlToHandler: map[string]http.Handler{
-				"/api/badge":          badge.NewHandler(server.AppClientset, server.settingsMgr, server.Namespace, server.ApplicationNamespaces),
-				common.LogoutEndpoint: logout.NewHandler(server.settingsMgr, server.sessionMgr, server.RootPath, server.BaseHRef),
+				"/api/badge": requestTimeoutHTTPInterceptor(
+					badge.NewHandler(server.AppClientset, server.settingsMgr, server.Namespace, server.ApplicationNamespaces), reqTimeout),
+				common.LogoutEndpoint: requestTimeoutHTTPInterceptor(
+					logout.NewHandler(server.settingsMgr, server.sessionMgr, server.RootPath, server.BaseHRef), reqTimeout),
 			},
 			contentTypeToHandler: map[string]http.Handler{
 				"application/grpc-web+proto": grpcWebHandler,
@@ -1234,8 +1253,8 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	terminal := application.NewHandler(server.appLister, server.Namespace, server.ApplicationNamespaces, server.db, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
 		WithFeatureFlagMiddleware(server.settingsMgr.GetSettings)
-	th := util_session.WithAuthMiddleware(server.DisableAuth, server.settings.IsSSOConfigured(), server.ssoClientApp, server.sessionMgr, terminal)
-	mux.Handle("/terminal", th)
+	th := util_session.WithAuthMiddleware(server.DisableAuth, server.sessionMgr, terminal)
+	mux.Handle("/terminal", requestTimeoutHTTPInterceptor(th, reqTimeout))
 
 	// Proxy extension is currently an alpha feature and is disabled
 	// by default.
@@ -1271,7 +1290,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
 	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
 
-	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
+	mux.HandleFunc("/api/webhook", requestTimeoutHTTPInterceptor(http.HandlerFunc(acdWebhookHandler.Handler), reqTimeout).ServeHTTP)
 
 	// Serve cli binaries directly from API server
 	registerDownloadHandlers(mux, "/download")
