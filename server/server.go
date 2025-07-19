@@ -907,7 +907,21 @@ func (server *ArgoCDServer) useTLS() bool {
 	return true
 }
 
-func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registry) (*grpc.Server, application.AppResourceTreeFn) {
+func requestTimeoutGRPCInterceptor(requestTimeout time.Duration) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		if requestTimeout == 0 {
+			return handler(ctx, req) // no timeout
+		}
+
+		newCtx, cancel := context.WithTimeout(ctx, requestTimeout)
+		defer cancel()
+
+		res, err := handler(newCtx, req)
+		return res, err
+	}
+}
+
+func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTreeFn) {
 	var serverMetricsOptions []grpc_prometheus.ServerMetricsOption
 	if enableGRPCTimeHistogram {
 		serverMetricsOptions = append(serverMetricsOptions, grpc_prometheus.WithServerHandlingTimeHistogram())
@@ -927,7 +941,12 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
 			},
 		),
+		grpc.ChainUnaryInterceptor(
+			serverMetrics.UnaryServerInterceptor(),
+			requestTimeoutGRPCInterceptor(server.ArgoCDServerOpts.RequestTimeout),
+		),
 	}
+
 	sensitiveMethods := map[string]bool{
 		"/cluster.ClusterService/Create":                               true,
 		"/cluster.ClusterService/Update":                               true,
