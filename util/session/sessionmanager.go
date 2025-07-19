@@ -480,9 +480,9 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 
 // AuthMiddlewareFunc returns a function that can be used as an
 // authentication middleware for HTTP requests.
-func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool) func(http.Handler) http.Handler {
+func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool, ssoClientApp *oidcutil.ClientApp, settings *settings.ArgoCDSettings) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
-		return WithAuthMiddleware(disabled, mgr, h)
+		return WithAuthMiddleware(disabled, ssoClientApp, settings, mgr, h)
 	}
 }
 
@@ -495,7 +495,7 @@ type TokenVerifier interface {
 // WithAuthMiddleware is an HTTP middleware used to ensure incoming
 // requests are authenticated before invoking the target handler. If
 // disabled is true, it will just invoke the next handler in the chain.
-func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) http.Handler {
+func WithAuthMiddleware(disabled bool, ssoClientApp *oidcutil.ClientApp, settings *settings.ArgoCDSettings, authn TokenVerifier, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !disabled {
 			cookies := r.Cookies()
@@ -509,10 +509,37 @@ func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) h
 				http.Error(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}
+
+			// Some SSO implementations (Okta) require a call to
+			// the OIDC user info path to get attributes like groups
+			// we assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
+			// otherwise this would cause a panic
+			var groupClaims jwt.MapClaims
+			var ok bool
+			if groupClaims, ok = claims.(jwt.MapClaims); !ok {
+				if tmpClaims, ok := claims.(*jwt.MapClaims); ok {
+					groupClaims = *tmpClaims
+				}
+			}
+			iss := jwtutil.StringField(groupClaims, "iss")
+			if iss != SessionManagerClaimsIssuer && settings.UserInfoGroupsEnabled() && settings.UserInfoPath() != "" {
+				userInfo, unauthorized, err := ssoClientApp.GetUserInfo(groupClaims, settings.IssuerURL(), settings.UserInfoPath())
+				if unauthorized {
+					log.Errorf("error while quering userinfo endpoint: %v", err)
+				}
+				if err != nil {
+					log.Errorf("error fetching user info endpoint: %v", err)
+				}
+				if groupClaims["sub"] != userInfo["sub"] {
+					log.Error(codes.Unknown, "subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
+				}
+				groupClaims["groups"] = userInfo["groups"]
+			}
+
 			ctx := r.Context()
 			// Add claims to the context to inspect for RBAC
 			//nolint:staticcheck
-			ctx = context.WithValue(ctx, "claims", claims)
+			ctx = context.WithValue(ctx, "claims", groupClaims)
 			r = r.WithContext(ctx)
 		}
 		next.ServeHTTP(w, r)

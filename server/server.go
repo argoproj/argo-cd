@@ -1206,8 +1206,6 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	terminal := application.NewHandler(server.appLister, server.Namespace, server.ApplicationNamespaces, server.db, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
 		WithFeatureFlagMiddleware(server.settingsMgr.GetSettings)
-	th := util_session.WithAuthMiddleware(server.DisableAuth, server.sessionMgr, terminal)
-	mux.Handle("/terminal", th)
 
 	// Proxy extension is currently an alpha feature and is disabled
 	// by default.
@@ -1238,6 +1236,9 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	// Dex reverse proxy and client app and OAuth2 login/callback
 	server.registerDexHandlers(mux)
+
+	th := util_session.WithAuthMiddleware(server.DisableAuth, server.ssoClientApp, server.settings, server.sessionMgr, terminal)
+	mux.Handle("/terminal", th)
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
@@ -1288,7 +1289,7 @@ func enforceContentTypes(handler http.Handler, types []string) http.Handler {
 func registerExtensions(mux *http.ServeMux, a *ArgoCDServer, metricsReg HTTPMetricsRegistry) {
 	a.log.Info("Registering extensions...")
 	extHandler := http.HandlerFunc(a.extensionManager.CallExtension())
-	authMiddleware := a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth)
+	authMiddleware := a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth, a.ssoClientApp, a.settings)
 	// auth middleware ensures that requests to all extensions are authenticated first
 	mux.Handle(extension.URLPrefix+"/", authMiddleware(extHandler))
 
