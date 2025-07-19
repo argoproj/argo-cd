@@ -252,12 +252,13 @@ func (proj *AppProject) ValidateProject() error {
 	}
 
 	if proj.Spec.SyncWindows.HasWindows() {
-		existingWindows := make(map[string]bool)
+		existingWindows := make(map[uint64]bool)
 		for _, window := range proj.Spec.SyncWindows {
 			if window == nil {
 				continue
 			}
-			if _, ok := existingWindows[window.Kind+window.Schedule+window.Duration]; ok {
+			windowHash := window.Hash()
+			if _, ok := existingWindows[windowHash]; ok {
 				return status.Errorf(codes.AlreadyExists, "window '%s':'%s':'%s' already exists, update or edit", window.Kind, window.Schedule, window.Duration)
 			}
 			err := window.Validate()
@@ -267,7 +268,7 @@ func (proj *AppProject) ValidateProject() error {
 			if len(window.Applications) == 0 && len(window.Namespaces) == 0 && len(window.Clusters) == 0 {
 				return status.Errorf(codes.OutOfRange, "window '%s':'%s':'%s' requires one of application, cluster or namespace", window.Kind, window.Schedule, window.Duration)
 			}
-			existingWindows[window.Kind+window.Schedule+window.Duration] = true
+			existingWindows[windowHash] = true
 		}
 	}
 

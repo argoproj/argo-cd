@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"bytes"
+	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,6 +24,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/cespare/xxhash/v2"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -3128,6 +3131,16 @@ func (w *SyncWindow) Validate() error {
 	}
 
 	return nil
+}
+
+func (w *SyncWindow) Hash() uint64 {
+	var windowBuffer bytes.Buffer
+	enc := gob.NewEncoder(&windowBuffer)
+	err := enc.Encode(w)
+	if err != nil {
+		return 0
+	}
+	return xxhash.Sum64(windowBuffer.Bytes())
 }
 
 // DestinationClusters returns a list of cluster URLs allowed as destination in an AppProject
