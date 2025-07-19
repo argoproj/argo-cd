@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/argo"
 	mock "github.com/stretchr/testify/mock"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -357,6 +358,64 @@ func (_c *Dependencies_GetWriteCredentials_Call) Return(repository *v1alpha1.Rep
 
 func (_c *Dependencies_GetWriteCredentials_Call) RunAndReturn(run func(ctx context.Context, repoURL string, project string) (*v1alpha1.Repository, error)) *Dependencies_GetWriteCredentials_Call {
 	_c.Call.Return(run)
+	return _c
+}
+
+// LogHydrationPhaseEvent provides a mock function for the type Dependencies
+func (_mock *Dependencies) LogHydrationPhaseEvent(ctx context.Context, app *v1alpha1.Application, eventInfo argo.EventInfo, message string) {
+	_mock.Called(ctx, app, eventInfo, message)
+	return
+}
+
+// Dependencies_LogHydrationPhaseEvent_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LogHydrationPhaseEvent'
+type Dependencies_LogHydrationPhaseEvent_Call struct {
+	*mock.Call
+}
+
+// LogHydrationPhaseEvent is a helper method to define mock.On call
+//   - ctx context.Context
+//   - app *v1alpha1.Application
+//   - eventInfo argo.EventInfo
+//   - message string
+func (_e *Dependencies_Expecter) LogHydrationPhaseEvent(ctx interface{}, app interface{}, eventInfo interface{}, message interface{}) *Dependencies_LogHydrationPhaseEvent_Call {
+	return &Dependencies_LogHydrationPhaseEvent_Call{Call: _e.mock.On("LogHydrationPhaseEvent", ctx, app, eventInfo, message)}
+}
+
+func (_c *Dependencies_LogHydrationPhaseEvent_Call) Run(run func(ctx context.Context, app *v1alpha1.Application, eventInfo argo.EventInfo, message string)) *Dependencies_LogHydrationPhaseEvent_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *v1alpha1.Application
+		if args[1] != nil {
+			arg1 = args[1].(*v1alpha1.Application)
+		}
+		var arg2 argo.EventInfo
+		if args[2] != nil {
+			arg2 = args[2].(argo.EventInfo)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *Dependencies_LogHydrationPhaseEvent_Call) Return() *Dependencies_LogHydrationPhaseEvent_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *Dependencies_LogHydrationPhaseEvent_Call) RunAndReturn(run func(ctx context.Context, app *v1alpha1.Application, eventInfo argo.EventInfo, message string)) *Dependencies_LogHydrationPhaseEvent_Call {
+	_c.Run(run)
 	return _c
 }
 
