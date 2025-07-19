@@ -1,0 +1,18 @@
+{
+  "clusters": [
+    {
+      "name": "ArgoCD QA Cluster",
+      "env": "qa",
+    "argocd_server": "https://argocd-qa.com",
+    "username": "admin",
+    "password": "QA123"
+    },
+    {
+      "name": "ArgoCD Prod Cluster",
+      "env": "prod",
+      "argocd_server": "https://argocd-prod.com",
+      "username": "admin",
+      "password": "Prod123"
+    }
+  ]
+}
