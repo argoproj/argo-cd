@@ -144,7 +144,7 @@ func NewExportCommand() *cobra.Command {
 		"If this flag is provided, applications from the specified namespaces are exported along with the control plane namespace. "+
 		"If not specified, the value from '%s' in %s is used (if defined in the ConfigMap). "+
 		"If the ConfigMap value is not set, only applications from the control plane namespace are exported.",
-		applicationNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
+		common.ApplicationNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
 	command.Flags().StringSliceVarP(&applicationsetNamespaces, "applicationset-namespaces", "", []string{}, fmt.Sprintf("Comma-separated list of namespace globs to export ApplicationSets from, in addition to the control plane namespace (Argo CD namespace). "+
 		"By default, all ApplicationSets from the control plane namespace are always exported. "+
 		"If this flag is provided, ApplicationSets from the specified namespaces are exported along with the control plane namespace. "+
@@ -434,7 +434,7 @@ func NewImportCommand() *cobra.Command {
 	command.Flags().BoolVar(&verbose, "verbose", false, "Verbose output (versus only changed output)")
 	command.Flags().BoolVar(&stopOperation, "stop-operation", false, "Stop any existing operations")
 	command.Flags().StringVarP(&skipResourcesWithLabel, "skip-resources-with-label", "", "", "Skip importing resources based on the label e.g. '--skip-resources-with-label my-label/example.io=true'")
-	command.Flags().StringSliceVarP(&applicationNamespaces, "application-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs to which import of applications is allowed. If not provided, value from '%s' in %s will be used. If it's not defined, only applications without an explicit namespace will be imported to the Argo CD namespace", applicationNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
+	command.Flags().StringSliceVarP(&applicationNamespaces, "application-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs to which import of applications is allowed. If not provided, value from '%s' in %s will be used. If it's not defined, only applications without an explicit namespace will be imported to the Argo CD namespace", common.ApplicationNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
 	command.Flags().StringSliceVarP(&applicationsetNamespaces, "applicationset-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs which import of applicationsets is allowed. If not provided, value from '%s' in %s will be used. If it's not defined, only applicationsets without an explicit namespace will be imported to the Argo CD namespace", applicationsetNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
 	command.PersistentFlags().BoolVar(&promptsEnabled, "prompts-enabled", localconfig.GetPromptsEnabled(true), "Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.")
 	return &command
