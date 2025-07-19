@@ -408,7 +408,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 `
 
 	command := &cobra.Command{
-		Use:     "get REPOURL",
+		Use:     "get REPO",
 		Short:   "Get a configured repository by URL",
 		Example: repoGetExamples,
 		Run: func(c *cobra.Command, args []string) {
