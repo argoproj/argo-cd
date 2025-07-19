@@ -15,8 +15,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v3/common"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
@@ -235,4 +237,207 @@ func TestWriteGitAttributes(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(gitAttributesBytes), "*/README.md linguist-generated=true")
 	assert.Contains(t, string(gitAttributesBytes), "*/hydrator.metadata linguist-generated=true")
+}
+
+func TestStripTrackingMetadata(t *testing.T) {
+	tests := []struct {
+		name                string
+		input               *unstructured.Unstructured
+		expectedAnnotations map[string]string
+		expectedLabels      map[string]string
+		description         string
+	}{
+		{
+			name: "Remove tracking annotations and labels but keep others",
+			input: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "v1",
+					"kind":       "ConfigMap",
+					"metadata": map[string]any{
+						"name":      "test-configmap",
+						"namespace": "default",
+						"annotations": map[string]any{
+							common.AnnotationKeyAppInstance: "test-app:/ConfigMap:default/test-configmap",
+							common.AnnotationInstallationID: "test-installation-id",
+							"other-annotation":              "should-remain",
+						},
+						"labels": map[string]any{
+							common.LabelKeyAppInstance:           "test-app",
+							common.LabelKeyLegacyApplicationName: "test-app",
+							"other-label":                        "should-remain",
+						},
+					},
+				},
+			},
+			expectedAnnotations: map[string]string{
+				"other-annotation": "should-remain",
+			},
+			expectedLabels: map[string]string{
+				"other-label": "should-remain",
+			},
+			description: "Should remove tracking annotations and labels but preserve others",
+		},
+		{
+			name: "Remove all metadata when only tracking metadata exists",
+			input: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "v1",
+					"kind":       "Service",
+					"metadata": map[string]any{
+						"name":      "test-service",
+						"namespace": "default",
+						"annotations": map[string]any{
+							common.AnnotationKeyAppInstance: "test-app:/Service:default/test-service",
+						},
+						"labels": map[string]any{
+							common.LabelKeyAppInstance: "test-app",
+						},
+					},
+				},
+			},
+			expectedAnnotations: nil,
+			expectedLabels:      nil,
+			description:         "Should remove metadata maps entirely when only tracking metadata exists",
+		},
+		{
+			name: "Handle object with no metadata",
+			input: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "v1",
+					"kind":       "Pod",
+					"metadata": map[string]any{
+						"name":      "test-pod",
+						"namespace": "default",
+					},
+				},
+			},
+			expectedAnnotations: nil,
+			expectedLabels:      nil,
+			description:         "Should handle objects with no metadata gracefully",
+		},
+		{
+			name: "Handle installation ID only",
+			input: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "v1",
+					"kind":       "Secret",
+					"metadata": map[string]any{
+						"name":      "test-secret",
+						"namespace": "default",
+						"annotations": map[string]any{
+							common.AnnotationInstallationID: "test-installation-id",
+							"keep-this":                     "annotation",
+						},
+					},
+				},
+			},
+			expectedAnnotations: map[string]string{
+				"keep-this": "annotation",
+			},
+			expectedLabels: nil,
+			description:    "Should remove installation ID annotation only",
+		},
+		{
+			name: "Handle List kind recursively",
+			input: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "v1",
+					"kind":       "List",
+					"items": []any{
+						map[string]any{
+							"apiVersion": "v1",
+							"kind":       "ConfigMap",
+							"metadata": map[string]any{
+								"name":      "item1",
+								"namespace": "default",
+								"annotations": map[string]any{
+									common.AnnotationKeyAppInstance: "test-app:/ConfigMap:default/item1",
+									"keep-this":                     "annotation",
+								},
+								"labels": map[string]any{
+									common.LabelKeyAppInstance: "test-app",
+									"keep-this":                "label",
+								},
+							},
+						},
+						map[string]any{
+							"apiVersion": "v1",
+							"kind":       "Service",
+							"metadata": map[string]any{
+								"name":      "item2",
+								"namespace": "default",
+								"annotations": map[string]any{
+									common.AnnotationKeyAppInstance: "test-app:/Service:default/item2",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedAnnotations: nil,
+			expectedLabels:      nil,
+			description:         "Should handle List kind and strip tracking metadata from all items",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stripTrackingMetadata(tt.input)
+
+			annotations := tt.input.GetAnnotations()
+			labels := tt.input.GetLabels()
+
+			if tt.expectedAnnotations == nil {
+				assert.Nil(t, annotations, tt.description+" (annotations)")
+			} else {
+				assert.Equal(t, tt.expectedAnnotations, annotations, tt.description+" (annotations)")
+			}
+
+			if tt.expectedLabels == nil {
+				assert.Nil(t, labels, tt.description+" (labels)")
+			} else {
+				assert.Equal(t, tt.expectedLabels, labels, tt.description+" (labels)")
+			}
+
+			// Verify tracking metadata is definitely removed
+			if annotations != nil {
+				assert.NotContains(t, annotations, common.AnnotationKeyAppInstance, "Tracking ID annotation should be removed")
+				assert.NotContains(t, annotations, common.AnnotationInstallationID, "Installation ID annotation should be removed")
+			}
+			if labels != nil {
+				assert.NotContains(t, labels, common.LabelKeyAppInstance, "App instance label should be removed")
+				assert.NotContains(t, labels, common.LabelKeyLegacyApplicationName, "Legacy app name label should be removed")
+			}
+
+			// For List kind, verify items are also cleaned
+			if tt.input.GetKind() == "List" {
+				items, found, err := unstructured.NestedSlice(tt.input.Object, "items")
+				require.NoError(t, err)
+				if found {
+					for i, item := range items {
+						itemMap, ok := item.(map[string]any)
+						if !ok {
+							continue
+						}
+						itemObj := &unstructured.Unstructured{Object: itemMap}
+						itemAnnotations := itemObj.GetAnnotations()
+						itemLabels := itemObj.GetLabels()
+
+						if itemAnnotations != nil {
+							assert.NotContains(t, itemAnnotations, common.AnnotationKeyAppInstance,
+								"Item %d should not have tracking annotation", i)
+							assert.NotContains(t, itemAnnotations, common.AnnotationInstallationID,
+								"Item %d should not have installation ID annotation", i)
+						}
+						if itemLabels != nil {
+							assert.NotContains(t, itemLabels, common.LabelKeyAppInstance,
+								"Item %d should not have app instance label", i)
+							assert.NotContains(t, itemLabels, common.LabelKeyLegacyApplicationName,
+								"Item %d should not have legacy app name label", i)
+						}
+					}
+				}
+			}
+		})
+	}
 }

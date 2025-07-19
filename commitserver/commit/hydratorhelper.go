@@ -204,6 +204,11 @@ func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.Hydrat
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal manifest: %w", err)
 		}
+
+		// Remove tracking annotations before writing to Git
+		// These annotations should only exist at runtime, not in the Git repository
+		stripTrackingMetadata(obj)
+
 		err = enc.Encode(&obj.Object)
 		if err != nil {
 			return fmt.Errorf("failed to encode manifest: %w", err)
@@ -233,4 +238,72 @@ func mkdirAll(root *os.Root, dirPath string) error {
 		}
 	}
 	return nil
+}
+
+// stripTrackingMetadata removes Argo CD tracking annotations and labels from the manifest
+// before writing to Git. These metadata should only exist at runtime, not in the Git repository.
+// It also handles List kinds recursively.
+func stripTrackingMetadata(obj *unstructured.Unstructured) {
+	// Remove tracking metadata from the current object
+	removeTrackingAnnotations(obj)
+	removeTrackingLabels(obj)
+
+	// Handle List kinds recursively
+	if obj.GetKind() == "List" {
+		items, found, err := unstructured.NestedSlice(obj.Object, "items")
+		if found && err == nil {
+			// Process each item and update the slice
+			for i, item := range items {
+				if itemMap, ok := item.(map[string]any); ok {
+					itemObj := &unstructured.Unstructured{Object: itemMap}
+					stripTrackingMetadata(itemObj)
+					// Update the item in the slice
+					items[i] = itemObj.Object
+				}
+			}
+			// Set the updated items back to the object
+			err = unstructured.SetNestedSlice(obj.Object, items, "items")
+			if err != nil {
+				log.WithError(err).Warn("Failed to set updated items back to List object")
+			}
+		}
+	}
+}
+
+// removeTrackingAnnotations removes Argo CD tracking annotations from the manifest
+// before writing to Git. These annotations should only exist at runtime.
+func removeTrackingAnnotations(obj *unstructured.Unstructured) {
+	annotations := obj.GetAnnotations()
+	if annotations != nil {
+		// Remove the tracking ID annotation
+		delete(annotations, common.AnnotationKeyAppInstance)
+		// Remove the installation ID annotation if present
+		delete(annotations, common.AnnotationInstallationID)
+
+		// If annotations map is now empty, remove it entirely
+		if len(annotations) == 0 {
+			obj.SetAnnotations(nil)
+		} else {
+			obj.SetAnnotations(annotations)
+		}
+	}
+}
+
+// removeTrackingLabels removes Argo CD tracking labels from the manifest
+// before writing to Git. These labels should only exist at runtime.
+func removeTrackingLabels(obj *unstructured.Unstructured) {
+	labels := obj.GetLabels()
+	if labels != nil {
+		// Remove the app instance label (used in label and annotation+label tracking methods)
+		delete(labels, common.LabelKeyAppInstance)
+		// Remove legacy application name label if present
+		delete(labels, common.LabelKeyLegacyApplicationName)
+
+		// If labels map is now empty, remove it entirely
+		if len(labels) == 0 {
+			obj.SetLabels(nil)
+		} else {
+			obj.SetLabels(labels)
+		}
+	}
 }
