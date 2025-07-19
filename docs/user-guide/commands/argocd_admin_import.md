@@ -64,7 +64,7 @@ argocd admin import SOURCE [flags]
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
-      --port-forward-namespace string   Namespace name which should be used for port forwarding
+      --port-forward-namespace string   Namespace name which should be used for port forwarding (default "argocd")
       --redis-compress string           Enable this if the application controller is configured with redis compression enabled. (possible values: gzip, none) (default "gzip")
       --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
       --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
