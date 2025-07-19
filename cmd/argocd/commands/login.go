@@ -2,12 +2,20 @@ package commands
 
 import (
 	"context"
+	cryptoRand "crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 	"html"
+	"math/big"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -38,13 +46,17 @@ import (
 // NewLoginCommand returns a new instance of `argocd login` command
 func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		ctxName          string
-		username         string
-		password         string
-		sso              bool
-		ssoPort          int
-		skipTestTLS      bool
-		ssoLaunchBrowser bool
+		ctxName                string
+		username               string
+		password               string
+		sso                    bool
+		ssoPort                int
+		ssoListenerIsSecure    bool
+		ssoListenerHost        string
+		ssoListenerCertFile    string
+		ssoListenerCertKeyFile string
+		skipTestTLS            bool
+		ssoLaunchBrowser       bool
 	)
 	command := &cobra.Command{
 		Use:   "login SERVER",
@@ -138,7 +150,7 @@ argocd login cd.argoproj.io --core`,
 					errors.CheckError(err)
 					oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
 					errors.CheckError(err)
-					tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser)
+					tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser, ssoListenerIsSecure, ssoListenerHost, ssoListenerCertFile, ssoListenerCertKeyFile)
 				}
 				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 				claims := jwt.MapClaims{}
@@ -186,6 +198,10 @@ argocd login cd.argoproj.io --core`,
 	command.Flags().BoolVar(&sso, "sso", false, "Perform SSO login")
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
 	command.Flags().BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
+	command.Flags().BoolVar(&ssoListenerIsSecure, "sso-use-tls", false, "Use TLS on local SSO callback listener")
+	command.Flags().StringVar(&ssoListenerHost, "sso-listener-host", "localhost", "Host to use for local SSO callback")
+	command.Flags().StringVar(&ssoListenerCertFile, "sso-listener-cert", "", "File containing the TLS x509 Certificate for SSO callback listener")
+	command.Flags().StringVar(&ssoListenerCertKeyFile, "sso-listener-cert-key", "", "File containing the TLS private key for SSO callback listener")
 	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the system default browser when performing SSO login")
 	return command
 }
@@ -209,8 +225,18 @@ func oauth2Login(
 	oauth2conf *oauth2.Config,
 	provider *oidc.Provider,
 	ssoLaunchBrowser bool,
+	ssoListenerIsSecure bool,
+	ssoListenerHost string,
+	ssoListenerCertFile string,
+	ssoListenerCertKeyFile string,
 ) (string, string) {
-	oauth2conf.RedirectURL = fmt.Sprintf("http://localhost:%d/auth/callback", port)
+	var callbackProtocol string
+	if ssoListenerIsSecure {
+		callbackProtocol = "https"
+	} else {
+		callbackProtocol = "http"
+	}
+	oauth2conf.RedirectURL = fmt.Sprintf("%s://%s:%d/auth/callback", callbackProtocol, ssoListenerHost, port)
 	oidcConf, err := oidcutil.ParseConfig(provider)
 	errors.CheckError(err)
 	log.Debug("OIDC Configuration:")
@@ -304,7 +330,7 @@ func oauth2Login(
 		fmt.Fprint(w, successPage)
 		completionChan <- ""
 	}
-	srv := &http.Server{Addr: "localhost:" + strconv.Itoa(port)}
+	srv := &http.Server{Addr: fmt.Sprintf("%s:", ssoListenerHost) + strconv.Itoa(port)}
 	http.HandleFunc("/auth/callback", callbackHandler)
 
 	// Redirect user to login & consent page to ask for permission for the scopes specified above.
@@ -335,8 +361,65 @@ func oauth2Login(
 	ssoAuthFlow(url, ssoLaunchBrowser)
 	go func() {
 		log.Debugf("Listen: %s", srv.Addr)
-		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-			log.Fatalf("Temporary HTTP server failed: %s", err)
+		if !ssoListenerIsSecure {
+			log.Println("Starting HTTP server (TLS disabled)")
+			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Fatalf("Temporary HTTP server failed: %s", err)
+			}
+		} else {
+			// TLS is enabled
+			var finalCertFile, finalKeyFile string
+			var generatedSelfSigned bool = false
+
+			if ssoListenerCertFile != "" && ssoListenerCertKeyFile != "" {
+				// Use provided certificate and key files
+				// Ensure they are absolute paths or resolve them relative to current dir
+				var err error
+				finalCertFile, err = filepath.Abs(ssoListenerCertFile)
+				if err != nil {
+					log.Fatalf("Error resolving cert file path %s: %v", ssoListenerCertFile, err)
+				}
+				finalKeyFile, err = filepath.Abs(ssoListenerCertKeyFile)
+				if err != nil {
+					log.Fatalf("Error resolving key file path %s: %v", ssoListenerCertKeyFile, err)
+				}
+
+				if _, err := os.Stat(finalCertFile); os.IsNotExist(err) {
+					log.Fatalf("Certificate file not found: %s", finalCertFile)
+				}
+				if _, err := os.Stat(finalKeyFile); os.IsNotExist(err) {
+					log.Fatalf("Key file not found: %s", finalKeyFile)
+				}
+				log.Printf("Starting HTTPS server using provided certificate: %s and key: %s", finalCertFile, finalKeyFile)
+			} else {
+				// Generate self-signed certificate for listener host
+				log.Printf("ssoListenerCertFile or ssoListenerKeyFile not specified, generating self-signed certificate for %s...\n", ssoListenerHost)
+				var err error
+				finalCertFile, finalKeyFile, err = generateSelfSignedCert(ssoListenerHost)
+				if err != nil {
+					log.Fatalf("Could not generate self-signed certificate: %v", err)
+				}
+				generatedSelfSigned = true
+				log.Printf("Starting HTTPS server using self-signed certificate (cert: %s, key: %s)", finalCertFile, finalKeyFile)
+
+				// Clean up temporary self-signed certs on exit
+				defer func() {
+					if generatedSelfSigned {
+						log.Printf("Cleaning up temporary self-signed certificate files: %s, %s", finalCertFile, finalKeyFile)
+						os.Remove(finalCertFile)
+						os.Remove(finalKeyFile)
+					}
+				}()
+			}
+
+			// Optional: Configure TLS settings (e.g., minimum TLS version)
+			srv.TLSConfig = &tls.Config{
+				MinVersion: tls.VersionTLS12,
+			}
+
+			if err := srv.ListenAndServeTLS(finalCertFile, finalKeyFile); err != nil && err != http.ErrServerClosed {
+				log.Fatalf("Temporary HTTPS server failed: %s", err)
+			}
 		}
 	}()
 	errMsg := <-completionChan
@@ -373,4 +456,72 @@ func ssoAuthFlow(url string, ssoLaunchBrowser bool) {
 	} else {
 		fmt.Printf("To authenticate, copy-and-paste the following URL into your preferred browser: %s\n", url)
 	}
+}
+
+// generateSelfSignedCert creates a self-signed X.509 certificate for the given host.
+// It returns the paths to the generated certificate and key files, or an error.
+func generateSelfSignedCert(host string) (string, string, error) {
+	priv, err := rsa.GenerateKey(cryptoRand.Reader, 2048)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to generate private key: %w", err)
+	}
+
+	notBefore := time.Now()
+	notAfter := notBefore.Add(365 * 24 * time.Hour) // 1 year validity
+
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := cryptoRand.Int(cryptoRand.Reader, serialNumberLimit)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to generate serial number: %w", err)
+	}
+
+	template := x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			Organization: []string{"argo-cd cli sso callback handler"},
+			CommonName:   host,
+		},
+		NotBefore: notBefore,
+		NotAfter:  notAfter,
+
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		DNSNames:              []string{host}, // Important for browser validation
+	}
+
+	derBytes, err := x509.CreateCertificate(cryptoRand.Reader, &template, &template, &priv.PublicKey, priv)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create certificate: %w", err)
+	}
+
+	// Create temporary files for cert and key
+	certFile, err := os.CreateTemp("", "selfsigned-cert-*.pem")
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create temp cert file: %w", err)
+	}
+	defer certFile.Close()
+	if err := pem.Encode(certFile, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}); err != nil {
+		return "", "", fmt.Errorf("failed to write cert data to %s: %w", certFile.Name(), err)
+	}
+
+	keyFile, err := os.CreateTemp("", "selfsigned-key-*.pem")
+	if err != nil {
+		os.Remove(certFile.Name()) // Clean up cert file if key file creation fails
+		return "", "", fmt.Errorf("failed to create temp key file: %w", err)
+	}
+	defer keyFile.Close()
+	privBytes, err := x509.MarshalPKCS8PrivateKey(priv)
+	if err != nil {
+		os.Remove(certFile.Name())
+		os.Remove(keyFile.Name())
+		return "", "", fmt.Errorf("failed to marshal private key: %w", err)
+	}
+	if err := pem.Encode(keyFile, &pem.Block{Type: "PRIVATE KEY", Bytes: privBytes}); err != nil {
+		os.Remove(certFile.Name())
+		os.Remove(keyFile.Name())
+		return "", "", fmt.Errorf("failed to write key data to %s: %w", keyFile.Name(), err)
+	}
+
+	return certFile.Name(), keyFile.Name(), nil
 }
