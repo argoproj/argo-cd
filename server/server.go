@@ -1283,8 +1283,8 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", server.RootPath)
 	healthz.ServeHealthCheck(mux, server.healthCheck)
 
-	// Dex reverse proxy and OAuth2 login/callback
-	server.registerDexHandlers(mux)
+	// Dex reverse proxy and client app and OAuth2 login/callback
+	server.registerDexHandlers(mux, reqTimeout)
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
@@ -1389,15 +1389,20 @@ func (server *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.
 	}
 }
 
-// registerDexHandlers will register dex HTTP handlers
-func (server *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
+// registerDexHandlers will register dex HTTP handlers, creating the OAuth client app
+func (server *ArgoCDServer) registerDexHandlers(mux *http.ServeMux, reqTimeout time.Duration) {
 	if !server.settings.IsSSOConfigured() {
 		return
 	}
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
-	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(server.DexServerAddr, server.BaseHRef, server.DexTLSConfig))
-	mux.HandleFunc(common.LoginEndpoint, server.ssoClientApp.HandleLogin)
-	mux.HandleFunc(common.CallbackEndpoint, server.ssoClientApp.HandleCallback)
+	var err error
+	dexProxyFunc := dexutil.NewDexHTTPReverseProxy(server.DexServerAddr, server.BaseHRef, server.DexTLSConfig)
+	mux.HandleFunc(common.DexAPIEndpoint+"/", requestTimeoutHTTPInterceptor(http.HandlerFunc(dexProxyFunc), reqTimeout).ServeHTTP)
+
+	server.ssoClientApp, err = oidc.NewClientApp(server.settings, server.DexServerAddr, server.DexTLSConfig, server.BaseHRef, cacheutil.NewRedisCache(server.RedisClient, server.settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
+	errorsutil.CheckError(err)
+	mux.HandleFunc(common.LoginEndpoint, requestTimeoutHTTPInterceptor(http.HandlerFunc(server.ssoClientApp.HandleLogin), reqTimeout).ServeHTTP)
+	mux.HandleFunc(common.CallbackEndpoint, requestTimeoutHTTPInterceptor(http.HandlerFunc(server.ssoClientApp.HandleCallback), reqTimeout).ServeHTTP)
 }
 
 // newRedirectServer returns an HTTP server which does a 307 redirect to the HTTPS server
