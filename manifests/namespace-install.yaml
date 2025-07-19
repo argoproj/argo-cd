@@ -1793,6 +1793,11 @@ spec:
               key: server.repo.server.timeout.seconds
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_REQUEST_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: server.request.timeout
+              name: argocd-cmd-params-cm
         - name: ARGOCD_SERVER_X_FRAME_OPTIONS
           valueFrom:
             configMapKeyRef:

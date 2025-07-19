@@ -243,6 +243,7 @@ type ArgoCDServerOpts struct {
 	EnableK8sEvent          []string
 	HydratorEnabled         bool
 	SyncWithReplaceAllowed  bool
+	RequestTimeout          time.Duration
 }
 
 type ApplicationSetOpts struct {
