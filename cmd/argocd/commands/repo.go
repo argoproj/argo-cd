@@ -391,9 +391,26 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		refresh string
 		project string
 	)
+
+	// For better readability and easier formatting
+	repoGetExamples := `
+  # Get Git or Helm repository details in wide format (default, '-o wide')
+  argocd repo get https://git.example.com/repos/repo
+
+  # Get repository details in YAML format
+  argocd repo get https://git.example.com/repos/repo -o yaml
+
+  # Get repository details in JSON format
+  argocd repo get https://git.example.com/repos/repo -o json
+
+  # Get repository URL
+  argocd repo get https://git.example.com/repos/repo -o url
+`
+
 	command := &cobra.Command{
-		Use:   "get REPO",
-		Short: "Get a configured repository by URL",
+		Use:     "get REPO",
+		Short:   "Get a configured repository by URL",
+		Example: repoGetExamples,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
