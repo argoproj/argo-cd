@@ -1128,6 +1128,16 @@ func WriteFile(t *testing.T, path, contents string) {
 	require.NoError(t, os.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0o644))
 }
 
+func RevertCommit(t *testing.T) {
+	t.Helper()
+
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "revert", "HEAD"))
+
+	if IsRemote() {
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+	}
+}
+
 func AddFile(t *testing.T, path, contents string) {
 	t.Helper()
 	WriteFile(t, path, contents)

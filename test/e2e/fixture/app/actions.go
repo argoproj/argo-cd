@@ -40,9 +40,9 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 	return a
 }
 
-func (a *Actions) PatchFile(file string, jsonPath string) *Actions {
+func (a *Actions) PatchFile(file string, jsonPatch string) *Actions {
 	a.context.t.Helper()
-	fixture.Patch(a.context.t, a.context.path+"/"+file, jsonPath)
+	fixture.Patch(a.context.t, a.context.path+"/"+file, jsonPatch)
 	return a
 }
 
@@ -55,6 +55,12 @@ func (a *Actions) DeleteFile(file string) *Actions {
 func (a *Actions) WriteFile(fileName, fileContents string) *Actions {
 	a.context.t.Helper()
 	fixture.WriteFile(a.context.t, a.context.path+"/"+fileName, fileContents)
+	return a
+}
+
+func (a *Actions) RevertCommit() *Actions {
+	a.context.t.Helper()
+	fixture.RevertCommit(a.context.t)
 	return a
 }
 
