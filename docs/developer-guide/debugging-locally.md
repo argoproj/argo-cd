@@ -50,7 +50,7 @@ KUBECONFIG=/Users/<YOUR_USERNAME>/.kube/config # Must be an absolute full path
 ```
 
 ### Install DotENV / EnvFile plugin
-Using the market place / plugin manager of your IDE
+Using the market place / plugin manager of your IDE. The below example configurations requre the plugin to be installed.
 
 
 ### Configure component IDE launch configuration
