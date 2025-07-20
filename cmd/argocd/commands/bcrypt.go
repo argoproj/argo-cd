@@ -1,36 +1,67 @@
 package commands
 
 import (
+	stderrors "errors"
 	"fmt"
-	"log"
 
+	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/bcrypt"
 )
 
+type bcryptCmdOpt struct {
+	password    string
+	compareHash string
+}
+
 // NewBcryptCmd represents the bcrypt command
 func NewBcryptCmd() *cobra.Command {
-	var password string
+	var opt bcryptCmdOpt
+
 	bcryptCmd := &cobra.Command{
 		Use:   "bcrypt",
 		Short: "Generate bcrypt hash for any password",
 		Example: `# Generate bcrypt hash for any password 
-argocd account bcrypt --password YOUR_PASSWORD`,
+argocd account bcrypt --password YOUR_PASSWORD
+argocd account bcrypt --password YOUR_PASSWORD --compare 'YOUR_HASH_PASSWORD'`,
 		Run: func(cmd *cobra.Command, _ []string) {
-			bytePassword := []byte(password)
-			// Hashing the password
-			hash, err := bcrypt.GenerateFromPassword(bytePassword, bcrypt.DefaultCost)
+			out, err := runBcryptCommand(opt)
 			if err != nil {
-				log.Fatalf("Failed to generate bcrypt hash: %v", err)
+				errors.CheckError(err)
 			}
-			fmt.Fprint(cmd.OutOrStdout(), string(hash))
+			fmt.Fprint(cmd.OutOrStdout(), string(out))
 		},
 	}
 
-	bcryptCmd.Flags().StringVar(&password, "password", "", "Password for which bcrypt hash is generated")
+	bcryptCmd.Flags().StringVar(&opt.password, "password", "", "Password for which bcrypt hash is generated")
+	bcryptCmd.Flags().StringVar(&opt.compareHash, "compare", "", "Existing bcrypt hash to compare with password")
 	err := bcryptCmd.MarkFlagRequired("password")
 	if err != nil {
 		return nil
 	}
 	return bcryptCmd
+}
+
+func runBcryptCommand(opt bcryptCmdOpt) (string, error) {
+	bytePassword := []byte(opt.password)
+	byteCompareHash := []byte(opt.compareHash)
+
+	// Compare hash password and password
+	if len(byteCompareHash) > 0 && len(bytePassword) > 0 {
+		err := bcrypt.CompareHashAndPassword(byteCompareHash, bytePassword)
+		if err != nil {
+			if stderrors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+				return "no", nil
+			}
+			return "", fmt.Errorf("Failed to compare password: %v", err)
+		}
+		return "yes", nil
+	}
+
+	// Hash password
+	hash, err := bcrypt.GenerateFromPassword(bytePassword, bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("Failed to generate bcrypt hash: %v", err)
+	}
+	return string(hash), nil
 }
