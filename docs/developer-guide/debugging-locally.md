@@ -49,6 +49,10 @@ KUBECONFIG=/Users/<YOUR_USERNAME>/.kube/config # Must be an absolute full path
 # only for testing this functionality and remove it afterwards.
 ```
 
+### Install DotENV / EnvFile plugin
+Using the market place / plugin manager of your IDE
+
+
 ### Configure component IDE launch configuration
 #### VSCode example
 Next, you will need to create a launch configuration, with the relevant args. Copy the args from `Procfile`, located in the `argo-cd` root folder of your development branch. The args are located after the `$COMMAND` section in the `sh -c` section of the component run command.
@@ -73,20 +77,20 @@ Example for an `api-server` launch configuration, based on our above example for
         "8080",
         "--insecure"
       ],
-      "envFile": "YOUR_ENV_FILES_PATH/api-server.env",
+      "envFile": "YOUR_ENV_FILES_PATH/api-server.env", // Assuming you installed DotENV plugin
     }
 ```
 
 #### Goland example
 Next, you will need to create a launch configuration, with the relevant parameters. Copy the parameters from `Procfile`, located in the `argo-cd` root folder of your development branch. The parameters are located after the `$COMMAND` section in the `sh -c` section of the component run command.
-Example for an `api-server` launch configuration, based on our above example for `api-server` configuration in `Procfile`: 
+Example for an `api-server` launch configuration snippet, based on our above example for `api-server` configuration in `Procfile`: 
 ``` xml 
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="api-server" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="argo-cd" />
     <working_directory value="$PROJECT_DIR$" />
-    <parameters value="--loglevel debug --redis localhost:6379 --insecure --dex-server http://localhost:5556 --repo-server localhost:8081 --port 8080  " />
-    <EXTENSION ID="net.ashald.envfile">
+    <parameters value="--loglevel debug --redis localhost:6379 --insecure --dex-server http://localhost:5556 --repo-server localhost:8081 --port 8080" />
+    <EXTENSION ID="net.ashald.envfile"> <!-- Assuming you installed the EnvFile plugin-->
       <option name="IS_ENABLED" value="true" />
       <option name="IS_SUBST" value="false" />
       <option name="IS_PATH_MACRO_SUPPORTED" value="false" />
@@ -94,17 +98,18 @@ Example for an `api-server` launch configuration, based on our above example for
       <option name="IS_ENABLE_EXPERIMENTAL_INTEGRATIONS" value="false" />
       <ENTRIES>
         <ENTRY IS_ENABLED="true" PARSER="runconfig" IS_EXECUTABLE="false" />
-        <ENTRY IS_ENABLED="true" PARSER="env" IS_EXECUTABLE="false" PATH="YOUR_ENV_FILES_PATH/api-server.env" />
+        <ENTRY IS_ENABLED="true" PARSER="env" IS_EXECUTABLE="false" PATH="<YOUR_ENV_FILES_PATH>/api-server.env" />
       </ENTRIES>
     </EXTENSION>
     <kind value="DIRECTORY" />
-    <package value="github.com/argoproj/argo-cd/v" />
     <directory value="$PROJECT_DIR$/cmd" />
     <filePath value="$PROJECT_DIR$" />
     <method v="2" />
   </configuration>
 </component>
 ```
+
+As an alternative to importing the above file to Goland, you can create a Run/Debug Configuration using the official [Goland docs](https://www.jetbrains.com/help/go/go-build.html) and just copy the `parameters`, `directory` and `PATH` sections from the example above (specifying `Run kind` as `Directory` in the Run/Debug Configurations wizard)
 
 ## Run Argo CD without the debugged component
 Next, we need to run all Argo CD components, except for the debugged component (cause we will run this component separately in the IDE).
