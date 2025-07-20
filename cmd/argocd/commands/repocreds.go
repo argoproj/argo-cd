@@ -196,6 +196,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	command.Flags().StringVar(&repo.GitHubAppEnterpriseBaseURL, "github-app-enterprise-base-url", "", "base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")
 	command.Flags().BoolVar(&repo.EnableOCI, "enable-oci", false, "Specifies whether helm-oci support should be enabled for this repo")
+	command.Flags().BoolVar(&repo.EnableDirectPull, "enable-direct-pull", false, "Allows to download a Helm chart without downloading the index file")
 	command.Flags().StringVar(&repo.Type, "type", common.DefaultRepoType, "type of the repository, \"git\" or \"helm\"")
 	command.Flags().StringVar(&gcpServiceAccountKeyPath, "gcp-service-account-key-path", "", "service account key for the Google Cloud Platform")
 	command.Flags().BoolVar(&repo.ForceHttpBasicAuth, "force-http-basic-auth", false, "whether to force basic auth when connecting via HTTP")

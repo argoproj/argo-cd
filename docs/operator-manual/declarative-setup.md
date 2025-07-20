@@ -1205,7 +1205,7 @@ stringData:
 
 Limitations of enableDirectPull:
 * Wildcard versions are not supported. You must use exact targetRevision, like 1.2.3. Constructs such as >=1.0.0, ~2.1, or 2.3.* will not work.
-* Chart must be stored at a predictable URL (`<repo_url>/<chart_name>-<version>.tgz`)
+* Charts must be stored at a predictable URL (`<repo_url>/<chart_name>-<version>.tgz`).
 * If the chart or version is missing at the expected location, the operation will fail without attempting to read index.yaml.
 
 ## Resource Exclusion/Inclusion
