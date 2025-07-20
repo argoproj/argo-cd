@@ -1,8 +1,8 @@
 #!/bin/sh
 
-BASEPATH=$(dirname $0)
+BASEPATH=$(dirname "$0")
 PERMFILE=${BASEPATH}/argocd-remote-permissions.yaml
-if ! test -f ${PERMFILE}; then
+if ! test -f "${PERMFILE}"; then
 	echo "ERROR: $PERMFILE does not exist." >&2
 	exit 1
 fi
@@ -27,4 +27,4 @@ sed \
 	-e "s/##CONTROLLERSANAME##/${CONTROLLERSANAME}/g" \
 	-e "s/##SERVERSANAME##/${SERVERSANAME}/g" \
 	-e "s/##NAMESPACE##/${NAMESPACE}/g" \
-	$PERMFILE 
+	"$PERMFILE"
