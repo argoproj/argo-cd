@@ -42,7 +42,7 @@ ARGOCD_SSH_DATA_PATH=/tmp/argocd-local/ssh
 ARGOCD_TLS_DATA_PATH=/tmp/argocd-local/tls
 ARGOCD_TRACING_ENABLED=1
 FORCE_LOG_COLORS=1
-KUBECONFIG=~/.kube/config
+KUBECONFIG=/Users/<YOUR_USERNAME>/.kube/config # Must be an absolute full path
 ... 
 # and so on, for example: when you test the app-in-any-namespace feature, 
 # you'll need to add ARGOCD_APPLICATION_NAMESPACES to this list 
