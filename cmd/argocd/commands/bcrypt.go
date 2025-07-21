@@ -4,9 +4,10 @@ import (
 	stderrors "errors"
 	"fmt"
 
-	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 type bcryptCmdOpt struct {
@@ -53,7 +54,7 @@ func runBcryptCommand(opt bcryptCmdOpt) (string, error) {
 			if stderrors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
 				return "no", nil
 			}
-			return "", fmt.Errorf("Failed to compare password: %v", err)
+			return "", fmt.Errorf("failed to compare password: %w", err)
 		}
 		return "yes", nil
 	}
@@ -61,7 +62,7 @@ func runBcryptCommand(opt bcryptCmdOpt) (string, error) {
 	// Hash password
 	hash, err := bcrypt.GenerateFromPassword(bytePassword, bcrypt.DefaultCost)
 	if err != nil {
-		return "", fmt.Errorf("Failed to generate bcrypt hash: %v", err)
+		return "", fmt.Errorf("failed to generate bcrypt hash: %w", err)
 	}
 	return string(hash), nil
 }

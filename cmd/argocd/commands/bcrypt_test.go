@@ -39,7 +39,7 @@ func TestComparePassword(t *testing.T) {
 		return
 	}
 
-	assert.Equal(t, output.String(), "yes")
+	assert.Equal(t, "yes", output.String())
 }
 
 func TestComparePasswordFailureCase(t *testing.T) {
@@ -60,5 +60,5 @@ func TestComparePasswordFailureCase(t *testing.T) {
 		return
 	}
 
-	assert.Equal(t, output.String(), "no")
+	assert.Equal(t, "no", output.String())
 }
