@@ -605,58 +605,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	reconciliation := sync.Reconcile(cmp.targetObjs, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 	ts.AddCheckpoint("live_ms")
 
-	compareOptions, err := m.settingsMgr.GetResourceCompareOptions()
-	if err != nil {
-		log.Warnf("Could not get compare options from ConfigMap (assuming defaults): %v", err)
-		compareOptions = settings.GetDefaultDiffOptions()
-	}
-
-	serverSideDiff := m.useServerSideDiff(app)
-
-	manifestRevisions := cmp.manifestRevisions()
-	useDiffCache := cmp.useDiffCache(sources, manifestRevisions, m.statusRefreshTimeout, serverSideDiff)
-
-	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
-		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, m.ignoreNormalizerOpts).
-		WithTracking(appLabelKey, trackingMethod)
-
-	if useDiffCache {
-		diffConfigBuilder.WithCache(m.cache, app.InstanceName(m.namespace))
-	} else {
-		diffConfigBuilder.WithNoCache()
-	}
-
-	if resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "IncludeMutationWebhook=true") {
-		diffConfigBuilder.WithIgnoreMutationWebhook(false)
-	}
-
-	gvkParser, err := m.getGVKParser(destCluster)
-	if err != nil {
-		cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, err.Error())
-	}
-	diffConfigBuilder.WithGVKParser(gvkParser)
-	diffConfigBuilder.WithManager(common.ArgoCDSSAManager)
-
-	diffConfigBuilder.WithServerSideDiff(serverSideDiff)
-
-	if serverSideDiff {
-		applier, cleanup, err := m.getServerSideDiffDryRunApplier(destCluster)
-		if err != nil {
-			log.Errorf("CompareAppState error getting server side diff dry run applier: %s", err)
-			cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, err.Error())
-		}
-		defer cleanup()
-		diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(applier))
-	}
-
-	// enable structured merge diff if application syncs with server-side apply
-	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.SyncOptions.HasOption("ServerSideApply=true") {
-		diffConfigBuilder.WithStructuredMergeDiff(true)
-	}
-
-	// it is necessary to ignore the error at this point to avoid creating duplicated
-	// application conditions as argo.StateDiffs will validate this diffConfig again.
-	diffConfig, _ := diffConfigBuilder.Build()
+	diffConfig, diffConfigCleanup := m.getDiffConfig(cmp, sources, resourceOverrides, appLabelKey, trackingMethod, destCluster)
+	defer diffConfigCleanup()
 
 	diffResults, err := argodiff.StateDiffs(reconciliation.Live, reconciliation.Target, diffConfig)
 	if err != nil {
@@ -780,6 +730,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	syncStatus.Status = syncCode
 
 	// Update the initial revision to the resolved manifest SHA
+	manifestRevisions := cmp.manifestRevisions()
 	if hasMultipleSources {
 		syncStatus.Revisions = manifestRevisions
 	} else if len(manifestRevisions) > 0 {
@@ -858,6 +809,62 @@ func (m *appStateManager) initialSyncStatus(app *v1alpha1.Application, hasMultip
 		}
 	}
 	return syncStatus
+}
+
+func (m *appStateManager) getDiffConfig(cmp *appStateCmp, sources []v1alpha1.ApplicationSource, resourceOverrides map[string]v1alpha1.ResourceOverride, appLabelKey string, trackingMethod string, destCluster *v1alpha1.Cluster) (argodiff.DiffConfig, func()) {
+	compareOptions, err := m.settingsMgr.GetResourceCompareOptions()
+	if err != nil {
+		log.Warnf("Could not get compare options from ConfigMap (assuming defaults): %v", err)
+		compareOptions = settings.GetDefaultDiffOptions()
+	}
+
+	serverSideDiff := m.useServerSideDiff(cmp.app)
+
+	useDiffCache := cmp.useDiffCache(sources, cmp.manifestRevisions(), m.statusRefreshTimeout, serverSideDiff)
+
+	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
+		WithDiffSettings(cmp.app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, m.ignoreNormalizerOpts).
+		WithTracking(appLabelKey, trackingMethod)
+
+	if useDiffCache {
+		diffConfigBuilder.WithCache(m.cache, cmp.app.InstanceName(m.namespace))
+	} else {
+		diffConfigBuilder.WithNoCache()
+	}
+
+	if resourceutil.HasAnnotationOption(cmp.app, common.AnnotationCompareOptions, "IncludeMutationWebhook=true") {
+		diffConfigBuilder.WithIgnoreMutationWebhook(false)
+	}
+
+	gvkParser, err := m.getGVKParser(destCluster)
+	if err != nil {
+		cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, err.Error())
+	}
+	diffConfigBuilder.WithGVKParser(gvkParser)
+	diffConfigBuilder.WithManager(common.ArgoCDSSAManager)
+
+	diffConfigBuilder.WithServerSideDiff(serverSideDiff)
+
+	cleanup := func() {}
+	if serverSideDiff {
+		var applier diff.KubeApplier
+		applier, cleanup, err = m.getServerSideDiffDryRunApplier(destCluster)
+		if err != nil {
+			log.Errorf("CompareAppState error getting server side diff dry run applier: %s", err)
+			cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, err.Error())
+		}
+		diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(applier))
+	}
+
+	// enable structured merge diff if application syncs with server-side apply
+	if cmp.app.Spec.SyncPolicy != nil && cmp.app.Spec.SyncPolicy.SyncOptions.HasOption("ServerSideApply=true") {
+		diffConfigBuilder.WithStructuredMergeDiff(true)
+	}
+
+	// it is necessary to ignore the error at this point to avoid creating duplicated
+	// application conditions as argo.StateDiffs will validate this diffConfig again.
+	diffConfig, _ := diffConfigBuilder.Build()
+	return diffConfig, cleanup
 }
 
 func (m *appStateManager) useServerSideDiff(app *v1alpha1.Application) bool {
