@@ -533,32 +533,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	ts := stats.NewTimingStats()
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 
-	// Build initial sync status
-	syncStatus := &v1alpha1.SyncStatus{
-		ComparedTo: v1alpha1.ComparedTo{
-			Destination:       app.Spec.Destination,
-			IgnoreDifferences: app.Spec.IgnoreDifferences,
-		},
-		Status: v1alpha1.SyncStatusCodeUnknown,
-	}
-	if hasMultipleSources {
-		syncStatus.ComparedTo.Sources = sources
-		syncStatus.Revisions = revisions
-	} else {
-		if len(sources) > 0 {
-			syncStatus.ComparedTo.Source = sources[0]
-		} else {
-			logCtx.Warn("CompareAppState: sources should not be empty")
-		}
-		if len(revisions) > 0 {
-			syncStatus.Revision = revisions[0]
-		}
-	}
+	syncStatus := m.initialSyncStatus(app, hasMultipleSources, sources, revisions, logCtx)
 
 	appLabelKey, resourceOverrides, resFilter, installationID, trackingMethod, err := m.getComparisonSettings()
 	ts.AddCheckpoint("settings_ms")
+	// return unknown comparison result if basic comparison settings cannot be loaded
 	if err != nil {
-		// return unknown comparison result if basic comparison settings cannot be loaded
 		return &comparisonResult{syncStatus: syncStatus, healthStatus: health.HealthStatusUnknown}, nil
 	}
 
@@ -580,7 +560,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	now := metav1.Now()
 
 	var manifestInfos []*apiclient.ManifestResponse
-	targetNsExists := false
 
 	var revisionsMayHaveChanges bool
 
@@ -658,25 +637,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 	conditions = append(conditions, dedupConditions...)
 
-	for i := len(targetObjs) - 1; i >= 0; i-- {
-		targetObj := targetObjs[i]
-		gvk := targetObj.GroupVersionKind()
-		if resFilter.IsExcludedResource(gvk.Group, gvk.Kind, destCluster.Server) {
-			targetObjs = append(targetObjs[:i], targetObjs[i+1:]...)
-			conditions = append(conditions, v1alpha1.ApplicationCondition{
-				Type:               v1alpha1.ApplicationConditionExcludedResourceWarning,
-				Message:            fmt.Sprintf("Resource %s/%s %s is excluded in the settings", gvk.Group, gvk.Kind, targetObj.GetName()),
-				LastTransitionTime: &now,
-			})
-		}
-
-		// If we reach this path, this means that a namespace has been both defined in Git, as well in the
-		// application's managedNamespaceMetadata. We want to ensure that this manifest is the one being used instead
-		// of what is present in managedNamespaceMetadata.
-		if isManagedNamespace(targetObj, app) {
-			targetNsExists = true
-		}
-	}
+	targetNsExists := false
+	targetNsExists = m.deduplicateTargets(app, &targetObjs, &conditions, resFilter, destCluster)
 	ts.AddCheckpoint("dedup_ms")
 
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(destCluster, app, targetObjs)
@@ -1000,6 +962,61 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	ts.AddCheckpoint("health_ms")
 	compRes.timings = ts.Timings()
 	return &compRes, nil
+}
+
+func (m *appStateManager) initialSyncStatus(app *v1alpha1.Application, hasMultipleSources bool, sources []v1alpha1.ApplicationSource, revisions []string, logCtx *log.Entry) *v1alpha1.SyncStatus {
+	syncStatus := &v1alpha1.SyncStatus{
+		ComparedTo: v1alpha1.ComparedTo{
+			Destination:       app.Spec.Destination,
+			IgnoreDifferences: app.Spec.IgnoreDifferences,
+		},
+		Status: v1alpha1.SyncStatusCodeUnknown,
+	}
+	if hasMultipleSources {
+		syncStatus.ComparedTo.Sources = sources
+		syncStatus.Revisions = revisions
+	} else {
+		if len(sources) > 0 {
+			syncStatus.ComparedTo.Source = sources[0]
+		} else {
+			logCtx.Warn("CompareAppState: sources should not be empty")
+		}
+		if len(revisions) > 0 {
+			syncStatus.Revision = revisions[0]
+		}
+	}
+	return syncStatus
+}
+
+func (m *appStateManager) deduplicateTargets(app *v1alpha1.Application, targetObjsInout *[]*unstructured.Unstructured, conditionsInout *[]v1alpha1.ApplicationCondition, resFilter *settings.ResourcesFilter, destCluster *v1alpha1.Cluster) bool {
+	// Passed as pointers to a slice so changes are propagated
+	targetObjs := *targetObjsInout
+	conditions := *conditionsInout
+
+	now := metav1.Now()
+
+	targetNsExists := false
+	// Iterating backwards because elements can be removed from the slice
+	for i := len(targetObjs) - 1; i >= 0; i-- {
+		targetObj := targetObjs[i]
+		gvk := targetObj.GroupVersionKind()
+		if resFilter.IsExcludedResource(gvk.Group, gvk.Kind, destCluster.Server) {
+			targetObjs = append(targetObjs[:i], targetObjs[i+1:]...)
+			conditions = append(conditions, v1alpha1.ApplicationCondition{
+				Type:               v1alpha1.ApplicationConditionExcludedResourceWarning,
+				Message:            fmt.Sprintf("Resource %s/%s %s is excluded in the settings", gvk.Group, gvk.Kind, targetObj.GetName()),
+				LastTransitionTime: &now,
+			})
+		}
+
+		// If we reach this path, this means that a namespace has been both defined in Git, as well in the
+		// application's managedNamespaceMetadata. We want to ensure that this manifest is the one being used instead
+		// of what is present in managedNamespaceMetadata.
+		if isManagedNamespace(targetObj, app) {
+			targetNsExists = true
+		}
+	}
+	return targetNsExists
 }
 
 // useDiffCache will determine if the diff should be calculated based
