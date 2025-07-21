@@ -6,11 +6,8 @@ Tools like Helm and Kustomize allow users to express their Kubernetes manifests 
 (keeping it DRY - Don't Repeat Yourself). However, these tools can obscure the actual Kubernetes manifests that are
 applied to the cluster.
 
-The "rendered manifest pattern" is a way to push the hydrated manifests to git before syncing them to the cluster. This
+The "rendered manifest pattern" is a feature of Argo CD that allows users to push the hydrated manifests to git before syncing them to the cluster. This
 allows users to see the actual Kubernetes manifests that are applied to the cluster.
-
-The source hydrator is a feature of Argo CD that allows users to push the hydrated manifests to git before syncing them
-to the cluster.
 
 ## Enabling the Source Hydrator
 
@@ -49,7 +46,7 @@ With hydrator:    https://raw.githubusercontent.com/argoproj/argo-cd/stable/mani
 
 ## Using the Source Hydrator
 
-To use the source hydrator, you must first install a push secret. This example uses a GitHub App for authentication, but
+To use the source hydrator, you must first install a push and a pull secret. This example uses a GitHub App for authentication, but
 you can use [any authentication method that Argo CD supports for repository access](../operator-manual/declarative-setup.md#repositories).
 
 ```yaml
@@ -68,12 +65,29 @@ stringData:
   githubAppInstallationID: "<your installation ID here>"
   githubAppPrivateKey: |
     <your private key here>
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-pull-secret
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+stringData:
+  url: "https://github.com"
+  type: "git"
+  githubAppID: "<your app ID here>"
+  githubAppInstallationID: "<your installation ID here>"
+  githubAppPrivateKey: |
+    <your private key here>
 ```
 
-The label `argocd.argoproj.io/secret-type: repository-write` causes this Secret to be used for pushing manifests to git
-instead of pulling from git.
+The only difference between the secrets above, besides the resource name, is that the push secret contains the label
+`argocd.argoproj.io/secret-type: repository-write`, which causes the Secret to be used for pushing manifests to git
+instead of pulling from git. Argo CD requires different secrets for pushing and pulling to provide better isolation.
 
-Once your push secret is installed, set the `spec.sourceHydrator` field of the Application. For example:
+Once your secrets are installed, set the `spec.sourceHydrator` field of the Application. For example:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -146,6 +160,108 @@ branch to the `syncSource` branch.
 Argo CD will only push changes to the `hydrateTo` branch, it will not create a PR or otherwise facilitate moving those 
 changes to the `syncSource` branch. You will need to use your own tooling to move the changes from the `hydrateTo` 
 branch to the `syncSource` branch.
+
+## Commit Tracing
+
+It's common for CI or other tooling to push DRY manifest changes after a code change. It's important for users to be
+able to trace the hydrated commits back to the original code change that caused the hydration.
+
+Source Hydrator makes use of some custom git commit trailers to facilitate this tracing. A CI job that builds an image
+and pushes an image bump to DRY manifests can use the following commit trailers to link the hydrated commit to the
+code commit.
+
+```shell
+git commit -m "Bump image to v1.2.3" \
+  # Must be an RFC 5322 name
+  --trailer "Argocd-reference-commit-author: Author Name <author@example.com>" \
+  # Must be a valid email address per RFC 5322
+  --trailer "Argocd-reference-commit-author-email: author@example.com" \
+  # Must be a hex string 5-40 characters long
+  --trailer "Argocd-reference-commit-sha: <code-commit-sha>" \
+  --trailer "Argocd-reference-commit-subject: Commit message of the code commit" \
+   # The body must be a valid JSON string, including opening and closing quotes
+  --trailer 'Argocd-reference-commit-body: "Commit message of the code commit\n\nSigned-off-by: Author Name <author@example.com>"' \
+   # The repo URL must be a valid URL
+  --trailer "Argocd-reference-commit-repourl: https://git.example.com/owner/repo" \
+  # The date must by in ISO 8601 format
+  --trailer "Argocd-reference-commit-date: 2025-06-09T13:50:18-04:00" 
+```
+
+!!!note Newlines are not allowed
+    The commit trailers must not contain newlines. The 
+
+So the full CI script might look something like this:
+
+```shell
+# Clone code repo
+git clone https://git.example.com/owner/repo.git
+cd repo
+
+# Build the image and get the new image tag
+# <cusom build logic here>
+
+# Get the commit information
+author=$(git show -s --format="%an <%ae>")
+sha=$(git rev-parse HEAD)
+subject=$(git show -s --format='%s')
+body=$(git show -s --format='%b')
+jsonbody=$(jq -n --arg body "$body" '$body')
+repourl=$(git remote get-url origin)
+date=$(git show -s --format='%aI')
+
+# Clone the dry source repo
+git clone https://git.example.com/owner/deployment-repo.git
+cd deployment-repo
+
+# Bump the image in the dry manifests
+# <custom bump logic here, e.g. `kustomize edit`>
+
+# Commit the changes with the commit trailers
+git commit -m "Bump image to v1.2.3" \
+  --trailer "Argocd-reference-commit-author: $author" \
+  --trailer "Argocd-reference-commit-sha: $sha" \
+  --trailer "Argocd-reference-commit-subject: $subject" \
+  --trailer "Argocd-reference-commit-body: $jsonbody" \
+  --trailer "Argocd-reference-commit-repourl: $repourl" \
+  --trailer "Argocd-reference-commit-date: $date"
+```
+
+The commit metadata will appear in the hydrated commit's root hydrator.metadata file:
+
+```json
+{
+  "author": "CI <ci@example.com>",
+  "subject": "chore: bump image to b82add2",
+  "date": "2025-06-09T13:50:08-04:00",
+  "body": "Signed-off-by: CI <ci@example.com>\n",
+  "drySha": "6cb951525937865dced818bbdd78c89b2d2b3045",
+  "repoURL": "https://git.example.com/owner/manifests-repo",
+  "references": [
+    {
+      "commit": {
+        "author": {
+          "name": "Author Name",
+          "email": "author@example.com"
+        },
+        "sha": "b82add298aa045d3672880802d5305c5a8aaa46e",
+        "subject": "chore: make a change",
+        "body": "make a change\n\nSigned-off-by: Author Name <author@example.com>",
+        "repoURL": "https://git.example.com/owner/repo",
+        "date": "2025-06-09T13:50:18-04:00"
+      }
+    }
+  ]
+}
+```
+
+The top-level "body" field contains the commit message of the DRY commit minus the subject line and any 
+`Argocd-reference-commit-*` trailers that were used in `references`. Unrecognized or invalid trailers are preserved in
+the body.
+
+Although `references` is an array, the source hydrator currently only supports a single related commit. If a trailer is
+specified more than once, the last one will be used.
+
+All trailers are optional. If a trailer is not specified, the corresponding field in the metadata will be omitted.
 
 ## Limitations
 

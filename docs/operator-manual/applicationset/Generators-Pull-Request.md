@@ -236,7 +236,7 @@ spec:
   generators:
     - pullRequest:
         bitbucket:
-          # Workspace name where the repoistory is stored under. Required.
+          # Workspace name where the repository is stored under. Required.
           owner: myproject
           # Repository slug. Required.
           repo: myrepository

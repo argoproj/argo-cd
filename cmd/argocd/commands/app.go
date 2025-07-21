@@ -167,7 +167,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					app.Namespace = appNamespace
 				}
 				if setFinalizer {
-					app.Finalizers = append(app.Finalizers, "resources-finalizer.argocd.argoproj.io")
+					app.Finalizers = append(app.Finalizers, argoappv1.ResourcesFinalizerName)
 				}
 				conn, appIf := argocdClient.NewApplicationClientOrDie()
 				defer utilio.Close(conn)
@@ -1106,15 +1106,16 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 
 		for _, kustomizeImage := range opts.kustomizeImages {
 			for i, item := range source.Kustomize.Images {
-				if argoappv1.KustomizeImage(kustomizeImage).Match(item) {
-					updated = true
-					// remove i
-					a := source.Kustomize.Images
-					copy(a[i:], a[i+1:]) // Shift a[i+1:] left one index.
-					a[len(a)-1] = ""     // Erase last element (write zero value).
-					a = a[:len(a)-1]     // Truncate slice.
-					source.Kustomize.Images = a
+				if !argoappv1.KustomizeImage(kustomizeImage).Match(item) {
+					continue
 				}
+				updated = true
+				// remove i
+				a := source.Kustomize.Images
+				copy(a[i:], a[i+1:]) // Shift a[i+1:] left one index.
+				a[len(a)-1] = ""     // Erase last element (write zero value).
+				a = a[:len(a)-1]     // Truncate slice.
+				source.Kustomize.Images = a
 			}
 		}
 
@@ -1362,7 +1363,6 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 				diffOption.res = res
 				diffOption.revisions = revisions
-				diffOption.sourcePositions = sourcePositions
 			case revision != "":
 				q := application.ApplicationManifestQuery{
 					Name:         &appName,
@@ -1423,14 +1423,13 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 // DifferenceOption struct to store diff options
 type DifferenceOption struct {
-	local           string
-	localRepoRoot   string
-	revision        string
-	cluster         *argoappv1.Cluster
-	res             *repoapiclient.ManifestResponse
-	serversideRes   *repoapiclient.ManifestResponse
-	revisions       []string
-	sourcePositions []int64
+	local         string
+	localRepoRoot string
+	revision      string
+	cluster       *argoappv1.Cluster
+	res           *repoapiclient.ManifestResponse
+	serversideRes *repoapiclient.ManifestResponse
+	revisions     []string
 }
 
 // findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
-	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
@@ -233,9 +232,30 @@ func (s *Server) prepareRepoList(ctx context.Context, resourceType string, repos
 	sort.Slice(items, func(i, j int) bool {
 		first := items[i]
 		second := items[j]
-		return strings.Compare(fmt.Sprintf("%s/%s", first.Project, first.Repo), fmt.Sprintf("%s/%s", second.Project, second.Repo)) < 0
+		return fmt.Sprintf("%s/%s", first.Project, first.Repo) < fmt.Sprintf("%s/%s", second.Project, second.Repo)
 	})
 	return items, nil
+}
+
+func (s *Server) ListOCITags(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.Refs, error) {
+	repo, err := s.getRepo(ctx, q.Repo, q.GetAppProject())
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceRepositories, rbac.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
+		return nil, err
+	}
+
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return nil, err
+	}
+	defer utilio.Close(conn)
+
+	return repoClient.ListOCITags(ctx, &apiclient.ListRefsRequest{
+		Repo: repo,
+	})
 }
 
 func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.Refs, error) {
@@ -362,10 +382,6 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err != nil {
 		return nil, err
 	}
-	kustomizeOptions, err := kustomizeSettings.GetOptions(*q.Source)
-	if err != nil {
-		return nil, err
-	}
 	helmOptions, err := s.settings.GetHelmSettings()
 	if err != nil {
 		return nil, err
@@ -374,7 +390,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	refSources := make(v1alpha1.RefTargetRevisionMapping)
 	if app != nil && app.Spec.HasMultipleSources() {
 		// Store the map of all sources having ref field into a map for applications with sources field
-		refSources, err = argo.GetRefSources(ctx, app.Spec.Sources, q.AppProject, s.db.GetRepository, []string{}, false)
+		refSources, err = argo.GetRefSources(ctx, app.Spec.Sources, q.AppProject, s.db.GetRepository, []string{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to get ref sources: %w", err)
 		}
@@ -384,7 +400,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		Repo:             repo,
 		Source:           q.Source,
 		Repos:            helmRepos,
-		KustomizeOptions: kustomizeOptions,
+		KustomizeOptions: kustomizeSettings,
 		HelmOptions:      helmOptions,
 		AppName:          q.AppName,
 		RefSources:       refSources,
@@ -683,6 +699,8 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		GitHubAppEnterpriseBaseURL: q.GithubAppEnterpriseBaseUrl,
 		Proxy:                      q.Proxy,
 		GCPServiceAccountKey:       q.GcpServiceAccountKey,
+		InsecureOCIForceHttp:       q.InsecureOciForceHttp,
+		UseAzureWorkloadIdentity:   q.UseAzureWorkloadIdentity,
 	}
 
 	// If repo does not have credentials, check if there are credentials stored
@@ -732,6 +750,7 @@ func (s *Server) ValidateWriteAccess(ctx context.Context, q *repositorypkg.RepoA
 		GitHubAppEnterpriseBaseURL: q.GithubAppEnterpriseBaseUrl,
 		Proxy:                      q.Proxy,
 		GCPServiceAccountKey:       q.GcpServiceAccountKey,
+		UseAzureWorkloadIdentity:   q.UseAzureWorkloadIdentity,
 	}
 
 	err := s.testRepo(ctx, repo)

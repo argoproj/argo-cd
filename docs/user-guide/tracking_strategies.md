@@ -43,7 +43,7 @@ For Git, all versions are Git references but tags [Semantic Versions](https://se
 
 ### HEAD / Branch Tracking
 
-If a branch name, or a symbolic reference (like HEAD) is specified, Argo CD will continually compare
+If a branch name or a symbolic reference (like HEAD) is specified, Argo CD will continually compare
 live state against the resource manifests defined at the tip of the specified branch or the
 resolved commit of the symbolic reference.
 

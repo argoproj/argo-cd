@@ -1,0 +1,62 @@
+FROM docker.io/library/golang:1.24.1@sha256:c5adecdb7b3f8c5ca3c88648a861882849cc8b02fed68ece31e25de88ad13418 
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN echo 'deb http://archive.debian.org/debian buster-backports main' >> /etc/apt/sources.list
+
+RUN apt-get update && apt-get install --no-install-recommends -y \
+    curl \
+    openssh-server \
+    nginx \
+    unzip \
+    fcgiwrap \
+    git \
+    git-lfs \
+    make \
+    wget \
+    gcc \
+    sudo \
+    zip \
+    tini \
+    gpg \
+    tzdata \
+    connect-proxy
+
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+
+COPY hack/install.sh hack/tool-versions.sh ./
+COPY hack/installers installers
+
+RUN ./install.sh helm && \
+    INSTALL_PATH=/usr/local/bin ./install.sh kustomize
+
+COPY hack/gpg-wrapper.sh \
+    hack/git-verify-wrapper.sh \
+    entrypoint.sh \
+    /usr/local/bin/
+
+# support for mounting configuration from a configmap
+WORKDIR /app/config/ssh
+RUN touch ssh_known_hosts && \
+    ln -s /app/config/ssh/ssh_known_hosts /etc/ssh/ssh_known_hosts
+
+WORKDIR /app/config
+RUN mkdir -p tls && \
+    mkdir -p gpg/source && \
+    mkdir -p gpg/keys 
+
+COPY .tilt-bin/argocd_linux /usr/local/bin/argocd
+
+RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-repo-server && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-application-controller && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-dex && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-notifications && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-applicationset-controller && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-commit-server
+
+# directory for Tilt restart file
+RUN mkdir -p /tilt
+
+# overridden by Tiltfile
+ENTRYPOINT ["/usr/bin/tini", "-s", "--", "dlv", "exec", "--continue", "--accept-multiclient", "--headless", "--listen=:2345", "--api-version=2"]

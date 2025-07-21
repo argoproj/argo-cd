@@ -5,3 +5,6 @@ actionTests:
 - action: unpause
   inputPath: testdata/monovertex-paused.yaml
   expectedOutputPath: testdata/monovertex.yaml
+- action: force-promote
+  inputPath: testdata/monovertex.yaml
+  expectedOutputPath: testdata/monovertex-force-promote.yaml

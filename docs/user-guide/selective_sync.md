@@ -11,7 +11,5 @@ When doing so, bear in mind that:
 
 ## Selective Sync Option
 
->v1.8
-
 Turning on selective sync option which will sync only out-of-sync resources.
 See [sync options](sync-options.md#selective-sync) documentation for more details.

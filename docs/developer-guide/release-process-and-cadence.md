@@ -18,7 +18,7 @@ These are the upcoming releases dates:
 | v2.13   | Monday, Sep. 16, 2024 | Monday, Nov. 4, 2024 | [Regina Voloshin](https://github.com/reggie-k)        | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/19513) |
 | v2.14   | Monday, Dec. 16, 2024 | Monday, Feb. 3, 2025 | [Ryan Umstead](https://github.com/rumstead)           | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/20869) |
 | v3.0    | Monday, Mar. 17, 2025 | Tuesday, May 6, 2025 | [Regina Voloshin](https://github.com/reggie-k)        |                                                       | [checklist](https://github.com/argoproj/argo-cd/issues/21735) |
-| v3.1    | Monday, Jun. 16, 2025 | Monday, Aug. 4, 2025 |                                                       |                                                       |
+| v3.1    | Monday, Jun. 16, 2025 | Monday, Aug. 4, 2025 | [Christian Hernandez](https://github.com/christianh814) | [Alexandre Gaudreault](https://github.com/agaudreault) | [checklist](#) |
 | v3.2    | Monday, Sep. 15, 2025 | Monday, Nov. 3, 2025 |                                                       |                                                       |
 | v3.3    | Monday, Dec. 15, 2025 | Monday, Feb. 2, 2026 |                                                       |                                                       |
 

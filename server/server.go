@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -106,7 +107,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/ui"
 	"github.com/argoproj/argo-cd/v3/util/assets"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
-	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	dexutil "github.com/argoproj/argo-cd/v3/util/dex"
 	"github.com/argoproj/argo-cd/v3/util/env"
@@ -183,7 +183,6 @@ type ArgoCDServer struct {
 	settingsMgr    *settings_util.SettingsManager
 	enf            *rbac.Enforcer
 	projInformer   cache.SharedIndexInformer
-	projLister     applisters.AppProjectNamespaceLister
 	policyEnforcer *rbacpolicy.RBACPolicyEnforcer
 	appInformer    cache.SharedIndexInformer
 	appLister      applisters.ApplicationLister
@@ -203,7 +202,7 @@ type ArgoCDServer struct {
 	configMapInformer  cache.SharedIndexInformer
 	serviceSet         *ArgoCDServiceSet
 	extensionManager   *extension.Manager
-	shutdown           func()
+	Shutdown           func()
 	terminateRequested atomic.Bool
 	available          atomic.Bool
 }
@@ -248,6 +247,7 @@ type ApplicationSetOpts struct {
 	ScmRootCAPath            string
 	AllowedScmProviders      []string
 	EnableScmProviders       bool
+	EnableGitHubAPIMetrics   bool
 }
 
 // GracefulRestartSignal implements a signal to be used for a graceful restart trigger.
@@ -372,7 +372,6 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		settingsMgr:        settingsMgr,
 		enf:                enf,
 		projInformer:       projInformer,
-		projLister:         projLister,
 		appInformer:        appInformer,
 		appLister:          appLister,
 		appsetInformer:     appsetInformer,
@@ -385,7 +384,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		secretInformer:     secretInformer,
 		configMapInformer:  configMapInformer,
 		extensionManager:   em,
-		shutdown:           noopShutdown,
+		Shutdown:           noopShutdown,
 		stopCh:             make(chan os.Signal, 1),
 	}
 
@@ -515,8 +514,7 @@ func (server *ArgoCDServer) Listen() (*Listeners, error) {
 	var dOpts []grpc.DialOption
 	dOpts = append(dOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(apiclient.MaxGRPCMessageSize)))
 	dOpts = append(dOpts, grpc.WithUserAgent(fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, common.GetVersion().Version)))
-	dOpts = append(dOpts, grpc.WithUnaryInterceptor(grpc_util.OTELUnaryClientInterceptor()))
-	dOpts = append(dOpts, grpc.WithStreamInterceptor(grpc_util.OTELStreamClientInterceptor()))
+	dOpts = append(dOpts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
 	if server.useTLS() {
 		// The following sets up the dial Options for grpc-gateway to talk to gRPC server over TLS.
 		// grpc-gateway is just translating HTTP/HTTPS requests as gRPC requests over localhost,
@@ -560,18 +558,23 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		if r := recover(); r != nil {
 			log.WithField("trace", string(debug.Stack())).Error("Recovered from panic: ", r)
 			server.terminateRequested.Store(true)
-			server.shutdown()
+			server.Shutdown()
 		}
 	}()
-
-	server.userStateStorage.Init(ctx)
 
 	metricsServ := metrics.NewMetricsServer(server.MetricsHost, server.MetricsPort)
 	if server.RedisClient != nil {
 		cacheutil.CollectMetrics(server.RedisClient, metricsServ, server.userStateStorage.GetLockObject())
 	}
 
+	// Don't init storage until after CollectMetrics. CollectMetrics adds hooks to the Redis client, and Init
+	// reads those hooks. If this is called first, there may be a data race.
+	server.userStateStorage.Init(ctx)
+
 	svcSet := newArgoCDServiceSet(server)
+	if server.sessionMgr != nil {
+		server.sessionMgr.CollectMetrics(metricsServ)
+	}
 	server.serviceSet = svcSet
 	grpcS, appResourceTreeFn := server.newGRPCServer()
 	grpcWebS := grpcweb.WrapServer(grpcS)
@@ -727,7 +730,7 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 			log.Warn("Graceful shutdown timeout. Exiting...")
 		}
 	}
-	server.shutdown = shutdownFunc
+	server.Shutdown = shutdownFunc
 	signal.Notify(server.stopCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	server.available.Store(true)
 
@@ -738,11 +741,11 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		if signal != gracefulRestartSignal {
 			server.terminateRequested.Store(true)
 		}
-		server.shutdown()
+		server.Shutdown()
 	case <-ctx.Done():
 		log.Infof("API Server: %s", ctx.Err())
 		server.terminateRequested.Store(true)
-		server.shutdown()
+		server.Shutdown()
 	}
 }
 
@@ -808,7 +811,7 @@ func (server *ArgoCDServer) watchSettings() {
 		server.settings = newSettings
 		newDexCfgBytes, err := dexutil.GenerateDexConfigYAML(server.settings, server.DexTLSConfig == nil || server.DexTLSConfig.DisableTLS)
 		errorsutil.CheckError(err)
-		if string(newDexCfgBytes) != string(prevDexCfgBytes) {
+		if !bytes.Equal(newDexCfgBytes, prevDexCfgBytes) {
 			log.Infof("dex config modified. restarting")
 			break
 		}
@@ -875,7 +878,7 @@ func (server *ArgoCDServer) watchSettings() {
 func (server *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
 	err := server.enf.RunPolicyLoader(ctx, func(cm *corev1.ConfigMap) error {
 		var scopes []string
-		if scopesStr, ok := cm.Data[rbac.ConfigMapScopesKey]; len(scopesStr) > 0 && ok {
+		if scopesStr, ok := cm.Data[rbac.ConfigMapScopesKey]; scopesStr != "" && ok {
 			scopes = make([]string, 0)
 			err := yaml.Unmarshal([]byte(scopesStr), &scopes)
 			if err != nil {
@@ -943,7 +946,6 @@ func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResour
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
 	sOpts = append(sOpts, grpc.ChainStreamInterceptor(
-		otelgrpc.StreamServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		logging.StreamServerInterceptor(grpc_util.InterceptorLogger(server.log)),
 		serverMetrics.StreamServerInterceptor(),
 		grpc_auth.StreamServerInterceptor(server.Authenticate),
@@ -957,7 +959,6 @@ func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResour
 	))
 	sOpts = append(sOpts, grpc.ChainUnaryInterceptor(
 		bug21955WorkaroundInterceptor,
-		otelgrpc.UnaryServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(server.log)),
 		serverMetrics.UnaryServerInterceptor(),
 		grpc_auth.UnaryServerInterceptor(server.Authenticate),
@@ -969,6 +970,7 @@ func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResour
 		grpc_util.ErrorCodeGitUnaryServerInterceptor(),
 		recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(server.log))),
 	))
+	sOpts = append(sOpts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	grpcS := grpc.NewServer(sOpts...)
 
 	versionpkg.RegisterVersionServiceServer(grpcS, server.serviceSet.VersionService)
@@ -1012,7 +1014,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	kubectl := kubeutil.NewKubectl()
 	clusterService := cluster.NewServer(a.db, a.enf, a.Cache, kubectl)
 	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr, a.HydratorEnabled)
-	repoCredsService := repocreds.NewServer(a.RepoClientset, a.db, a.enf, a.settingsMgr)
+	repoCredsService := repocreds.NewServer(a.db, a.enf)
 	var loginRateLimiter func() (utilio.Closer, error)
 	if maxConcurrentLoginRequestsCount > 0 {
 		loginRateLimiter = session.NewLoginRateLimiter(maxConcurrentLoginRequestsCount)
@@ -1049,8 +1051,6 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.AppClientset,
 		a.appsetInformer,
 		a.appsetLister,
-		a.projLister,
-		a.settingsMgr,
 		a.Namespace,
 		projectLock,
 		a.ApplicationNamespaces,
@@ -1059,6 +1059,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.ScmRootCAPath,
 		a.AllowedScmProviders,
 		a.EnableScmProviders,
+		a.EnableGitHubAPIMetrics,
 		a.EnableK8sEvent,
 	)
 
@@ -1068,8 +1069,8 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
 
 	notificationService := notification.NewServer(a.apiFactory)
-	certificateService := certificate.NewServer(a.RepoClientset, a.db, a.enf)
-	gpgkeyService := gpgkey.NewServer(a.RepoClientset, a.db, a.enf)
+	certificateService := certificate.NewServer(a.db, a.enf)
+	gpgkeyService := gpgkey.NewServer(a.db, a.enf)
 	versionService := version.NewServer(a, func() (bool, error) {
 		if a.DisableAuth {
 			return true, nil
@@ -1172,7 +1173,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 			handler: mux,
 			urlToHandler: map[string]http.Handler{
 				"/api/badge":          badge.NewHandler(server.AppClientset, server.settingsMgr, server.Namespace, server.ApplicationNamespaces),
-				common.LogoutEndpoint: logout.NewHandler(server.AppClientset, server.settingsMgr, server.sessionMgr, server.RootPath, server.BaseHRef, server.Namespace),
+				common.LogoutEndpoint: logout.NewHandler(server.settingsMgr, server.sessionMgr, server.RootPath, server.BaseHRef),
 			},
 			contentTypeToHandler: map[string]http.Handler{
 				"application/grpc-web+proto": grpcWebHandler,
@@ -1203,7 +1204,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	terminalOpts := application.TerminalOptions{DisableAuth: server.DisableAuth, Enf: server.enf}
 
-	terminal := application.NewHandler(server.appLister, server.Namespace, server.ApplicationNamespaces, server.db, server.Cache, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
+	terminal := application.NewHandler(server.appLister, server.Namespace, server.ApplicationNamespaces, server.db, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
 		WithFeatureFlagMiddleware(server.settingsMgr.GetSettings)
 	th := util_session.WithAuthMiddleware(server.DisableAuth, server.sessionMgr, terminal)
 	mux.Handle("/terminal", th)
@@ -1383,7 +1384,7 @@ func newRedirectServer(port int, rootPath string) *http.Server {
 				target += req.URL.Path
 			}
 
-			if len(req.URL.RawQuery) > 0 {
+			if req.URL.RawQuery != "" {
 				target += "?" + req.URL.RawQuery
 			}
 			http.Redirect(w, req, target, http.StatusTemporaryRedirect)
@@ -1490,7 +1491,7 @@ var mainJsBundleRegex = regexp.MustCompile(`^main\.[0-9a-f]{20}\.js$`)
 
 func isMainJsBundle(url *url.URL) bool {
 	filename := path.Base(url.Path)
-	return mainJsBundleRegex.Match([]byte(filename))
+	return mainJsBundleRegex.MatchString(filename)
 }
 
 type registerFunc func(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error
@@ -1560,19 +1561,19 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
 
-	mapClaims, err := jwtutil.MapClaims(claims)
-	if err != nil {
-		return claims, "", status.Errorf(codes.Internal, "invalid claims")
+	// Some SSO implementations (Okta) require a call to
+	// the OIDC user info path to get attributes like groups
+	// we assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
+	// otherwise this would cause a panic
+	var groupClaims jwt.MapClaims
+	if groupClaims, ok = claims.(jwt.MapClaims); !ok {
+		if tmpClaims, ok := claims.(*jwt.MapClaims); ok {
+			groupClaims = *tmpClaims
+		}
 	}
-	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
-	if err != nil {
-		return claims, "", status.Errorf(codes.Internal, "invalid argo claims")
-	}
-
-	// Some SSO implementations (Okta) require a call to the OIDC user info path to get attributes like groups
-	iss := jwtutil.StringField(mapClaims, "iss")
+	iss := jwtutil.StringField(groupClaims, "iss")
 	if iss != util_session.SessionManagerClaimsIssuer && server.settings.UserInfoGroupsEnabled() && server.settings.UserInfoPath() != "" {
-		userInfo, unauthorized, err := server.ssoClientApp.GetUserInfo(mapClaims, server.settings.IssuerURL(), server.settings.UserInfoPath())
+		userInfo, unauthorized, err := server.ssoClientApp.GetUserInfo(groupClaims, server.settings.IssuerURL(), server.settings.UserInfoPath())
 		if unauthorized {
 			log.Errorf("error while quering userinfo endpoint: %v", err)
 			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session")
@@ -1581,17 +1582,13 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 			log.Errorf("error fetching user info endpoint: %v", err)
 			return claims, "", status.Errorf(codes.Internal, "invalid userinfo response")
 		}
-		userInfoClaims, err := claimsutil.MapClaimsToArgoClaims(userInfo)
-		if err != nil {
-			return claims, "", status.Errorf(codes.Internal, "invalid userinfo claims")
-		}
-		if argoClaims.Subject != userInfoClaims.Subject {
+		if groupClaims["sub"] != userInfo["sub"] {
 			return claims, "", status.Error(codes.Unknown, "subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
 		}
-		mapClaims["groups"] = userInfo["groups"]
+		groupClaims["groups"] = userInfo["groups"]
 	}
 
-	return mapClaims, newToken, nil
+	return groupClaims, newToken, nil
 }
 
 // getToken extracts the token from gRPC metadata or cookie headers
@@ -1668,57 +1665,58 @@ func (bf *bug21955Workaround) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 }
 
 func bug21955WorkaroundInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
-	if rq, ok := req.(*repositorypkg.RepoQuery); ok {
-		repo, err := url.QueryUnescape(rq.Repo)
+	switch req := req.(type) {
+	case *repositorypkg.RepoQuery:
+		repo, err := url.QueryUnescape(req.Repo)
 		if err != nil {
 			return nil, err
 		}
-		rq.Repo = repo
-	} else if rk, ok := req.(*repositorypkg.RepoAppsQuery); ok {
-		repo, err := url.QueryUnescape(rk.Repo)
+		req.Repo = repo
+	case *repositorypkg.RepoAppsQuery:
+		repo, err := url.QueryUnescape(req.Repo)
 		if err != nil {
 			return nil, err
 		}
-		rk.Repo = repo
-	} else if rdq, ok := req.(*repositorypkg.RepoAppDetailsQuery); ok {
-		repo, err := url.QueryUnescape(rdq.Source.RepoURL)
+		req.Repo = repo
+	case *repositorypkg.RepoAppDetailsQuery:
+		repo, err := url.QueryUnescape(req.Source.RepoURL)
 		if err != nil {
 			return nil, err
 		}
-		rdq.Source.RepoURL = repo
-	} else if ru, ok := req.(*repositorypkg.RepoUpdateRequest); ok {
-		repo, err := url.QueryUnescape(ru.Repo.Repo)
+		req.Source.RepoURL = repo
+	case *repositorypkg.RepoUpdateRequest:
+		repo, err := url.QueryUnescape(req.Repo.Repo)
 		if err != nil {
 			return nil, err
 		}
-		ru.Repo.Repo = repo
-	} else if rk, ok := req.(*repocredspkg.RepoCredsQuery); ok {
-		pattern, err := url.QueryUnescape(rk.Url)
+		req.Repo.Repo = repo
+	case *repocredspkg.RepoCredsQuery:
+		pattern, err := url.QueryUnescape(req.Url)
 		if err != nil {
 			return nil, err
 		}
-		rk.Url = pattern
-	} else if rk, ok := req.(*repocredspkg.RepoCredsDeleteRequest); ok {
-		pattern, err := url.QueryUnescape(rk.Url)
+		req.Url = pattern
+	case *repocredspkg.RepoCredsDeleteRequest:
+		pattern, err := url.QueryUnescape(req.Url)
 		if err != nil {
 			return nil, err
 		}
-		rk.Url = pattern
-	} else if cq, ok := req.(*clusterpkg.ClusterQuery); ok {
-		if cq.Id != nil {
-			val, err := url.QueryUnescape(cq.Id.Value)
+		req.Url = pattern
+	case *clusterpkg.ClusterQuery:
+		if req.Id != nil {
+			val, err := url.QueryUnescape(req.Id.Value)
 			if err != nil {
 				return nil, err
 			}
-			cq.Id.Value = val
+			req.Id.Value = val
 		}
-	} else if cu, ok := req.(*clusterpkg.ClusterUpdateRequest); ok {
-		if cu.Id != nil {
-			val, err := url.QueryUnescape(cu.Id.Value)
+	case *clusterpkg.ClusterUpdateRequest:
+		if req.Id != nil {
+			val, err := url.QueryUnescape(req.Id.Value)
 			if err != nil {
 				return nil, err
 			}
-			cu.Id.Value = val
+			req.Id.Value = val
 		}
 	}
 	return handler(ctx, req)

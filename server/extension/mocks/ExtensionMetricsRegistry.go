@@ -49,15 +49,26 @@ type ExtensionMetricsRegistry_IncExtensionRequestCounter_Call struct {
 }
 
 // IncExtensionRequestCounter is a helper method to define mock.On call
-//   - extension
-//   - status
+//   - extension string
+//   - status int
 func (_e *ExtensionMetricsRegistry_Expecter) IncExtensionRequestCounter(extension interface{}, status interface{}) *ExtensionMetricsRegistry_IncExtensionRequestCounter_Call {
 	return &ExtensionMetricsRegistry_IncExtensionRequestCounter_Call{Call: _e.mock.On("IncExtensionRequestCounter", extension, status)}
 }
 
 func (_c *ExtensionMetricsRegistry_IncExtensionRequestCounter_Call) Run(run func(extension string, status int)) *ExtensionMetricsRegistry_IncExtensionRequestCounter_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(int))
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 int
+		if args[1] != nil {
+			arg1 = args[1].(int)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -84,15 +95,26 @@ type ExtensionMetricsRegistry_ObserveExtensionRequestDuration_Call struct {
 }
 
 // ObserveExtensionRequestDuration is a helper method to define mock.On call
-//   - extension
-//   - duration
+//   - extension string
+//   - duration time.Duration
 func (_e *ExtensionMetricsRegistry_Expecter) ObserveExtensionRequestDuration(extension interface{}, duration interface{}) *ExtensionMetricsRegistry_ObserveExtensionRequestDuration_Call {
 	return &ExtensionMetricsRegistry_ObserveExtensionRequestDuration_Call{Call: _e.mock.On("ObserveExtensionRequestDuration", extension, duration)}
 }
 
 func (_c *ExtensionMetricsRegistry_ObserveExtensionRequestDuration_Call) Run(run func(extension string, duration time.Duration)) *ExtensionMetricsRegistry_ObserveExtensionRequestDuration_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(time.Duration))
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 time.Duration
+		if args[1] != nil {
+			arg1 = args[1].(time.Duration)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
