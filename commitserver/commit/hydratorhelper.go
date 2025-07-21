@@ -204,6 +204,17 @@ func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.Hydrat
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal manifest: %w", err)
 		}
+		// Remove Argo CD's internal tracking annotation before committing to Git.
+		// This annotation is used only for in-memory tracking and should not be persisted.
+		annotations := obj.GetAnnotations()
+		if annotations != nil {
+			delete(annotations, common.AnnotationKeyAppInstance)
+			if len(annotations) == 0 {
+				obj.SetAnnotations(nil)
+			} else {
+				obj.SetAnnotations(annotations)
+			}
+		}
 		err = enc.Encode(&obj.Object)
 		if err != nil {
 			return fmt.Errorf("failed to encode manifest: %w", err)
