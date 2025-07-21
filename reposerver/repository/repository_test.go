@@ -3579,6 +3579,326 @@ func Test_getResolvedValueFiles(t *testing.T) {
 	}
 }
 
+func Test_getResolvedComponents(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	paths := utilio.NewRandomizedTempPaths(tempDir)
+
+	paths.Add(git.NormalizeGitURL("https://github.com/org/components-repo"), path.Join(tempDir, "components-repo"))
+
+	testCases := []struct {
+		name         string
+		rawComponent string
+		env          *v1alpha1.Env
+		refSources   map[string]*v1alpha1.RefTarget
+		expectedPath string
+		expectedErr  bool
+	}{
+		{
+			name:         "simple component path",
+			rawComponent: "common/monitoring",
+			env:          &v1alpha1.Env{},
+			refSources:   map[string]*v1alpha1.RefTarget{},
+			expectedPath: path.Join(tempDir, "main-repo", "common", "monitoring"),
+		},
+		{
+			name:         "simple ref component",
+			rawComponent: "$components/common/monitoring",
+			env:          &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$components": {
+					Repo: v1alpha1.Repository{
+						Repo: "https://github.com/org/components-repo",
+					},
+				},
+			},
+			expectedPath: path.Join(tempDir, "components-repo", "common", "monitoring"),
+		},
+		{
+			name:         "only ref should fail",
+			rawComponent: "$components",
+			env:          &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$components": {
+					Repo: v1alpha1.Repository{
+						Repo: "https://github.com/org/components-repo",
+					},
+				},
+			},
+			expectedErr: true,
+		},
+		{
+			name:         "attempted traversal",
+			rawComponent: "$components/../../../etc",
+			env:          &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$components": {
+					Repo: v1alpha1.Repository{
+						Repo: "https://github.com/org/components-repo",
+					},
+				},
+			},
+			expectedErr: true,
+		},
+		{
+			name:         "ref doesn't exist falls back to env var",
+			rawComponent: "$components/common/monitoring",
+			env:          &v1alpha1.Env{},
+			refSources:   map[string]*v1alpha1.RefTarget{},
+			expectedPath: path.Join(tempDir, "main-repo", "common", "monitoring"),
+		},
+		{
+			name:         "repo doesn't exist",
+			rawComponent: "$components/common/monitoring",
+			env:          &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$components": {
+					Repo: v1alpha1.Repository{
+						Repo: "https://github.com/org/nonexistent-repo",
+					},
+				},
+			},
+			expectedErr: true,
+		},
+		{
+			name:         "env var is resolved",
+			rawComponent: "$components/$COMPONENT_TYPE/monitoring",
+			env: &v1alpha1.Env{
+				&v1alpha1.EnvEntry{
+					Name:  "COMPONENT_TYPE",
+					Value: "common",
+				},
+			},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$components": {
+					Repo: v1alpha1.Repository{
+						Repo: "https://github.com/org/components-repo",
+					},
+				},
+			},
+			expectedPath: path.Join(tempDir, "components-repo", "common", "monitoring"),
+		},
+		{
+			name:         "traversal in env var is blocked",
+			rawComponent: "$components/$COMPONENT_TYPE/monitoring",
+			env: &v1alpha1.Env{
+				&v1alpha1.EnvEntry{
+					Name:  "COMPONENT_TYPE",
+					Value: "../..",
+				},
+			},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$components": {
+					Repo: v1alpha1.Repository{
+						Repo: "https://github.com/org/components-repo",
+					},
+				},
+			},
+			expectedErr: true,
+		},
+		{
+			name:         "env var prefix",
+			rawComponent: "$COMPONENT_PATH/monitoring",
+			env: &v1alpha1.Env{
+				&v1alpha1.EnvEntry{
+					Name:  "COMPONENT_PATH",
+					Value: "common",
+				},
+			},
+			refSources:   map[string]*v1alpha1.RefTarget{},
+			expectedPath: path.Join(tempDir, "main-repo", "common", "monitoring"),
+		},
+		{
+			name:         "unresolved env var",
+			rawComponent: "$COMPONENT_PATH/monitoring",
+			env:          &v1alpha1.Env{},
+			refSources:   map[string]*v1alpha1.RefTarget{},
+			expectedPath: path.Join(tempDir, "main-repo", "monitoring"),
+		},
+		{
+			name:         "multiple components with ref",
+			rawComponent: "$components/database/postgresql",
+			env:          &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$components": {
+					Repo: v1alpha1.Repository{
+						Repo: "https://github.com/org/components-repo",
+					},
+				},
+			},
+			expectedPath: path.Join(tempDir, "components-repo", "database", "postgresql"),
+		},
+	}
+
+	for _, tc := range testCases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			resolvedComponents, err := getResolvedComponents(path.Join(tempDir, "main-repo"), path.Join(tempDir, "main-repo"), tcc.env, []string{tcc.rawComponent}, tcc.refSources, paths, false)
+			if !tcc.expectedErr {
+				require.NoError(t, err)
+				require.Len(t, resolvedComponents, 1)
+				assert.Equal(t, tcc.expectedPath, resolvedComponents[0])
+			} else {
+				require.Error(t, err)
+				assert.Empty(t, resolvedComponents)
+			}
+		})
+	}
+
+	// Test with multiple components
+	t.Run("multiple components", func(t *testing.T) {
+		t.Parallel()
+		refSources := map[string]*v1alpha1.RefTarget{
+			"$components": {
+				Repo: v1alpha1.Repository{
+					Repo: "https://github.com/org/components-repo",
+				},
+			},
+		}
+		rawComponents := []string{"common/monitoring", "$components/common/logging"}
+		expectedPaths := []string{
+			path.Join(tempDir, "main-repo", "common", "monitoring"),
+			path.Join(tempDir, "components-repo", "common", "logging"),
+		}
+
+		resolvedComponents, err := getResolvedComponents(path.Join(tempDir, "main-repo"), path.Join(tempDir, "main-repo"), &v1alpha1.Env{}, rawComponents, refSources, paths, false)
+		require.NoError(t, err)
+		require.Len(t, resolvedComponents, 2)
+		assert.Equal(t, expectedPaths, resolvedComponents)
+	})
+
+	// Test with IgnoreMissingComponents flag
+	t.Run("ignore missing components", func(t *testing.T) {
+		t.Parallel()
+		refSources := map[string]*v1alpha1.RefTarget{
+			"$components": {
+				Repo: v1alpha1.Repository{
+					Repo: "https://github.com/org/nonexistent-repo",
+				},
+			},
+		}
+		rawComponents := []string{"$components/common/monitoring"}
+
+		// Should fail without ignore flag
+		resolvedComponents, err := getResolvedComponents(path.Join(tempDir, "main-repo"), path.Join(tempDir, "main-repo"), &v1alpha1.Env{}, rawComponents, refSources, paths, false)
+		require.Error(t, err)
+		assert.Empty(t, resolvedComponents)
+
+		// Should work with ignore flag (though still might fail due to repo not existing in paths)
+		resolvedComponents, err = getResolvedComponents(path.Join(tempDir, "main-repo"), path.Join(tempDir, "main-repo"), &v1alpha1.Env{}, rawComponents, refSources, paths, true)
+		// The error handling for missing repos happens in getResolvedValueFiles,
+		// so we expect the same behavior here
+		require.Error(t, err) // Still fails because repo doesn't exist in paths
+		assert.Empty(t, resolvedComponents)
+	})
+}
+
+func Test_GenerateManifests_KustomizeComponents(t *testing.T) {
+	t.Parallel()
+
+	// Create test directories and files
+	tempDir := t.TempDir()
+	mainRepoDir := path.Join(tempDir, "main-repo")
+	componentsRepoDir := path.Join(tempDir, "components-repo")
+
+	// Create main repo structure
+	err := os.MkdirAll(mainRepoDir, 0o755)
+	require.NoError(t, err)
+
+	// Create components repo structure
+	componentDir := path.Join(componentsRepoDir, "common", "monitoring")
+	err = os.MkdirAll(componentDir, 0o755)
+	require.NoError(t, err)
+
+	// Create component kustomization.yaml
+	componentKustomization := `apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+metadata:
+  name: monitoring-component
+commonLabels:
+  monitoring.enabled: "true"
+`
+	err = os.WriteFile(path.Join(componentDir, "kustomization.yaml"), []byte(componentKustomization), 0o644)
+	require.NoError(t, err)
+
+	// Set up paths
+	paths := utilio.NewRandomizedTempPaths(tempDir)
+	paths.Add(git.NormalizeGitURL("https://github.com/mycompany/main-app.git"), mainRepoDir)
+	paths.Add(git.NormalizeGitURL("https://github.com/mycompany/kustomize-components.git"), componentsRepoDir)
+
+	// Define RefSources
+	refSources := map[string]*v1alpha1.RefTarget{
+		"$components": {
+			Repo: v1alpha1.Repository{
+				Repo: "https://github.com/mycompany/kustomize-components.git",
+			},
+			TargetRevision: "main",
+		},
+	}
+
+	// Test component resolution
+	t.Run("component resolution", func(t *testing.T) {
+		t.Parallel()
+		resolvedComponents, err := getResolvedComponents(
+			mainRepoDir,
+			mainRepoDir,
+			&v1alpha1.Env{},
+			[]string{"$components/common/monitoring"},
+			refSources,
+			paths,
+			false,
+		)
+		require.NoError(t, err)
+		require.Len(t, resolvedComponents, 1)
+		expectedPath := path.Join(componentsRepoDir, "common", "monitoring")
+		assert.Equal(t, expectedPath, resolvedComponents[0])
+	})
+
+	// Test with multiple components
+	t.Run("multiple component resolution", func(t *testing.T) {
+		t.Parallel()
+		// Create another component directory
+		dbComponentDir := path.Join(componentsRepoDir, "common", "database")
+		err = os.MkdirAll(dbComponentDir, 0o755)
+		require.NoError(t, err)
+
+		dbComponentKustomization := `apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+metadata:
+  name: database-component
+commonLabels:
+  database.enabled: "true"
+`
+		err = os.WriteFile(path.Join(dbComponentDir, "kustomization.yaml"), []byte(dbComponentKustomization), 0o644)
+		require.NoError(t, err)
+
+		resolvedComponents, err := getResolvedComponents(
+			mainRepoDir,
+			mainRepoDir,
+			&v1alpha1.Env{},
+			[]string{
+				"$components/common/monitoring",
+				"$components/common/database",
+				"local/component", // Mix of ref and local components
+			},
+			refSources,
+			paths,
+			false,
+		)
+		require.NoError(t, err)
+		require.Len(t, resolvedComponents, 3)
+
+		expectedPaths := []string{
+			path.Join(componentsRepoDir, "common", "monitoring"),
+			path.Join(componentsRepoDir, "common", "database"),
+			path.Join(mainRepoDir, "local", "component"),
+		}
+		assert.Equal(t, expectedPaths, resolvedComponents)
+	})
+}
+
 func TestErrorGetGitDirectories(t *testing.T) {
 	// test not using the cache
 	root := "./testdata/git-files-dirs"
