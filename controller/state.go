@@ -536,87 +536,43 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	syncStatus := m.initialSyncStatus(app, hasMultipleSources, sources, revisions, logCtx)
 
 	appLabelKey, resourceOverrides, resFilter, installationID, trackingMethod, err := m.getComparisonSettings()
+
 	ts.AddCheckpoint("settings_ms")
+
 	// return unknown comparison result if basic comparison settings cannot be loaded
 	if err != nil {
 		return &comparisonResult{syncStatus: syncStatus, healthStatus: health.HealthStatusUnknown}, nil
 	}
 
 	// do best effort loading live and target state to present as much information about app state as possible
-	stateCmp := &appStateCmp{
+	cmp := &appStateCmp{
 		metav1.Now(),
-		make([]v1alpha1.ApplicationCondition, 0),
-		false,
-	}
+		log.WithFields(applog.GetAppLogFields(app)),
+		app,
+		project,
+		noCache,
 
-	// When signature keys are defined in the project spec, we need to verify the signature on the Git revision
-	verifySignature := len(project.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled()
+		// When signature keys are defined in the project spec, we need to verify the signature on the Git revision
+		len(project.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled(),
+
+		make([]*unstructured.Unstructured, 0),
+		make([]*apiclient.ManifestResponse, 0),
+		false,
+		make([]v1alpha1.ApplicationCondition, 0),
+	}
 
 	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, m.db)
 	if err != nil {
 		return nil, err
 	}
 
-	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
+	cmp.logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
 
-	var targetObjs []*unstructured.Unstructured
-
-	var manifestInfos []*apiclient.ManifestResponse
-
-	var revisionsMayHaveChanges bool
-
-	if len(localManifests) == 0 {
-		// If the length of revisions is not same as the length of sources,
-		// we take the revisions from the sources directly for all the sources.
-		if len(revisions) != len(sources) {
-			revisions = make([]string, 0)
-			for _, source := range sources {
-				revisions = append(revisions, source.TargetRevision)
-			}
-		}
-
-		targetObjs, manifestInfos, revisionsMayHaveChanges, err = m.GetRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project, true)
-		if err != nil {
-			targetObjs = make([]*unstructured.Unstructured, 0)
-			msg := "Failed to load target state: " + err.Error()
-			stateCmp.addNewCondition(v1alpha1.ApplicationConditionComparisonError, msg)
-			if firstSeen, ok := m.repoErrorCache.Load(app.Name); ok {
-				if time.Since(firstSeen.(time.Time)) <= m.repoErrorGracePeriod && !noRevisionCache {
-					// if first seen is less than grace period and it's not a Level 3 comparison,
-					// ignore error and short circuit
-					logCtx.Debugf("Ignoring repo error %v, already encountered error in grace period", err.Error())
-					return nil, ErrCompareStateRepo
-				}
-			} else if !noRevisionCache {
-				logCtx.Debugf("Ignoring repo error %v, new occurrence", err.Error())
-				m.repoErrorCache.Store(app.Name, time.Now())
-				return nil, ErrCompareStateRepo
-			}
-			stateCmp.failedToLoadObjs = true
-		} else {
-			m.repoErrorCache.Delete(app.Name)
-		}
-	} else {
-		// Prevent applying local manifests for now when signature verification is enabled
-		// This is also enforced on API level, but as a last resort, we also enforce it here
-		if gpg.IsGPGEnabled() && verifySignature {
-			msg := "Cannot use local manifests when signature verification is required"
-			targetObjs = make([]*unstructured.Unstructured, 0)
-			stateCmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, msg)
-			stateCmp.failedToLoadObjs = true
-		} else {
-			targetObjs, err = unmarshalManifests(localManifests)
-			if err != nil {
-				targetObjs = make([]*unstructured.Unstructured, 0)
-				msg := "Failed to load local manifests: " + err.Error()
-				stateCmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, msg)
-				stateCmp.failedToLoadObjs = true
-			}
-		}
-		// empty out manifestInfoMap
-		manifestInfos = make([]*apiclient.ManifestResponse, 0)
-	}
+	revisionsMayHaveChanges, err := m.fetchManifests(cmp, revisions, sources, noRevisionCache, localManifests, appLabelKey)
 	ts.AddCheckpoint("git_ms")
+	if err != nil {
+		return nil, err
+	}
 
 	var infoProvider kubeutil.ResourceInfoProvider
 	infoProvider, err = m.liveStateCache.GetClusterCache(destCluster)
@@ -624,34 +580,34 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		infoProvider = &resourceInfoProviderStub{}
 	}
 
-	err = normalizeClusterScopeTracking(targetObjs, infoProvider, func(u *unstructured.Unstructured) error {
+	err = normalizeClusterScopeTracking(cmp.targetObjs, infoProvider, func(u *unstructured.Unstructured) error {
 		return m.resourceTracking.SetAppInstance(u, appLabelKey, app.InstanceName(m.namespace), app.Spec.Destination.Namespace, v1alpha1.TrackingMethod(trackingMethod), installationID)
 	})
 	if err != nil {
 		msg := "Failed to normalize cluster-scoped resource tracking: " + err.Error()
-		stateCmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, msg)
+		cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, msg)
 	}
 
-	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Namespace, targetObjs, infoProvider)
+	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Namespace, cmp.targetObjs, infoProvider)
 	if err != nil {
 		msg := "Failed to deduplicate target state: " + err.Error()
-		stateCmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, msg)
+		cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, msg)
 	}
-	stateCmp.addConditions(dedupConditions...)
+	cmp.addConditions(dedupConditions...)
 
 	targetNsExists := false
-	targetNsExists = stateCmp.deduplicateTargets(app, &targetObjs, resFilter, destCluster)
+	targetNsExists = cmp.deduplicateTargets(app, &targetObjs, resFilter, destCluster)
 	ts.AddCheckpoint("dedup_ms")
 
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(destCluster, app, targetObjs)
 	if err != nil {
 		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
 		msg := "Failed to load live state: " + err.Error()
-		stateCmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, msg)
-		stateCmp.failedToLoadObjs = true
+		cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, msg)
+		cmp.failedToLoadObjs = true
 	}
 
-	logCtx.Debugf("Retrieved live manifests")
+	cmp.logCtx.Debugf("Retrieved live manifests")
 	// filter out all resources which are not permitted in the application project
 	for k, v := range liveObjByKey {
 		permitted, err := project.IsLiveResourcePermitted(v, destCluster, func(project string) ([]*v1alpha1.Cluster, error) {
@@ -663,8 +619,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		})
 		if err != nil {
 			msg := fmt.Sprintf("Failed to check if live resource %q is permitted in project %q: %s", k.String(), app.Spec.Project, err.Error())
-			stateCmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, msg)
-			stateCmp.failedToLoadObjs = true
+			cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, msg)
+			cmp.failedToLoadObjs = true
 			continue
 		}
 
@@ -678,7 +634,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			appInstanceName := m.resourceTracking.GetAppName(liveObj, appLabelKey, v1alpha1.TrackingMethod(trackingMethod), installationID)
 			if appInstanceName != "" && appInstanceName != app.InstanceName(m.namespace) {
 				fqInstanceName := strings.ReplaceAll(appInstanceName, "_", "/")
-				stateCmp.addNewCondition(
+				cmp.addNewCondition(
 					v1alpha1.ApplicationConditionSharedResourceWarning,
 					fmt.Sprintf("%s/%s is part of applications %s and %s", liveObj.GetKind(), liveObj.GetName(), app.QualifiedName(), fqInstanceName),
 				)
@@ -700,16 +656,16 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				nsSpec := &corev1.Namespace{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: kubeutil.NamespaceKind}, ObjectMeta: metav1.ObjectMeta{Name: liveObj.GetName()}}
 				managedNs, err := kubeutil.ToUnstructured(nsSpec)
 				if err != nil {
-					stateCmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, err.Error())
-					stateCmp.failedToLoadObjs = true
+					cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, err.Error())
+					cmp.failedToLoadObjs = true
 					continue
 				}
 
 				// No need to care about the return value here, we just want the modified managedNs
 				_, err = syncNamespace(app.Spec.SyncPolicy)(managedNs, liveObj)
 				if err != nil {
-					stateCmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, err.Error())
-					stateCmp.failedToLoadObjs = true
+					cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, err.Error())
+					cmp.failedToLoadObjs = true
 				} else {
 					targetObjs = append(targetObjs, managedNs)
 				}
@@ -733,7 +689,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 	manifestRevisions := make([]string, 0)
 
-	for _, manifestInfo := range manifestInfos {
+	for _, manifestInfo := range cmp.manifestInfos {
 		manifestRevisions = append(manifestRevisions, manifestInfo.Revision)
 	}
 
@@ -746,11 +702,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		serverSideDiff = false
 	}
 
-	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.statusRefreshTimeout, serverSideDiff, logCtx)
+	useDiffCache := cmp.useDiffCache(sources, manifestRevisions, m.statusRefreshTimeout, serverSideDiff)
 
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
 		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, m.ignoreNormalizerOpts).
-		WithTracking(appLabelKey, string(trackingMethod))
+		WithTracking(appLabelKey, trackingMethod)
 
 	if useDiffCache {
 		diffConfigBuilder.WithCache(m.cache, app.InstanceName(m.namespace))
@@ -764,7 +720,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	gvkParser, err := m.getGVKParser(destCluster)
 	if err != nil {
-		stateCmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, err.Error())
+		cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, err.Error())
 	}
 	diffConfigBuilder.WithGVKParser(gvkParser)
 	diffConfigBuilder.WithManager(common.ArgoCDSSAManager)
@@ -775,7 +731,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		applier, cleanup, err := m.getServerSideDiffDryRunApplier(destCluster)
 		if err != nil {
 			log.Errorf("CompareAppState error getting server side diff dry run applier: %s", err)
-			stateCmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, err.Error())
+			cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, err.Error())
 		}
 		defer cleanup()
 		diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(applier))
@@ -793,9 +749,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	diffResults, err := argodiff.StateDiffs(reconciliation.Live, reconciliation.Target, diffConfig)
 	if err != nil {
 		diffResults = &diff.DiffResultList{}
-		stateCmp.failedToLoadObjs = true
+		cmp.failedToLoadObjs = true
 		msg := "Failed to compare desired state to live state: " + err.Error()
-		stateCmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, msg)
+		cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, msg)
 	}
 	ts.AddCheckpoint("diff_ms")
 
@@ -873,14 +829,14 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		}
 
 		if isNamespaced && obj.GetNamespace() == "" {
-			stateCmp.addNewCondition(
+			cmp.addNewCondition(
 				v1alpha1.ApplicationConditionInvalidSpecError,
 				fmt.Sprintf("Namespace for %s %s is missing.", obj.GetName(), gvk.String()),
 			)
 		}
 
 		// we can't say anything about the status if we were unable to get the target objects
-		if stateCmp.failedToLoadObjs {
+		if cmp.failedToLoadObjs {
 			resState.Status = v1alpha1.SyncStatusCodeUnknown
 		}
 
@@ -903,7 +859,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		resourceSummaries[i] = resState
 	}
 
-	if stateCmp.failedToLoadObjs {
+	if cmp.failedToLoadObjs {
 		syncCode = v1alpha1.SyncStatusCodeUnknown
 	} else if app.HasChangedManagedNamespaceMetadata() {
 		syncCode = v1alpha1.SyncStatusCodeOutOfSync
@@ -922,15 +878,15 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	healthStatus, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth)
 	if err != nil {
-		stateCmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, "error setting app health: "+err.Error())
+		cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, "error setting app health: "+err.Error())
 	}
 
 	// Git has already performed the signature verification via its GPG interface, and the result is available
 	// in the manifest info received from the repository server. We now need to form our opinion about the result
 	// and stop processing if we do not agree about the outcome.
-	for _, manifestInfo := range manifestInfos {
-		if gpg.IsGPGEnabled() && verifySignature && manifestInfo != nil {
-			stateCmp.addConditions(verifyGnuPGSignature(manifestInfo.Revision, project, manifestInfo)...)
+	for _, manifestInfo := range cmp.manifestInfos {
+		if gpg.IsGPGEnabled() && cmp.verifySignature && manifestInfo != nil {
+			cmp.addConditions(verifyGnuPGSignature(manifestInfo.Revision, project, manifestInfo)...)
 		}
 	}
 
@@ -947,17 +903,17 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 
 	if hasMultipleSources {
-		for _, manifestInfo := range manifestInfos {
+		for _, manifestInfo := range cmp.manifestInfos {
 			compRes.appSourceTypes = append(compRes.appSourceTypes, v1alpha1.ApplicationSourceType(manifestInfo.SourceType))
 		}
 	} else {
-		for _, manifestInfo := range manifestInfos {
+		for _, manifestInfo := range cmp.manifestInfos {
 			compRes.appSourceType = v1alpha1.ApplicationSourceType(manifestInfo.SourceType)
 			break
 		}
 	}
 
-	app.Status.SetConditions(stateCmp.conditions, map[v1alpha1.ApplicationConditionType]bool{
+	app.Status.SetConditions(cmp.conditions, map[v1alpha1.ApplicationConditionType]bool{
 		v1alpha1.ApplicationConditionComparisonError:         true,
 		v1alpha1.ApplicationConditionSharedResourceWarning:   true,
 		v1alpha1.ApplicationConditionRepeatedResourceWarning: true,
@@ -994,8 +950,15 @@ func (m *appStateManager) initialSyncStatus(app *v1alpha1.Application, hasMultip
 
 type appStateCmp struct {
 	now              metav1.Time
-	conditions       []v1alpha1.ApplicationCondition
+	logCtx           *log.Entry
+	app              *v1alpha1.Application
+	project          *v1alpha1.AppProject
+	noCache          bool
+	verifySignature  bool
+	targetObjs       []*unstructured.Unstructured
+	manifestInfos    []*apiclient.ManifestResponse
 	failedToLoadObjs bool
+	conditions       []v1alpha1.ApplicationCondition
 }
 
 func (a *appStateCmp) addConditions(condition ...v1alpha1.ApplicationCondition) {
@@ -1042,14 +1005,14 @@ func (a *appStateCmp) deduplicateTargets(app *v1alpha1.Application, targetObjsIn
 
 // useDiffCache will determine if the diff should be calculated based
 // on the existing live state cache or not.
-func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sources []v1alpha1.ApplicationSource, app *v1alpha1.Application, manifestRevisions []string, statusRefreshTimeout time.Duration, serverSideDiff bool, log *log.Entry) bool {
-	if noCache {
-		log.WithField("useDiffCache", "false").Debug("noCache is true")
+func (cmp *appStateCmp) useDiffCache(sources []v1alpha1.ApplicationSource, manifestRevisions []string, statusRefreshTimeout time.Duration, serverSideDiff bool) bool {
+	if cmp.noCache {
+		cmp.logCtx.WithField("useDiffCache", "false").Debug("noCache is true")
 		return false
 	}
-	refreshType, refreshRequested := app.IsRefreshRequested()
+	refreshType, refreshRequested := cmp.app.IsRefreshRequested()
 	if refreshRequested {
-		log.WithField("useDiffCache", "false").Debugf("refresh type %s requested", string(refreshType))
+		cmp.logCtx.WithField("useDiffCache", "false").Debugf("refresh type %s requested", string(refreshType))
 		return false
 	}
 	// serverSideDiff should still use cache even if status is expired.
@@ -1057,23 +1020,23 @@ func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sou
 	// app refresh with serverSideDiff is enabled. If there are negative side
 	// effects identified with this approach, the serverSideDiff should be removed
 	// from this condition.
-	if app.Status.Expired(statusRefreshTimeout) && !serverSideDiff {
+	if cmp.app.Status.Expired(statusRefreshTimeout) && !serverSideDiff {
 		log.WithField("useDiffCache", "false").Debug("app.status.expired")
 		return false
 	}
 
-	if len(manifestInfos) != len(sources) {
+	if len(cmp.manifestInfos) != len(sources) {
 		log.WithField("useDiffCache", "false").Debug("manifestInfos len != sources len")
 		return false
 	}
 
-	revisionChanged := !reflect.DeepEqual(app.Status.GetRevisions(), manifestRevisions)
+	revisionChanged := !reflect.DeepEqual(cmp.app.Status.GetRevisions(), manifestRevisions)
 	if revisionChanged {
 		log.WithField("useDiffCache", "false").Debug("revisionChanged")
 		return false
 	}
 
-	if !specEqualsCompareTo(app.Spec, sources, app.Status.Sync.ComparedTo) {
+	if !specEqualsCompareTo(cmp.app.Spec, sources, cmp.app.Status.Sync.ComparedTo) {
 		log.WithField("useDiffCache", "false").Debug("specChanged")
 		return false
 	}
@@ -1223,6 +1186,72 @@ func (m *appStateManager) isSelfReferencedObj(live, config *unstructured.Unstruc
 		return isSelfReferencedObj(live, *appInstance)
 	}
 	return true
+}
+
+func (m *appStateManager) fetchManifests(cmp *appStateCmp, revisions []string, sources []v1alpha1.ApplicationSource, noRevisionCache bool, localManifests []string, appLabelKey string) (bool, error) {
+	// revisionsMayHaveChanges if there are any possibilities that the revisions contain changes
+	var revisionsMayHaveChanges bool
+
+	var err error
+	if len(localManifests) == 0 {
+		// If the length of revisions is not same as the length of sources,
+		// we take the revisions from the sources directly for all the sources.
+		if len(revisions) != len(sources) {
+			revisions = make([]string, 0)
+			for _, source := range sources {
+				revisions = append(revisions, source.TargetRevision)
+			}
+		}
+
+		cmp.targetObjs, cmp.manifestInfos, revisionsMayHaveChanges, err = m.GetRepoObjs(cmp.app, sources, appLabelKey, revisions, cmp.noCache, noRevisionCache, cmp.verifySignature, cmp.project, true)
+		if err != nil {
+			cmp.targetObjs = make([]*unstructured.Unstructured, 0)
+			cmp.addNewCondition(
+				v1alpha1.ApplicationConditionComparisonError,
+				"Failed to load target state: "+err.Error(),
+			)
+			if firstSeen, ok := m.repoErrorCache.Load(cmp.app.Name); ok {
+				if time.Since(firstSeen.(time.Time)) <= m.repoErrorGracePeriod && !noRevisionCache {
+					// if first seen is less than grace period and it's not a Level 3 comparison,
+					// ignore error and short circuit
+					cmp.logCtx.Debugf("Ignoring repo error %v, already encountered error in grace period", err.Error())
+					return false, ErrCompareStateRepo
+				}
+			} else if !noRevisionCache {
+				cmp.logCtx.Debugf("Ignoring repo error %v, new occurrence", err.Error())
+				m.repoErrorCache.Store(cmp.app.Name, time.Now())
+				return false, ErrCompareStateRepo
+			}
+			cmp.failedToLoadObjs = true
+		} else {
+			m.repoErrorCache.Delete(cmp.app.Name)
+		}
+	} else {
+		// Prevent applying local manifests for now when signature verification is enabled
+		// This is also enforced on API level, but as a last resort, we also enforce it here
+		if gpg.IsGPGEnabled() && cmp.verifySignature {
+			cmp.targetObjs = make([]*unstructured.Unstructured, 0)
+			cmp.addNewCondition(
+				v1alpha1.ApplicationConditionUnknownError,
+				"Cannot use local manifests when signature verification is required",
+			)
+			cmp.failedToLoadObjs = true
+		} else {
+			cmp.targetObjs, err = unmarshalManifests(localManifests)
+			if err != nil {
+				cmp.targetObjs = make([]*unstructured.Unstructured, 0)
+				cmp.addNewCondition(
+					v1alpha1.ApplicationConditionUnknownError,
+					"Failed to load local manifests: "+err.Error(),
+				)
+				cmp.failedToLoadObjs = true
+			}
+		}
+		// empty out manifestInfoMap
+		cmp.manifestInfos = make([]*apiclient.ManifestResponse, 0)
+	}
+
+	return revisionsMayHaveChanges, nil
 }
 
 // isSelfReferencedObj returns true if the given Tracking ID (`aiv`) matches
