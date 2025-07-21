@@ -26,6 +26,9 @@ api-server: [ "$BIN_MODE" = 'true' ] && COMMAND=./dist/argocd || COMMAND='go run
 ```
 This configuration example will be used as the basis for the next steps.
 
+!!! note
+    The Procfile for a component may change with time. Please go through the Procfile and make sure you use the latest configuration for debugging.
+
 ### Configure component env variables
 The component that you will run in your IDE for debugging (`api-server` in our case) will need env variables. Copy the env variables from `Procfile`, located in the `argo-cd` root folder of your development branch. The env variables are located before the `$COMMAND` section in the `sh -c` section of the component run command.
 You can keep them in `.env` file and then have the IDE launch configuration point to that file. Obviously, you can adjust the env variables to your needs when debugging a specific configuration.
@@ -109,7 +112,8 @@ Example for an `api-server` launch configuration snippet, based on our above exa
 </component>
 ```
 
-As an alternative to importing the above file to Goland, you can create a Run/Debug Configuration using the official [Goland docs](https://www.jetbrains.com/help/go/go-build.html) and just copy the `parameters`, `directory` and `PATH` sections from the example above (specifying `Run kind` as `Directory` in the Run/Debug Configurations wizard)
+!!! note
+    As an alternative to importing the above file to Goland, you can create a Run/Debug Configuration using the official [Goland docs](https://www.jetbrains.com/help/go/go-build.html) and just copy the `parameters`, `directory` and `PATH` sections from the example above (specifying `Run kind` as `Directory` in the Run/Debug Configurations wizard)
 
 ## Run Argo CD without the debugged component
 Next, we need to run all Argo CD components, except for the debugged component (cause we will run this component separately in the IDE).
