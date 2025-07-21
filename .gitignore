@@ -30,4 +30,4 @@ cmd/argocd-repo-server/argocd-repo-server
 cmd/argocd-server/argocd-server
 
 # ignore generated `.argocd-helm-dep-up` marker file; this should not be committed to git
-reposerver/repository/testdata/**/.argocd-helm-dep-up
+reposerver/repository/testdata/**/.argocd-helm-dep-upcmd/__debug_bin*
