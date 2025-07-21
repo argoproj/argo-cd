@@ -6,12 +6,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v3/common"
 	"os"
 	"path"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-cd/v3/common"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
