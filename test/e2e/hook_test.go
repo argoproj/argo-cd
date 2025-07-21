@@ -500,3 +500,23 @@ func TestJobHookPreSyncForceReplace(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
+
+func TestJobHookBrokenThenFixed(t *testing.T) {
+	fmt.Println("got here")
+	// Test a hook that's broken and then patched to be fixed. The first sync should fail, but the second one should succeed.
+	Given(t).
+		Path("hook-broken-then-fixed").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationFailed)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		// Knock the app out of sync by changing the image of the deployment
+		PatchFile("hook-job.yaml", `[{"op": "replace", "path": "/spec/template/spec/containers/0/command", "value": ["sh", "-c", "echo job running; sleep 1"]}]`).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
