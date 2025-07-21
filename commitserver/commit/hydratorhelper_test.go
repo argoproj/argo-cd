@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/v3/common"
 	"os"
 	"path"
 	"path/filepath"
@@ -212,7 +213,17 @@ func TestWriteManifests(t *testing.T) {
 	root := tempRoot(t)
 
 	manifests := []*apiclient.HydratedManifestDetails{
-		{ManifestJSON: `{"kind":"Pod","apiVersion":"v1"}`},
+		{ManifestJSON: `{
+			"apiVersion": "v1",
+			"kind": "Pod",
+			"metadata": {
+				"name": "example-pod",
+				"annotations": {
+					"argocd.argoproj.io/tracking-id": "test-tracking-id",
+					"some-other-annotation": "keep-me"
+				}
+			}
+		}`},
 	}
 
 	err := writeManifests(root, "", manifests)
@@ -222,6 +233,11 @@ func TestWriteManifests(t *testing.T) {
 	manifestBytes, err := os.ReadFile(manifestPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(manifestBytes), "kind")
+
+	manifestStr := string(manifestBytes)
+	assert.Contains(t, manifestStr, "kind: Pod")
+	assert.NotContains(t, manifestStr, common.AnnotationKeyAppInstance)
+	assert.Contains(t, manifestStr, "some-other-annotation")
 }
 
 func TestWriteGitAttributes(t *testing.T) {
