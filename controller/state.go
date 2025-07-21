@@ -457,8 +457,15 @@ func normalizeClusterScopeTracking(targetObjs []*unstructured.Unstructured, info
 	return nil
 }
 
-// getComparisonSettings will return the system level settings related to the
-// diff/normalization process.
+type comparisonSettings struct {
+	appLabelKey       string
+	resourceOverrides map[string]v1alpha1.ResourceOverride
+	resFilter         *settings.ResourcesFilter
+	installationID    string
+	trackingMethod    v1alpha1.TrackingMethod
+}
+
+// getComparisonSettings will return the system level settings related to the diff/normalization process.
 func (m *appStateManager) getComparisonSettings() (*comparisonSettings, error) {
 	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
 	if err != nil {
@@ -485,14 +492,6 @@ func (m *appStateManager) getComparisonSettings() (*comparisonSettings, error) {
 		v1alpha1.TrackingMethod(trackingMethod),
 	}
 	return cs, nil
-}
-
-type comparisonSettings struct {
-	appLabelKey       string
-	resourceOverrides map[string]v1alpha1.ResourceOverride
-	resFilter         *settings.ResourcesFilter
-	installationID    string
-	trackingMethod    v1alpha1.TrackingMethod
 }
 
 // verifyGnuPGSignature verifies the result of a GnuPG operation for a given git
