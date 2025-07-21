@@ -139,7 +139,6 @@ So for the case of debugging the `api-server`, run:
 To debug the `api-server`, run:
 `goreman start notification applicationset-controller repo-server redis dex controller ui` 
 
-
 ## Run Argo CD debugged component from your IDE
 Finally, run the component you wish to debug from your IDE and make sure it does not have any errors.
 
