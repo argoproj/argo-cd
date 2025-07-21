@@ -1434,6 +1434,31 @@ func getResolvedRefValueFile(
 	return resolvedPath, nil
 }
 
+func getResolvedComponents(
+	appPath string,
+	repoRoot string,
+	env *v1alpha1.Env,
+	rawComponents []string,
+	refSources map[string]*v1alpha1.RefTarget,
+	gitRepoPaths utilio.TempPaths,
+	ignoreMissingComponents bool,
+) ([]string, error) {
+	// Reuse the existing getResolvedValueFiles function - it handles all the complex logic
+	// for resolving $-prefixed paths, environment substitution, and path validation
+	resolvedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, env, []string{}, rawComponents, refSources, gitRepoPaths, ignoreMissingComponents)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert ResolvedFilePath to string
+	resolvedComponents := make([]string, len(resolvedValueFiles))
+	for i, resolvedPath := range resolvedValueFiles {
+		resolvedComponents[i] = string(resolvedPath)
+	}
+
+	return resolvedComponents, nil
+}
+
 func getReferencedSource(rawValueFile string, refSources map[string]*v1alpha1.RefTarget) *v1alpha1.RefTarget {
 	if !strings.HasPrefix(rawValueFile, "$") {
 		return nil
@@ -1536,6 +1561,23 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			return nil, fmt.Errorf("could not parse kubernetes version %s: %w", q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion), err)
 		}
 		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
+
+		// Make a copy of kustomize options to avoid modifying the original
+		var kustomizeSource v1alpha1.ApplicationSourceKustomize
+		if q.ApplicationSource.Kustomize != nil {
+			kustomizeSource = *q.ApplicationSource.Kustomize
+		}
+
+		// Resolve kustomize component paths if any reference external sources
+		if len(kustomizeSource.Components) > 0 {
+			resolvedComponents, err := getResolvedComponents(appPath, repoRoot, env, kustomizeSource.Components, q.RefSources, gitRepoPaths, kustomizeSource.IgnoreMissingComponents)
+			if err != nil {
+				return nil, fmt.Errorf("error resolving kustomize components: %w", err)
+			}
+			// Replace the components with the resolved paths
+			kustomizeSource.Components = resolvedComponents
+		}
+
 		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
 			KubeVersion: kubeVersion,
 			APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),

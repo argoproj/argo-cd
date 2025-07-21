@@ -345,10 +345,10 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				return nil, nil, nil, errors.New("kustomize components require kustomize v3.7.0 and above")
 			}
 
-			// add components
-			foundComponents := opts.Components
+			// add components - components are now pre-resolved by the repository server
+			foundComponents := make([]string, 0)
+
 			if opts.IgnoreMissingComponents {
-				foundComponents = make([]string, 0)
 				root, err := os.OpenRoot(k.repoRoot)
 				defer io.Close(root)
 				if err != nil {
@@ -356,16 +356,44 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				}
 
 				for _, c := range opts.Components {
-					resolvedPath, err := filepath.Rel(k.repoRoot, filepath.Join(k.path, c))
-					if err != nil {
-						return nil, nil, nil, fmt.Errorf("kustomize components path failed: %w", err)
+					// For components with ref prefix that have been resolved to absolute paths,
+					// we need to use them directly rather than joining with k.path
+					var resolvedPath string
+					var componentPath string
+					if filepath.IsAbs(c) {
+						resolvedPath = c
+						// Convert absolute path to relative path from repo root for kustomize command
+						componentPath, err = filepath.Rel(k.repoRoot, c)
+						if err != nil {
+							return nil, nil, nil, fmt.Errorf("kustomize components path failed: %w", err)
+						}
+					} else {
+						resolvedPath, err = filepath.Rel(k.repoRoot, filepath.Join(k.path, c))
+						if err != nil {
+							return nil, nil, nil, fmt.Errorf("kustomize components path failed: %w", err)
+						}
+						componentPath = c
 					}
 					_, err = root.Stat(resolvedPath)
 					if err != nil {
 						log.Debugf("%s component directory does not exist", resolvedPath)
 						continue
 					}
-					foundComponents = append(foundComponents, c)
+					foundComponents = append(foundComponents, componentPath)
+				}
+			} else {
+				// When not ignoring missing components, still need to convert absolute paths to relative
+				for _, c := range opts.Components {
+					if filepath.IsAbs(c) {
+						// Convert absolute path to relative path from repo root for kustomize command
+						componentPath, err := filepath.Rel(k.repoRoot, c)
+						if err != nil {
+							return nil, nil, nil, fmt.Errorf("kustomize components path failed: %w", err)
+						}
+						foundComponents = append(foundComponents, componentPath)
+					} else {
+						foundComponents = append(foundComponents, c)
+					}
 				}
 			}
 
