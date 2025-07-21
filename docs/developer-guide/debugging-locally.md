@@ -80,7 +80,7 @@ Example for an `api-server` launch configuration, based on our above example for
         "8080",
         "--insecure"
       ],
-      "envFile": "YOUR_ENV_FILES_PATH/api-server.env", // Assuming you installed DotENV plugin
+      "envFile": "YOUR_ENV_FILES_PATH/api-server.env", # Assuming you installed DotENV plugin
     }
 ```
 
