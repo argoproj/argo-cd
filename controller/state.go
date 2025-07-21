@@ -601,49 +601,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	liveObjByKey := m.getLiveManifests(cmp, destCluster)
 
-	for _, liveObj := range liveObjByKey {
-		if liveObj != nil {
-			appInstanceName := m.resourceTracking.GetAppName(liveObj, appLabelKey, v1alpha1.TrackingMethod(trackingMethod), installationID)
-			if appInstanceName != "" && appInstanceName != app.InstanceName(m.namespace) {
-				fqInstanceName := strings.ReplaceAll(appInstanceName, "_", "/")
-				cmp.addNewCondition(
-					v1alpha1.ApplicationConditionSharedResourceWarning,
-					fmt.Sprintf("%s/%s is part of applications %s and %s", liveObj.GetKind(), liveObj.GetName(), app.QualifiedName(), fqInstanceName),
-				)
-			}
-
-			// For the case when a namespace is managed with `managedNamespaceMetadata` AND it has resource tracking
-			// enabled (e.g. someone manually adds resource tracking labels or annotations), we need to do some
-			// bookkeeping in order to prevent the managed namespace from being pruned.
-			//
-			// Live namespaces which are managed namespaces (i.e. application namespaces which are managed with
-			// CreateNamespace=true and has non-nil managedNamespaceMetadata) will (usually) not have a corresponding
-			// entry in source control. In order for the namespace not to risk being pruned, we'll need to generate a
-			// namespace which we can compare the live namespace with. For that, we'll do the same as is done in
-			// gitops-engine, the difference here being that we create a managed namespace which is only used for comparison.
-			//
-			// targetNsExists == true implies that it already exists as a target, so no need to add the namespace to the
-			// targetObjs array.
-			if isManagedNamespace(liveObj, app) && !targetNsExists {
-				nsSpec := &corev1.Namespace{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: kubeutil.NamespaceKind}, ObjectMeta: metav1.ObjectMeta{Name: liveObj.GetName()}}
-				managedNs, err := kubeutil.ToUnstructured(nsSpec)
-				if err != nil {
-					cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, err.Error())
-					cmp.failedToLoadObjs = true
-					continue
-				}
-
-				// No need to care about the return value here, we just want the modified managedNs
-				_, err = syncNamespace(app.Spec.SyncPolicy)(managedNs, liveObj)
-				if err != nil {
-					cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, err.Error())
-					cmp.failedToLoadObjs = true
-				} else {
-					cmp.targetObjs = append(cmp.targetObjs, managedNs)
-				}
-			}
-		}
-	}
+	m.addManagedNamespaces(cmp, liveObjByKey, appLabelKey, trackingMethod, installationID, targetNsExists)
 	reconciliation := sync.Reconcile(cmp.targetObjs, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 	ts.AddCheckpoint("live_ms")
 
@@ -653,14 +611,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		compareOptions = settings.GetDefaultDiffOptions()
 	}
 
-	serverSideDiff := m.serverSideDiff ||
-		resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=true")
-
-	// This allows turning SSD off for a given app if it is enabled at the
-	// controller level
-	if resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=false") {
-		serverSideDiff = false
-	}
+	serverSideDiff := m.useServerSideDiff(app)
 
 	manifestRevisions := cmp.manifestRevisions()
 	useDiffCache := cmp.useDiffCache(sources, manifestRevisions, m.statusRefreshTimeout, serverSideDiff)
@@ -907,6 +858,64 @@ func (m *appStateManager) initialSyncStatus(app *v1alpha1.Application, hasMultip
 		}
 	}
 	return syncStatus
+}
+
+func (m *appStateManager) useServerSideDiff(app *v1alpha1.Application) bool {
+	// This allows turning SSD off for a given app if it is enabled at the controller level
+	if resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=false") {
+		return false
+	}
+
+	return m.serverSideDiff || resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=true")
+}
+
+func (m *appStateManager) addManagedNamespaces(cmp *appStateCmp, liveObjByKey map[kubeutil.ResourceKey]*unstructured.Unstructured, appLabelKey string, trackingMethod string, installationID string, targetNsExists bool) {
+	for _, liveObj := range liveObjByKey {
+		if liveObj != nil {
+			appInstanceName := m.resourceTracking.GetAppName(liveObj, appLabelKey, v1alpha1.TrackingMethod(trackingMethod), installationID)
+			if appInstanceName != "" && appInstanceName != cmp.app.InstanceName(m.namespace) {
+				fqInstanceName := strings.ReplaceAll(appInstanceName, "_", "/")
+				cmp.addNewCondition(
+					v1alpha1.ApplicationConditionSharedResourceWarning,
+					fmt.Sprintf("%s/%s is part of applications %s and %s", liveObj.GetKind(), liveObj.GetName(), cmp.app.QualifiedName(), fqInstanceName),
+				)
+			}
+
+			// For the case when a namespace is managed with `managedNamespaceMetadata` AND it has resource tracking
+			// enabled (e.g. someone manually adds resource tracking labels or annotations), we need to do some
+			// bookkeeping in order to prevent the managed namespace from being pruned.
+			//
+			// Live namespaces which are managed namespaces (i.e. application namespaces which are managed with
+			// CreateNamespace=true and has non-nil managedNamespaceMetadata) will (usually) not have a corresponding
+			// entry in source control. In order for the namespace not to risk being pruned, we'll need to generate a
+			// namespace which we can compare the live namespace with. For that, we'll do the same as is done in
+			// gitops-engine, the difference here being that we create a managed namespace which is only used for comparison.
+			//
+			// targetNsExists == true implies that it already exists as a target, so no need to add the namespace to the
+			// targetObjs array.
+			if isManagedNamespace(liveObj, cmp.app) && !targetNsExists {
+				nsSpec := &corev1.Namespace{
+					TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: kubeutil.NamespaceKind},
+					ObjectMeta: metav1.ObjectMeta{Name: liveObj.GetName()},
+				}
+				managedNs, err := kubeutil.ToUnstructured(nsSpec)
+				if err != nil {
+					cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, err.Error())
+					cmp.failedToLoadObjs = true
+					continue
+				}
+
+				// No need to care about the return value here, we just want the modified managedNs
+				_, err = syncNamespace(cmp.app.Spec.SyncPolicy)(managedNs, liveObj)
+				if err != nil {
+					cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, err.Error())
+					cmp.failedToLoadObjs = true
+				} else {
+					cmp.targetObjs = append(cmp.targetObjs, managedNs)
+				}
+			}
+		}
+	}
 }
 
 // getLiveManifests finds resources that are permitted in the application project
