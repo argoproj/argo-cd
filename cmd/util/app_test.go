@@ -91,6 +91,11 @@ func Test_setHelmOpt(t *testing.T) {
 		setHelmOpt(&src, helmOpts{apiVersions: []string{"v1", "v2"}})
 		assert.Equal(t, []string{"v1", "v2"}, src.Helm.APIVersions)
 	})
+	t.Run("HelmDirectPull", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setHelmOpt(&src, helmOpts{directPull: true})
+		assert.Equal(t, true, src.Helm.DirectPull)
+	})
 }
 
 func Test_setKustomizeOpt(t *testing.T) {
