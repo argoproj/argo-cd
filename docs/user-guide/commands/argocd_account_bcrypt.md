@@ -13,11 +13,13 @@ argocd account bcrypt [flags]
 ```
 # Generate bcrypt hash for any password 
 argocd account bcrypt --password YOUR_PASSWORD
+argocd account bcrypt --password YOUR_PASSWORD --compare 'YOUR_HASH_PASSWORD'
 ```
 
 ### Options
 
 ```
+      --compare string    Existing bcrypt hash to compare with password
   -h, --help              help for bcrypt
       --password string   Password for which bcrypt hash is generated
 ```
