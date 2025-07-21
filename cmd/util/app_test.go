@@ -94,7 +94,7 @@ func Test_setHelmOpt(t *testing.T) {
 	t.Run("HelmDirectPull", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setHelmOpt(&src, helmOpts{directPull: true})
-		assert.Equal(t, true, src.Helm.DirectPull)
+		assert.True(t, src.Helm.DirectPull)
 	})
 }
 
