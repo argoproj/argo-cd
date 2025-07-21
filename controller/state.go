@@ -599,35 +599,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	targetNsExists := cmp.filterResources(resFilter, destCluster)
 	ts.AddCheckpoint("dedup_ms")
 
-	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(destCluster, app, cmp.targetObjs)
-	if err != nil {
-		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
-		msg := "Failed to load live state: " + err.Error()
-		cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, msg)
-		cmp.failedToLoadObjs = true
-	}
-
-	cmp.logCtx.Debugf("Retrieved live manifests")
-	// filter out all resources which are not permitted in the application project
-	for k, v := range liveObjByKey {
-		permitted, err := project.IsLiveResourcePermitted(v, destCluster, func(project string) ([]*v1alpha1.Cluster, error) {
-			clusters, err := m.db.GetProjectClusters(context.TODO(), project)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get clusters for project %q: %w", project, err)
-			}
-			return clusters, nil
-		})
-		if err != nil {
-			msg := fmt.Sprintf("Failed to check if live resource %q is permitted in project %q: %s", k.String(), app.Spec.Project, err.Error())
-			cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, msg)
-			cmp.failedToLoadObjs = true
-			continue
-		}
-
-		if !permitted {
-			delete(liveObjByKey, k)
-		}
-	}
+	liveObjByKey := m.getLiveManifests(cmp, destCluster)
 
 	for _, liveObj := range liveObjByKey {
 		if liveObj != nil {
@@ -935,6 +907,42 @@ func (m *appStateManager) initialSyncStatus(app *v1alpha1.Application, hasMultip
 		}
 	}
 	return syncStatus
+}
+
+// getLiveManifests finds resources that are permitted in the application project
+func (m *appStateManager) getLiveManifests(cmp *appStateCmp, destCluster *v1alpha1.Cluster) map[kubeutil.ResourceKey]*unstructured.Unstructured {
+	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(destCluster, cmp.app, cmp.targetObjs)
+	if err != nil {
+		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
+		msg := "Failed to load live state: " + err.Error()
+		cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, msg)
+		cmp.failedToLoadObjs = true
+	}
+	cmp.logCtx.Debugf("Retrieved live manifests")
+
+	getClusters := func(project string) ([]*v1alpha1.Cluster, error) {
+		clusters, err := m.db.GetProjectClusters(context.TODO(), project)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get clusters for project %q: %w", project, err)
+		}
+		return clusters, nil
+	}
+
+	for k, v := range liveObjByKey {
+		permitted, err := cmp.project.IsLiveResourcePermitted(v, destCluster, getClusters)
+		if err != nil {
+			msg := fmt.Sprintf("Failed to check if live resource %q is permitted in project %q: %s", k.String(), cmp.app.Spec.Project, err.Error())
+			cmp.addNewCondition(v1alpha1.ApplicationConditionUnknownError, msg)
+			cmp.failedToLoadObjs = true
+			continue
+		}
+
+		if !permitted {
+			delete(liveObjByKey, k)
+		}
+	}
+
+	return liveObjByKey
 }
 
 type appStateCmp struct {
