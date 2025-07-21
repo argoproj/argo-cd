@@ -17,16 +17,14 @@ end
 -- Check for reconciliation conditions
 local hasReadyCondition = false
 if obj.status.conditions then
-    for i, condition in ipairs(obj.status.conditions) do
+    for _, condition in ipairs(obj.status.conditions) do
         if condition.type == "Ready" then
             hasReadyCondition = true
             -- Check observedGeneration vs metadata.generation within the reconciliation condition
-            if condition.observedGeneration and obj.metadata.generation then
-                if condition.observedGeneration ~= obj.metadata.generation then
-                    hs.status = "Progressing"
-                    hs.message = "Waiting for promotion strategy spec update to be observed"
-                    return hs
-                end
+            if condition.observedGeneration and obj.metadata.generation and condition.observedGeneration ~= obj.metadata.generation then
+                hs.status = "Progressing"
+                hs.message = "Waiting for promotion strategy spec update to be observed"
+                return hs
             end
             if condition.status == "False" and condition.reason == "ReconciliationError" then
                 hs.status = "Degraded"
@@ -52,7 +50,7 @@ end
 
 -- Make sure there's a fully-populated status for both active and proposed commits in all environments. If anything is
 -- missing or empty, return a Progressing status.
-for i, env in ipairs(obj.status.environments) do
+for _, env in ipairs(obj.status.environments) do
     if not env.active or not env.active.dry or not env.active.dry.sha or env.active.dry.sha == "" then
         hs.status = "Progressing"
         hs.message = "The active commit DRY SHA is missing or empty in environment '" .. env.branch .. "'."
@@ -67,7 +65,7 @@ end
 
 -- Check if all the proposed environments have the same proposed commit dry sha. If not, return a Progressing status.
 local proposedSha = obj.status.environments[1].proposed.dry.sha  -- Don't panic, Lua is 1-indexed.
-for i, env in ipairs(obj.status.environments) do
+for _, env in ipairs(obj.status.environments) do
     if env.proposed.dry.sha ~= proposedSha then
         hs.status = "Progressing"
         hs.status = "Not all environments have the same proposed commit SHA. This likely means the hydrator has not run for all environments yet."
@@ -89,7 +87,7 @@ end
 -- Find the first environment with a proposed commit dry sha that doesn't match the active one. Loop over its commit
 -- statuses and build a summary about how many are pending, successful, or failed. Return a Progressing status for this
 -- in-progress environment.
-for i, env in ipairs(obj.status.environments) do
+for _, env in ipairs(obj.status.environments) do
     if env.proposed.dry.sha ~= env.active.dry.sha then
         local pendingCount = 0
         local successCount = 0
@@ -97,7 +95,9 @@ for i, env in ipairs(obj.status.environments) do
         local pendingKeys = {}
         local failedKeys = {}
 
-        for j, status in ipairs(env.proposed.commitStatuses or {}) do
+        -- pending, success, and failure are the only possible values
+        -- https://github.com/argoproj-labs/gitops-promoter/blob/c58d55ef52f86ff84e4f8fa35d2edba520886e3b/api/v1alpha1/commitstatus_types.go#L44
+        for _, status in ipairs(env.proposed.commitStatuses or {}) do
             if status.phase == "pending" then
                 pendingCount = pendingCount + 1
                 table.insert(pendingKeys, status.key)
@@ -129,11 +129,11 @@ end
 -- Check all environments for active commit statuses that aren't successful. For each environment with a non-successful
 -- commit status, get a count of how many aren't successful. Write a summary of non-successful environments.
 local nonSuccessfulEnvironments = {}
-for i, env in ipairs(obj.status.environments) do
+for _, env in ipairs(obj.status.environments) do
     local pendingCount = 0
     local failureCount = 0
 
-    for j, status in ipairs(env.active.commitStatuses or {}) do
+    for _, status in ipairs(env.active.commitStatuses or {}) do
         if status.phase == "pending" then
             pendingCount = pendingCount + 1
         elseif status.phase == "failure" then

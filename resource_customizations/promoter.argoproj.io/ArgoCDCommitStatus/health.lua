@@ -17,15 +17,13 @@ end
 -- Check for reconciliation conditions
 local hasReadyCondition = false
 if obj.status.conditions then
-    for i, condition in ipairs(obj.status.conditions) do
+    for _, condition in ipairs(obj.status.conditions) do
         if condition.type == "Ready" then
             hasReadyCondition = true
-            if condition.observedGeneration and obj.metadata.generation then
-                if condition.observedGeneration ~= obj.metadata.generation then
-                    hs.status = "Progressing"
-                    hs.message = "Waiting for Argo CD commit status spec update to be observed"
-                    return hs
-                end
+            if condition.observedGeneration and obj.metadata.generation and condition.observedGeneration ~= obj.metadata.generation then
+                hs.status = "Progressing"
+                hs.message = "Waiting for Argo CD commit status spec update to be observed"
+                return hs
             end
             if condition.status == "False" and condition.reason == "ReconciliationError" then
                 hs.status = "Degraded"

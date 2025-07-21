@@ -17,16 +17,14 @@ end
 -- Check for reconciliation conditions
 local hasReadyCondition = false
 if obj.status.conditions then
-    for i, condition in ipairs(obj.status.conditions) do
+    for _, condition in ipairs(obj.status.conditions) do
         if condition.type == "Ready" then
             hasReadyCondition = true
             -- Check observedGeneration vs metadata.generation within the reconciliation condition
-            if condition.observedGeneration and obj.metadata.generation then
-                if condition.observedGeneration ~= obj.metadata.generation then
-                    hs.status = "Progressing"
-                    hs.message = "Waiting for change transfer policy spec update to be observed"
-                    return hs
-                end
+            if condition.observedGeneration and obj.metadata.generation and condition.observedGeneration ~= obj.metadata.generation then
+                hs.status = "Progressing"
+                hs.message = "Waiting for change transfer policy spec update to be observed"
+                return hs
             end
             if condition.status == "False" and condition.reason == "ReconciliationError" then
                 hs.status = "Degraded"
@@ -71,7 +69,7 @@ if obj.status.proposed.dry.sha ~= obj.status.active.dry.sha then
     local pendingKeys = {}
     local failedKeys = {}
 
-    for j, status in ipairs(obj.status.proposed.commitStatuses or {}) do
+    for _, status in ipairs(obj.status.proposed.commitStatuses or {}) do
         if status.phase == "pending" then
             pendingCount = pendingCount + 1
             table.insert(pendingKeys, status.key)
