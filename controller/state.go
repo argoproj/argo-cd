@@ -596,7 +596,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 	cmp.addConditions(dedupConditions...)
 
-	targetNsExists := cmp.deduplicateTargets(resFilter, destCluster)
+	targetNsExists := cmp.filterResources(resFilter, destCluster)
 	ts.AddCheckpoint("dedup_ms")
 
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(destCluster, app, cmp.targetObjs)
@@ -672,13 +672,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 	}
-	hasPostDeleteHooks := false
-	for _, obj := range cmp.targetObjs {
-		if isPostDeleteHook(obj) {
-			hasPostDeleteHooks = true
-		}
-	}
-
 	reconciliation := sync.Reconcile(cmp.targetObjs, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 	ts.AddCheckpoint("live_ms")
 
@@ -894,7 +887,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		reconciliationResult:    reconciliation,
 		diffConfig:              diffConfig,
 		diffResultList:          diffResults,
-		hasPostDeleteHooks:      hasPostDeleteHooks,
+		hasPostDeleteHooks:      cmp.hasPostDeleteHooks(),
 		revisionsMayHaveChanges: revisionsMayHaveChanges,
 	}
 
@@ -977,9 +970,9 @@ func (cmp *appStateCmp) manifestRevisions() []string {
 	return manifestRevisions
 }
 
-func (cmp *appStateCmp) deduplicateTargets(resFilter *settings.ResourcesFilter, destCluster *v1alpha1.Cluster) bool {
+func (cmp *appStateCmp) filterResources(resFilter *settings.ResourcesFilter, destCluster *v1alpha1.Cluster) bool {
 	targetNsExists := false
-	// Iterating backwards because elements can be removed from the slice
+	// Iterating backwards so elements can be removed from the slice
 	for i := len(cmp.targetObjs) - 1; i >= 0; i-- {
 		targetObj := cmp.targetObjs[i]
 		gvk := targetObj.GroupVersionKind()
@@ -999,6 +992,15 @@ func (cmp *appStateCmp) deduplicateTargets(resFilter *settings.ResourcesFilter, 
 		}
 	}
 	return targetNsExists
+}
+
+func (cmp *appStateCmp) hasPostDeleteHooks() bool {
+	for _, obj := range cmp.targetObjs {
+		if isPostDeleteHook(obj) {
+			return true
+		}
+	}
+	return false
 }
 
 // useDiffCache will determine if the diff should be calculated based
