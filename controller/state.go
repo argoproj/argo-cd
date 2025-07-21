@@ -617,110 +617,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 	ts.AddCheckpoint("diff_ms")
 
-	syncCode := v1alpha1.SyncStatusCodeSynced
-	managedResources := make([]managedResource, len(reconciliation.Target))
-	resourceSummaries := make([]v1alpha1.ResourceStatus, len(reconciliation.Target))
-	for i, targetObj := range reconciliation.Target {
-		liveObj := reconciliation.Live[i]
-		obj := liveObj
-		if obj == nil {
-			obj = targetObj
-		}
-		if obj == nil {
-			continue
-		}
-		gvk := obj.GroupVersionKind()
-
-		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.GetName(), v1alpha1.TrackingMethod(trackingMethod), installationID)
-
-		resState := v1alpha1.ResourceStatus{
-			Namespace:       obj.GetNamespace(),
-			Name:            obj.GetName(),
-			Kind:            gvk.Kind,
-			Version:         gvk.Version,
-			Group:           gvk.Group,
-			Hook:            isHook(obj),
-			RequiresPruning: targetObj == nil && liveObj != nil && isSelfReferencedObj,
-			RequiresDeletionConfirmation: targetObj != nil && resourceutil.HasAnnotationOption(targetObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDeleteRequireConfirm) ||
-				liveObj != nil && resourceutil.HasAnnotationOption(liveObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDeleteRequireConfirm),
-		}
-		if targetObj != nil {
-			resState.SyncWave = int64(syncwaves.Wave(targetObj))
-		}
-
-		var diffResult diff.DiffResult
-		if i < len(diffResults.Diffs) {
-			diffResult = diffResults.Diffs[i]
-		} else {
-			diffResult = diff.DiffResult{Modified: false, NormalizedLive: []byte("{}"), PredictedLive: []byte("{}")}
-		}
-
-		// For the case when a namespace is managed with `managedNamespaceMetadata` AND it has resource tracking
-		// enabled (e.g. someone manually adds resource tracking labels or annotations), we need to do some
-		// bookkeeping in order to ensure that it's not considered `OutOfSync` (since it does not exist in source
-		// control).
-		//
-		// This is in addition to the bookkeeping we do (see `isManagedNamespace` and its references) to prevent said
-		// namespace from being pruned.
-		isManagedNs := isManagedNamespace(targetObj, app) && liveObj == nil
-
-		switch {
-		case resState.Hook || ignore.Ignore(obj) || (targetObj != nil && hookutil.Skip(targetObj)) || !isSelfReferencedObj:
-			// For resource hooks, skipped resources or objects that may have
-			// been created by another controller with annotations copied from
-			// the source object, don't store sync status, and do not affect
-			// overall sync status
-		case !isManagedNs && (diffResult.Modified || targetObj == nil || liveObj == nil):
-			// Set resource state to OutOfSync since one of the following is true:
-			// * target and live resource are different
-			// * target resource not defined and live resource is extra
-			// * target resource present but live resource is missing
-			resState.Status = v1alpha1.SyncStatusCodeOutOfSync
-			// we ignore the status if the obj needs pruning AND we have the annotation
-			needsPruning := targetObj == nil && liveObj != nil
-			if !needsPruning || !resourceutil.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreExtraneous") {
-				syncCode = v1alpha1.SyncStatusCodeOutOfSync
-			}
-		default:
-			resState.Status = v1alpha1.SyncStatusCodeSynced
-		}
-		// set unknown status to all resource that are not permitted in the app project
-		isNamespaced, err := m.liveStateCache.IsNamespaced(destCluster, gvk.GroupKind())
-		if !project.IsGroupKindPermitted(gvk.GroupKind(), isNamespaced && err == nil) {
-			resState.Status = v1alpha1.SyncStatusCodeUnknown
-		}
-
-		if isNamespaced && obj.GetNamespace() == "" {
-			cmp.addNewCondition(
-				v1alpha1.ApplicationConditionInvalidSpecError,
-				fmt.Sprintf("Namespace for %s %s is missing.", obj.GetName(), gvk.String()),
-			)
-		}
-
-		// we can't say anything about the status if we were unable to get the target objects
-		if cmp.failedToLoadObjs {
-			resState.Status = v1alpha1.SyncStatusCodeUnknown
-		}
-
-		resourceVersion := ""
-		if liveObj != nil {
-			resourceVersion = liveObj.GetResourceVersion()
-		}
-		managedResources[i] = managedResource{
-			Name:            resState.Name,
-			Namespace:       resState.Namespace,
-			Group:           resState.Group,
-			Kind:            resState.Kind,
-			Version:         resState.Version,
-			Live:            liveObj,
-			Target:          targetObj,
-			Diff:            diffResult,
-			Hook:            resState.Hook,
-			ResourceVersion: resourceVersion,
-		}
-		resourceSummaries[i] = resState
-	}
-
+	syncCode, managedResources, resourceSummaries := m.evaluateReconciliation(
+		cmp, reconciliation, trackingMethod, installationID, diffResults, destCluster,
+	)
 	if cmp.failedToLoadObjs {
 		syncCode = v1alpha1.SyncStatusCodeUnknown
 	} else if app.HasChangedManagedNamespaceMetadata() {
@@ -809,6 +708,116 @@ func (m *appStateManager) initialSyncStatus(app *v1alpha1.Application, hasMultip
 		}
 	}
 	return syncStatus
+}
+
+func (m *appStateManager) evaluateReconciliation(cmp *appStateCmp, reconciliation sync.ReconciliationResult, trackingMethod string, installationID string, diffResults *diff.DiffResultList, destCluster *v1alpha1.Cluster) (v1alpha1.SyncStatusCode, []managedResource, []v1alpha1.ResourceStatus) {
+	syncCode := v1alpha1.SyncStatusCodeSynced
+	managedResources := make([]managedResource, len(reconciliation.Target))
+	resourceSummaries := make([]v1alpha1.ResourceStatus, len(reconciliation.Target))
+	for i, targetObj := range reconciliation.Target {
+		liveObj := reconciliation.Live[i]
+		obj := liveObj
+		if obj == nil {
+			obj = targetObj
+		}
+		if obj == nil {
+			continue
+		}
+		gvk := obj.GroupVersionKind()
+
+		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, cmp.app.GetName(), v1alpha1.TrackingMethod(trackingMethod), installationID)
+
+		resState := v1alpha1.ResourceStatus{
+			Namespace:                    obj.GetNamespace(),
+			Name:                         obj.GetName(),
+			Kind:                         gvk.Kind,
+			Version:                      gvk.Version,
+			Group:                        gvk.Group,
+			Hook:                         isHook(obj),
+			RequiresPruning:              targetObj == nil && liveObj != nil && isSelfReferencedObj,
+			RequiresDeletionConfirmation: confirmDelete(targetObj) || confirmDelete(liveObj),
+		}
+		if targetObj != nil {
+			resState.SyncWave = int64(syncwaves.Wave(targetObj))
+		}
+
+		var diffResult diff.DiffResult
+		if i < len(diffResults.Diffs) {
+			diffResult = diffResults.Diffs[i]
+		} else {
+			diffResult = diff.DiffResult{Modified: false, NormalizedLive: []byte("{}"), PredictedLive: []byte("{}")}
+		}
+
+		// For the case when a namespace is managed with `managedNamespaceMetadata` AND it has resource tracking
+		// enabled (e.g. someone manually adds resource tracking labels or annotations), we need to do some
+		// bookkeeping in order to ensure that it's not considered `OutOfSync` (since it does not exist in source
+		// control).
+		//
+		// This is in addition to the bookkeeping we do (see `isManagedNamespace` and its references) to prevent said
+		// namespace from being pruned.
+		isManagedNs := isManagedNamespace(targetObj, cmp.app) && liveObj == nil
+
+		switch {
+		case resState.Hook || ignore.Ignore(obj) || (targetObj != nil && hookutil.Skip(targetObj)) || !isSelfReferencedObj:
+			// For resource hooks, skipped resources or objects that may have
+			// been created by another controller with annotations copied from
+			// the source object, don't store sync status, and do not affect
+			// overall sync status
+		case !isManagedNs && (diffResult.Modified || targetObj == nil || liveObj == nil):
+			// Set resource state to OutOfSync since one of the following is true:
+			// * target and live resource are different
+			// * target resource not defined and live resource is extra
+			// * target resource present but live resource is missing
+			resState.Status = v1alpha1.SyncStatusCodeOutOfSync
+			// we ignore the status if the obj needs pruning AND we have the annotation
+			needsPruning := targetObj == nil && liveObj != nil
+			if !needsPruning || !resourceutil.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreExtraneous") {
+				syncCode = v1alpha1.SyncStatusCodeOutOfSync
+			}
+		default:
+			resState.Status = v1alpha1.SyncStatusCodeSynced
+		}
+		// set unknown status to all resource that are not permitted in the app project
+		isNamespaced, err := m.liveStateCache.IsNamespaced(destCluster, gvk.GroupKind())
+		if !cmp.project.IsGroupKindPermitted(gvk.GroupKind(), isNamespaced && err == nil) {
+			resState.Status = v1alpha1.SyncStatusCodeUnknown
+		}
+
+		if isNamespaced && obj.GetNamespace() == "" {
+			cmp.addNewCondition(
+				v1alpha1.ApplicationConditionInvalidSpecError,
+				fmt.Sprintf("Namespace for %s %s is missing.", obj.GetName(), gvk.String()),
+			)
+		}
+
+		// we can't say anything about the status if we were unable to get the target objects
+		if cmp.failedToLoadObjs {
+			resState.Status = v1alpha1.SyncStatusCodeUnknown
+		}
+
+		resourceVersion := ""
+		if liveObj != nil {
+			resourceVersion = liveObj.GetResourceVersion()
+		}
+		managedResources[i] = managedResource{
+			Name:            resState.Name,
+			Namespace:       resState.Namespace,
+			Group:           resState.Group,
+			Kind:            resState.Kind,
+			Version:         resState.Version,
+			Live:            liveObj,
+			Target:          targetObj,
+			Diff:            diffResult,
+			Hook:            resState.Hook,
+			ResourceVersion: resourceVersion,
+		}
+		resourceSummaries[i] = resState
+	}
+	return syncCode, managedResources, resourceSummaries
+}
+
+func confirmDelete(obj *unstructured.Unstructured) bool {
+	return obj != nil && resourceutil.HasAnnotationOption(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDeleteRequireConfirm)
 }
 
 func (m *appStateManager) getDiffConfig(cmp *appStateCmp, sources []v1alpha1.ApplicationSource, resourceOverrides map[string]v1alpha1.ResourceOverride, appLabelKey string, trackingMethod string, destCluster *v1alpha1.Cluster) (argodiff.DiffConfig, func()) {
