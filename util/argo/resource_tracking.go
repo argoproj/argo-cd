@@ -28,6 +28,7 @@ type ResourceTracking interface {
 	BuildAppInstanceValue(value AppInstanceValue) string
 	ParseAppInstanceValue(value string) (*AppInstanceValue, error)
 	Normalize(config, live *unstructured.Unstructured, labelKey, trackingMethod string) error
+	RemoveAppInstance(un *unstructured.Unstructured) error
 }
 
 // AppInstanceValue store information about resource tracking info
@@ -240,6 +241,23 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 		if err != nil {
 			return fmt.Errorf("failed to remove app instance label: %w", err)
 		}
+	}
+
+	return nil
+}
+
+func (rt *resourceTracking) RemoveAppInstance(un *unstructured.Unstructured) error {
+	err := kube.RemoveAnnotation(un, common.AnnotationKeyAppInstance)
+	if err != nil {
+		return err
+	}
+	err = kube.RemoveAnnotation(un, common.AnnotationInstallationID)
+	if err != nil {
+		return err
+	}
+	err = kube.RemoveLabel(un, common.LabelKeyAppInstance)
+	if err != nil {
+		return err
 	}
 
 	return nil
