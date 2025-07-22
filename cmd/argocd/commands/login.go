@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	stderrors "errors"
 	"fmt"
 	"html"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -41,6 +43,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 		ctxName          string
 		username         string
 		password         string
+		passwordStdin    bool
 		sso              bool
 		ssoPort          int
 		skipTestTLS      bool
@@ -52,6 +55,9 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Long:  "Log in to Argo CD",
 		Example: `# Login to Argo CD using a username and password
 argocd login cd.argoproj.io
+
+# Login to Argo CD using password-stdin
+echo "${PASSWORD}" | argocd login --username admin --password-stdin
 
 # Login to Argo CD using SSO
 argocd login cd.argoproj.io --sso
@@ -66,6 +72,22 @@ argocd login cd.argoproj.io --core`,
 			if len(args) != 1 && !globalClientOpts.PortForward && !globalClientOpts.Core {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
+			}
+
+			if passwordStdin {
+				if password != "" {
+					errors.CheckError(stderrors.New("password and password-stdin are mutually exclusive"))
+				}
+
+				if username == "" {
+					errors.CheckError(stderrors.New("--username must be specified when using --password-stdin"))
+				}
+
+				data, err := io.ReadAll(os.Stdin)
+				if err != nil && !stderrors.Is(err, io.EOF) {
+					errors.CheckError(err)
+				}
+				password = strings.TrimRight(string(data), "\r\n")
 			}
 
 			switch {
@@ -183,6 +205,7 @@ argocd login cd.argoproj.io --core`,
 	command.Flags().StringVar(&ctxName, "name", "", "Name to use for the context")
 	command.Flags().StringVar(&username, "username", "", "The username of an account to authenticate")
 	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
+	command.Flags().BoolVar(&passwordStdin, "password-stdin", false, "Get the password of an account to authenticate from stdin")
 	command.Flags().BoolVar(&sso, "sso", false, "Perform SSO login")
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
 	command.Flags().BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")

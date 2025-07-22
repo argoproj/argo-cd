@@ -18,6 +18,9 @@ argocd login SERVER [flags]
 # Login to Argo CD using a username and password
 argocd login cd.argoproj.io
 
+# Login to Argo CD using password-stdin
+echo "${PASSWORD}" | argocd login --username admin --password-stdin
+
 # Login to Argo CD using SSO
 argocd login cd.argoproj.io --sso
 
@@ -31,6 +34,7 @@ argocd login cd.argoproj.io --core
   -h, --help                 help for login
       --name string          Name to use for the context
       --password string      The password of an account to authenticate
+      --password-stdin       Get the password of an account to authenticate from stdin
       --skip-test-tls        Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)
       --sso                  Perform SSO login
       --sso-launch-browser   Automatically launch the system default browser when performing SSO login (default true)
