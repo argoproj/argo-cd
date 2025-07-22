@@ -98,7 +98,7 @@ end
 
 local pendingCount = 0
 local failureCount = 0
-for j, status in ipairs(obj.status.active.commitStatuses or {}) do
+for _, status in ipairs(obj.status.active.commitStatuses or {}) do
     if status.phase == "pending" then
         pendingCount = pendingCount + 1
     elseif status.phase == "failure" then
