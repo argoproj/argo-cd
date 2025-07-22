@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -130,9 +129,6 @@ type ClusterCache interface {
 	Invalidate(opts ...UpdateSettingsFunc)
 	// FindResources returns resources that matches given list of predicates from specified namespace or everywhere if specified namespace is empty
 	FindResources(namespace string, predicates ...func(r *Resource) bool) map[kube.ResourceKey]*Resource
-	// IterateHierarchy iterates resource tree starting from the specified top level resource and executes callback for each resource in the tree.
-	// The action callback returns true if iteration should continue and false otherwise.
-	IterateHierarchy(key kube.ResourceKey, action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool)
 	// IterateHierarchyV2 iterates resource tree starting from the specified top level resources and executes callback for each resource in the tree.
 	// The action callback returns true if iteration should continue and false otherwise.
 	IterateHierarchyV2(keys []kube.ResourceKey, action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool)
@@ -1053,46 +1049,6 @@ func (c *clusterCache) FindResources(namespace string, predicates ...func(r *Res
 		}
 	}
 	return result
-}
-
-// IterateHierarchy iterates resource tree starting from the specified top level resource and executes callback for each resource in the tree
-func (c *clusterCache) IterateHierarchy(key kube.ResourceKey, action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool) {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-	if res, ok := c.resources[key]; ok {
-		nsNodes := c.nsIndex[key.Namespace]
-		if !action(res, nsNodes) {
-			return
-		}
-		childrenByUID := make(map[types.UID][]*Resource)
-		for _, child := range nsNodes {
-			if res.isParentOf(child) {
-				childrenByUID[child.Ref.UID] = append(childrenByUID[child.Ref.UID], child)
-			}
-		}
-		// make sure children has no duplicates
-		for _, children := range childrenByUID {
-			if len(children) > 0 {
-				// The object might have multiple children with the same UID (e.g. replicaset from apps and extensions group). It is ok to pick any object but we need to make sure
-				// we pick the same child after every refresh.
-				sort.Slice(children, func(i, j int) bool {
-					key1 := children[i].ResourceKey()
-					key2 := children[j].ResourceKey()
-					return strings.Compare(key1.String(), key2.String()) < 0
-				})
-				child := children[0]
-				if action(child, nsNodes) {
-					child.iterateChildren(nsNodes, map[kube.ResourceKey]bool{res.ResourceKey(): true}, func(err error, child *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool {
-						if err != nil {
-							c.log.V(2).Info(err.Error())
-							return false
-						}
-						return action(child, namespaceResources)
-					})
-				}
-			}
-		}
-	}
 }
 
 // IterateHierarchy iterates resource tree starting from the specified top level resources and executes callback for each resource in the tree

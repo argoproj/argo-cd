@@ -140,7 +140,7 @@ func (c *clusterCache) WithAPIResources(newApiResources []kube.APIResourceInfo) 
 
 func getChildren(cluster *clusterCache, un *unstructured.Unstructured) []*Resource {
 	hierarchy := make([]*Resource, 0)
-	cluster.IterateHierarchy(kube.GetResourceKey(un), func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
+	cluster.IterateHierarchyV2([]kube.ResourceKey{kube.GetResourceKey(un)}, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
 		hierarchy = append(hierarchy, child)
 		return true
 	})
@@ -1045,92 +1045,6 @@ func testDeploy() *appsv1.Deployment {
 	}
 }
 
-func TestIterateHierachy(t *testing.T) {
-	cluster := newCluster(t, testPod1(), testPod2(), testRS(), testExtensionsRS(), testDeploy())
-	err := cluster.EnsureSynced()
-	require.NoError(t, err)
-
-	t.Run("IterateAll", func(t *testing.T) {
-		keys := []kube.ResourceKey{}
-		cluster.IterateHierarchy(kube.GetResourceKey(mustToUnstructured(testDeploy())), func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
-			keys = append(keys, child.ResourceKey())
-			return true
-		})
-
-		assert.ElementsMatch(t,
-			[]kube.ResourceKey{
-				kube.GetResourceKey(mustToUnstructured(testPod1())),
-				kube.GetResourceKey(mustToUnstructured(testPod2())),
-				kube.GetResourceKey(mustToUnstructured(testRS())),
-				kube.GetResourceKey(mustToUnstructured(testDeploy())),
-			},
-			keys)
-	})
-
-	t.Run("ExitAtRoot", func(t *testing.T) {
-		keys := []kube.ResourceKey{}
-		cluster.IterateHierarchy(kube.GetResourceKey(mustToUnstructured(testDeploy())), func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
-			keys = append(keys, child.ResourceKey())
-			return false
-		})
-
-		assert.ElementsMatch(t,
-			[]kube.ResourceKey{
-				kube.GetResourceKey(mustToUnstructured(testDeploy())),
-			},
-			keys)
-	})
-
-	t.Run("ExitAtSecondLevelChild", func(t *testing.T) {
-		keys := []kube.ResourceKey{}
-		cluster.IterateHierarchy(kube.GetResourceKey(mustToUnstructured(testDeploy())), func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
-			keys = append(keys, child.ResourceKey())
-			return child.ResourceKey().Kind != kube.ReplicaSetKind
-		})
-
-		assert.ElementsMatch(t,
-			[]kube.ResourceKey{
-				kube.GetResourceKey(mustToUnstructured(testDeploy())),
-				kube.GetResourceKey(mustToUnstructured(testRS())),
-			},
-			keys)
-	})
-
-	t.Run("ExitAtThirdLevelChild", func(t *testing.T) {
-		keys := []kube.ResourceKey{}
-		cluster.IterateHierarchy(kube.GetResourceKey(mustToUnstructured(testDeploy())), func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
-			keys = append(keys, child.ResourceKey())
-			return child.ResourceKey().Kind != kube.PodKind
-		})
-
-		assert.ElementsMatch(t,
-			[]kube.ResourceKey{
-				kube.GetResourceKey(mustToUnstructured(testDeploy())),
-				kube.GetResourceKey(mustToUnstructured(testRS())),
-				kube.GetResourceKey(mustToUnstructured(testPod1())),
-				kube.GetResourceKey(mustToUnstructured(testPod2())),
-			},
-			keys)
-	})
-
-	// After uid is backfilled for owner of pod2, it should appear in results here as well.
-	t.Run("IterateStartFromExtensionsRS", func(t *testing.T) {
-		keys := []kube.ResourceKey{}
-		cluster.IterateHierarchy(kube.GetResourceKey(mustToUnstructured(testExtensionsRS())), func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
-			keys = append(keys, child.ResourceKey())
-			return true
-		})
-
-		assert.ElementsMatch(t,
-			[]kube.ResourceKey{
-				kube.GetResourceKey(mustToUnstructured(testPod1())),
-				kube.GetResourceKey(mustToUnstructured(testPod2())),
-				kube.GetResourceKey(mustToUnstructured(testExtensionsRS())),
-			},
-			keys)
-	})
-}
-
 func TestIterateHierachyV2(t *testing.T) {
 	cluster := newCluster(t, testPod1(), testPod2(), testRS(), testExtensionsRS(), testDeploy())
 	err := cluster.EnsureSynced()
@@ -1378,18 +1292,3 @@ func BenchmarkIterateHierarchyV2(b *testing.B) {
 		})
 	}
 }
-
-// func BenchmarkIterateHierarchy(b *testing.B) {
-//	cluster := newCluster(b)
-//	for _, resource := range testResources {
-//		cluster.setNode(resource)
-//	}
-//	b.ResetTimer()
-//	for n := 0; n < b.N; n++ {
-//		cluster.IterateHierarchy(kube.ResourceKey{
-//			Namespace: "default", Name: "test-1", Kind: "Pod",
-//		}, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
-//			return true
-//		})
-//	}
-//}
