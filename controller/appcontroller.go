@@ -1409,12 +1409,12 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	if isOperationInProgress(app) {
 		state = app.Status.OperationState.DeepCopy()
 		terminating = state.Phase == synccommon.OperationTerminating
-		// Failed  operation with retry strategy might have be in-progress and has completion time
 		switch {
 		case state.FinishedAt != nil && !terminating:
+			// Failed operation with retry strategy might be in-progress and has completion time
 			retryAt, err := app.Status.OperationState.Operation.Retry.NextRetryAt(state.FinishedAt.Time, state.RetryCount)
 			if err != nil {
-				state.Phase = synccommon.OperationFailed
+				state.Phase = synccommon.OperationError
 				state.Message = err.Error()
 				ctrl.setOperationState(app, state)
 				return
@@ -1425,12 +1425,11 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
 				return
 			}
-			// retrying operation. remove previous failure time in app since it is used as a trigger
-			// that previous failed and operation should be retried
-			state.FinishedAt = nil
-			ctrl.setOperationState(app, state)
 			// Get rid of sync results and null out previous operation completion time
+			// This will start the retry attempt
+			state.FinishedAt = nil
 			state.SyncResult = nil
+			ctrl.setOperationState(app, state)
 		case ctrl.syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.syncTimeout)) && !terminating:
 			state.Phase = synccommon.OperationTerminating
 			state.Message = "operation is terminating due to timeout"
@@ -1440,7 +1439,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
 		}
 	} else {
-		state = &appv1.OperationState{Phase: synccommon.OperationRunning, Operation: *app.Operation, StartedAt: metav1.Now()}
+		state = NewOperationState(*app.Operation)
 		ctrl.setOperationState(app, state)
 		if ctrl.syncTimeout != time.Duration(0) {
 			// Schedule a check during which the timeout would be checked.
@@ -1451,12 +1450,12 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	ts.AddCheckpoint("initial_operation_stage_ms")
 
 	project, err := ctrl.getAppProj(app)
-	if err != nil {
-		state.Phase = synccommon.OperationError
-		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
-	} else {
+	if err == nil {
 		// Start or resume the sync
 		ctrl.appStateManager.SyncAppState(app, project, state)
+	} else {
+		state.Phase = synccommon.OperationError
+		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
 	}
 	ts.AddCheckpoint("sync_app_state_ms")
 
@@ -2225,7 +2224,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	ctrl.writeBackToInformer(updatedApp)
 	ts.AddCheckpoint("write_back_to_informer_ms")
 
-	message := fmt.Sprintf("Initiated automated sync to '%s'", desiredRevisions)
+	message := fmt.Sprintf("Initiated automated sync to %s", desiredRevisions)
 	ctrl.logAppEvent(context.TODO(), app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: corev1.EventTypeNormal}, message)
 	logCtx.Info(message)
 	return nil, setOpTime
