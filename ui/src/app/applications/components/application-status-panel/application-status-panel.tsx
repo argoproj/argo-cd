@@ -230,7 +230,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     ) : (
                         <>
                             <AutoSyncStatusIcon enabled={false} size='large' />
-                            <span style={{fontWeight: 'bold', fontSize: '1.2em'}}>Auto sync is not enabled.</span>
+                            <span style={{fontWeight: 'bold', fontSize: '1.2em'}}>Auto sync is disabled.</span>
                         </>
                     )}
                 </div>
