@@ -48,20 +48,21 @@ func addK8SFlagsToCmd(cmd *cobra.Command) clientcmd.ClientConfig {
 
 func NewCommand() *cobra.Command {
 	var (
-		clientConfig                   clientcmd.ClientConfig
-		processorsCount                int
-		namespace                      string
-		appLabelSelector               string
-		logLevel                       string
-		logFormat                      string
-		metricsPort                    int
-		argocdRepoServer               string
-		argocdRepoServerPlaintext      bool
-		argocdRepoServerStrictTLS      bool
-		configMapName                  string
-		secretName                     string
-		applicationNamespaces          []string
-		selfServiceNotificationEnabled bool
+		clientConfig                        clientcmd.ClientConfig
+		processorsCount                     int
+		namespace                           string
+		appLabelSelector                    string
+		logLevel                            string
+		logFormat                           string
+		metricsPort                         int
+		argocdRepoServer                    string
+		argocdRepoServerPlaintext           bool
+		argocdRepoServerStrictTLS           bool
+		configMapName                       string
+		secretName                          string
+		applicationNamespaces               []string
+		selfServiceNotificationEnabled      bool
+		namespacedModeMultiNamespaceEnabled bool
 	)
 	command := cobra.Command{
 		Use:   "controller",
@@ -123,6 +124,15 @@ func NewCommand() *cobra.Command {
 				}
 			}()
 
+			registry := controller.NewMetricsRegistry("argocd")
+			http.Handle("/metrics", promhttp.HandlerFor(prometheus.Gatherers{registry, prometheus.DefaultGatherer}, promhttp.HandlerOpts{}))
+
+			go func() {
+				log.Fatal(http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", metricsPort), http.DefaultServeMux))
+			}()
+			log.Infof("serving metrics on port %d", metricsPort)
+			log.Infof("loading configuration %d", metricsPort)
+
 			tlsConfig := apiclient.TLSConfiguration{
 				DisableTLS:       argocdRepoServerPlaintext,
 				StrictValidation: argocdRepoServerStrictTLS,
@@ -137,41 +147,41 @@ func NewCommand() *cobra.Command {
 				}
 				tlsConfig.Certificates = pool
 			}
-			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, 5, tlsConfig)
-			argocdService, err := service.NewArgoCDService(k8sClient, namespace, repoClientset)
-			if err != nil {
-				return fmt.Errorf("failed to initialize Argo CD service: %w", err)
-			}
-			defer argocdService.Close()
 
-			registry := controller.NewMetricsRegistry("argocd")
-			http.Handle("/metrics", promhttp.HandlerFor(prometheus.Gatherers{registry, prometheus.DefaultGatherer}, promhttp.HandlerOpts{}))
-
-			go func() {
-				log.Fatal(http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", metricsPort), http.DefaultServeMux))
-			}()
-			log.Infof("serving metrics on port %d", metricsPort)
-			log.Infof("loading configuration %d", metricsPort)
-
-			ctrl := notificationscontroller.NewController(k8sClient, dynamicClient, argocdService, namespace, applicationNamespaces, appLabelSelector, registry, secretName, configMapName, selfServiceNotificationEnabled)
-			err = ctrl.Init(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to initialize controller: %w", err)
-			}
-
+			errChan := make(chan error, 1)
 			sigCh := make(chan os.Signal, 1)
 			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 			wg := sync.WaitGroup{}
-			wg.Add(1)
+
+			if namespacedModeMultiNamespaceEnabled {
+				wg.Add(len(applicationNamespaces))
+				emptyApplicationNamespaces := make([]string, 0)
+				for _, ns := range applicationNamespaces {
+					go func() {
+						argocdRepoServer = fmt.Sprintf(common.DefaultRepoServerAddrWithNamespace, ns)
+						namespace = ns
+						newControllerInstance(ctx, &wg, errChan, processorsCount, argocdRepoServer, tlsConfig, k8sClient, dynamicClient, namespace, emptyApplicationNamespaces, appLabelSelector, registry, secretName, configMapName, selfServiceNotificationEnabled)
+					}()
+				}
+			} else {
+				wg.Add(1)
+				newControllerInstance(ctx, &wg, errChan, processorsCount, argocdRepoServer, tlsConfig, k8sClient, dynamicClient, namespace, applicationNamespaces, appLabelSelector, registry, secretName, configMapName, selfServiceNotificationEnabled)
+			}
+
 			go func() {
-				defer wg.Done()
 				s := <-sigCh
 				log.Printf("got signal %v, attempting graceful shutdown", s)
 				cancel()
 			}()
 
-			go ctrl.Run(ctx, processorsCount)
-			<-ctx.Done()
+			go func() {
+				err := <-errChan
+				log.Error(err)
+				cancel()
+			}()
+
+			wg.Wait()
+
 			return nil
 		},
 	}
@@ -189,5 +199,24 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&secretName, "secret-name", "argocd-notifications-secret", "Set notifications Secret name")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces that this controller should send notifications for")
 	command.Flags().BoolVar(&selfServiceNotificationEnabled, "self-service-notification-enabled", env.ParseBoolFromEnv("ARGOCD_NOTIFICATION_CONTROLLER_SELF_SERVICE_NOTIFICATION_ENABLED", false), "Allows the Argo CD notification controller to pull notification config from the namespace that the resource is in. This is useful for self-service notification.")
+	command.Flags().BoolVar(&namespacedModeMultiNamespaceEnabled, "namespaced-mode-multi-namespace-enabled", env.ParseBoolFromEnv("ARGOCD_NAMESPACED_MODE_MULTI_NAMESPACE_ENABLED", false), "Allows the Argo CD notification controller to watch multiple namespaces having applications and create notifications eventhough the controller is running in namespaced scope")
 	return &command
+}
+
+func newControllerInstance(ctx context.Context, wg *sync.WaitGroup, errChan chan error, processorsCount int, argocdRepoServer string, tlsConfig apiclient.TLSConfiguration, k8sClient *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, namespace string, applicationNamespaces []string, appLabelSelector string, registry *controller.MetricsRegistry, secretName, configMapName string, selfServiceNotificationEnabled bool) {
+	defer wg.Done()
+	repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, 5, tlsConfig)
+	argocdService, err := service.NewArgoCDService(k8sClient, namespace, repoClientset)
+	if err != nil {
+		errChan <- fmt.Errorf("failed to initialize Argo CD service: %w for namespace: %s", err, namespace)
+	}
+	defer argocdService.Close()
+
+	ctrl := notificationscontroller.NewController(k8sClient, dynamicClient, argocdService, namespace, applicationNamespaces, appLabelSelector, registry, secretName, configMapName, selfServiceNotificationEnabled)
+	err = ctrl.Init(ctx)
+	if err != nil {
+		errChan <- fmt.Errorf("failed to initialize controller: %w for namespace: %s", err, namespace)
+	}
+	go ctrl.Run(ctx, processorsCount)
+	<-ctx.Done()
 }
