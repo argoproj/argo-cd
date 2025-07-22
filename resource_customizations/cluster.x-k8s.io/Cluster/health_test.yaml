@@ -1,7 +1,7 @@
 tests:
 - healthStatus:
     status: Progressing
-    message: 'Waiting for clusters'
+    message: 'Waiting for cluster'
   inputPath: testdata/progressing_provisioning.yaml
 - healthStatus:
     status: Degraded
