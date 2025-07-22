@@ -872,14 +872,16 @@ export class ReposList extends React.Component<
                                                         />
                                                     </div>
                                                     {formApi.getFormState().values.ghType === 'GitHub Enterprise' && (
-                                                        <div className='argo-form-row'>
-                                                            <FormField
-                                                                formApi={formApi}
-                                                                label='GitHub Enterprise Base URL (e.g. https://ghe.example.com/api/v3)'
-                                                                field='githubAppEnterpriseBaseURL'
-                                                                component={Text}
-                                                            />
-                                                        </div>
+                                                        <React.Fragment>
+                                                            <div className='argo-form-row'>
+                                                                <FormField
+                                                                    formApi={formApi}
+                                                                    label='GitHub Enterprise Base URL (e.g. https://ghe.example.com/api/v3)'
+                                                                    field='githubAppEnterpriseBaseURL'
+                                                                    component={Text}
+                                                                />
+                                                            </div>
+                                                        </React.Fragment>
                                                     )}
                                                     <div className='argo-form-row'>
                                                         <FormField

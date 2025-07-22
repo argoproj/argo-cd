@@ -5,14 +5,11 @@ if [ -z "${1:-}" ]; then
   echo "Example usage: ./hack/update-kubernetes-version.sh v1.26.11"
   exit 1
 fi
-
-function fetch_mods() {
-  curl -sS "https://raw.githubusercontent.com/kubernetes/kubernetes/v${VERSION}/go.mod" |
-    sed -n 's|.*k8s.io/\(.*\) => ./staging/src/k8s.io/.*|k8s.io/\1|p'
-}
-
 VERSION=${1#"v"}
-readarray -t MODS < <(fetch_mods)
+MODS=($(
+  curl -sS https://raw.githubusercontent.com/kubernetes/kubernetes/v${VERSION}/go.mod |
+    sed -n 's|.*k8s.io/\(.*\) => ./staging/src/k8s.io/.*|k8s.io/\1|p'
+))
 for MOD in "${MODS[@]}"; do
   echo "Updating $MOD..." >&2
   V=$(

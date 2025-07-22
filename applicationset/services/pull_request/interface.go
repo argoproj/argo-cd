@@ -30,5 +30,4 @@ type PullRequestService interface {
 type Filter struct {
 	BranchMatch       *regexp.Regexp
 	TargetBranchMatch *regexp.Regexp
-	TitleMatch        *regexp.Regexp
 }

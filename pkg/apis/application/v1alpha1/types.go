@@ -1241,15 +1241,15 @@ func (status *ApplicationStatus) GetRevisions() []string {
 
 // BuildComparedToStatus will build a ComparedTo object based on the current
 // Application state.
-func (spec *ApplicationSpec) BuildComparedToStatus(sources []ApplicationSource) ComparedTo {
+func (spec *ApplicationSpec) BuildComparedToStatus() ComparedTo {
 	ct := ComparedTo{
 		Destination:       spec.Destination,
 		IgnoreDifferences: spec.IgnoreDifferences,
 	}
 	if spec.HasMultipleSources() {
-		ct.Sources = sources
+		ct.Sources = spec.Sources
 	} else {
-		ct.Source = sources[0]
+		ct.Source = spec.GetSource()
 	}
 	return ct
 }
@@ -3181,30 +3181,12 @@ type HelmOptions struct {
 	ValuesFileSchemes []string `protobuf:"bytes,1,opt,name=valuesFileSchemes"`
 }
 
-// KustomizeVersion holds information about additional Kustomize versions
-type KustomizeVersion struct {
-	// Name holds Kustomize version name
-	Name string `protobuf:"bytes,1,opt,name=name"`
-	// Path holds the corresponding binary path
-	Path string `protobuf:"bytes,2,opt,name=path"`
-	// BuildOptions that are specific to a Kustomize version
-	BuildOptions string `protobuf:"bytes,3,opt,name=buildOptions"`
-}
-
 // KustomizeOptions are options for kustomize to use when building manifests
 type KustomizeOptions struct {
 	// BuildOptions is a string of build parameters to use when calling `kustomize build`
 	BuildOptions string `protobuf:"bytes,1,opt,name=buildOptions"`
-
 	// BinaryPath holds optional path to kustomize binary
-	//
-	// Deprecated: Use settings.Settings instead. See: settings.Settings.KustomizeVersions.
-	// If this field is set, it will be used as the Kustomize binary path.
-	// Otherwise, Versions is used.
 	BinaryPath string `protobuf:"bytes,2,opt,name=binaryPath"`
-
-	// Versions is a list of Kustomize versions and their corresponding binary paths and build options.
-	Versions []KustomizeVersion `protobuf:"bytes,3,rep,name=versions"`
 }
 
 // ApplicationDestinationServiceAccount holds information about the service account to be impersonated for the application sync operation.
@@ -3375,7 +3357,7 @@ func findConditionIndexByType(conditions []ApplicationCondition, t ApplicationCo
 	return -1
 }
 
-// GetConditions returns list of application error conditions
+// GetErrorConditions returns list of application error conditions
 func (status *ApplicationStatus) GetConditions(conditionTypes map[ApplicationConditionType]bool) []ApplicationCondition {
 	result := make([]ApplicationCondition, 0)
 	for i := range status.Conditions {

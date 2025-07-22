@@ -330,25 +330,6 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "list",
 		Short: "List configured repositories",
-		Example: `
-  # List all repositories
-  argocd repo list
-
-  # List repositories in wide format
-  argocd repo list -o wide
-
-  # List repositories in YAML format
-  argocd repo list -o yaml
-
-  # List repositories in JSON format
-  argocd repo list -o json
-
-  # List urls of repositories
-  argocd repo list -o url
-
-  # Force refresh of cached repository connection status
-  argocd repo list --refresh hard
-`,
 		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
@@ -391,26 +372,9 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		refresh string
 		project string
 	)
-
-	// For better readability and easier formatting
-	repoGetExamples := `
-  # Get Git or Helm repository details in wide format (default, '-o wide')
-  argocd repo get https://git.example.com/repos/repo
-
-  # Get repository details in YAML format
-  argocd repo get https://git.example.com/repos/repo -o yaml
-
-  # Get repository details in JSON format
-  argocd repo get https://git.example.com/repos/repo -o json
-
-  # Get repository URL
-  argocd repo get https://git.example.com/repos/repo -o url
-`
-
 	command := &cobra.Command{
-		Use:     "get REPO",
-		Short:   "Get a configured repository by URL",
-		Example: repoGetExamples,
+		Use:   "get REPO",
+		Short: "Get a configured repository by URL",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
