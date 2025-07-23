@@ -1,0 +1,13 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: PullRequest
+metadata:
+  name: test
+  generation: 2
+status:
+  conditions:
+    - type: Ready
+      status: True
+      observedGeneration: 2
+  id: "123"
+  state: open
+
