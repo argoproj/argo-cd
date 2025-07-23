@@ -103,4 +103,6 @@ func TestKubectlMetrics(t *testing.T) {
 	assert.Contains(t, string(body), "argocd_kubectl_response_size_bytes", "metrics should have contained argocd_kubectl_response_size_bytes")
 	assert.Contains(t, string(body), "argocd_kubectl_rate_limiter_duration_seconds", "metrics should have contained argocd_kubectl_rate_limiter_duration_seconds")
 	assert.Contains(t, string(body), "argocd_kubectl_requests_total", "metrics should have contained argocd_kubectl_requests_total")
+	assert.Contains(t, string(body), "grpc_server_handled_total", "metrics should have contained grpc_server_handled_total for all the reflected methods")
+	assert.Contains(t, string(body), "grpc_server_msg_received_total", "metrics should have contained grpc_server_msg_received_total for all the reflected methods")
 }
