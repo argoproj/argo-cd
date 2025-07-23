@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="24 known vulnerabilities found in 33 vulnerable dependency paths.">
+  <meta name="description" content="25 known vulnerabilities found in 34 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -487,7 +487,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">June 29th 2025, 12:24:10 am (UTC+00:00)</p>
+                <p class="timestamp">July 20th 2025, 12:24:55 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -500,8 +500,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>24</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>33 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>25</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>34 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>1131</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -2127,6 +2127,77 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV4-8745975">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">Synchronous Access of Remote Resource without Timeout</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/hashicorp/vault/api
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/vault/api@v1.15.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/hashicorp/vault/api@v1.15.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Synchronous Access of Remote Resource without Timeout via the <code>rekey</code> and <code>recovery key</code> operations. An attacker can disrupt service availability by triggering uncontrolled cancellation actions during these processes, which can lead to denial of service.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/hashicorp/vault/api</code> to version 1.20.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/hashicorp/vault/commit/318f8582134a4a79a45ee2a6edad3072d865739b">GitHub Commit</a></li>
+        <li><a href="https://github.com/hashicorp/vault/pull/30794">GitHub PR</a></li>
+        <li><a href="https://discuss.hashicorp.com/t/hcsec-2025-11-vault-vulnerable-to-recovery-key-cancellation-denial-of-service/75570">HashiCorp Discuss</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMHASHICORPVAULTAPI-10562144">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->

@@ -122,7 +122,7 @@ export class PodView extends React.Component<PodViewProps> {
                                 <div className='pod-view__nodes-container'>
                                     {groups.map(group => {
                                         if (group.type === 'node' && group.name === 'Unschedulable' && podPrefs.hideUnschedulable) {
-                                            return <React.Fragment />;
+                                            return null;
                                         }
                                         return (
                                             <div className={`pod-view__node white-box ${group.kind === 'node' && 'pod-view__node--large'}`} key={group.fullName || group.name}>

@@ -216,22 +216,6 @@ type HelmRepoCredentials struct {
 	KeySecret      *corev1.SecretKeySelector `json:"keySecret,omitempty"`
 }
 
-// KustomizeVersion holds information about additional Kustomize version
-type KustomizeVersion struct {
-	// Name holds Kustomize version name
-	Name string
-	// Path holds corresponding binary path
-	Path string
-	// BuildOptions that are specific to Kustomize version
-	BuildOptions string
-}
-
-// KustomizeSettings holds kustomize settings
-type KustomizeSettings struct {
-	BuildOptions string
-	Versions     []KustomizeVersion
-}
-
 var (
 	ByClusterURLIndexer     = "byClusterURL"
 	byClusterURLIndexerFunc = func(obj any) ([]string, error) {
@@ -290,29 +274,39 @@ var (
 	}
 )
 
-func (ks *KustomizeSettings) GetOptions(source v1alpha1.ApplicationSource) (*v1alpha1.KustomizeOptions, error) {
-	binaryPath := ""
-	buildOptions := ""
+// KustomizeVersionNotRegisteredError is an error type that indicates a requested Kustomize version is not registered in
+// the Kustomize options in argocd-cm.
+type KustomizeVersionNotRegisteredError struct {
+	// Version is the Kustomize version that is not registered
+	Version string
+}
+
+func (e KustomizeVersionNotRegisteredError) Error() string {
+	return fmt.Sprintf("kustomize version %s is not registered", e.Version)
+}
+
+// GetKustomizeBinaryPath returns the path to the kustomize binary based on the provided KustomizeOptions and ApplicationSource.
+func GetKustomizeBinaryPath(ks *v1alpha1.KustomizeOptions, source v1alpha1.ApplicationSource) (string, error) {
+	if ks == nil {
+		// No versions or binary path specified, stick with defaults.
+		return "", nil
+	}
+
+	if ks.BinaryPath != "" { // nolint:staticcheck // BinaryPath is deprecated, but still supported for backward compatibility
+		log.Warn("kustomizeOptions.binaryPath is deprecated, use KustomizeOptions.versions instead")
+		// nolint:staticcheck // BinaryPath is deprecated, but if it's set, we'll use it to ensure backward compatibility
+		return ks.BinaryPath, nil
+	}
+
 	if source.Kustomize != nil && source.Kustomize.Version != "" {
 		for _, ver := range ks.Versions {
 			if ver.Name == source.Kustomize.Version {
-				// add version specific path and build options
-				binaryPath = ver.Path
-				buildOptions = ver.BuildOptions
-				break
+				return ver.Path, nil
 			}
 		}
-		if binaryPath == "" {
-			return nil, fmt.Errorf("kustomize version %s is not registered", source.Kustomize.Version)
-		}
-	} else {
-		// add build options for the default version
-		buildOptions = ks.BuildOptions
+		return "", KustomizeVersionNotRegisteredError{Version: source.Kustomize.Version}
 	}
-	return &v1alpha1.KustomizeOptions{
-		BuildOptions: buildOptions,
-		BinaryPath:   binaryPath,
-	}, nil
+	return "", nil
 }
 
 // Credentials for accessing a Git repository
@@ -745,7 +739,7 @@ func (mgr *SettingsManager) getSecret() (*corev1.Secret, error) {
 	return mgr.GetSecretByName(common.ArgoCDSecretName)
 }
 
-// Returns the Secret with the given name from the cluster.
+// GetSecretByName returns the Secret with the given name from the cluster.
 func (mgr *SettingsManager) GetSecretByName(secretName string) (*corev1.Secret, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
@@ -1153,14 +1147,14 @@ func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 }
 
 // GetKustomizeSettings loads the kustomize settings from argocd-cm ConfigMap
-func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
+func (mgr *SettingsManager) GetKustomizeSettings() (*v1alpha1.KustomizeOptions, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
-	kustomizeVersionsMap := map[string]KustomizeVersion{}
+	kustomizeVersionsMap := map[string]v1alpha1.KustomizeVersion{}
 	buildOptions := map[string]string{}
-	settings := &KustomizeSettings{}
+	settings := &v1alpha1.KustomizeOptions{}
 
 	// extract build options for the default version
 	if options, ok := argoCDCM.Data[kustomizeBuildOptionsKey]; ok {
@@ -1200,12 +1194,12 @@ func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
 	return settings, nil
 }
 
-func addKustomizeVersion(prefix, name, path string, kvMap map[string]KustomizeVersion) error {
+func addKustomizeVersion(prefix, name, path string, kvMap map[string]v1alpha1.KustomizeVersion) error {
 	version := name[len(prefix)+1:]
 	if _, ok := kvMap[version]; ok {
 		return fmt.Errorf("found duplicate kustomize version: %s", version)
 	}
-	kvMap[version] = KustomizeVersion{
+	kvMap[version] = v1alpha1.KustomizeVersion{
 		Name: version,
 		Path: path,
 	}
