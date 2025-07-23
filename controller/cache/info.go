@@ -459,8 +459,9 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	// as they help with diagnosing scheduling and startup issues.
 	// requests will be released for terminated pods either with success or failed state termination.
 	if !isPodPhaseTerminal(pod.Status.Phase) {
-		CPUReq, MemoryReq := req[corev1.ResourceCPU]
-		req[corev1.ResourceMemory]
+		CPUReq := req[corev1.ResourceCPU]
+		MemoryReq := req[corev1.ResourceMemory]
+
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: common.PodRequestsCPU, Value: strconv.FormatInt(CPUReq.MilliValue(), 10)})
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: common.PodRequestsMEM, Value: strconv.FormatInt(MemoryReq.MilliValue(), 10)})
 	}
