@@ -2445,8 +2445,7 @@ func TestBuildSyncOptions(t *testing.T) {
 			assert.NotNil(t, result, "buildSyncOptions should never return nil - this allows CLI to override Application spec")
 
 			// Verify the number of options
-			assert.Equal(t, tt.expectedOptionsCount, len(result.Items), "unexpected number of sync options")
-
+			assert.Len(t, result.Items, tt.expectedOptionsCount, "unexpected number of sync options")
 			// Verify the expected options are present
 			for _, expected := range tt.expectedContains {
 				assert.Contains(t, result.Items, expected, "expected sync option not found")

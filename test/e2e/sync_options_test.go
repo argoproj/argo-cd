@@ -201,7 +201,6 @@ func TestCliSyncOverridesApplicationSpecSyncApplyOutOfSyncOnlyOptions(t *testing
 		Expect(ResourceResultNumbering(2)).
 		Expect(ResourceResultIs(ResourceResult{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: ns, Name: "guestbook-ui", Message: "deployment.apps/guestbook-ui configured", SyncPhase: SyncPhaseSync, HookPhase: OperationRunning, Status: ResultCodeSynced, Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}})).
 		Expect(ResourceResultIs(ResourceResult{Group: "", Version: "v1", Kind: "Service", Namespace: ns, Name: "guestbook-ui", Status: ResultCodeSynced, Message: "service/guestbook-ui unchanged", HookPhase: OperationRunning, SyncPhase: SyncPhaseSync}))
-
 }
 
 func TestSyncWithSkipHook(t *testing.T) {
