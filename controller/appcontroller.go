@@ -1468,10 +1468,10 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	case synccommon.OperationFailed, synccommon.OperationError:
 		now := metav1.Now()
 		switch {
-		case !terminating && state.Operation.Retry.Refresh && hasNewCommitToResync(app, state, logCtx):
-			state.FinishedAt = &now
-			state.Message = state.Message + " (retry terminated - new changes)"
-			state.RetryCount = 0
+		case !terminating && state.Operation.Retry.Refresh && hasNewRevisionsToResync(app):
+			// Stop retrying in case of failure and new revisions - will be tried in new sync attempt
+			state.Message = state.Message + " (retry terminated - new revisions)"
+			logCtx.Debug("Terminating sync retry, there are new revisions")
 		case !terminating && (state.RetryCount < state.Operation.Retry.Limit || state.Operation.Retry.Limit < 0):
 			state.FinishedAt = &now
 			if retryAt, err := state.Operation.Retry.NextRetryAt(now.Time, state.RetryCount); err != nil {
@@ -2077,7 +2077,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	return patchDuration
 }
 
-func hasNewCommitToResync(app *appv1.Application, state *appv1.OperationState, logCtx *log.Entry) bool {
+func hasNewRevisionsToResync(app *appv1.Application) bool {
 	if app.Spec.SyncPolicy == nil || !app.Spec.SyncPolicy.IsAutomatedSyncEnabled() {
 		return false
 	}
@@ -2087,9 +2087,8 @@ func hasNewCommitToResync(app *appv1.Application, state *appv1.OperationState, l
 		desiredRevisions = app.Status.Sync.Revisions
 	}
 
-	alreadyAttempted, lastRevs, lastPhase := alreadyAttemptedSync(app, desiredRevisions, true)
+	alreadyAttempted, lastRevs, _ := alreadyAttemptedSync(app, desiredRevisions, true)
 	if !alreadyAttempted && len(lastRevs) != 0 {
-		logCtx.Infof("A new revision is available after %s with %s: %s", lastPhase, lastRevs, state.Message)
 		return true
 	}
 	return false
@@ -2204,7 +2203,6 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		}
 	}
 	ts.AddCheckpoint("already_attempted_check_ms")
-	logCtx.Infof("FLARE: Detected change after %s/%s, desired %s", lastAttemptedPhase, lastAttemptedRevisions, desiredRevisions)
 
 	if app.Spec.SyncPolicy.Automated.Prune && !app.Spec.SyncPolicy.Automated.AllowEmpty {
 		bAllNeedPrune := true
