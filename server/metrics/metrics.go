@@ -20,6 +20,7 @@ type MetricsServer struct {
 	redisRequestHistogram    *prometheus.HistogramVec
 	extensionRequestCounter  *prometheus.CounterVec
 	extensionRequestDuration *prometheus.HistogramVec
+	PrometheusRegistry       *prometheus.Registry
 }
 
 var (
@@ -92,6 +93,7 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 		redisRequestHistogram:    redisRequestHistogram,
 		extensionRequestCounter:  extensionRequestCounter,
 		extensionRequestDuration: extensionRequestDuration,
+		PrometheusRegistry:       registry,
 	}
 }
 
