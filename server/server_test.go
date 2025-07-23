@@ -18,6 +18,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -1709,4 +1710,143 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	argocd.newStaticAssetsHandler()(w, req)
 	resp = w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "should have been able to access the normal file")
+}
+
+func TestRequestTimeoutGRPCInterceptor(t *testing.T) {
+	t.Run("TestGRPCInterceptorTimeoutIsZeroSuccess", func(t *testing.T) {
+		interceptor := requestTimeoutGRPCInterceptor(0)
+
+		handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+			return "success", nil
+		}
+
+		result, err := interceptor(context.Background(), "test", &grpc.UnaryServerInfo{}, handler)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "success", result)
+	})
+
+	t.Run("TestGRPCInterceptorTimeoutFailure", func(t *testing.T) {
+		timeout := 100 * time.Millisecond
+		interceptor := requestTimeoutGRPCInterceptor(timeout)
+
+		handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+			select {
+			case <-time.After(200 * time.Millisecond):
+				return "success", nil
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+
+		start := time.Now()
+		_, err := interceptor(context.Background(), "test", &grpc.UnaryServerInfo{}, handler)
+		elapsed := time.Since(start)
+
+		assert.Error(t, err)
+		assert.True(t, elapsed < 150*time.Millisecond, "should timeout before handler completes")
+		assert.Contains(t, err.Error(), "context deadline exceeded")
+	})
+
+	t.Run("TestGRPCInterceptorWithinTimeoutSuccess", func(t *testing.T) {
+		timeout := 200 * time.Millisecond
+		interceptor := requestTimeoutGRPCInterceptor(timeout)
+
+		handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+			time.Sleep(50 * time.Millisecond)
+			return "success", nil
+		}
+
+		result, err := interceptor(context.Background(), "test", &grpc.UnaryServerInfo{}, handler)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "success", result)
+	})
+}
+
+func TestRequestTimeoutHTTPInterceptor(t *testing.T) {
+	t.Run("TestHTTPInterceptorTimeoutIsZeroSuccess", func(t *testing.T) {
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			time.Sleep(100 * time.Millisecond)
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("success"))
+		})
+
+		interceptor := requestTimeoutHTTPInterceptor(handler, 0)
+
+		req := httptest.NewRequest("GET", "/test", nil)
+		w := httptest.NewRecorder()
+
+		interceptor.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "success", w.Body.String())
+	})
+
+	t.Run("TestHTTPInterceptorTimeoutFailure", func(t *testing.T) {
+		timeout := 100 * time.Millisecond
+
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case <-time.After(200 * time.Millisecond):
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte("success"))
+			case <-r.Context().Done():
+				return
+			}
+		})
+
+		interceptor := requestTimeoutHTTPInterceptor(handler, timeout)
+
+		req := httptest.NewRequest("GET", "/test", nil)
+		w := httptest.NewRecorder()
+
+		start := time.Now()
+		interceptor.ServeHTTP(w, req)
+		elapsed := time.Since(start)
+
+		assert.True(t, elapsed < 150*time.Millisecond, "should timeout before handler completes")
+		assert.Contains(t, w.Body.String(), "context deadline exceeded")
+		assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+	})
+
+	t.Run("TestHTTPInterceptorWithinTimeoutSuccess", func(t *testing.T) {
+		timeout := 200 * time.Millisecond
+
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			time.Sleep(50 * time.Millisecond)
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("success"))
+		})
+
+		interceptor := requestTimeoutHTTPInterceptor(handler, timeout)
+
+		req := httptest.NewRequest("GET", "/test", nil)
+		w := httptest.NewRecorder()
+
+		interceptor.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "success", w.Body.String())
+	})
+
+	t.Run("TestHTTPInterceptorContextIsPassedSuccess", func(t *testing.T) {
+		timeout := 100 * time.Millisecond
+
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			deadline, ok := r.Context().Deadline()
+			assert.True(t, ok, "context should have deadline")
+			assert.True(t, time.Until(deadline) <= timeout, "deadline should be within timeout")
+			w.WriteHeader(http.StatusOK)
+		})
+
+		interceptor := requestTimeoutHTTPInterceptor(handler, timeout)
+
+		req := httptest.NewRequest("GET", "/test", nil)
+		w := httptest.NewRecorder()
+
+		interceptor.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
 }
