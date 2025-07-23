@@ -447,8 +447,6 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 
 	req, _ := resourcehelper.PodRequestsAndLimits(&pod)
 
-	CPUReq, MemoryReq := req[corev1.ResourceCPU], req[corev1.ResourceMemory]
-
 	res.PodInfo = &PodInfo{NodeName: pod.Spec.NodeName, ResourceRequests: req, Phase: pod.Status.Phase}
 
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Node", Value: pod.Spec.NodeName})
@@ -457,9 +455,12 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Restart Count", Value: strconv.Itoa(restarts)})
 	}
 
+	// Requests are relevant even for pods in the init phase or pending state (e.g., due to insufficient resources),
+	// as they help with diagnosing scheduling and startup issues.
 	// requests will be released for terminated pods either with success or failed state termination.
-
-	if reason != "Completed" && reason != "Error" {
+	if !isPodPhaseTerminal(pod.Status.Phase) {
+		CPUReq, MemoryReq := req[corev1.ResourceCPU]
+		req[corev1.ResourceMemory]
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: common.PodRequestsCPU, Value: strconv.FormatInt(CPUReq.MilliValue(), 10)})
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: common.PodRequestsMEM, Value: strconv.FormatInt(MemoryReq.MilliValue(), 10)})
 	}

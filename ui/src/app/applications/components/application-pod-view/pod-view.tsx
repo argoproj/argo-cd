@@ -126,10 +126,11 @@ export class PodView extends React.Component<PodViewProps> {
                                         }
                                         return (
                                             <div className={`pod-view__node white-box ${group.kind === 'node' && 'pod-view__node--large'}`} key={group.fullName || group.name}>
-                                                <div className='pod-view__node__container--header'>
-                                                    <div
-                                                        style={{display: 'flex', alignItems: 'center', ...(group.kind !== 'node' && {cursor: 'pointer'})}}
-                                                        onClick={() => this.props.onItemClick(group.fullName)}>
+                                                <div
+                                                    className='pod-view__node__container--header'
+                                                    onClick={() => this.props.onItemClick(group.fullName)}
+                                                    style={group.kind === 'node' ? {} : {cursor: 'pointer'}}>
+                                                    <div style={{display: 'flex', alignItems: 'center'}}>
                                                         <div style={{marginRight: '10px'}}>
                                                             <ResourceIcon kind={group.kind || 'Unknown'} />
                                                             <br />
@@ -451,7 +452,7 @@ export function formatSize(bytes: number) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
-function formatMetric(name: ResourceName, val: number) {
+export function formatMetric(name: ResourceName, val: number) {
     if (name === ResourceName.ResourceStorage || name === ResourceName.ResourceMemory) {
         // divide by 1000 to convert "milli bytes" to bytes
         return formatSize(val / 1000);
