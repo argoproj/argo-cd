@@ -58,12 +58,6 @@ func (a *Actions) WriteFile(fileName, fileContents string) *Actions {
 	return a
 }
 
-func (a *Actions) RevertCommit() *Actions {
-	a.context.t.Helper()
-	fixture.RevertCommit(a.context.t)
-	return a
-}
-
 func (a *Actions) AddFile(fileName, fileContents string) *Actions {
 	a.context.t.Helper()
 	fixture.AddFile(a.context.t, a.context.path+"/"+fileName, fileContents)
