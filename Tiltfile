@@ -238,11 +238,11 @@ docker_build(
     'argocd-ui',
     context='.',
     dockerfile='Dockerfile.ui.tilt',
-    entrypoint=['sh', '-c', 'cd /app/ui && yarn start'], 
+    entrypoint=['sh', '-c', 'cd /app/ui && pnpm start'],
     only=['ui'],
     live_update=[
         sync('ui', '/app/ui'),
-        run('sh -c "cd /app/ui && yarn install"', trigger=['/app/ui/package.json', '/app/ui/yarn.lock']),
+        run('sh -c "cd /app/ui && pnpm install"', trigger=['/app/ui/package.json', '/app/ui/pnpm-lock.yaml']),
     ],
 )
 

@@ -109,9 +109,9 @@ you should edit your `~/.kube/config` and modify the `server` option to point to
 
 <https://nodejs.org/en/download>
 
-#### Install `yarn`
+#### Install `pnpm`
 
-<https://classic.yarnpkg.com/lang/en/docs/install/>
+<https://pnpm.io/installation>
 
 #### Install `goreman`
 
@@ -122,7 +122,7 @@ Goreman is used to start all needed processes to get a working Argo CD developme
 #### Install required dependencies and build-tools
 
 !!!note
-    The installations instructions are valid for Linux hosts only. Mac instructions will follow shortly.
+    The installation instructions are valid for Linux hosts only. Mac instructions will follow shortly.
 
 For installing the tools required to build and test Argo CD on your local system, we provide convenient installer scripts. By default, they will install binaries to `/usr/local/bin` on your system, which might require `root` privileges.
 

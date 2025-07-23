@@ -50,7 +50,20 @@ const config = {
             },
             {
                 test: /\.scss$/,
-                use: ['style-loader', 'raw-loader', 'sass-loader']
+                use: [
+                    'style-loader',
+                    'raw-loader',
+                    {
+                        loader: 'sass-loader',
+                        options: {
+                            sassOptions: {
+                                includePaths: ['node_modules'],
+                                quietDeps: true,
+                                silenceDeprecations: ['import', 'legacy-js-api', 'global-builtin', 'color-functions', 'mixed-decls']
+                            }
+                        }
+                    }
+                ]
             },
             {
                 test: /\.css$/,
