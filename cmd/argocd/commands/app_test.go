@@ -2382,3 +2382,75 @@ func (c *fakeAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _
 	}()
 	return appEventsCh
 }
+
+func TestBuildSyncOptions(t *testing.T) {
+	// This tests ensure that CLI sync options always return a non-nil SyncOptions object,
+	// allowing them to override Application spec sync options
+
+	tests := []struct {
+		name                 string
+		replace              bool
+		serverSideApply      bool
+		applyOutOfSyncOnly   bool
+		expectedOptionsCount int
+		expectedContains     []string
+	}{
+		{
+			name:                 "no flags set - should return empty array not nil",
+			replace:              false,
+			serverSideApply:      false,
+			applyOutOfSyncOnly:   false,
+			expectedOptionsCount: 0,
+			expectedContains:     []string{},
+		},
+		{
+			name:                 "replace flag set",
+			replace:              true,
+			serverSideApply:      false,
+			applyOutOfSyncOnly:   false,
+			expectedOptionsCount: 1,
+			expectedContains:     []string{"Replace=true"},
+		},
+		{
+			name:                 "server-side apply flag set",
+			replace:              false,
+			serverSideApply:      true,
+			applyOutOfSyncOnly:   false,
+			expectedOptionsCount: 1,
+			expectedContains:     []string{"ServerSideApply=true"},
+		},
+		{
+			name:                 "apply out of sync only flag set",
+			replace:              false,
+			serverSideApply:      false,
+			applyOutOfSyncOnly:   true,
+			expectedOptionsCount: 1,
+			expectedContains:     []string{"ApplyOutOfSyncOnly=true"},
+		},
+		{
+			name:                 "all flags set",
+			replace:              true,
+			serverSideApply:      true,
+			applyOutOfSyncOnly:   true,
+			expectedOptionsCount: 3,
+			expectedContains:     []string{"Replace=true", "ServerSideApply=true", "ApplyOutOfSyncOnly=true"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildSyncOptions(tt.replace, tt.serverSideApply, tt.applyOutOfSyncOnly)
+
+			// Result should NEVER be nil, even when no flags are set
+			assert.NotNil(t, result, "buildSyncOptions should never return nil - this allows CLI to override Application spec")
+
+			// Verify the number of options
+			assert.Equal(t, tt.expectedOptionsCount, len(result.Items), "unexpected number of sync options")
+
+			// Verify the expected options are present
+			for _, expected := range tt.expectedContains {
+				assert.Contains(t, result.Items, expected, "expected sync option not found")
+			}
+		})
+	}
+}
