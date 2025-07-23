@@ -224,11 +224,21 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
         }
     });
 
+    const clearSearchInputBtnRef = React.useRef();
+
     return (
         <Autocomplete
             filterSuggestions={true}
             renderInput={inputProps => (
-                <div className='applications-list__search' ref={searchBar}>
+                <div
+                    className='applications-list__search'
+                    ref={searchBar}
+                    onMouseDown={event => {
+                        // if we try to clear input, we shouldn't reset focus from it
+                        if (clearSearchInputBtnRef.current === event.target) {
+                            event.preventDefault();
+                        }
+                    }}>
                     <i
                         className='fa fa-search'
                         style={{marginRight: '9px', cursor: 'pointer'}}
@@ -240,10 +250,20 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
                     />
                     <input
                         {...inputProps}
+                        onKeyDown={event => {
+                            if (event.key === 'Escape' && searchBar.current && !appInput && isFocused) {
+                                searchBar.current.querySelector('input').blur();
+                                setFocus(false);
+                            }
+                        }}
+                        onBlurCapture={() => {
+                            setFocus(false);
+                        }}
                         onFocus={e => {
                             e.target.select();
                             if (inputProps.onFocus) {
                                 inputProps.onFocus(e);
+                                setFocus(true);
                             }
                         }}
                         style={{fontSize: '14px'}}
@@ -252,7 +272,14 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
                     />
                     <div className='keyboard-hint'>/</div>
                     {content && (
-                        <i className='fa fa-times' onClick={() => ctx.navigation.goto('.', {search: null}, {replace: true})} style={{cursor: 'pointer', marginLeft: '5px'}} />
+                        <i
+                            className='fa fa-times'
+                            ref={clearSearchInputBtnRef}
+                            onClick={() => {
+                                ctx.navigation.goto('.', {search: null}, {replace: true});
+                            }}
+                            style={{cursor: 'pointer', marginLeft: '5px'}}
+                        />
                     )}
                 </div>
             )}
