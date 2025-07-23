@@ -1,13 +1,12 @@
 package e2e
 
 import (
-	"testing"
-	"time"
-
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"testing"
+	"time"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -95,15 +94,22 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 }
 
 func TestAutoSyncSelfHealRetryAndRefreshEnabled(t *testing.T) {
+	autoSyncSelfHealRetryAndRefreshEnabled(t, 100)
+	autoSyncSelfHealRetryAndRefreshEnabled(t, -1)
+}
+
+func autoSyncSelfHealRetryAndRefreshEnabled(t *testing.T, limit int64) {
 	Given(t).
 		Path(guestbookPath).
 		When().
 		// Correctly configured app should be auto-synced once created
 		CreateFromFile(func(app *Application) {
 			app.Spec.SyncPolicy = &SyncPolicy{
-				Automated: &SyncPolicyAutomated{SelfHeal: true},
+				Automated: &SyncPolicyAutomated{
+					SelfHeal: true,
+				},
 				Retry: &RetryStrategy{
-					Limit:   -1,
+					Limit:   limit,
 					Refresh: true,
 				},
 			}
@@ -132,10 +138,14 @@ func TestAutoSyncSelfHealRetryAndRefreshEnabled(t *testing.T) {
 
 		// Push fix commit and see the app pick it up
 		When().
-		RevertCommit(). // Fix declaration
+		// Fix declaration
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 42}]`).
 		Refresh(RefreshTypeNormal).
-		// Wait for the sync retry to pick up new commit
 		Then().
+		// Wait for the sync retry to pick up new commit
+		And(func(_ *Application) {
+			time.Sleep(10 * time.Second)
+		}).
 		Expect(NoConditions()).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(OperationPhaseIs(OperationSucceeded))
