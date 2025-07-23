@@ -1180,18 +1180,12 @@ func compressHandler(handler http.Handler) http.Handler {
 }
 
 func requestTimeoutHTTPInterceptor(next http.Handler, requestTimeout time.Duration) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if requestTimeout == 0 {
-			next.ServeHTTP(w, r)
-			return
-		}
+	if requestTimeout == 0 {
+		return next
+	}
 
-		ctx, cancel := context.WithTimeout(r.Context(), requestTimeout)
-		defer cancel()
-
-		r = r.WithContext(ctx)
-		next.ServeHTTP(w, r)
-	})
+	timeoutMsg := "context deadline exceeded"
+	return http.TimeoutHandler(next, requestTimeout, timeoutMsg)
 }
 
 // newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
