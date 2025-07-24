@@ -1716,7 +1716,7 @@ func TestRequestTimeoutGRPCInterceptor(t *testing.T) {
 	t.Run("TestGRPCInterceptorTimeoutIsZeroSuccess", func(t *testing.T) {
 		interceptor := requestTimeoutGRPCInterceptor(0)
 
-		handler := func(_ context.Context, req any) (any, error) {
+		handler := func(_ context.Context, _ any) (any, error) {
 			return "success", nil
 		}
 
@@ -1752,7 +1752,7 @@ func TestRequestTimeoutGRPCInterceptor(t *testing.T) {
 		timeout := 200 * time.Millisecond
 		interceptor := requestTimeoutGRPCInterceptor(timeout)
 
-		handler := func(_ context.Context, req any) (any, error) {
+		handler := func(_ context.Context, _ any) (any, error) {
 			time.Sleep(50 * time.Millisecond)
 			return "success", nil
 		}
