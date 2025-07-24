@@ -62,20 +62,14 @@ type UserGetter_GetGroups_Call struct {
 }
 
 // GetGroups is a helper method to define mock.On call
-//   - ctx context.Context
+//   - ctx
 func (_e *UserGetter_Expecter) GetGroups(ctx interface{}) *UserGetter_GetGroups_Call {
 	return &UserGetter_GetGroups_Call{Call: _e.mock.On("GetGroups", ctx)}
 }
 
 func (_c *UserGetter_GetGroups_Call) Run(run func(ctx context.Context)) *UserGetter_GetGroups_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
+		run(args[0].(context.Context))
 	})
 	return _c
 }
@@ -113,20 +107,14 @@ type UserGetter_GetUser_Call struct {
 }
 
 // GetUser is a helper method to define mock.On call
-//   - ctx context.Context
+//   - ctx
 func (_e *UserGetter_Expecter) GetUser(ctx interface{}) *UserGetter_GetUser_Call {
 	return &UserGetter_GetUser_Call{Call: _e.mock.On("GetUser", ctx)}
 }
 
 func (_c *UserGetter_GetUser_Call) Run(run func(ctx context.Context)) *UserGetter_GetUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
+		run(args[0].(context.Context))
 	})
 	return _c
 }
