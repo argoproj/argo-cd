@@ -72,26 +72,15 @@ type SessionServiceServer_Create_Call struct {
 }
 
 // Create is a helper method to define mock.On call
-//   - context1 context.Context
-//   - sessionCreateRequest *session.SessionCreateRequest
+//   - context1
+//   - sessionCreateRequest
 func (_e *SessionServiceServer_Expecter) Create(context1 interface{}, sessionCreateRequest interface{}) *SessionServiceServer_Create_Call {
 	return &SessionServiceServer_Create_Call{Call: _e.mock.On("Create", context1, sessionCreateRequest)}
 }
 
 func (_c *SessionServiceServer_Create_Call) Run(run func(context1 context.Context, sessionCreateRequest *session.SessionCreateRequest)) *SessionServiceServer_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *session.SessionCreateRequest
-		if args[1] != nil {
-			arg1 = args[1].(*session.SessionCreateRequest)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*session.SessionCreateRequest))
 	})
 	return _c
 }
@@ -140,26 +129,15 @@ type SessionServiceServer_Delete_Call struct {
 }
 
 // Delete is a helper method to define mock.On call
-//   - context1 context.Context
-//   - sessionDeleteRequest *session.SessionDeleteRequest
+//   - context1
+//   - sessionDeleteRequest
 func (_e *SessionServiceServer_Expecter) Delete(context1 interface{}, sessionDeleteRequest interface{}) *SessionServiceServer_Delete_Call {
 	return &SessionServiceServer_Delete_Call{Call: _e.mock.On("Delete", context1, sessionDeleteRequest)}
 }
 
 func (_c *SessionServiceServer_Delete_Call) Run(run func(context1 context.Context, sessionDeleteRequest *session.SessionDeleteRequest)) *SessionServiceServer_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *session.SessionDeleteRequest
-		if args[1] != nil {
-			arg1 = args[1].(*session.SessionDeleteRequest)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*session.SessionDeleteRequest))
 	})
 	return _c
 }
@@ -208,26 +186,15 @@ type SessionServiceServer_GetUserInfo_Call struct {
 }
 
 // GetUserInfo is a helper method to define mock.On call
-//   - context1 context.Context
-//   - getUserInfoRequest *session.GetUserInfoRequest
+//   - context1
+//   - getUserInfoRequest
 func (_e *SessionServiceServer_Expecter) GetUserInfo(context1 interface{}, getUserInfoRequest interface{}) *SessionServiceServer_GetUserInfo_Call {
 	return &SessionServiceServer_GetUserInfo_Call{Call: _e.mock.On("GetUserInfo", context1, getUserInfoRequest)}
 }
 
 func (_c *SessionServiceServer_GetUserInfo_Call) Run(run func(context1 context.Context, getUserInfoRequest *session.GetUserInfoRequest)) *SessionServiceServer_GetUserInfo_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *session.GetUserInfoRequest
-		if args[1] != nil {
-			arg1 = args[1].(*session.GetUserInfoRequest)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*session.GetUserInfoRequest))
 	})
 	return _c
 }
