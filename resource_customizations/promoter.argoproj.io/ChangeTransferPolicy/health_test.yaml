@@ -37,5 +37,5 @@ tests:
   inputPath: testdata/all-healthy.yaml
 - healthStatus:
     status: Healthy
-    message: "Environment is up-to-date, but there are non-successful active commit statuses: 1 pending, 0successful, 0 failed. Pending commit statuses: argocd-health. "
+    message: "Environment is up-to-date, but there are non-successful active commit statuses: 1 pending, 0 successful, 0 failed. Pending commit statuses: argocd-health. "
   inputPath: testdata/non-successful-environments.yaml
