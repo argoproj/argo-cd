@@ -74,14 +74,20 @@ func GetNoopNormalizer() Normalizer {
 // Diff performs a diff on two unstructured objects. If the live object happens to have a
 // "kubectl.kubernetes.io/last-applied-configuration", then perform a three way diff.
 func Diff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult, error) {
+	preDiffOpts := opts
 	o := applyOptions(opts)
+	// If server-side diff is enabled, we need to skip full normalization (including ignore differences)
+	// when pre-processing the config and live objects.
+	if o.serverSideDiff {
+		preDiffOpts = append(preDiffOpts, WithSkipFullNormalize(true))
+	}
 	if config != nil {
 		config = remarshal(config, o)
-		Normalize(config, opts...)
+		Normalize(config, preDiffOpts...)
 	}
 	if live != nil {
 		live = remarshal(live, o)
-		Normalize(live, opts...)
+		Normalize(live, preDiffOpts...)
 	}
 
 	if o.serverSideDiff {
@@ -845,9 +851,14 @@ func Normalize(un *unstructured.Unstructured, opts ...Option) {
 		normalizeEndpoint(un, o)
 	}
 
-	err := o.normalizer.Normalize(un)
-	if err != nil {
-		o.log.Error(err, fmt.Sprintf("Failed to normalize %s/%s/%s", un.GroupVersionKind(), un.GetNamespace(), un.GetName()))
+	// Skip the full normalization (ignoreDifferences + knownTypes) for server-side diff
+	// In the case an ignoreDifferences field is required, it needs to be present in the config
+	// before server-side diff is calculated and normalized before final comparison.
+	if !o.skipFullNormalize {
+		err := o.normalizer.Normalize(un)
+		if err != nil {
+			o.log.Error(err, fmt.Sprintf("Failed to normalize %s/%s/%s", un.GroupVersionKind(), un.GetNamespace(), un.GetName()))
+		}
 	}
 }
 

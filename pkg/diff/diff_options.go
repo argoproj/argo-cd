@@ -17,6 +17,7 @@ type options struct {
 	// If set to true then differences caused by aggregated roles in RBAC resources are ignored.
 	ignoreAggregatedRoles bool
 	normalizer            Normalizer
+	skipFullNormalize     bool
 	log                   logr.Logger
 	structuredMergeDiff   bool
 	gvkParser             *managedfields.GvkParser
@@ -31,6 +32,7 @@ func applyOptions(opts []Option) options {
 		ignoreAggregatedRoles: false,
 		ignoreMutationWebhook: true,
 		normalizer:            GetNoopNormalizer(),
+		skipFullNormalize:     false,
 		log:                   textlogger.NewLogger(textlogger.NewConfig()),
 	}
 	for _, opt := range opts {
@@ -79,6 +81,12 @@ func IgnoreAggregatedRoles(ignore bool) Option {
 func WithNormalizer(normalizer Normalizer) Option {
 	return func(o *options) {
 		o.normalizer = normalizer
+	}
+}
+
+func WithSkipFullNormalize(skip bool) Option {
+	return func(o *options) {
+		o.skipFullNormalize = skip
 	}
 }
 
