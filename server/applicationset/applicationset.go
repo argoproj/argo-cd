@@ -260,12 +260,12 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 	return updated, nil
 }
 
-func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.Entry, appset v1alpha1.ApplicationSet, namespace string) ([]v1alpha1.Application, error) {
+func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.Entry, appset v1alpha1.ApplicationSet, controllerNamespace string) ([]v1alpha1.Application, error) {
 	argoCDDB := s.db
 
 	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, s.EnableGitHubAPIMetrics, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true)
 	argoCDService := services.NewArgoCDService(s.db, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
-	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, namespace, argoCDService, s.dynamicClient, scmConfig)
+	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, controllerNamespace, argoCDService, s.dynamicClient, scmConfig)
 
 	apps, _, err := appsettemplate.GenerateApplications(logEntry, appset, appSetGenerators, &appsetutils.Render{}, s.client)
 	if err != nil {
@@ -363,14 +363,7 @@ func (s *Server) Generate(ctx context.Context, q *applicationset.ApplicationSetG
 	if appset == nil {
 		return nil, errors.New("error creating ApplicationSets: ApplicationSets is nil in request")
 	}
-	// The namespace explicitly to be set to the server namespace
-	// since this is the exact namespace that is being used
-	// to generate parameters (especially for git generator).
-	// In case of Git generator, if the namespace is set to
-	// appset namespace, we'll look for a project in the appset
-	// namespace that would lead to error when generating params
-	// for an appset in any namespace feature.
-	namespace := s.appsetNamespaceOrDefault(s.ns)
+	namespace := s.appsetNamespaceOrDefault(appset.Namespace)
 
 	if !s.isNamespaceEnabled(namespace) {
 		return nil, security.NamespaceNotPermittedError(namespace)
@@ -387,7 +380,16 @@ func (s *Server) Generate(ctx context.Context, q *applicationset.ApplicationSetG
 	logger := log.New()
 	logger.SetOutput(logs)
 
-	apps, err := s.generateApplicationSetApps(ctx, logger.WithField("applicationset", appset.Name), *appset, namespace)
+	// The server namespace needs to be passed to the function
+	// since this is the exact namespace that is being used
+	// to generate parameters (especially for git generator).
+	//
+	// In case of Git generator, if the namespace is set to
+	// appset namespace, we'll look for a project in the appset
+	// namespace that would lead to error when generating params
+	// for an appset in any namespace feature.
+	// See https://github.com/argoproj/argo-cd/issues/22942
+	apps, err := s.generateApplicationSetApps(ctx, logger.WithField("applicationset", appset.Name), *appset, s.ns)
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate Applications of ApplicationSet: %w\n%s", err, logs.String())
 	}
