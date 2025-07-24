@@ -29,10 +29,10 @@ type GitGenerator struct {
 }
 
 // NewGitGenerator creates a new instance of Git Generator
-func NewGitGenerator(repos services.Repos, controllerNs string) Generator {
+func NewGitGenerator(repos services.Repos, controllerNamespace string) Generator {
 	g := &GitGenerator{
 		repos:     repos,
-		namespace: controllerNs,
+		namespace: controllerNamespace,
 	}
 
 	return g
