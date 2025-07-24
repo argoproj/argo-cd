@@ -1716,13 +1716,13 @@ func TestRequestTimeoutGRPCInterceptor(t *testing.T) {
 	t.Run("TestGRPCInterceptorTimeoutIsZeroSuccess", func(t *testing.T) {
 		interceptor := requestTimeoutGRPCInterceptor(0)
 
-		handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		handler := func(ctx context.Context, req any) (any, error) {
 			return "success", nil
 		}
 
 		result, err := interceptor(context.Background(), "test", &grpc.UnaryServerInfo{}, handler)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "success", result)
 	})
 
@@ -1730,7 +1730,7 @@ func TestRequestTimeoutGRPCInterceptor(t *testing.T) {
 		timeout := 100 * time.Millisecond
 		interceptor := requestTimeoutGRPCInterceptor(timeout)
 
-		handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		handler := func(ctx context.Context, req any) (any, error) {
 			select {
 			case <-time.After(200 * time.Millisecond):
 				return "success", nil
@@ -1743,8 +1743,8 @@ func TestRequestTimeoutGRPCInterceptor(t *testing.T) {
 		_, err := interceptor(context.Background(), "test", &grpc.UnaryServerInfo{}, handler)
 		elapsed := time.Since(start)
 
-		assert.Error(t, err)
-		assert.True(t, elapsed < 150*time.Millisecond, "should timeout before handler completes")
+		require.Error(t, err)
+		assert.Less(t, elapsed, 150*time.Millisecond, "should timeout before handler completes")
 		assert.Contains(t, err.Error(), "context deadline exceeded")
 	})
 
@@ -1752,14 +1752,14 @@ func TestRequestTimeoutGRPCInterceptor(t *testing.T) {
 		timeout := 200 * time.Millisecond
 		interceptor := requestTimeoutGRPCInterceptor(timeout)
 
-		handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		handler := func(ctx context.Context, req any) (any, error) {
 			time.Sleep(50 * time.Millisecond)
 			return "success", nil
 		}
 
 		result, err := interceptor(context.Background(), "test", &grpc.UnaryServerInfo{}, handler)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "success", result)
 	})
 }
@@ -1769,12 +1769,13 @@ func TestRequestTimeoutHTTPInterceptor(t *testing.T) {
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			time.Sleep(100 * time.Millisecond)
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("success"))
+			_, err := w.Write([]byte("success"))
+			require.NoError(t, err)
 		})
 
 		interceptor := requestTimeoutHTTPInterceptor(handler, 0)
 
-		req := httptest.NewRequest("GET", "/test", nil)
+		req := httptest.NewRequest("GET", "/test", http.NoBody)
 		w := httptest.NewRecorder()
 
 		interceptor.ServeHTTP(w, req)
@@ -1790,7 +1791,8 @@ func TestRequestTimeoutHTTPInterceptor(t *testing.T) {
 			select {
 			case <-time.After(200 * time.Millisecond):
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("success"))
+				_, err := w.Write([]byte("success"))
+				require.NoError(t, err)
 			case <-r.Context().Done():
 				return
 			}
@@ -1798,14 +1800,14 @@ func TestRequestTimeoutHTTPInterceptor(t *testing.T) {
 
 		interceptor := requestTimeoutHTTPInterceptor(handler, timeout)
 
-		req := httptest.NewRequest("GET", "/test", nil)
+		req := httptest.NewRequest("GET", "/test", http.NoBody)
 		w := httptest.NewRecorder()
 
 		start := time.Now()
 		interceptor.ServeHTTP(w, req)
 		elapsed := time.Since(start)
 
-		assert.True(t, elapsed < 150*time.Millisecond, "should timeout before handler completes")
+		assert.Less(t, elapsed, 150*time.Millisecond, "should timeout before handler completes")
 		assert.Contains(t, w.Body.String(), "context deadline exceeded")
 		assert.Equal(t, http.StatusServiceUnavailable, w.Code)
 	})
@@ -1816,12 +1818,13 @@ func TestRequestTimeoutHTTPInterceptor(t *testing.T) {
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			time.Sleep(50 * time.Millisecond)
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("success"))
+			_, err := w.Write([]byte("success"))
+			require.NoError(t, err)
 		})
 
 		interceptor := requestTimeoutHTTPInterceptor(handler, timeout)
 
-		req := httptest.NewRequest("GET", "/test", nil)
+		req := httptest.NewRequest("GET", "/test", http.NoBody)
 		w := httptest.NewRecorder()
 
 		interceptor.ServeHTTP(w, req)
@@ -1835,14 +1838,16 @@ func TestRequestTimeoutHTTPInterceptor(t *testing.T) {
 
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			deadline, ok := r.Context().Deadline()
-			assert.True(t, ok, "context should have deadline")
-			assert.True(t, time.Until(deadline) <= timeout, "deadline should be within timeout")
+			require.True(t, ok, "context should have deadline")
+			assert.LessOrEqual(t, time.Until(deadline), timeout, "deadline should be within timeout")
 			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte("success"))
+			require.NoError(t, err)
 		})
 
 		interceptor := requestTimeoutHTTPInterceptor(handler, timeout)
 
-		req := httptest.NewRequest("GET", "/test", nil)
+		req := httptest.NewRequest("GET", "/test", http.NoBody)
 		w := httptest.NewRecorder()
 
 		interceptor.ServeHTTP(w, req)

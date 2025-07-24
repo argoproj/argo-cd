@@ -31693,15 +31693,7 @@ spec:
           name: webhook
         - containerPort: 8080
           name: metrics
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
+        securityContext: {}
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -31815,15 +31807,7 @@ spec:
         - containerPort: 5556
         - containerPort: 5557
         - containerPort: 5558
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
+        securityContext: {}
         volumeMounts:
         - mountPath: /shared
           name: static-files
@@ -31840,15 +31824,7 @@ spec:
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: copyutil
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
+        securityContext: {}
         volumeMounts:
         - mountPath: /shared
           name: static-files
@@ -31939,12 +31915,7 @@ spec:
           tcpSocket:
             port: 9001
         name: argocd-notifications-controller
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
+        securityContext: {}
         volumeMounts:
         - mountPath: /app/config/tls
           name: tls-certs
@@ -31953,10 +31924,7 @@ spec:
         workingDir: /app
       nodeSelector:
         kubernetes.io/os: linux
-      securityContext:
-        runAsNonRoot: true
-        seccompProfile:
-          type: RuntimeDefault
+      securityContext: {}
       serviceAccountName: argocd-notifications-controller
       volumes:
       - configMap:
@@ -32024,12 +31992,7 @@ spec:
         name: redis
         ports:
         - containerPort: 6379
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
+        securityContext: {}
       initContainers:
       - command:
         - argocd
@@ -32038,22 +32001,10 @@ spec:
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: IfNotPresent
         name: secret-init
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
+        securityContext: {}
       nodeSelector:
         kubernetes.io/os: linux
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 999
-        seccompProfile:
-          type: RuntimeDefault
+      securityContext: {}
       serviceAccountName: argocd-redis
 ---
 apiVersion: apps/v1
@@ -32352,15 +32303,7 @@ spec:
             port: 8084
           initialDelaySeconds: 5
           periodSeconds: 10
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
+        securityContext: {}
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -32387,15 +32330,7 @@ spec:
         - -c
         image: quay.io/argoproj/argocd:latest
         name: copyutil
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
+        securityContext: {}
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files
@@ -32776,15 +32711,7 @@ spec:
             port: 8080
           initialDelaySeconds: 3
           periodSeconds: 30
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
+        securityContext: {}
         volumeMounts:
         - mountPath: /app/config/ssh
           name: ssh-known-hosts
@@ -33152,15 +33079,7 @@ spec:
             port: 8082
           initialDelaySeconds: 5
           periodSeconds: 10
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
+        securityContext: {}
         volumeMounts:
         - mountPath: /app/config/controller/tls
           name: argocd-repo-server-tls

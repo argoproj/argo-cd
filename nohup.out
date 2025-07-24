@@ -1,0 +1,51 @@
+go mod download && go mod tidy # go mod download changes go.sum https://github.com/golang/go/issues/42970
+go mod vendor
+cd ui && yarn install
+yarn install v1.22.22
+[1/4] Resolving packages...
+warning Resolution field "rxjs@6.6.7" is incompatible with requested version "rxjs@^7.8.1"
+success Already up-to-date.
+Done in 2.57s.
+find /home/jks8304/argo-cd -name debug.test -exec rm -f {} +
+CGO_ENABLED=0 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -gcflags="all=-N -l"  -v -ldflags '-X github.com/argoproj/argo-cd/v3/common.version=3.2.0 -X github.com/argoproj/argo-cd/v3/common.buildDate=2025-07-20T06:57:33Z -X github.com/argoproj/argo-cd/v3/common.gitCommit=f79ca9da388bf13272a4228573ffba9b43755bcd -X github.com/argoproj/argo-cd/v3/common.gitTreeState=dirty -X github.com/argoproj/argo-cd/v3/common.kubectlVersion=v0.33.1 -X "github.com/argoproj/argo-cd/v3/common.extraBuildInfo=" -extldflags "-static"' -o /home/jks8304/argo-cd/dist/argocd ./cmd
+github.com/argoproj/argo-cd/v3/server
+github.com/argoproj/argo-cd/v3/cmd/argocd-server/commands
+github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless
+github.com/argoproj/argo-cd/v3/cmd/argocd/commands/admin
+github.com/argoproj/argo-cd/v3/cmd/argocd/commands
+github.com/argoproj/argo-cd/v3/cmd
+kubectl create ns argocd-e2e || true
+namespace/argocd-e2e created
+kubectl create ns argocd-e2e-external || true
+namespace/argocd-e2e-external created
+kubectl create ns argocd-e2e-external-2 || true
+namespace/argocd-e2e-external-2 created
+kubectl config set-context --current --namespace=argocd-e2e
+Context "minikube" modified.
+kustomize build test/manifests/base | kubectl apply -f -
+/bin/sh: 1: kustomize: not found
+error: no objects passed to apply
+make: *** [Makefile:470: start-e2e-local] Error 1
+go mod download && go mod tidy # go mod download changes go.sum https://github.com/golang/go/issues/42970
+go mod vendor
+cd ui && yarn install
+yarn install v1.22.22
+[1/4] Resolving packages...
+warning Resolution field "rxjs@6.6.7" is incompatible with requested version "rxjs@^7.8.1"
+success Already up-to-date.
+Done in 1.52s.
+find /home/jks8304/argo-cd -name debug.test -exec rm -f {} +
+CGO_ENABLED=0 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -gcflags="all=-N -l"  -v -ldflags '-X github.com/argoproj/argo-cd/v3/common.version=3.2.0 -X github.com/argoproj/argo-cd/v3/common.buildDate=2025-07-20T07:04:01Z -X github.com/argoproj/argo-cd/v3/common.gitCommit=f79ca9da388bf13272a4228573ffba9b43755bcd -X github.com/argoproj/argo-cd/v3/common.gitTreeState=dirty -X github.com/argoproj/argo-cd/v3/common.kubectlVersion=v0.33.1 -X "github.com/argoproj/argo-cd/v3/common.extraBuildInfo=" -extldflags "-static"' -o /home/jks8304/argo-cd/dist/argocd ./cmd
+github.com/argoproj/argo-cd/v3/cmd
+kubectl create ns argocd-e2e || true
+Error from server (AlreadyExists): namespaces "argocd-e2e" already exists
+kubectl create ns argocd-e2e-external || true
+Error from server (AlreadyExists): namespaces "argocd-e2e-external" already exists
+kubectl create ns argocd-e2e-external-2 || true
+Error from server (AlreadyExists): namespaces "argocd-e2e-external-2" already exists
+kubectl config set-context --current --namespace=argocd-e2e
+Context "minikube" modified.
+kustomize build test/manifests/base | kubectl apply -f -
+/bin/sh: 1: kustomize: not found
+error: no objects passed to apply
+make: *** [Makefile:470: start-e2e-local] Error 1
