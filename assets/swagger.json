@@ -7260,10 +7260,6 @@
       "description": "ApplicationSetStrategy configures how generated Applications are updated in sequence.",
       "type": "object",
       "properties": {
-        "deletionOrder": {
-          "type": "string",
-          "title": "DeletionOrder allows specifying the order for deleting generated apps when progressive sync is enabled.\naccepts values \"AllAtOnce\" and \"Reverse\""
-        },
         "rollingSync": {
           "$ref": "#/definitions/v1alpha1ApplicationSetRolloutStrategy"
         },
@@ -8639,20 +8635,12 @@
       "title": "KustomizeOptions are options for kustomize to use when building manifests",
       "properties": {
         "binaryPath": {
-          "description": "Deprecated: Use settings.Settings instead. See: settings.Settings.KustomizeVersions.\nIf this field is set, it will be used as the Kustomize binary path.\nOtherwise, Versions is used.",
           "type": "string",
           "title": "BinaryPath holds optional path to kustomize binary"
         },
         "buildOptions": {
           "type": "string",
           "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
-        },
-        "versions": {
-          "description": "Versions is a list of Kustomize versions and their corresponding binary paths and build options.",
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/v1alpha1KustomizeVersion"
-          }
         }
       }
     },
@@ -8713,24 +8701,6 @@
         },
         "resId": {
           "$ref": "#/definitions/v1alpha1KustomizeResId"
-        }
-      }
-    },
-    "v1alpha1KustomizeVersion": {
-      "type": "object",
-      "title": "KustomizeVersion holds information about additional Kustomize versions",
-      "properties": {
-        "buildOptions": {
-          "type": "string",
-          "title": "BuildOptions that are specific to a Kustomize version"
-        },
-        "name": {
-          "type": "string",
-          "title": "Name holds Kustomize version name"
-        },
-        "path": {
-          "type": "string",
-          "title": "Path holds the corresponding binary path"
         }
       }
     },
@@ -9055,10 +9025,6 @@
         "bitbucketServer": {
           "$ref": "#/definitions/v1alpha1PullRequestGeneratorBitbucketServer"
         },
-        "continueOnRepoNotFoundError": {
-          "description": "ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator parameters generation even if the repository is not found.",
-          "type": "boolean"
-        },
         "filters": {
           "description": "Filters for which pull requests should be considered.",
           "type": "array",
@@ -9187,9 +9153,6 @@
           "type": "string"
         },
         "targetBranchMatch": {
-          "type": "string"
-        },
-        "titleMatch": {
           "type": "string"
         }
       }

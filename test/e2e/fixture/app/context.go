@@ -464,9 +464,3 @@ func (c *Context) Sources(sources []v1alpha1.ApplicationSource) *Context {
 	c.sources = sources
 	return c
 }
-
-func (c *Context) RegisterKustomizeVersion(version, path string) *Context {
-	c.t.Helper()
-	require.NoError(c.t, fixture.RegisterKustomizeVersion(version, path))
-	return c
-}

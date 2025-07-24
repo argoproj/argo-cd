@@ -80,7 +80,7 @@
                      requestedIDTokenClaims:
                         groups:
                            essential: true
-                           value: "ApplicationGroup"
+                           value: "SecurityGroup"
                      requestedScopes:
                         - openid
                         - profile

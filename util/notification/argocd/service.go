@@ -66,6 +66,14 @@ func (svc *argoCDService) GetCommitMetadata(ctx context.Context, repoURL string,
 	}, nil
 }
 
+func (svc *argoCDService) getKustomizeOptions(source *v1alpha1.ApplicationSource) (*v1alpha1.KustomizeOptions, error) {
+	kustomizeSettings, err := svc.settingsMgr.GetKustomizeSettings()
+	if err != nil {
+		return nil, err
+	}
+	return kustomizeSettings.GetOptions(*source)
+}
+
 func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Application) (*shared.AppDetail, error) {
 	appSource := app.Spec.GetSourcePtrByIndex(0)
 
@@ -78,7 +86,7 @@ func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Appli
 	if err != nil {
 		return nil, err
 	}
-	kustomizeOptions, err := svc.settingsMgr.GetKustomizeSettings()
+	kustomizeOptions, err := svc.getKustomizeOptions(appSource)
 	if err != nil {
 		return nil, err
 	}

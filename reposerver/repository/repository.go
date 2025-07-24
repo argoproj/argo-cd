@@ -62,7 +62,6 @@ import (
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
 	"github.com/argoproj/argo-cd/v3/util/kustomize"
 	"github.com/argoproj/argo-cd/v3/util/manifeststream"
-	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
@@ -1499,10 +1498,9 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		targetObjs, command, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
 		commands = append(commands, command)
 	case v1alpha1.ApplicationSourceTypeKustomize:
-		var kustomizeBinary string
-		kustomizeBinary, err = settings.GetKustomizeBinaryPath(q.KustomizeOptions, *q.ApplicationSource)
-		if err != nil {
-			return nil, fmt.Errorf("error getting kustomize binary path: %w", err)
+		kustomizeBinary := ""
+		if q.KustomizeOptions != nil {
+			kustomizeBinary = q.KustomizeOptions.BinaryPath
 		}
 		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
 		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
@@ -1671,8 +1669,7 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 	return nil
 }
 
-// GetAppSourceType returns explicit application source type or examines a directory and determines its application source type.
-// Overrides are applied as a side effect on the given source.
+// GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
 func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, appPath, repoPath, appName string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string, env []string) (v1alpha1.ApplicationSourceType, error) {
 	err := mergeSourceParameters(source, appPath, appName)
 	if err != nil {
@@ -2303,9 +2300,9 @@ func walkHelmValueFilesInPath(root string, valueFiles *[]string) filepath.WalkFu
 
 func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery, repoRoot string, appPath string, reversion string, credsStore git.CredsStore) error {
 	res.Kustomize = &apiclient.KustomizeAppSpec{}
-	kustomizeBinary, err := settings.GetKustomizeBinaryPath(q.KustomizeOptions, *q.Source)
-	if err != nil {
-		return fmt.Errorf("failed to get kustomize binary path: %w", err)
+	kustomizeBinary := ""
+	if q.KustomizeOptions != nil {
+		kustomizeBinary = q.KustomizeOptions.BinaryPath
 	}
 	k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(credsStore), q.Repo.Repo, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
 	fakeManifestRequest := apiclient.ManifestRequest{
