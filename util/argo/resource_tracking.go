@@ -167,8 +167,54 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		}
 		return nil
 	default:
-		return setAppInstanceAnnotation()
+		if err := setAppInstanceAnnotation(); err != nil {
+			return err
+		}
 	}
+
+	// Record how we tracked the resource (label, annotation, or both),
+	// so that we can later remove only those when needed.
+	// This is useful to remove the all known tracking label/annotations
+	// set by Argo CD especially when generating hydrated manifest.
+	return kube.SetAppInstanceAnnotation(un, v1alpha1.AnnotationKeyTrackingMethod, string(trackingMethod))
+}
+
+func (rt *resourceTracking) RemoveAppInstance(un *unstructured.Unstructured) error {
+	trackingMethod, _, _ := unstructured.NestedString(un.Object, "metadata", "annotations", v1alpha1.AnnotationKeyTrackingMethod)
+
+	switch v1alpha1.TrackingMethod(trackingMethod) {
+	case v1alpha1.TrackingMethodLabel:
+		if err := kube.RemoveLabel(un, common.LabelKeyAppInstance); err != nil {
+			return err
+		}
+	case v1alpha1.TrackingMethodAnnotation:
+		if err := kube.RemoveAnnotation(un, common.AnnotationKeyAppInstance); err != nil {
+			return err
+		}
+		if err := kube.RemoveAnnotation(un, common.AnnotationInstallationID); err != nil {
+			return err
+		}
+	case v1alpha1.TrackingMethodAnnotationAndLabel:
+		if err := kube.RemoveAnnotation(un, common.AnnotationKeyAppInstance); err != nil {
+			return err
+		}
+		if err := kube.RemoveAnnotation(un, common.AnnotationInstallationID); err != nil {
+			return err
+		}
+		if err := kube.RemoveLabel(un, common.LabelKeyAppInstance); err != nil {
+			return err
+		}
+	default:
+		// Fallback: we don’t know what method was used (e.g. old resource), so remove all known fields
+		_ = kube.RemoveAnnotation(un, common.AnnotationKeyAppInstance)
+		_ = kube.RemoveAnnotation(un, common.AnnotationInstallationID)
+		_ = kube.RemoveLabel(un, common.LabelKeyAppInstance)
+	}
+
+	// Finally, always remove the tracking-method marker annotation itself
+	_ = kube.RemoveAnnotation(un, v1alpha1.AnnotationKeyTrackingMethod)
+
+	return nil
 }
 
 // BuildAppInstanceValue build resource tracking id in format <application-name>;<group>/<kind>/<namespace>/<name>
@@ -241,23 +287,6 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 		if err != nil {
 			return fmt.Errorf("failed to remove app instance label: %w", err)
 		}
-	}
-
-	return nil
-}
-
-func (rt *resourceTracking) RemoveAppInstance(un *unstructured.Unstructured) error {
-	err := kube.RemoveAnnotation(un, common.AnnotationKeyAppInstance)
-	if err != nil {
-		return err
-	}
-	err = kube.RemoveAnnotation(un, common.AnnotationInstallationID)
-	if err != nil {
-		return err
-	}
-	err = kube.RemoveLabel(un, common.LabelKeyAppInstance)
-	if err != nil {
-		return err
 	}
 
 	return nil

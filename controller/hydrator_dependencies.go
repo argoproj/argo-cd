@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/argoproj/argo-cd/v3/common"
+
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -51,6 +53,19 @@ func (ctrl *ApplicationController) GetRepoObjs(origApp *appv1.Application, drySo
 
 	// FIXME: use cache and revision cache
 	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(app, drySources, appLabelKey, dryRevisions, true, true, false, project, false)
+	for _, obj := range objs {
+		// Remove Argo CD's internal tracking annotation before committing to Git.
+		// This annotation is used only for in-memory tracking and should not be persisted.
+		annotations := obj.GetAnnotations()
+		if annotations != nil {
+			delete(annotations, common.AnnotationKeyAppInstance)
+			if len(annotations) == 0 {
+				obj.SetAnnotations(nil)
+			} else {
+				obj.SetAnnotations(annotations)
+			}
+		}
+	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get repo objects: %w", err)
 	}
