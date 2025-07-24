@@ -98,21 +98,29 @@ end
 
 local pendingCount = 0
 local failureCount = 0
+local successCount = 0
+local pendingKeys = {}
+local failedKeys = {}
 for _, status in ipairs(obj.status.active.commitStatuses or {}) do
     if status.phase == "pending" then
         pendingCount = pendingCount + 1
+        table.insert(pendingKeys, status.key)
+    elseif status.phase == "success" then
+        successCount = successCount + 1
     elseif status.phase == "failure" then
         failureCount = failureCount + 1
+        table.insert(failedKeys, status.key)
     end
 end
 if pendingCount > 0 or failureCount > 0 then
-    local envMessages = {}
-    for branch, counts in pairs(nonSuccessfulEnvironments) do
-        local msg = branch .. " (" .. counts.failure .. " failed, " .. counts.pending .. " pending)"
-        table.insert(envMessages, msg)
-    end
     hs.status = "Healthy"
-    hs.message = "Environment is up-to-date, but there are non-successful commit statuses: " .. table.concat(envMessages, ", ") .. "."
+    hs.message = "Environment is up-to-date, but there are non-successful active commit statuses: " .. pendingCount .. " pending, " .. successCount .. " successful, " .. failureCount .. " failed. "
+    if pendingCount > 0 then
+        hs.message = hs.message .. "Pending commit statuses: " .. table.concat(pendingKeys, ", ") .. ". "
+    end
+    if failureCount > 0 then
+        hs.message = hs.message .. "Failed commit statuses: " .. table.concat(failedKeys, ", ") .. ". "
+    end
     return hs
 end
 
