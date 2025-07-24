@@ -53,20 +53,14 @@ type Dependencies_AddHydrationQueueItem_Call struct {
 }
 
 // AddHydrationQueueItem is a helper method to define mock.On call
-//   - key types.HydrationQueueKey
+//   - key
 func (_e *Dependencies_Expecter) AddHydrationQueueItem(key interface{}) *Dependencies_AddHydrationQueueItem_Call {
 	return &Dependencies_AddHydrationQueueItem_Call{Call: _e.mock.On("AddHydrationQueueItem", key)}
 }
 
 func (_c *Dependencies_AddHydrationQueueItem_Call) Run(run func(key types.HydrationQueueKey)) *Dependencies_AddHydrationQueueItem_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 types.HydrationQueueKey
-		if args[0] != nil {
-			arg0 = args[0].(types.HydrationQueueKey)
-		}
-		run(
-			arg0,
-		)
+		run(args[0].(types.HydrationQueueKey))
 	})
 	return _c
 }
@@ -115,20 +109,14 @@ type Dependencies_GetProcessableAppProj_Call struct {
 }
 
 // GetProcessableAppProj is a helper method to define mock.On call
-//   - app *v1alpha1.Application
+//   - app
 func (_e *Dependencies_Expecter) GetProcessableAppProj(app interface{}) *Dependencies_GetProcessableAppProj_Call {
 	return &Dependencies_GetProcessableAppProj_Call{Call: _e.mock.On("GetProcessableAppProj", app)}
 }
 
 func (_c *Dependencies_GetProcessableAppProj_Call) Run(run func(app *v1alpha1.Application)) *Dependencies_GetProcessableAppProj_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 *v1alpha1.Application
-		if args[0] != nil {
-			arg0 = args[0].(*v1alpha1.Application)
-		}
-		run(
-			arg0,
-		)
+		run(args[0].(*v1alpha1.Application))
 	})
 	return _c
 }
@@ -240,38 +228,17 @@ type Dependencies_GetRepoObjs_Call struct {
 }
 
 // GetRepoObjs is a helper method to define mock.On call
-//   - app *v1alpha1.Application
-//   - source v1alpha1.ApplicationSource
-//   - revision string
-//   - project *v1alpha1.AppProject
+//   - app
+//   - source
+//   - revision
+//   - project
 func (_e *Dependencies_Expecter) GetRepoObjs(app interface{}, source interface{}, revision interface{}, project interface{}) *Dependencies_GetRepoObjs_Call {
 	return &Dependencies_GetRepoObjs_Call{Call: _e.mock.On("GetRepoObjs", app, source, revision, project)}
 }
 
 func (_c *Dependencies_GetRepoObjs_Call) Run(run func(app *v1alpha1.Application, source v1alpha1.ApplicationSource, revision string, project *v1alpha1.AppProject)) *Dependencies_GetRepoObjs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 *v1alpha1.Application
-		if args[0] != nil {
-			arg0 = args[0].(*v1alpha1.Application)
-		}
-		var arg1 v1alpha1.ApplicationSource
-		if args[1] != nil {
-			arg1 = args[1].(v1alpha1.ApplicationSource)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 *v1alpha1.AppProject
-		if args[3] != nil {
-			arg3 = args[3].(*v1alpha1.AppProject)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-		)
+		run(args[0].(*v1alpha1.Application), args[1].(v1alpha1.ApplicationSource), args[2].(string), args[3].(*v1alpha1.AppProject))
 	})
 	return _c
 }
@@ -320,32 +287,16 @@ type Dependencies_GetWriteCredentials_Call struct {
 }
 
 // GetWriteCredentials is a helper method to define mock.On call
-//   - ctx context.Context
-//   - repoURL string
-//   - project string
+//   - ctx
+//   - repoURL
+//   - project
 func (_e *Dependencies_Expecter) GetWriteCredentials(ctx interface{}, repoURL interface{}, project interface{}) *Dependencies_GetWriteCredentials_Call {
 	return &Dependencies_GetWriteCredentials_Call{Call: _e.mock.On("GetWriteCredentials", ctx, repoURL, project)}
 }
 
 func (_c *Dependencies_GetWriteCredentials_Call) Run(run func(ctx context.Context, repoURL string, project string)) *Dependencies_GetWriteCredentials_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
 	})
 	return _c
 }
@@ -372,26 +323,15 @@ type Dependencies_PersistAppHydratorStatus_Call struct {
 }
 
 // PersistAppHydratorStatus is a helper method to define mock.On call
-//   - orig *v1alpha1.Application
-//   - newStatus *v1alpha1.SourceHydratorStatus
+//   - orig
+//   - newStatus
 func (_e *Dependencies_Expecter) PersistAppHydratorStatus(orig interface{}, newStatus interface{}) *Dependencies_PersistAppHydratorStatus_Call {
 	return &Dependencies_PersistAppHydratorStatus_Call{Call: _e.mock.On("PersistAppHydratorStatus", orig, newStatus)}
 }
 
 func (_c *Dependencies_PersistAppHydratorStatus_Call) Run(run func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistAppHydratorStatus_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 *v1alpha1.Application
-		if args[0] != nil {
-			arg0 = args[0].(*v1alpha1.Application)
-		}
-		var arg1 *v1alpha1.SourceHydratorStatus
-		if args[1] != nil {
-			arg1 = args[1].(*v1alpha1.SourceHydratorStatus)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(*v1alpha1.Application), args[1].(*v1alpha1.SourceHydratorStatus))
 	})
 	return _c
 }
@@ -429,26 +369,15 @@ type Dependencies_RequestAppRefresh_Call struct {
 }
 
 // RequestAppRefresh is a helper method to define mock.On call
-//   - appName string
-//   - appNamespace string
+//   - appName
+//   - appNamespace
 func (_e *Dependencies_Expecter) RequestAppRefresh(appName interface{}, appNamespace interface{}) *Dependencies_RequestAppRefresh_Call {
 	return &Dependencies_RequestAppRefresh_Call{Call: _e.mock.On("RequestAppRefresh", appName, appNamespace)}
 }
 
 func (_c *Dependencies_RequestAppRefresh_Call) Run(run func(appName string, appNamespace string)) *Dependencies_RequestAppRefresh_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
-		if args[0] != nil {
-			arg0 = args[0].(string)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(string), args[1].(string))
 	})
 	return _c
 }

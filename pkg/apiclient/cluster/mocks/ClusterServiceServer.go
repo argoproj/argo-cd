@@ -73,26 +73,15 @@ type ClusterServiceServer_Create_Call struct {
 }
 
 // Create is a helper method to define mock.On call
-//   - context1 context.Context
-//   - clusterCreateRequest *cluster.ClusterCreateRequest
+//   - context1
+//   - clusterCreateRequest
 func (_e *ClusterServiceServer_Expecter) Create(context1 interface{}, clusterCreateRequest interface{}) *ClusterServiceServer_Create_Call {
 	return &ClusterServiceServer_Create_Call{Call: _e.mock.On("Create", context1, clusterCreateRequest)}
 }
 
 func (_c *ClusterServiceServer_Create_Call) Run(run func(context1 context.Context, clusterCreateRequest *cluster.ClusterCreateRequest)) *ClusterServiceServer_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *cluster.ClusterCreateRequest
-		if args[1] != nil {
-			arg1 = args[1].(*cluster.ClusterCreateRequest)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*cluster.ClusterCreateRequest))
 	})
 	return _c
 }
@@ -141,26 +130,15 @@ type ClusterServiceServer_Delete_Call struct {
 }
 
 // Delete is a helper method to define mock.On call
-//   - context1 context.Context
-//   - clusterQuery *cluster.ClusterQuery
+//   - context1
+//   - clusterQuery
 func (_e *ClusterServiceServer_Expecter) Delete(context1 interface{}, clusterQuery interface{}) *ClusterServiceServer_Delete_Call {
 	return &ClusterServiceServer_Delete_Call{Call: _e.mock.On("Delete", context1, clusterQuery)}
 }
 
 func (_c *ClusterServiceServer_Delete_Call) Run(run func(context1 context.Context, clusterQuery *cluster.ClusterQuery)) *ClusterServiceServer_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *cluster.ClusterQuery
-		if args[1] != nil {
-			arg1 = args[1].(*cluster.ClusterQuery)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*cluster.ClusterQuery))
 	})
 	return _c
 }
@@ -209,26 +187,15 @@ type ClusterServiceServer_Get_Call struct {
 }
 
 // Get is a helper method to define mock.On call
-//   - context1 context.Context
-//   - clusterQuery *cluster.ClusterQuery
+//   - context1
+//   - clusterQuery
 func (_e *ClusterServiceServer_Expecter) Get(context1 interface{}, clusterQuery interface{}) *ClusterServiceServer_Get_Call {
 	return &ClusterServiceServer_Get_Call{Call: _e.mock.On("Get", context1, clusterQuery)}
 }
 
 func (_c *ClusterServiceServer_Get_Call) Run(run func(context1 context.Context, clusterQuery *cluster.ClusterQuery)) *ClusterServiceServer_Get_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *cluster.ClusterQuery
-		if args[1] != nil {
-			arg1 = args[1].(*cluster.ClusterQuery)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*cluster.ClusterQuery))
 	})
 	return _c
 }
@@ -277,26 +244,15 @@ type ClusterServiceServer_InvalidateCache_Call struct {
 }
 
 // InvalidateCache is a helper method to define mock.On call
-//   - context1 context.Context
-//   - clusterQuery *cluster.ClusterQuery
+//   - context1
+//   - clusterQuery
 func (_e *ClusterServiceServer_Expecter) InvalidateCache(context1 interface{}, clusterQuery interface{}) *ClusterServiceServer_InvalidateCache_Call {
 	return &ClusterServiceServer_InvalidateCache_Call{Call: _e.mock.On("InvalidateCache", context1, clusterQuery)}
 }
 
 func (_c *ClusterServiceServer_InvalidateCache_Call) Run(run func(context1 context.Context, clusterQuery *cluster.ClusterQuery)) *ClusterServiceServer_InvalidateCache_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *cluster.ClusterQuery
-		if args[1] != nil {
-			arg1 = args[1].(*cluster.ClusterQuery)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*cluster.ClusterQuery))
 	})
 	return _c
 }
@@ -345,26 +301,15 @@ type ClusterServiceServer_List_Call struct {
 }
 
 // List is a helper method to define mock.On call
-//   - context1 context.Context
-//   - clusterQuery *cluster.ClusterQuery
+//   - context1
+//   - clusterQuery
 func (_e *ClusterServiceServer_Expecter) List(context1 interface{}, clusterQuery interface{}) *ClusterServiceServer_List_Call {
 	return &ClusterServiceServer_List_Call{Call: _e.mock.On("List", context1, clusterQuery)}
 }
 
 func (_c *ClusterServiceServer_List_Call) Run(run func(context1 context.Context, clusterQuery *cluster.ClusterQuery)) *ClusterServiceServer_List_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *cluster.ClusterQuery
-		if args[1] != nil {
-			arg1 = args[1].(*cluster.ClusterQuery)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*cluster.ClusterQuery))
 	})
 	return _c
 }
@@ -413,26 +358,15 @@ type ClusterServiceServer_RotateAuth_Call struct {
 }
 
 // RotateAuth is a helper method to define mock.On call
-//   - context1 context.Context
-//   - clusterQuery *cluster.ClusterQuery
+//   - context1
+//   - clusterQuery
 func (_e *ClusterServiceServer_Expecter) RotateAuth(context1 interface{}, clusterQuery interface{}) *ClusterServiceServer_RotateAuth_Call {
 	return &ClusterServiceServer_RotateAuth_Call{Call: _e.mock.On("RotateAuth", context1, clusterQuery)}
 }
 
 func (_c *ClusterServiceServer_RotateAuth_Call) Run(run func(context1 context.Context, clusterQuery *cluster.ClusterQuery)) *ClusterServiceServer_RotateAuth_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *cluster.ClusterQuery
-		if args[1] != nil {
-			arg1 = args[1].(*cluster.ClusterQuery)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*cluster.ClusterQuery))
 	})
 	return _c
 }
@@ -481,26 +415,15 @@ type ClusterServiceServer_Update_Call struct {
 }
 
 // Update is a helper method to define mock.On call
-//   - context1 context.Context
-//   - clusterUpdateRequest *cluster.ClusterUpdateRequest
+//   - context1
+//   - clusterUpdateRequest
 func (_e *ClusterServiceServer_Expecter) Update(context1 interface{}, clusterUpdateRequest interface{}) *ClusterServiceServer_Update_Call {
 	return &ClusterServiceServer_Update_Call{Call: _e.mock.On("Update", context1, clusterUpdateRequest)}
 }
 
 func (_c *ClusterServiceServer_Update_Call) Run(run func(context1 context.Context, clusterUpdateRequest *cluster.ClusterUpdateRequest)) *ClusterServiceServer_Update_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *cluster.ClusterUpdateRequest
-		if args[1] != nil {
-			arg1 = args[1].(*cluster.ClusterUpdateRequest)
-		}
-		run(
-			arg0,
-			arg1,
-		)
+		run(args[0].(context.Context), args[1].(*cluster.ClusterUpdateRequest))
 	})
 	return _c
 }

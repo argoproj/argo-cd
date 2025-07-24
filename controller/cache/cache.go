@@ -674,7 +674,7 @@ func (c *liveStateCache) IterateHierarchy(server *appv1.Cluster, key kube.Resour
 	if err != nil {
 		return err
 	}
-	clusterInfo.IterateHierarchy(key, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
+	clusterInfo.IterateHierarchyV2([]kube.ResourceKey{key}, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
 		return action(asResourceNode(resource), getApp(resource, namespaceResources))
 	})
 	return nil
