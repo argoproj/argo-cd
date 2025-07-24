@@ -33,21 +33,61 @@ After your GitOps Engine PR has been merged, ArgoCD needs to be updated to pull 
 - See https://github.com/argoproj/argo-cd/pull/4434 as an example
 - The PR might require additional, dependent changes in ArgoCD that are directly impacted by the changes made in the engine.
 
-## Argo UI Components
+## Notifications Engine (`github.com/argoproj/notifications-engine`)
 
 ### Repository
 
-https://github.com/argoproj/argo-ui
+[notifications-engine](https://github.com/argoproj/notifications-engine)
 
-### Pulling changes from Argo UI into Argo CD
+### Pulling changes from `notifications-engine`
 
-If you make changes to the Argo UI component, and your Argo CD changes depend on those changes, follow these steps:
+After your Notifications Engine PR has been merged, ArgoCD needs to be updated to pull in the version of the notifications engine that contains your change. Here are the steps:
 
-1. Make changes to Argo UI and submit the PR request.
-2. Also, prepare your Argo CD changes, but don't create the PR just yet.
-3. **After** the Argo UI PR has been merged to master, then as part of your Argo CD changes:
-   - Run `yarn add git+https://github.com/argoproj/argo-ui.git` in the `ui/` directory, and then,
-   - Check in the regenerated `yarn.lock` file as part of your Argo CD commit
-4. Create the Argo CD PR when you are ready. The PR build and test checks should pass.
+- Retrieve the SHA hash for your commit. You will use this in the next step.
+- From the `argo-cd` folder, run the following command
 
-If your Argo UI change is a 'stand-alone' fix, and you simply want Argo CD to pull in your change, then simply create an Argo CD PR with the `yarn.lock` file change.
+  `go get github.com/argoproj/notifications-engine@<git-commit-sha>`
+
+  If you get an error message `invalid version: unknown revision` then you got the wrong SHA hash
+
+- Run:
+
+  `go mod tidy`
+
+- The following files are changed:
+
+  - `go.mod`
+  - `go.sum`
+
+- If your notifications engine PR included docs changes, run `make codegen` or `make codegen-local`.
+
+- Create an ArgoCD PR with a `refactor:` type in its title for the above file changes.
+
+## Argo UI Components (`github.com/argoproj/argo-ui`)
+### Contributing to Argo CD UI
+
+Argo CD, along with Argo Workflows, uses shared React components from [Argo UI](https://github.com/argoproj/argo-ui). Examples of some of these components include buttons, containers, form controls, 
+and others. Although you can make changes to these files and run them locally, in order to have these changes added to the Argo CD repo, you will need to follow these steps. 
+
+1. Fork and clone the [Argo UI repository](https://github.com/argoproj/argo-ui).
+
+2. `cd` into your `argo-ui` directory, and then run `yarn install`. 
+
+3. Make your file changes.
+
+4. Run `yarn start` to start a [storybook](https://storybook.js.org/) dev server and view the components in your browser. Make sure all your changes work as expected. 
+
+5. Use [yarn link](https://classic.yarnpkg.com/en/docs/cli/link/) to link Argo UI package to your Argo CD repository. (Commands below assume that `argo-ui` and `argo-cd` are both located within the same parent folder)
+
+    * `cd argo-ui`
+    * `yarn link`
+    * `cd ../argo-cd/ui`
+    * `yarn link argo-ui`
+
+    Once the `argo-ui` package has been successfully linked, test changes in your local development environment. 
+
+6. Commit changes and open a PR to [Argo UI](https://github.com/argoproj/argo-ui). 
+
+7. Once your PR has been merged in Argo UI, `cd` into your `argo-cd/ui` folder and run `yarn add git+https://github.com/argoproj/argo-ui.git`. This will update the commit SHA in the `ui/yarn.lock` file to use the latest master commit for argo-ui. 
+
+8. Submit changes to `ui/yarn.lock`in a PR to Argo CD. 

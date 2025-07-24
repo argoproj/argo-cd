@@ -7,6 +7,7 @@ Currently, the following organizations are **officially** using Argo CD:
 
 1. [127Labs](https://127labs.com/)
 1. [3Rein](https://www.3rein.com/)
+1. [42 School](https://42.fr/)
 1. [4data](https://4data.ch/)
 1. [7shifts](https://www.7shifts.com/)
 1. [Adevinta](https://www.adevinta.com/)
@@ -71,6 +72,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Chime](https://www.chime.com)
 1. [Chronicle Labs](https://chroniclelabs.org)
 1. [Cisco ET&I](https://eti.cisco.com/)
+1. [Close](https://www.close.com/)
 1. [Cloud Posse](https://www.cloudposse.com/)
 1. [Cloud Scale](https://cloudscaleinc.com/)
 1. [CloudScript](https://www.cloudscript.com.br/)
