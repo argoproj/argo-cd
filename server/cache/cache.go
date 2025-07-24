@@ -20,14 +20,16 @@ type Cache struct {
 	cache                           *appstatecache.Cache
 	connectionStatusCacheExpiration time.Duration
 	oidcCacheExpiration             time.Duration
+	loginAttemptsExpiration         time.Duration
 }
 
 func NewCache(
 	cache *appstatecache.Cache,
 	connectionStatusCacheExpiration time.Duration,
 	oidcCacheExpiration time.Duration,
+	loginAttemptsExpiration time.Duration,
 ) *Cache {
-	return &Cache{cache, connectionStatusCacheExpiration, oidcCacheExpiration}
+	return &Cache{cache, connectionStatusCacheExpiration, oidcCacheExpiration, loginAttemptsExpiration}
 }
 
 func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*Cache, error) {
@@ -37,7 +39,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*
 
 	cmd.Flags().DurationVar(&connectionStatusCacheExpiration, "connection-status-cache-expiration", env.ParseDurationFromEnv("ARGOCD_SERVER_CONNECTION_STATUS_CACHE_EXPIRATION", 1*time.Hour, 0, math.MaxInt64), "Cache expiration for cluster/repo connection status")
 	cmd.Flags().DurationVar(&oidcCacheExpiration, "oidc-cache-expiration", env.ParseDurationFromEnv("ARGOCD_SERVER_OIDC_CACHE_EXPIRATION", 3*time.Minute, 0, math.MaxInt64), "Cache expiration for OIDC state")
-	cmd.Flags().DurationVar(&loginAttemptsExpiration, "login-attempts-expiration", env.ParseDurationFromEnv("ARGOCD_SERVER_LOGIN_ATTEMPTS_EXPIRATION", 24*time.Hour, 0, math.MaxInt64), "Cache expiration for failed login attempts. DEPRECATED: this flag is unused and will be removed in a future version.")
+	cmd.Flags().DurationVar(&loginAttemptsExpiration, "login-attempts-expiration", env.ParseDurationFromEnv("ARGOCD_SERVER_LOGIN_ATTEMPTS_EXPIRATION", 24*time.Hour, 0, math.MaxInt64), "Cache expiration for failed login attempts")
 
 	fn := appstatecache.AddCacheFlagsToCmd(cmd, opts...)
 
@@ -47,7 +49,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*
 			return nil, err
 		}
 
-		return NewCache(cache, connectionStatusCacheExpiration, oidcCacheExpiration), nil
+		return NewCache(cache, connectionStatusCacheExpiration, oidcCacheExpiration, loginAttemptsExpiration), nil
 	}
 }
 

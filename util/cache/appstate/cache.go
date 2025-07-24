@@ -51,8 +51,8 @@ func (c *Cache) GetItem(key string, item any) error {
 	return c.Cache.GetItem(key, item)
 }
 
-func (c *Cache) SetItem(key string, item any, expiration time.Duration, deletion bool) error {
-	return c.Cache.SetItem(key, item, &cacheutil.CacheActionOpts{Expiration: expiration, Delete: deletion})
+func (c *Cache) SetItem(key string, item any, expiration time.Duration, delete bool) error {
+	return c.Cache.SetItem(key, item, &cacheutil.CacheActionOpts{Expiration: expiration, Delete: delete})
 }
 
 func appManagedResourcesKey(appName string) string {
@@ -88,8 +88,7 @@ func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) 
 	if res.ShardsCount > 1 {
 		for i := int64(1); i < res.ShardsCount; i++ {
 			var shard appv1.ApplicationTree
-			err = c.GetItem(appResourcesTreeKey(appName, i), &shard)
-			if err != nil {
+			if err = c.GetItem(appResourcesTreeKey(appName, i), &shard); err != nil {
 				return err
 			}
 			res.Merge(&shard)

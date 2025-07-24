@@ -550,9 +550,9 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 	tempDir := t.TempDir()
 
 	{
-		newKeys, removed, err := SyncKeyRingFromDirectory(tempDir)
+		new, removed, err := SyncKeyRingFromDirectory(tempDir)
 		require.NoError(t, err)
-		assert.Empty(t, newKeys)
+		assert.Empty(t, new)
 		assert.Empty(t, removed)
 	}
 
@@ -575,15 +575,15 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 			dst.Close()
 		}
 
-		newKeys, removed, err := SyncKeyRingFromDirectory(tempDir)
+		new, removed, err := SyncKeyRingFromDirectory(tempDir)
 		require.NoError(t, err)
-		assert.Len(t, newKeys, 3)
+		assert.Len(t, new, 3)
 		assert.Empty(t, removed)
 
-		installed, err := GetInstalledPGPKeys(newKeys)
+		installed, err := GetInstalledPGPKeys(new)
 		require.NoError(t, err)
 		for _, k := range installed {
-			assert.Contains(t, newKeys, k.KeyID)
+			assert.Contains(t, new, k.KeyID)
 		}
 	}
 
@@ -592,12 +592,12 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 		if err != nil {
 			panic(err.Error())
 		}
-		newKeys, removed, err := SyncKeyRingFromDirectory(tempDir)
+		new, removed, err := SyncKeyRingFromDirectory(tempDir)
 		require.NoError(t, err)
-		assert.Empty(t, newKeys)
+		assert.Empty(t, new)
 		assert.Len(t, removed, 1)
 
-		installed, err := GetInstalledPGPKeys(newKeys)
+		installed, err := GetInstalledPGPKeys(new)
 		require.NoError(t, err)
 		for _, k := range installed {
 			assert.NotEqual(t, k.KeyID, removed[0])

@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"fmt"
 	"sort"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -84,9 +85,7 @@ type ApplicationPreservedFields struct {
 type ApplicationSetStrategy struct {
 	Type        string                         `json:"type,omitempty" protobuf:"bytes,1,opt,name=type"`
 	RollingSync *ApplicationSetRolloutStrategy `json:"rollingSync,omitempty" protobuf:"bytes,2,opt,name=rollingSync"`
-	// DeletionOrder allows specifying the order for deleting generated apps when progressive sync is enabled.
-	// accepts values "AllAtOnce" and "Reverse"
-	DeletionOrder string `json:"deletionOrder,omitempty" protobuf:"bytes,3,opt,name=deletionOrder"`
+	// RollingUpdate *ApplicationSetRolloutStrategy `json:"rollingUpdate,omitempty" protobuf:"bytes,3,opt,name=rollingUpdate"`
 }
 type ApplicationSetRolloutStrategy struct {
 	Steps []ApplicationSetRolloutStep `json:"steps,omitempty" protobuf:"bytes,1,opt,name=steps"`
@@ -422,8 +421,7 @@ type GitDirectoryGeneratorItem struct {
 }
 
 type GitFileGeneratorItem struct {
-	Path    string `json:"path" protobuf:"bytes,1,name=path"`
-	Exclude bool   `json:"exclude,omitempty" protobuf:"bytes,2,name=exclude"`
+	Path string `json:"path" protobuf:"bytes,1,name=path"`
 }
 
 // SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.
@@ -616,8 +614,6 @@ type PullRequestGenerator struct {
 	AzureDevOps *PullRequestGeneratorAzureDevOps `json:"azuredevops,omitempty" protobuf:"bytes,9,opt,name=azuredevops"`
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values map[string]string `json:"values,omitempty" protobuf:"bytes,10,name=values"`
-	// ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator parameters generation even if the repository is not found.
-	ContinueOnRepoNotFoundError bool `json:"continueOnRepoNotFoundError,omitempty" protobuf:"varint,11,opt,name=continueOnRepoNotFoundError"`
 	// If you add a new SCM provider, update CustomApiUrl below.
 }
 
@@ -655,8 +651,6 @@ type PullRequestGeneratorGitea struct {
 	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,4,opt,name=tokenRef"`
 	// Allow insecure tls, for self-signed certificates; default: false.
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
-	// Labels is used to filter the PRs that you want to target
-	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
@@ -701,8 +695,7 @@ type PullRequestGeneratorGitLab struct {
 	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,3,opt,name=tokenRef"`
 	// Labels is used to filter the MRs that you want to target
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,4,rep,name=labels"`
-	// PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states).
-	// Valid values: opened, closed, merged, locked".
+	// PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
 	PullRequestState string `json:"pullRequestState,omitempty" protobuf:"bytes,5,rep,name=pullRequestState"`
 	// Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
@@ -768,7 +761,6 @@ type BasicAuthBitbucketServer struct {
 type PullRequestGeneratorFilter struct {
 	BranchMatch       *string `json:"branchMatch,omitempty" protobuf:"bytes,1,opt,name=branchMatch"`
 	TargetBranchMatch *string `json:"targetBranchMatch,omitempty" protobuf:"bytes,2,opt,name=targetBranchMatch"`
-	TitleMatch        *string `json:"titleMatch,omitempty" protobuf:"bytes,3,op,name=titleMatch"`
 }
 
 type PluginConfigMapRef struct {
@@ -921,69 +913,50 @@ func (a *ApplicationSet) RefreshRequired() bool {
 // If the applicationset has a pre-existing condition of a type that is not in the evaluated list,
 // it will be preserved. If the applicationset has a pre-existing condition of a type, status, reason that
 // is in the evaluated list, but not in the incoming conditions list, it will be removed.
-func (status *ApplicationSetStatus) SetConditions(conditions []ApplicationSetCondition, evaluatedTypes map[ApplicationSetConditionType]bool) {
-	newConditions := make([]ApplicationSetCondition, 0)
+func (status *ApplicationSetStatus) SetConditions(conditions []ApplicationSetCondition, _ map[ApplicationSetConditionType]bool) {
+	applicationSetConditions := make([]ApplicationSetCondition, 0)
 	now := metav1.Now()
-	// Keep the existing conditions when they are not evaluated
-	for i := range status.Conditions {
-		currentCondition := status.Conditions[i]
-		if isEvaluated, ok := evaluatedTypes[currentCondition.Type]; !ok || !isEvaluated {
-			if currentCondition.LastTransitionTime == nil {
-				currentCondition.LastTransitionTime = &now
-			}
-			newConditions = append(newConditions, currentCondition)
-		}
-	}
-
-	// Update the evaluated conditions
 	for i := range conditions {
 		condition := conditions[i]
-		if isEvaluated, ok := evaluatedTypes[condition.Type]; !ok || !isEvaluated {
-			// ignore an new condition when it is not evaluated
-			continue
-		}
-
 		if condition.LastTransitionTime == nil {
 			condition.LastTransitionTime = &now
 		}
-		eci := condition.Type.findConditionIndex(status.Conditions)
+		eci := findConditionIndex(status.Conditions, condition.Type)
 		if eci >= 0 && status.Conditions[eci].Message == condition.Message && status.Conditions[eci].Reason == condition.Reason && status.Conditions[eci].Status == condition.Status {
-			// If we already have a condition of this type and nothing has changed, do not update it
-			newConditions = append(newConditions, status.Conditions[eci])
+			// If we already have a condition of this type, status and reason, only update the timestamp if something
+			// has changed.
+			applicationSetConditions = append(applicationSetConditions, status.Conditions[eci])
 		} else {
-			// Otherwise we use the new incoming condition with updated information
-			newConditions = append(newConditions, condition)
+			// Otherwise we use the new incoming condition with an updated timestamp:
+			applicationSetConditions = append(applicationSetConditions, condition)
 		}
 	}
-
-	sort.Slice(newConditions, func(i, j int) bool {
-		left := newConditions[i]
-		right := newConditions[j]
-
-		if left.Type != right.Type {
-			return left.Type < right.Type
-		}
-		if left.Status != right.Status {
-			return left.Status < right.Status
-		}
-		if left.Reason != right.Reason {
-			return left.Reason < right.Reason
-		}
-		if left.Message != right.Message {
-			return left.Message < right.Message
-		}
-		return left.LastTransitionTime.Before(right.LastTransitionTime)
+	sort.Slice(applicationSetConditions, func(i, j int) bool {
+		left := applicationSetConditions[i]
+		right := applicationSetConditions[j]
+		return fmt.Sprintf("%s/%s/%s/%s/%v", left.Type, left.Message, left.Status, left.Reason, left.LastTransitionTime) < fmt.Sprintf("%s/%s/%s/%s/%v", right.Type, right.Message, right.Status, right.Reason, right.LastTransitionTime)
 	})
-	status.Conditions = newConditions
+	status.Conditions = applicationSetConditions
 }
 
-func (t ApplicationSetConditionType) findConditionIndex(conditions []ApplicationSetCondition) int {
+func findConditionIndex(conditions []ApplicationSetCondition, t ApplicationSetConditionType) int {
 	for i := range conditions {
 		if conditions[i].Type == t {
 			return i
 		}
 	}
 	return -1
+}
+
+func (status *ApplicationSetStatus) SetApplicationStatus(newStatus ApplicationSetApplicationStatus) {
+	for i := range status.ApplicationStatus {
+		appStatus := status.ApplicationStatus[i]
+		if appStatus.Application == newStatus.Application {
+			status.ApplicationStatus[i] = newStatus
+			return
+		}
+	}
+	status.ApplicationStatus = append(status.ApplicationStatus, newStatus)
 }
 
 // QualifiedName returns the full qualified name of the applicationset, including

@@ -20,7 +20,7 @@ if obj.status ~= nil then
       end
       return hs
     elseif obj.status.phase == "Paused" then
-      hs.status = "Healthy"
+      hs.status = "Suspended"
       hs.message = "MonoVertex is paused"
       return hs
     elseif obj.status.phase == "Running" then

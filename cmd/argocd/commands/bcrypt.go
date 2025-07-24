@@ -21,7 +21,7 @@ argocd account bcrypt --password YOUR_PASSWORD`,
 			// Hashing the password
 			hash, err := bcrypt.GenerateFromPassword(bytePassword, bcrypt.DefaultCost)
 			if err != nil {
-				log.Fatalf("Failed to generate bcrypt hash: %v", err)
+				log.Fatalf("Failed to genarate bcrypt hash: %v", err)
 			}
 			fmt.Fprint(cmd.OutOrStdout(), string(hash))
 		},

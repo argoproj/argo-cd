@@ -15,7 +15,7 @@ import (
 	gpgkeypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	argoio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 )
 
@@ -58,7 +58,7 @@ func NewGPGListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			ctx := c.Context()
 
 			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
-			defer utilio.Close(conn)
+			defer argoio.Close(conn)
 			keys, err := gpgIf.List(ctx, &gpgkeypkg.GnuPGPublicKeyQuery{})
 			errors.CheckError(err)
 			switch output {
@@ -97,10 +97,10 @@ func NewGPGGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			ctx := c.Context()
 
 			if len(args) != 1 {
-				errors.Fatal(errors.ErrorGeneric, "Missing KEYID argument")
+				errors.CheckError(stderrors.New("Missing KEYID argument"))
 			}
 			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
-			defer utilio.Close(conn)
+			defer argoio.Close(conn)
 			key, err := gpgIf.Get(ctx, &gpgkeypkg.GnuPGPublicKeyQuery{KeyID: args[0]})
 			errors.CheckError(err)
 			switch output {
@@ -144,7 +144,7 @@ func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				errors.CheckError(err)
 			}
 			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
-			defer utilio.Close(conn)
+			defer argoio.Close(conn)
 			resp, err := gpgIf.Create(ctx, &gpgkeypkg.GnuPGPublicKeyCreateRequest{Publickey: &appsv1.GnuPGPublicKey{KeyData: string(keyData)}})
 			errors.CheckError(err)
 			fmt.Printf("Created %d key(s) from input file", len(resp.Created.Items))
@@ -167,13 +167,13 @@ func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 			ctx := c.Context()
 
 			if len(args) != 1 {
-				errors.Fatal(errors.ErrorGeneric, "Missing KEYID argument")
+				errors.CheckError(stderrors.New("Missing KEYID argument"))
 			}
 
 			keyId := args[0]
 
 			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
-			defer utilio.Close(conn)
+			defer argoio.Close(conn)
 
 			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
 			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to remove '%s'? [y/n] ", keyId))

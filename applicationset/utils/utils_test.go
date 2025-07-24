@@ -180,14 +180,14 @@ func TestRenderTemplateParams(t *testing.T) {
 				// the target field has been templated into the expected value
 				actualValue := *getPtrFunc(newApplication)
 				assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", fieldName, test.expectedVal, actualValue)
-				assert.Equal(t, "annotation-value", newApplication.Annotations["annotation-key"])
-				assert.Equal(t, "annotation-value2", newApplication.Annotations["annotation-key2"])
-				assert.Equal(t, "label-value", newApplication.Labels["label-key"])
-				assert.Equal(t, "label-value2", newApplication.Labels["label-key2"])
-				assert.Equal(t, "application-one", newApplication.Name)
-				assert.Equal(t, "default", newApplication.Namespace)
-				assert.Equal(t, newApplication.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
-				assert.Equal(t, newApplication.CreationTimestamp, application.CreationTimestamp)
+				assert.Equal(t, "annotation-value", newApplication.ObjectMeta.Annotations["annotation-key"])
+				assert.Equal(t, "annotation-value2", newApplication.ObjectMeta.Annotations["annotation-key2"])
+				assert.Equal(t, "label-value", newApplication.ObjectMeta.Labels["label-key"])
+				assert.Equal(t, "label-value2", newApplication.ObjectMeta.Labels["label-key2"])
+				assert.Equal(t, "application-one", newApplication.ObjectMeta.Name)
+				assert.Equal(t, "default", newApplication.ObjectMeta.Namespace)
+				assert.Equal(t, newApplication.ObjectMeta.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
+				assert.Equal(t, newApplication.ObjectMeta.CreationTimestamp, application.ObjectMeta.CreationTimestamp)
 				require.NoError(t, err)
 			}
 		})
@@ -627,14 +627,14 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 					require.NoError(t, err)
 					actualValue := *getPtrFunc(newApplication)
 					assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", fieldName, test.expectedVal, actualValue)
-					assert.Equal(t, "annotation-value", newApplication.Annotations["annotation-key"])
-					assert.Equal(t, "annotation-value2", newApplication.Annotations["annotation-key2"])
-					assert.Equal(t, "label-value", newApplication.Labels["label-key"])
-					assert.Equal(t, "label-value2", newApplication.Labels["label-key2"])
-					assert.Equal(t, "application-one", newApplication.Name)
-					assert.Equal(t, "default", newApplication.Namespace)
-					assert.Equal(t, newApplication.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
-					assert.Equal(t, newApplication.CreationTimestamp, application.CreationTimestamp)
+					assert.Equal(t, "annotation-value", newApplication.ObjectMeta.Annotations["annotation-key"])
+					assert.Equal(t, "annotation-value2", newApplication.ObjectMeta.Annotations["annotation-key2"])
+					assert.Equal(t, "label-value", newApplication.ObjectMeta.Labels["label-key"])
+					assert.Equal(t, "label-value2", newApplication.ObjectMeta.Labels["label-key2"])
+					assert.Equal(t, "application-one", newApplication.ObjectMeta.Name)
+					assert.Equal(t, "default", newApplication.ObjectMeta.Namespace)
+					assert.Equal(t, newApplication.ObjectMeta.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
+					assert.Equal(t, newApplication.ObjectMeta.CreationTimestamp, application.ObjectMeta.CreationTimestamp)
 				}
 			}
 		})
@@ -687,8 +687,8 @@ func TestRenderTemplateKeys(t *testing.T) {
 		render := Render{}
 		newApplication, err := render.RenderTemplateParams(application, nil, params, false, nil)
 		require.NoError(t, err)
-		require.Contains(t, newApplication.Annotations, "annotation-some-key")
-		assert.Equal(t, "annotation-some-value", newApplication.Annotations["annotation-some-key"])
+		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
+		assert.Equal(t, "annotation-some-value", newApplication.ObjectMeta.Annotations["annotation-some-key"])
 	})
 	t.Run("gotemplate", func(t *testing.T) {
 		application := &argoappsv1.Application{
@@ -707,8 +707,8 @@ func TestRenderTemplateKeys(t *testing.T) {
 		render := Render{}
 		newApplication, err := render.RenderTemplateParams(application, nil, params, true, nil)
 		require.NoError(t, err)
-		require.Contains(t, newApplication.Annotations, "annotation-some-key")
-		assert.Equal(t, "annotation-some-value", newApplication.Annotations["annotation-some-key"])
+		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
+		assert.Equal(t, "annotation-some-value", newApplication.ObjectMeta.Annotations["annotation-some-key"])
 	})
 }
 
@@ -752,35 +752,35 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 		},
 		{
 			testName:           "background finalizer should be preserved",
-			existingFinalizers: []string{argoappsv1.BackgroundPropagationPolicyFinalizer},
+			existingFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
 			syncPolicy:         nil,
-			expectedFinalizers: []string{argoappsv1.BackgroundPropagationPolicyFinalizer},
+			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
 		},
 
 		{
 			testName:           "empty finalizer and empty sync should use standard finalizer",
 			existingFinalizers: nil,
 			syncPolicy:         nil,
-			expectedFinalizers: []string{argoappsv1.ResourcesFinalizerName},
+			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 
 		{
 			testName:           "standard finalizer should be preserved",
-			existingFinalizers: []string{argoappsv1.ResourcesFinalizerName},
+			existingFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			syncPolicy:         nil,
-			expectedFinalizers: []string{argoappsv1.ResourcesFinalizerName},
+			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		{
 			testName:           "empty array finalizers should use standard finalizer",
 			existingFinalizers: []string{},
 			syncPolicy:         nil,
-			expectedFinalizers: []string{argoappsv1.ResourcesFinalizerName},
+			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		{
 			testName:           "non-nil sync policy should use standard finalizer",
 			existingFinalizers: nil,
 			syncPolicy:         &argoappsv1.ApplicationSetSyncPolicy{},
-			expectedFinalizers: []string{argoappsv1.ResourcesFinalizerName},
+			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		{
 			testName:           "preserveResourcesOnDeletion should not have a finalizer",
@@ -792,11 +792,11 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 		},
 		{
 			testName:           "user-specified finalizer should overwrite preserveResourcesOnDeletion",
-			existingFinalizers: []string{argoappsv1.BackgroundPropagationPolicyFinalizer},
+			existingFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
 			syncPolicy: &argoappsv1.ApplicationSetSyncPolicy{
 				PreserveResourcesOnDeletion: true,
 			},
-			expectedFinalizers: []string{argoappsv1.BackgroundPropagationPolicyFinalizer},
+			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
 		},
 	} {
 		t.Run(c.testName, func(t *testing.T) {

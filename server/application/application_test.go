@@ -18,7 +18,7 @@ import (
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
-	"github.com/argoproj/pkg/v2/sync"
+	"github.com/argoproj/pkg/sync"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -285,7 +285,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 			require.NoError(t, err)
 		}
 	}
-	appCache := servercache.NewCache(appStateCache, time.Hour, time.Hour)
+	appCache := servercache.NewCache(appStateCache, time.Hour, time.Hour, time.Hour)
 
 	kubectl := &kubetest.MockKubectlCmd{}
 	kubectl = kubectl.WithGetResourceFunc(func(_ context.Context, _ *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
@@ -448,7 +448,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 			require.NoError(b, err)
 		}
 	}
-	appCache := servercache.NewCache(appStateCache, time.Hour, time.Hour)
+	appCache := servercache.NewCache(appStateCache, time.Hour, time.Hour, time.Hour)
 
 	kubectl := &kubetest.MockKubectlCmd{}
 	kubectl = kubectl.WithGetResourceFunc(func(_ context.Context, _ *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
@@ -989,15 +989,15 @@ func TestNoAppEnumeration(t *testing.T) {
 	})
 
 	t.Run("RunResourceAction", func(t *testing.T) {
-		_, err := appServer.RunResourceActionV2(adminCtx, &application.ResourceActionRunRequestV2{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test"), Action: ptr.To("restart")})
+		_, err := appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test"), Action: ptr.To("restart")})
 		require.NoError(t, err)
-		_, err = appServer.RunResourceActionV2(noRoleCtx, &application.ResourceActionRunRequestV2{Name: ptr.To("test")})
+		_, err = appServer.RunResourceAction(noRoleCtx, &application.ResourceActionRunRequest{Name: ptr.To("test")})
 		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.RunResourceActionV2(noRoleCtx, &application.ResourceActionRunRequestV2{Group: ptr.To("argoproj.io"), Kind: ptr.To("Application"), Name: ptr.To("test")})
+		_, err = appServer.RunResourceAction(noRoleCtx, &application.ResourceActionRunRequest{Group: ptr.To("argoproj.io"), Kind: ptr.To("Application"), Name: ptr.To("test")})
 		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.RunResourceActionV2(adminCtx, &application.ResourceActionRunRequestV2{Name: ptr.To("doest-not-exist")})
+		_, err = appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: ptr.To("doest-not-exist")})
 		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.RunResourceActionV2(adminCtx, &application.ResourceActionRunRequestV2{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
+		_, err = appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
 
@@ -1107,15 +1107,15 @@ func unsetSyncRunningOperationState(t *testing.T, appServer *Server) {
 func TestListAppsInNamespaceWithLabels(t *testing.T) {
 	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App1"
-		app.Namespace = "test-namespace"
+		app.ObjectMeta.Namespace = "test-namespace"
 		app.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
 	}), newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App2"
-		app.Namespace = "test-namespace"
+		app.ObjectMeta.Namespace = "test-namespace"
 		app.SetLabels(map[string]string{"key1": "value2"})
 	}), newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App3"
-		app.Namespace = "test-namespace"
+		app.ObjectMeta.Namespace = "test-namespace"
 		app.SetLabels(map[string]string{"key1": "value3"})
 	}))
 	appServer.ns = "test-namespace"
@@ -2062,7 +2062,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 
 func TestGetCachedAppState(t *testing.T) {
 	testApp := newTestApp()
-	testApp.ResourceVersion = "1"
+	testApp.ObjectMeta.ResourceVersion = "1"
 	testApp.Spec.Project = "test-proj"
 	testProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -2087,23 +2087,25 @@ func TestGetCachedAppState(t *testing.T) {
 		watcher := watch.NewFakeWithChanSize(1, true)
 
 		// Configure fakeClientSet within lock, before requesting cached app state, to avoid data race
-		fakeClientSet.Lock()
-		fakeClientSet.ReactionChain = nil
-		fakeClientSet.WatchReactionChain = nil
-		fakeClientSet.AddReactor("patch", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			patched = true
-			updated := testApp.DeepCopy()
-			updated.ResourceVersion = "2"
-			appServer.appBroadcaster.OnUpdate(testApp, updated)
-			return true, testApp, nil
-		})
-		fakeClientSet.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
-		})
-		fakeClientSet.Unlock()
-		fakeClientSet.AddWatchReactor("applications", func(_ kubetesting.Action) (handled bool, ret watch.Interface, err error) {
-			return true, watcher, nil
-		})
+		{
+			fakeClientSet.Lock()
+			fakeClientSet.ReactionChain = nil
+			fakeClientSet.WatchReactionChain = nil
+			fakeClientSet.AddReactor("patch", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				patched = true
+				updated := testApp.DeepCopy()
+				updated.ResourceVersion = "2"
+				appServer.appBroadcaster.OnUpdate(testApp, updated)
+				return true, testApp, nil
+			})
+			fakeClientSet.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
+			})
+			fakeClientSet.Unlock()
+			fakeClientSet.AddWatchReactor("applications", func(_ kubetesting.Action) (handled bool, ret watch.Interface, err error) {
+				return true, watcher, nil
+			})
+		}
 
 		err := appServer.getCachedAppState(t.Context(), testApp, func() error {
 			res := cache.ErrCacheMiss
@@ -2347,7 +2349,7 @@ func TestGetAppRefresh_NormalRefresh(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	testApp := newTestApp()
-	testApp.ResourceVersion = "1"
+	testApp.ObjectMeta.ResourceVersion = "1"
 	appServer := newTestAppServer(t, testApp)
 
 	var patched int32
@@ -2374,7 +2376,7 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	testApp := newTestApp()
-	testApp.ResourceVersion = "1"
+	testApp.ObjectMeta.ResourceVersion = "1"
 	appServer := newTestAppServer(t, testApp)
 
 	var getAppDetailsQuery *apiclient.RepoServerAppDetailsQuery
@@ -2441,48 +2443,7 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 
 	require.NoError(t, err)
 
-	appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute)
-
-	appServer.inferResourcesStatusHealth(testApp)
-
-	assert.Equal(t, health.HealthStatusDegraded, testApp.Status.Resources[0].Health.Status)
-	assert.Nil(t, testApp.Status.Resources[1].Health)
-}
-
-func TestInferResourcesStatusHealthWithAppInAnyNamespace(t *testing.T) {
-	cacheClient := cache.NewCache(cache.NewInMemoryCache(1 * time.Hour))
-
-	testApp := newTestApp()
-	testApp.Namespace = "otherNamespace"
-	testApp.Status.ResourceHealthSource = v1alpha1.ResourceHealthLocationAppTree
-	testApp.Status.Resources = []v1alpha1.ResourceStatus{{
-		Group:     "apps",
-		Kind:      "Deployment",
-		Name:      "guestbook",
-		Namespace: "otherNamespace",
-	}, {
-		Group:     "apps",
-		Kind:      "StatefulSet",
-		Name:      "guestbook-stateful",
-		Namespace: "otherNamespace",
-	}}
-	appServer := newTestAppServer(t, testApp)
-	appStateCache := appstate.NewCache(cacheClient, time.Minute)
-	err := appStateCache.SetAppResourcesTree("otherNamespace"+"_"+testApp.Name, &v1alpha1.ApplicationTree{Nodes: []v1alpha1.ResourceNode{{
-		ResourceRef: v1alpha1.ResourceRef{
-			Group:     "apps",
-			Kind:      "Deployment",
-			Name:      "guestbook",
-			Namespace: "otherNamespace",
-		},
-		Health: &v1alpha1.HealthStatus{
-			Status: health.HealthStatusDegraded,
-		},
-	}}})
-
-	require.NoError(t, err)
-
-	appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute)
+	appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
 	appServer.inferResourcesStatusHealth(testApp)
 
@@ -2572,12 +2533,12 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 		testApp.Status.Resources = resources
 
 		appServer := newTestAppServer(t, testApp, createJobDenyingProj, kube.MustToUnstructured(&cronJob))
-		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute)
+		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
 		err := appStateCache.SetAppResourcesTree(testApp.Name, &v1alpha1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
 
-		appResponse, runErr := appServer.RunResourceActionV2(t.Context(), &application.ResourceActionRunRequestV2{
+		appResponse, runErr := appServer.RunResourceAction(t.Context(), &application.ResourceActionRunRequest{
 			Name:         &testApp.Name,
 			Namespace:    &namespace,
 			Action:       &action,
@@ -2598,12 +2559,12 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 		testApp.Status.Resources = resources
 
 		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&cronJob))
-		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute)
+		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
 		err := appStateCache.SetAppResourcesTree(testApp.Name, &v1alpha1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
 
-		appResponse, runErr := appServer.RunResourceActionV2(t.Context(), &application.ResourceActionRunRequestV2{
+		appResponse, runErr := appServer.RunResourceAction(t.Context(), &application.ResourceActionRunRequest{
 			Name:         &testApp.Name,
 			Namespace:    &namespace,
 			Action:       &action,
@@ -2669,12 +2630,12 @@ func TestRunOldStyleResourceAction(t *testing.T) {
 
 		// appServer := newTestAppServer(t, testApp, returnDeployment())
 		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&deployment))
-		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute)
+		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
 		err := appStateCache.SetAppResourcesTree(testApp.Name, &v1alpha1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
 
-		appResponse, runErr := appServer.RunResourceActionV2(t.Context(), &application.ResourceActionRunRequestV2{
+		appResponse, runErr := appServer.RunResourceAction(t.Context(), &application.ResourceActionRunRequest{
 			Name:         &testApp.Name,
 			Namespace:    &namespace,
 			Action:       &action,
@@ -3094,8 +3055,8 @@ func TestServer_ResolveSourceRevisions_MultiSource(t *testing.T) {
 	revision, displayRevision, sourceRevisions, displayRevisions, err := s.resolveSourceRevisions(ctx, a, syncReq)
 
 	require.NoError(t, err)
-	assert.Empty(t, revision)
-	assert.Empty(t, displayRevision)
+	assert.Equal(t, "", revision)
+	assert.Equal(t, "", displayRevision)
 	assert.Equal(t, []string{fakeResolveRevisionResponse().Revision}, sourceRevisions)
 	assert.Equal(t, []string{fakeResolveRevisionResponse().AmbiguousRevision}, displayRevisions)
 }
@@ -3121,8 +3082,8 @@ func TestServer_ResolveSourceRevisions_SingleSource(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, fakeResolveRevisionResponse().Revision, revision)
 	assert.Equal(t, fakeResolveRevisionResponse().AmbiguousRevision, displayRevision)
-	assert.Equal(t, []string(nil), sourceRevisions)
-	assert.Equal(t, []string(nil), displayRevisions)
+	assert.Equal(t, ([]string)(nil), sourceRevisions)
+	assert.Equal(t, ([]string)(nil), displayRevisions)
 }
 
 func Test_RevisionMetadata(t *testing.T) {
@@ -3398,17 +3359,17 @@ func Test_DeepCopyInformers(t *testing.T) {
 	var ro []runtime.Object
 	appOne := newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "appOne"
-		app.Namespace = namespace
+		app.ObjectMeta.Namespace = namespace
 		app.Spec = v1alpha1.ApplicationSpec{}
 	})
 	appTwo := newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "appTwo"
-		app.Namespace = namespace
+		app.ObjectMeta.Namespace = namespace
 		app.Spec = v1alpha1.ApplicationSpec{}
 	})
 	appThree := newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "appThree"
-		app.Namespace = namespace
+		app.ObjectMeta.Namespace = namespace
 		app.Spec = v1alpha1.ApplicationSpec{}
 	})
 	ro = append(ro, appOne, appTwo, appThree)

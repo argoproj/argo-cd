@@ -27,7 +27,7 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "cluster1-guestbook",
 			Namespace:  externalNamespace,
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -135,7 +135,7 @@ func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "cluster1-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -237,7 +237,7 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "{{name}}-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -255,11 +255,11 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 
 	expectedAppCluster1 := *expectedAppTemplate.DeepCopy()
 	expectedAppCluster1.Spec.Destination.Name = "cluster1"
-	expectedAppCluster1.Name = "cluster1-guestbook"
+	expectedAppCluster1.ObjectMeta.Name = "cluster1-guestbook"
 
 	expectedAppCluster2 := *expectedAppTemplate.DeepCopy()
 	expectedAppCluster2.Spec.Destination.Name = "cluster2"
-	expectedAppCluster2.Name = "cluster2-guestbook"
+	expectedAppCluster2.ObjectMeta.Name = "cluster2-guestbook"
 
 	clusterList := []any{
 		map[string]any{
@@ -332,7 +332,7 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "{{name}}-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -350,11 +350,11 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 
 	expectedAppCluster1 := *expectedAppTemplate.DeepCopy()
 	expectedAppCluster1.Spec.Destination.Name = "cluster1"
-	expectedAppCluster1.Name = "cluster1-guestbook"
+	expectedAppCluster1.ObjectMeta.Name = "cluster1-guestbook"
 
 	expectedAppCluster2 := *expectedAppTemplate.DeepCopy()
 	expectedAppCluster2.Spec.Destination.Name = "cluster2"
-	expectedAppCluster2.Name = "cluster2-guestbook"
+	expectedAppCluster2.ObjectMeta.Name = "cluster2-guestbook"
 
 	clusterList := []any{
 		map[string]any{
@@ -429,7 +429,7 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *te
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "{{name}}-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -447,11 +447,11 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *te
 
 	expectedAppCluster1 := *expectedAppTemplate.DeepCopy()
 	expectedAppCluster1.Spec.Destination.Name = "cluster1"
-	expectedAppCluster1.Name = "cluster1-guestbook"
+	expectedAppCluster1.ObjectMeta.Name = "cluster1-guestbook"
 
 	expectedAppCluster2 := *expectedAppTemplate.DeepCopy()
 	expectedAppCluster2.Spec.Destination.Name = "cluster2"
-	expectedAppCluster2.Name = "cluster2-guestbook"
+	expectedAppCluster2.ObjectMeta.Name = "cluster2-guestbook"
 
 	clusterList := []any{
 		map[string]any{

@@ -18,7 +18,7 @@ func GetGenerators(ctx context.Context, c client.Client, k8sClient kubernetes.In
 		"SCMProvider":             NewSCMProviderGenerator(c, scmConfig),
 		"ClusterDecisionResource": NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
 		"PullRequest":             NewPullRequestGenerator(c, scmConfig),
-		"Plugin":                  NewPluginGenerator(c, namespace),
+		"Plugin":                  NewPluginGenerator(ctx, c, k8sClient, namespace),
 	}
 
 	nestedGenerators := map[string]Generator{

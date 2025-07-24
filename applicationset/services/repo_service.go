@@ -7,7 +7,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/db"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
 type argoCDService struct {
@@ -36,7 +36,7 @@ func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclie
 			if err != nil {
 				return nil, fmt.Errorf("error initializing new repo server client: %w", err)
 			}
-			defer utilio.Close(closer)
+			defer io.Close(closer)
 			return client.GetGitFiles(ctx, fileRequest)
 		},
 		getGitDirectoriesFromRepoServer: func(ctx context.Context, dirRequest *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
@@ -44,7 +44,7 @@ func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclie
 			if err != nil {
 				return nil, fmt.Errorf("error initialising new repo server client: %w", err)
 			}
-			defer utilio.Close(closer)
+			defer io.Close(closer)
 			return client.GetGitDirectories(ctx, dirRequest)
 		},
 	}

@@ -18,8 +18,8 @@ func (c *inlineCloser) Close() error {
 	return c.close()
 }
 
-func NewCloser(closeFn func() error) Closer {
-	return &inlineCloser{close: closeFn}
+func NewCloser(close func() error) Closer {
+	return &inlineCloser{close: close}
 }
 
 // Close is a convenience function to close a object that has a Close() method, ignoring any errors

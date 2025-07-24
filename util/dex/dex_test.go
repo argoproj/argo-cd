@@ -267,10 +267,9 @@ func Test_GenerateDexConfig(t *testing.T) {
 		assert.True(t, ok)
 		for i, connectorsIf := range connectors {
 			config := connectorsIf.(map[string]any)["config"].(map[string]any)
-			switch i {
-			case 0:
+			if i == 0 {
 				assert.Equal(t, "foobar", config["clientSecret"])
-			case 1:
+			} else if i == 1 {
 				assert.Equal(t, "barfoo", config["clientSecret"])
 			}
 		}
@@ -294,10 +293,9 @@ func Test_GenerateDexConfig(t *testing.T) {
 		assert.True(t, ok)
 		for i, connectorsIf := range connectors {
 			config := connectorsIf.(map[string]any)["config"].(map[string]any)
-			switch i {
-			case 0:
+			if i == 0 {
 				assert.Equal(t, "foobar", config["clientSecret"])
-			case 1:
+			} else if i == 1 {
 				assert.Equal(t, "barfoo", config["clientSecret"])
 			}
 		}

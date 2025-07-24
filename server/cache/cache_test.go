@@ -25,6 +25,7 @@ func newFixtures() *fixtures {
 		),
 		1*time.Minute,
 		1*time.Minute,
+		1*time.Minute,
 	)}
 }
 

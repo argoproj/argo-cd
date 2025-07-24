@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/session"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -244,28 +245,28 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 
 	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
 
-	oidcHandler := NewHandler(settingsManagerWithOIDCConfig, sessionManager, rootPath, baseHRef)
+	oidcHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfig, sessionManager, rootPath, baseHRef, "default")
 	oidcHandler.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
 		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
 	}
-	nonoidcHandler := NewHandler(settingsManagerWithoutOIDCConfig, sessionManager, "", baseHRef)
+	nonoidcHandler := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithoutOIDCConfig, sessionManager, "", baseHRef, "default")
 	nonoidcHandler.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
 		return &jwt.RegisteredClaims{Issuer: session.SessionManagerClaimsIssuer}, "", nil
 	}
-	oidcHandlerWithoutLogoutURL := NewHandler(settingsManagerWithOIDCConfigButNoLogoutURL, sessionManager, "", baseHRef)
+	oidcHandlerWithoutLogoutURL := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfigButNoLogoutURL, sessionManager, "", baseHRef, "default")
 	oidcHandlerWithoutLogoutURL.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
 		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
 	}
-	nonoidcHandlerWithMultipleURLs := NewHandler(settingsManagerWithoutOIDCAndMultipleURLs, sessionManager, "", baseHRef)
+	nonoidcHandlerWithMultipleURLs := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithoutOIDCAndMultipleURLs, sessionManager, "", baseHRef, "default")
 	nonoidcHandlerWithMultipleURLs.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
@@ -273,7 +274,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
 	}
 
-	oidcHandlerWithoutBaseURL := NewHandler(settingsManagerWithOIDCConfigButNoURL, sessionManager, "argocd", baseHRef)
+	oidcHandlerWithoutBaseURL := NewHandler(appclientset.NewSimpleClientset(), settingsManagerWithOIDCConfigButNoURL, sessionManager, "argocd", baseHRef, "default")
 	oidcHandlerWithoutBaseURL.verifyToken = func(tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
@@ -287,20 +288,20 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	invalidHeader := make(map[string][]string)
 	invalidHeader["Cookie"] = []string{"argocd.token=" + invalidToken}
 
-	oidcRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
+	oidcRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
 	require.NoError(t, err)
 	oidcRequest.Header = oidcTokenHeader
-	nonoidcRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
+	nonoidcRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
 	require.NoError(t, err)
 	nonoidcRequest.Header = nonOidcTokenHeader
-	nonoidcRequestOnSecondHost, err := http.NewRequest(http.MethodGet, "http://argocd.my-corp.tld/api/logout", http.NoBody)
+	nonoidcRequestOnSecondHost, err := http.NewRequest(http.MethodGet, "http://argocd.my-corp.tld/api/logout", nil)
 	assert.NoError(t, err)
 	nonoidcRequestOnSecondHost.Header = nonOidcTokenHeader
 	assert.NoError(t, err)
-	requestWithInvalidToken, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
+	requestWithInvalidToken, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
 	require.NoError(t, err)
 	requestWithInvalidToken.Header = invalidHeader
-	invalidRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
+	invalidRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
 	require.NoError(t, err)
 
 	tests := []struct {

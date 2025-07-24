@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"testing"
-	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -15,7 +14,6 @@ import (
 )
 
 func TestFixingDegradedApp(t *testing.T) {
-	var lastTransitionTime string
 	Given(t).
 		Path("sync-waves").
 		When().
@@ -39,11 +37,6 @@ func TestFixingDegradedApp(t *testing.T) {
 		Expect(ResourceSyncStatusIs("ConfigMap", "cm-2", SyncStatusCodeOutOfSync)).
 		Expect(ResourceHealthIs("ConfigMap", "cm-2", health.HealthStatusMissing)).
 		When().
-		Then().
-		And(func(app *Application) {
-			lastTransitionTime = app.Status.Health.LastTransitionTime.UTC().Format(time.RFC3339)
-		}).
-		When().
 		PatchFile("cm-1.yaml", `[{"op": "replace", "path": "/metadata/annotations/health", "value": "Healthy"}]`).
 		PatchFile("cm-2.yaml", `[{"op": "replace", "path": "/metadata/annotations/health", "value": "Healthy"}]`).
 		// need to force a refresh here
@@ -60,13 +53,7 @@ func TestFixingDegradedApp(t *testing.T) {
 		Expect(ResourceSyncStatusIs("ConfigMap", "cm-1", SyncStatusCodeSynced)).
 		Expect(ResourceHealthIs("ConfigMap", "cm-1", health.HealthStatusHealthy)).
 		Expect(ResourceSyncStatusIs("ConfigMap", "cm-2", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("ConfigMap", "cm-2", health.HealthStatusHealthy)).
-		When().
-		Then().
-		And(func(app *Application) {
-			// check that the last transition time is updated
-			require.NotEqual(t, lastTransitionTime, app.Status.Health.LastTransitionTime.UTC().Format(time.RFC3339))
-		})
+		Expect(ResourceHealthIs("ConfigMap", "cm-2", health.HealthStatusHealthy))
 }
 
 func TestOneProgressingDeploymentIsSucceededAndSynced(t *testing.T) {

@@ -20,7 +20,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	argocderrors "github.com/argoproj/argo-cd/v3/util/errors"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	argoio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/rand"
 )
 
@@ -121,7 +121,7 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 		grpc.UnknownServiceHandler(func(_ any, stream grpc.ServerStream) error {
 			fullMethodName, ok := grpc.MethodFromServerStream(stream)
 			if !ok {
-				return errors.New("unable to get method name from stream context")
+				return errors.New("Unable to get method name from stream context.")
 			}
 			msg := make([]byte, 0)
 			err := stream.RecvMsg(&msg)
@@ -144,9 +144,9 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 
 			go func() {
 				<-stream.Context().Done()
-				utilio.Close(resp.Body)
+				argoio.Close(resp.Body)
 			}()
-			defer utilio.Close(resp.Body)
+			defer argoio.Close(resp.Body)
 			c.httpClient.CloseIdleConnections()
 
 			for {
@@ -199,7 +199,7 @@ func (c *client) useGRPCProxy() (net.Addr, io.Closer, error) {
 	}
 	c.proxyUsersCount = c.proxyUsersCount + 1
 
-	return c.proxyListener.Addr(), utilio.NewCloser(func() error {
+	return c.proxyListener.Addr(), argoio.NewCloser(func() error {
 		c.proxyMutex.Lock()
 		defer c.proxyMutex.Unlock()
 		c.proxyUsersCount = c.proxyUsersCount - 1

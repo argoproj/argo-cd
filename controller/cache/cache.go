@@ -169,7 +169,6 @@ type NodeInfo struct {
 	Name       string
 	Capacity   corev1.ResourceList
 	SystemInfo corev1.NodeSystemInfo
-	Labels     map[string]string
 }
 
 type ResourceInfo struct {
@@ -191,6 +190,7 @@ func NewLiveStateCache(
 	db db.ArgoDB,
 	appInformer cache.SharedIndexInformer,
 	settingsMgr *settings.SettingsManager,
+	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
 	clusterSharding sharding.ClusterShardingCache,
@@ -201,6 +201,7 @@ func NewLiveStateCache(
 		db:               db,
 		clusters:         make(map[string]clustercache.ClusterCache),
 		onObjectUpdated:  onObjectUpdated,
+		kubectl:          kubectl,
 		settingsMgr:      settingsMgr,
 		metricsServer:    metricsServer,
 		clusterSharding:  clusterSharding,
@@ -224,6 +225,7 @@ type liveStateCache struct {
 	db                   db.ArgoDB
 	appInformer          cache.SharedIndexInformer
 	onObjectUpdated      ObjectUpdatedHandler
+	kubectl              kube.Kubectl
 	settingsMgr          *settings.SettingsManager
 	metricsServer        *metrics.MetricsServer
 	clusterSharding      sharding.ClusterShardingCache
@@ -280,14 +282,8 @@ func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
 	parentRefs := make([]appv1.ResourceRef, len(r.OwnerRefs))
 	for i, ownerRef := range r.OwnerRefs {
 		ownerGvk := schema.FromAPIVersionAndKind(ownerRef.APIVersion, ownerRef.Kind)
-		parentRefs[i] = appv1.ResourceRef{
-			Group:     ownerGvk.Group,
-			Kind:      ownerGvk.Kind,
-			Version:   ownerGvk.Version,
-			Namespace: r.Ref.Namespace,
-			Name:      ownerRef.Name,
-			UID:       string(ownerRef.UID),
-		}
+		ownerKey := kube.NewResourceKey(ownerGvk.Group, ownerRef.Kind, r.Ref.Namespace, ownerRef.Name)
+		parentRefs[i] = appv1.ResourceRef{Name: ownerRef.Name, Kind: ownerKey.Kind, Namespace: r.Ref.Namespace, Group: ownerKey.Group, UID: string(ownerRef.UID)}
 	}
 	var resHealth *appv1.HealthStatus
 	resourceInfo := resInfo(r)

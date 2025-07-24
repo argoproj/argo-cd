@@ -1,6 +1,0 @@
-apiVersion: logstash.k8s.elastic.co/v1alpha1
-kind: Logstash
-metadata:
-  name: quickstart
-status:
-  health: yellow

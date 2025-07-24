@@ -13,7 +13,7 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	argoio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
@@ -94,7 +94,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions, serverVersion *versio
 
 func getServerVersion(ctx context.Context, options *argocdclient.ClientOptions, c *cobra.Command) *version.VersionMessage {
 	conn, versionIf := headless.NewClientOrDie(options, c).NewVersionClientOrDie()
-	defer utilio.Close(conn)
+	defer argoio.Close(conn)
 
 	v, err := versionIf.Version(ctx, &empty.Empty{})
 	errors.CheckError(err)

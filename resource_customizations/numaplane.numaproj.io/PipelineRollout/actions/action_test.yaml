@@ -11,3 +11,9 @@ actionTests:
 - action: disallow-data-loss
   inputPath: testdata/PipelineRollout/rollout-allowing-data-loss.yaml
   expectedOutputPath: testdata/PipelineRollout/rollout-disallowing-data-loss.yaml
+- action: enable-force-promote
+  inputPath: testdata/PipelineRollout/rollout-enable-force-promote.yaml
+  expectedOutputPath: testdata/PipelineRollout/rollout-disable-force-promote.yaml
+- action: disable-force-promote
+  inputPath: testdata/PipelineRollout/rollout-disable-force-promote.yaml
+  expectedOutputPath: testdata/PipelineRollout/rollout-enable-force-promote.yaml

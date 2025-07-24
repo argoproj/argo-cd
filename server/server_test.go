@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -83,6 +84,7 @@ func fakeServer(t *testing.T) (*FakeArgoCDServer, func()) {
 			),
 			1*time.Minute,
 			1*time.Minute,
+			1*time.Minute,
 		),
 		RedisClient:             redis,
 		RepoClientset:           mockRepoClient,
@@ -130,7 +132,7 @@ func TestEnforceProjectToken(t *testing.T) {
 		cancel := test.StartInformer(s.projInformer)
 		defer cancel()
 		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
-		assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.Name))
+		assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
 		assert.True(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	})
 
@@ -187,7 +189,7 @@ func TestEnforceProjectToken(t *testing.T) {
 		cancel := test.StartInformer(s.projInformer)
 		defer cancel()
 		claims := jwt.MapClaims{"sub": defaultSub, "jti": defaultId}
-		assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.Name))
+		assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
 		assert.True(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	})
 
@@ -348,7 +350,7 @@ func TestEnforceProjectGroups(t *testing.T) {
 		"iat":    defaultIssuedAt,
 		"groups": []string{groupName},
 	}
-	assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.Name))
+	assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
 	assert.True(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	assert.False(t, s.enf.Enforce(claims, "clusters", "get", "test"))
 
@@ -358,7 +360,7 @@ func TestEnforceProjectGroups(t *testing.T) {
 	log.Println(existingProj.ProjectPoliciesString())
 	_, _ = s.AppClientset.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Update(t.Context(), &existingProj, metav1.UpdateOptions{})
 	time.Sleep(100 * time.Millisecond) // this lets the informer get synced
-	assert.False(t, s.enf.Enforce(claims, "projects", "get", existingProj.Name))
+	assert.False(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
 	assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	assert.False(t, s.enf.Enforce(claims, "clusters", "get", "test"))
 }
@@ -407,7 +409,7 @@ func TestRevokedToken(t *testing.T) {
 	cancel := test.StartInformer(s.projInformer)
 	defer cancel()
 	claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
-	assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.Name))
+	assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.ObjectMeta.Name))
 	assert.True(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 }
 
@@ -548,7 +550,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
 		case "/api/dex/.well-known/openid-configuration":
-			_, err := fmt.Fprintf(w, `
+			_, err := io.WriteString(w, fmt.Sprintf(`
 {
   "issuer": "%[1]s/api/dex",
   "authorization_endpoint": "%[1]s/api/dex/auth",
@@ -598,7 +600,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
     "preferred_username",
     "at_hash"
   ]
-}`, url)
+}`, url))
 			if err != nil {
 				t.Fail()
 			}
@@ -622,7 +624,7 @@ func getTestServer(t *testing.T, anonymousEnabled bool, withFakeSSO bool, useDex
 	})
 	oidcServer := ts
 	if !useDexForSSO {
-		oidcServer = testutil.GetOIDCTestServer(t, nil)
+		oidcServer = testutil.GetOIDCTestServer(t)
 	}
 	if withFakeSSO {
 		cm.Data["url"] = ts.URL
@@ -671,8 +673,6 @@ connectors:
 }
 
 func TestGetClaims(t *testing.T) {
-	t.Parallel()
-
 	defaultExpiry := jwt.NewNumericDate(time.Now().Add(time.Hour * 24))
 	defaultExpiryUnix := float64(defaultExpiry.Unix())
 
@@ -785,8 +785,6 @@ func TestGetClaims(t *testing.T) {
 }
 
 func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
-	t.Parallel()
-
 	// Marshaling single strings to strings is typical, so we test for this relatively common behavior.
 	jwt.MarshalSingleStringAsArray = false
 
@@ -946,8 +944,6 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 }
 
 func TestAuthenticate_no_request_metadata(t *testing.T) {
-	t.Parallel()
-
 	type testData struct {
 		test                  string
 		anonymousEnabled      bool
@@ -991,8 +987,6 @@ func TestAuthenticate_no_request_metadata(t *testing.T) {
 }
 
 func TestAuthenticate_no_SSO(t *testing.T) {
-	t.Parallel()
-
 	type testData struct {
 		test                 string
 		anonymousEnabled     bool
@@ -1042,8 +1036,6 @@ func TestAuthenticate_no_SSO(t *testing.T) {
 }
 
 func TestAuthenticate_bad_request_metadata(t *testing.T) {
-	t.Parallel()
-
 	type testData struct {
 		test                 string
 		anonymousEnabled     bool
@@ -1201,7 +1193,7 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 			Token: "",
 		})
 		require.NoError(t, err)
-		assert.Empty(t, recorder.Result().Header.Get("Set-Cookie"))
+		assert.Equal(t, "", recorder.Result().Header.Get("Set-Cookie"))
 	})
 }
 
@@ -1390,8 +1382,6 @@ func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
 }
 
 func TestIsMainJsBundle(t *testing.T) {
-	t.Parallel()
-
 	testCases := []struct {
 		name           string
 		url            string
@@ -1485,7 +1475,7 @@ func TestCacheControlHeaders(t *testing.T) {
 			handler := argocd.newStaticAssetsHandler()
 
 			rr := httptest.NewRecorder()
-			req := httptest.NewRequest("", "/"+testCase.filename, http.NoBody)
+			req := httptest.NewRequest("", "/"+testCase.filename, nil)
 
 			fp := filepath.Join(argocd.TmpAssetsDir, testCase.filename)
 
@@ -1627,8 +1617,6 @@ func TestReplaceBaseHRef(t *testing.T) {
 }
 
 func Test_enforceContentTypes(t *testing.T) {
-	t.Parallel()
-
 	getBaseHandler := func(t *testing.T, allow bool) http.Handler {
 		t.Helper()
 		return http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
@@ -1637,11 +1625,11 @@ func Test_enforceContentTypes(t *testing.T) {
 		})
 	}
 
-	t.Run("GET - not providing a content type, should still succeed", func(t *testing.T) {
-		t.Parallel()
+	t.Parallel()
 
+	t.Run("GET - not providing a content type, should still succeed", func(t *testing.T) {
 		handler := enforceContentTypes(getBaseHandler(t, true), []string{"application/json"}).(http.HandlerFunc)
-		req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		w := httptest.NewRecorder()
 		handler(w, req)
 		resp := w.Result()
@@ -1649,64 +1637,25 @@ func Test_enforceContentTypes(t *testing.T) {
 	})
 
 	t.Run("POST", func(t *testing.T) {
-		t.Parallel()
-
 		handler := enforceContentTypes(getBaseHandler(t, true), []string{"application/json"}).(http.HandlerFunc)
-		req := httptest.NewRequest(http.MethodPost, "/", http.NoBody)
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
 		w := httptest.NewRecorder()
 		handler(w, req)
 		resp := w.Result()
 		assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode, "didn't provide a content type, should have gotten an error")
 
-		req = httptest.NewRequest(http.MethodPost, "/", http.NoBody)
+		req = httptest.NewRequest(http.MethodPost, "/", nil)
 		req.Header = map[string][]string{"Content-Type": {"application/json"}}
 		w = httptest.NewRecorder()
 		handler(w, req)
 		resp = w.Result()
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "should have passed, since an allowed content type was provided")
 
-		req = httptest.NewRequest(http.MethodPost, "/", http.NoBody)
+		req = httptest.NewRequest(http.MethodPost, "/", nil)
 		req.Header = map[string][]string{"Content-Type": {"not-allowed"}}
 		w = httptest.NewRecorder()
 		handler(w, req)
 		resp = w.Result()
 		assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode, "should not have passed, since a disallowed content type was provided")
 	})
-}
-
-func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
-	tmpDir := t.TempDir()
-	assetsDir := filepath.Join(tmpDir, "assets")
-	err := os.MkdirAll(assetsDir, os.ModePerm)
-	require.NoError(t, err)
-
-	// Create a file in temp dir
-	filePath := filepath.Join(tmpDir, "test.txt")
-	err = os.WriteFile(filePath, []byte("test"), 0o644)
-	require.NoError(t, err)
-
-	argocd, closer := fakeServer(t)
-	defer closer()
-
-	// Create a symlink to the file
-	symlinkPath := filepath.Join(argocd.StaticAssetsDir, "link.txt")
-	err = os.Symlink(filePath, symlinkPath)
-	require.NoError(t, err)
-
-	// Make a request to get the file from the /assets endpoint
-	req := httptest.NewRequest(http.MethodGet, "/link.txt", http.NoBody)
-	w := httptest.NewRecorder()
-	argocd.newStaticAssetsHandler()(w, req)
-	resp := w.Result()
-	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode, "should not have been able to access the symlinked file")
-
-	// Make sure a normal file works
-	normalFilePath := filepath.Join(argocd.StaticAssetsDir, "normal.txt")
-	err = os.WriteFile(normalFilePath, []byte("normal"), 0o644)
-	require.NoError(t, err)
-	req = httptest.NewRequest(http.MethodGet, "/normal.txt", http.NoBody)
-	w = httptest.NewRecorder()
-	argocd.newStaticAssetsHandler()(w, req)
-	resp = w.Result()
-	assert.Equal(t, http.StatusOK, resp.StatusCode, "should have been able to access the normal file")
 }

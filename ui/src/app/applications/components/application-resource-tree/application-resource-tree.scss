@@ -107,14 +107,6 @@
             }
         }
 
-        &--grouped-node {
-            cursor: default;
-        }
-
-        &__top-part {
-            cursor: pointer;
-        }
-
         &--load-balancer {
             cursor: default;
             background-color: $argo-color-teal-2;
@@ -147,9 +139,6 @@
             box-shadow: 1px 1px 1px $argo-color-gray-4;
             background-color: white;
             margin-left: 215px;
-            @include themify($themes) {
-                background-color: themed('background-2');
-            }
 
             .theme-dark & {
                 box-shadow: 1px 1px 1px $argo-color-gray-7;
@@ -328,7 +317,6 @@
         top: 0;
         bottom: 0;
         animation: shadow-pulse 1s 1;
-        pointer-events: none;
     }
 
     @keyframes shadow-pulse {
@@ -421,13 +409,9 @@
 
     }
 
-    &__fullname {
-        white-space: normal
-    }
-
     &__node-status-icon {
         font-size: 0.8em;
-        i, svg {
+        i {
             margin-right: 2px;
         }
     }

@@ -54,14 +54,6 @@ type NotificationController interface {
 	Init(ctx context.Context) error
 }
 
-type notificationController struct {
-	ctrl              controller.NotificationController
-	appInformer       cache.SharedIndexInformer
-	appProjInformer   cache.SharedIndexInformer
-	secretInformer    cache.SharedIndexInformer
-	configMapInformer cache.SharedIndexInformer
-}
-
 func NewController(
 	k8sClient kubernetes.Interface,
 	client dynamic.Interface,
@@ -99,6 +91,7 @@ func NewController(
 		configMapInformer: configMapInformer,
 		appInformer:       appInformer,
 		appProjInformer:   appProjInformer,
+		apiFactory:        apiFactory,
 	}
 	skipProcessingOpt := controller.WithSkipProcessing(func(obj metav1.Object) (bool, string) {
 		app, ok := (obj).(*unstructured.Unstructured)
@@ -179,6 +172,15 @@ func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string
 	return informer
 }
 
+type notificationController struct {
+	apiFactory        api.Factory
+	ctrl              controller.NotificationController
+	appInformer       cache.SharedIndexInformer
+	appProjInformer   cache.SharedIndexInformer
+	secretInformer    cache.SharedIndexInformer
+	configMapInformer cache.SharedIndexInformer
+}
+
 func (c *notificationController) Init(ctx context.Context) error {
 	// resolve certificates using injected "argocd-tls-certs-cm" ConfigMap
 	httputil.SetCertResolver(argocert.GetCertificateForConnect)
@@ -189,7 +191,7 @@ func (c *notificationController) Init(ctx context.Context) error {
 	go c.configMapInformer.Run(ctx.Done())
 
 	if !cache.WaitForCacheSync(ctx.Done(), c.appInformer.HasSynced, c.appProjInformer.HasSynced, c.secretInformer.HasSynced, c.configMapInformer.HasSynced) {
-		return errors.New("timed out waiting for caches to sync")
+		return errors.New("Timed out waiting for caches to sync")
 	}
 	return nil
 }
