@@ -442,7 +442,7 @@ const labelForSortMode = {
 };
 
 const sizes = ['Bytes', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi', 'Yi'];
-export function formatSize(bytes: number) {
+function formatSize(bytes: number) {
     if (!bytes) {
         return '0 Bytes';
     }
