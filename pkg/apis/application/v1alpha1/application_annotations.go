@@ -11,7 +11,4 @@ const (
 	// absolute path means an absolute path within the repository and the relative path is relative to the application
 	// source path within the repository.
 	AnnotationKeyManifestGeneratePaths = "argocd.argoproj.io/manifest-generate-paths"
-	// AnnotationKeyTrackingMethod is used to record how Argo CD tracked the resource (label, annotation, or both).
-	// It helps ensure only the tracking metadata added by Argo CD is removed later.
-	AnnotationKeyTrackingMethod = "argocd.argoproj.io/tracking-method"
 )
