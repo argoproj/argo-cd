@@ -407,6 +407,18 @@ argocd_app_labels{label_non_existing="",name="my-app-3",namespace="argocd",proje
 `,
 			},
 		},
+		{
+			description:  "custom labels are present on argocd_app_info metric",
+			metricLabels: []string{"team-name", "team-bu"},
+			testCombination: testCombination{
+				applications: []string{fakeApp},
+				responseContains: `
+# HELP argocd_app_info Information about application.
+# TYPE argocd_app_info gauge
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",label_team_bu="bu-id",label_team_name="my-team",name="my-app",namespace="argocd",operation="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+`,
+			},
+		},
 	}
 
 	for _, c := range cases {

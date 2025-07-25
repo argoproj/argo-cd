@@ -62,13 +62,6 @@ var (
 	descAppLabels     *prometheus.Desc
 	descAppConditions *prometheus.Desc
 
-	descAppInfo = prometheus.NewDesc(
-		"argocd_app_info",
-		"Information about application.",
-		append(descAppDefaultLabels, "autosync_enabled", "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation"),
-		nil,
-	)
-
 	syncCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_app_sync_total",
@@ -360,16 +353,29 @@ type appCollector struct {
 	appLabels     []string
 	appConditions []string
 	db            db.ArgoDB
+	descAppInfo   *prometheus.Desc
 }
 
 // NewAppCollector returns a prometheus collector for application metrics
 func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) prometheus.Collector {
+	desc := prometheus.NewDesc(
+		"argocd_app_info",
+		"Information about application.",
+		append([]string{
+			"namespace", "name", "project",
+			"autosync_enabled", "repo", "dest_server", "dest_namespace",
+			"sync_status", "health_status", "operation",
+		}, metricsutil.NormalizeLabels("label", appLabels)...),
+		nil,
+	)
+
 	return &appCollector{
 		store:         appLister,
 		appFilter:     appFilter,
 		appLabels:     appLabels,
 		appConditions: appConditions,
 		db:            db,
+		descAppInfo:   desc,
 	}
 }
 
@@ -388,7 +394,7 @@ func (c *appCollector) Describe(ch chan<- *prometheus.Desc) {
 	if len(c.appConditions) > 0 {
 		ch <- descAppConditions
 	}
-	ch <- descAppInfo
+	ch <- c.descAppInfo
 }
 
 // Collect implements the prometheus.Collector interface
@@ -448,7 +454,22 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 
 	autoSyncEnabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled()
 
-	addGauge(descAppInfo, 1, strconv.FormatBool(autoSyncEnabled), git.NormalizeGitURL(app.Spec.GetSource().RepoURL), destServer, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation)
+	labelValues := []string{
+		app.Namespace,
+		app.Name,
+		app.Spec.GetProject(),
+		strconv.FormatBool(autoSyncEnabled),
+		git.NormalizeGitURL(app.Spec.GetSource().RepoURL),
+		destServer,
+		app.Spec.Destination.Namespace,
+		string(syncStatus),
+		string(healthStatus),
+		operation,
+	}
+	for _, desiredLabel := range c.appLabels {
+		labelValues = append(labelValues, app.GetLabels()[desiredLabel])
+	}
+	ch <- prometheus.MustNewConstMetric(c.descAppInfo, prometheus.GaugeValue, 1, labelValues...)
 
 	if len(c.appLabels) > 0 {
 		labelValues := []string{}
