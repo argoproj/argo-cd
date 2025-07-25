@@ -8,7 +8,7 @@ import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 
-import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
+import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp, CheckboxField} from '../../../shared/components';
 import {AppContext, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
@@ -1298,17 +1298,38 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
 Are you sure you want to disable auto-sync and rollback application '${this.props.match.params.name}'?`;
             }
 
-            const confirmed = await this.appContext.apis.popup.confirm('Rollback application', confirmationMessage);
-            if (confirmed) {
-                if (needDisableRollback) {
-                    const update = JSON.parse(JSON.stringify(application)) as appModels.Application;
-                    update.spec.syncPolicy.automated = null;
-                    await services.applications.update(update, {validate: false});
+            await this.appContext.apis.popup.prompt(
+                'Rollback application',
+                api => (
+                    <div>
+                        <p>{confirmationMessage}</p>
+                        <div className='argo-form-row'>
+                            <CheckboxField id='rollback-prune' field='prune' formApi={api} />
+                            <label htmlFor='rollback-prune'>PRUNE</label>
+                        </div>
+                    </div>
+                ),
+                {
+                    submit: async (vals, _, close) => {
+                        try {
+                            if (needDisableRollback) {
+                                const update = JSON.parse(JSON.stringify(application)) as appModels.Application;
+                                update.spec.syncPolicy.automated = null;
+                                await services.applications.update(update, {validate: false});
+                            }
+                            await services.applications.rollback(this.props.match.params.name, this.getAppNamespace(), revisionHistory.id, vals.prune);
+                            this.appChanged.next(await services.applications.get(this.props.match.params.name, this.getAppNamespace()));
+                            this.setRollbackPanelVisible(-1);
+                            close();
+                        } catch (e) {
+                            this.appContext.apis.notifications.show({
+                                content: <ErrorNotification title='Unable to rollback application' e={e} />,
+                                type: NotificationType.Error
+                            });
+                        }
+                    }
                 }
-                await services.applications.rollback(this.props.match.params.name, this.getAppNamespace(), revisionHistory.id);
-                this.appChanged.next(await services.applications.get(this.props.match.params.name, this.getAppNamespace()));
-                this.setRollbackPanelVisible(-1);
-            }
+            );
         } catch (e) {
             this.appContext.apis.notifications.show({
                 content: <ErrorNotification title='Unable to rollback application' e={e} />,
