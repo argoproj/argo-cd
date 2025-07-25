@@ -1281,6 +1281,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		revision             string
 		localRepoRoot        string
 		serverSideGenerate   bool
+		serverSideDiff       bool
 		localIncludes        []string
 		appNamespace         string
 		revisions            []string
@@ -1398,6 +1399,88 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 			proj := getProject(ctx, c, clientOpts, app.Spec.Project)
+
+			// Use server-side diff if requested
+			if serverSideDiff {
+				// Extract target manifests from the already-processed diffOption
+				var targetManifests []string
+
+				// If we have manifests from revision/local/serverside generation, use those
+				if diffOption.res != nil {
+					targetManifests = diffOption.res.Manifests
+				} else if diffOption.serversideRes != nil {
+					targetManifests = diffOption.serversideRes.Manifests
+				} else if diffOption.local != "" {
+					// For local case without server-side generation, we need to get the objects
+					localObjs := getLocalObjects(ctx, app, proj.Project, diffOption.local, diffOption.localRepoRoot, argoSettings.AppLabelKey, diffOption.cluster.Info.ServerVersion, diffOption.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
+					for _, obj := range localObjs {
+						jsonBytes, err := json.Marshal(obj)
+						if err != nil {
+							errors.CheckError(fmt.Errorf("error marshaling local object: %w", err))
+						}
+						targetManifests = append(targetManifests, string(jsonBytes))
+					}
+				} else {
+					// Default case - use target state from managed resources
+					for _, item := range resources.Items {
+						if item.TargetState != "" && item.TargetState != "null" {
+							targetManifests = append(targetManifests, item.TargetState)
+						}
+					}
+				}
+
+				// Call the ServerSideDiff API
+				serverSideDiffQuery := &application.ApplicationServerSideDiffQuery{
+					Name:            &appName,
+					AppNamespace:    &appNs,
+					Project:         &app.Spec.Project,
+					LiveResources:   resources.Items,
+					TargetManifests: targetManifests,
+				}
+
+				serverSideDiffRes, err := appIf.ServerSideDiff(ctx, serverSideDiffQuery)
+				if err != nil {
+					errors.CheckError(err)
+				}
+
+				// Print server-side diff results directly using the same format as findandPrintDiff
+				foundDiffs := false
+				for _, item := range serverSideDiffRes.Items {
+					if item.Hook || (!item.Modified && item.TargetState != "" && item.LiveState != "") {
+						continue
+					}
+
+					if item.Modified || item.TargetState == "" || item.LiveState == "" {
+						fmt.Printf("\n===== %s/%s %s/%s ======\n", item.Group, item.Kind, item.Namespace, item.Name)
+
+						var live, target *unstructured.Unstructured
+
+						// For server-side diff: TargetState = PredictedLive, LiveState = NormalizedLive
+						if item.TargetState != "" && item.TargetState != "null" {
+							target = &unstructured.Unstructured{}
+							err = json.Unmarshal([]byte(item.TargetState), target)
+							errors.CheckError(err)
+						}
+
+						if item.LiveState != "" && item.LiveState != "null" {
+							live = &unstructured.Unstructured{}
+							err = json.Unmarshal([]byte(item.LiveState), live)
+							errors.CheckError(err)
+						}
+
+						if !foundDiffs {
+							foundDiffs = true
+						}
+						_ = cli.PrintDiff(item.Name, live, target)
+					}
+				}
+
+				if foundDiffs && exitCode {
+					os.Exit(diffExitCode)
+				}
+				return
+			}
+
 			foundDiffs := findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts)
 			if foundDiffs && exitCode {
 				os.Exit(diffExitCode)
@@ -1412,6 +1495,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&revision, "revision", "", "Compare live app to a particular revision")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
 	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Used with --local, this will send your manifests to the server for diffing")
+	command.Flags().BoolVar(&serverSideDiff, "server-side-diff", false, "Use server-side diff calculation (requires ArgoCD server with server-side diff support)")
 	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path.")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only render the difference in namespace")
 	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for source position in source-positions")
