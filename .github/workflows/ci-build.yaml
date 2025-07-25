@@ -314,6 +314,7 @@ jobs:
           # renovate: datasource=node-version packageName=node versioning=node
           node-version: '22.9.0'
           cache: 'pnpm'
+          cache-dependency-path: 'ui/pnpm-lock.yaml'
       - name: Install node dependencies
         run: |
           cd ui && pnpm --frozen-lockfile --ignore-optional --non-interactive
