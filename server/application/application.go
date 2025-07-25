@@ -2841,8 +2841,6 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		return nil, security.NamespaceNotPermittedError(a.Namespace)
 	}
 
-	log.Infof("Processing %d live resources and %d target manifests", len(q.GetLiveResources()), len(q.GetTargetManifests()))
-
 	// Get settings for diff config - similar to CLI approach
 	argoSettings, err := s.settingsMgr.GetSettings()
 	if err != nil {
@@ -2971,6 +2969,9 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 			name = obj.GetName()
 			hook = false
 			resourceVersion = ""
+		} else {
+			// Skip this diff result or use default values
+			continue
 		}
 
 		// Create ResourceDiff with StateDiffs results
