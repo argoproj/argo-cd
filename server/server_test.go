@@ -131,22 +131,22 @@ func TestEnforceProjectToken(t *testing.T) {
 		cancel := test.StartInformer(s.projInformer)
 		defer cancel()
 		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
-		assert.True(t, s.enf.Enforce(claims, "projects", http.MethodGet, existingProj.Name))
-		assert.True(t, s.enf.Enforce(claims, "applications", http.MethodGet, defaultTestObject))
+		assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.Name))
+		assert.True(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	})
 
 	t.Run("TestEnforceProjectTokenWithDiffCreateAtFailure", func(t *testing.T) {
 		s := NewServer(t.Context(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient}, ApplicationSetOpts{})
 		diffCreateAt := defaultIssuedAt + 1
 		claims := jwt.MapClaims{"sub": defaultSub, "iat": diffCreateAt}
-		assert.False(t, s.enf.Enforce(claims, "applications", http.MethodGet, defaultTestObject))
+		assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	})
 
 	t.Run("TestEnforceProjectTokenIncorrectSubFormatFailure", func(t *testing.T) {
 		s := NewServer(t.Context(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient}, ApplicationSetOpts{})
 		invalidSub := "proj:test"
 		claims := jwt.MapClaims{"sub": invalidSub, "iat": defaultIssuedAt}
-		assert.False(t, s.enf.Enforce(claims, "applications", http.MethodGet, defaultTestObject))
+		assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	})
 
 	t.Run("TestEnforceProjectTokenNoTokenFailure", func(t *testing.T) {
@@ -154,7 +154,7 @@ func TestEnforceProjectToken(t *testing.T) {
 		nonExistentToken := "fake-token"
 		invalidSub := fmt.Sprintf(subFormat, projectName, nonExistentToken)
 		claims := jwt.MapClaims{"sub": invalidSub, "iat": defaultIssuedAt}
-		assert.False(t, s.enf.Enforce(claims, "applications", http.MethodGet, defaultTestObject))
+		assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	})
 
 	t.Run("TestEnforceProjectTokenNotJWTTokenFailure", func(t *testing.T) {
@@ -162,7 +162,7 @@ func TestEnforceProjectToken(t *testing.T) {
 		proj.Spec.Roles[0].JWTTokens = nil
 		s := NewServer(t.Context(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(proj), RepoClientset: mockRepoClient}, ApplicationSetOpts{})
 		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
-		assert.False(t, s.enf.Enforce(claims, "applications", http.MethodGet, defaultTestObject))
+		assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	})
 
 	t.Run("TestEnforceProjectTokenExplicitDeny", func(t *testing.T) {
@@ -179,8 +179,8 @@ func TestEnforceProjectToken(t *testing.T) {
 		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
 		allowedObject := fmt.Sprintf("%s/%s", projectName, "test")
 		denyObject := fmt.Sprintf("%s/%s", projectName, denyApp)
-		assert.True(t, s.enf.Enforce(claims, "applications", http.MethodGet, allowedObject))
-		assert.False(t, s.enf.Enforce(claims, "applications", http.MethodGet, denyObject))
+		assert.True(t, s.enf.Enforce(claims, "applications", "get", allowedObject))
+		assert.False(t, s.enf.Enforce(claims, "applications", "get", denyObject))
 	})
 
 	t.Run("TestEnforceProjectTokenWithIdSuccessful", func(t *testing.T) {
@@ -188,15 +188,15 @@ func TestEnforceProjectToken(t *testing.T) {
 		cancel := test.StartInformer(s.projInformer)
 		defer cancel()
 		claims := jwt.MapClaims{"sub": defaultSub, "jti": defaultId}
-		assert.True(t, s.enf.Enforce(claims, "projects", http.MethodGet, existingProj.Name))
-		assert.True(t, s.enf.Enforce(claims, "applications", http.MethodGet, defaultTestObject))
+		assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.Name))
+		assert.True(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	})
 
 	t.Run("TestEnforceProjectTokenWithInvalidIdFailure", func(t *testing.T) {
 		s := NewServer(t.Context(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient}, ApplicationSetOpts{})
 		invalidId := "invalidId"
 		claims := jwt.MapClaims{"sub": defaultSub, "jti": defaultId}
-		res := s.enf.Enforce(claims, "applications", http.MethodGet, invalidId)
+		res := s.enf.Enforce(claims, "applications", "get", invalidId)
 		assert.False(t, res)
 	})
 }
@@ -241,10 +241,10 @@ func TestDefaultRoleWithClaims(t *testing.T) {
 	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
 	claims := jwt.MapClaims{"groups": []string{"org1:team1", "org2:team2"}}
 
-	assert.False(t, enf.Enforce(claims, "applications", http.MethodGet, "foo/bar"))
+	assert.False(t, enf.Enforce(claims, "applications", "get", "foo/bar"))
 	// after setting the default role to be the read-only role, this should now pass
 	enf.SetDefaultRole("role:readonly")
-	assert.True(t, enf.Enforce(claims, "applications", http.MethodGet, "foo/bar"))
+	assert.True(t, enf.Enforce(claims, "applications", "get", "foo/bar"))
 }
 
 func TestEnforceNilClaims(t *testing.T) {
@@ -253,9 +253,9 @@ func TestEnforceNilClaims(t *testing.T) {
 	_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	rbacEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, test.NewFakeProjLister())
 	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
-	assert.False(t, enf.Enforce(nil, "applications", http.MethodGet, "foo/obj"))
+	assert.False(t, enf.Enforce(nil, "applications", "get", "foo/obj"))
 	enf.SetDefaultRole("role:readonly")
-	assert.True(t, enf.Enforce(nil, "applications", http.MethodGet, "foo/obj"))
+	assert.True(t, enf.Enforce(nil, "applications", "get", "foo/obj"))
 }
 
 func TestInitializingExistingDefaultProject(t *testing.T) {
@@ -349,9 +349,9 @@ func TestEnforceProjectGroups(t *testing.T) {
 		"iat":    defaultIssuedAt,
 		"groups": []string{groupName},
 	}
-	assert.True(t, s.enf.Enforce(claims, "projects", http.MethodGet, existingProj.Name))
-	assert.True(t, s.enf.Enforce(claims, "applications", http.MethodGet, defaultTestObject))
-	assert.False(t, s.enf.Enforce(claims, "clusters", http.MethodGet, "test"))
+	assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.Name))
+	assert.True(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
+	assert.False(t, s.enf.Enforce(claims, "clusters", "get", "test"))
 
 	// now remove the group and make sure it fails
 	log.Println(existingProj.ProjectPoliciesString())
@@ -359,9 +359,9 @@ func TestEnforceProjectGroups(t *testing.T) {
 	log.Println(existingProj.ProjectPoliciesString())
 	_, _ = s.AppClientset.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Update(t.Context(), &existingProj, metav1.UpdateOptions{})
 	time.Sleep(100 * time.Millisecond) // this lets the informer get synced
-	assert.False(t, s.enf.Enforce(claims, "projects", http.MethodGet, existingProj.Name))
-	assert.False(t, s.enf.Enforce(claims, "applications", http.MethodGet, defaultTestObject))
-	assert.False(t, s.enf.Enforce(claims, "clusters", http.MethodGet, "test"))
+	assert.False(t, s.enf.Enforce(claims, "projects", "get", existingProj.Name))
+	assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
+	assert.False(t, s.enf.Enforce(claims, "clusters", "get", "test"))
 }
 
 func TestRevokedToken(t *testing.T) {
@@ -408,8 +408,8 @@ func TestRevokedToken(t *testing.T) {
 	cancel := test.StartInformer(s.projInformer)
 	defer cancel()
 	claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
-	assert.True(t, s.enf.Enforce(claims, "projects", http.MethodGet, existingProj.Name))
-	assert.True(t, s.enf.Enforce(claims, "applications", http.MethodGet, defaultTestObject))
+	assert.True(t, s.enf.Enforce(claims, "projects", "get", existingProj.Name))
+	assert.True(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 }
 
 func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {

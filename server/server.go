@@ -908,15 +908,24 @@ func (server *ArgoCDServer) useTLS() bool {
 }
 
 func requestTimeoutGRPCInterceptor(requestTimeout time.Duration) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		log.Printf("[GRPC_INTERCEPTOR] %s 호출됨. RequestTimeout: %v", info.FullMethod, requestTimeout)
+		log.Printf("[GRPC_INTERCEPTOR] 초기 Context Err: %v", ctx.Err())
+
 		if requestTimeout == 0 {
-			return handler(ctx, req) // no timeout
+			log.Printf("[GRPC_INTERCEPTOR] RequestTimeout이 0이므로 타임아웃 로직 건너뜀.")
+			res, err := handler(ctx, req)
+			log.Printf("[GRPC_INTERCEPTOR] 핸들러 결과: %v, 에러: %v (RequestTimeout=0)", res != nil, err)
+			return res, err
 		}
 
 		newCtx, cancel := context.WithTimeout(ctx, requestTimeout)
 		defer cancel()
 
+		log.Printf("[GRPC_INTERCEPTOR] Context.WithTimeout 적용됨. 타임아웃: %v", requestTimeout)
 		res, err := handler(newCtx, req)
+		log.Printf("[GRPC_INTERCEPTOR] 핸들러 결과: %v, 에러: %v (RequestTimeout=%v)", res != nil, err, requestTimeout)
+		log.Printf("[GRPC_INTERCEPTOR] 최종 Context Err: %v", newCtx.Err())
 		return res, err
 	}
 }
@@ -940,10 +949,6 @@ func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResour
 			keepalive.EnforcementPolicy{
 				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
 			},
-		),
-		grpc.ChainUnaryInterceptor(
-			serverMetrics.UnaryServerInterceptor(),
-			requestTimeoutGRPCInterceptor(server.RequestTimeout),
 		),
 	}
 
@@ -987,6 +992,7 @@ func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResour
 		bug21955WorkaroundInterceptor,
 		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(server.log)),
 		serverMetrics.UnaryServerInterceptor(),
+		requestTimeoutGRPCInterceptor(server.RequestTimeout),
 		grpc_auth.UnaryServerInterceptor(server.Authenticate),
 		grpc_util.UserAgentUnaryServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
 		grpc_util.PayloadUnaryServerInterceptor(server.log, true, func(_ context.Context, c interceptors.CallMeta) bool {
