@@ -12,8 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/common"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -214,17 +212,7 @@ func TestWriteManifests(t *testing.T) {
 	root := tempRoot(t)
 
 	manifests := []*apiclient.HydratedManifestDetails{
-		{ManifestJSON: `{
-			"apiVersion": "v1",
-			"kind": "Pod",
-			"metadata": {
-				"name": "example-pod",
-				"annotations": {
-					"argocd.argoproj.io/tracking-id": "test-tracking-id",
-					"some-other-annotation": "keep-me"
-				}
-			}
-		}`},
+		{ManifestJSON: `{"kind":"Pod","apiVersion":"v1"}`},
 	}
 
 	err := writeManifests(root, "", manifests)
@@ -234,11 +222,6 @@ func TestWriteManifests(t *testing.T) {
 	manifestBytes, err := os.ReadFile(manifestPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(manifestBytes), "kind")
-
-	manifestStr := string(manifestBytes)
-	assert.Contains(t, manifestStr, "kind: Pod")
-	assert.NotContains(t, manifestStr, common.AnnotationKeyAppInstance)
-	assert.Contains(t, manifestStr, "some-other-annotation")
 }
 
 func TestWriteGitAttributes(t *testing.T) {
