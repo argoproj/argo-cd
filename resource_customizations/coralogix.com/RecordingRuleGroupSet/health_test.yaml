@@ -1,0 +1,41 @@
+tests:
+- healthStatus:
+    status: Degraded
+    message: >-
+      error on creating remote recordingRuleGroupSet: SDK API error from /com.coralogixapis.metrics_rule_manager.v1.RuleGroupSets/Create for feature group recording-rules: rpc error: code = InvalidArgument desc = {
+        "groups": {
+          "0": {
+            "rules": {
+              "0": {
+                "record": [
+                  {
+                    "code": "length",
+                    "message": null,
+                    "params": {
+                      "value": "",
+                      "min": 1
+                    }
+                  },
+                  {
+                    "code": "invalid_promql",
+                    "message": "SingleExpr: unexpected token ; want \"\"(\", \"{\", \"-\", \"+\"\"",
+                    "params": {
+                      "value": ""
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+
+  inputPath: testdata/degraded_recording_rule.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for status to be updated"
+  inputPath: testdata/progressing_recording_rule.yaml
+- healthStatus:
+    status: Healthy
+    message: "Resource is ready"
+  inputPath: testdata/healthy_recording_rule.yaml
