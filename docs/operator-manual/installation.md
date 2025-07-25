@@ -99,7 +99,6 @@ kind: Kustomization
 namespace: <your-custom-namespace>
 resources:
   - https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-
 patches:
   - patch: |-
       - op: replace
