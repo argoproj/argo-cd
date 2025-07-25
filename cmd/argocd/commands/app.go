@@ -1402,76 +1402,134 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			// Use server-side diff if requested
 			if serverSideDiff {
-				// Extract target manifests from the already-processed diffOption
-				var targetManifests []string
+				// Process using the same logic as findandPrintDiff, but call server for individual items
+				liveObjs, err := cmdutil.LiveObjects(resources.Items)
+				errors.CheckError(err)
+				items := make([]objKeyLiveTarget, 0)
 
-				// If we have manifests from revision/local/serverside generation, use those
-				if diffOption.res != nil {
-					targetManifests = diffOption.res.Manifests
-				} else if diffOption.serversideRes != nil {
-					targetManifests = diffOption.serversideRes.Manifests
-				} else if diffOption.local != "" {
-					// For local case without server-side generation, we need to get the objects
-					localObjs := getLocalObjects(ctx, app, proj.Project, diffOption.local, diffOption.localRepoRoot, argoSettings.AppLabelKey, diffOption.cluster.Info.ServerVersion, diffOption.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
-					for _, obj := range localObjs {
-						jsonBytes, err := json.Marshal(obj)
-						if err != nil {
-							errors.CheckError(fmt.Errorf("error marshaling local object: %w", err))
-						}
-						targetManifests = append(targetManifests, string(jsonBytes))
+				switch {
+				case diffOption.local != "":
+					localObjs := groupObjsByKey(getLocalObjects(ctx, app, proj.Project, diffOption.local, diffOption.localRepoRoot, argoSettings.AppLabelKey, diffOption.cluster.Info.ServerVersion, diffOption.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
+					items = groupObjsForDiff(resources, localObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
+				case diffOption.revision != "" || len(diffOption.revisions) > 0:
+					var unstructureds []*unstructured.Unstructured
+					for _, mfst := range diffOption.res.Manifests {
+						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+						errors.CheckError(err)
+						unstructureds = append(unstructureds, obj)
 					}
-				} else {
-					// Default case - use target state from managed resources
-					for _, item := range resources.Items {
-						if item.TargetState != "" && item.TargetState != "null" {
-							targetManifests = append(targetManifests, item.TargetState)
-						}
+					groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
+					items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
+				case diffOption.serversideRes != nil:
+					var unstructureds []*unstructured.Unstructured
+					for _, mfst := range diffOption.serversideRes.Manifests {
+						obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+						errors.CheckError(err)
+						unstructureds = append(unstructureds, obj)
+					}
+					groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
+					items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
+				default:
+					// This shouldn't happen for server-side diff, but handle it anyway
+					for i := range resources.Items {
+						res := resources.Items[i]
+						live := &unstructured.Unstructured{}
+						err := json.Unmarshal([]byte(res.NormalizedLiveState), &live)
+						errors.CheckError(err)
+
+						target := &unstructured.Unstructured{}
+						err = json.Unmarshal([]byte(res.TargetState), &target)
+						errors.CheckError(err)
+
+						items = append(items, objKeyLiveTarget{kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name), live, target})
 					}
 				}
 
-				// Call the ServerSideDiff API
-				serverSideDiffQuery := &application.ApplicationServerSideDiffQuery{
-					Name:            &appName,
-					AppNamespace:    &appNs,
-					Project:         &app.Spec.Project,
-					LiveResources:   resources.Items,
-					TargetManifests: targetManifests,
-				}
-
-				serverSideDiffRes, err := appIf.ServerSideDiff(ctx, serverSideDiffQuery)
-				if err != nil {
-					errors.CheckError(err)
-				}
-
-				// Print server-side diff results directly using the same format as findandPrintDiff
+				// Process each item for server-side diff (similar to findandPrintDiff but with server-side diff)
 				foundDiffs := false
-				for _, item := range serverSideDiffRes.Items {
-					if item.Hook || (!item.Modified && item.TargetState != "" && item.LiveState != "") {
+				for _, item := range items {
+					if item.target != nil && hook.IsHook(item.target) || item.live != nil && hook.IsHook(item.live) {
 						continue
 					}
 
-					if item.Modified || item.TargetState == "" || item.LiveState == "" {
-						fmt.Printf("\n===== %s/%s %s/%s ======\n", item.Group, item.Kind, item.Namespace, item.Name)
+					// For server-side diff, we need to create aligned arrays for this specific resource
+					var liveResource *argoappv1.ResourceDiff
+					var targetManifest string
 
-						var live, target *unstructured.Unstructured
+					if item.live != nil {
+						// Find corresponding live resource
+						for _, res := range resources.Items {
+							if res.Group == item.key.Group && res.Kind == item.key.Kind &&
+								res.Namespace == item.key.Namespace && res.Name == item.key.Name {
+								liveResource = res
+								break
+							}
+						}
+					}
 
-						// For server-side diff: TargetState = PredictedLive, LiveState = NormalizedLive
-						if item.TargetState != "" && item.TargetState != "null" {
-							target = &unstructured.Unstructured{}
-							err = json.Unmarshal([]byte(item.TargetState), target)
-							errors.CheckError(err)
+					if liveResource == nil {
+						// Create empty live resource for creation case
+						liveResource = &argoappv1.ResourceDiff{
+							Group:       item.key.Group,
+							Kind:        item.key.Kind,
+							Namespace:   item.key.Namespace,
+							Name:        item.key.Name,
+							LiveState:   "",
+							TargetState: "",
+							Modified:    true,
+						}
+					}
+
+					if item.target != nil {
+						jsonBytes, err := json.Marshal(item.target)
+						if err != nil {
+							errors.CheckError(fmt.Errorf("error marshaling target object: %w", err))
+						}
+						targetManifest = string(jsonBytes)
+					}
+
+					// Call server-side diff for this individual resource
+					serverSideDiffQuery := &application.ApplicationServerSideDiffQuery{
+						Name:            &appName,
+						AppNamespace:    &appNs,
+						Project:         &app.Spec.Project,
+						LiveResources:   []*argoappv1.ResourceDiff{liveResource},
+						TargetManifests: []string{targetManifest},
+					}
+
+					serverSideDiffRes, err := appIf.ServerSideDiff(ctx, serverSideDiffQuery)
+					if err != nil {
+						errors.CheckError(err)
+					}
+
+					// Print results for this resource
+					for _, resultItem := range serverSideDiffRes.Items {
+						if resultItem.Hook || (!resultItem.Modified && resultItem.TargetState != "" && resultItem.LiveState != "") {
+							continue
 						}
 
-						if item.LiveState != "" && item.LiveState != "null" {
-							live = &unstructured.Unstructured{}
-							err = json.Unmarshal([]byte(item.LiveState), live)
-							errors.CheckError(err)
-						}
+						if resultItem.Modified || resultItem.TargetState == "" || resultItem.LiveState == "" {
+							fmt.Printf("\n===== %s/%s %s/%s ======\n", resultItem.Group, resultItem.Kind, resultItem.Namespace, resultItem.Name)
 
-						if !foundDiffs {
-							foundDiffs = true
+							var live, target *unstructured.Unstructured
+
+							if resultItem.TargetState != "" && resultItem.TargetState != "null" {
+								target = &unstructured.Unstructured{}
+								err = json.Unmarshal([]byte(resultItem.TargetState), target)
+								errors.CheckError(err)
+							}
+
+							if resultItem.LiveState != "" && resultItem.LiveState != "null" {
+								live = &unstructured.Unstructured{}
+								err = json.Unmarshal([]byte(resultItem.LiveState), live)
+								errors.CheckError(err)
+							}
+
+							if !foundDiffs {
+								foundDiffs = true
+							}
+							_ = cli.PrintDiff(resultItem.Name, live, target)
 						}
-						_ = cli.PrintDiff(item.Name, live, target)
 					}
 				}
 

@@ -1882,6 +1882,57 @@
         }
       }
     },
+    "/api/v1/applications/{name}/server-side-diff": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "ServerSideDiff performs server-side diff calculation using dry-run apply",
+        "operationId": "ApplicationService_ServerSideDiff",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "Target manifests to diff against.",
+            "name": "targetManifests",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationServerSideDiffResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/spec": {
       "put": {
         "tags": [
@@ -5015,6 +5066,20 @@
           "type": "string"
         },
         "prune": {
+          "type": "boolean"
+        }
+      }
+    },
+    "applicationApplicationServerSideDiffResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceDiff"
+          }
+        },
+        "modified": {
           "type": "boolean"
         }
       }
