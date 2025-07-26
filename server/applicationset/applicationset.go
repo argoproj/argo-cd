@@ -230,7 +230,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 		return nil, fmt.Errorf("error creating ApplicationSet: %w", err)
 	}
 	// act idempotent if existing spec matches new spec
-	existing, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(s.ns).Get(ctx, appset.Name, metav1.GetOptions{
+	existing, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).Get(ctx, appset.Name, metav1.GetOptions{
 		ResourceVersion: "",
 	})
 	if err != nil {
@@ -297,7 +297,7 @@ func (s *Server) updateAppSet(ctx context.Context, appset *v1alpha1.ApplicationS
 			appset.Annotations = newAppset.Annotations
 		}
 		appset.Finalizers = newAppset.Finalizers
-		res, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(s.ns).Update(ctx, appset, metav1.UpdateOptions{})
+		res, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(appset.Namespace).Update(ctx, appset, metav1.UpdateOptions{})
 		if err == nil {
 			s.logAppSetEvent(ctx, appset, argo.EventReasonResourceUpdated, "updated ApplicationSets spec")
 			s.waitSync(res)
@@ -307,7 +307,7 @@ func (s *Server) updateAppSet(ctx context.Context, appset *v1alpha1.ApplicationS
 			return nil, err
 		}
 
-		appset, err = s.appclientset.ArgoprojV1alpha1().ApplicationSets(s.ns).Get(ctx, newAppset.Name, metav1.GetOptions{})
+		appset, err = s.appclientset.ArgoprojV1alpha1().ApplicationSets(newAppset.Namespace).Get(ctx, newAppset.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("error getting ApplicationSets: %w", err)
 		}
