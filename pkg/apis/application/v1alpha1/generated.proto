@@ -2228,6 +2228,9 @@ message ResourceStatus {
 
   // RequiresDeletionConfirmation is true if the resource requires explicit user confirmation before deletion.
   optional bool requiresDeletionConfirmation = 11;
+
+  // IsSelfReferencedObj is true if the resource is managed by the application.
+  optional bool isSelfReferencedObj = 12;
 }
 
 // RetryStrategy contains information about the strategy to apply when a sync failed

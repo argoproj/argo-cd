@@ -2133,6 +2133,8 @@ type ResourceStatus struct {
 	SyncWave int64 `json:"syncWave,omitempty" protobuf:"bytes,10,opt,name=syncWave"`
 	// RequiresDeletionConfirmation is true if the resource requires explicit user confirmation before deletion.
 	RequiresDeletionConfirmation bool `json:"requiresDeletionConfirmation,omitempty" protobuf:"bytes,11,opt,name=requiresDeletionConfirmation"`
+	// IsSelfReferencedObj is true if the resource is managed by the application.
+	IsSelfReferencedObj bool `json:"isSelfReferencedObj,omitempty" protobuf:"bytes,12,opt,name=isSelfReferencedObj"`
 }
 
 // GroupVersionKind returns the GVK schema type for given resource status
