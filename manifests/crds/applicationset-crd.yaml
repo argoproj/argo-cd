@@ -199,6 +199,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        directPull:
+                                          type: boolean
                                         fileParameters:
                                           items:
                                             properties:
@@ -475,6 +477,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          directPull:
+                                            type: boolean
                                           fileParameters:
                                             items:
                                               properties:
@@ -881,6 +885,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        directPull:
+                                          type: boolean
                                         fileParameters:
                                           items:
                                             properties:
@@ -1157,6 +1163,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          directPull:
+                                            type: boolean
                                           fileParameters:
                                             items:
                                               properties:
@@ -1564,6 +1572,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        directPull:
+                                          type: boolean
                                         fileParameters:
                                           items:
                                             properties:
@@ -1840,6 +1850,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          directPull:
+                                            type: boolean
                                           fileParameters:
                                             items:
                                               properties:
@@ -2225,6 +2237,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        directPull:
+                                          type: boolean
                                         fileParameters:
                                           items:
                                             properties:
@@ -2501,6 +2515,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          directPull:
+                                            type: boolean
                                           fileParameters:
                                             items:
                                               properties:
@@ -2911,6 +2927,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  directPull:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -3187,6 +3205,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    directPull:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -3593,6 +3613,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  directPull:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -3869,6 +3891,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    directPull:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -4276,6 +4300,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  directPull:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -4552,6 +4578,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    directPull:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -4937,6 +4965,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  directPull:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -5213,6 +5243,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    directPull:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -5606,6 +5638,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  directPull:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -5882,6 +5916,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    directPull:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -6502,6 +6538,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  directPull:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -6778,6 +6816,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    directPull:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -7389,6 +7429,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  directPull:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -7665,6 +7707,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    directPull:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -8067,6 +8111,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        directPull:
+                                          type: boolean
                                         fileParameters:
                                           items:
                                             properties:
@@ -8343,6 +8389,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          directPull:
+                                            type: boolean
                                           fileParameters:
                                             items:
                                               properties:
@@ -8755,6 +8803,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  directPull:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -9031,6 +9081,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    directPull:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -9437,6 +9489,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  directPull:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -9713,6 +9767,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    directPull:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -10120,6 +10176,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  directPull:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -10396,6 +10454,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    directPull:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -10781,6 +10841,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  directPull:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -11057,6 +11119,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    directPull:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -11450,6 +11514,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  directPull:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -11726,6 +11792,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    directPull:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -12346,6 +12414,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  directPull:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -12622,6 +12692,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    directPull:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -13233,6 +13305,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  directPull:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -13509,6 +13583,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    directPull:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -13915,6 +13991,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        directPull:
+                                          type: boolean
                                         fileParameters:
                                           items:
                                             properties:
@@ -14191,6 +14269,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          directPull:
+                                            type: boolean
                                           fileParameters:
                                             items:
                                               properties:
@@ -14583,6 +14663,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        directPull:
+                                          type: boolean
                                         fileParameters:
                                           items:
                                             properties:
@@ -14859,6 +14941,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          directPull:
+                                            type: boolean
                                           fileParameters:
                                             items:
                                               properties:
@@ -15479,6 +15563,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        directPull:
+                                          type: boolean
                                         fileParameters:
                                           items:
                                             properties:
@@ -15755,6 +15841,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          directPull:
+                                            type: boolean
                                           fileParameters:
                                             items:
                                               properties:
@@ -16366,6 +16454,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        directPull:
+                                          type: boolean
                                         fileParameters:
                                           items:
                                             properties:
@@ -16642,6 +16732,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          directPull:
+                                            type: boolean
                                           fileParameters:
                                             items:
                                               properties:
@@ -17121,6 +17213,8 @@ spec:
                                 items:
                                   type: string
                                 type: array
+                              directPull:
+                                type: boolean
                               fileParameters:
                                 items:
                                   properties:
@@ -17397,6 +17491,8 @@ spec:
                                   items:
                                     type: string
                                   type: array
+                                directPull:
+                                  type: boolean
                                 fileParameters:
                                   items:
                                     properties:

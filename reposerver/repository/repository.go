@@ -419,10 +419,12 @@ func (s *Service) runRepoOperation(
 			}
 		}
 		helmPassCredentials := false
+		helmDirectPull := false
 		if source.Helm != nil {
 			helmPassCredentials = source.Helm.PassCredentials
+			helmDirectPull = source.Helm.DirectPull
 		}
-		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision, helmPassCredentials, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
+		chartPath, closer, err := helmClient.ExtractChart(source.Chart, revision, helmPassCredentials, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize, helmDirectPull)
 		if err != nil {
 			return err
 		}
@@ -2503,7 +2505,7 @@ func (s *Service) GetRevisionChartDetails(_ context.Context, q *apiclient.RepoSe
 	if err != nil {
 		return nil, fmt.Errorf("helm client error: %w", err)
 	}
-	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision, false, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
+	chartPath, closer, err := helmClient.ExtractChart(q.Name, revision, false, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize, false)
 	if err != nil {
 		return nil, fmt.Errorf("error extracting chart: %w", err)
 	}

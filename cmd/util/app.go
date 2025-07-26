@@ -50,6 +50,7 @@ type AppOptions struct {
 	helmSetFiles                    []string
 	helmVersion                     string
 	helmPassCredentials             bool
+	helmDirectPull                  bool
 	helmSkipCrds                    bool
 	helmSkipSchemaValidation        bool
 	helmSkipTests                   bool
@@ -141,6 +142,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringArrayVar(&opts.helmSets, "helm-set", []string{}, "Helm set values on the command line (can be repeated to set several values: --helm-set key1=val1 --helm-set key2=val2)")
 	command.Flags().StringArrayVar(&opts.helmSetStrings, "helm-set-string", []string{}, "Helm set STRING values on the command line (can be repeated to set several values: --helm-set-string key1=val1 --helm-set-string key2=val2)")
 	command.Flags().StringArrayVar(&opts.helmSetFiles, "helm-set-file", []string{}, "Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)")
+	command.Flags().BoolVar(&opts.helmDirectPull, "helm-direct-pull", false, "enable direct pull (pulling helm chart wihout download index file)")
 	command.Flags().BoolVar(&opts.helmSkipCrds, "helm-skip-crds", false, "Skip helm crd installation step")
 	command.Flags().BoolVar(&opts.helmSkipSchemaValidation, "helm-skip-schema-validation", false, "Skip helm schema validation step")
 	command.Flags().BoolVar(&opts.helmSkipTests, "helm-skip-tests", false, "Skip helm test manifests installation step")
@@ -411,6 +413,7 @@ type helmOpts struct {
 	helmSetStrings          []string
 	helmSetFiles            []string
 	passCredentials         bool
+	directPull              bool
 	skipCrds                bool
 	skipSchemaValidation    bool
 	skipTests               bool
@@ -443,6 +446,9 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	}
 	if opts.passCredentials {
 		src.Helm.PassCredentials = opts.passCredentials
+	}
+	if opts.directPull {
+		src.Helm.DirectPull = opts.directPull
 	}
 	if opts.skipCrds {
 		src.Helm.SkipCrds = opts.skipCrds
@@ -716,6 +722,8 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			setHelmOpt(source, helmOpts{helmSetStrings: appOpts.helmSetStrings})
 		case "helm-set-file":
 			setHelmOpt(source, helmOpts{helmSetFiles: appOpts.helmSetFiles})
+		case "helm-direct-pull":
+			setHelmOpt(source, helmOpts{directPull: appOpts.helmDirectPull})
 		case "helm-skip-crds":
 			setHelmOpt(source, helmOpts{skipCrds: appOpts.helmSkipCrds})
 		case "helm-skip-schema-validation":

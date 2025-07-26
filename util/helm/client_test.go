@@ -85,7 +85,7 @@ func TestIndex(t *testing.T) {
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true, false)
 	require.NoError(t, err)
 	defer utilio.Close(closer)
 	info, err := os.Stat(path)
@@ -95,18 +95,128 @@ func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 
 func Test_nativeHelmChart_ExtractChartWithLimiter(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-	_, _, err := client.ExtractChart("argo-cd", "0.7.1", false, 100, false)
+	_, _, err := client.ExtractChart("argo-cd", "0.7.1", false, 100, false, false)
 	require.Error(t, err, "error while iterating on tar reader: unexpected EOF")
 }
 
 func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{InsecureSkipVerify: true}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true, false)
 	require.NoError(t, err)
 	defer utilio.Close(closer)
 	info, err := os.Stat(path)
 	require.NoError(t, err)
 	assert.True(t, info.IsDir())
+}
+
+func Test_nativeHelmChart_ExtractChart_DirectPull(t *testing.T) {
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true, true)
+	require.NoError(t, err)
+	defer utilio.Close(closer)
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.True(t, info.IsDir())
+}
+
+func Test_nativeHelmChart_ExtractChart_DirectPullWithoutVersion(t *testing.T) {
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
+	path, closer, err := client.ExtractChart("argo-cd", "", false, math.MaxInt64, true, true)
+	require.NoError(t, err)
+	defer utilio.Close(closer)
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.True(t, info.IsDir())
+}
+
+func Test_nativeHelmChart_ExtractChart_DirectPull_WildcardVersion(t *testing.T) {
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
+	path, closer, err := client.ExtractChart("argo-cd", ">=0.7.1", false, math.MaxInt64, true, true)
+	require.NoError(t, err)
+	defer utilio.Close(closer)
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.True(t, info.IsDir())
+}
+
+func Test_isHelmStrictVersion(t *testing.T) {
+	t.Run("Test Strict Version", func(t *testing.T) {
+		assert.True(t, isHelmStrictVersion("2.1.0"))
+		assert.True(t, isHelmStrictVersion("2.2.0"))
+		assert.True(t, isHelmStrictVersion("0.0.0-my-custom-version"))
+		assert.True(t, isHelmStrictVersion("0.0.0-v3.4.0-050607"))
+	})
+	t.Run("Test Not Strict Versions", func(t *testing.T) {
+		assert.False(t, isHelmStrictVersion(">=2.1.0"))
+		assert.False(t, isHelmStrictVersion("<2.2.0"))
+		assert.False(t, isHelmStrictVersion("2.2.*"))
+		assert.False(t, isHelmStrictVersion("~2.2.*"))
+		assert.False(t, isHelmStrictVersion("0.0.*-my-custom-version"))
+		assert.False(t, isHelmStrictVersion("0.0.*-v3.4.0-050607"))
+	})
+}
+
+func Test_SafeChartURL(t *testing.T) {
+	t.Run("Test Default URL", func(t *testing.T) {
+		url, err := safeChartURL("https://argoproj.github.io/argo-helm", "my-chart-name", "v0.0.1")
+		require.NoError(t, err)
+		assert.Equal(t, "https://argoproj.github.io/argo-helm/my-chart-name-v0.0.1.tgz", url)
+	})
+
+	t.Run("Valid URL with trailing slash", func(t *testing.T) {
+		url, err := safeChartURL("https://argoproj.github.io/argo-helm/", "my-chart", "1.0.0")
+		require.NoError(t, err)
+		assert.Equal(t, "https://argoproj.github.io/argo-helm/my-chart-1.0.0.tgz", url)
+	})
+
+	t.Run("Valid characters in name/version", func(t *testing.T) {
+		url, err := safeChartURL("https://argoproj.github.io/argo-helm", "chart.name-123", "v1.0_alpha")
+		require.NoError(t, err)
+		assert.Equal(t, "https://argoproj.github.io/argo-helm/chart.name-123-v1.0_alpha.tgz", url)
+	})
+
+	t.Run("Empty chart name", func(t *testing.T) {
+		_, err := safeChartURL("https://argoproj.github.io/argo-helm", "", "1.0.0")
+		assert.ErrorContains(t, err, "chartName and version should be defined")
+	})
+
+	t.Run("Empty version", func(t *testing.T) {
+		_, err := safeChartURL("https://argoproj.github.io/argo-helm", "chart", "")
+		assert.ErrorContains(t, err, "chartName and version should be defined")
+	})
+
+	t.Run("Invalid chars in chart name", func(t *testing.T) {
+		_, err := safeChartURL("https://argoproj.github.io/argo-helm", "chart@name", "1.0.0")
+		assert.ErrorContains(t, err, "invalid characters in chartName")
+	})
+
+	t.Run("Invalid chars in version", func(t *testing.T) {
+		_, err := safeChartURL("https://argoproj.github.io/argo-helm", "chart", "1.0&0")
+		assert.ErrorContains(t, err, "invalid characters in version")
+	})
+
+	t.Run("Path traversal in chart name", func(t *testing.T) {
+		_, err := safeChartURL("https://argoproj.github.io/argo-helm", "../chart", "1.0.0")
+		assert.ErrorContains(t, err, "invalid characters in chartName")
+	})
+
+	t.Run("Long valid names", func(t *testing.T) {
+		longName := strings.Repeat("a", 255)
+		longVersion := strings.Repeat("1", 100)
+		_, err := safeChartURL("https://argoproj.github.io/argo-helm", longName, longVersion)
+		require.NoError(t, err)
+	})
+
+	t.Run("Invalid URL scheme", func(t *testing.T) {
+		_, err := safeChartURL("ftp://repo", "chart", "1.0.0")
+		require.Error(t, err)
+	})
+
+	t.Run("URL with port", func(t *testing.T) {
+		url, err := safeChartURL("https://argoproj.github.io/argo-helm:8080", "chart", "1.0")
+		require.NoError(t, err)
+		assert.Equal(t, "https://argoproj.github.io/argo-helm:8080/chart-1.0.tgz", url)
+	})
 }
 
 func Test_normalizeChartName(t *testing.T) {

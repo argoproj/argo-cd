@@ -545,6 +545,9 @@ message ApplicationSourceHelm {
 
   // SkipSchemaValidation skips JSON schema validation (Helm's --skip-schema-validation)
   optional bool skipSchemaValidation = 15;
+
+  // DirectPull specifies whether direct pull should be enabled
+  optional bool directPull = 16;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
