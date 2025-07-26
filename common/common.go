@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -137,6 +138,11 @@ const (
 	ConsistentHashingWithBoundedLoadsAlgorithm = "consistent-hashing"
 
 	DefaultShardingAlgorithm = LegacyShardingAlgorithm
+)
+
+// Argo CD server params related constants
+const (
+	ApplicationNamespacesCmdParamsKey = "application.namespaces"
 )
 
 // Dex related constants
@@ -478,4 +484,18 @@ func SetOptionalRedisPasswordFromKubeConfig(ctx context.Context, kubeClient kube
 	}
 	redisOptions.Password = string(secret.Data[RedisInitialCredentialsKey])
 	return nil
+}
+
+func NamespacesListFromString(namespaces string) []string {
+	listOfNamespaces := []string{}
+
+	ss := strings.Split(namespaces, ",")
+
+	for _, namespace := range ss {
+		if namespace != "" {
+			listOfNamespaces = append(listOfNamespaces, strings.TrimSpace(namespace))
+		}
+	}
+
+	return listOfNamespaces
 }
