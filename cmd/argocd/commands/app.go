@@ -1981,6 +1981,27 @@ func printTreeViewDetailed(nodeMapping map[string]argoappv1.ResourceNode, parent
 	_ = w.Flush()
 }
 
+// buildSyncOptions creates sync options from CLI flags. This always returns a non-nil
+// SyncOptions to ensure CLI flags can override Application spec sync options.
+func buildSyncOptions(replace, serverSideApply, applyOutOfSyncOnly bool) *application.SyncOptions {
+	syncOptions := application.SyncOptions{}
+	items := make([]string, 0)
+	if replace {
+		items = append(items, common.SyncOptionReplace)
+	}
+	if serverSideApply {
+		items = append(items, common.SyncOptionServerSideApply)
+	}
+	if applyOutOfSyncOnly {
+		items = append(items, common.SyncOptionApplyOutOfSyncOnly)
+	}
+
+	// Always return a SyncOptions object to override Application spec sync options
+	// When no CLI sync options are specified, send empty array to clear spec options
+	syncOptions.Items = items
+	return &syncOptions
+}
+
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
 func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -2227,26 +2248,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					diffOption.cluster = cluster
 				}
 
-				syncOptionsFactory := func() *application.SyncOptions {
-					syncOptions := application.SyncOptions{}
-					items := make([]string, 0)
-					if replace {
-						items = append(items, common.SyncOptionReplace)
-					}
-					if serverSideApply {
-						items = append(items, common.SyncOptionServerSideApply)
-					}
-					if applyOutOfSyncOnly {
-						items = append(items, common.SyncOptionApplyOutOfSyncOnly)
-					}
-
-					if len(items) == 0 {
-						// for prevent send even empty array if not need
-						return nil
-					}
-					syncOptions.Items = items
-					return &syncOptions
-				}
+				syncOptions := buildSyncOptions(replace, serverSideApply, applyOutOfSyncOnly)
 
 				syncReq := application.ApplicationSyncRequest{
 					Name:            &appName,
@@ -2257,7 +2259,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					Prune:           &prune,
 					Manifests:       localObjsStrings,
 					Infos:           getInfos(infos),
-					SyncOptions:     syncOptionsFactory(),
+					SyncOptions:     syncOptions,
 					Revisions:       revisions,
 					SourcePositions: sourcePositions,
 				}
