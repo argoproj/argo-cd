@@ -520,6 +520,14 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   labels:
+    app.kubernetes.io/name: argocd-git-config-cm
+    app.kubernetes.io/part-of: argocd
+  name: argocd-git-config-cm
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
     app.kubernetes.io/name: argocd-gpg-keys-cm
     app.kubernetes.io/part-of: argocd
   name: argocd-gpg-keys-cm
@@ -1590,6 +1598,9 @@ spec:
           name: helm-working-dir
         - mountPath: /home/argocd/cmp-server/plugins
           name: plugins
+        - mountPath: /home/argocd/.gitconfig
+          name: git-config
+          subPath: .gitconfig
       initContainers:
       - command:
         - /bin/cp
@@ -1623,6 +1634,10 @@ spec:
       - configMap:
           name: argocd-gpg-keys-cm
         name: gpg-keys
+      - configMap:
+          name: argocd-git-config-cm
+          optional: true
+        name: git-config
       - emptyDir: {}
         name: gpg-keyring
       - emptyDir: {}
