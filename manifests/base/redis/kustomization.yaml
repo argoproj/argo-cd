@@ -8,6 +8,7 @@ resources:
   - argocd-redis-network-policy.yaml
   - argocd-redis-role.yaml
   - argocd-redis-rolebinding.yaml
+  - argocd-redis-cm.yaml
 
 images:
   - name: redis
