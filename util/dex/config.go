@@ -27,9 +27,23 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 		return nil, fmt.Errorf("failed to unmarshal dex.config from configmap: %w", err)
 	}
 	dexCfg["issuer"] = argocdSettings.IssuerURL()
-	dexCfg["storage"] = map[string]any{
-		"type": "memory",
+
+	if storage, found := dexCfg["storage"].(map[string]any); found {
+		storageType, typeFound := storage["type"].(string)
+		if !typeFound {
+			storage["type"] = "memory"
+		}
+		if needsStorageConfig(storageType) {
+			if _, configFound := storage["config"].(map[string]any); !configFound {
+				return nil, errors.New("malformed Dex configuration found")
+			}
+		}
+	} else {
+		dexCfg["storage"] = map[string]any{
+			"type": "memory",
+		}
 	}
+
 	if disableTLS {
 		dexCfg["web"] = map[string]any{
 			"http": "0.0.0.0:5556",
@@ -144,6 +158,17 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 func needsRedirectURI(connectorType string) bool {
 	switch connectorType {
 	case "oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud", "openshift", "gitea", "google", "oauth":
+		return true
+	}
+	return false
+}
+
+// needsStorageConfig returns whether or not the given storage type needs a config block
+// Update this list as necessary, as new storage types are added
+// https://dexidp.io/docs/configuration/storage/
+func needsStorageConfig(storageType string) bool {
+	switch storageType {
+	case "sqlite3", "postgres", "mysql", "etcd", "kubernetes":
 		return true
 	}
 	return false
