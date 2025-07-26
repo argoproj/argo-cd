@@ -26,7 +26,7 @@ jobs:
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
       go-version: 1.24.4
-      platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
+      platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le,linux/riscv64
       push: true
     secrets:
       quay_username: ${{ secrets.RELEASE_QUAY_USERNAME }}
