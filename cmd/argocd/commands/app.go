@@ -33,6 +33,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8swatch "k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
@@ -1270,7 +1272,6 @@ type objKeyLiveTarget struct {
 	target *unstructured.Unstructured
 }
 
-// NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		refresh              bool
@@ -1286,6 +1287,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		revisions            []string
 		sourcePositions      []int64
 		sourceNames          []string
+		validate             bool
 		ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
 	)
 	shortDesc := "Perform a diff against the target and live state."
@@ -1342,7 +1344,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			defer utilio.Close(conn)
 			argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
 			errors.CheckError(err)
-			diffOption := &DifferenceOption{}
+			diffOption := &DifferenceOption{validate: validate}
 			switch {
 			case app.Spec.HasMultipleSources() && len(revisions) > 0 && len(sourcePositions) > 0:
 				numOfSources := int64(len(app.Spec.GetSources()))
@@ -1398,9 +1400,21 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 			proj := getProject(ctx, c, clientOpts, app.Spec.Project)
-			foundDiffs := findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts)
-			if foundDiffs && exitCode {
-				os.Exit(diffExitCode)
+			foundDiffs, validationErrors := findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts)
+			
+			if len(validationErrors) > 0 {
+				fmt.Fprintf(os.Stderr, "\nValidation errors:\n")
+				for _, err := range validationErrors {
+					fmt.Fprintf(os.Stderr, "  - %s\n", err)
+				}
+			}
+			
+			if exitCode {
+				if len(validationErrors) > 0 {
+					os.Exit(3)
+				} else if foundDiffs {
+					os.Exit(diffExitCode)
+				}
 			}
 		},
 	}
@@ -1417,11 +1431,12 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for source position in source-positions")
 	command.Flags().Int64SliceVar(&sourcePositions, "source-positions", []int64{}, "List of source positions. Default is empty array. Counting start at 1.")
 	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array.")
+	command.Flags().BoolVar(&validate, "validate", false, "Validate manifests using kubectl apply --server-side --dry-run")
+	command.Flags().BoolVar(&validate, "lint", false, "Alias for --validate")
 	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout", normalizers.DefaultJQExecutionTimeout, "Set ignore normalizer JQ execution timeout")
 	return command
 }
 
-// DifferenceOption struct to store diff options
 type DifferenceOption struct {
 	local         string
 	localRepoRoot string
@@ -1430,10 +1445,10 @@ type DifferenceOption struct {
 	res           *repoapiclient.ManifestResponse
 	serversideRes *repoapiclient.ManifestResponse
 	revisions     []string
+	validate      bool
 }
 
-// findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
-func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, diffOptions *DifferenceOption, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts) bool {
+func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, diffOptions *DifferenceOption, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts) (bool, []string) {
 	var foundDiffs bool
 	liveObjs, err := cmdutil.LiveObjects(resources.Items)
 	errors.CheckError(err)
@@ -1517,7 +1532,13 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 			_ = cli.PrintDiff(item.key.Name, live, target)
 		}
 	}
-	return foundDiffs
+	
+	var validationErrors []string
+	if diffOptions.validate {
+		validationErrors = validateManifests(ctx, items, app)
+	}
+	
+	return foundDiffs, validationErrors
 }
 
 func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[kube.ResourceKey]*unstructured.Unstructured, items []objKeyLiveTarget, argoSettings *settings.Settings, appName, namespace string) []objKeyLiveTarget {
@@ -3518,4 +3539,89 @@ func NewApplicationConfirmDeletionCommand(clientOpts *argocdclient.ClientOptions
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the target application where the source will be appended")
 	return command
+}
+
+
+func validateManifests(ctx context.Context, items []objKeyLiveTarget, app *argoappv1.Application) []string {
+	var validationErrors []string
+	
+	clusterConfig, err := cmdutil.NewClusterConfig(app.Spec.Destination.Server, "", "", "")
+	if err != nil {
+		validationErrors = append(validationErrors, fmt.Sprintf("Failed to get cluster config: %v", err))
+		return validationErrors
+	}
+	
+	dynamicClient, err := dynamic.NewForConfig(clusterConfig)
+	if err != nil {
+		validationErrors = append(validationErrors, fmt.Sprintf("Failed to create dynamic client: %v", err))
+		return validationErrors
+	}
+	
+	discoveryClient, err := kubernetes.NewForConfig(clusterConfig)
+	if err != nil {
+		validationErrors = append(validationErrors, fmt.Sprintf("Failed to create discovery client: %v", err))
+		return validationErrors
+	}
+	
+	serverResources, err := discoveryClient.Discovery().ServerPreferredResources()
+	if err != nil {
+		if serverResources == nil {
+			validationErrors = append(validationErrors, fmt.Sprintf("Failed to get server resources: %v", err))
+			return validationErrors
+		}
+	}
+	
+	kindToResource := make(map[schema.GroupVersionKind]metav1.APIResource)
+	for _, resourceList := range serverResources {
+		gv, err := schema.ParseGroupVersion(resourceList.GroupVersion)
+		if err != nil {
+			continue
+		}
+		for _, resource := range resourceList.APIResources {
+			gvk := gv.WithKind(resource.Kind)
+			kindToResource[gvk] = resource
+		}
+	}
+	
+	for _, item := range items {
+		if item.target == nil {
+			continue
+		}
+		
+		obj := item.target
+		gvk := obj.GroupVersionKind()
+		
+		apiResource, found := kindToResource[gvk]
+		if !found {
+			validationErrors = append(validationErrors, fmt.Sprintf("%s/%s: Unknown resource kind %s", obj.GetKind(), obj.GetName(), gvk))
+			continue
+		}
+		
+		gvr := schema.GroupVersionResource{
+			Group:    gvk.Group,
+			Version:  gvk.Version,
+			Resource: apiResource.Name,
+		}
+		
+		var resourceInterface dynamic.ResourceInterface
+		if apiResource.Namespaced {
+			namespace := obj.GetNamespace()
+			if namespace == "" {
+				namespace = app.Spec.Destination.Namespace
+			}
+			resourceInterface = dynamicClient.Resource(gvr).Namespace(namespace)
+		} else {
+			resourceInterface = dynamicClient.Resource(gvr)
+		}
+		
+		_, err := resourceInterface.Create(ctx, obj, metav1.CreateOptions{
+			DryRun: []string{metav1.DryRunAll},
+		})
+		
+		if err != nil {
+			validationErrors = append(validationErrors, fmt.Sprintf("%s/%s: %v", obj.GetKind(), obj.GetName(), err))
+		}
+	}
+	
+	return validationErrors
 }
