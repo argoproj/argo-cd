@@ -1407,11 +1407,13 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				return
 			}
 			retryAfter := time.Until(retryAt)
+
 			if retryAfter > 0 {
 				logCtx.Infof("Skipping retrying in-progress operation. Attempting again at: %s", retryAt.Format(time.RFC3339))
 				ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
 				return
 			}
+
 			// Get rid of sync results and null out previous operation completion time
 			// This will start the retry attempt
 			state.FinishedAt = nil
@@ -1461,8 +1463,13 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			}
 		}
 	case synccommon.OperationFailed, synccommon.OperationError:
-		if !terminating && (state.RetryCount < state.Operation.Retry.Limit || state.Operation.Retry.Limit < 0) {
-			now := metav1.Now()
+		now := metav1.Now()
+		switch {
+		case !terminating && state.Operation.Retry.Refresh && hasNewRevisionsToResync(app):
+			// Stop retrying in case of failure and new revisions - will be tried in new sync attempt
+			state.Message = state.Message + " (retry terminated - new revisions)"
+			logCtx.Debug("Terminating sync retry, there are new revisions")
+		case !terminating && (state.RetryCount < state.Operation.Retry.Limit || state.Operation.Retry.Limit < 0):
 			state.FinishedAt = &now
 			if retryAt, err := state.Operation.Retry.NextRetryAt(now.Time, state.RetryCount); err != nil {
 				state.Phase = synccommon.OperationError
@@ -1472,7 +1479,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				state.RetryCount++
 				state.Message = fmt.Sprintf("%s due to application controller sync timeout. Retrying attempt #%d at %s.", state.Message, state.RetryCount, retryAt.Format(time.Kitchen))
 			}
-		} else if state.RetryCount > 0 {
+		case state.RetryCount > 0:
 			state.Message = fmt.Sprintf("%s (retried %d times).", state.Message, state.RetryCount)
 		}
 	}
@@ -2065,6 +2072,23 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		logCtx.Infof("Update successful")
 	}
 	return patchDuration
+}
+
+func hasNewRevisionsToResync(app *appv1.Application) bool {
+	if app.Spec.SyncPolicy == nil || !app.Spec.SyncPolicy.IsAutomatedSyncEnabled() {
+		return false
+	}
+
+	desiredRevisions := []string{app.Status.Sync.Revision}
+	if app.Spec.HasMultipleSources() {
+		desiredRevisions = app.Status.Sync.Revisions
+	}
+
+	alreadyAttempted, lastRevs, _ := alreadyAttemptedSync(app, desiredRevisions, true)
+	if !alreadyAttempted && len(lastRevs) != 0 {
+		return true
+	}
+	return false
 }
 
 // autoSync will initiate a sync operation for an application configured with automated sync
