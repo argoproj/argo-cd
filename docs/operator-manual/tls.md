@@ -16,6 +16,30 @@ most users will want to explicitly configure the certificates for these TLS
 endpoints, possibly using automated means such as `cert-manager` or using
 their own dedicated Certificate Authority.
 
+## TLS Configuration Quick Reference
+
+### Certificate Configuration Overview
+
+| Component | Secret Name | Hot Reload | Default Cert | Required SAN Entries |
+|-----------|-------------|------------|---------------|---------------------|
+| `argocd-server` | `argocd-server-tls` | ✅ Yes | Self-signed | External hostname (e.g., `argocd.example.com`) |
+| `argocd-repo-server` | `argocd-repo-server-tls` | ❌ Restart required | Self-signed | `DNS:argocd-repo-server`, `DNS:argocd-repo-server.argocd.svc` |
+| `argocd-dex-server` | `argocd-dex-server-tls` | ❌ Restart required | Self-signed | `DNS:argocd-dex-server`, `DNS:argocd-dex-server.argocd.svc` |
+
+### Inter-Component TLS
+
+| Connection | Strict TLS Parameter | Plain Text Parameter | Default Behavior |
+|------------|---------------------|---------------------|------------------|
+| `argocd-server` → `argocd-repo-server` | `--repo-server-strict-tls` | `--repo-server-plaintext` | Non-validating TLS |
+| `argocd-application-controller` → `argocd-repo-server` | `--repo-server-strict-tls` | `--repo-server-plaintext` | Non-validating TLS |
+| `argocd-server` → `argocd-dex-server` | `--dex-server-strict-tls` | `--dex-server-plaintext` | Non-validating TLS |
+
+### Certificate Priority (argocd-server only)
+
+1. `argocd-server-tls` secret (recommended)
+2. `argocd-secret` secret (deprecated) 
+3. Auto-generated self-signed certificate
+
 ## Configuring TLS for argocd-server
 
 ### Inbound TLS options for argocd-server
