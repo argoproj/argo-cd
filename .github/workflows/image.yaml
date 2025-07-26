@@ -37,7 +37,7 @@ jobs:
           IMAGE_PLATFORMS=linux/amd64
           if [[ "${{ github.event_name }}" == "push" || "${{ contains(github.event.pull_request.labels.*.name, 'test-multi-image') }}" == "true" ]]
           then
-            IMAGE_PLATFORMS=linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
+            IMAGE_PLATFORMS=linux/amd64,linux/arm64,linux/s390x,linux/ppc64le,linux/riscv64
           fi
           echo "Building image for platforms: $IMAGE_PLATFORMS"
           echo "platforms=$IMAGE_PLATFORMS" >> $GITHUB_OUTPUT
