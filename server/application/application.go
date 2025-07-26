@@ -380,10 +380,6 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		return nil, status.Errorf(codes.Internal, "unable to check existing application details (%s): %v", appNs, err)
 	}
 
-	if _, err := argo.GetDestinationCluster(ctx, existing.Spec.Destination, s.db); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "application destination spec for %s is invalid: %s", existing.Name, err.Error())
-	}
-
 	equalSpecs := reflect.DeepEqual(existing.Spec.Destination, a.Spec.Destination) &&
 		reflect.DeepEqual(existing.Spec, a.Spec) &&
 		reflect.DeepEqual(existing.Labels, a.Labels) &&
