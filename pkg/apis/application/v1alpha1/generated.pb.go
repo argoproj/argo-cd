@@ -5,27 +5,24 @@ package v1alpha1
 
 import (
 	fmt "fmt"
-
 	github_com_argoproj_gitops_engine_pkg_health "github.com/argoproj/gitops-engine/pkg/health"
 	github_com_argoproj_gitops_engine_pkg_sync_common "github.com/argoproj/gitops-engine/pkg/sync/common"
 
-	io "io"
-
 	proto "github.com/gogo/protobuf/proto"
 	github_com_gogo_protobuf_sortkeys "github.com/gogo/protobuf/sortkeys"
+	io "io"
 	k8s_io_api_core_v1 "k8s.io/api/core/v1"
 	v12 "k8s.io/api/core/v1"
 	v11 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 
+	intstr "k8s.io/apimachinery/pkg/util/intstr"
+	k8s_io_apimachinery_pkg_watch "k8s.io/apimachinery/pkg/watch"
 	math "math"
 	math_bits "math/bits"
 	reflect "reflect"
 	strings "strings"
-
-	intstr "k8s.io/apimachinery/pkg/util/intstr"
-	k8s_io_apimachinery_pkg_watch "k8s.io/apimachinery/pkg/watch"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -20152,7 +20149,7 @@ func (this *AppProjectStatus) String() string {
 		return "nil"
 	}
 	keysForJWTTokensByRole := make([]string, 0, len(this.JWTTokensByRole))
-	for k := range this.JWTTokensByRole {
+	for k, _ := range this.JWTTokensByRole {
 		keysForJWTTokensByRole = append(keysForJWTTokensByRole, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForJWTTokensByRole)
@@ -20488,7 +20485,7 @@ func (this *ApplicationSetTemplateMeta) String() string {
 		return "nil"
 	}
 	keysForLabels := make([]string, 0, len(this.Labels))
-	for k := range this.Labels {
+	for k, _ := range this.Labels {
 		keysForLabels = append(keysForLabels, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
@@ -20498,7 +20495,7 @@ func (this *ApplicationSetTemplateMeta) String() string {
 	}
 	mapStringForLabels += "}"
 	keysForAnnotations := make([]string, 0, len(this.Annotations))
-	for k := range this.Annotations {
+	for k, _ := range this.Annotations {
 		keysForAnnotations = append(keysForAnnotations, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForAnnotations)
@@ -20652,7 +20649,7 @@ func (this *ApplicationSourceKustomize) String() string {
 	}
 	repeatedStringForPatches += "}"
 	keysForCommonLabels := make([]string, 0, len(this.CommonLabels))
-	for k := range this.CommonLabels {
+	for k, _ := range this.CommonLabels {
 		keysForCommonLabels = append(keysForCommonLabels, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForCommonLabels)
@@ -20662,7 +20659,7 @@ func (this *ApplicationSourceKustomize) String() string {
 	}
 	mapStringForCommonLabels += "}"
 	keysForCommonAnnotations := make([]string, 0, len(this.CommonAnnotations))
-	for k := range this.CommonAnnotations {
+	for k, _ := range this.CommonAnnotations {
 		keysForCommonAnnotations = append(keysForCommonAnnotations, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForCommonAnnotations)
@@ -20910,7 +20907,7 @@ func (this *Cluster) String() string {
 		return "nil"
 	}
 	keysForLabels := make([]string, 0, len(this.Labels))
-	for k := range this.Labels {
+	for k, _ := range this.Labels {
 		keysForLabels = append(keysForLabels, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
@@ -20920,7 +20917,7 @@ func (this *Cluster) String() string {
 	}
 	mapStringForLabels += "}"
 	keysForAnnotations := make([]string, 0, len(this.Annotations))
-	for k := range this.Annotations {
+	for k, _ := range this.Annotations {
 		keysForAnnotations = append(keysForAnnotations, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForAnnotations)
@@ -20981,7 +20978,7 @@ func (this *ClusterGenerator) String() string {
 		return "nil"
 	}
 	keysForValues := make([]string, 0, len(this.Values))
-	for k := range this.Values {
+	for k, _ := range this.Values {
 		keysForValues = append(keysForValues, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
@@ -21143,7 +21140,7 @@ func (this *DuckTypeGenerator) String() string {
 		return "nil"
 	}
 	keysForValues := make([]string, 0, len(this.Values))
-	for k := range this.Values {
+	for k, _ := range this.Values {
 		keysForValues = append(keysForValues, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
@@ -21188,7 +21185,7 @@ func (this *ExecProviderConfig) String() string {
 		return "nil"
 	}
 	keysForEnv := make([]string, 0, len(this.Env))
-	for k := range this.Env {
+	for k, _ := range this.Env {
 		keysForEnv = append(keysForEnv, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForEnv)
@@ -21244,7 +21241,7 @@ func (this *GitGenerator) String() string {
 	}
 	repeatedStringForFiles += "}"
 	keysForValues := make([]string, 0, len(this.Values))
-	for k := range this.Values {
+	for k, _ := range this.Values {
 		keysForValues = append(keysForValues, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
@@ -21352,7 +21349,7 @@ func (this *HostInfo) String() string {
 	}
 	repeatedStringForResourcesInfo += "}"
 	keysForLabels := make([]string, 0, len(this.Labels))
-	for k := range this.Labels {
+	for k, _ := range this.Labels {
 		keysForLabels = append(keysForLabels, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
@@ -21515,7 +21512,7 @@ func (this *KustomizePatch) String() string {
 		return "nil"
 	}
 	keysForOptions := make([]string, 0, len(this.Options))
-	for k := range this.Options {
+	for k, _ := range this.Options {
 		keysForOptions = append(keysForOptions, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForOptions)
@@ -21602,7 +21599,7 @@ func (this *ManagedNamespaceMetadata) String() string {
 		return "nil"
 	}
 	keysForLabels := make([]string, 0, len(this.Labels))
-	for k := range this.Labels {
+	for k, _ := range this.Labels {
 		keysForLabels = append(keysForLabels, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
@@ -21612,7 +21609,7 @@ func (this *ManagedNamespaceMetadata) String() string {
 	}
 	mapStringForLabels += "}"
 	keysForAnnotations := make([]string, 0, len(this.Annotations))
-	for k := range this.Annotations {
+	for k, _ := range this.Annotations {
 		keysForAnnotations = append(keysForAnnotations, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForAnnotations)
@@ -21768,7 +21765,7 @@ func (this *OptionalMap) String() string {
 		return "nil"
 	}
 	keysForMap := make([]string, 0, len(this.Map))
-	for k := range this.Map {
+	for k, _ := range this.Map {
 		keysForMap = append(keysForMap, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForMap)
@@ -21838,7 +21835,7 @@ func (this *PluginGenerator) String() string {
 		return "nil"
 	}
 	keysForValues := make([]string, 0, len(this.Values))
-	for k := range this.Values {
+	for k, _ := range this.Values {
 		keysForValues = append(keysForValues, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
@@ -21862,7 +21859,7 @@ func (this *PluginInput) String() string {
 		return "nil"
 	}
 	keysForParameters := make([]string, 0, len(this.Parameters))
-	for k := range this.Parameters {
+	for k, _ := range this.Parameters {
 		keysForParameters = append(keysForParameters, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForParameters)
@@ -21906,7 +21903,7 @@ func (this *PullRequestGenerator) String() string {
 	}
 	repeatedStringForFilters += "}"
 	keysForValues := make([]string, 0, len(this.Values))
-	for k := range this.Values {
+	for k, _ := range this.Values {
 		keysForValues = append(keysForValues, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
@@ -22283,7 +22280,7 @@ func (this *ResourceNetworkingInfo) String() string {
 	}
 	repeatedStringForIngress += "}"
 	keysForTargetLabels := make([]string, 0, len(this.TargetLabels))
-	for k := range this.TargetLabels {
+	for k, _ := range this.TargetLabels {
 		keysForTargetLabels = append(keysForTargetLabels, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForTargetLabels)
@@ -22293,7 +22290,7 @@ func (this *ResourceNetworkingInfo) String() string {
 	}
 	mapStringForTargetLabels += "}"
 	keysForLabels := make([]string, 0, len(this.Labels))
-	for k := range this.Labels {
+	for k, _ := range this.Labels {
 		keysForLabels = append(keysForLabels, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
@@ -22487,7 +22484,7 @@ func (this *SCMProviderGenerator) String() string {
 	}
 	repeatedStringForFilters += "}"
 	keysForValues := make([]string, 0, len(this.Values))
-	for k := range this.Values {
+	for k, _ := range this.Values {
 		keysForValues = append(keysForValues, k)
 	}
 	github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
