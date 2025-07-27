@@ -12,14 +12,38 @@ import (
 )
 
 func TestTreeViewAppGet(t *testing.T) {
-	var parent v1alpha1.ResourceNode
-	parent.ResourceRef = v1alpha1.ResourceRef{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}
+	parent := v1alpha1.ResourceNode{
+		ResourceRef: v1alpha1.ResourceRef{
+			Group:     "argoproj.io",
+			Version:   "",
+			Kind:      "Rollout",
+			Namespace: "sandbox-rollout-numalogic-demo",
+			Name:      "numalogic-rollout-demo",
+			UID:       "87f3aab0-f634-4b2c-959a-7ddd30675ed0",
+		},
+	}
 	objs := make(map[string]v1alpha1.ResourceNode)
 	objs["87f3aab0-f634-4b2c-959a-7ddd30675ed0"] = parent
-	var child v1alpha1.ResourceNode
-	child.ResourceRef = v1alpha1.ResourceRef{Group: "apps", Version: "v1", Kind: "ReplicaSet", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcd5457d5", UID: "75c30dce-1b66-414f-a86c-573a74be0f40"}
-	child.ParentRefs = []v1alpha1.ResourceRef{{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}}
-
+	child := v1alpha1.ResourceNode{
+		ResourceRef: v1alpha1.ResourceRef{
+			Group:     "apps",
+			Version:   "v1",
+			Kind:      "ReplicaSet",
+			Namespace: "sandbox-rollout-numalogic-demo",
+			Name:      "numalogic-rollout-demo-5dcd5457d5",
+			UID:       "75c30dce-1b66-414f-a86c-573a74be0f40",
+		},
+		ParentRefs: []v1alpha1.ResourceRef{
+			{
+				Group:     "argoproj.io",
+				Version:   "",
+				Kind:      "Rollout",
+				Namespace: "sandbox-rollout-numalogic-demo",
+				Name:      "numalogic-rollout-demo",
+				UID:       "87f3aab0-f634-4b2c-959a-7ddd30675ed0",
+			},
+		},
+	}
 	objs["75c30dce-1b66-414f-a86c-573a74be0f40"] = child
 
 	childMapping := make(map[string][]string)
@@ -35,10 +59,9 @@ func TestTreeViewAppGet(t *testing.T) {
 		Kind:    "Rollout",
 		Group:   "argoproj.io",
 	}
-
 	buf := &bytes.Buffer{}
 	w := tabwriter.NewWriter(buf, 0, 0, 2, ' ', 0)
-	treeViewAppGet("", objs, childMapping, parent, stateMap, w)
+	treeViewAppGet("", objs, childMapping, &parent, stateMap, w)
 	require.NoError(t, w.Flush())
 	output := buf.String()
 	assert.Contains(t, output, "ReplicaSet")
@@ -49,14 +72,42 @@ func TestTreeViewAppGet(t *testing.T) {
 }
 
 func TestTreeViewDetailedAppGet(t *testing.T) {
-	var parent v1alpha1.ResourceNode
-	parent.ResourceRef = v1alpha1.ResourceRef{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}
+	parent := v1alpha1.ResourceNode{
+		ResourceRef: v1alpha1.ResourceRef{
+			Group:     "argoproj.io",
+			Version:   "",
+			Kind:      "Rollout",
+			Namespace: "sandbox-rollout-numalogic-demo",
+			Name:      "numalogic-rollout-demo",
+			UID:       "87f3aab0-f634-4b2c-959a-7ddd30675ed0",
+		},
+	}
 	objs := make(map[string]v1alpha1.ResourceNode)
 	objs["87f3aab0-f634-4b2c-959a-7ddd30675ed0"] = parent
-	var child v1alpha1.ResourceNode
-	child.ResourceRef = v1alpha1.ResourceRef{Group: "apps", Version: "v1", Kind: "ReplicaSet", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcd5457d5", UID: "75c30dce-1b66-414f-a86c-573a74be0f40"}
-	child.ParentRefs = []v1alpha1.ResourceRef{{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}}
-	child.Health = &v1alpha1.HealthStatus{Status: "Degraded", Message: "Readiness Gate failed"}
+	child := v1alpha1.ResourceNode{
+		ResourceRef: v1alpha1.ResourceRef{
+			Group:     "apps",
+			Version:   "v1",
+			Kind:      "ReplicaSet",
+			Namespace: "sandbox-rollout-numalogic-demo",
+			Name:      "numalogic-rollout-demo-5dcd5457d5",
+			UID:       "75c30dce-1b66-414f-a86c-573a74be0f40",
+		},
+		ParentRefs: []v1alpha1.ResourceRef{
+			{
+				Group:     "argoproj.io",
+				Version:   "",
+				Kind:      "Rollout",
+				Namespace: "sandbox-rollout-numalogic-demo",
+				Name:      "numalogic-rollout-demo",
+				UID:       "87f3aab0-f634-4b2c-959a-7ddd30675ed0",
+			},
+		},
+		Health: &v1alpha1.HealthStatus{
+			Status:  "Degraded",
+			Message: "Readiness Gate failed",
+		},
+	}
 	objs["75c30dce-1b66-414f-a86c-573a74be0f40"] = child
 
 	childMapping := make(map[string][]string)
@@ -72,14 +123,11 @@ func TestTreeViewDetailedAppGet(t *testing.T) {
 		Kind:    "Rollout",
 		Group:   "argoproj.io",
 	}
-
 	buf := &bytes.Buffer{}
 	w := tabwriter.NewWriter(buf, 0, 0, 2, ' ', 0)
-	detailedTreeViewAppGet("", objs, childMapping, parent, stateMap, w)
+	detailedTreeViewAppGet("", objs, childMapping, &parent, stateMap, w)
 	require.NoError(t, w.Flush())
-
 	output := buf.String()
-
 	assert.Contains(t, output, "ReplicaSet")
 	assert.Contains(t, output, "Rollout")
 	assert.Contains(t, output, "numalogic-rollout")
@@ -90,13 +138,38 @@ func TestTreeViewDetailedAppGet(t *testing.T) {
 }
 
 func TestTreeViewAppResources(t *testing.T) {
-	var parent v1alpha1.ResourceNode
-	parent.ResourceRef = v1alpha1.ResourceRef{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}
-	objs := make(map[string]v1alpha1.ResourceNode)
+	parent := &v1alpha1.ResourceNode{
+		ResourceRef: v1alpha1.ResourceRef{
+			Group:     "argoproj.io",
+			Version:   "",
+			Kind:      "Rollout",
+			Namespace: "sandbox-rollout-numalogic-demo",
+			Name:      "numalogic-rollout-demo",
+			UID:       "87f3aab0-f634-4b2c-959a-7ddd30675ed0",
+		},
+	}
+	objs := make(map[string]*v1alpha1.ResourceNode)
 	objs["87f3aab0-f634-4b2c-959a-7ddd30675ed0"] = parent
-	var child v1alpha1.ResourceNode
-	child.ResourceRef = v1alpha1.ResourceRef{Group: "apps", Version: "v1", Kind: "ReplicaSet", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcd5457d5", UID: "75c30dce-1b66-414f-a86c-573a74be0f40"}
-	child.ParentRefs = []v1alpha1.ResourceRef{{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}}
+	child := &v1alpha1.ResourceNode{
+		ResourceRef: v1alpha1.ResourceRef{
+			Group:     "apps",
+			Version:   "v1",
+			Kind:      "ReplicaSet",
+			Namespace: "sandbox-rollout-numalogic-demo",
+			Name:      "numalogic-rollout-demo-5dcd5457d5",
+			UID:       "75c30dce-1b66-414f-a86c-573a74be0f40",
+		},
+		ParentRefs: []v1alpha1.ResourceRef{
+			{
+				Group:     "argoproj.io",
+				Version:   "",
+				Kind:      "Rollout",
+				Namespace: "sandbox-rollout-numalogic-demo",
+				Name:      "numalogic-rollout-demo",
+				UID:       "87f3aab0-f634-4b2c-959a-7ddd30675ed0",
+			},
+		},
+	}
 
 	objs["75c30dce-1b66-414f-a86c-573a74be0f40"] = child
 
@@ -108,9 +181,10 @@ func TestTreeViewAppResources(t *testing.T) {
 
 	treeViewAppResourcesNotOrphaned("", objs, childMapping, parent, w)
 
-	var orphan v1alpha1.ResourceNode
-	orphan.ResourceRef = v1alpha1.ResourceRef{Group: "apps", Version: "v1", Kind: "ReplicaSet", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcdnk457d5", UID: "75c30dce-1b66-41hf-a86c-573a74be0f40"}
-	objsOrphan := make(map[string]v1alpha1.ResourceNode)
+	orphan := &v1alpha1.ResourceNode{
+		ResourceRef: v1alpha1.ResourceRef{Group: "apps", Version: "v1", Kind: "ReplicaSet", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcdnk457d5", UID: "75c30dce-1b66-41hf-a86c-573a74be0f40"},
+	}
+	objsOrphan := make(map[string]*v1alpha1.ResourceNode)
 	objsOrphan["75c30dce-1b66-41hf-a86c-573a74be0f40"] = orphan
 	orphanchildMapping := make(map[string][]string)
 	orphanParent := orphan
@@ -129,26 +203,59 @@ func TestTreeViewAppResources(t *testing.T) {
 }
 
 func TestTreeViewDetailedAppResources(t *testing.T) {
-	var parent v1alpha1.ResourceNode
-	parent.ResourceRef = v1alpha1.ResourceRef{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}
-	objs := make(map[string]v1alpha1.ResourceNode)
+	parent := &v1alpha1.ResourceNode{
+		ResourceRef: v1alpha1.ResourceRef{
+			Group:     "argoproj.io",
+			Version:   "",
+			Kind:      "Rollout",
+			Namespace: "sandbox-rollout-numalogic-demo",
+			Name:      "numalogic-rollout-demo",
+			UID:       "87f3aab0-f634-4b2c-959a-7ddd30675ed0",
+		},
+	}
+	objs := make(map[string]*v1alpha1.ResourceNode)
 	objs["87f3aab0-f634-4b2c-959a-7ddd30675ed0"] = parent
-	var child v1alpha1.ResourceNode
-	child.ResourceRef = v1alpha1.ResourceRef{Group: "apps", Version: "v1", Kind: "ReplicaSet", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcd5457d5", UID: "75c30dce-1b66-414f-a86c-573a74be0f40"}
-	child.ParentRefs = []v1alpha1.ResourceRef{{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}}
+	child := &v1alpha1.ResourceNode{
+		ResourceRef: v1alpha1.ResourceRef{
+			Group:     "apps",
+			Version:   "v1",
+			Kind:      "ReplicaSet",
+			Namespace: "sandbox-rollout-numalogic-demo",
+			Name:      "numalogic-rollout-demo-5dcd5457d5",
+			UID:       "75c30dce-1b66-414f-a86c-573a74be0f40",
+		},
+		ParentRefs: []v1alpha1.ResourceRef{
+			{
+				Group:     "argoproj.io",
+				Version:   "",
+				Kind:      "Rollout",
+				Namespace: "sandbox-rollout-numalogic-demo",
+				Name:      "numalogic-rollout-demo",
+				UID:       "87f3aab0-f634-4b2c-959a-7ddd30675ed0",
+			},
+		},
+	}
 	objs["75c30dce-1b66-414f-a86c-573a74be0f40"] = child
 	childMapping := make(map[string][]string)
 	childMapping["87f3aab0-f634-4b2c-959a-7ddd30675ed0"] = []string{"75c30dce-1b66-414f-a86c-573a74be0f40"}
 	buf := &bytes.Buffer{}
 	w := tabwriter.NewWriter(buf, 0, 0, 2, ' ', 0)
 	detailedTreeViewAppResourcesNotOrphaned("", objs, childMapping, parent, w)
-	var orphan v1alpha1.ResourceNode
-	orphan.ResourceRef = v1alpha1.ResourceRef{Group: "apps", Version: "v1", Kind: "ReplicaSet", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcdnk457d5", UID: "75c30dce-1b66-41hf-a86c-573a74be0f40"}
-	orphan.Health = &v1alpha1.HealthStatus{
-		Status:  "Degraded",
-		Message: "Readiness Gate failed",
+	orphan := &v1alpha1.ResourceNode{
+		ResourceRef: v1alpha1.ResourceRef{
+			Group:     "apps",
+			Version:   "v1",
+			Kind:      "ReplicaSet",
+			Namespace: "sandbox-rollout-numalogic-demo",
+			Name:      "numalogic-rollout-demo-5dcdnk457d5",
+			UID:       "75c30dce-1b66-41hf-a86c-573a74be0f40",
+		},
+		Health: &v1alpha1.HealthStatus{
+			Status:  "Degraded",
+			Message: "Readiness Gate failed",
+		},
 	}
-	objsOrphan := make(map[string]v1alpha1.ResourceNode)
+	objsOrphan := make(map[string]*v1alpha1.ResourceNode)
 	objsOrphan["75c30dce-1b66-41hf-a86c-573a74be0f40"] = orphan
 
 	orphanchildMapping := make(map[string][]string)

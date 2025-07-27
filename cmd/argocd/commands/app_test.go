@@ -414,7 +414,7 @@ func Test_groupObjsByKey(t *testing.T) {
 
 func TestFormatSyncPolicy(t *testing.T) {
 	t.Run("Policy not defined", func(t *testing.T) {
-		app := v1alpha1.Application{}
+		app := &v1alpha1.Application{}
 
 		policy := formatSyncPolicy(app)
 
@@ -422,7 +422,7 @@ func TestFormatSyncPolicy(t *testing.T) {
 	})
 
 	t.Run("Auto policy", func(t *testing.T) {
-		app := v1alpha1.Application{
+		app := &v1alpha1.Application{
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{},
@@ -436,7 +436,7 @@ func TestFormatSyncPolicy(t *testing.T) {
 	})
 
 	t.Run("Auto policy with prune", func(t *testing.T) {
-		app := v1alpha1.Application{
+		app := &v1alpha1.Application{
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
@@ -454,7 +454,7 @@ func TestFormatSyncPolicy(t *testing.T) {
 
 func TestFormatConditionSummary(t *testing.T) {
 	t.Run("No conditions are defined", func(t *testing.T) {
-		app := v1alpha1.Application{
+		app := &v1alpha1.Application{
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
@@ -469,7 +469,7 @@ func TestFormatConditionSummary(t *testing.T) {
 	})
 
 	t.Run("Few conditions are defined", func(t *testing.T) {
-		app := v1alpha1.Application{
+		app := &v1alpha1.Application{
 			Status: v1alpha1.ApplicationStatus{
 				Conditions: []v1alpha1.ApplicationCondition{
 					{
@@ -490,7 +490,7 @@ func TestFormatConditionSummary(t *testing.T) {
 	})
 
 	t.Run("Conditions are sorted for idempotent summary", func(t *testing.T) {
-		app := v1alpha1.Application{
+		app := &v1alpha1.Application{
 			Status: v1alpha1.ApplicationStatus{
 				Conditions: []v1alpha1.ApplicationCondition{
 					{
@@ -1109,110 +1109,110 @@ func Test_unset(t *testing.T) {
 	}
 
 	assert.Equal(t, "some-prefix", kustomizeSource.Kustomize.NamePrefix)
-	updated, nothingToUnset := unset(kustomizeSource, unsetOpts{namePrefix: true})
+	updated, nothingToUnset := unset(kustomizeSource, &unsetOpts{namePrefix: true})
 	assert.Empty(t, kustomizeSource.Kustomize.NamePrefix)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
-	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{namePrefix: true})
+	updated, nothingToUnset = unset(kustomizeSource, &unsetOpts{namePrefix: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
 	assert.Equal(t, "some-suffix", kustomizeSource.Kustomize.NameSuffix)
-	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{nameSuffix: true})
+	updated, nothingToUnset = unset(kustomizeSource, &unsetOpts{nameSuffix: true})
 	assert.Empty(t, kustomizeSource.Kustomize.NameSuffix)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
-	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{nameSuffix: true})
+	updated, nothingToUnset = unset(kustomizeSource, &unsetOpts{nameSuffix: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
 	assert.Equal(t, "123", kustomizeSource.Kustomize.Version)
-	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeVersion: true})
+	updated, nothingToUnset = unset(kustomizeSource, &unsetOpts{kustomizeVersion: true})
 	assert.Empty(t, kustomizeSource.Kustomize.Version)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
-	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeVersion: true})
+	updated, nothingToUnset = unset(kustomizeSource, &unsetOpts{kustomizeVersion: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
 	assert.Len(t, kustomizeSource.Kustomize.Images, 2)
-	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeImages: []string{"old1=new:tag"}})
+	updated, nothingToUnset = unset(kustomizeSource, &unsetOpts{kustomizeImages: []string{"old1=new:tag"}})
 	assert.Len(t, kustomizeSource.Kustomize.Images, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
-	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeImages: []string{"old1=new:tag"}})
+	updated, nothingToUnset = unset(kustomizeSource, &unsetOpts{kustomizeImages: []string{"old1=new:tag"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
 	assert.Len(t, kustomizeSource.Kustomize.Replicas, 2)
-	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
+	updated, nothingToUnset = unset(kustomizeSource, &unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
 	assert.Len(t, kustomizeSource.Kustomize.Replicas, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
-	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
+	updated, nothingToUnset = unset(kustomizeSource, &unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
 	assert.True(t, kustomizeSource.Kustomize.IgnoreMissingComponents)
-	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{ignoreMissingComponents: true})
+	updated, nothingToUnset = unset(kustomizeSource, &unsetOpts{ignoreMissingComponents: true})
 	assert.False(t, kustomizeSource.Kustomize.IgnoreMissingComponents)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
-	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{ignoreMissingComponents: true})
+	updated, nothingToUnset = unset(kustomizeSource, &unsetOpts{ignoreMissingComponents: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
 	assert.Len(t, helmSource.Helm.Parameters, 2)
-	updated, nothingToUnset = unset(helmSource, unsetOpts{parameters: []string{"name-1"}})
+	updated, nothingToUnset = unset(helmSource, &unsetOpts{parameters: []string{"name-1"}})
 	assert.Len(t, helmSource.Helm.Parameters, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
-	updated, nothingToUnset = unset(helmSource, unsetOpts{parameters: []string{"name-1"}})
+	updated, nothingToUnset = unset(helmSource, &unsetOpts{parameters: []string{"name-1"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
 	assert.Len(t, helmSource.Helm.ValueFiles, 2)
-	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesFiles: []string{"values-1.yaml"}})
+	updated, nothingToUnset = unset(helmSource, &unsetOpts{valuesFiles: []string{"values-1.yaml"}})
 	assert.Len(t, helmSource.Helm.ValueFiles, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
-	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesFiles: []string{"values-1.yaml"}})
+	updated, nothingToUnset = unset(helmSource, &unsetOpts{valuesFiles: []string{"values-1.yaml"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
 	assert.Equal(t, "some: yaml", helmSource.Helm.ValuesString())
-	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesLiteral: true})
+	updated, nothingToUnset = unset(helmSource, &unsetOpts{valuesLiteral: true})
 	assert.Empty(t, helmSource.Helm.ValuesString())
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
-	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesLiteral: true})
+	updated, nothingToUnset = unset(helmSource, &unsetOpts{valuesLiteral: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
 	assert.True(t, helmSource.Helm.IgnoreMissingValueFiles)
-	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
+	updated, nothingToUnset = unset(helmSource, &unsetOpts{ignoreMissingValueFiles: true})
 	assert.False(t, helmSource.Helm.IgnoreMissingValueFiles)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
-	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
+	updated, nothingToUnset = unset(helmSource, &unsetOpts{ignoreMissingValueFiles: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
 	assert.True(t, helmSource.Helm.PassCredentials)
-	updated, nothingToUnset = unset(helmSource, unsetOpts{passCredentials: true})
+	updated, nothingToUnset = unset(helmSource, &unsetOpts{passCredentials: true})
 	assert.False(t, helmSource.Helm.PassCredentials)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
-	updated, nothingToUnset = unset(helmSource, unsetOpts{passCredentials: true})
+	updated, nothingToUnset = unset(helmSource, &unsetOpts{passCredentials: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
 	assert.Len(t, pluginSource.Plugin.Env, 2)
-	updated, nothingToUnset = unset(pluginSource, unsetOpts{pluginEnvs: []string{"env-1"}})
+	updated, nothingToUnset = unset(pluginSource, &unsetOpts{pluginEnvs: []string{"env-1"}})
 	assert.Len(t, pluginSource.Plugin.Env, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
-	updated, nothingToUnset = unset(pluginSource, unsetOpts{pluginEnvs: []string{"env-1"}})
+	updated, nothingToUnset = unset(pluginSource, &unsetOpts{pluginEnvs: []string{"env-1"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 }
@@ -1235,7 +1235,7 @@ func Test_unset_nothingToUnset(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			updated, nothingToUnset := unset(&testCaseCopy.source, unsetOpts{})
+			updated, nothingToUnset := unset(&testCaseCopy.source, &unsetOpts{})
 			assert.False(t, updated)
 			assert.True(t, nothingToUnset)
 		})
@@ -1547,7 +1547,7 @@ func TestParseSelectedResourcesEmptyList(t *testing.T) {
 
 func TestPrintApplicationTableNotWide(t *testing.T) {
 	output, err := captureOutput(func() error {
-		app := &v1alpha1.Application{
+		app := v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "app-name",
 			},
@@ -1568,7 +1568,7 @@ func TestPrintApplicationTableNotWide(t *testing.T) {
 			},
 		}
 		output := "table"
-		printApplicationTable([]v1alpha1.Application{*app, *app}, &output)
+		printApplicationTable([]v1alpha1.Application{app, app}, &output)
 		return nil
 	})
 	require.NoError(t, err)
@@ -1578,7 +1578,7 @@ func TestPrintApplicationTableNotWide(t *testing.T) {
 
 func TestPrintApplicationTableWide(t *testing.T) {
 	output, err := captureOutput(func() error {
-		app := &v1alpha1.Application{
+		app := v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "app-name",
 			},
@@ -1604,7 +1604,7 @@ func TestPrintApplicationTableWide(t *testing.T) {
 			},
 		}
 		output := "wide"
-		printApplicationTable([]v1alpha1.Application{*app, *app}, &output)
+		printApplicationTable([]v1alpha1.Application{app, app}, &output)
 		return nil
 	})
 	require.NoError(t, err)
