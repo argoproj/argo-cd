@@ -713,7 +713,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, "foo", options.BuildOptions)
-		assert.Equal(t, []KustomizeVersion{{Name: "v3.2.1", Path: "somePath"}}, options.Versions)
+		assert.Equal(t, []v1alpha1.KustomizeVersion{{Name: "v3.2.1", Path: "somePath"}}, options.Versions)
 	})
 
 	t.Run("Kustomize settings per-version", func(t *testing.T) {
@@ -731,15 +731,15 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, "--global true", got.BuildOptions)
-		want := &KustomizeSettings{
+		want := &v1alpha1.KustomizeOptions{
 			BuildOptions: "--global true",
-			Versions: []KustomizeVersion{
+			Versions: []v1alpha1.KustomizeVersion{
 				{Name: "v3.2.1", Path: "/path_3.2.1"},
 				{Name: "v3.2.3", Path: "/path_3.2.3", BuildOptions: "--options v3.2.3"},
 				{Name: "v3.2.4", Path: "/path_3.2.4", BuildOptions: "--options v3.2.4"},
 			},
 		}
-		sortVersionsByName := func(versions []KustomizeVersion) {
+		sortVersionsByName := func(versions []v1alpha1.KustomizeVersion) {
 			sort.Slice(versions, func(i, j int) bool {
 				return versions[i].Name > versions[j].Name
 			})
@@ -814,10 +814,10 @@ func TestSettingsManager_GetEventLabelKeys(t *testing.T) {
 	}
 }
 
-func TestKustomizeSettings_GetOptions(t *testing.T) {
-	settings := KustomizeSettings{
+func Test_GetKustomizeBinaryPath(t *testing.T) {
+	ko := &v1alpha1.KustomizeOptions{
 		BuildOptions: "--opt1 val1",
-		Versions: []KustomizeVersion{
+		Versions: []v1alpha1.KustomizeVersion{
 			{Name: "v1", Path: "path_v1"},
 			{Name: "v2", Path: "path_v2"},
 			{Name: "v3", Path: "path_v3", BuildOptions: "--opt2 val2"},
@@ -825,35 +825,42 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 	}
 
 	t.Run("VersionDoesNotExist", func(t *testing.T) {
-		_, err := settings.GetOptions(v1alpha1.ApplicationSource{
+		_, err := GetKustomizeBinaryPath(ko, v1alpha1.ApplicationSource{
 			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v4"},
 		})
 		require.Error(t, err)
 	})
 
 	t.Run("DefaultBuildOptions", func(t *testing.T) {
-		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{})
+		ver, err := GetKustomizeBinaryPath(ko, v1alpha1.ApplicationSource{})
 		require.NoError(t, err)
-		assert.Empty(t, ver.BinaryPath)
-		assert.Equal(t, "--opt1 val1", ver.BuildOptions)
+		assert.Empty(t, ver)
 	})
 
 	t.Run("VersionExists", func(t *testing.T) {
-		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{
+		ver, err := GetKustomizeBinaryPath(ko, v1alpha1.ApplicationSource{
 			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v2"},
 		})
 		require.NoError(t, err)
-		assert.Equal(t, "path_v2", ver.BinaryPath)
-		assert.Empty(t, ver.BuildOptions)
+		assert.Equal(t, "path_v2", ver)
 	})
 
 	t.Run("VersionExistsWithBuildOption", func(t *testing.T) {
-		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{
+		ver, err := GetKustomizeBinaryPath(ko, v1alpha1.ApplicationSource{
 			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v3"},
 		})
 		require.NoError(t, err)
-		assert.Equal(t, "path_v3", ver.BinaryPath)
-		assert.Equal(t, "--opt2 val2", ver.BuildOptions)
+		assert.Equal(t, "path_v3", ver)
+	})
+
+	t.Run("ExplicitVersionSet", func(t *testing.T) {
+		// nolint:staticcheck // test for backwards compatibility with deprecated field
+		ko.BinaryPath = "custom_path"
+		ver, err := GetKustomizeBinaryPath(ko, v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v3"},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "custom_path", ver)
 	})
 }
 
@@ -1387,7 +1394,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 
 	settings, err := settingsManager.GetSettings()
 	require.NoError(t, err)
-	assert.Equal(t, "mywebhooksecret", settings.WebhookGitHubSecret)
+	assert.Equal(t, "mywebhooksecret", settings.GetWebhookGitHubSecret())
 
 	oidcConfig := settings.OIDCConfig()
 	assert.Equal(t, "https://dev-123456.oktapreview.com", oidcConfig.Issuer)

@@ -33,7 +33,7 @@ echo ">> Working in release branch '${RELEASE_BRANCH}'"
 
 echo ">> Ensuring release branch is up to date."
 # make sure release branch is up to date
-git pull ${GIT_REMOTE} ${RELEASE_BRANCH}
+git pull "${GIT_REMOTE}" "${RELEASE_BRANCH}"
 
 # Check for target (version) tag in local repo
 if git tag -l | grep -q -E "^${NEW_TAG}$"; then
@@ -42,7 +42,7 @@ if git tag -l | grep -q -E "^${NEW_TAG}$"; then
 fi
 
 # Check for target (version) tag in remote repo
-if git ls-remote ${GIT_REMOTE} refs/tags/${NEW_TAG} | grep -q -E "${NEW_TAG}$"; then
+if git ls-remote "${GIT_REMOTE}" "refs/tags/${NEW_TAG}" | grep -q -E "${NEW_TAG}$"; then
 	echo "!! Target version tag '${NEW_TAG}' already exists in remote '${GIT_REMOTE}'" >&2
 	exit 1
 fi
@@ -50,7 +50,7 @@ fi
 echo ">> Creating new release '${NEW_TAG}' by pushing '${NEW_TAG}' to '${GIT_REMOTE}'"
 
 # Create new tag in local repository
-git tag ${NEW_TAG}
+git tag "${NEW_TAG}"
 
 # Push the new tag to remote repository
-git push ${GIT_REMOTE} ${NEW_TAG}
+git push "${GIT_REMOTE}" "${NEW_TAG}"
