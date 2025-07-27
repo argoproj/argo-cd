@@ -168,7 +168,9 @@ Go through the same steps as in [OpenID Connect using Dex](#openid-connect-using
 
 ### Configure Dex
 
-1. Create a secret with the contents of the previous json file encoded in base64, like this:
+1. **Option 1: Using Service Account File (traditional method)**
+
+   Create a secret with the contents of the previous json file encoded in base64, like this:
 
    ```yaml
    apiVersion: v1
@@ -180,7 +182,11 @@ Go through the same steps as in [OpenID Connect using Dex](#openid-connect-using
      googleAuth.json: JSON_FILE_BASE64_ENCODED
    ```
 
-2. Edit your `argocd-dex-server` deployment to mount that secret as a file
+   **Option 2: Using Workload Identity (Dex > v2.34.0)**
+
+   Configure Workload Identity for your `argocd-dex-server` service account. No secret file is needed when using Workload Identity.
+
+2. If using Option 1, edit your `argocd-dex-server` deployment to mount that secret as a file
 
    - Add a volume mount in `/spec/template/spec/containers/0/volumeMounts/` like this. Be aware of editing the running container and not the init container!
 
@@ -211,6 +217,8 @@ Go through the same steps as in [OpenID Connect using Dex](#openid-connect-using
 
 3. Edit `argocd-cm` and add the following `url` and `dex.config` to the data section, replacing `clientID` and `clientSecret` with the values you saved before, `adminEmail` with the address for the admin user you're going to impersonate, and editing `redirectURI` with your Argo CD domain (note that the `type` is now `google` instead of `oidc`):
 
+   **Option 1: Using Service Account File**
+
    ```yaml
    data:
      url: https://argocd.example.com
@@ -222,6 +230,26 @@ Go through the same steps as in [OpenID Connect using Dex](#openid-connect-using
            clientSecret: XXXXXXXXXXXXX
            serviceAccountFilePath: /tmp/oidc/googleAuth.json
            adminEmail: admin-email@example.com
+           # Optional: Enable transitive group membership (Dex > v2.31.0)
+           # fetchTransitiveGroupMembership: True
+         type: google
+         id: google
+         name: Google
+   ```
+
+   **Option 2: Using Workload Identity (Dex > v2.34.0)**
+
+   ```yaml
+   data:
+     url: https://argocd.example.com
+     dex.config: |
+       connectors:
+       - config:
+           redirectURI: https://argocd.example.com/api/dex/callback
+           clientID: XXXXXXXXXXXXX.apps.googleusercontent.com
+           clientSecret: XXXXXXXXXXXXX
+           adminEmail: admin-email@example.com
+           fetchTransitiveGroupMembership: True
          type: google
          id: google
          name: Google
@@ -231,24 +259,6 @@ Go through the same steps as in [OpenID Connect using Dex](#openid-connect-using
 5. Login to Argo CD and go to the "User info" section, were you should see the groups you're member
    ![User info](../../assets/google-groups-membership.png)
 6. Now you can use groups email addresses to give RBAC permissions
-7. Dex (> v2.31.0) can also be configured in the `argocd-cm` to fetch transitive group membership as follows:
-
-   ```yaml
-   data:
-     url: https://argocd.example.com
-     dex.config: |
-       connectors:
-       - config:
-           redirectURI: https://argocd.example.com/api/dex/callback
-           clientID: XXXXXXXXXXXXX.apps.googleusercontent.com
-           clientSecret: XXXXXXXXXXXXX
-           serviceAccountFilePath: /tmp/oidc/googleAuth.json
-           adminEmail: admin-email@example.com
-           fetchTransitiveGroupMembership: True
-         type: google
-         id: google
-         name: Google
-   ```
 
 ### References
 
