@@ -168,7 +168,9 @@ Go through the same steps as in [OpenID Connect using Dex](#openid-connect-using
 
 ### Configure Dex
 
-1. **Option 1: Using Service Account File (traditional method)**
+1. **Configure authentication credentials**
+
+   **Option 1: Using Service Account File (traditional method)**
 
    Create a secret with the contents of the previous json file encoded in base64, like this:
 
@@ -182,11 +184,7 @@ Go through the same steps as in [OpenID Connect using Dex](#openid-connect-using
      googleAuth.json: JSON_FILE_BASE64_ENCODED
    ```
 
-   **Option 2: Using Workload Identity (Dex > v2.34.0)**
-
-   Configure Workload Identity for your `argocd-dex-server` service account. No secret file is needed when using Workload Identity.
-
-2. If using Option 1, edit your `argocd-dex-server` deployment to mount that secret as a file
+   Then edit your `argocd-dex-server` deployment to mount that secret as a file:
 
    - Add a volume mount in `/spec/template/spec/containers/0/volumeMounts/` like this. Be aware of editing the running container and not the init container!
 
@@ -215,7 +213,11 @@ Go through the same steps as in [OpenID Connect using Dex](#openid-connect-using
            secretName: argocd-google-groups-json
      ```
 
-3. Edit `argocd-cm` and add the following `url` and `dex.config` to the data section, replacing `clientID` and `clientSecret` with the values you saved before, `adminEmail` with the address for the admin user you're going to impersonate, and editing `redirectURI` with your Argo CD domain (note that the `type` is now `google` instead of `oidc`):
+   **Option 2: Using Workload Identity (Dex > v2.34.0)**
+
+   Configure Workload Identity for your `argocd-dex-server` service account. No secret file is needed when using Workload Identity.
+
+2. Edit `argocd-cm` and add the following `url` and `dex.config` to the data section, replacing `clientID` and `clientSecret` with the values you saved before, `adminEmail` with the address for the admin user you're going to impersonate, and editing `redirectURI` with your Argo CD domain (note that the `type` is now `google` instead of `oidc`):
 
    **Option 1: Using Service Account File**
 
@@ -255,10 +257,10 @@ Go through the same steps as in [OpenID Connect using Dex](#openid-connect-using
          name: Google
    ```
 
-4. Restart your `argocd-dex-server` deployment to be sure it's using the latest configuration
-5. Login to Argo CD and go to the "User info" section, were you should see the groups you're member
+3. Restart your `argocd-dex-server` deployment to be sure it's using the latest configuration
+4. Login to Argo CD and go to the "User info" section, were you should see the groups you're member
    ![User info](../../assets/google-groups-membership.png)
-6. Now you can use groups email addresses to give RBAC permissions
+5. Now you can use groups email addresses to give RBAC permissions
 
 ### References
 
