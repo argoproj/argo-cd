@@ -42,9 +42,10 @@ type Context struct {
 	project                  string
 	revision                 string
 	force                    bool
-	applyOutOfSyncOnly       bool
+	applyOutOfSyncOnly       *bool
+	syncOptionsOverride      *bool
 	directoryRecurse         bool
-	replace                  bool
+	replace                  *bool
 	helmPassCredentials      bool
 	helmSkipCrds             bool
 	helmSkipSchemaValidation bool
@@ -255,8 +256,20 @@ func (c *Context) ProjectSpec(spec v1alpha1.AppProjectSpec) *Context {
 	return c
 }
 
-func (c *Context) Replace() *Context {
-	c.replace = true
+func (c *Context) Replace(replace bool) *Context {
+	c.replace = &replace
+	return c
+}
+
+func (c *Context) SyncOptionsOverrideEnable() *Context {
+	val := true
+	c.syncOptionsOverride = &val
+	return c
+}
+
+func (c *Context) SyncOptionsOverrideDisable() *Context {
+	val := false
+	c.syncOptionsOverride = &val
 	return c
 }
 
@@ -419,8 +432,8 @@ func (c *Context) Force() *Context {
 	return c
 }
 
-func (c *Context) ApplyOutOfSyncOnly() *Context {
-	c.applyOutOfSyncOnly = true
+func (c *Context) ApplyOutOfSyncOnly(applyOutOfSyncOnly bool) *Context {
+	c.applyOutOfSyncOnly = &applyOutOfSyncOnly
 	return c
 }
 
