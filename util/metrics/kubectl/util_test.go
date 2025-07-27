@@ -160,7 +160,7 @@ func Test_resolveK8sRequestVerb(t *testing.T) {
 		t.Run(td.testName, func(t *testing.T) {
 			u, err := url.Parse(td.url)
 			require.NoError(t, err)
-			info := resolveK8sRequestVerb(*u, td.method)
+			info := resolveK8sRequestVerb(u, td.method)
 			assert.Equal(t, td.expected, info)
 		})
 	}

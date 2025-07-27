@@ -198,8 +198,8 @@ func (k *kubectlClientCertRotationAgeMetric) Observe(certDuration time.Duration)
 
 type kubectlRequestLatencyMetric struct{}
 
-func (k *kubectlRequestLatencyMetric) Observe(_ context.Context, verb string, u url.URL, latency time.Duration) {
-	k8sVerb := resolveK8sRequestVerb(&u, verb)
+func (k *kubectlRequestLatencyMetric) Observe(_ context.Context, verb string, u *url.URL, latency time.Duration) {
+	k8sVerb := resolveK8sRequestVerb(u, verb)
 	requestLatencyHistogram.WithLabelValues(u.Host, k8sVerb).Observe(latency.Seconds())
 }
 
@@ -223,8 +223,8 @@ func (k *kubectlResponseSizeMetric) Observe(_ context.Context, verb string, host
 
 type kubectlRateLimiterLatencyMetric struct{}
 
-func (k *kubectlRateLimiterLatencyMetric) Observe(_ context.Context, verb string, u url.URL, latency time.Duration) {
-	k8sVerb := resolveK8sRequestVerb(&u, verb)
+func (k *kubectlRateLimiterLatencyMetric) Observe(_ context.Context, verb string, u *url.URL, latency time.Duration) {
+	k8sVerb := resolveK8sRequestVerb(u, verb)
 	rateLimiterLatencyHistogram.WithLabelValues(u.Host, k8sVerb).Observe(latency.Seconds())
 }
 
