@@ -71,6 +71,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --source-names stringArray                          List of source names. Default is an empty array.
       --source-positions int64Slice                       List of source positions. Default is empty array. Counting start at 1. (default [])
       --strategy string                                   Sync strategy (one of: apply|hook)
+      --sync-options-override                             Override sync options with CLI values regardless of whether they are true or false
       --timeout uint                                      Time out after this many seconds
 ```
 

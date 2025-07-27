@@ -13,10 +13,12 @@ import (
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
@@ -2384,71 +2386,210 @@ func (c *fakeAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _
 }
 
 func TestBuildSyncOptions(t *testing.T) {
-	// This tests ensure that CLI sync options always return a non-nil SyncOptions object,
-	// allowing them to override Application spec sync options
-
 	tests := []struct {
-		name                 string
-		replace              bool
-		serverSideApply      bool
-		applyOutOfSyncOnly   bool
-		expectedOptionsCount int
-		expectedContains     []string
+		name                string
+		setupFlags          func(*cobra.Command) // Function to setup flags as user would
+		syncOptionsOverride bool
+		expectedNil         bool
+		expectedContains    []string
 	}{
+		// Test cases without syncOptionsOverride (default behavior)
 		{
-			name:                 "no flags set - should return empty array not nil",
-			replace:              false,
-			serverSideApply:      false,
-			applyOutOfSyncOnly:   false,
-			expectedOptionsCount: 0,
-			expectedContains:     []string{},
+			name: "no flags passed, no override - should return nil",
+			setupFlags: func(cmd *cobra.Command) {
+				// Don't set any flags - simulates user not passing any sync options
+			},
+			syncOptionsOverride: false,
+			expectedNil:         true,
+			expectedContains:    []string{},
 		},
 		{
-			name:                 "replace flag set",
-			replace:              true,
-			serverSideApply:      false,
-			applyOutOfSyncOnly:   false,
-			expectedOptionsCount: 1,
-			expectedContains:     []string{"Replace=true"},
+			name: "replace=true passed, no override",
+			setupFlags: func(cmd *cobra.Command) {
+				cmd.Flags().Set("replace", "true")
+			},
+			syncOptionsOverride: false,
+			expectedNil:         false,
+			expectedContains:    []string{"Replace=true"},
 		},
 		{
-			name:                 "server-side apply flag set",
-			replace:              false,
-			serverSideApply:      true,
-			applyOutOfSyncOnly:   false,
-			expectedOptionsCount: 1,
-			expectedContains:     []string{"ServerSideApply=true"},
+			name: "replace=false passed, no override - should return nil",
+			setupFlags: func(cmd *cobra.Command) {
+				cmd.Flags().Set("replace", "false")
+			},
+			syncOptionsOverride: false,
+			expectedNil:         true, // false values don't override without syncOptionsOverride
+			expectedContains:    []string{},
 		},
 		{
-			name:                 "apply out of sync only flag set",
-			replace:              false,
-			serverSideApply:      false,
-			applyOutOfSyncOnly:   true,
-			expectedOptionsCount: 1,
-			expectedContains:     []string{"ApplyOutOfSyncOnly=true"},
+			name: "server-side=true passed, no override",
+			setupFlags: func(cmd *cobra.Command) {
+				cmd.Flags().Set("server-side", "true")
+			},
+			syncOptionsOverride: false,
+			expectedNil:         false,
+			expectedContains:    []string{"ServerSideApply=true"},
 		},
 		{
-			name:                 "all flags set",
-			replace:              true,
-			serverSideApply:      true,
-			applyOutOfSyncOnly:   true,
-			expectedOptionsCount: 3,
-			expectedContains:     []string{"Replace=true", "ServerSideApply=true", "ApplyOutOfSyncOnly=true"},
+			name: "server-side=false passed, no override - should return nil",
+			setupFlags: func(cmd *cobra.Command) {
+				cmd.Flags().Set("server-side", "false")
+			},
+			syncOptionsOverride: false,
+			expectedNil:         true,
+			expectedContains:    []string{},
+		},
+		{
+			name: "apply-out-of-sync-only=true passed, no override",
+			setupFlags: func(cmd *cobra.Command) {
+				cmd.Flags().Set("apply-out-of-sync-only", "true")
+			},
+			syncOptionsOverride: false,
+			expectedNil:         false,
+			expectedContains:    []string{"ApplyOutOfSyncOnly=true"},
+		},
+		{
+			name: "apply-out-of-sync-only=false passed, no override - should return nil",
+			setupFlags: func(cmd *cobra.Command) {
+				cmd.Flags().Set("apply-out-of-sync-only", "false")
+			},
+			syncOptionsOverride: false,
+			expectedNil:         true,
+			expectedContains:    []string{},
+		},
+		{
+			name: "mixed true values passed, no override",
+			setupFlags: func(cmd *cobra.Command) {
+				cmd.Flags().Set("replace", "true")
+				cmd.Flags().Set("server-side", "true")
+			},
+			syncOptionsOverride: false,
+			expectedNil:         false,
+			expectedContains:    []string{"Replace=true", "ServerSideApply=true"},
+		},
+		{
+			name: "mixed true/false values passed, no override - only true values included",
+			setupFlags: func(cmd *cobra.Command) {
+				cmd.Flags().Set("replace", "true")
+				cmd.Flags().Set("server-side", "false")
+				cmd.Flags().Set("apply-out-of-sync-only", "true")
+			},
+			syncOptionsOverride: false,
+			expectedNil:         false,
+			expectedContains:    []string{"Replace=true", "ApplyOutOfSyncOnly=true"},
+		},
+
+		// Test cases WITH syncOptionsOverride
+		{
+			name: "no flags passed, with override - should return nil",
+			setupFlags: func(cmd *cobra.Command) {
+				// Don't set any flags
+			},
+			syncOptionsOverride: true,
+			expectedNil:         true,
+			expectedContains:    []string{},
+		},
+		{
+			name: "replace=true passed, with override",
+			setupFlags: func(cmd *cobra.Command) {
+				cmd.Flags().Set("replace", "true")
+			},
+			syncOptionsOverride: true,
+			expectedNil:         false,
+			expectedContains:    []string{"Replace=true"},
+		},
+		{
+			name: "replace=false passed, with override - includes false value",
+			setupFlags: func(cmd *cobra.Command) {
+				cmd.Flags().Set("replace", "false")
+			},
+			syncOptionsOverride: true,
+			expectedNil:         false,
+			expectedContains:    []string{"Replace=false"},
+		},
+		{
+			name: "server-side=false passed, with override - includes false value",
+			setupFlags: func(cmd *cobra.Command) {
+				cmd.Flags().Set("server-side", "false")
+			},
+			syncOptionsOverride: true,
+			expectedNil:         false,
+			expectedContains:    []string{common.SyncOptionDisableServerSideApply},
+		},
+		{
+			name: "apply-out-of-sync-only=false passed, with override - includes false value",
+			setupFlags: func(cmd *cobra.Command) {
+				cmd.Flags().Set("apply-out-of-sync-only", "false")
+			},
+			syncOptionsOverride: true,
+			expectedNil:         false,
+			expectedContains:    []string{"ApplyOutOfSyncOnly=false"},
+		},
+		{
+			name: "all flags=true passed, with override",
+			setupFlags: func(cmd *cobra.Command) {
+				cmd.Flags().Set("replace", "true")
+				cmd.Flags().Set("server-side", "true")
+				cmd.Flags().Set("apply-out-of-sync-only", "true")
+			},
+			syncOptionsOverride: true,
+			expectedNil:         false,
+			expectedContains:    []string{"Replace=true", "ServerSideApply=true", "ApplyOutOfSyncOnly=true"},
+		},
+		{
+			name: "all flags=false passed, with override - includes all false values",
+			setupFlags: func(cmd *cobra.Command) {
+				cmd.Flags().Set("replace", "false")
+				cmd.Flags().Set("server-side", "false")
+				cmd.Flags().Set("apply-out-of-sync-only", "false")
+			},
+			syncOptionsOverride: true,
+			expectedNil:         false,
+			expectedContains:    []string{"Replace=false", common.SyncOptionDisableServerSideApply, "ApplyOutOfSyncOnly=false"},
+		},
+		{
+			name: "mixed true/false values passed, with override - includes both true and false values",
+			setupFlags: func(cmd *cobra.Command) {
+				cmd.Flags().Set("replace", "true")
+				cmd.Flags().Set("server-side", "false")
+				cmd.Flags().Set("apply-out-of-sync-only", "false")
+			},
+			syncOptionsOverride: true,
+			expectedNil:         false,
+			expectedContains:    []string{"Replace=true", common.SyncOptionDisableServerSideApply, "ApplyOutOfSyncOnly=false"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := buildSyncOptions(tt.replace, tt.serverSideApply, tt.applyOutOfSyncOnly)
+			// Create a fresh command with flags
+			cmd := &cobra.Command{}
+			cmd.Flags().Bool("replace", false, "test")
+			cmd.Flags().Bool("server-side", false, "test")
+			cmd.Flags().Bool("apply-out-of-sync-only", false, "test")
 
-			// Result should NEVER be nil, even when no flags are set
-			assert.NotNil(t, result, "buildSyncOptions should never return nil - this allows CLI to override Application spec")
+			// Setup flags as specified by the test
+			tt.setupFlags(cmd)
 
-			// Verify the number of options
-			assert.Len(t, result.Items, tt.expectedOptionsCount, "unexpected number of sync options")
-			// Verify the expected options are present
-			for _, expected := range tt.expectedContains {
-				assert.Contains(t, result.Items, expected, "expected sync option not found")
+			// Get the actual flag values (after they may have been set)
+			replace, _ := cmd.Flags().GetBool("replace")
+			serverSideApply, _ := cmd.Flags().GetBool("server-side")
+			applyOutOfSyncOnly, _ := cmd.Flags().GetBool("apply-out-of-sync-only")
+
+			result := buildSyncOptions(cmd, replace, serverSideApply, applyOutOfSyncOnly, tt.syncOptionsOverride)
+
+			if tt.expectedNil {
+				assert.Nil(t, result, "buildSyncOptions should return nil")
+			} else {
+				assert.NotNil(t, result, "buildSyncOptions should not return nil")
+
+				// Verify the expected options are present
+				for _, expected := range tt.expectedContains {
+					assert.Contains(t, result.Items, expected, "expected sync option %q not found in %v", expected, result.Items)
+				}
+
+				// Verify we don't have unexpected extra items
+				assert.Len(t, result.Items, len(tt.expectedContains), "unexpected number of sync options")
 			}
 		})
 	}

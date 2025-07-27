@@ -1981,25 +1981,68 @@ func printTreeViewDetailed(nodeMapping map[string]argoappv1.ResourceNode, parent
 	_ = w.Flush()
 }
 
-// buildSyncOptions creates sync options from CLI flags. This always returns a non-nil
-// SyncOptions to ensure CLI flags can override Application spec sync options.
-func buildSyncOptions(replace, serverSideApply, applyOutOfSyncOnly bool) *application.SyncOptions {
-	syncOptions := application.SyncOptions{}
-	items := make([]string, 0)
-	if replace {
-		items = append(items, common.SyncOptionReplace)
-	}
-	if serverSideApply {
-		items = append(items, common.SyncOptionServerSideApply)
-	}
-	if applyOutOfSyncOnly {
-		items = append(items, common.SyncOptionApplyOutOfSyncOnly)
+func buildSyncOptions(cmd *cobra.Command, replace, serverSideApply, applyOutOfSyncOnly bool, syncOptionsOverride bool) *application.SyncOptions {
+	// Check if any CLI sync options are provided by checking if flags were changed
+	replaceSet := cmd.Flags().Changed("replace")
+	serverSideApplySet := cmd.Flags().Changed("server-side")
+	applyOutOfSyncOnlySet := cmd.Flags().Changed("apply-out-of-sync-only")
+
+	hasCliOptions := replaceSet || serverSideApplySet || applyOutOfSyncOnlySet
+
+	// Return null if no CLI options were set
+	if !hasCliOptions {
+		return nil
 	}
 
-	// Always return a SyncOptions object to override Application spec sync options
-	// When no CLI sync options are specified, send empty array to clear spec options
-	syncOptions.Items = items
-	return &syncOptions
+	if syncOptionsOverride {
+		// Return CLI options regardless of their true/false value to override app spec
+		syncOptions := application.SyncOptions{}
+		items := make([]string, 0)
+		if replaceSet {
+			if replace {
+				items = append(items, common.SyncOptionReplace)
+			} else {
+				items = append(items, "Replace=false") // TODO: use common.SyncOptionDisableReplace
+			}
+		}
+		if serverSideApplySet {
+			if serverSideApply {
+				items = append(items, common.SyncOptionServerSideApply)
+			} else {
+				items = append(items, common.SyncOptionDisableServerSideApply)
+			}
+		}
+		if applyOutOfSyncOnlySet {
+			if applyOutOfSyncOnly {
+				items = append(items, common.SyncOptionApplyOutOfSyncOnly)
+			} else {
+				items = append(items, "ApplyOutOfSyncOnly=false") // TODO: use common.SyncOptionDisableApplyOutOfSyncOnly
+			}
+		}
+		syncOptions.Items = items
+		return &syncOptions
+	} else {
+		// Only return options that are explicitly set to true
+		syncOptions := application.SyncOptions{}
+		items := make([]string, 0)
+		if replace {
+			items = append(items, common.SyncOptionReplace)
+		}
+		if serverSideApply {
+			items = append(items, common.SyncOptionServerSideApply)
+		}
+		if applyOutOfSyncOnly {
+			items = append(items, common.SyncOptionApplyOutOfSyncOnly)
+		}
+
+		// If no options are true (all are false), return null
+		if len(items) == 0 {
+			return nil
+		}
+
+		syncOptions.Items = items
+		return &syncOptions
+	}
 }
 
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
@@ -2020,6 +2063,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		replace                 bool
 		serverSideApply         bool
 		applyOutOfSyncOnly      bool
+		syncOptionsOverride     bool
 		async                   bool
 		retryLimit              int64
 		retryBackoffDuration    time.Duration
@@ -2248,7 +2292,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					diffOption.cluster = cluster
 				}
 
-				syncOptions := buildSyncOptions(replace, serverSideApply, applyOutOfSyncOnly)
+				syncOptions := buildSyncOptions(c, replace, serverSideApply, applyOutOfSyncOnly, syncOptionsOverride)
 
 				syncReq := application.ApplicationSyncRequest{
 					Name:            &appName,
@@ -2349,6 +2393,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&replace, "replace", false, "Use a kubectl create/replace instead apply")
 	command.Flags().BoolVar(&serverSideApply, "server-side", false, "Use server-side apply while syncing the application")
 	command.Flags().BoolVar(&applyOutOfSyncOnly, "apply-out-of-sync-only", false, "Sync only out-of-sync resources")
+	command.Flags().BoolVar(&syncOptionsOverride, "sync-options-override", false, "Override sync options with CLI values regardless of whether they are true or false")
 	command.Flags().BoolVar(&async, "async", false, "Do not wait for application to sync before continuing")
 	command.Flags().StringVar(&local, "local", "", "Path to a local directory. When this flag is present no git queries will be made")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
