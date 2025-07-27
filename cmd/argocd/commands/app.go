@@ -33,8 +33,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8swatch "k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
@@ -1401,14 +1399,14 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 			proj := getProject(ctx, c, clientOpts, app.Spec.Project)
 			foundDiffs, validationErrors := findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts)
-			
+
 			if len(validationErrors) > 0 {
 				fmt.Fprintf(os.Stderr, "\nValidation errors:\n")
 				for _, err := range validationErrors {
 					fmt.Fprintf(os.Stderr, "  - %s\n", err)
 				}
 			}
-			
+
 			if exitCode {
 				if len(validationErrors) > 0 {
 					os.Exit(3)
@@ -1532,12 +1530,12 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 			_ = cli.PrintDiff(item.key.Name, live, target)
 		}
 	}
-	
+
 	var validationErrors []string
 	if diffOptions.validate {
 		validationErrors = validateManifests(ctx, items, app)
 	}
-	
+
 	return foundDiffs, validationErrors
 }
 
@@ -2317,7 +2315,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					fmt.Printf("====== Previewing differences between live and desired state of application %s ======\n", appQualifiedName)
 
 					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
-					foundDiffs = findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts)
+					foundDiffs, _ = findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts)
 					if !foundDiffs {
 						fmt.Printf("====== No Differences found ======\n")
 						// if no differences found, then no need to sync
@@ -3541,87 +3539,13 @@ func NewApplicationConfirmDeletionCommand(clientOpts *argocdclient.ClientOptions
 	return command
 }
 
-
 func validateManifests(ctx context.Context, items []objKeyLiveTarget, app *argoappv1.Application) []string {
 	var validationErrors []string
-	
-	clusterConfig, err := cmdutil.NewClusterConfig(app.Spec.Destination.Server, "", "", "")
-	if err != nil {
-		validationErrors = append(validationErrors, fmt.Sprintf("Failed to get cluster config: %v", err))
-		return validationErrors
+	// TODO: Implement server-side validation in the gRPC API
+
+	if len(items) > 0 {
+		validationErrors = append(validationErrors, "Validation is not yet implemented. This feature requires server-side support.")
 	}
-	
-	dynamicClient, err := dynamic.NewForConfig(clusterConfig)
-	if err != nil {
-		validationErrors = append(validationErrors, fmt.Sprintf("Failed to create dynamic client: %v", err))
-		return validationErrors
-	}
-	
-	discoveryClient, err := kubernetes.NewForConfig(clusterConfig)
-	if err != nil {
-		validationErrors = append(validationErrors, fmt.Sprintf("Failed to create discovery client: %v", err))
-		return validationErrors
-	}
-	
-	serverResources, err := discoveryClient.Discovery().ServerPreferredResources()
-	if err != nil {
-		if serverResources == nil {
-			validationErrors = append(validationErrors, fmt.Sprintf("Failed to get server resources: %v", err))
-			return validationErrors
-		}
-	}
-	
-	kindToResource := make(map[schema.GroupVersionKind]metav1.APIResource)
-	for _, resourceList := range serverResources {
-		gv, err := schema.ParseGroupVersion(resourceList.GroupVersion)
-		if err != nil {
-			continue
-		}
-		for _, resource := range resourceList.APIResources {
-			gvk := gv.WithKind(resource.Kind)
-			kindToResource[gvk] = resource
-		}
-	}
-	
-	for _, item := range items {
-		if item.target == nil {
-			continue
-		}
-		
-		obj := item.target
-		gvk := obj.GroupVersionKind()
-		
-		apiResource, found := kindToResource[gvk]
-		if !found {
-			validationErrors = append(validationErrors, fmt.Sprintf("%s/%s: Unknown resource kind %s", obj.GetKind(), obj.GetName(), gvk))
-			continue
-		}
-		
-		gvr := schema.GroupVersionResource{
-			Group:    gvk.Group,
-			Version:  gvk.Version,
-			Resource: apiResource.Name,
-		}
-		
-		var resourceInterface dynamic.ResourceInterface
-		if apiResource.Namespaced {
-			namespace := obj.GetNamespace()
-			if namespace == "" {
-				namespace = app.Spec.Destination.Namespace
-			}
-			resourceInterface = dynamicClient.Resource(gvr).Namespace(namespace)
-		} else {
-			resourceInterface = dynamicClient.Resource(gvr)
-		}
-		
-		_, err := resourceInterface.Create(ctx, obj, metav1.CreateOptions{
-			DryRun: []string{metav1.DryRunAll},
-		})
-		
-		if err != nil {
-			validationErrors = append(validationErrors, fmt.Sprintf("%s/%s: %v", obj.GetKind(), obj.GetName(), err))
-		}
-	}
-	
+
 	return validationErrors
 }
