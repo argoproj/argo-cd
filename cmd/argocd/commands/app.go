@@ -3633,10 +3633,10 @@ func NewApplicationConfirmDeletionCommand(clientOpts *argocdclient.ClientOptions
 
 func validateManifests(_ context.Context, items []objKeyLiveTarget, _ *argoappv1.Application) []string {
 	var validationErrors []string
-	
+
 	if len(items) > 0 {
 		validationErrors = append(validationErrors, "Validation is not yet implemented. This feature requires server-side support.")
 	}
-	
+
 	return validationErrors
 }
