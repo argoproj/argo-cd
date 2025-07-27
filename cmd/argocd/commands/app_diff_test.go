@@ -4,11 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 func TestValidateManifests(t *testing.T) {
@@ -30,29 +29,29 @@ func TestValidateManifests(t *testing.T) {
 						Name:      "test-deployment",
 					},
 					target: &unstructured.Unstructured{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "apps/v1",
 							"kind":       "Deployment",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name":      "test-deployment",
 								"namespace": "default",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"replicas": 3,
-								"selector": map[string]interface{}{
-									"matchLabels": map[string]interface{}{
+								"selector": map[string]any{
+									"matchLabels": map[string]any{
 										"app": "test",
 									},
 								},
-								"template": map[string]interface{}{
-									"metadata": map[string]interface{}{
-										"labels": map[string]interface{}{
+								"template": map[string]any{
+									"metadata": map[string]any{
+										"labels": map[string]any{
 											"app": "test",
 										},
 									},
-									"spec": map[string]interface{}{
-										"containers": []interface{}{
-											map[string]interface{}{
+									"spec": map[string]any{
+										"containers": []any{
+											map[string]any{
 												"name":  "nginx",
 												"image": "nginx:latest",
 											},
@@ -85,29 +84,29 @@ func TestValidateManifests(t *testing.T) {
 						Name:      "invalid-deployment",
 					},
 					target: &unstructured.Unstructured{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "apps/v1",
 							"kind":       "Deployment",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name":      "invalid-deployment",
 								"namespace": "default",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"replicas": "foo", // Invalid: should be number
-								"selector": map[string]interface{}{
-									"matchLabels": map[string]interface{}{
+								"selector": map[string]any{
+									"matchLabels": map[string]any{
 										"app": "test",
 									},
 								},
-								"template": map[string]interface{}{
-									"metadata": map[string]interface{}{
-										"labels": map[string]interface{}{
+								"template": map[string]any{
+									"metadata": map[string]any{
+										"labels": map[string]any{
 											"app": "test",
 										},
 									},
-									"spec": map[string]interface{}{
-										"containers": []interface{}{
-											map[string]interface{}{
+									"spec": map[string]any{
+										"containers": []any{
+											map[string]any{
 												"name":  "nginx",
 												"image": "nginx:latest",
 											},
