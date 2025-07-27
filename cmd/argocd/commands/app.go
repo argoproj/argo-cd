@@ -2021,28 +2021,27 @@ func buildSyncOptions(cmd *cobra.Command, replace, serverSideApply, applyOutOfSy
 		}
 		syncOptions.Items = items
 		return &syncOptions
-	} else {
-		// Only return options that are explicitly set to true
-		syncOptions := application.SyncOptions{}
-		items := make([]string, 0)
-		if replace {
-			items = append(items, common.SyncOptionReplace)
-		}
-		if serverSideApply {
-			items = append(items, common.SyncOptionServerSideApply)
-		}
-		if applyOutOfSyncOnly {
-			items = append(items, common.SyncOptionApplyOutOfSyncOnly)
-		}
-
-		// If no options are true (all are false), return null
-		if len(items) == 0 {
-			return nil
-		}
-
-		syncOptions.Items = items
-		return &syncOptions
 	}
+	// Only return options that are explicitly set to true
+	syncOptions := application.SyncOptions{}
+	items := make([]string, 0)
+	if replace {
+		items = append(items, common.SyncOptionReplace)
+	}
+	if serverSideApply {
+		items = append(items, common.SyncOptionServerSideApply)
+	}
+	if applyOutOfSyncOnly {
+		items = append(items, common.SyncOptionApplyOutOfSyncOnly)
+	}
+
+	// If no options are true (all are false), return null
+	if len(items) == 0 {
+		return nil
+	}
+
+	syncOptions.Items = items
+	return &syncOptions
 }
 
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command

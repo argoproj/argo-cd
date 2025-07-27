@@ -261,15 +261,8 @@ func (c *Context) Replace(replace bool) *Context {
 	return c
 }
 
-func (c *Context) SyncOptionsOverrideEnable() *Context {
-	val := true
-	c.syncOptionsOverride = &val
-	return c
-}
-
-func (c *Context) SyncOptionsOverrideDisable() *Context {
-	val := false
-	c.syncOptionsOverride = &val
+func (c *Context) SyncOptionsOverride(override bool) *Context {
+	c.syncOptionsOverride = &override
 	return c
 }
 

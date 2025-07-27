@@ -263,7 +263,7 @@ func TestOverrideEnabledCLISyncOptionsTrueAppOptionsFalseCLIWins(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		ApplyOutOfSyncOnly(true).
-		SyncOptionsOverrideEnable().
+		SyncOptionsOverride(true).
 		When().
 		CreateFromFile(func(app *Application) {
 			ns = app.Spec.Destination.Namespace
@@ -292,7 +292,7 @@ func TestOverrideEnabledCLISyncOptionsTrueAppOptionsEmptyCLIWins(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		ApplyOutOfSyncOnly(true).
-		SyncOptionsOverrideEnable().
+		SyncOptionsOverride(true).
 		When().
 		CreateFromFile(func(app *Application) {
 			ns = app.Spec.Destination.Namespace
@@ -317,7 +317,7 @@ func TestOverrideEnabledCLISyncOptionsFalseAppOptionsTrueCLIWins(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		ApplyOutOfSyncOnly(false).
-		SyncOptionsOverrideEnable().
+		SyncOptionsOverride(true).
 		When().
 		CreateFromFile(func(app *Application) {
 			ns = app.Spec.Destination.Namespace
@@ -345,7 +345,7 @@ func TestOverrideEnabledCLISyncOptionsEmptyAppOptionsTrueSpecWins(t *testing.T) 
 	var ns string
 	Given(t).
 		Path(guestbookPath).
-		SyncOptionsOverrideEnable().
+		SyncOptionsOverride(true).
 		When().
 		CreateFromFile(func(app *Application) {
 			ns = app.Spec.Destination.Namespace
