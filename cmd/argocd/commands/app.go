@@ -3631,13 +3631,12 @@ func NewApplicationConfirmDeletionCommand(clientOpts *argocdclient.ClientOptions
 	return command
 }
 
-func validateManifests(ctx context.Context, items []objKeyLiveTarget, app *argoappv1.Application) []string {
+func validateManifests(_ context.Context, items []objKeyLiveTarget, _ *argoappv1.Application) []string {
 	var validationErrors []string
-	// TODO: Implement server-side validation in the gRPC API
-
+	
 	if len(items) > 0 {
 		validationErrors = append(validationErrors, "Validation is not yet implemented. This feature requires server-side support.")
 	}
-
+	
 	return validationErrors
 }
