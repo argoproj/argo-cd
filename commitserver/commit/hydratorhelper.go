@@ -17,12 +17,16 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v3/common"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
 var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
+
+const gitAttributesContents = `*/README.md linguist-generated=true
+*/hydrator.metadata linguist-generated=true`
 
 func init() {
 	// Avoid allowing the user to learn things about the environment.
@@ -55,6 +59,12 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 	err := writeMetadata(root, "", hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl, Author: author, Subject: subject, Body: bodyMinusTrailers, Date: date, References: references})
 	if err != nil {
 		return fmt.Errorf("failed to write top-level hydrator metadata: %w", err)
+	}
+
+	// Write .gitattributes
+	err = writeGitAttributes(root)
+	if err != nil {
+		return fmt.Errorf("failed to write git attributes: %w", err)
 	}
 
 	for _, p := range paths {
@@ -134,6 +144,30 @@ func writeReadme(root *os.Root, dirPath string, metadata hydratorMetadataFile) e
 	if err != nil {
 		return fmt.Errorf("failed to execute readme template: %w", err)
 	}
+	return nil
+}
+
+func writeGitAttributes(root *os.Root) error {
+	gitAttributesFile, err := root.Create(".gitattributes")
+	if err != nil {
+		return fmt.Errorf("failed to create git attributes file: %w", err)
+	}
+
+	defer func() {
+		err = gitAttributesFile.Close()
+		if err != nil {
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
+			}).Errorf("error closing file %q: %v", gitAttributesFile.Name(), err)
+		}
+	}()
+
+	_, err = gitAttributesFile.WriteString(gitAttributesContents)
+	if err != nil {
+		return fmt.Errorf("failed to write git attributes: %w", err)
+	}
+
 	return nil
 }
 
