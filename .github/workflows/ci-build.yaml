@@ -321,7 +321,7 @@ jobs:
           key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/pnpm-lock.yaml') }}
       - name: Install node dependencies
         run: |
-          cd ui && pnpm i --frozen-lockfile --no-optional
+          cd ui && pnpm i --frozen-lockfile
       - name: Build UI code
         run: |
           pnpm test
