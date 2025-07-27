@@ -2396,6 +2396,7 @@ func TestBuildSyncOptions(t *testing.T) {
 		// Test cases without syncOptionsOverride (default behavior)
 		{
 			name:                "no flags passed, no override - should return nil",
+			setupFlags:          func(_ *cobra.Command) {},
 			syncOptionsOverride: false,
 			expectedNil:         true,
 			expectedContains:    []string{},
@@ -2479,6 +2480,7 @@ func TestBuildSyncOptions(t *testing.T) {
 		// Test cases WITH syncOptionsOverride
 		{
 			name:                "no flags passed, with override - should return nil",
+			setupFlags:          func(_ *cobra.Command) {},
 			syncOptionsOverride: true,
 			expectedNil:         true,
 			expectedContains:    []string{},
