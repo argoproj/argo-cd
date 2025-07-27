@@ -93,6 +93,7 @@
     "@types/react-test-renderer": "^16.8.3",
     "@types/uuid": "^9.0.1",
     "add": "^2.0.6",
+    "ajv": "^7.2.4",
     "babel-jest": "^29.7.0",
     "babel-loader": "^8.0.6",
     "codecov": "^3.8.3",
