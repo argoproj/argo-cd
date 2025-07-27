@@ -47,7 +47,7 @@ func (n *appsetNamespaceLister) Get(_ string) (*v1alpha1.ApplicationSet, error) 
 	return &appset, err
 }
 
-func clientListAppsets(client ctrlclient.Client, listOptions ctrlclient.ListOptions) (ret []*v1alpha1.ApplicationSet, err error) {
+func clientListAppsets(client ctrlclient.Client, listOptions *ctrlclient.ListOptions) (ret []*v1alpha1.ApplicationSet, err error) {
 	var appsetlist v1alpha1.ApplicationSetList
 	var results []*v1alpha1.ApplicationSet
 

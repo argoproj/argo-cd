@@ -485,7 +485,7 @@ func (a *ArgoCDWebhookHandler) lookupRepository(ctx context.Context, repoURL str
 	return repository, nil
 }
 
-func sourceRevisionHasChanged(source v1alpha1.ApplicationSource, revision string, touchedHead bool) bool {
+func sourceRevisionHasChanged(source *v1alpha1.ApplicationSource, revision string, touchedHead bool) bool {
 	targetRev := ParseRevision(source.TargetRevision)
 	if targetRev == "HEAD" || targetRev == "" { // revision is head
 		return touchedHead
@@ -522,7 +522,7 @@ func compareRevisions(revision string, targetRevision string) bool {
 	return constraint.Check(version)
 }
 
-func sourceUsesURL(source v1alpha1.ApplicationSource, webURL string, repoRegexp *regexp.Regexp) bool {
+func sourceUsesURL(source *v1alpha1.ApplicationSource, webURL string, repoRegexp *regexp.Regexp) bool {
 	if !repoRegexp.MatchString(source.RepoURL) {
 		log.Debugf("%s does not match %s", source.RepoURL, repoRegexp.String())
 		return false

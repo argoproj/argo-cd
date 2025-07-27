@@ -38,7 +38,7 @@ type Discover struct {
 	FileName string `json:"fileName"`
 }
 
-func (d Discover) IsDefined() bool {
+func (d *Discover) IsDefined() bool {
 	return d.FileName != "" || d.Find.Glob != "" || len(d.Find.Command.Command) > 0
 }
 
@@ -82,7 +82,7 @@ func ReadPluginConfig(filePath string) (*PluginConfig, error) {
 	return &config, nil
 }
 
-func ValidatePluginConfig(config PluginConfig) error {
+func ValidatePluginConfig(config *PluginConfig) error {
 	if config.Metadata.Name == "" {
 		return errors.New("invalid plugin configuration file. metadata.name should be non-empty")
 	}

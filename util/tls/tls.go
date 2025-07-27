@@ -210,7 +210,7 @@ func pemBlockForKey(priv any) *pem.Block {
 	}
 }
 
-func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
+func generate(opts *CertOptions) ([]byte, crypto.PrivateKey, error) {
 	if len(opts.Hosts) == 0 {
 		return nil, nil, errors.New("hosts not supplied")
 	}
@@ -296,7 +296,7 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 }
 
 // generatePEM generates a new certificate and key and returns it as PEM encoded bytes
-func generatePEM(opts CertOptions) ([]byte, []byte, error) {
+func generatePEM(opts *CertOptions) ([]byte, []byte, error) {
 	certBytes, privateKey, err := generate(opts)
 	if err != nil {
 		return nil, nil, err
@@ -311,7 +311,7 @@ func generatePEM(opts CertOptions) ([]byte, []byte, error) {
 }
 
 // GenerateX509KeyPair generates a X509 key pair
-func GenerateX509KeyPair(opts CertOptions) (*tls.Certificate, error) {
+func GenerateX509KeyPair(opts *CertOptions) (*tls.Certificate, error) {
 	certpem, keypem, err := generatePEM(opts)
 	if err != nil {
 		return nil, fmt.Errorf("error generating X509 key pair: %w", err)
@@ -324,7 +324,7 @@ func GenerateX509KeyPair(opts CertOptions) (*tls.Certificate, error) {
 }
 
 // EncodeX509KeyPair encodes a TLS Certificate into its pem encoded format for storage
-func EncodeX509KeyPair(cert tls.Certificate) ([]byte, []byte) {
+func EncodeX509KeyPair(cert *tls.Certificate) ([]byte, []byte) {
 	certpem := []byte{}
 	for _, certtmp := range cert.Certificate {
 		certpem = append(certpem, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certtmp})...)
@@ -338,7 +338,7 @@ func EncodeX509KeyPair(cert tls.Certificate) ([]byte, []byte) {
 }
 
 // EncodeX509KeyPairString encodes a TLS Certificate into its pem encoded string format
-func EncodeX509KeyPairString(cert tls.Certificate) (string, string) {
+func EncodeX509KeyPairString(cert *tls.Certificate) (string, string) {
 	certpem, keypem := EncodeX509KeyPair(cert)
 	return string(certpem), string(keypem)
 }
@@ -421,7 +421,7 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string) (*tls
 
 	if !tlsCertExists || !tlsKeyExists {
 		log.Infof("Generating self-signed TLS certificate for this session")
-		c, err := GenerateX509KeyPair(CertOptions{
+		c, err := GenerateX509KeyPair(&CertOptions{
 			Hosts:        hosts,
 			Organization: "Argo CD",
 			IsCA:         false,

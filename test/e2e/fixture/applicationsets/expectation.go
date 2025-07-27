@@ -140,7 +140,7 @@ func pods(t *testing.T, namespace string) (*corev1.PodList, error) {
 }
 
 // getDiff returns a string containing a comparison result of two applications (for test output/debug purposes)
-func getDiff(orig, newApplication v1alpha1.Application) (string, error) {
+func getDiff(orig, newApplication *v1alpha1.Application) (string, error) {
 	bytes, _, err := diff.CreateTwoWayMergePatch(orig, newApplication, orig)
 	if err != nil {
 		return "", err
@@ -169,7 +169,7 @@ func getConditionDiff(orig, newApplicationSetCondition []v1alpha1.ApplicationSet
 }
 
 // filterFields returns a copy of Application, but with unnecessary (for testing) fields removed
-func filterFields(input v1alpha1.Application) v1alpha1.Application {
+func filterFields(input *v1alpha1.Application) v1alpha1.Application {
 	spec := input.Spec
 
 	metaCopy := input.ObjectMeta.DeepCopy()
@@ -217,7 +217,7 @@ func filterConditionFields(input *[]v1alpha1.ApplicationSetCondition) *[]v1alpha
 }
 
 // appsAreEqual returns true if the apps are equal, comparing only fields of interest
-func appsAreEqual(one v1alpha1.Application, two v1alpha1.Application) bool {
+func appsAreEqual(one, two *v1alpha1.Application) bool {
 	return reflect.DeepEqual(filterFields(one), filterFields(two))
 }
 

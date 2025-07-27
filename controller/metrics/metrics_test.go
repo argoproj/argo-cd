@@ -317,7 +317,7 @@ func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse stri
 	runTest(t, cfg)
 }
 
-func runTest(t *testing.T, cfg TestMetricServerConfig) {
+func runTest(t *testing.T, cfg *TestMetricServerConfig) {
 	t.Helper()
 	cancel, appLister := newFakeLister(cfg.FakeAppYAMLs...)
 	defer cancel()

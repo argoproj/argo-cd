@@ -277,7 +277,7 @@ func waitForExpectedClusterState(t *testing.T) error {
 	return nil
 }
 
-func SetProjectSpec(t *testing.T, fixtureClient *E2EFixtureK8sClient, project string, spec v1alpha1.AppProjectSpec) {
+func SetProjectSpec(t *testing.T, fixtureClient *E2EFixtureK8sClient, project string, spec *v1alpha1.AppProjectSpec) {
 	t.Helper()
 	proj, err := fixtureClient.AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(t.Context(), project, metav1.GetOptions{})
 	require.NoError(t, err)
@@ -345,7 +345,7 @@ func waitForSuccess(condition func() error, expireTime time.Time) error {
 }
 
 // getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
-func getKubeConfig(t *testing.T, configPath string, overrides clientcmd.ConfigOverrides) *rest.Config {
+func getKubeConfig(t *testing.T, configPath string, overrides *clientcmd.ConfigOverrides) *rest.Config {
 	t.Helper()
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.ExplicitPath = configPath

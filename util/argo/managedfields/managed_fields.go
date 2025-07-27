@@ -40,7 +40,7 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 
 	for _, mf := range live.GetManagedFields() {
 		if trustedManager(mf.Manager, trustedManagers) {
-			err := normalize(mf, results)
+			err := normalize(&mf, results)
 			if err != nil {
 				return nil, nil, fmt.Errorf("error normalizing manager %s: %w", mf.Manager, err)
 			}
@@ -70,7 +70,7 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 // normalize will check if the modified set has fields that are present
 // in the managed fields entry. If so, it will remove the fields from
 // the live and config objects so it is ignored in diffs.
-func normalize(mf metav1.ManagedFieldsEntry, tr *typedResults) error {
+func normalize(mf *metav1.ManagedFieldsEntry, tr *typedResults) error {
 	mfs := &fieldpath.Set{}
 	err := mfs.FromJSON(bytes.NewReader(mf.FieldsV1.Raw))
 	if err != nil {

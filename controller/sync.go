@@ -94,7 +94,7 @@ func NewOperationState(operation v1alpha1.Operation) *v1alpha1.OperationState {
 	}
 }
 
-func newSyncOperationResult(app *v1alpha1.Application, op v1alpha1.SyncOperation) *v1alpha1.SyncOperationResult {
+func newSyncOperationResult(app *v1alpha1.Application, op *v1alpha1.SyncOperation) *v1alpha1.SyncOperationResult {
 	syncRes := &v1alpha1.SyncOperationResult{}
 
 	if len(op.Sources) > 0 || op.Source != nil {

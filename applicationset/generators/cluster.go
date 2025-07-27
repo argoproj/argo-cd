@@ -140,7 +140,7 @@ func (p *paramHolder) consolidate() []map[string]any {
 	return p.params
 }
 
-func (g *ClusterGenerator) getClusterParameters(cluster corev1.Secret, appSet *argoappsetv1alpha1.ApplicationSet) map[string]any {
+func (g *ClusterGenerator) getClusterParameters(cluster *corev1.Secret, appSet *argoappsetv1alpha1.ApplicationSet) map[string]any {
 	params := map[string]any{}
 
 	params["name"] = string(cluster.Data["name"])

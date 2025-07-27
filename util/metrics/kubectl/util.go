@@ -18,7 +18,7 @@ var processPath = regexp.MustCompile(findPathRegex)
 // request has an additional segment for resource name. As a result, a LIST/WATCH has an odd number
 // of segments while a GET request has an even number of segments. Watch is determined if the query
 // parameter watch=true is present in the request.
-func discernGetRequest(u url.URL) string {
+func discernGetRequest(u *url.URL) string {
 	segments := processPath.FindStringSubmatch(u.Path)
 	unusedGroup := 0
 	for _, str := range segments {
@@ -37,7 +37,7 @@ func discernGetRequest(u url.URL) string {
 	return "Get"
 }
 
-func resolveK8sRequestVerb(u url.URL, method string) string {
+func resolveK8sRequestVerb(u *url.URL, method string) string {
 	if method == "POST" {
 		return "Create"
 	}

@@ -44,7 +44,7 @@ type CMPServerInitConstants struct {
 }
 
 // NewService returns a new instance of the ConfigManagementPluginService
-func NewService(initConstants CMPServerInitConstants) *Service {
+func NewService(initConstants *CMPServerInitConstants) *Service {
 	return &Service{
 		initConstants: initConstants,
 	}

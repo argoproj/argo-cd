@@ -48,7 +48,7 @@ func (s *Service) WithGenerateCommand(command Command) *Service {
 
 type pluginOpt func(*CMPServerInitConstants)
 
-func withDiscover(d Discover) pluginOpt {
+func withDiscover(d *Discover) pluginOpt {
 	return func(cic *CMPServerInitConstants) {
 		cic.PluginConfig.Spec.Discover = d
 	}

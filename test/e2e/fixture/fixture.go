@@ -149,7 +149,7 @@ func AppNamespace() string {
 }
 
 // getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
-func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest.Config {
+func getKubeConfig(configPath string, overrides *clientcmd.ConfigOverrides) *rest.Config {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.ExplicitPath = configPath
 	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
@@ -602,7 +602,7 @@ func SetResourceFilter(filters settings.ResourcesFilter) error {
 	})
 }
 
-func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) error {
+func SetProjectSpec(project string, spec *v1alpha1.AppProjectSpec) error {
 	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, metav1.GetOptions{})
 	if err != nil {
 		return err

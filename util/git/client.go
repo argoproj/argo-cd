@@ -335,7 +335,7 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 			}
 		}
 		return auth, nil
-	case HTTPSCreds:
+	case *HTTPSCreds:
 		if creds.bearerToken != "" {
 			return &githttp.TokenAuth{Token: creds.bearerToken}, nil
 		}
@@ -344,7 +344,7 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 			auth.Username = "x-access-token"
 		}
 		return &auth, nil
-	case GitHubAppCreds:
+	case *GitHubAppCreds:
 		token, err := creds.getAccessToken()
 		if err != nil {
 			return nil, err

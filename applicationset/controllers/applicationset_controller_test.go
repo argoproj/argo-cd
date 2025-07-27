@@ -1097,7 +1097,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 				Metrics:  metrics,
 			}
 
-			err = r.createOrUpdateInCluster(t.Context(), log.NewEntry(log.StandardLogger()), c.appSet, c.desiredApps)
+			err = r.createOrUpdateInCluster(t.Context(), log.NewEntry(log.StandardLogger()), &c.appSet, c.desiredApps)
 			require.NoError(t, err)
 
 			for _, obj := range c.expected {
@@ -1215,7 +1215,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 
 			appInputParam := app.DeepCopy()
 
-			err = r.removeFinalizerOnInvalidDestination(t.Context(), appSet, appInputParam, clusterList, appLog)
+			err = r.removeFinalizerOnInvalidDestination(t.Context(), &appSet, appInputParam, clusterList, appLog)
 			require.NoError(t, err)
 
 			retrievedApp := v1alpha1.Application{}
@@ -1371,7 +1371,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 
 			appInputParam := app.DeepCopy()
 
-			err = r.removeFinalizerOnInvalidDestination(t.Context(), appSet, appInputParam, clusterList, appLog)
+			err = r.removeFinalizerOnInvalidDestination(t.Context(), &appSet, appInputParam, clusterList, appLog)
 			require.NoError(t, err)
 
 			retrievedApp := v1alpha1.Application{}
@@ -1448,7 +1448,7 @@ func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 				Metrics:       metrics,
 			}
 
-			err = r.removeOwnerReferencesOnDeleteAppSet(t.Context(), appSet)
+			err = r.removeOwnerReferencesOnDeleteAppSet(t.Context(), &appSet)
 			require.NoError(t, err)
 
 			retrievedApp := v1alpha1.Application{}
@@ -1646,7 +1646,7 @@ func TestCreateApplications(t *testing.T) {
 				Metrics:  metrics,
 			}
 
-			err = r.createInCluster(t.Context(), log.NewEntry(log.StandardLogger()), c.appSet, c.apps)
+			err = r.createInCluster(t.Context(), log.NewEntry(log.StandardLogger()), &c.appSet, c.apps)
 			require.NoError(t, err)
 
 			for _, obj := range c.expected {
@@ -1789,7 +1789,7 @@ func TestDeleteInCluster(t *testing.T) {
 			Metrics:       metrics,
 		}
 
-		err = r.deleteInCluster(t.Context(), log.NewEntry(log.StandardLogger()), c.appSet, c.desiredApps)
+		err = r.deleteInCluster(t.Context(), log.NewEntry(log.StandardLogger()), &c.appSet, c.desiredApps)
 		require.NoError(t, err)
 
 		// For each of the expected objects, verify they exist on the cluster
@@ -2107,7 +2107,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 			}
 
 			appSetInfo := v1alpha1.ApplicationSet{}
-			validationErrors, _ := r.validateGeneratedApplications(t.Context(), cc.apps, appSetInfo)
+			validationErrors, _ := r.validateGeneratedApplications(t.Context(), cc.apps, &appSetInfo)
 			assert.Equal(t, cc.validationErrors, validationErrors)
 		})
 	}
@@ -4028,7 +4028,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 				Metrics:       metrics,
 			}
 
-			appDependencyList, appStepMap := r.buildAppDependencyList(log.NewEntry(log.StandardLogger()), cc.appSet, cc.apps)
+			appDependencyList, appStepMap := r.buildAppDependencyList(log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
 			assert.Equal(t, cc.expectedList, appDependencyList, "expected appDependencyList did not match actual")
 			assert.Equal(t, cc.expectedStepMap, appStepMap, "expected appStepMap did not match actual")
 		})
@@ -4696,7 +4696,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 				Metrics:       metrics,
 			}
 
-			appSyncMap := r.buildAppSyncMap(cc.appSet, cc.appDependencyList, cc.appMap)
+			appSyncMap := r.buildAppSyncMap(&cc.appSet, cc.appDependencyList, cc.appMap)
 			assert.Equal(t, cc.expectedMap, appSyncMap, "expected appSyncMap did not match actual")
 		})
 	}
@@ -7459,13 +7459,13 @@ func TestIsRollingSyncStrategy(t *testing.T) {
 func TestSyncApplication(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    v1alpha1.Application
+		input    *v1alpha1.Application
 		prune    bool
 		expected v1alpha1.Application
 	}{
 		{
 			name: "Default retry limit with no SyncPolicy",
-			input: v1alpha1.Application{
+			input: &v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{},
 			},
 			prune: false,
@@ -7493,7 +7493,7 @@ func TestSyncApplication(t *testing.T) {
 		},
 		{
 			name: "Retry and SyncOptions from SyncPolicy are applied",
-			input: v1alpha1.Application{
+			input: &v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{
 					SyncPolicy: &v1alpha1.SyncPolicy{
 						Retry: &v1alpha1.RetryStrategy{

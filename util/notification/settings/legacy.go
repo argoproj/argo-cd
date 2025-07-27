@@ -72,7 +72,7 @@ func mergePatch(orig any, other any) error {
 	return json.Unmarshal(mergedData, orig)
 }
 
-func (legacy legacyConfig) merge(cfg *api.Config, context map[string]string) error {
+func (legacy *legacyConfig) merge(cfg *api.Config, context map[string]string) error {
 	if err := mergePatch(&context, &legacy.Context); err != nil {
 		return fmt.Errorf("error in merge: %w", err)
 	}

@@ -56,7 +56,7 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 	_, bodyMinusTrailers := git.GetReferences(log.WithFields(log.Fields{"repo": repoUrl, "revision": drySha}), body)
 
 	// Write the top-level readme.
-	err := writeMetadata(root, "", hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl, Author: author, Subject: subject, Body: bodyMinusTrailers, Date: date, References: references})
+	err := writeMetadata(root, "", &hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl, Author: author, Subject: subject, Body: bodyMinusTrailers, Date: date, References: references})
 	if err != nil {
 		return fmt.Errorf("failed to write top-level hydrator metadata: %w", err)
 	}
@@ -85,7 +85,7 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 		}
 
 		// Write hydrator.metadata containing information about the hydration process.
-		hydratorMetadata := hydratorMetadataFile{
+		hydratorMetadata := &hydratorMetadataFile{
 			Commands: p.Commands,
 			DrySHA:   drySha,
 			RepoURL:  repoUrl,
@@ -105,7 +105,7 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 }
 
 // writeMetadata writes the metadata to the hydrator.metadata file.
-func writeMetadata(root *os.Root, dirPath string, metadata hydratorMetadataFile) error {
+func writeMetadata(root *os.Root, dirPath string, metadata *hydratorMetadataFile) error {
 	hydratorMetadataPath := filepath.Join(dirPath, "hydrator.metadata")
 	f, err := root.Create(hydratorMetadataPath)
 	if err != nil {
@@ -124,7 +124,7 @@ func writeMetadata(root *os.Root, dirPath string, metadata hydratorMetadataFile)
 }
 
 // writeReadme writes the readme to the README.md file.
-func writeReadme(root *os.Root, dirPath string, metadata hydratorMetadataFile) error {
+func writeReadme(root *os.Root, dirPath string, metadata *hydratorMetadataFile) error {
 	readmeTemplate, err := template.New("readme").Funcs(sprigFuncMap).Parse(manifestHydrationReadmeTemplate)
 	if err != nil {
 		return fmt.Errorf("failed to parse readme template: %w", err)

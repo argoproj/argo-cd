@@ -249,7 +249,7 @@ func (c *Context) OCIRegistry(registry string) *Context {
 	return c
 }
 
-func (c *Context) ProjectSpec(spec v1alpha1.AppProjectSpec) *Context {
+func (c *Context) ProjectSpec(spec *v1alpha1.AppProjectSpec) *Context {
 	c.t.Helper()
 	require.NoError(c.t, fixture.SetProjectSpec(c.project, spec))
 	return c

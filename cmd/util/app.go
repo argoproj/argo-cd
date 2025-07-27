@@ -328,7 +328,7 @@ type kustomizeOpts struct {
 	ignoreMissingComponents bool
 }
 
-func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
+func setKustomizeOpt(src *argoappv1.ApplicationSource, opts *kustomizeOpts) {
 	if src.Kustomize == nil {
 		src.Kustomize = &argoappv1.ApplicationSourceKustomize{}
 	}
@@ -419,7 +419,7 @@ type helmOpts struct {
 	apiVersions             []string
 }
 
-func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
+func setHelmOpt(src *argoappv1.ApplicationSource, opts *helmOpts) {
 	if src.Helm == nil {
 		src.Helm = &argoappv1.ApplicationSourceHelm{}
 	}
@@ -605,7 +605,7 @@ func constructAppsFromStdin() ([]*argoappv1.Application, error) {
 	return apps, nil
 }
 
-func constructAppsBaseOnName(appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+func constructAppsBaseOnName(appName string, labels, annotations, args []string, appOpts *AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
 	var app *argoappv1.Application
 
 	// read arguments
@@ -636,7 +636,7 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 	}, nil
 }
 
-func constructAppsFromFileURL(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+func constructAppsFromFileURL(fileURL, appName string, labels, annotations, args []string, appOpts *AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
 	apps := make([]*argoappv1.Application, 0)
 	// read uri
 	err := readAppsFromURI(fileURL, &apps)
@@ -666,7 +666,7 @@ func constructAppsFromFileURL(fileURL, appName string, labels, annotations, args
 	return apps, nil
 }
 
-func ConstructApps(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+func ConstructApps(fileURL, appName string, labels, annotations, args []string, appOpts *AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
 	if fileURL == "-" {
 		return constructAppsFromStdin()
 	} else if fileURL != "" {
@@ -676,7 +676,7 @@ func ConstructApps(fileURL, appName string, labels, annotations, args []string, 
 	return constructAppsBaseOnName(appName, labels, annotations, args, appOpts, flags)
 }
 
-func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.ApplicationSource, int) {
+func ConstructSource(source *argoappv1.ApplicationSource, appOpts *AppOptions, flags *pflag.FlagSet) (*argoappv1.ApplicationSource, int) {
 	visited := 0
 	flags.Visit(func(f *pflag.Flag) {
 		visited++
@@ -807,7 +807,7 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 // hydrator and a boolean indicating if any hydrator flags were set. We return instead of just modifying the source
 // hydrator in place because the given hydrator `h` might be nil. In that case, we need to create a new source hydrator
 // and return it.
-func constructSourceHydrator(h *argoappv1.SourceHydrator, appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.SourceHydrator, bool) {
+func constructSourceHydrator(h *argoappv1.SourceHydrator, appOpts *AppOptions, flags *pflag.FlagSet) (*argoappv1.SourceHydrator, bool) {
 	hasHydratorFlag := false
 	ensureNotNil := func(notEmpty bool) {
 		hasHydratorFlag = true

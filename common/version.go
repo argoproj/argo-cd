@@ -37,7 +37,7 @@ func (v Version) String() string {
 	return v.Version
 }
 
-func (v Version) LogStartupInfo(componentName string, fields map[string]any) {
+func (v *Version) LogStartupInfo(componentName string, fields map[string]any) {
 	if fields == nil {
 		fields = map[string]any{}
 	}
