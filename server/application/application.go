@@ -2049,7 +2049,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 			}
 		}
 	}
-	x := v1alpha1.Operation{
+	op := v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{
 			Revision:     revision,
 			Prune:        syncReq.GetPrune(),
