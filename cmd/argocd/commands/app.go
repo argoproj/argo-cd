@@ -1422,10 +1422,21 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 			proj := getProject(ctx, c, clientOpts, app.Spec.Project)
+			foundDiffs, validationErrors := findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts)
 
-			foundDiffs := findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, app.GetName(), app.GetNamespace())
-			if foundDiffs && exitCode {
-				os.Exit(diffExitCode)
+			if len(validationErrors) > 0 {
+				fmt.Fprintf(os.Stderr, "\nValidation errors:\n")
+				for _, err := range validationErrors {
+					fmt.Fprintf(os.Stderr, "  - %s\n", err)
+				}
+			}
+
+			if exitCode {
+				if len(validationErrors) > 0 {
+					os.Exit(3)
+				} else if foundDiffs {
+					os.Exit(diffExitCode)
+				}
 			}
 		},
 	}
@@ -1603,7 +1614,13 @@ func findAndPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 			printResourceDiff(item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name, live, target)
 		}
 	}
-	return foundDiffs
+
+	var validationErrors []string
+	if diffOptions.validate {
+		validationErrors = validateManifests(ctx, items, app)
+	}
+
+	return foundDiffs, validationErrors
 }
 
 func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[kube.ResourceKey]*unstructured.Unstructured, items []objKeyLiveTarget, argoSettings *settings.Settings, appName, namespace string) []objKeyLiveTarget {
@@ -2389,11 +2406,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					fmt.Printf("====== Previewing differences between live and desired state of application %s ======\n", appQualifiedName)
 
 					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
-
-					// Check if application has ServerSideDiff annotation
-					serverSideDiff := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
-
-					foundDiffs = findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs)
+					foundDiffs, _ = findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts)
 					if !foundDiffs {
 						fmt.Printf("====== No Differences found ======\n")
 						// if no differences found, then no need to sync
@@ -3618,59 +3631,13 @@ func NewApplicationConfirmDeletionCommand(clientOpts *argocdclient.ClientOptions
 	return command
 }
 
-// prepareObjectsForDiff prepares objects for diffing using the switch statement
-// to handle different diff options and building the objKeyLiveTarget items
-func prepareObjectsForDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, diffOptions *DifferenceOption) ([]objKeyLiveTarget, error) {
-	liveObjs, err := cmdutil.LiveObjects(resources.Items)
-	if err != nil {
-		return nil, err
-	}
-	items := make([]objKeyLiveTarget, 0)
+func validateManifests(ctx context.Context, items []objKeyLiveTarget, app *argoappv1.Application) []string {
+	var validationErrors []string
+	// TODO: Implement server-side validation in the gRPC API
 
-	switch {
-	case diffOptions.local != "":
-		localObjs := groupObjsByKey(getLocalObjects(ctx, app, proj, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
-		items = groupObjsForDiff(resources, localObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
-	case diffOptions.revision != "" || len(diffOptions.revisions) > 0:
-		var unstructureds []*unstructured.Unstructured
-		for _, mfst := range diffOptions.res.Manifests {
-			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
-			if err != nil {
-				return nil, err
-			}
-			unstructureds = append(unstructureds, obj)
-		}
-		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
-		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
-	case diffOptions.serversideRes != nil:
-		var unstructureds []*unstructured.Unstructured
-		for _, mfst := range diffOptions.serversideRes.Manifests {
-			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
-			if err != nil {
-				return nil, err
-			}
-			unstructureds = append(unstructureds, obj)
-		}
-		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
-		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
-	default:
-		for i := range resources.Items {
-			res := resources.Items[i]
-			live := &unstructured.Unstructured{}
-			err := json.Unmarshal([]byte(res.NormalizedLiveState), &live)
-			if err != nil {
-				return nil, err
-			}
-
-			target := &unstructured.Unstructured{}
-			err = json.Unmarshal([]byte(res.TargetState), &target)
-			if err != nil {
-				return nil, err
-			}
-
-			items = append(items, objKeyLiveTarget{kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name), live, target})
-		}
+	if len(items) > 0 {
+		validationErrors = append(validationErrors, "Validation is not yet implemented. This feature requires server-side support.")
 	}
 
-	return items, nil
+	return validationErrors
 }
