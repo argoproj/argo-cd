@@ -43,7 +43,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/controller"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
-	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+
 	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
 	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
@@ -1447,7 +1447,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 }
 
 // findAndPrintServerSideDiff performs a server-side diff by making requests to the api server and prints the response
-func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, diffOptions *DifferenceOption, appIf applicationpkg.ApplicationServiceClient, appName, appNs string) bool {
+func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, diffOptions *DifferenceOption, appIf application.ApplicationServiceClient, appName, appNs string) bool {
 	items, err := prepareObjectsForDiff(ctx, app, proj, resources, argoSettings, diffOptions)
 	errors.CheckError(err)
 

@@ -3194,7 +3194,7 @@ func TestServerSideDiffErrorHandling(t *testing.T) {
 		When().
 		CreateApp().
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Test server-side diff with non-existent app should fail gracefully
 			_, err := fixture.RunCli("app", "diff", "non-existent-app", "--server-side-diff")
 			require.Error(t, err)
@@ -3212,7 +3212,7 @@ func TestServerSideDiffWithLocal(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Modify the live deployment in the cluster to create differences
 			// Apply patches to the deployment
 			_, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(t.Context(),

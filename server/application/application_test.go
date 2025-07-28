@@ -3635,7 +3635,7 @@ func TestServerSideDiff(t *testing.T) {
 		}
 
 		_, err := appServer.ServerSideDiff(context.Background(), query)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 
 		// Test nil application name
@@ -3665,7 +3665,7 @@ func TestServerSideDiff(t *testing.T) {
 		_, err := appServer.ServerSideDiff(context.Background(), query)
 
 		// Should return error for invalid JSON
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "error unmarshaling target manifest")
 	})
 
@@ -3692,7 +3692,7 @@ func TestServerSideDiff(t *testing.T) {
 		_, err := appServer.ServerSideDiff(context.Background(), query)
 
 		// Should return error for invalid JSON in live state
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "error unmarshaling live state")
 	})
 
@@ -3728,7 +3728,7 @@ func TestServerSideDiff(t *testing.T) {
 		_, err := appServer.ServerSideDiff(context.Background(), query)
 
 		// Should fail with permission error since nonexistent-app doesn't exist
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "application")
 	})
 }
