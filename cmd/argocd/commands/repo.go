@@ -270,6 +270,19 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	command := &cobra.Command{
 		Use:   "rm REPO ...",
 		Short: "Remove configured repositories",
+		Example: `
+  # Remove a single repository
+  argocd repo rm https://github.com/yourusername/your-repo.git
+
+  # Remove multiple repositories
+  argocd repo rm https://github.com/yourusername/your-repo.git https://git.example.com/repo2.git
+
+  # Remove repositories for a specific project
+  argocd repo rm https://github.com/yourusername/your-repo.git --project myproject
+
+  # Remove repository using SSH URL
+  argocd repo rm git@github.com:yourusername/your-repo.git
+`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
