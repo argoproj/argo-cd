@@ -4348,3 +4348,55 @@ func TestCluster_ParseProxyUrl(t *testing.T) {
 		}
 	}
 }
+
+func TestSanitized(t *testing.T) {
+	now := metav1.Now()
+	cluster := &Cluster{
+		ID:            "123",
+		Server:        "https://example.com",
+		Name:          "example",
+		ServerVersion: "v1.0.0",
+		Namespaces:    []string{"default", "kube-system"},
+		Project:       "default",
+		Labels: map[string]string{
+			"env": "production",
+		},
+		Annotations: map[string]string{
+			"annotation-key": "annotation-value",
+		},
+		ConnectionState: ConnectionState{
+			Status:     ConnectionStatusSuccessful,
+			Message:    "Connection successful",
+			ModifiedAt: &now,
+		},
+		Config: ClusterConfig{
+			Username:    "admin",
+			Password:    "password123",
+			BearerToken: "abc",
+			TLSClientConfig: TLSClientConfig{
+				Insecure: true,
+			},
+		},
+	}
+
+	assert.Equal(t, &Cluster{
+		ID:            "123",
+		Server:        "https://example.com",
+		Name:          "example",
+		ServerVersion: "v1.0.0",
+		Namespaces:    []string{"default", "kube-system"},
+		Project:       "default",
+		Labels:        map[string]string{"env": "production"},
+		Annotations:   map[string]string{"annotation-key": "annotation-value"},
+		ConnectionState: ConnectionState{
+			Status:     ConnectionStatusSuccessful,
+			Message:    "Connection successful",
+			ModifiedAt: &now,
+		},
+		Config: ClusterConfig{
+			TLSClientConfig: TLSClientConfig{
+				Insecure: true,
+			},
+		},
+	}, cluster.Sanitized())
+}
