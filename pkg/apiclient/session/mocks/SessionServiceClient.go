@@ -81,9 +81,9 @@ type SessionServiceClient_Create_Call struct {
 }
 
 // Create is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
+//   - ctx context.Context
+//   - in *session.SessionCreateRequest
+//   - opts ...grpc.CallOption
 func (_e *SessionServiceClient_Expecter) Create(ctx interface{}, in interface{}, opts ...interface{}) *SessionServiceClient_Create_Call {
 	return &SessionServiceClient_Create_Call{Call: _e.mock.On("Create",
 		append([]interface{}{ctx, in}, opts...)...)}
@@ -91,13 +91,27 @@ func (_e *SessionServiceClient_Expecter) Create(ctx interface{}, in interface{},
 
 func (_c *SessionServiceClient_Create_Call) Run(run func(ctx context.Context, in *session.SessionCreateRequest, opts ...grpc.CallOption)) *SessionServiceClient_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *session.SessionCreateRequest
+		if args[1] != nil {
+			arg1 = args[1].(*session.SessionCreateRequest)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*session.SessionCreateRequest), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -154,9 +168,9 @@ type SessionServiceClient_Delete_Call struct {
 }
 
 // Delete is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
+//   - ctx context.Context
+//   - in *session.SessionDeleteRequest
+//   - opts ...grpc.CallOption
 func (_e *SessionServiceClient_Expecter) Delete(ctx interface{}, in interface{}, opts ...interface{}) *SessionServiceClient_Delete_Call {
 	return &SessionServiceClient_Delete_Call{Call: _e.mock.On("Delete",
 		append([]interface{}{ctx, in}, opts...)...)}
@@ -164,13 +178,27 @@ func (_e *SessionServiceClient_Expecter) Delete(ctx interface{}, in interface{},
 
 func (_c *SessionServiceClient_Delete_Call) Run(run func(ctx context.Context, in *session.SessionDeleteRequest, opts ...grpc.CallOption)) *SessionServiceClient_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *session.SessionDeleteRequest
+		if args[1] != nil {
+			arg1 = args[1].(*session.SessionDeleteRequest)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*session.SessionDeleteRequest), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -227,9 +255,9 @@ type SessionServiceClient_GetUserInfo_Call struct {
 }
 
 // GetUserInfo is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
+//   - ctx context.Context
+//   - in *session.GetUserInfoRequest
+//   - opts ...grpc.CallOption
 func (_e *SessionServiceClient_Expecter) GetUserInfo(ctx interface{}, in interface{}, opts ...interface{}) *SessionServiceClient_GetUserInfo_Call {
 	return &SessionServiceClient_GetUserInfo_Call{Call: _e.mock.On("GetUserInfo",
 		append([]interface{}{ctx, in}, opts...)...)}
@@ -237,13 +265,27 @@ func (_e *SessionServiceClient_Expecter) GetUserInfo(ctx interface{}, in interfa
 
 func (_c *SessionServiceClient_GetUserInfo_Call) Run(run func(ctx context.Context, in *session.GetUserInfoRequest, opts ...grpc.CallOption)) *SessionServiceClient_GetUserInfo_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *session.GetUserInfoRequest
+		if args[1] != nil {
+			arg1 = args[1].(*session.GetUserInfoRequest)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*session.GetUserInfoRequest), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }

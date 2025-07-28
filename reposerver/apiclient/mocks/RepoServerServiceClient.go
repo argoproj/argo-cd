@@ -83,9 +83,9 @@ type RepoServerServiceClient_GenerateManifest_Call struct {
 }
 
 // GenerateManifest is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
+//   - ctx context.Context
+//   - in *apiclient.ManifestRequest
+//   - opts ...grpc.CallOption
 func (_e *RepoServerServiceClient_Expecter) GenerateManifest(ctx interface{}, in interface{}, opts ...interface{}) *RepoServerServiceClient_GenerateManifest_Call {
 	return &RepoServerServiceClient_GenerateManifest_Call{Call: _e.mock.On("GenerateManifest",
 		append([]interface{}{ctx, in}, opts...)...)}
@@ -93,13 +93,27 @@ func (_e *RepoServerServiceClient_Expecter) GenerateManifest(ctx interface{}, in
 
 func (_c *RepoServerServiceClient_GenerateManifest_Call) Run(run func(ctx context.Context, in *apiclient.ManifestRequest, opts ...grpc.CallOption)) *RepoServerServiceClient_GenerateManifest_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *apiclient.ManifestRequest
+		if args[1] != nil {
+			arg1 = args[1].(*apiclient.ManifestRequest)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*apiclient.ManifestRequest), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -156,8 +170,8 @@ type RepoServerServiceClient_GenerateManifestWithFiles_Call struct {
 }
 
 // GenerateManifestWithFiles is a helper method to define mock.On call
-//   - ctx
-//   - opts
+//   - ctx context.Context
+//   - opts ...grpc.CallOption
 func (_e *RepoServerServiceClient_Expecter) GenerateManifestWithFiles(ctx interface{}, opts ...interface{}) *RepoServerServiceClient_GenerateManifestWithFiles_Call {
 	return &RepoServerServiceClient_GenerateManifestWithFiles_Call{Call: _e.mock.On("GenerateManifestWithFiles",
 		append([]interface{}{ctx}, opts...)...)}
@@ -165,13 +179,22 @@ func (_e *RepoServerServiceClient_Expecter) GenerateManifestWithFiles(ctx interf
 
 func (_c *RepoServerServiceClient_GenerateManifestWithFiles_Call) Run(run func(ctx context.Context, opts ...grpc.CallOption)) *RepoServerServiceClient_GenerateManifestWithFiles_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-1)
 		for i, a := range args[1:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), variadicArgs...)
+		arg1 = variadicArgs
+		run(
+			arg0,
+			arg1...,
+		)
 	})
 	return _c
 }
@@ -228,9 +251,9 @@ type RepoServerServiceClient_GetAppDetails_Call struct {
 }
 
 // GetAppDetails is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
+//   - ctx context.Context
+//   - in *apiclient.RepoServerAppDetailsQuery
+//   - opts ...grpc.CallOption
 func (_e *RepoServerServiceClient_Expecter) GetAppDetails(ctx interface{}, in interface{}, opts ...interface{}) *RepoServerServiceClient_GetAppDetails_Call {
 	return &RepoServerServiceClient_GetAppDetails_Call{Call: _e.mock.On("GetAppDetails",
 		append([]interface{}{ctx, in}, opts...)...)}
@@ -238,13 +261,27 @@ func (_e *RepoServerServiceClient_Expecter) GetAppDetails(ctx interface{}, in in
 
 func (_c *RepoServerServiceClient_GetAppDetails_Call) Run(run func(ctx context.Context, in *apiclient.RepoServerAppDetailsQuery, opts ...grpc.CallOption)) *RepoServerServiceClient_GetAppDetails_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *apiclient.RepoServerAppDetailsQuery
+		if args[1] != nil {
+			arg1 = args[1].(*apiclient.RepoServerAppDetailsQuery)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*apiclient.RepoServerAppDetailsQuery), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -301,9 +338,9 @@ type RepoServerServiceClient_GetGitDirectories_Call struct {
 }
 
 // GetGitDirectories is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
+//   - ctx context.Context
+//   - in *apiclient.GitDirectoriesRequest
+//   - opts ...grpc.CallOption
 func (_e *RepoServerServiceClient_Expecter) GetGitDirectories(ctx interface{}, in interface{}, opts ...interface{}) *RepoServerServiceClient_GetGitDirectories_Call {
 	return &RepoServerServiceClient_GetGitDirectories_Call{Call: _e.mock.On("GetGitDirectories",
 		append([]interface{}{ctx, in}, opts...)...)}
@@ -311,13 +348,27 @@ func (_e *RepoServerServiceClient_Expecter) GetGitDirectories(ctx interface{}, i
 
 func (_c *RepoServerServiceClient_GetGitDirectories_Call) Run(run func(ctx context.Context, in *apiclient.GitDirectoriesRequest, opts ...grpc.CallOption)) *RepoServerServiceClient_GetGitDirectories_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *apiclient.GitDirectoriesRequest
+		if args[1] != nil {
+			arg1 = args[1].(*apiclient.GitDirectoriesRequest)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*apiclient.GitDirectoriesRequest), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -374,9 +425,9 @@ type RepoServerServiceClient_GetGitFiles_Call struct {
 }
 
 // GetGitFiles is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
+//   - ctx context.Context
+//   - in *apiclient.GitFilesRequest
+//   - opts ...grpc.CallOption
 func (_e *RepoServerServiceClient_Expecter) GetGitFiles(ctx interface{}, in interface{}, opts ...interface{}) *RepoServerServiceClient_GetGitFiles_Call {
 	return &RepoServerServiceClient_GetGitFiles_Call{Call: _e.mock.On("GetGitFiles",
 		append([]interface{}{ctx, in}, opts...)...)}
@@ -384,13 +435,27 @@ func (_e *RepoServerServiceClient_Expecter) GetGitFiles(ctx interface{}, in inte
 
 func (_c *RepoServerServiceClient_GetGitFiles_Call) Run(run func(ctx context.Context, in *apiclient.GitFilesRequest, opts ...grpc.CallOption)) *RepoServerServiceClient_GetGitFiles_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *apiclient.GitFilesRequest
+		if args[1] != nil {
+			arg1 = args[1].(*apiclient.GitFilesRequest)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*apiclient.GitFilesRequest), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -447,9 +512,9 @@ type RepoServerServiceClient_GetHelmCharts_Call struct {
 }
 
 // GetHelmCharts is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
+//   - ctx context.Context
+//   - in *apiclient.HelmChartsRequest
+//   - opts ...grpc.CallOption
 func (_e *RepoServerServiceClient_Expecter) GetHelmCharts(ctx interface{}, in interface{}, opts ...interface{}) *RepoServerServiceClient_GetHelmCharts_Call {
 	return &RepoServerServiceClient_GetHelmCharts_Call{Call: _e.mock.On("GetHelmCharts",
 		append([]interface{}{ctx, in}, opts...)...)}
@@ -457,13 +522,27 @@ func (_e *RepoServerServiceClient_Expecter) GetHelmCharts(ctx interface{}, in in
 
 func (_c *RepoServerServiceClient_GetHelmCharts_Call) Run(run func(ctx context.Context, in *apiclient.HelmChartsRequest, opts ...grpc.CallOption)) *RepoServerServiceClient_GetHelmCharts_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *apiclient.HelmChartsRequest
+		if args[1] != nil {
+			arg1 = args[1].(*apiclient.HelmChartsRequest)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*apiclient.HelmChartsRequest), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -520,9 +599,9 @@ type RepoServerServiceClient_GetOCIMetadata_Call struct {
 }
 
 // GetOCIMetadata is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
+//   - ctx context.Context
+//   - in *apiclient.RepoServerRevisionChartDetailsRequest
+//   - opts ...grpc.CallOption
 func (_e *RepoServerServiceClient_Expecter) GetOCIMetadata(ctx interface{}, in interface{}, opts ...interface{}) *RepoServerServiceClient_GetOCIMetadata_Call {
 	return &RepoServerServiceClient_GetOCIMetadata_Call{Call: _e.mock.On("GetOCIMetadata",
 		append([]interface{}{ctx, in}, opts...)...)}
@@ -530,13 +609,27 @@ func (_e *RepoServerServiceClient_Expecter) GetOCIMetadata(ctx interface{}, in i
 
 func (_c *RepoServerServiceClient_GetOCIMetadata_Call) Run(run func(ctx context.Context, in *apiclient.RepoServerRevisionChartDetailsRequest, opts ...grpc.CallOption)) *RepoServerServiceClient_GetOCIMetadata_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *apiclient.RepoServerRevisionChartDetailsRequest
+		if args[1] != nil {
+			arg1 = args[1].(*apiclient.RepoServerRevisionChartDetailsRequest)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*apiclient.RepoServerRevisionChartDetailsRequest), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -593,9 +686,9 @@ type RepoServerServiceClient_GetRevisionChartDetails_Call struct {
 }
 
 // GetRevisionChartDetails is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
+//   - ctx context.Context
+//   - in *apiclient.RepoServerRevisionChartDetailsRequest
+//   - opts ...grpc.CallOption
 func (_e *RepoServerServiceClient_Expecter) GetRevisionChartDetails(ctx interface{}, in interface{}, opts ...interface{}) *RepoServerServiceClient_GetRevisionChartDetails_Call {
 	return &RepoServerServiceClient_GetRevisionChartDetails_Call{Call: _e.mock.On("GetRevisionChartDetails",
 		append([]interface{}{ctx, in}, opts...)...)}
@@ -603,13 +696,27 @@ func (_e *RepoServerServiceClient_Expecter) GetRevisionChartDetails(ctx interfac
 
 func (_c *RepoServerServiceClient_GetRevisionChartDetails_Call) Run(run func(ctx context.Context, in *apiclient.RepoServerRevisionChartDetailsRequest, opts ...grpc.CallOption)) *RepoServerServiceClient_GetRevisionChartDetails_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *apiclient.RepoServerRevisionChartDetailsRequest
+		if args[1] != nil {
+			arg1 = args[1].(*apiclient.RepoServerRevisionChartDetailsRequest)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*apiclient.RepoServerRevisionChartDetailsRequest), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -666,9 +773,9 @@ type RepoServerServiceClient_GetRevisionMetadata_Call struct {
 }
 
 // GetRevisionMetadata is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
+//   - ctx context.Context
+//   - in *apiclient.RepoServerRevisionMetadataRequest
+//   - opts ...grpc.CallOption
 func (_e *RepoServerServiceClient_Expecter) GetRevisionMetadata(ctx interface{}, in interface{}, opts ...interface{}) *RepoServerServiceClient_GetRevisionMetadata_Call {
 	return &RepoServerServiceClient_GetRevisionMetadata_Call{Call: _e.mock.On("GetRevisionMetadata",
 		append([]interface{}{ctx, in}, opts...)...)}
@@ -676,13 +783,27 @@ func (_e *RepoServerServiceClient_Expecter) GetRevisionMetadata(ctx interface{},
 
 func (_c *RepoServerServiceClient_GetRevisionMetadata_Call) Run(run func(ctx context.Context, in *apiclient.RepoServerRevisionMetadataRequest, opts ...grpc.CallOption)) *RepoServerServiceClient_GetRevisionMetadata_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *apiclient.RepoServerRevisionMetadataRequest
+		if args[1] != nil {
+			arg1 = args[1].(*apiclient.RepoServerRevisionMetadataRequest)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*apiclient.RepoServerRevisionMetadataRequest), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -739,9 +860,9 @@ type RepoServerServiceClient_ListApps_Call struct {
 }
 
 // ListApps is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
+//   - ctx context.Context
+//   - in *apiclient.ListAppsRequest
+//   - opts ...grpc.CallOption
 func (_e *RepoServerServiceClient_Expecter) ListApps(ctx interface{}, in interface{}, opts ...interface{}) *RepoServerServiceClient_ListApps_Call {
 	return &RepoServerServiceClient_ListApps_Call{Call: _e.mock.On("ListApps",
 		append([]interface{}{ctx, in}, opts...)...)}
@@ -749,13 +870,27 @@ func (_e *RepoServerServiceClient_Expecter) ListApps(ctx interface{}, in interfa
 
 func (_c *RepoServerServiceClient_ListApps_Call) Run(run func(ctx context.Context, in *apiclient.ListAppsRequest, opts ...grpc.CallOption)) *RepoServerServiceClient_ListApps_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *apiclient.ListAppsRequest
+		if args[1] != nil {
+			arg1 = args[1].(*apiclient.ListAppsRequest)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*apiclient.ListAppsRequest), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -812,9 +947,9 @@ type RepoServerServiceClient_ListOCITags_Call struct {
 }
 
 // ListOCITags is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
+//   - ctx context.Context
+//   - in *apiclient.ListRefsRequest
+//   - opts ...grpc.CallOption
 func (_e *RepoServerServiceClient_Expecter) ListOCITags(ctx interface{}, in interface{}, opts ...interface{}) *RepoServerServiceClient_ListOCITags_Call {
 	return &RepoServerServiceClient_ListOCITags_Call{Call: _e.mock.On("ListOCITags",
 		append([]interface{}{ctx, in}, opts...)...)}
@@ -822,13 +957,27 @@ func (_e *RepoServerServiceClient_Expecter) ListOCITags(ctx interface{}, in inte
 
 func (_c *RepoServerServiceClient_ListOCITags_Call) Run(run func(ctx context.Context, in *apiclient.ListRefsRequest, opts ...grpc.CallOption)) *RepoServerServiceClient_ListOCITags_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *apiclient.ListRefsRequest
+		if args[1] != nil {
+			arg1 = args[1].(*apiclient.ListRefsRequest)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*apiclient.ListRefsRequest), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -885,9 +1034,9 @@ type RepoServerServiceClient_ListPlugins_Call struct {
 }
 
 // ListPlugins is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
+//   - ctx context.Context
+//   - in *emptypb.Empty
+//   - opts ...grpc.CallOption
 func (_e *RepoServerServiceClient_Expecter) ListPlugins(ctx interface{}, in interface{}, opts ...interface{}) *RepoServerServiceClient_ListPlugins_Call {
 	return &RepoServerServiceClient_ListPlugins_Call{Call: _e.mock.On("ListPlugins",
 		append([]interface{}{ctx, in}, opts...)...)}
@@ -895,13 +1044,27 @@ func (_e *RepoServerServiceClient_Expecter) ListPlugins(ctx interface{}, in inte
 
 func (_c *RepoServerServiceClient_ListPlugins_Call) Run(run func(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption)) *RepoServerServiceClient_ListPlugins_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *emptypb.Empty
+		if args[1] != nil {
+			arg1 = args[1].(*emptypb.Empty)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*emptypb.Empty), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -958,9 +1121,9 @@ type RepoServerServiceClient_ListRefs_Call struct {
 }
 
 // ListRefs is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
+//   - ctx context.Context
+//   - in *apiclient.ListRefsRequest
+//   - opts ...grpc.CallOption
 func (_e *RepoServerServiceClient_Expecter) ListRefs(ctx interface{}, in interface{}, opts ...interface{}) *RepoServerServiceClient_ListRefs_Call {
 	return &RepoServerServiceClient_ListRefs_Call{Call: _e.mock.On("ListRefs",
 		append([]interface{}{ctx, in}, opts...)...)}
@@ -968,13 +1131,27 @@ func (_e *RepoServerServiceClient_Expecter) ListRefs(ctx interface{}, in interfa
 
 func (_c *RepoServerServiceClient_ListRefs_Call) Run(run func(ctx context.Context, in *apiclient.ListRefsRequest, opts ...grpc.CallOption)) *RepoServerServiceClient_ListRefs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *apiclient.ListRefsRequest
+		if args[1] != nil {
+			arg1 = args[1].(*apiclient.ListRefsRequest)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*apiclient.ListRefsRequest), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -1031,9 +1208,9 @@ type RepoServerServiceClient_ResolveRevision_Call struct {
 }
 
 // ResolveRevision is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
+//   - ctx context.Context
+//   - in *apiclient.ResolveRevisionRequest
+//   - opts ...grpc.CallOption
 func (_e *RepoServerServiceClient_Expecter) ResolveRevision(ctx interface{}, in interface{}, opts ...interface{}) *RepoServerServiceClient_ResolveRevision_Call {
 	return &RepoServerServiceClient_ResolveRevision_Call{Call: _e.mock.On("ResolveRevision",
 		append([]interface{}{ctx, in}, opts...)...)}
@@ -1041,13 +1218,27 @@ func (_e *RepoServerServiceClient_Expecter) ResolveRevision(ctx interface{}, in 
 
 func (_c *RepoServerServiceClient_ResolveRevision_Call) Run(run func(ctx context.Context, in *apiclient.ResolveRevisionRequest, opts ...grpc.CallOption)) *RepoServerServiceClient_ResolveRevision_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *apiclient.ResolveRevisionRequest
+		if args[1] != nil {
+			arg1 = args[1].(*apiclient.ResolveRevisionRequest)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*apiclient.ResolveRevisionRequest), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -1104,9 +1295,9 @@ type RepoServerServiceClient_TestRepository_Call struct {
 }
 
 // TestRepository is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
+//   - ctx context.Context
+//   - in *apiclient.TestRepositoryRequest
+//   - opts ...grpc.CallOption
 func (_e *RepoServerServiceClient_Expecter) TestRepository(ctx interface{}, in interface{}, opts ...interface{}) *RepoServerServiceClient_TestRepository_Call {
 	return &RepoServerServiceClient_TestRepository_Call{Call: _e.mock.On("TestRepository",
 		append([]interface{}{ctx, in}, opts...)...)}
@@ -1114,13 +1305,27 @@ func (_e *RepoServerServiceClient_Expecter) TestRepository(ctx interface{}, in i
 
 func (_c *RepoServerServiceClient_TestRepository_Call) Run(run func(ctx context.Context, in *apiclient.TestRepositoryRequest, opts ...grpc.CallOption)) *RepoServerServiceClient_TestRepository_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *apiclient.TestRepositoryRequest
+		if args[1] != nil {
+			arg1 = args[1].(*apiclient.TestRepositoryRequest)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*apiclient.TestRepositoryRequest), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -1177,9 +1382,9 @@ type RepoServerServiceClient_UpdateRevisionForPaths_Call struct {
 }
 
 // UpdateRevisionForPaths is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
+//   - ctx context.Context
+//   - in *apiclient.UpdateRevisionForPathsRequest
+//   - opts ...grpc.CallOption
 func (_e *RepoServerServiceClient_Expecter) UpdateRevisionForPaths(ctx interface{}, in interface{}, opts ...interface{}) *RepoServerServiceClient_UpdateRevisionForPaths_Call {
 	return &RepoServerServiceClient_UpdateRevisionForPaths_Call{Call: _e.mock.On("UpdateRevisionForPaths",
 		append([]interface{}{ctx, in}, opts...)...)}
@@ -1187,13 +1392,27 @@ func (_e *RepoServerServiceClient_Expecter) UpdateRevisionForPaths(ctx interface
 
 func (_c *RepoServerServiceClient_UpdateRevisionForPaths_Call) Run(run func(ctx context.Context, in *apiclient.UpdateRevisionForPathsRequest, opts ...grpc.CallOption)) *RepoServerServiceClient_UpdateRevisionForPaths_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *apiclient.UpdateRevisionForPathsRequest
+		if args[1] != nil {
+			arg1 = args[1].(*apiclient.UpdateRevisionForPathsRequest)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*apiclient.UpdateRevisionForPathsRequest), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }

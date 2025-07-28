@@ -47,15 +47,26 @@ type TempPaths_Add_Call struct {
 }
 
 // Add is a helper method to define mock.On call
-//   - key
-//   - value
+//   - key string
+//   - value string
 func (_e *TempPaths_Expecter) Add(key interface{}, value interface{}) *TempPaths_Add_Call {
 	return &TempPaths_Add_Call{Call: _e.mock.On("Add", key, value)}
 }
 
 func (_c *TempPaths_Add_Call) Run(run func(key string, value string)) *TempPaths_Add_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string))
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -102,14 +113,20 @@ type TempPaths_GetPath_Call struct {
 }
 
 // GetPath is a helper method to define mock.On call
-//   - key
+//   - key string
 func (_e *TempPaths_Expecter) GetPath(key interface{}) *TempPaths_GetPath_Call {
 	return &TempPaths_GetPath_Call{Call: _e.mock.On("GetPath", key)}
 }
 
 func (_c *TempPaths_GetPath_Call) Run(run func(key string)) *TempPaths_GetPath_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -147,14 +164,20 @@ type TempPaths_GetPathIfExists_Call struct {
 }
 
 // GetPathIfExists is a helper method to define mock.On call
-//   - key
+//   - key string
 func (_e *TempPaths_Expecter) GetPathIfExists(key interface{}) *TempPaths_GetPathIfExists_Call {
 	return &TempPaths_GetPathIfExists_Call{Call: _e.mock.On("GetPathIfExists", key)}
 }
 
 func (_c *TempPaths_GetPathIfExists_Call) Run(run func(key string)) *TempPaths_GetPathIfExists_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }

@@ -48,15 +48,26 @@ type Broadcaster_OnAdd_Call struct {
 }
 
 // OnAdd is a helper method to define mock.On call
-//   - v
-//   - b
+//   - v any
+//   - b bool
 func (_e *Broadcaster_Expecter) OnAdd(v interface{}, b interface{}) *Broadcaster_OnAdd_Call {
 	return &Broadcaster_OnAdd_Call{Call: _e.mock.On("OnAdd", v, b)}
 }
 
 func (_c *Broadcaster_OnAdd_Call) Run(run func(v any, b bool)) *Broadcaster_OnAdd_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(any), args[1].(bool))
+		var arg0 any
+		if args[0] != nil {
+			arg0 = args[0].(any)
+		}
+		var arg1 bool
+		if args[1] != nil {
+			arg1 = args[1].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -83,14 +94,20 @@ type Broadcaster_OnDelete_Call struct {
 }
 
 // OnDelete is a helper method to define mock.On call
-//   - v
+//   - v any
 func (_e *Broadcaster_Expecter) OnDelete(v interface{}) *Broadcaster_OnDelete_Call {
 	return &Broadcaster_OnDelete_Call{Call: _e.mock.On("OnDelete", v)}
 }
 
 func (_c *Broadcaster_OnDelete_Call) Run(run func(v any)) *Broadcaster_OnDelete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(any))
+		var arg0 any
+		if args[0] != nil {
+			arg0 = args[0].(any)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -117,15 +134,26 @@ type Broadcaster_OnUpdate_Call struct {
 }
 
 // OnUpdate is a helper method to define mock.On call
-//   - v
-//   - v1
+//   - v any
+//   - v1 any
 func (_e *Broadcaster_Expecter) OnUpdate(v interface{}, v1 interface{}) *Broadcaster_OnUpdate_Call {
 	return &Broadcaster_OnUpdate_Call{Call: _e.mock.On("OnUpdate", v, v1)}
 }
 
 func (_c *Broadcaster_OnUpdate_Call) Run(run func(v any, v1 any)) *Broadcaster_OnUpdate_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(any), args[1].(any))
+		var arg0 any
+		if args[0] != nil {
+			arg0 = args[0].(any)
+		}
+		var arg1 any
+		if args[1] != nil {
+			arg1 = args[1].(any)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -173,8 +201,8 @@ type Broadcaster_Subscribe_Call struct {
 }
 
 // Subscribe is a helper method to define mock.On call
-//   - ch
-//   - filters
+//   - ch chan *v1alpha1.ApplicationWatchEvent
+//   - filters ...func(event *v1alpha1.ApplicationWatchEvent) bool
 func (_e *Broadcaster_Expecter) Subscribe(ch interface{}, filters ...interface{}) *Broadcaster_Subscribe_Call {
 	return &Broadcaster_Subscribe_Call{Call: _e.mock.On("Subscribe",
 		append([]interface{}{ch}, filters...)...)}
@@ -182,13 +210,22 @@ func (_e *Broadcaster_Expecter) Subscribe(ch interface{}, filters ...interface{}
 
 func (_c *Broadcaster_Subscribe_Call) Run(run func(ch chan *v1alpha1.ApplicationWatchEvent, filters ...func(event *v1alpha1.ApplicationWatchEvent) bool)) *Broadcaster_Subscribe_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 chan *v1alpha1.ApplicationWatchEvent
+		if args[0] != nil {
+			arg0 = args[0].(chan *v1alpha1.ApplicationWatchEvent)
+		}
+		var arg1 []func(event *v1alpha1.ApplicationWatchEvent) bool
 		variadicArgs := make([]func(event *v1alpha1.ApplicationWatchEvent) bool, len(args)-1)
 		for i, a := range args[1:] {
 			if a != nil {
 				variadicArgs[i] = a.(func(event *v1alpha1.ApplicationWatchEvent) bool)
 			}
 		}
-		run(args[0].(chan *v1alpha1.ApplicationWatchEvent), variadicArgs...)
+		arg1 = variadicArgs
+		run(
+			arg0,
+			arg1...,
+		)
 	})
 	return _c
 }

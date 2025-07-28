@@ -70,15 +70,26 @@ type ApplicationGetter_Get_Call struct {
 }
 
 // Get is a helper method to define mock.On call
-//   - ns
-//   - name
+//   - ns string
+//   - name string
 func (_e *ApplicationGetter_Expecter) Get(ns interface{}, name interface{}) *ApplicationGetter_Get_Call {
 	return &ApplicationGetter_Get_Call{Call: _e.mock.On("Get", ns, name)}
 }
 
 func (_c *ApplicationGetter_Get_Call) Run(run func(ns string, name string)) *ApplicationGetter_Get_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string))
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
