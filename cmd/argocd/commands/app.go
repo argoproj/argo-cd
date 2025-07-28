@@ -1353,7 +1353,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				log.Fatal("--server-side-diff with --local requires --server-side-generate.")
 			}
 
-			// Show informational note if application has ServerSideDiff annotation but user isn't using --server-side-diff
+			// If the application has ServerSideDiff=true annotation, provide note, but preserve control to the user.
 			if !serverSideDiff && resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true") {
 				fmt.Printf("Note: Application has ServerSideDiff=true annotation. Consider using --server-side-diff\n\n")
 			}
