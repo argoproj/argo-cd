@@ -21,7 +21,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
-	keysync "github.com/argoproj/pkg/v2/sync"
+	github.com/argoproj/pkg/v2/sync
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -94,7 +94,7 @@ type Server struct {
 	kubectl                kube.Kubectl
 	db                     db.ArgoDB
 	enf                    *rbac.Enforcer
-	projectLock            keysync.KeyLock
+	projectLock            sync.KeyLock
 	auditLogger            *argo.AuditLogger
 	settingsMgr            *settings.SettingsManager
 	cache                  *servercache.Cache
@@ -116,7 +116,7 @@ func NewServer(
 	kubectl kube.Kubectl,
 	db db.ArgoDB,
 	enf *rbac.Enforcer,
-	projectLock keysync.KeyLock,
+	projectLock sync.KeyLock,
 	settingsMgr *settings.SettingsManager,
 	projInformer cache.SharedIndexInformer,
 	enabledNamespaces []string,
