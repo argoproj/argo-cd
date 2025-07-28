@@ -1,6 +1,0 @@
-dependencies:
-- name: helm-values
-  repository: oci://localhost:5000/myrepo
-  version: 1.0.0
-digest: sha256:6b4a0c3fe7c2ccd93900024e009fbcfebc483079a15917e9f21306720edd5bab
-generated: "2025-04-18T14:26:55.354431-07:00"

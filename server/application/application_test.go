@@ -1067,6 +1067,7 @@ func TestNoAppEnumeration(t *testing.T) {
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"does-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
 
+	// Do this last so other stuff doesn't fail.
 	t.Run("Delete", func(t *testing.T) {
 		_, err := appServer.Delete(adminCtx, &application.ApplicationDeleteRequest{Name: ptr.To("test")})
 		require.NoError(t, err)
