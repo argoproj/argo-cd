@@ -1373,6 +1373,9 @@ func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
 
 	managedDeploy := v1alpha1.ResourceNode{
 		ResourceRef: v1alpha1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "nginx-deployment", Version: "v1"},
+		Health: &v1alpha1.HealthStatus{
+			Status: health.HealthStatusMissing,
+		},
 	}
 	orphanedDeploy1 := v1alpha1.ResourceNode{
 		ResourceRef: v1alpha1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "deploy1"},
