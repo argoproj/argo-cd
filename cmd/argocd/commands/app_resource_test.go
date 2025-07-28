@@ -220,6 +220,343 @@ func TestFilterFieldsFromObject(t *testing.T) {
 	}
 }
 
+func TestExtractNestedItem(t *testing.T) {
+	tests := []struct {
+		name     string
+		obj      map[string]any
+		fields   []string
+		depth    int
+		expected map[string]any
+	}{
+		{
+			name: "extract simple nested item",
+			obj: map[string]any{
+				"listofitems": []any{
+					map[string]any{
+						"extract":     "123",
+						"dontextract": "abc",
+					},
+					map[string]any{
+						"extract":     "456",
+						"dontextract": "def",
+					},
+					map[string]any{
+						"extract":     "789",
+						"dontextract": "ghi",
+					},
+				},
+			},
+			fields: []string{"listofitems", "extract"},
+			depth:  0,
+			expected: map[string]any{
+				"listofitems": []any{
+					map[string]any{
+						"extract": "123",
+					},
+					map[string]any{
+						"extract": "456",
+					},
+					map[string]any{
+						"extract": "789",
+					},
+				},
+			},
+		},
+		{
+			name: "double nested list of objects",
+			obj: map[string]any{
+				"listofitems": []any{
+					map[string]any{
+						"doublenested": []any{
+							map[string]any{
+								"extract": "123",
+							},
+						},
+						"dontextract": "abc",
+					},
+					map[string]any{
+						"doublenested": []any{
+							map[string]any{
+								"extract": "456",
+							},
+						},
+						"dontextract": "def",
+					},
+					map[string]any{
+						"doublenested": []any{
+							map[string]any{
+								"extract": "789",
+							},
+						},
+						"dontextract": "ghi",
+					},
+				},
+			},
+			fields: []string{"listofitems", "doublenested", "extract"},
+			depth:  0,
+			expected: map[string]any{
+				"listofitems": []any{
+					map[string]any{
+						"doublenested": []any{
+							map[string]any{
+								"extract": "123",
+							},
+						},
+					},
+					map[string]any{
+						"doublenested": []any{
+							map[string]any{
+								"extract": "456",
+							},
+						},
+					},
+					map[string]any{
+						"doublenested": []any{
+							map[string]any{
+								"extract": "789",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name:     "depth is greater then list of field size",
+			obj:      map[string]any{"test1": "1234567890"},
+			fields:   []string{"test1"},
+			depth:    4,
+			expected: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filteredObj := extractNestedItem(tt.obj, tt.fields, tt.depth)
+			assert.Equal(t, tt.expected, filteredObj, "Did not get the correct filtered obj")
+		})
+	}
+}
+
+func TestExtractItemsFromList(t *testing.T) {
+	tests := []struct {
+		name     string
+		list     []any
+		fields   []string
+		expected []any
+	}{
+		{
+			name: "test simple field",
+			list: []any{
+				map[string]any{"extract": "value1", "dontextract": "valueA"},
+				map[string]any{"extract": "value2", "dontextract": "valueB"},
+				map[string]any{"extract": "value3", "dontextract": "valueC"},
+			},
+			fields: []string{"extract"},
+			expected: []any{
+				map[string]any{"extract": "value1"},
+				map[string]any{"extract": "value2"},
+				map[string]any{"extract": "value3"},
+			},
+		},
+		{
+			name: "test simple field with some depth",
+			list: []any{
+				map[string]any{
+					"test1": map[string]any{
+						"test2": map[string]any{
+							"extract":     "123",
+							"dontextract": "abc",
+						},
+					},
+				},
+				map[string]any{
+					"test1": map[string]any{
+						"test2": map[string]any{
+							"extract":     "456",
+							"dontextract": "def",
+						},
+					},
+				},
+				map[string]any{
+					"test1": map[string]any{
+						"test2": map[string]any{
+							"extract":     "789",
+							"dontextract": "ghi",
+						},
+					},
+				},
+			},
+			fields: []string{"test1", "test2", "extract"},
+			expected: []any{
+				map[string]any{
+					"test1": map[string]any{
+						"test2": map[string]any{
+							"extract": "123",
+						},
+					},
+				},
+				map[string]any{
+					"test1": map[string]any{
+						"test2": map[string]any{
+							"extract": "456",
+						},
+					},
+				},
+				map[string]any{
+					"test1": map[string]any{
+						"test2": map[string]any{
+							"extract": "789",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "test a missing field",
+			list: []any{
+				map[string]any{"test1": "123"},
+				map[string]any{"test1": "456"},
+				map[string]any{"test1": "789"},
+			},
+			fields:   []string{"test2"},
+			expected: nil,
+		},
+		{
+			name: "test getting an object",
+			list: []any{
+				map[string]any{
+					"extract": map[string]any{
+						"keyA": "valueA",
+						"keyB": "valueB",
+						"keyC": "valueC",
+					},
+					"dontextract": map[string]any{
+						"key1": "value1",
+						"key2": "value2",
+						"key3": "value3",
+					},
+				},
+				map[string]any{
+					"extract": map[string]any{
+						"keyD": "valueD",
+						"keyE": "valueE",
+						"keyF": "valueF",
+					},
+					"dontextract": map[string]any{
+						"key4": "value4",
+						"key5": "value5",
+						"key6": "value6",
+					},
+				},
+			},
+			fields: []string{"extract"},
+			expected: []any{
+				map[string]any{
+					"extract": map[string]any{
+						"keyA": "valueA",
+						"keyB": "valueB",
+						"keyC": "valueC",
+					},
+				},
+				map[string]any{
+					"extract": map[string]any{
+						"keyD": "valueD",
+						"keyE": "valueE",
+						"keyF": "valueF",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			extractedList := extractItemsFromList(tt.list, tt.fields)
+			assert.Equal(t, tt.expected, extractedList, "Lists were not equal")
+		})
+	}
+}
+
+func TestReconstructObject(t *testing.T) {
+	tests := []struct {
+		name      string
+		extracted []any
+		fields    []string
+		depth     int
+		expected  map[string]any
+	}{
+		{
+			name:      "simple single field at depth 0",
+			extracted: []any{"value1", "value2"},
+			fields:    []string{"items"},
+			depth:     0,
+			expected: map[string]any{
+				"items": []any{"value1", "value2"},
+			},
+		},
+		{
+			name:      "object nested at depth 1",
+			extracted: []any{map[string]any{"key": "value"}},
+			fields:    []string{"test1", "test2"},
+			depth:     1,
+			expected: map[string]any{
+				"test1": map[string]any{
+					"test2": []any{map[string]any{"key": "value"}},
+				},
+			},
+		},
+		{
+			name:      "empty list of extracted items",
+			extracted: []any{},
+			fields:    []string{"test1"},
+			depth:     0,
+			expected: map[string]any{
+				"test1": []any{},
+			},
+		},
+		{
+			name: "complex object nesteed at depth 2",
+			extracted: []any{map[string]any{
+				"obj1": map[string]any{
+					"key1": "value1",
+					"key2": "value2",
+				},
+				"obj2": map[string]any{
+					"keyA": "valueA",
+					"keyB": "valueB",
+				},
+			}},
+			fields: []string{"test1", "test2", "test3"},
+			depth:  2,
+			expected: map[string]any{
+				"test1": map[string]any{
+					"test2": map[string]any{
+						"test3": []any{
+							map[string]any{
+								"obj1": map[string]any{
+									"key1": "value1",
+									"key2": "value2",
+								},
+								"obj2": map[string]any{
+									"keyA": "valueA",
+									"keyB": "valueB",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filteredObj := reconstructObject(tt.extracted, tt.fields, tt.depth)
+			assert.Equal(t, tt.expected, filteredObj, "objects were not equal")
+		})
+	}
+}
+
 func TestPrintManifests(t *testing.T) {
 	obj := unstructured.Unstructured{
 		Object: map[string]any{

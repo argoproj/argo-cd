@@ -55,7 +55,7 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
     argocd app get-resource my-app --kind Pod
 
   # Get a specific resource with managed fields, Pod my-app-pod, in 'my-app' by name in wide format
-    argocd app get-resource my-app --kind Pod --resource-name my-app-pod --showManagedFields
+    argocd app get-resource my-app --kind Pod --resource-name my-app-pod --show-managed-fields
 
   # Get the the details of a specific field in a resource in 'my-app' in the wide format
     argocd app get-resource my-app --kind Pod --filter-fields status.podIP
@@ -63,15 +63,6 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
   # Get the details of multiple specific fields in a specific resource in 'my-app' in the wide format
     argocd app get-resource my-app --kind Pod --resource-name my-app-pod --filter-fields status.podIP,status.hostIP`,
 	}
-
-	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource, if none is included will output details of all resources with specified kind")
-	command.Flags().StringVar(&kind, "kind", "", "Kind of resource [REQUIRED]")
-	err := command.MarkFlagRequired("kind")
-	errors.CheckError(err)
-	command.Flags().StringVar(&project, "project", "", "Project of resource")
-	command.Flags().StringSliceVar(&filteredFields, "filter-fields", nil, "A comma separated list of fields to display, if not provided will output the entire manifest")
-	command.Flags().BoolVar(&showManagedFields, "show-managed-fields", false, "Show managed fields in the output manifest")
-	command.Flags().StringVarP(&output, "output", "o", "wide", "Format of the output, yaml or json")
 
 	command.Run = func(c *cobra.Command, args []string) {
 		ctx := c.Context()
@@ -95,6 +86,7 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 		// Get manifests of resources
 		// If resource name is "" find all resources of that kind
 		var resources []unstructured.Unstructured
+		var fetchedStr string
 		for _, r := range tree.Nodes {
 			if (resourceName != "" && r.Name != resourceName) || r.Kind != kind {
 				continue
@@ -124,11 +116,25 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 				obj = filterFieldsFromObject(obj, filteredFields)
 			}
 
+			fetchedStr += obj.GetName() + ", "
 			resources = append(resources, *obj)
-			log.Infof("Resource '%s' fetched", obj.GetName())
 		}
 		printManifests(&resources, len(filteredFields) > 0, resourceName == "", output)
+
+		if fetchedStr != "" {
+			fetchedStr = strings.TrimSuffix(fetchedStr, ", ")
+		}
+		log.Infof("Resources '%s' fetched", fetchedStr)
 	}
+
+	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource, if none is included will output details of all resources with specified kind")
+	command.Flags().StringVar(&kind, "kind", "", "Kind of resource [REQUIRED]")
+	err := command.MarkFlagRequired("kind")
+	errors.CheckError(err)
+	command.Flags().StringVar(&project, "project", "", "Project of resource")
+	command.Flags().StringSliceVar(&filteredFields, "filter-fields", nil, "A comma separated list of fields to display, if not provided will output the entire manifest")
+	command.Flags().BoolVar(&showManagedFields, "show-managed-fields", false, "Show managed fields in the output manifest")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Format of the output, wide, yaml, or json")
 	return command
 }
 
