@@ -2830,8 +2830,6 @@ func getProjectsFromApplicationQuery(q application.ApplicationQuery) []string {
 }
 
 func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationServerSideDiffQuery) (*application.ApplicationServerSideDiffResponse, error) {
-	log.Infof("ServerSideDiff called for app: %s", q.GetName())
-
 	a, _, err := s.getApplicationEnforceRBACInformer(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if err != nil {
 		return nil, fmt.Errorf("error getting application: %w", err)
@@ -2841,13 +2839,11 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		return nil, security.NamespaceNotPermittedError(a.Namespace)
 	}
 
-	// Get settings for diff config - similar to CLI approach
 	argoSettings, err := s.settingsMgr.GetSettings()
 	if err != nil {
 		return nil, fmt.Errorf("error getting ArgoCD settings: %w", err)
 	}
 
-	// Get resource overrides
 	resourceOverrides, err := s.settingsMgr.GetResourceOverrides()
 	if err != nil {
 		return nil, fmt.Errorf("error getting resource overrides: %w", err)
@@ -2886,7 +2882,6 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 
 	dryRunner := diff.NewK8sServerSideDryRunner(applier)
 
-	// Get app instance label key
 	appLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
 		return nil, fmt.Errorf("error getting app instance label key: %w", err)
@@ -2933,7 +2928,6 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		targetObjs = append(targetObjs, obj)
 	}
 
-	// Perform StateDiffs like the CLI does - this handles everything including server-side diff
 	diffResults, err := argodiff.StateDiffs(liveObjs, targetObjs, diffConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error performing state diffs: %w", err)
@@ -2970,14 +2964,13 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 			hook = false
 			resourceVersion = ""
 		} else {
-			// Skip this diff result or use default values
-			continue
+			return nil, fmt.Errorf("diff result index %d out of bounds: live resources (%d), target objects (%d).",
+				i, len(q.GetLiveResources()), len(targetObjs))
 		}
 
 		// Create ResourceDiff with StateDiffs results
 		// TargetState = PredictedLive (what the target should be after applying)
 		// LiveState = NormalizedLive (current normalized live state)
-		// This matches what the CLI expects for printing diffs
 		responseDiffs = append(responseDiffs, &argoappv1.ResourceDiff{
 			Group:           group,
 			Kind:            kind,
