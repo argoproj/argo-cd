@@ -7,7 +7,7 @@ import {Consumer, Context, AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import {getAppDefaultSource, OperationState} from '../utils';
+import {ApplicationSyncWindowStatusIcon, getAppDefaultSource, OperationState} from '../utils';
 import {services} from '../../../shared/services';
 
 import './applications-tiles.scss';
@@ -205,6 +205,19 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status}
                                                             &nbsp;
                                                             <OperationState app={app} quiet={true} />
+                                                            &nbsp;
+                                                            <DataLoader
+                                                                noLoaderOnInputChange={true}
+                                                                input={app}
+                                                                load={async app => {
+                                                                    return await services.applications.getApplicationSyncWindowState(app.metadata.name, app.metadata.namespace);
+                                                                }}>
+                                                                {(data: models.ApplicationSyncWindowState) => (
+                                                                    <React.Fragment>
+                                                                        {data.assignedWindows && <ApplicationSyncWindowStatusIcon project={app.spec.project} state={data} />}
+                                                                    </React.Fragment>
+                                                                )}
+                                                            </DataLoader>
                                                         </div>
                                                     </div>
                                                     <div className='row'>
