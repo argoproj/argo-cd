@@ -1582,7 +1582,7 @@ func TestUpdateApp(t *testing.T) {
 		})
 		require.Error(t, err)
 		require.ErrorContains(t, err, "application repo https://github.com/argoproj/argocd-example-apps.git is not permitted in project 'restricted-proj'")
-		require.ErrorContains(t, err, "application destination server '' and namespace 'fake-dest-ns' do not match any of the allowed destinations in project 'restricted-proj'")
+		require.ErrorContains(t, err, "application destination server 'fake-cluster' and namespace 'fake-dest-ns' do not match any of the allowed destinations in project 'restricted-proj'")
 	})
 	t.Run("Can update application project with project argument", func(t *testing.T) {
 		t.Parallel()
