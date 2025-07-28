@@ -1,22 +1,22 @@
 discoveryTests:
   - inputPath: testdata/cronjob.yaml
     result:
-      - name: create-jobs
-        displayName: 'Create Jobs'
+      - name: create-job
+        displayName: 'Create Job'
         iconClass: 'fa fa-fw fa-plus'
       - name: suspend
         iconClass: 'fa fa-fw fa-pause'
   - inputPath: testdata/cronjob-resumed.yaml
     result:
-      - name: create-jobs
-        displayName: 'Create Jobs'
+      - name: create-job
+        displayName: 'Create Job'
         iconClass: 'fa fa-fw fa-plus'
       - name: suspend
         iconClass: 'fa fa-fw fa-pause'
   - inputPath: testdata/cronjob-suspended.yaml
     result:
-      - name: create-jobs
-        displayName: 'Create Jobs'
+      - name: create-job
+        displayName: 'Create Job'
         iconClass: 'fa fa-fw fa-plus'
       - name: resume
         iconClass: 'fa fa-fw fa-play'
@@ -30,4 +30,4 @@ actionTests:
     expectedOutputPath: testdata/cronjob-suspended.yaml
   - action: resume
     inputPath: testdata/cronjob-suspended.yaml
-    expectedOutputPath: testdata/cronjob-resumed.yaml.yaml
+    expectedOutputPath: testdata/cronjob-resumed.yaml
