@@ -43,6 +43,7 @@ import (
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -63,7 +64,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	applicationType "github.com/argoproj/argo-cd/v3/pkg/apis/application"
-	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
@@ -2850,7 +2850,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 	}
 
 	// Convert to map format expected by DiffConfigBuilder
-	overrides := make(map[string]argoappv1.ResourceOverride)
+	overrides := make(map[string]v1alpha1.ResourceOverride)
 	for k, v := range resourceOverrides {
 		overrides[k] = v
 	}
@@ -2869,10 +2869,10 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 	// Create server-side diff dry run applier
 	openAPISchema, gvkParser, err := s.kubectl.LoadOpenAPISchema(clusterConfig)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get OpenAPI schema,: %w", err)
+		return nil, fmt.Errorf("failed to get OpenAPI schema: %w", err)
 	}
 
-	applier, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(clusterConfig, openAPISchema, func(command string) (kube.CleanupFunc, error) {
+	applier, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(clusterConfig, openAPISchema, func(_ string) (kube.CleanupFunc, error) {
 		return func() {}, nil
 	})
 	if err != nil {
@@ -2921,7 +2921,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 	// Convert target manifests to unstructured objects
 	targetObjs := make([]*unstructured.Unstructured, 0, len(q.GetTargetManifests()))
 	for i, manifestStr := range q.GetTargetManifests() {
-		obj, err := argoappv1.UnmarshalToUnstructured(manifestStr)
+		obj, err := v1alpha1.UnmarshalToUnstructured(manifestStr)
 		if err != nil {
 			return nil, fmt.Errorf("error unmarshaling target manifest %d: %w", i, err)
 		}
@@ -2934,7 +2934,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 	}
 
 	// Convert StateDiffs results to ResourceDiff format for API response
-	responseDiffs := make([]*argoappv1.ResourceDiff, 0, len(diffResults.Diffs))
+	responseDiffs := make([]*v1alpha1.ResourceDiff, 0, len(diffResults.Diffs))
 	modified := false
 
 	for i, diffRes := range diffResults.Diffs {
@@ -2947,8 +2947,10 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		var hook bool
 		var resourceVersion string
 
-		// A live resource exists at this index
-		if i < len(q.GetLiveResources()) {
+		// Determine resource details based on available data
+		switch {
+		case i < len(q.GetLiveResources()):
+			// A live resource exists at this index
 			lr := q.GetLiveResources()[i]
 			group = lr.Group
 			kind = lr.Kind
@@ -2956,8 +2958,8 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 			name = lr.Name
 			hook = lr.Hook
 			resourceVersion = lr.ResourceVersion
+		case i < len(targetObjs) && targetObjs[i] != nil:
 			// A target resource exists at this index, but no live resource exists at this index
-		} else if i < len(targetObjs) && targetObjs[i] != nil {
 			obj := targetObjs[i]
 			group = obj.GroupVersionKind().Group
 			kind = obj.GroupVersionKind().Kind
@@ -2965,15 +2967,15 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 			name = obj.GetName()
 			hook = false
 			resourceVersion = ""
-		} else {
-			return nil, fmt.Errorf("diff result index %d out of bounds: live resources (%d), target objects (%d).",
+		default:
+			return nil, fmt.Errorf("diff result index %d out of bounds: live resources (%d), target objects (%d)",
 				i, len(q.GetLiveResources()), len(targetObjs))
 		}
 
 		// Create ResourceDiff with StateDiffs results
 		// TargetState = PredictedLive (what the target should be after applying)
 		// LiveState = NormalizedLive (current normalized live state)
-		responseDiffs = append(responseDiffs, &argoappv1.ResourceDiff{
+		responseDiffs = append(responseDiffs, &v1alpha1.ResourceDiff{
 			Group:           group,
 			Kind:            kind,
 			Namespace:       namespace,
