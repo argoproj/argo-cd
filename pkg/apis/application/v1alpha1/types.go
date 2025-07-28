@@ -1918,6 +1918,41 @@ type Cluster struct {
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,13,opt,name=annotations"`
 }
 
+func (c *Cluster) Sanitized() *Cluster {
+	var execProviderConfig *ExecProviderConfig
+	if c.Config.ExecProviderConfig != nil {
+		execProviderConfig = &ExecProviderConfig{
+			Command:     c.Config.ExecProviderConfig.Command,
+			APIVersion:  c.Config.ExecProviderConfig.APIVersion,
+			InstallHint: c.Config.ExecProviderConfig.InstallHint,
+		}
+	}
+	return &Cluster{
+		ID:                 c.ID,
+		Server:             c.Server,
+		Name:               c.Name,
+		Project:            c.Project,
+		Namespaces:         c.Namespaces,
+		Shard:              c.Shard,
+		Labels:             c.Labels,
+		Annotations:        c.Annotations,
+		ClusterResources:   c.ClusterResources,
+		ConnectionState:    c.ConnectionState,
+		ServerVersion:      c.ServerVersion,
+		Info:               c.Info,
+		RefreshRequestedAt: c.RefreshRequestedAt,
+		Config: ClusterConfig{
+			ExecProviderConfig: execProviderConfig,
+			AWSAuthConfig:      c.Config.AWSAuthConfig,
+			ProxyUrl:           c.Config.ProxyUrl,
+			DisableCompression: c.Config.DisableCompression,
+			TLSClientConfig: TLSClientConfig{
+				Insecure: c.Config.TLSClientConfig.Insecure,
+			},
+		},
+	}
+}
+
 // Equals returns true if two cluster objects are considered to be equal
 func (c *Cluster) Equals(other *Cluster) bool {
 	if c.Server != other.Server {
