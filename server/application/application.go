@@ -2942,11 +2942,12 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 			modified = true
 		}
 
-		// Get resource info from corresponding live resource or target object
+		// Extract resource metadata for the diff result. Resources should be pre-aligned by the CLI.
 		var group, kind, namespace, name string
 		var hook bool
 		var resourceVersion string
 
+		// A live resource exists at this index
 		if i < len(q.GetLiveResources()) {
 			lr := q.GetLiveResources()[i]
 			group = lr.Group
@@ -2955,6 +2956,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 			name = lr.Name
 			hook = lr.Hook
 			resourceVersion = lr.ResourceVersion
+			// A target resource exists at this index, but no live resource exists at this index
 		} else if i < len(targetObjs) && targetObjs[i] != nil {
 			obj := targetObjs[i]
 			group = obj.GroupVersionKind().Group
