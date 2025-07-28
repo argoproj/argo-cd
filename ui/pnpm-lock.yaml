@@ -184,6 +184,9 @@ importers:
       '@types/git-url-parse':
         specifier: ^9.0.1
         version: 9.0.3
+      '@types/history':
+        specifier: ^4.7.2
+        version: 4.7.11
       '@types/jest':
         specifier: ^29.5.14
         version: 29.5.14
@@ -199,6 +202,9 @@ importers:
       '@types/node':
         specifier: 20.14.12
         version: 20.14.12
+      '@types/popper.js':
+        specifier: ^1.11.0
+        version: 1.11.0
       '@types/prop-types':
         specifier: ^15.7.5
         version: 15.7.15
@@ -286,6 +292,9 @@ importers:
       monaco-editor-webpack-plugin:
         specifier: ^7.1.0
         version: 7.1.0(monaco-editor@0.33.0)(webpack@5.100.2)
+      popper.js:
+        specifier: ^1.16.1
+        version: 1.16.1
       postcss:
         specifier: ^8.4.38
         version: 8.5.6
@@ -1663,9 +1672,8 @@ packages:
   '@types/graceful-fs@4.1.9':
     resolution: {integrity: sha512-olP3sd1qOEe5dXTSaFvQG+02VdRXcdytWLAZsAq1PecU8uqQAhkrnbli7DagjtXKW/Bl7YJbUsa8MPcuc8LHEQ==}
 
-  '@types/history@5.0.0':
-    resolution: {integrity: sha512-hy8b7Y1J8OGe6LbAjj3xniQrj3v6lsivCcrmf4TzSgPzLkhIeKgc5IZnT7ReIqmEuodjfO8EYAuoFvIrHi/+jQ==}
-    deprecated: This is a stub types definition. history provides its own type definitions, so you do not need this installed.
+  '@types/history@4.7.11':
+    resolution: {integrity: sha512-qjDJRrmvBMiTx+jyLxvLfJU7UznFuokDv4f3WRuriHKERccVpFU+8XMQUAbDzoiJCsmexxRExQeMwwCdamSKDA==}
 
   '@types/html-minifier-terser@6.1.0':
     resolution: {integrity: sha512-oh/6byDPnL1zeNXFrDXFLyZjkr1MsBG667IM792caf1L2UPOOMf65NFzjUH/ltyfwjAGfs1rsX1eftK0jC/KIg==}
@@ -1720,6 +1728,10 @@ packages:
 
   '@types/node@20.14.12':
     resolution: {integrity: sha512-r7wNXakLeSsGT0H1AU863vS2wa5wBOK4bWMjZz2wj+8nBx+m5PeIn0k8AloSLpRuiwdRQZwarZqHE4FNArPuJQ==}
+
+  '@types/popper.js@1.11.0':
+    resolution: {integrity: sha512-1SDEDA6VacGAqDOmwbMcJD39bg0sHbM8y6LHOV3CMxyDBRrwTodRyIIj5f4eR/nlgpeyPoG1fKXqbkRmg+5yRg==}
+    deprecated: This is a stub types definition for popper.js (https://github.com/FezVrasta/popper.js/). popper.js provides its own type definitions, so you don't need @types/popper.js installed!
 
   '@types/prop-types@15.7.15':
     resolution: {integrity: sha512-F6bEyamV9jKGAFBEmlQnesRPGOQqS2+Uwi0Em15xenOxHaf2hv6L8YCVn3rPdPJOiJfPiCnLIRyvwVaqMY3MIw==}
@@ -7059,9 +7071,7 @@ snapshots:
     dependencies:
       '@types/node': 20.14.12
 
-  '@types/history@5.0.0':
-    dependencies:
-      history: 4.10.1
+  '@types/history@4.7.11': {}
 
   '@types/html-minifier-terser@6.1.0': {}
 
@@ -7121,6 +7131,10 @@ snapshots:
     dependencies:
       undici-types: 5.26.5
 
+  '@types/popper.js@1.11.0':
+    dependencies:
+      popper.js: 1.16.1
+
   '@types/prop-types@15.7.15': {}
 
   '@types/qs@6.14.0': {}
@@ -7149,13 +7163,13 @@ snapshots:
 
   '@types/react-router-dom@4.3.5':
     dependencies:
-      '@types/history': 5.0.0
+      '@types/history': 4.7.11
       '@types/react': 16.14.65
       '@types/react-router': 4.4.5
 
   '@types/react-router@4.4.5':
     dependencies:
-      '@types/history': 5.0.0
+      '@types/history': 4.7.11
       '@types/react': 16.14.65
 
   '@types/react-test-renderer@16.9.12':
