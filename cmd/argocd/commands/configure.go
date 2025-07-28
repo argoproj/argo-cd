@@ -27,6 +27,10 @@ argocd configure --prompts-enabled=false`,
 		Run: func(_ *cobra.Command, _ []string) {
 			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
 			errors.CheckError(err)
+			if localCfg == nil {
+				fmt.Println("No local configuration found.")
+				return
+			}
 
 			localCfg.PromptsEnabled = promptsEnabled
 
