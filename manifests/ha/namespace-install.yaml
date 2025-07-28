@@ -180,34 +180,11 @@ rules:
   - list
   - watch
 - apiGroups:
-  - apps
-  - extensions
-  resources:
-  - deployments
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - create
-- apiGroups:
   - coordination.k8s.io
   resources:
   - leases
   verbs:
   - create
-- apiGroups:
-  - ""
-  resourceNames:
-  - 58ac56fa.applicationsets.argoproj.io
-  resources:
-  - configmaps
-  verbs:
-  - update
 - apiGroups:
   - coordination.k8s.io
   resourceNames:
@@ -217,6 +194,7 @@ rules:
   verbs:
   - get
   - update
+  - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
