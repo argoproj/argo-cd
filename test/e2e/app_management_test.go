@@ -3075,3 +3075,199 @@ status:
 			assert.Equal(t, "2023-01-01T00:00:00Z", app.Status.Health.LastTransitionTime.UTC().Format(time.RFC3339))
 		})
 }
+
+// TestServerSideDiffCommand tests the --server-side-diff flag for the app diff command
+func TestServerSideDiffCommand(t *testing.T) {
+	Given(t).
+		Path("two-nice-pods").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		// Create a diff by modifying a pod
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"test": "server-side-diff"}}]`).
+		AddFile("pod-3.yaml", `apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-3
+  annotations:
+    new: "pod"
+spec:
+  containers:
+    - name: main
+      image: quay.io/argoprojlabs/argocd-e2e-container:0.1
+      imagePullPolicy: IfNotPresent
+      command:
+        - "true"
+  restartPolicy: Never
+`).
+		Refresh(RefreshTypeHard).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		And(func(app *Application) {
+			// Test regular diff command
+			regularOutput, err := fixture.RunCli("app", "diff", app.Name)
+			require.Error(t, err) // diff command returns non-zero exit code when differences found
+			assert.Contains(t, regularOutput, "===== /Pod")
+			assert.Contains(t, regularOutput, "pod-1")
+			assert.Contains(t, regularOutput, "pod-3")
+
+			// Test server-side diff command
+			serverSideOutput, err := fixture.RunCli("app", "diff", app.Name, "--server-side-diff")
+			require.Error(t, err) // diff command returns non-zero exit code when differences found
+			assert.Contains(t, serverSideOutput, "===== /Pod")
+			assert.Contains(t, serverSideOutput, "pod-1")
+			assert.Contains(t, serverSideOutput, "pod-3")
+
+			// Both outputs should contain similar resource headers
+			assert.Contains(t, regularOutput, "test: server-side-diff")
+			assert.Contains(t, serverSideOutput, "test: server-side-diff")
+			assert.Contains(t, regularOutput, "new: pod")
+			assert.Contains(t, serverSideOutput, "new: pod")
+		})
+}
+
+// TestServerSideDiffWithSyncedApp tests server-side diff when app is already synced (no differences)
+func TestServerSideDiffWithSyncedApp(t *testing.T) {
+	Given(t).
+		Path("guestbook").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			// Test regular diff command with synced app
+			regularOutput, err := fixture.RunCli("app", "diff", app.Name)
+			require.NoError(t, err) // no differences, should return 0
+
+			// Test server-side diff command with synced app
+			serverSideOutput, err := fixture.RunCli("app", "diff", app.Name, "--server-side-diff")
+			require.NoError(t, err) // no differences, should return 0
+
+			// Both should produce similar output (minimal/no diff output)
+			// The exact output may vary, but both should succeed without errors
+			assert.NotContains(t, regularOutput, "===== ")
+			assert.NotContains(t, serverSideOutput, "===== ")
+		})
+}
+
+// TestServerSideDiffWithRevision tests server-side diff with a specific revision
+func TestServerSideDiffWithRevision(t *testing.T) {
+	Given(t).
+		Path("two-nice-pods").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/labels", "value": {"version": "v1.1"}}]`).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		And(func(app *Application) {
+			// Get the current revision
+			currentRevision := ""
+			if len(app.Status.History) > 0 {
+				currentRevision = app.Status.History[len(app.Status.History)-1].Revision
+			}
+
+			if currentRevision != "" {
+				// Test server-side diff with current revision (should show no differences)
+				output, err := fixture.RunCli("app", "diff", app.Name, "--server-side-diff", "--revision", currentRevision)
+				require.NoError(t, err) // no differences expected
+				assert.NotContains(t, output, "===== ")
+			}
+		})
+}
+
+// TestServerSideDiffErrorHandling tests error scenarios for server-side diff
+func TestServerSideDiffErrorHandling(t *testing.T) {
+	Given(t).
+		Path("two-nice-pods").
+		When().
+		CreateApp().
+		Then().
+		And(func(app *Application) {
+			// Test server-side diff with non-existent app should fail gracefully
+			_, err := fixture.RunCli("app", "diff", "non-existent-app", "--server-side-diff")
+			require.Error(t, err)
+			// Error occurred as expected - this verifies the command fails gracefully
+		})
+}
+
+// TestServerSideDiffWithLocal tests server-side diff with --local flag
+func TestServerSideDiffWithLocal(t *testing.T) {
+	Given(t).
+		Path("guestbook").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			// Modify the live deployment in the cluster to create differences
+			// Apply patches to the deployment
+			_, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(t.Context(),
+				"guestbook-ui", types.JSONPatchType, []byte(`[
+					{"op": "add", "path": "/spec/template/spec/containers/0/env", "value": [{"name": "LOCAL_CHANGE", "value": "true"}]},
+					{"op": "replace", "path": "/spec/replicas", "value": 2}
+				]`), metav1.PatchOptions{})
+			require.NoError(t, err)
+
+			// Verify the patch was applied by reading back the deployment
+			modifiedDeployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, int32(2), *modifiedDeployment.Spec.Replicas, "Replica count should be updated to 2")
+			assert.Len(t, modifiedDeployment.Spec.Template.Spec.Containers[0].Env, 1, "Should have one environment variable")
+			assert.Equal(t, "LOCAL_CHANGE", modifiedDeployment.Spec.Template.Spec.Containers[0].Env[0].Name)
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		And(func(app *Application) {
+			// Test regular diff with --local (add --server-side-generate to avoid deprecation warning)
+			regularOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
+			require.Error(t, err) // diff command returns non-zero exit code when differences found
+			assert.Contains(t, regularOutput, "===== apps/Deployment")
+			assert.Contains(t, regularOutput, "guestbook-ui")
+			assert.Contains(t, regularOutput, "replicas:")
+
+			// Test server-side diff with --local (add --server-side-generate for consistency)
+			serverSideOutput, err := fixture.RunCli("app", "diff", app.Name, "--server-side-diff", "--local", "testdata", "--server-side-generate")
+			require.Error(t, err) // diff command returns non-zero exit code when differences found
+			assert.Contains(t, serverSideOutput, "===== apps/Deployment")
+			assert.Contains(t, serverSideOutput, "guestbook-ui")
+			assert.Contains(t, serverSideOutput, "replicas:")
+
+			// Both outputs should show similar differences
+			assert.Contains(t, regularOutput, "replicas: 2")
+			assert.Contains(t, serverSideOutput, "replicas: 2")
+		})
+}
+
+func TestServerSideDiffWithLocalValidation(t *testing.T) {
+	Given(t).
+		Path("guestbook").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			// Test that --server-side-diff with --local without --server-side-generate fails with proper error
+			output, err := fixture.RunCli("app", "diff", app.Name, "--server-side-diff", "--local", "testdata")
+			require.Error(t, err)
+			assert.Contains(t, output, "--server-side-diff with --local requires --server-side-generate")
+			assert.Contains(t, output, "deprecated client-side generation does not work with server-side diff")
+		})
+}
