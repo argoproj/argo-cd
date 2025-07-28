@@ -38,7 +38,7 @@ rules:
       - patch
       - update
   - apiGroups:
-      - ''
+      - ""
     resources:
       - events
     verbs:
@@ -48,7 +48,7 @@ rules:
       - patch
       - watch
   - apiGroups:
-      - ''
+      - ""
     resources:
       - secrets
       - configmaps
@@ -56,44 +56,14 @@ rules:
       - get
       - list
       - watch
-  - apiGroups:
-      - apps
-      - extensions
-    resources:
-      - deployments
-    verbs:
-      - get
-      - list
-      - watch
-
   # argocd-applicationset-controller leader election rules
-  # TODO: Remove configmaps related rules once `LeaderElectionResourceLock` is set to `leases`
-  #   - Either explicitly in `cmd/argocd-applicationset-controller/commands/applicationset_controller.go`
-  #   - Or if `sigs.k8s.io/controller-runtime` is upgraded to `>=v0.12.0` where this is the new default
-
-  # Create with resourceNames fails
-  - apiGroups:
-      - ''
-    resources:
-      - configmaps
-    verbs:
-      - create
+  # Create with resourceNames fails, so use a separate rule for the lease creation
   - apiGroups:
       - coordination.k8s.io
     resources:
       - leases
     verbs:
       - create
-  # Limit updates to specific lock
-  - apiGroups:
-      - ''
-    resources:
-      - configmaps
-    resourceNames:
-      # Defined in `cmd/argocd-applicationset-controller/commands/applicationset_controller.go`
-      - 58ac56fa.applicationsets.argoproj.io
-    verbs:
-      - update
   - apiGroups:
       - coordination.k8s.io
     resources:
@@ -104,3 +74,4 @@ rules:
     verbs:
       - get
       - update
+      - create
