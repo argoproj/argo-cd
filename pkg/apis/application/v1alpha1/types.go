@@ -2235,20 +2235,38 @@ type Cluster struct {
 }
 
 func (c *Cluster) Sanitized() *Cluster {
-	clust := *c
-	clust.Config.Username = ""
-	clust.Config.Password = ""
-	clust.Config.BearerToken = ""
-	clust.Config.KeyData = nil
-	if clust.Config.ExecProviderConfig != nil {
-		// We can't know what the user has put into args or
-		// env vars on the exec provider that might be sensitive
-		// (e.g. --private-key=XXX, PASSWORD=XXX)
-		// Implicitly assumes the command executable name is non-sensitive
-		clust.Config.ExecProviderConfig.Env = make(map[string]string)
-		clust.Config.ExecProviderConfig.Args = nil
+	var execProviderConfig *ExecProviderConfig
+	if c.Config.ExecProviderConfig != nil {
+		execProviderConfig = &ExecProviderConfig{
+			Command:     c.Config.ExecProviderConfig.Command,
+			APIVersion:  c.Config.ExecProviderConfig.APIVersion,
+			InstallHint: c.Config.ExecProviderConfig.InstallHint,
+		}
 	}
-	return &clust
+	return &Cluster{
+		ID:                 c.ID,
+		Server:             c.Server,
+		Name:               c.Name,
+		Project:            c.Project,
+		Namespaces:         c.Namespaces,
+		Shard:              c.Shard,
+		Labels:             c.Labels,
+		Annotations:        c.Annotations,
+		ClusterResources:   c.ClusterResources,
+		ConnectionState:    c.ConnectionState,
+		ServerVersion:      c.ServerVersion,
+		Info:               c.Info,
+		RefreshRequestedAt: c.RefreshRequestedAt,
+		Config: ClusterConfig{
+			ExecProviderConfig: execProviderConfig,
+			AWSAuthConfig:      c.Config.AWSAuthConfig,
+			ProxyUrl:           c.Config.ProxyUrl,
+			DisableCompression: c.Config.DisableCompression,
+			TLSClientConfig: TLSClientConfig{
+				Insecure: c.Config.TLSClientConfig.Insecure,
+			},
+		},
+	}
 }
 
 // Equals returns true if two cluster objects are considered to be equal
