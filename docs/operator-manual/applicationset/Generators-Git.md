@@ -425,7 +425,7 @@ In `values` we can also interpolate all fields set by the git files generator as
 ## Git Polling Interval
 
 When using a Git generator, the ApplicationSet controller polls Git
-repositories every 3 minutes to detect changes. You can customize this
+repositories, by default, every 3 minutes to detect changes. You can customize this
 interval per ApplicationSet using `requeueAfterSeconds`.
 
 !!!note
