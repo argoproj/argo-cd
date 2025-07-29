@@ -1,0 +1,21 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: CronJob has never run
+    inputPath: testdata/notScheduled.yaml
+  - healthStatus:
+      status: Healthy
+      message: CronJob has run successfully
+    inputPath: testdata/successfullyRun.yaml
+  - healthStatus:
+      status: Progressing
+      message: CronJob has active jobs
+    inputPath: testdata/activeJobs.yaml
+  - healthStatus:
+      status: Degraded
+      message: CronJob has not run successfully
+    inputPath: testdata/oldLastSuccessfulRun.yaml
+  - healthStatus:
+      status: Degraded
+      message: CronJob has not run successfully
+    inputPath: testdata/noLastSuccessfulRun.yaml
