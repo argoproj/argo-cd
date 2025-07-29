@@ -339,7 +339,7 @@ func genRevisionHasChanged(gen *v1alpha1.GitGenerator, revision string, touchedH
 
 func gitGeneratorUsesURL(gen *v1alpha1.GitGenerator, webURL string, repoRegexp *regexp.Regexp) bool {
 	if !repoRegexp.MatchString(gen.RepoURL) {
-		log.Debugf("%s does not match %s", gen.RepoURL, repoRegexp.String())
+		log.Warnf("%s does not match %s", gen.RepoURL, repoRegexp.String())
 		return false
 	}
 
