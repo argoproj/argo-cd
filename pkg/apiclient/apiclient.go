@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"golang.org/x/net/proxy"
 	"io"
 	"math"
 	"net"
@@ -15,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/net/proxy"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
@@ -286,7 +287,6 @@ func NewClient(opts *ClientOptions) (Client, error) {
 			TLSClientConfig: tlsConfig,
 			DialContext:     dc.DialContext,
 		}
-
 	}
 	if !c.GRPCWeb {
 		if parts := strings.Split(c.ServerAddr, ":"); len(parts) == 1 {
