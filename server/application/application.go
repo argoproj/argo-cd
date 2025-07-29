@@ -63,11 +63,12 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/session"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 
+	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
+
 	applicationType "github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
-	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
 )
 
 type AppResourceTreeFn func(ctx context.Context, app *v1alpha1.Application) (*v1alpha1.ApplicationTree, error)

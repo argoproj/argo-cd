@@ -3634,7 +3634,7 @@ func TestServerSideDiff(t *testing.T) {
 			TargetManifests: []string{},
 		}
 
-		_, err := appServer.ServerSideDiff(context.Background(), query)
+		_, err := appServer.ServerSideDiff(t.Context(), query)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 
@@ -3647,7 +3647,7 @@ func TestServerSideDiff(t *testing.T) {
 			TargetManifests: []string{},
 		}
 
-		_, err = appServer.ServerSideDiff(context.Background(), queryNil)
+		_, err = appServer.ServerSideDiff(t.Context(), queryNil)
 		assert.Error(t, err)
 		// Should get an error when name is nil
 	})
@@ -3662,7 +3662,7 @@ func TestServerSideDiff(t *testing.T) {
 			TargetManifests: []string{`invalid json`},
 		}
 
-		_, err := appServer.ServerSideDiff(context.Background(), query)
+		_, err := appServer.ServerSideDiff(t.Context(), query)
 
 		// Should return error for invalid JSON
 		require.Error(t, err)
@@ -3689,7 +3689,7 @@ func TestServerSideDiff(t *testing.T) {
 			TargetManifests: []string{`{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"test"}}`},
 		}
 
-		_, err := appServer.ServerSideDiff(context.Background(), query)
+		_, err := appServer.ServerSideDiff(t.Context(), query)
 
 		// Should return error for invalid JSON in live state
 		require.Error(t, err)
@@ -3706,7 +3706,7 @@ func TestServerSideDiff(t *testing.T) {
 			TargetManifests: []string{},
 		}
 
-		resp, err := appServer.ServerSideDiff(context.Background(), query)
+		resp, err := appServer.ServerSideDiff(t.Context(), query)
 
 		// Should succeed with empty response
 		require.NoError(t, err)
@@ -3725,7 +3725,7 @@ func TestServerSideDiff(t *testing.T) {
 			TargetManifests: []string{},
 		}
 
-		_, err := appServer.ServerSideDiff(context.Background(), query)
+		_, err := appServer.ServerSideDiff(t.Context(), query)
 
 		// Should fail with permission error since nonexistent-app doesn't exist
 		require.Error(t, err)
