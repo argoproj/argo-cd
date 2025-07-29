@@ -3,6 +3,7 @@ package helm
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -10,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	semver "github.com/Masterminds/semver/v3"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -225,11 +227,45 @@ func writeToTmp(data []byte) (string, utilio.Closer, error) {
 	}), nil
 }
 
-func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, passCredentials bool) (string, error) {
-	args := []string{"pull", "--destination", destination}
-	if version != "" {
-		args = append(args, "--version", version)
+// this function safely generates chart url
+func safeChartURL(repo, chartName, version string) (string, error) {
+	// check on mandatory parameters
+	if chartName == "" || version == "" {
+		return "", errors.New("chartName and version should be defined")
 	}
+
+	// check chartName on allowed chars
+	if !regexp.MustCompile(`^[a-zA-Z0-9._-]+$`).MatchString(chartName) {
+		return "", fmt.Errorf("invalid characters in chartName: %s", chartName)
+	}
+
+	if !regexp.MustCompile(`^[a-zA-Z0-9._-]+$`).MatchString(version) {
+		return "", fmt.Errorf("invalid characters in version: %s", version)
+	}
+
+	// check that URL is correct
+	chartURL := fmt.Sprintf("%s/%s-%s.tgz", strings.TrimSuffix(repo, "/"), chartName, version)
+	url, err := url.Parse(chartURL)
+
+	if url.Scheme != "http" && url.Scheme != "https" {
+		return "", fmt.Errorf("invalid schema url '%s'", url.Scheme)
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("invalid URL path: %w", err)
+	}
+
+	return url.String(), nil
+}
+
+// check that version is strict for using direct pull
+func isHelmStrictVersion(v string) bool {
+	_, err := semver.NewVersion(v)
+	return err == nil
+}
+
+func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, passCredentials bool, directPull bool) (string, error) {
+	args := []string{"pull", "--destination", destination}
 	if creds.GetUsername() != "" {
 		args = append(args, "--username", creds.GetUsername())
 	}
@@ -245,7 +281,19 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 		args = append(args, "--insecure-skip-tls-verify")
 	}
 
-	args = append(args, "--repo", repo, chartName)
+	if directPull && isHelmStrictVersion(version) {
+		chartURL, err := safeChartURL(repo, chartName, version)
+		if err != nil {
+			return "", err
+		}
+
+		args = append(args, chartURL)
+	} else {
+		if version != "" {
+			args = append(args, "--version", version)
+		}
+		args = append(args, "--repo", repo, chartName)
+	}
 
 	if creds.GetCAPath() != "" {
 		args = append(args, "--ca-file", creds.GetCAPath())

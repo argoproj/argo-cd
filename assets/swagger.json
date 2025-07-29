@@ -7415,6 +7415,10 @@
             "type": "string"
           }
         },
+        "directPull": {
+          "type": "boolean",
+          "title": "DirectPull specifies whether direct pull should be enabled"
+        },
         "fileParameters": {
           "type": "array",
           "title": "FileParameters are file parameters to the helm template",

@@ -1129,6 +1129,32 @@ spec:
     namespace: kubeseal
 ```
 
+To enable direct chart download (bypassing index.yaml), configure the Application CR as follows:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sealed-secrets
+  namespace: argocd
+spec:
+  project: default
+  source:
+    chart: sealed-secrets
+    repoURL: https://bitnami-labs.github.io/sealed-secrets
+    targetRevision: 1.16.1
+    helm:
+      directPull: true
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: kubeseal
+```
+
+Limitations of directPull:
+* Wildcard versions are not supported. You must use exact targetRevision, like 1.2.3. Constructs such as >=1.0.0, ~2.1, or 2.3.* will not work.
+* Chart must be stored at a predictable URL (`<repo_url>/<chart_name>-<version>.tgz`)
+* If the chart or version is missing at the expected location, the operation will fail without attempting to read index.yaml.
+
 Another example using a public OCI helm chart:
 
 ```yaml
