@@ -4376,6 +4376,9 @@ func TestSanitized(t *testing.T) {
 			TLSClientConfig: TLSClientConfig{
 				Insecure: true,
 			},
+			ExecProviderConfig: &ExecProviderConfig{
+				Command: "test",
+			},
 		},
 	}
 
