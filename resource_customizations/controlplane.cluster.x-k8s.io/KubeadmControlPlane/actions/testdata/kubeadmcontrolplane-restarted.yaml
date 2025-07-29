@@ -1,0 +1,68 @@
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  annotations:
+    cluster.x-k8s.io/restartedAt: "0001-01-01T00:00:00Z"
+  finalizers:
+  - kubeadm.controlplane.cluster.x-k8s.io
+  generation: 2
+  labels:
+    app.kubernetes.io/instance: test
+    cluster.x-k8s.io/cluster-name: test
+  name: test-control-plane
+  namespace: test
+spec:
+  kubeadmConfigSpec:
+    clusterConfiguration:
+      apiServer:
+        certSANs:
+        - localhost
+        - 127.0.0.1
+      controllerManager:
+        extraArgs:
+          enable-hostpath-provisioner: "true"
+      dns: {}
+      etcd: {}
+      networking: {}
+      scheduler: {}
+    format: cloud-config
+    initConfiguration:
+      localAPIEndpoint: {}
+      nodeRegistration:
+        criSocket: unix:///var/run/containerd/containerd.sock
+        imagePullPolicy: IfNotPresent
+        kubeletExtraArgs:
+          cgroup-driver: cgroupfs
+          eviction-hard: nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%
+    joinConfiguration:
+      discovery: {}
+      nodeRegistration:
+        criSocket: unix:///var/run/containerd/containerd.sock
+        imagePullPolicy: IfNotPresent
+        kubeletExtraArgs:
+          cgroup-driver: cgroupfs
+          eviction-hard: nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
+      kind: InMemoryMachineTemplate
+      name: test-control-plane
+      namespace: test
+    metadata: {}
+  replicas: 3
+  rolloutAfter: "0001-01-01T00:00:00Z"
+  rolloutStrategy:
+    rollingUpdate:
+      maxSurge: 1
+    type: RollingUpdate
+  version: v1.27.3
+status:
+  initialized: true
+  observedGeneration: 2
+  ready: true
+  readyReplicas: 3
+  replicas: 3
+  selector: cluster.x-k8s.io/cluster-name=test,cluster.x-k8s.io/control-plane
+  unavailableReplicas: 0
+  updatedReplicas: 3
+  version: v1.27.3
