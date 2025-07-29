@@ -28,4 +28,9 @@ spec:
       protocol: TCP
     - port: 26379
       protocol: TCP
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - port: 9101
+      protocol: TCP
 
