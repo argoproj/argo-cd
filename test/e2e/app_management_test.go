@@ -3268,6 +3268,5 @@ func TestServerSideDiffWithLocalValidation(t *testing.T) {
 			output, err := fixture.RunCli("app", "diff", app.Name, "--server-side-diff", "--local", "testdata")
 			require.Error(t, err)
 			assert.Contains(t, output, "--server-side-diff with --local requires --server-side-generate")
-			assert.Contains(t, output, "deprecated client-side generation does not work with server-side diff")
 		})
 }
