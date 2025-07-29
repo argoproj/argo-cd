@@ -419,7 +419,7 @@ func TestAzureWorkloadIdentityCreds_Environ(t *testing.T) {
 	workloadIdentityMock := new(mocks.TokenProvider)
 	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return(&workloadidentity.Token{AccessToken: "accessToken", ExpiresOn: time.Now().Add(time.Minute)}, nil)
 	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
-	_, _, err := creds.Environ()
+	_, env, err := creds.Environ()
 	require.NoError(t, err)
 	assert.Len(t, store.creds, 1)
 
@@ -427,6 +427,9 @@ func TestAzureWorkloadIdentityCreds_Environ(t *testing.T) {
 		assert.Equal(t, "", value.username)
 		assert.Equal(t, "accessToken", value.password)
 	}
+
+	require.Len(t, env, 1)
+	assert.Equal(t, "ARGOCD_GIT_BEARER_AUTH_HEADER=Authorization: Bearer accessToken", env[0], "ARGOCD_GIT_BEARER_AUTH_HEADER env var must be set")
 }
 
 func TestAzureWorkloadIdentityCreds_Environ_cleanup(t *testing.T) {
