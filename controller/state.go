@@ -853,13 +853,14 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.GetName(), v1alpha1.TrackingMethod(trackingMethod), installationID)
 
 		resState := v1alpha1.ResourceStatus{
-			Namespace:       obj.GetNamespace(),
-			Name:            obj.GetName(),
-			Kind:            gvk.Kind,
-			Version:         gvk.Version,
-			Group:           gvk.Group,
-			Hook:            isHook(obj),
-			RequiresPruning: targetObj == nil && liveObj != nil && isSelfReferencedObj,
+			Namespace:           obj.GetNamespace(),
+			Name:                obj.GetName(),
+			Kind:                gvk.Kind,
+			Version:             gvk.Version,
+			Group:               gvk.Group,
+			Hook:                isHook(obj),
+			IsSelfReferencedObj: isSelfReferencedObj,
+			RequiresPruning:     targetObj == nil && liveObj != nil && isSelfReferencedObj,
 			RequiresDeletionConfirmation: targetObj != nil && resourceutil.HasAnnotationOption(targetObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDeleteRequireConfirm) ||
 				liveObj != nil && resourceutil.HasAnnotationOption(liveObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDeleteRequireConfirm),
 		}
