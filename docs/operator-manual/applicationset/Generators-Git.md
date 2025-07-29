@@ -425,16 +425,21 @@ In `values` we can also interpolate all fields set by the git files generator as
 ## Git Polling Interval
 
 When using a Git generator, the ApplicationSet controller polls Git
-repositories, by default, every 3 minutes to detect changes. You can customize this
-interval per ApplicationSet using `requeueAfterSeconds`.
+repositories, by default, every 3 minutes to detect changes, unless
+different default value is set by the
+`ARGOCD_APPLICATIONSET_CONTROLLER_REQUEUE_AFTER` environment variable.
+You can customize this interval per ApplicationSet using
+`requeueAfterSeconds`.
 
 !!!note
-    The Git generator uses the ArgoCD Repo Server to retrieve file and
-    directory lists from Git. Therefore, the Git generator is affected by
-    the Repo Server's Revision Cache Expiration setting. If this
-    value exceeds `requeueAfterSeconds`, the Git generator might not see
-    files or directories from new commits until the previous cache entry
-    expires.
+    The Git generator uses the ArgoCD Repo Server to retrieve file
+    and directory lists from Git. Therefore, the Git generator is
+    affected by the Repo Server's Revision Cache Expiration setting
+    (see the description of the `timeout.reconciliation` parameter in
+    [argocd-cm.yaml](../argocd-cm-yaml.md/#:~:text=timeout.reconciliation%3A)).
+    If this value exceeds the configured Git Polling Interval, the
+    Git generator might not see files or directories from new commits
+    until the previous cache entry expires.
  
 ## The `argocd.argoproj.io/application-set-refresh` Annotation
 
