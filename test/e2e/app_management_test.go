@@ -3265,8 +3265,8 @@ func TestServerSideDiffWithLocalValidation(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			// Test that --server-side-diff with --local without --server-side-generate fails with proper error
-			output, err := fixture.RunCli("app", "diff", app.Name, "--server-side-diff", "--local", "testdata")
+			_, err := fixture.RunCli("app", "diff", app.Name, "--server-side-diff", "--local", "testdata")
 			require.Error(t, err)
-			assert.Contains(t, output, "--server-side-diff with --local requires --server-side-generate")
+			assert.Contains(t, err.Error(), "--server-side-diff with --local requires --server-side-generate")
 		})
 }
