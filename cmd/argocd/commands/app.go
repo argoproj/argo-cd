@@ -44,6 +44,8 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 
+	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
+
 	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
 	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
@@ -62,7 +64,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/manifeststream"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 	"github.com/argoproj/argo-cd/v3/util/text/label"
-	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
 )
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
