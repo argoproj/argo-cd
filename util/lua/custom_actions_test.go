@@ -87,7 +87,7 @@ func (t testNormalizer) normalizeJob(un *unstructured.Unstructured) error {
 	} else if exist {
 		changed := false
 		for i := range conditions {
-			condition := conditions[i].(map[string]interface{})
+			condition := conditions[i].(map[string]any)
 			cType := condition["type"].(string)
 			if cType == "FailureTarget" {
 				condition["lastTransitionTime"] = "0001-01-01T00:00:00Z"
