@@ -213,6 +213,20 @@ func (s *secretsRepositoryBackend) GetRepoCreds(_ context.Context, repoURL strin
 	return s.secretToRepoCred(secret)
 }
 
+func (s *secretsRepositoryBackend) GetRepoCredsIfExists(_ context.Context, repoURL string) (bool, *appsv1.RepoCreds, error) {
+	secret, err := s.getRepoCredsSecret(repoURL)
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return false, nil, nil
+		}
+
+		return false, nil, err
+	}
+
+	repository, errRepo := s.secretToRepoCred(secret)
+	return true, repository, errRepo
+}
+
 func (s *secretsRepositoryBackend) ListRepoCreds(_ context.Context) ([]string, error) {
 	var repoURLs []string
 
@@ -549,7 +563,7 @@ func (s *secretsRepositoryBackend) getRepositorySecret(repoURL, project string, 
 }
 
 func (s *secretsRepositoryBackend) getRepoCredsSecret(repoURL string) (*corev1.Secret, error) {
-	secrets, err := s.db.listSecretsByType(common.LabelValueSecretTypeRepoCreds)
+	secrets, err := s.db.listSecretsByType(s.getSecretType())
 	if err != nil {
 		return nil, err
 	}
