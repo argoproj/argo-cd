@@ -162,6 +162,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Hiya](https://hiya.com)
 1. [Honestbank](https://honestbank.com)
 1. [Hostinger](https://www.hostinger.com)
+1. [Hotjar](https://www.hotjar.com)
 1. [IABAI](https://www.iab.ai)
 1. [IBM](https://www.ibm.com/)
 1. [Ibotta](https://home.ibotta.com)
