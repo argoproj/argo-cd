@@ -563,7 +563,7 @@ func (s *secretsRepositoryBackend) getRepositorySecret(repoURL, project string, 
 }
 
 func (s *secretsRepositoryBackend) getRepoCredsSecret(repoURL string) (*corev1.Secret, error) {
-	secrets, err := s.db.listSecretsByType(s.getSecretType())
+	secrets, err := s.db.listSecretsByType(common.LabelValueSecretTypeRepoCreds)
 	if err != nil {
 		return nil, err
 	}

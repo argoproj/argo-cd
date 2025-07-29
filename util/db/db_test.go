@@ -151,6 +151,42 @@ func TestCreateRepoCredentials(t *testing.T) {
 	assert.Equal(t, "test-password", repo.Password)
 }
 
+func TestCreateWriteRepoCredentials(t *testing.T) {
+	clientset := getClientset()
+	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+
+	creds, err := db.CreateWriteRepositoryCredentials(t.Context(), &v1alpha1.RepoCreds{
+		URL:      "https://github.com/argoproj/",
+		Username: "test-username",
+		Password: "test-password",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "https://github.com/argoproj/", creds.URL)
+
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), RepoURLToSecretName(credSecretPrefix, creds.URL, ""), metav1.GetOptions{})
+	require.NoError(t, err)
+
+	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
+	assert.Equal(t, "test-username", string(secret.Data[username]))
+	assert.Equal(t, "test-password", string(secret.Data[password]))
+	assert.Empty(t, secret.Data[sshPrivateKey])
+
+	created, err := db.CreateWriteRepository(t.Context(), &v1alpha1.Repository{
+		Repo: "https://github.com/argoproj/argo-cd",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "https://github.com/argoproj/argo-cd", created.Repo)
+
+	// There seems to be a race or some other hiccup in the fake K8s clientset used for this test.
+	// Just give it a little time to settle.
+	time.Sleep(1 * time.Second)
+
+	repo, err := db.GetWriteRepository(t.Context(), created.Repo, "")
+	require.NoError(t, err)
+	assert.Equal(t, "test-username", repo.Username)
+	assert.Equal(t, "test-password", repo.Password)
+}
+
 func TestGetRepositoryCredentials(t *testing.T) {
 	clientset := getClientset()
 	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
