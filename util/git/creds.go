@@ -710,6 +710,7 @@ func (creds AzureWorkloadIdentityCreds) Environ() (io.Closer, []string, error) {
 	}
 	nonce := creds.store.Add("", token)
 	env := creds.store.Environ(nonce)
+	env = append(env, fmt.Sprintf("%s=Authorization: Bearer %s", bearerAuthHeaderEnv, token))
 
 	return utilio.NewCloser(func() error {
 		creds.store.Remove(nonce)
