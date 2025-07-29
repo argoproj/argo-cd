@@ -429,12 +429,12 @@ repositories, by default, every 3 minutes to detect changes. You can customize t
 interval per ApplicationSet using `requeueAfterSeconds`.
 
 !!!note
-	The Git generator uses the ArgoCD Repo Server to retrieve file and
-	directory lists from Git. Therefore, the Git generator is affected by
-	the Repo Server's Revision Cache Expiration setting. If this
-	value exceeds `requeueAfterSeconds`, the Git generator might not see
-	files or directories from new commits until the previous cache entry
-	expires.
+    The Git generator uses the ArgoCD Repo Server to retrieve file and
+    directory lists from Git. Therefore, the Git generator is affected by
+    the Repo Server's Revision Cache Expiration setting. If this
+    value exceeds `requeueAfterSeconds`, the Git generator might not see
+    files or directories from new commits until the previous cache entry
+    expires.
  
 ## The `argocd.argoproj.io/application-set-refresh` Annotation
 
