@@ -32,6 +32,9 @@ actionTests:
     inputPath: testdata/active.yaml
     expectedOutputPath: testdata/terminated.yaml
   - action: terminate
+    inputPath: testdata/resumed.yaml
+    expectedOutputPath: testdata/resumed-terminated-output.yaml
+  - action: terminate
     inputPath: testdata/completed.yaml
     expectedOutputPath: testdata/completed.yaml
   - action: terminate
