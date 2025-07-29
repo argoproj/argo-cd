@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"golang.org/x/net/proxy"
 	"io"
 	"math"
 	"net"
@@ -275,9 +276,17 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		if err != nil {
 			return nil, err
 		}
+		d := proxy.FromEnvironment()
+
+		dc := d.(interface {
+			DialContext(ctx context.Context, network, addr string) (net.Conn, error)
+		})
+
 		c.httpClient.Transport = &http.Transport{
 			TLSClientConfig: tlsConfig,
+			DialContext:     dc.DialContext,
 		}
+
 	}
 	if !c.GRPCWeb {
 		if parts := strings.Split(c.ServerAddr, ":"); len(parts) == 1 {
