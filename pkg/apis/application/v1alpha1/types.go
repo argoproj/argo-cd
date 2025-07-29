@@ -2153,14 +2153,6 @@ type Cluster struct {
 }
 
 func (c *Cluster) Sanitized() *Cluster {
-	var execProviderConfig *ExecProviderConfig
-	if c.Config.ExecProviderConfig != nil {
-		execProviderConfig = &ExecProviderConfig{
-			Command:     c.Config.ExecProviderConfig.Command,
-			APIVersion:  c.Config.ExecProviderConfig.APIVersion,
-			InstallHint: c.Config.ExecProviderConfig.InstallHint,
-		}
-	}
 	return &Cluster{
 		ID:                 c.ID,
 		Server:             c.Server,
@@ -2176,7 +2168,6 @@ func (c *Cluster) Sanitized() *Cluster {
 		Info:               c.Info,
 		RefreshRequestedAt: c.RefreshRequestedAt,
 		Config: ClusterConfig{
-			ExecProviderConfig: execProviderConfig,
 			AWSAuthConfig:      c.Config.AWSAuthConfig,
 			ProxyUrl:           c.Config.ProxyUrl,
 			DisableCompression: c.Config.DisableCompression,
