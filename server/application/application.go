@@ -1107,15 +1107,16 @@ func (s *Server) getAppProject(ctx context.Context, a *v1alpha1.Application, log
 		return nil, vagueError
 	}
 
-	var applicationNotAllowedToUseProjectErr *v1alpha1.ErrApplicationNotAllowedToUseProject
+	var applicationNotAllowedToUseProjectErr *argo.ErrApplicationNotAllowedToUseProject
 	if errors.As(err, &applicationNotAllowedToUseProjectErr) {
-		logCtx.WithFields(map[string]any{
-			"project":                a.Spec.Project,
-			argocommon.SecurityField: argocommon.SecurityMedium,
-		}).Warnf("error getting app project: %s", err)
 		return nil, vagueError
 	}
 
+	// Unknown error, log it but return the vague error to the user
+	logCtx.WithFields(map[string]any{
+		"project":                a.Spec.Project,
+		argocommon.SecurityField: argocommon.SecurityMedium,
+	}).Warnf("error getting app project: %s", err)
 	return nil, vagueError
 }
 
