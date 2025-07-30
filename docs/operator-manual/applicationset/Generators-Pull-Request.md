@@ -351,7 +351,8 @@ spec:
   generators:
   - pullRequest:
       # ...
-      # Include any pull request branch ending with "argocd" and pull request title starting with "feat:". (optional)
+      # Include any pull request branch ending with "argocd" 
+      # and pull request title starting with "feat:". (optional)
       filters:
       - branchMatch: ".*-argocd"
       - titleMatch: "^feat:"
