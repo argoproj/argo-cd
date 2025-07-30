@@ -20,7 +20,8 @@ func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comma
 		Short: "Log out from Argo CD",
 		Long:  "Log out from Argo CD",
 		Example: `# To log out of argocd
-$ argocd logout
+argocd logout CONTEXT
+
 # This can be helpful for security reasons or when you want to switch between different Argo CD contexts or accounts.
 `,
 		Run: func(c *cobra.Command, args []string) {
