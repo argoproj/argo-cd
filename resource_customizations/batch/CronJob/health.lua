@@ -18,20 +18,20 @@ if obj.status ~= nil then
 
     -- If the CronJob has no active jobs and the lastSuccessfulTime < lastScheduleTime
     -- then we know it failed the last execution
-    if obj.status.lastSuccessfulTime ~= nil and obj.status.lastScheduleTime ~= nil then
+    if obj.status.lastScheduleTime ~= nil then
         -- No issue comparing time as text
-        if obj.status.lastSuccessfulTime < obj.status.lastScheduleTime then
+        if obj.status.lastSuccessfulTime == nil or obj.status.lastSuccessfulTime < obj.status.lastScheduleTime then
             hs.status = "Degraded"
             hs.message = "CronJob has not completed its last execution successfully"
             return hs
         end
+        hs.message = "CronJob has completed its last execution successfully"
     end
 
     -- There is no way to know if as CronJob missed its execution based on status
     -- so we assume Healthy even if a cronJob is not getting scheduled.
     -- https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#job-creation
     hs.status = "Healthy"
-    hs.message = "CronJob has completed its last execution successfully"
     return hs
 end
 
