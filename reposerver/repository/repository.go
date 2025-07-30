@@ -1621,7 +1621,7 @@ func newEnv(ctx context.Context, q *apiclient.ManifestRequest, revision string) 
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: q.ApplicationSource.TargetRevision},
 	}
 
-	if traceEnv, ok := traceutil.GetTraceEnvFromContext(ctx); ok {
+	if traceEnv := traceutil.GetTraceEnvFromContext(ctx); len(traceEnv) > 0 {
 		for key, value := range traceEnv {
 			*env = append(*env, &v1alpha1.EnvEntry{Name: key, Value: value})
 		}
@@ -1646,7 +1646,7 @@ func newEnvRepoQuery(ctx context.Context, q *apiclient.RepoServerAppDetailsQuery
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: q.Source.TargetRevision},
 	}
 
-	if traceEnv, ok := traceutil.GetTraceEnvFromContext(ctx); ok {
+	if traceEnv := traceutil.GetTraceEnvFromContext(ctx); len(traceEnv) > 0 {
 		for key, value := range traceEnv {
 			*env = append(*env, &v1alpha1.EnvEntry{Name: key, Value: value})
 		}

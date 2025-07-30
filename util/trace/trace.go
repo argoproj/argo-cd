@@ -78,10 +78,10 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 }
 
 // GetTraceEnvFromContext extracts environment variables that can be used to propagate the trace context.
-func GetTraceEnvFromContext(ctx context.Context) (map[string]string, bool) {
+func GetTraceEnvFromContext(ctx context.Context) map[string]string {
 	propagator := otel.GetTextMapPropagator()
 	if propagator == nil {
-		return nil, false
+		return nil
 	}
 
 	carrier := make(map[string]string)
@@ -99,5 +99,5 @@ func GetTraceEnvFromContext(ctx context.Context) (map[string]string, bool) {
 		}
 	}
 
-	return carrier, true
+	return carrier
 }
