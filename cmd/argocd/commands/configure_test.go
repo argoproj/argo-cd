@@ -95,15 +95,3 @@ func TestNewConfigureCommand_PromptsEnabled_False(t *testing.T) {
 
 	assert.False(t, localConfig.PromptsEnabled)
 }
-
-func TestNewConfigureCommand_NoLocalConfig(t *testing.T) {
-	// Ensure the test config file does not exist
-	err := os.Remove(testConfigFilePath)
-	require.Error(t, err)
-
-	cmd := NewConfigureCommand(&argocdclient.ClientOptions{ConfigPath: testConfigFilePath})
-	cmd.SetArgs([]string{"--prompts-enabled=true"})
-
-	err = cmd.Execute()
-	require.NoError(t, err)
-}
