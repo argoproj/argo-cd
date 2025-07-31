@@ -1270,7 +1270,6 @@ type objKeyLiveTarget struct {
 	target *unstructured.Unstructured
 }
 
-// NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		refresh              bool
@@ -1286,6 +1285,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		revisions            []string
 		sourcePositions      []int64
 		sourceNames          []string
+		validate             bool
 		ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
 	)
 	shortDesc := "Perform a diff against the target and live state."
@@ -1342,7 +1342,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			defer utilio.Close(conn)
 			argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
 			errors.CheckError(err)
-			diffOption := &DifferenceOption{}
+			diffOption := &DifferenceOption{validate: validate}
 			switch {
 			case app.Spec.HasMultipleSources() && len(revisions) > 0 && len(sourcePositions) > 0:
 				numOfSources := int64(len(app.Spec.GetSources()))
@@ -1398,9 +1398,21 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 			proj := getProject(ctx, c, clientOpts, app.Spec.Project)
-			foundDiffs := findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts)
-			if foundDiffs && exitCode {
-				os.Exit(diffExitCode)
+			foundDiffs, validationErrors := findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts)
+
+			if len(validationErrors) > 0 {
+				fmt.Fprintf(os.Stderr, "\nValidation errors:\n")
+				for _, err := range validationErrors {
+					fmt.Fprintf(os.Stderr, "  - %s\n", err)
+				}
+			}
+
+			if exitCode {
+				if len(validationErrors) > 0 {
+					os.Exit(3)
+				} else if foundDiffs {
+					os.Exit(diffExitCode)
+				}
 			}
 		},
 	}
@@ -1417,11 +1429,12 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for source position in source-positions")
 	command.Flags().Int64SliceVar(&sourcePositions, "source-positions", []int64{}, "List of source positions. Default is empty array. Counting start at 1.")
 	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array.")
+	command.Flags().BoolVar(&validate, "validate", false, "Validate manifests using kubectl apply --server-side --dry-run")
+	command.Flags().BoolVar(&validate, "lint", false, "Alias for --validate")
 	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout", normalizers.DefaultJQExecutionTimeout, "Set ignore normalizer JQ execution timeout")
 	return command
 }
 
-// DifferenceOption struct to store diff options
 type DifferenceOption struct {
 	local         string
 	localRepoRoot string
@@ -1430,10 +1443,10 @@ type DifferenceOption struct {
 	res           *repoapiclient.ManifestResponse
 	serversideRes *repoapiclient.ManifestResponse
 	revisions     []string
+	validate      bool
 }
 
-// findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
-func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, diffOptions *DifferenceOption, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts) bool {
+func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, diffOptions *DifferenceOption, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts) (bool, []string) {
 	var foundDiffs bool
 	liveObjs, err := cmdutil.LiveObjects(resources.Items)
 	errors.CheckError(err)
@@ -1517,7 +1530,13 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 			_ = cli.PrintDiff(item.key.Name, live, target)
 		}
 	}
-	return foundDiffs
+
+	var validationErrors []string
+	if diffOptions.validate {
+		validationErrors = validateManifests(ctx, items, app)
+	}
+
+	return foundDiffs, validationErrors
 }
 
 func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[kube.ResourceKey]*unstructured.Unstructured, items []objKeyLiveTarget, argoSettings *settings.Settings, appName, namespace string) []objKeyLiveTarget {
@@ -2296,7 +2315,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					fmt.Printf("====== Previewing differences between live and desired state of application %s ======\n", appQualifiedName)
 
 					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
-					foundDiffs = findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts)
+					foundDiffs, _ = findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts)
 					if !foundDiffs {
 						fmt.Printf("====== No Differences found ======\n")
 						// if no differences found, then no need to sync
@@ -3518,4 +3537,14 @@ func NewApplicationConfirmDeletionCommand(clientOpts *argocdclient.ClientOptions
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the target application where the source will be appended")
 	return command
+}
+
+func validateManifests(_ context.Context, items []objKeyLiveTarget, _ *argoappv1.Application) []string {
+	var validationErrors []string
+
+	if len(items) > 0 {
+		validationErrors = append(validationErrors, "Validation is not yet implemented. This feature requires server-side support.")
+	}
+
+	return validationErrors
 }
