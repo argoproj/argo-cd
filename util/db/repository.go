@@ -299,7 +299,6 @@ func (db *db) GetWriteRepositoryCredentials(ctx context.Context, repoURL string)
 		}
 		return nil, fmt.Errorf("unable to get repository write credentials for %q from secrets backend: %w", repoURL, err)
 	}
-
 	if !exists {
 		return nil, nil
 	}
