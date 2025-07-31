@@ -1733,6 +1733,12 @@ export const getProgressiveSyncStatusColor = (status: string): string => {
     }
 };
 
+// constant for podrequests
+export const podRequests = {
+    CPU: 'Requests (CPU)',
+    MEMORY: 'Requests (MEM)'
+} as const;
+
 export const isAutoSyncEnabled = (app: appModels.Application) => {
     return app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false;
 };
