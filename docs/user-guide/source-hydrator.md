@@ -325,8 +325,8 @@ It is best practice to prefix the hydrated branches with a common prefix, such a
 to configure branch protection rules on the destination repository.
 
 !!! note
-To maintain reproducibility and determinism in the Hydrator’s output,
-Argo CD-specific metadata (such as `argocd.argoproj.io/tracking-id`) is
-not written to Git during hydration. These annotations are added dynamically
-during application sync and comparison.
+    To maintain reproducibility and determinism in the Hydrator’s output,
+    Argo CD-specific metadata (such as `argocd.argoproj.io/tracking-id`) is
+    not written to Git during hydration. These annotations are added dynamically
+    during application sync and comparison.
 !!!
