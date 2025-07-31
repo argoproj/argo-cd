@@ -279,8 +279,7 @@ hydrator will not be able to use a project-scoped push secret and will require a
 
 ### Credential Templates
 
-Credential templates allow a single credential to be used for multiple repositories. The source hydrator does not 
-currently support credential templates. You will need a separate credential for each repository.
+Credential templates allow a single credential to be used for multiple repositories. The source hydrator supports credential templates. For more information please refer [credential-template](private-repositories.md#credential-templates)
 
 ### `manifest-generate-paths` Annotation Support
 
