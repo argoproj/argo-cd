@@ -230,8 +230,8 @@ You can define parameters for your custom actions. The parameters are defined in
 See the [Deployment actions discovery script](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/apps/Deployment/actions/discovery.lua):
 
 <!-- Embed the actual script so ReadTheDocs always has an up-to-date example. -->
-```yaml
-{!resource_customizations/apps/Deployment/actions/discovery.lua}
+```lua
+{!resource_customizations/apps/Deployment/actions/discovery.lua!}
 ```
 
 The [resource scale actions](../user-guide/scale_application_resources.md) documentation shows how this function behaves in the UI.
