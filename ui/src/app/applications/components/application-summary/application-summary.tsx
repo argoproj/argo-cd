@@ -76,7 +76,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const updateApp = notificationSubscriptions.withNotificationSubscriptions(props.updateApp);
 
     const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
-
+    const isHydrator = app.spec.sourceHydrator && true;
     const repoType = source.repoURL.startsWith('oci://') ? 'oci' : (source.hasOwnProperty('chart') && 'helm') || 'git';
 
     const attributes = [
@@ -185,7 +185,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         !hasMultipleSources && {
             title: 'REPO URL',
             view: <Repo url={source?.repoURL} />,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.repoURL' component={Text} />
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field={getRepoField(isHydrator)} component={Text} />
         },
         ...(!hasMultipleSources
             ? isHelm
@@ -247,7 +247,14 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                               hasMultipleSources ? (
                                   helpTip('TARGET REVISION is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
                               ) : (
-                                  <RevisionFormField helpIconTop={'0'} hideLabel={true} formApi={formApi} repoURL={source.repoURL} repoType={repoType} />
+                                  <RevisionFormField
+                                      helpIconTop={'0'}
+                                      hideLabel={true}
+                                      formApi={formApi}
+                                      fieldValue={getTargetRevisionField(isHydrator)}
+                                      repoURL={source.repoURL}
+                                      repoType={repoType}
+                                  />
                               )
                       },
                       {
@@ -261,7 +268,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                               hasMultipleSources ? (
                                   helpTip('PATH is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
                               ) : (
-                                  <FormField formApi={formApi} field='spec.source.path' component={Text} />
+                                  <FormField formApi={formApi} field={getPathField(isHydrator)} component={Text} />
                               )
                       }
                   ]
@@ -655,4 +662,20 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             />
         </div>
     );
+};
+
+/** Get the repository URL field based on the hydrator status */
+const getRepoField = (isHydrator: boolean): string => {
+    const repoURLField = isHydrator ? 'spec.sourceHydrator.drySource.repoURL' : 'spec.source.repoURL';
+    return repoURLField;
+};
+
+const getTargetRevisionField = (isHydrator: boolean): string => {
+    const targetRevisionField = isHydrator ? 'spec.sourceHydrator.drySource.targetRevision' : 'spec.source.targetRevision';
+    return targetRevisionField;
+};
+
+const getPathField = (isHydrator: boolean): string => {
+    const pathField = isHydrator ? 'spec.sourceHydrator.drySource.path' : 'spec.source.path';
+    return pathField;
 };
