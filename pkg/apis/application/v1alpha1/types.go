@@ -3133,14 +3133,28 @@ func (w *SyncWindow) Validate() error {
 	return nil
 }
 
-func (w *SyncWindow) Hash() uint64 {
+func (w *SyncWindow) HashIdentity() (uint64, error) {
+	// Create a copy of the window with only the core identity fields
+	// Excluding ManualSync and Description as they are behavioral/metadata fields
+	identityWindow := SyncWindow{
+		Kind:           w.Kind,
+		Schedule:       w.Schedule,
+		Duration:       w.Duration,
+		Applications:   w.Applications,
+		Namespaces:     w.Namespaces,
+		Clusters:       w.Clusters,
+		TimeZone:       w.TimeZone,
+		UseAndOperator: w.UseAndOperator,
+		// ManualSync and Description are excluded as they don't affect window identity
+	}
+
 	var windowBuffer bytes.Buffer
 	enc := gob.NewEncoder(&windowBuffer)
-	err := enc.Encode(w)
+	err := enc.Encode(identityWindow)
 	if err != nil {
-		return 0
+		return 0, fmt.Errorf("failed to encode sync window for hashing: %w", err)
 	}
-	return xxhash.Sum64(windowBuffer.Bytes())
+	return xxhash.Sum64(windowBuffer.Bytes()), nil
 }
 
 // DestinationClusters returns a list of cluster URLs allowed as destination in an AppProject

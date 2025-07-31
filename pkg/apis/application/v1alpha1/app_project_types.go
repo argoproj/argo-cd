@@ -239,7 +239,10 @@ func (proj *AppProject) ValidateProject() error {
 			if window == nil {
 				continue
 			}
-			windowHash := window.Hash()
+			windowHash, hashErr := window.HashIdentity()
+			if hashErr != nil {
+				return status.Errorf(codes.Internal, "failed to generate hash for sync window with kind '%s', schedule '%s', and duration '%s': %v", window.Kind, window.Schedule, window.Duration, hashErr)
+			}
 			if _, ok := existingWindows[windowHash]; ok {
 				return status.Errorf(codes.AlreadyExists, "sync window with kind '%s', schedule '%s', and duration '%s' already exists (hash=%d, duplicate detected)", window.Kind, window.Schedule, window.Duration, windowHash)
 			}
