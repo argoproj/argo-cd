@@ -2527,8 +2527,6 @@ type ResourceAction struct {
 type ResourceActionParam struct {
 	// Name is the name of the parameter.
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	// Value is the value of the parameter.
-	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
 }
 
 // TODO: refactor to use rbac.ActionGet, rbac.ActionCreate, without import cycle

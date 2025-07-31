@@ -9597,10 +9597,6 @@
         "name": {
           "description": "Name is the name of the parameter.",
           "type": "string"
-        },
-        "value": {
-          "description": "Value is the value of the parameter.",
-          "type": "string"
         }
       }
     },
