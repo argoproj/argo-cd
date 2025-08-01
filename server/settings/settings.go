@@ -25,6 +25,7 @@ type Server struct {
 	disableAuth               bool
 	appsInAnyNamespaceEnabled bool
 	hydratorEnabled           bool
+	syncWithReplaceAllowed    bool
 }
 
 type Authenticator interface {
@@ -32,8 +33,8 @@ type Authenticator interface {
 }
 
 // NewServer returns a new instance of the Settings service
-func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, authenticator Authenticator, disableAuth, appsInAnyNamespaceEnabled bool, hydratorEnabled bool) *Server {
-	return &Server{mgr: mgr, repoClient: repoClient, authenticator: authenticator, disableAuth: disableAuth, appsInAnyNamespaceEnabled: appsInAnyNamespaceEnabled, hydratorEnabled: hydratorEnabled}
+func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, authenticator Authenticator, disableAuth, appsInAnyNamespaceEnabled bool, hydratorEnabled bool, syncWithReplaceAllowed bool) *Server {
+	return &Server{mgr: mgr, repoClient: repoClient, authenticator: authenticator, disableAuth: disableAuth, appsInAnyNamespaceEnabled: appsInAnyNamespaceEnabled, hydratorEnabled: hydratorEnabled, syncWithReplaceAllowed: syncWithReplaceAllowed}
 }
 
 // Get returns Argo CD settings
@@ -116,6 +117,7 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		AppsInAnyNamespaceEnabled: s.appsInAnyNamespaceEnabled,
 		ImpersonationEnabled:      argoCDSettings.ImpersonationEnabled,
 		HydratorEnabled:           s.hydratorEnabled,
+		SyncWithReplaceAllowed:    s.syncWithReplaceAllowed,
 	}
 
 	if sessionmgr.LoggedIn(ctx) || s.disableAuth {
