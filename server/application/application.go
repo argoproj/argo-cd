@@ -2889,7 +2889,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 	}
 
 	// Build diff config like the CLI does, but with server-side diff enabled
-	ignoreAggregatedRoles := false // TODO: could get from compare options
+	ignoreAggregatedRoles := false
 	diffConfig, err := argodiff.NewDiffConfigBuilder().
 		WithDiffSettings(a.Spec.IgnoreDifferences, overrides, ignoreAggregatedRoles, normalizers.IgnoreNormalizerOpts{}).
 		WithTracking(appLabelKey, argoSettings.TrackingMethod).
@@ -2948,7 +2948,9 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		var hook bool
 		var resourceVersion string
 
-		// Determine resource details based on available data
+		// Extract resource metadata for the ResourceDiff response. The CLI sends aligned arrays
+		// of live resources and target manifests, but individual resources may only exist in one
+		// array depending on the operation
 		switch {
 		case i < len(q.GetLiveResources()):
 			// A live resource exists at this index
