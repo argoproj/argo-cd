@@ -576,6 +576,7 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 		When().
 		CreateApp().
 		Sync().
+		Wait().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -1175,6 +1176,7 @@ func TestNewStyleResourceActionPermitted(t *testing.T) {
 		When().
 		CreateApp().
 		Sync().
+		Wait().
 		Then().
 		And(func(app *Application) {
 			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
@@ -1287,6 +1289,7 @@ func TestNewStyleResourceActionMixedOk(t *testing.T) {
 		When().
 		CreateApp().
 		Sync().
+		Wait().
 		Then().
 		And(func(app *Application) {
 			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
