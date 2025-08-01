@@ -380,6 +380,10 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		return nil, status.Errorf(codes.Internal, "unable to check existing application details (%s): %v", appNs, err)
 	}
 
+	if _, err := argo.GetDestinationCluster(ctx, existing.Spec.Destination, s.db); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "application destination spec for %s is invalid: %s", existing.Name, err.Error())
+	}
+
 	equalSpecs := reflect.DeepEqual(existing.Spec.Destination, a.Spec.Destination) &&
 		reflect.DeepEqual(existing.Spec, a.Spec) &&
 		reflect.DeepEqual(existing.Labels, a.Labels) &&
@@ -521,7 +525,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		}
 
 		// Store the map of all sources having ref field into a map for applications with sources field
-		refSources, err := argo.GetRefSources(context.Background(), sources, appSpec.Project, s.db.GetRepository, []string{})
+		refSources, err := argo.GetRefSources(context.Background(), sources, appSpec.Project, s.db.GetRepository, []string{}, false)
 		if err != nil {
 			return fmt.Errorf("failed to get ref sources: %w", err)
 		}
@@ -537,6 +541,10 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				return fmt.Errorf("error getting kustomize settings: %w", err)
 			}
 
+			kustomizeOptions, err := kustomizeSettings.GetOptions(source)
+			if err != nil {
+				return fmt.Errorf("error getting kustomize settings options: %w", err)
+			}
 			installationID, err := s.settingsMgr.GetInstallationID()
 			if err != nil {
 				return fmt.Errorf("error getting installation ID: %w", err)
@@ -566,7 +574,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				Namespace:                       a.Spec.Destination.Namespace,
 				ApplicationSource:               &source,
 				Repos:                           repos,
-				KustomizeOptions:                kustomizeSettings,
+				KustomizeOptions:                kustomizeOptions,
 				KubeVersion:                     serverVersion,
 				ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
 				HelmRepoCreds:                   helmRepoCreds,
@@ -678,6 +686,10 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 		if err != nil {
 			return fmt.Errorf("error getting kustomize settings: %w", err)
 		}
+		kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource())
+		if err != nil {
+			return fmt.Errorf("error getting kustomize settings options: %w", err)
+		}
 
 		req := &apiclient.ManifestRequest{
 			Repo:                            repo,
@@ -687,7 +699,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			Namespace:                       a.Spec.Destination.Namespace,
 			ApplicationSource:               &source,
 			Repos:                           helmRepos,
-			KustomizeOptions:                kustomizeSettings,
+			KustomizeOptions:                kustomizeOptions,
 			KubeVersion:                     serverVersion,
 			ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
 			HelmRepoCreds:                   helmCreds,
@@ -813,11 +825,15 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 			if err != nil {
 				return fmt.Errorf("error getting trackingMethod from settings: %w", err)
 			}
+			kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource())
+			if err != nil {
+				return fmt.Errorf("error getting kustomize settings options: %w", err)
+			}
 			_, err = client.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 				Repo:               repo,
 				Source:             &source,
 				AppName:            appName,
-				KustomizeOptions:   kustomizeSettings,
+				KustomizeOptions:   kustomizeOptions,
 				Repos:              helmRepos,
 				NoCache:            true,
 				TrackingMethod:     trackingMethod,
@@ -1103,16 +1119,15 @@ func (s *Server) getAppProject(ctx context.Context, a *v1alpha1.Application, log
 		return nil, vagueError
 	}
 
-	var applicationNotAllowedToUseProjectErr *argo.ErrApplicationNotAllowedToUseProject
+	var applicationNotAllowedToUseProjectErr *v1alpha1.ErrApplicationNotAllowedToUseProject
 	if errors.As(err, &applicationNotAllowedToUseProjectErr) {
+		logCtx.WithFields(map[string]any{
+			"project":                a.Spec.Project,
+			argocommon.SecurityField: argocommon.SecurityMedium,
+		}).Warnf("error getting app project: %s", err)
 		return nil, vagueError
 	}
 
-	// Unknown error, log it but return the vague error to the user
-	logCtx.WithFields(map[string]any{
-		"project":                a.Spec.Project,
-		argocommon.SecurityField: argocommon.SecurityMedium,
-	}).Warnf("error getting app project: %s", err)
 	return nil, vagueError
 }
 

@@ -296,9 +296,11 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 </div>
                                 <h1>{selectedNode.name}</h1>
                                 {data.controlledState && (
-                                    <span style={{marginRight: '5px'}}>
-                                        <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
-                                    </span>
+                                    <React.Fragment>
+                                        <span style={{marginRight: '5px'}}>
+                                            <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
+                                        </span>
+                                    </React.Fragment>
                                 )}
                                 {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
                                 <button

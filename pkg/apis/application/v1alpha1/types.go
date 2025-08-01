@@ -1,8 +1,6 @@
 package v1alpha1
 
 import (
-	"bytes"
-	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,7 +22,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/cespare/xxhash/v2"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -1244,15 +1241,15 @@ func (status *ApplicationStatus) GetRevisions() []string {
 
 // BuildComparedToStatus will build a ComparedTo object based on the current
 // Application state.
-func (spec *ApplicationSpec) BuildComparedToStatus(sources []ApplicationSource) ComparedTo {
+func (spec *ApplicationSpec) BuildComparedToStatus() ComparedTo {
 	ct := ComparedTo{
 		Destination:       spec.Destination,
 		IgnoreDifferences: spec.IgnoreDifferences,
 	}
 	if spec.HasMultipleSources() {
-		ct.Sources = sources
+		ct.Sources = spec.Sources
 	} else {
-		ct.Source = sources[0]
+		ct.Source = spec.GetSource()
 	}
 	return ct
 }
@@ -3133,30 +3130,6 @@ func (w *SyncWindow) Validate() error {
 	return nil
 }
 
-func (w *SyncWindow) HashIdentity() (uint64, error) {
-	// Create a copy of the window with only the core identity fields
-	// Excluding ManualSync and Description as they are behavioral/metadata fields
-	identityWindow := SyncWindow{
-		Kind:           w.Kind,
-		Schedule:       w.Schedule,
-		Duration:       w.Duration,
-		Applications:   w.Applications,
-		Namespaces:     w.Namespaces,
-		Clusters:       w.Clusters,
-		TimeZone:       w.TimeZone,
-		UseAndOperator: w.UseAndOperator,
-		// ManualSync and Description are excluded as they don't affect window identity
-	}
-
-	var windowBuffer bytes.Buffer
-	enc := gob.NewEncoder(&windowBuffer)
-	err := enc.Encode(identityWindow)
-	if err != nil {
-		return 0, fmt.Errorf("failed to encode sync window for hashing: %w", err)
-	}
-	return xxhash.Sum64(windowBuffer.Bytes()), nil
-}
-
 // DestinationClusters returns a list of cluster URLs allowed as destination in an AppProject
 func (spec AppProjectSpec) DestinationClusters() []string {
 	servers := make([]string, 0)
@@ -3208,30 +3181,12 @@ type HelmOptions struct {
 	ValuesFileSchemes []string `protobuf:"bytes,1,opt,name=valuesFileSchemes"`
 }
 
-// KustomizeVersion holds information about additional Kustomize versions
-type KustomizeVersion struct {
-	// Name holds Kustomize version name
-	Name string `protobuf:"bytes,1,opt,name=name"`
-	// Path holds the corresponding binary path
-	Path string `protobuf:"bytes,2,opt,name=path"`
-	// BuildOptions that are specific to a Kustomize version
-	BuildOptions string `protobuf:"bytes,3,opt,name=buildOptions"`
-}
-
 // KustomizeOptions are options for kustomize to use when building manifests
 type KustomizeOptions struct {
 	// BuildOptions is a string of build parameters to use when calling `kustomize build`
 	BuildOptions string `protobuf:"bytes,1,opt,name=buildOptions"`
-
 	// BinaryPath holds optional path to kustomize binary
-	//
-	// Deprecated: Use settings.Settings instead. See: settings.Settings.KustomizeVersions.
-	// If this field is set, it will be used as the Kustomize binary path.
-	// Otherwise, Versions is used.
 	BinaryPath string `protobuf:"bytes,2,opt,name=binaryPath"`
-
-	// Versions is a list of Kustomize versions and their corresponding binary paths and build options.
-	Versions []KustomizeVersion `protobuf:"bytes,3,rep,name=versions"`
 }
 
 // ApplicationDestinationServiceAccount holds information about the service account to be impersonated for the application sync operation.
@@ -3402,7 +3357,7 @@ func findConditionIndexByType(conditions []ApplicationCondition, t ApplicationCo
 	return -1
 }
 
-// GetConditions returns list of application error conditions
+// GetErrorConditions returns list of application error conditions
 func (status *ApplicationStatus) GetConditions(conditionTypes map[ApplicationConditionType]bool) []ApplicationCondition {
 	result := make([]ApplicationCondition, 0)
 	for i := range status.Conditions {

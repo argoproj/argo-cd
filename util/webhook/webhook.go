@@ -73,27 +73,27 @@ type ArgoCDWebhookHandler struct {
 }
 
 func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64) *ArgoCDWebhookHandler {
-	githubWebhook, err := github.New(github.Options.Secret(set.GetWebhookGitHubSecret()))
+	githubWebhook, err := github.New(github.Options.Secret(set.WebhookGitHubSecret))
 	if err != nil {
 		log.Warnf("Unable to init the GitHub webhook")
 	}
-	gitlabWebhook, err := gitlab.New(gitlab.Options.Secret(set.GetWebhookGitLabSecret()))
+	gitlabWebhook, err := gitlab.New(gitlab.Options.Secret(set.WebhookGitLabSecret))
 	if err != nil {
 		log.Warnf("Unable to init the GitLab webhook")
 	}
-	bitbucketWebhook, err := bitbucket.New(bitbucket.Options.UUID(set.GetWebhookBitbucketUUID()))
+	bitbucketWebhook, err := bitbucket.New(bitbucket.Options.UUID(set.WebhookBitbucketUUID))
 	if err != nil {
 		log.Warnf("Unable to init the Bitbucket webhook")
 	}
-	bitbucketserverWebhook, err := bitbucketserver.New(bitbucketserver.Options.Secret(set.GetWebhookBitbucketServerSecret()))
+	bitbucketserverWebhook, err := bitbucketserver.New(bitbucketserver.Options.Secret(set.WebhookBitbucketServerSecret))
 	if err != nil {
 		log.Warnf("Unable to init the Bitbucket Server webhook")
 	}
-	gogsWebhook, err := gogs.New(gogs.Options.Secret(set.GetWebhookGogsSecret()))
+	gogsWebhook, err := gogs.New(gogs.Options.Secret(set.WebhookGogsSecret))
 	if err != nil {
 		log.Warnf("Unable to init the Gogs webhook")
 	}
-	azuredevopsWebhook, err := azuredevops.New(azuredevops.Options.BasicAuth(set.GetWebhookAzureDevOpsUsername(), set.GetWebhookAzureDevOpsPassword()))
+	azuredevopsWebhook, err := azuredevops.New(azuredevops.Options.BasicAuth(set.WebhookAzureDevOpsUsername, set.WebhookAzureDevOpsPassword))
 	if err != nil {
 		log.Warnf("Unable to init the Azure DevOps webhook")
 	}
@@ -209,7 +209,7 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		// Get DiffSet only for authenticated webhooks.
 		// when WebhookBitbucketUUID is set in argocd-secret, then the payload must be signed and
 		// signature is validated before payload is parsed.
-		if a.settings.GetWebhookBitbucketUUID() != "" {
+		if a.settings.WebhookBitbucketUUID != "" {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			argoRepo, err := a.lookupRepository(ctx, webURLs[0])
@@ -454,7 +454,7 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		sources = append(sources, app.Spec.GetSource())
 	}
 
-	refSources, err := argo.GetRefSources(context.Background(), sources, app.Spec.Project, a.db.GetRepository, []string{})
+	refSources, err := argo.GetRefSources(context.Background(), sources, app.Spec.Project, a.db.GetRepository, []string{}, false)
 	if err != nil {
 		return fmt.Errorf("error getting ref sources: %w", err)
 	}

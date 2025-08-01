@@ -15,12 +15,9 @@ argocd logout CONTEXT [flags]
 ### Examples
 
 ```
-# Logout from the active Argo CD context
+# To log out of argocd
+$ argocd logout
 # This can be helpful for security reasons or when you want to switch between different Argo CD contexts or accounts.
-argocd logout CONTEXT
-
-# Logout from a specific context named 'cd.argoproj.io'
-argocd logout cd.argoproj.io
 
 ```
 

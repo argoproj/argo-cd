@@ -91,8 +91,7 @@ spec:
       selfHeal: true
 ```
 
-!!!note 
-    Disabling self-heal does not guarantee that live cluster changes in multi-source applications will persist. Although one of the resource's sources remains unchanged, changes in another can trigger `autosync`. To handle such cases, consider disabling `autosync`.
+Disabling self-heal does not guarantee that live cluster changes won't be reverted in multi-source applications. Even if a resource's source remains unchanged, changes in one of the sources can trigger `autosync`. To handle such cases, consider disabling `autosync`.
 
 ## Automated Sync Semantics
 

@@ -107,14 +107,6 @@
             }
         }
 
-        &--grouped-node {
-            cursor: default;
-        }
-
-        &__top-part {
-            cursor: pointer;
-        }
-
         &--load-balancer {
             cursor: default;
             background-color: $argo-color-teal-2;
@@ -328,7 +320,6 @@
         top: 0;
         bottom: 0;
         animation: shadow-pulse 1s 1;
-        pointer-events: none;
     }
 
     @keyframes shadow-pulse {

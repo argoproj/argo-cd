@@ -75,10 +75,12 @@ export const Sidebar = (props: SidebarProps) => {
                             key={item.title}
                             className={`sidebar__nav-item ${locationPath === item.path || locationPath.startsWith(`${item.path}/`) ? 'sidebar__nav-item--active' : ''}`}
                             onClick={() => context.history.push(item.path)}>
-                            <div>
-                                <i className={item?.iconClassName || ''} />
-                                {!props.pref.hideSidebar && item.title}
-                            </div>
+                            <React.Fragment>
+                                <div>
+                                    <i className={item?.iconClassName || ''} />
+                                    {!props.pref.hideSidebar && item.title}
+                                </div>
+                            </React.Fragment>
                         </div>
                     </Tooltip>
                 ))}

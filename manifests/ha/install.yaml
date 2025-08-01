@@ -12154,16 +12154,12 @@ spec:
                                     - project
                                     - repo
                                     type: object
-                                  continueOnRepoNotFoundError:
-                                    type: boolean
                                   filters:
                                     items:
                                       properties:
                                         branchMatch:
                                           type: string
                                         targetBranchMatch:
-                                          type: string
-                                        titleMatch:
                                           type: string
                                       type: object
                                     type: array
@@ -17998,16 +17994,12 @@ spec:
                                     - project
                                     - repo
                                     type: object
-                                  continueOnRepoNotFoundError:
-                                    type: boolean
                                   filters:
                                     items:
                                       properties:
                                         branchMatch:
                                           type: string
                                         targetBranchMatch:
-                                          type: string
-                                        titleMatch:
                                           type: string
                                       type: object
                                     type: array
@@ -21131,16 +21123,12 @@ spec:
                           - project
                           - repo
                           type: object
-                        continueOnRepoNotFoundError:
-                          type: boolean
                         filters:
                           items:
                             properties:
                               branchMatch:
                                 type: string
                               targetBranchMatch:
-                                type: string
-                              titleMatch:
                                 type: string
                             type: object
                           type: array
@@ -22840,8 +22828,6 @@ spec:
                 type: object
               strategy:
                 properties:
-                  deletionOrder:
-                    type: string
                   rollingSync:
                     properties:
                       steps:
@@ -24177,21 +24163,14 @@ rules:
   - list
   - watch
 - apiGroups:
-  - coordination.k8s.io
+  - apps
+  - extensions
   resources:
-  - leases
-  verbs:
-  - create
-- apiGroups:
-  - coordination.k8s.io
-  resourceNames:
-  - 58ac56fa.applicationsets.argoproj.io
-  resources:
-  - leases
+  - deployments
   verbs:
   - get
-  - update
-  - create
+  - list
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -24393,19 +24372,19 @@ rules:
 - apiGroups:
   - argoproj.io
   resources:
-  - appprojects
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - argoproj.io
-  resources:
   - applicationsets/status
   verbs:
   - get
   - patch
   - update
+- apiGroups:
+  - argoproj.io
+  resources:
+  - appprojects
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -24419,8 +24398,28 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - secrets
   - configmaps
+  verbs:
+  - create
+  - update
+  - delete
+  - get
+  - list
+  - patch
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apps
+  - extensions
+  resources:
+  - deployments
   verbs:
   - get
   - list
@@ -24431,16 +24430,12 @@ rules:
   - leases
   verbs:
   - create
-- apiGroups:
-  - coordination.k8s.io
-  resourceNames:
-  - 58ac56fa.applicationsets.argoproj.io
-  resources:
-  - leases
-  verbs:
+  - delete
   - get
+  - list
+  - patch
   - update
-  - create
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -26040,7 +26035,7 @@ spec:
               key: applicationsetcontroller.requeue.after
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.1.0-rc4
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -26183,7 +26178,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.1.0-rc4
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -26279,7 +26274,7 @@ spec:
               key: notificationscontroller.repo.server.plaintext
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.1.0-rc4
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
@@ -26403,7 +26398,7 @@ spec:
         - argocd
         - admin
         - redis-initial-password
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.1.0-rc4
         imagePullPolicy: IfNotPresent
         name: secret-init
         securityContext:
@@ -26702,7 +26697,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.1.0-rc4
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -26754,7 +26749,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.1.0-rc4
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -27128,7 +27123,7 @@ spec:
               key: server.sync.replace.allowed
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.1.0-rc4
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -27506,7 +27501,7 @@ spec:
               optional: true
         - name: KUBECACHEDIR
           value: /tmp/kubecache
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v3.1.0-rc4
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
@@ -27939,11 +27934,6 @@ spec:
     - port: 6379
       protocol: TCP
     - port: 26379
-      protocol: TCP
-  - from:
-    - namespaceSelector: {}
-    ports:
-    - port: 9101
       protocol: TCP
   podSelector:
     matchLabels:

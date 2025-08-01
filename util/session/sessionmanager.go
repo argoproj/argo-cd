@@ -43,7 +43,6 @@ type SessionManager struct {
 	sleep                         func(d time.Duration)
 	verificationDelayNoiseEnabled bool
 	failedLock                    sync.RWMutex
-	metricsRegistry               MetricsRegistry
 }
 
 // LoginAttempts is a timestamped counter for failed login attempts
@@ -52,10 +51,6 @@ type LoginAttempts struct {
 	LastFailed time.Time `json:"lastFailed"`
 	// Number of consecutive login failures
 	FailCount int `json:"failCount"`
-}
-
-type MetricsRegistry interface {
-	IncLoginRequestCounter(status string)
 }
 
 const (
@@ -175,20 +170,6 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id 
 	}
 
 	return mgr.signClaims(claims)
-}
-
-func (mgr *SessionManager) CollectMetrics(registry MetricsRegistry) {
-	mgr.metricsRegistry = registry
-	if mgr.metricsRegistry == nil {
-		log.Warn("Metrics registry is not set, metrics will not be collected")
-		return
-	}
-}
-
-func (mgr *SessionManager) IncLoginRequestCounter(status string) {
-	if mgr.metricsRegistry != nil {
-		mgr.metricsRegistry.IncLoginRequestCounter(status)
-	}
 }
 
 func (mgr *SessionManager) signClaims(claims jwt.Claims) (string, error) {

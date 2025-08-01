@@ -514,7 +514,8 @@ func (server *ArgoCDServer) Listen() (*Listeners, error) {
 	var dOpts []grpc.DialOption
 	dOpts = append(dOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(apiclient.MaxGRPCMessageSize)))
 	dOpts = append(dOpts, grpc.WithUserAgent(fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, common.GetVersion().Version)))
-	dOpts = append(dOpts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
+	dOpts = append(dOpts, grpc.WithUnaryInterceptor(grpc_util.OTELUnaryClientInterceptor()))
+	dOpts = append(dOpts, grpc.WithStreamInterceptor(grpc_util.OTELStreamClientInterceptor()))
 	if server.useTLS() {
 		// The following sets up the dial Options for grpc-gateway to talk to gRPC server over TLS.
 		// grpc-gateway is just translating HTTP/HTTPS requests as gRPC requests over localhost,
@@ -571,9 +572,6 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	server.userStateStorage.Init(ctx)
 
 	svcSet := newArgoCDServiceSet(server)
-	if server.sessionMgr != nil {
-		server.sessionMgr.CollectMetrics(metricsServ)
-	}
 	server.serviceSet = svcSet
 	grpcS, appResourceTreeFn := server.newGRPCServer(metricsServ.PrometheusRegistry)
 	grpcWebS := grpcweb.WrapServer(grpcS)
@@ -794,11 +792,11 @@ func (server *ArgoCDServer) watchSettings() {
 	prevOIDCConfig := server.settings.OIDCConfig()
 	prevDexCfgBytes, err := dexutil.GenerateDexConfigYAML(server.settings, server.DexTLSConfig == nil || server.DexTLSConfig.DisableTLS)
 	errorsutil.CheckError(err)
-	prevGitHubSecret := server.settings.GetWebhookGitHubSecret()
-	prevGitLabSecret := server.settings.GetWebhookGitLabSecret()
-	prevBitbucketUUID := server.settings.GetWebhookBitbucketUUID()
-	prevBitbucketServerSecret := server.settings.GetWebhookBitbucketServerSecret()
-	prevGogsSecret := server.settings.GetWebhookGogsSecret()
+	prevGitHubSecret := server.settings.WebhookGitHubSecret
+	prevGitLabSecret := server.settings.WebhookGitLabSecret
+	prevBitbucketUUID := server.settings.WebhookBitbucketUUID
+	prevBitbucketServerSecret := server.settings.WebhookBitbucketServerSecret
+	prevGogsSecret := server.settings.WebhookGogsSecret
 	prevExtConfig := server.settings.ExtensionConfig
 	var prevCert, prevCertKey string
 	if server.settings.Certificate != nil && !server.Insecure {
@@ -826,23 +824,23 @@ func (server *ArgoCDServer) watchSettings() {
 			log.Infof("additionalURLs modified. restarting")
 			break
 		}
-		if prevGitHubSecret != server.settings.GetWebhookGitHubSecret() {
+		if prevGitHubSecret != server.settings.WebhookGitHubSecret {
 			log.Infof("github secret modified. restarting")
 			break
 		}
-		if prevGitLabSecret != server.settings.GetWebhookGitLabSecret() {
+		if prevGitLabSecret != server.settings.WebhookGitLabSecret {
 			log.Infof("gitlab secret modified. restarting")
 			break
 		}
-		if prevBitbucketUUID != server.settings.GetWebhookBitbucketUUID() {
+		if prevBitbucketUUID != server.settings.WebhookBitbucketUUID {
 			log.Infof("bitbucket uuid modified. restarting")
 			break
 		}
-		if prevBitbucketServerSecret != server.settings.GetWebhookBitbucketServerSecret() {
+		if prevBitbucketServerSecret != server.settings.WebhookBitbucketServerSecret {
 			log.Infof("bitbucket server secret modified. restarting")
 			break
 		}
-		if prevGogsSecret != server.settings.GetWebhookGogsSecret() {
+		if prevGogsSecret != server.settings.WebhookGogsSecret {
 			log.Infof("gogs secret modified. restarting")
 			break
 		}
@@ -944,6 +942,7 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
 	sOpts = append(sOpts, grpc.ChainStreamInterceptor(
+		otelgrpc.StreamServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		logging.StreamServerInterceptor(grpc_util.InterceptorLogger(server.log)),
 		serverMetrics.StreamServerInterceptor(),
 		grpc_auth.StreamServerInterceptor(server.Authenticate),
@@ -957,6 +956,7 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 	))
 	sOpts = append(sOpts, grpc.ChainUnaryInterceptor(
 		bug21955WorkaroundInterceptor,
+		otelgrpc.UnaryServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(server.log)),
 		serverMetrics.UnaryServerInterceptor(),
 		grpc_auth.UnaryServerInterceptor(server.Authenticate),
@@ -968,7 +968,6 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 		grpc_util.ErrorCodeGitUnaryServerInterceptor(),
 		recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(server.log))),
 	))
-	sOpts = append(sOpts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	grpcS := grpc.NewServer(sOpts...)
 
 	versionpkg.RegisterVersionServiceServer(grpcS, server.serviceSet.VersionService)
