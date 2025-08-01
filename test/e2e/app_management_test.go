@@ -2523,7 +2523,7 @@ func TestSyncOptionReplace(t *testing.T) {
 func TestSyncOptionReplaceFromCLI(t *testing.T) {
 	Given(t).
 		Path("config-map").
-		Replace().
+		Replace(true).
 		When().
 		CreateApp().
 		Sync().
