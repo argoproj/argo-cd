@@ -216,7 +216,7 @@ The `fa-fw` class ensures that the icon is displayed with a fixed width, to avoi
 ```lua
 local actions = {}
 actions["create-workflow"] = {
-  ["iconClass"] = "fa fa-fw fa-play",
+  ["iconClass"] = "fa fa-fw fa-plus",
   ["displayName"] = "Create Workflow"
 }
 return actions
