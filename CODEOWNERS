@@ -16,3 +16,4 @@
 # CLI
 /cmd/argocd/** @argoproj/argocd-approvers @argoproj/argocd-approvers-cli
 /cmd/main.go @argoproj/argocd-approvers @argoproj/argocd-approvers-cli
+/docs/operator-manual/ @argoproj/argocd-approvers @argoproj/argocd-approvers-cli
