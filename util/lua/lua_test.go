@@ -709,7 +709,7 @@ func TestExecuteResourceActionInvalidUnstructured(t *testing.T) {
 
 func TestCleanPatch(t *testing.T) {
 	t.Run("Empty Struct preserved", func(t *testing.T) {
-		const objWithEmptyStruct = `
+		const obj = `
 apiVersion: argoproj.io/v1alpha1
 kind: Test
 metadata:
@@ -730,7 +730,7 @@ spec:
      - name: name2
        test2: {}
 `
-		const expectedUpdatedObjWithEmptyStruct = `
+		const expected = `
 apiVersion: argoproj.io/v1alpha1
 kind: Test
 metadata:
@@ -750,14 +750,14 @@ spec:
      - name: name2
        test2: {}
 `
-		const pausedToFalseLua = `
+		const luaAction = `
 obj.spec.updated = {}
 return obj
 `
-		testObj := StrToUnstructured(objWithEmptyStruct)
-		expectedObj := StrToUnstructured(expectedUpdatedObjWithEmptyStruct)
+		testObj := StrToUnstructured(obj)
+		expectedObj := StrToUnstructured(expected)
 		vm := VM{}
-		newObjects, err := vm.ExecuteResourceAction(testObj, pausedToFalseLua, nil)
+		newObjects, err := vm.ExecuteResourceAction(testObj, luaAction, nil)
 		require.NoError(t, err)
 		assert.Len(t, newObjects, 1)
 		assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
