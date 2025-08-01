@@ -286,7 +286,7 @@ func (e KustomizeVersionNotRegisteredError) Error() string {
 }
 
 // GetKustomizeBinaryPath returns the path to the kustomize binary based on the provided KustomizeOptions and ApplicationSource.
-func GetKustomizeBinaryPath(ks *v1alpha1.KustomizeOptions, source v1alpha1.ApplicationSource) (string, error) {
+func GetKustomizeBinaryPath(ks *v1alpha1.KustomizeOptions, source *v1alpha1.ApplicationSource) (string, error) {
 	if ks == nil {
 		// No versions or binary path specified, stick with defaults.
 		return "", nil
@@ -1618,7 +1618,7 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		// we only write the certificate to the secret if it's not externally
 		// managed.
 		if settings.Certificate != nil && !settings.CertificateIsExternal {
-			cert, key := tlsutil.EncodeX509KeyPair(*settings.Certificate)
+			cert, key := tlsutil.EncodeX509KeyPair(settings.Certificate)
 			argoCDSecret.Data[settingServerCertificate] = cert
 			argoCDSecret.Data[settingServerPrivateKey] = key
 		} else {
@@ -1824,7 +1824,7 @@ func (a *ArgoCDSettings) TLSConfig() *tls.Config {
 		return nil
 	}
 	certPool := x509.NewCertPool()
-	pemCertBytes, _ := tlsutil.EncodeX509KeyPair(*a.Certificate)
+	pemCertBytes, _ := tlsutil.EncodeX509KeyPair(a.Certificate)
 	ok := certPool.AppendCertsFromPEM(pemCertBytes)
 	if !ok {
 		panic("bad certs")
@@ -2139,7 +2139,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 			fmt.Sprintf("argocd-server.%s.svc", mgr.namespace),
 			fmt.Sprintf("argocd-server.%s.svc.cluster.local", mgr.namespace),
 		}
-		certOpts := tlsutil.CertOptions{
+		certOpts := &tlsutil.CertOptions{
 			Hosts:        hosts,
 			Organization: "Argo CD",
 			IsCA:         false,

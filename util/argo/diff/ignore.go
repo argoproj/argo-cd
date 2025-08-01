@@ -69,7 +69,7 @@ func (i *IgnoreDiffConfig) HasIgnoreDifference(group, kind, name, namespace stri
 	return found, result
 }
 
-func overrideToIgnoreDifference(override v1alpha1.ResourceOverride) *IgnoreDifference {
+func overrideToIgnoreDifference(override *v1alpha1.ResourceOverride) *IgnoreDifference {
 	return &IgnoreDifference{
 		JSONPointers:          override.IgnoreDifferences.JSONPointers,
 		JQPathExpressions:     override.IgnoreDifferences.JQPathExpressions,
@@ -77,7 +77,7 @@ func overrideToIgnoreDifference(override v1alpha1.ResourceOverride) *IgnoreDiffe
 	}
 }
 
-func resourceToIgnoreDifference(resource v1alpha1.ResourceIgnoreDifferences) *IgnoreDifference {
+func resourceToIgnoreDifference(resource *v1alpha1.ResourceIgnoreDifferences) *IgnoreDifference {
 	return &IgnoreDifference{
 		JSONPointers:          resource.JSONPointers,
 		JQPathExpressions:     resource.JQPathExpressions,

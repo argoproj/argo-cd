@@ -206,7 +206,7 @@ func (a *Actions) CreateNamespace(namespace string) *Actions {
 }
 
 // Create creates an ApplicationSet using the provided value
-func (a *Actions) Create(appSet v1alpha1.ApplicationSet) *Actions {
+func (a *Actions) Create(appSet *v1alpha1.ApplicationSet) *Actions {
 	a.context.t.Helper()
 
 	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.t)

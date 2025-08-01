@@ -262,7 +262,7 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 		)
 	}
 
-	return helm.HelmCreds{
+	return &helm.HelmCreds{
 		Username:           repo.Username,
 		Password:           repo.Password,
 		CAPath:             getCAPath(repo.Repo),

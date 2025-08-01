@@ -373,7 +373,7 @@ func (ctrl *ApplicationController) onKubectlRun(command string) (kube.CleanupFun
 	}, nil
 }
 
-func isSelfReferencedApp(app *appv1.Application, ref corev1.ObjectReference) bool {
+func isSelfReferencedApp(app *appv1.Application, ref *corev1.ObjectReference) bool {
 	gvk := ref.GroupVersionKind()
 	return ref.UID == app.UID &&
 		ref.Name == app.Name &&
@@ -431,7 +431,7 @@ func (ctrl *ApplicationController) getAppProj(app *appv1.Application) (*appv1.Ap
 	return proj, nil
 }
 
-func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]bool, ref corev1.ObjectReference) {
+func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]bool, ref *corev1.ObjectReference) {
 	// if namespaced resource is not managed by any app it might be orphaned resource of some other apps
 	if len(managedByApp) == 0 && ref.Namespace != "" {
 		// retrieve applications which monitor orphaned resources in the same namespace and refresh them unless resource is denied in app project
@@ -1593,7 +1593,7 @@ func (ctrl *ApplicationController) writeBackToInformer(app *appv1.Application) {
 }
 
 // PatchAppWithWriteBack patches an application and writes it back to the informer cache
-func (ctrl *ApplicationController) PatchAppWithWriteBack(ctx context.Context, name, ns string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *appv1.Application, err error) {
+func (ctrl *ApplicationController) PatchAppWithWriteBack(ctx context.Context, name, ns string, pt types.PatchType, data []byte, opts *metav1.PatchOptions, subresources ...string) (result *appv1.Application, err error) {
 	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ns).Patch(ctx, name, pt, data, opts, subresources...)
 	if err != nil {
 		return patchedApp, err
@@ -1890,7 +1890,7 @@ func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool
 	return
 }
 
-func resourceStatusKey(res appv1.ResourceStatus) string {
+func resourceStatusKey(res *appv1.ResourceStatus) string {
 	return strings.Join([]string{res.Group, res.Kind, res.Namespace, res.Name}, "/")
 }
 
@@ -2562,7 +2562,7 @@ func (ctrl *ApplicationController) toAppQualifiedName(appName, appNamespace stri
 	return fmt.Sprintf("%s/%s", appNamespace, appName)
 }
 
-func (ctrl *ApplicationController) getAppList(options metav1.ListOptions) (*appv1.ApplicationList, error) {
+func (ctrl *ApplicationController) getAppList(options *metav1.ListOptions) (*appv1.ApplicationList, error) {
 	watchNamespace := ctrl.namespace
 	// If we have at least one additional namespace configured, we need to
 	// watch on them all.

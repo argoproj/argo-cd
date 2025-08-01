@@ -115,7 +115,7 @@ func (d *deepCopyApplicationClient) Get(ctx context.Context, name string, option
 	return app.DeepCopy(), nil
 }
 
-func (d *deepCopyApplicationClient) List(ctx context.Context, opts metav1.ListOptions) (*v1alpha1.ApplicationList, error) {
+func (d *deepCopyApplicationClient) List(ctx context.Context, opts *metav1.ListOptions) (*v1alpha1.ApplicationList, error) {
 	appList, err := d.ApplicationInterface.List(ctx, opts)
 	if err != nil {
 		return nil, err
@@ -135,7 +135,7 @@ func (d *deepCopyAppProjectClient) Get(ctx context.Context, name string, options
 	return appProject.DeepCopy(), nil
 }
 
-func (d *deepCopyAppProjectClient) List(ctx context.Context, opts metav1.ListOptions) (*v1alpha1.AppProjectList, error) {
+func (d *deepCopyAppProjectClient) List(ctx context.Context, opts *metav1.ListOptions) (*v1alpha1.AppProjectList, error) {
 	appProjectList, err := d.AppProjectInterface.List(ctx, opts)
 	if err != nil {
 		return nil, err
@@ -155,7 +155,7 @@ func (d *deepCopyApplicationSetClient) Get(ctx context.Context, name string, opt
 	return appSet.DeepCopy(), nil
 }
 
-func (d *deepCopyApplicationSetClient) List(ctx context.Context, opts metav1.ListOptions) (*v1alpha1.ApplicationSetList, error) {
+func (d *deepCopyApplicationSetClient) List(ctx context.Context, opts *metav1.ListOptions) (*v1alpha1.ApplicationSetList, error) {
 	appSetList, err := d.ApplicationSetInterface.List(ctx, opts)
 	if err != nil {
 		return nil, err

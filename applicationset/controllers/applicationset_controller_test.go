@@ -83,7 +83,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		// name is human-readable test name
 		name string
 		// appSet is the ApplicationSet we are generating resources for
-		appSet v1alpha1.ApplicationSet
+		appSet *v1alpha1.ApplicationSet
 		// existingApps are the apps that already exist on the cluster
 		existingApps []v1alpha1.Application
 		// desiredApps are the generated apps to create/update
@@ -93,7 +93,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 	}{
 		{
 			name: "Create an app that doesn't exist",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -126,7 +126,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		},
 		{
 			name: "Update an existing app with a different project name",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -185,7 +185,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		},
 		{
 			name: "Create a new app and check it doesn't replace the existing app",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -244,7 +244,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		},
 		{
 			name: "Ensure that labels and annotations are added (via update) into an exiting application",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -307,7 +307,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		},
 		{
 			name: "Ensure that labels and annotations are removed from an existing app",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -368,7 +368,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		},
 		{
 			name: "Ensure that status and operation fields are not overridden by an update, when removing labels/annotations",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -441,7 +441,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		},
 		{
 			name: "Ensure that status and operation fields are not overridden by an update, when removing labels/annotations and adding other fields",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -522,7 +522,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		},
 		{
 			name: "Ensure that argocd notifications state and refresh annotation is preserved from an existing app",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -591,7 +591,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		},
 		{
 			name: "Ensure that configured preserved annotations are preserved from an existing app",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -660,7 +660,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		},
 		{
 			name: "Ensure that the app spec is normalized before applying",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -717,7 +717,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		{
 			// For this use case: https://github.com/argoproj/argo-cd/issues/9101#issuecomment-1191138278
 			name: "Ensure that ignored targetRevision difference doesn't cause an update, even if another field changes",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -810,7 +810,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		{
 			// For this use case: https://github.com/argoproj/argo-cd/pull/14743#issuecomment-1761954799
 			name: "ignore parameters added to a multi-source app in the cluster",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -912,7 +912,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		},
 		{
 			name: "Demonstrate limitation of MergePatch", // Maybe we can fix this in Argo CD 3.0: https://github.com/argoproj/argo-cd/issues/15975
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -1012,7 +1012,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 		},
 		{
 			name: "Ensure that argocd post-delete finalizers are preserved from an existing app",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -1147,7 +1147,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			appSet := v1alpha1.ApplicationSet{
+			appSet := &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -1161,7 +1161,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 				},
 			}
 
-			app := v1alpha1.Application{
+			app := &v1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "app1",
 					Finalizers: c.existingFinalizers,
@@ -1174,7 +1174,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 				},
 			}
 
-			initObjs := []crtclient.Object{&app, &appSet}
+			initObjs := []crtclient.Object{app, appSet}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 			secret := &corev1.Secret{
@@ -1211,7 +1211,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 			clusterList, err := utils.ListClusters(t.Context(), kubeclientset, "namespace")
 			require.NoError(t, err)
 
-			appLog := log.WithFields(applog.GetAppLogFields(&app)).WithField("appSet", "")
+			appLog := log.WithFields(applog.GetAppLogFields(app)).WithField("appSet", "")
 
 			appInputParam := app.DeepCopy()
 
@@ -1219,7 +1219,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 			require.NoError(t, err)
 
 			retrievedApp := v1alpha1.Application{}
-			err = client.Get(t.Context(), crtclient.ObjectKeyFromObject(&app), &retrievedApp)
+			err = client.Get(t.Context(), crtclient.ObjectKeyFromObject(app), &retrievedApp)
 			require.NoError(t, err)
 
 			// App on the cluster should have the expected finalizers
@@ -1371,7 +1371,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 
 			appInputParam := app.DeepCopy()
 
-			err = r.removeFinalizerOnInvalidDestination(t.Context(), appSet, appInputParam, clusterList, appLog)
+			err = r.removeFinalizerOnInvalidDestination(t.Context(), &appSet, appInputParam, clusterList, appLog)
 			require.NoError(t, err)
 
 			retrievedApp := v1alpha1.Application{}
@@ -1402,7 +1402,7 @@ func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			appSet := v1alpha1.ApplicationSet{
+			appSet := &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:       "name",
 					Namespace:  "namespace",
@@ -1417,7 +1417,7 @@ func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 				},
 			}
 
-			app := v1alpha1.Application{
+			app := &v1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "app1",
 					Namespace: "namespace",
@@ -1432,10 +1432,10 @@ func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 				},
 			}
 
-			err := controllerutil.SetControllerReference(&appSet, &app, scheme)
+			err := controllerutil.SetControllerReference(appSet, app, scheme)
 			require.NoError(t, err)
 
-			initObjs := []crtclient.Object{&app, &appSet}
+			initObjs := []crtclient.Object{app, appSet}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
@@ -1451,8 +1451,8 @@ func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 			err = r.removeOwnerReferencesOnDeleteAppSet(t.Context(), appSet)
 			require.NoError(t, err)
 
-			retrievedApp := v1alpha1.Application{}
-			err = client.Get(t.Context(), crtclient.ObjectKeyFromObject(&app), &retrievedApp)
+			retrievedApp := &v1alpha1.Application{}
+			err = client.Get(t.Context(), crtclient.ObjectKeyFromObject(app), retrievedApp)
 			require.NoError(t, err)
 
 			ownerReferencesRemoved := len(retrievedApp.OwnerReferences) == 0
@@ -1468,7 +1468,7 @@ func TestCreateApplications(t *testing.T) {
 
 	testCases := []struct {
 		name       string
-		appSet     v1alpha1.ApplicationSet
+		appSet     *v1alpha1.ApplicationSet
 		existsApps []v1alpha1.Application
 		apps       []v1alpha1.Application
 		expected   []v1alpha1.Application
@@ -1509,7 +1509,7 @@ func TestCreateApplications(t *testing.T) {
 		},
 		{
 			name: "existing apps",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -1568,7 +1568,7 @@ func TestCreateApplications(t *testing.T) {
 		},
 		{
 			name: "existing apps with different project",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -1629,9 +1629,9 @@ func TestCreateApplications(t *testing.T) {
 
 	for _, c := range testCases {
 		t.Run(c.name, func(t *testing.T) {
-			initObjs := []crtclient.Object{&c.appSet}
+			initObjs := []crtclient.Object{c.appSet}
 			for _, a := range c.existsApps {
-				err = controllerutil.SetControllerReference(&c.appSet, &a, scheme)
+				err = controllerutil.SetControllerReference(c.appSet, &a, scheme)
 				require.NoError(t, err)
 				initObjs = append(initObjs, &a)
 			}
@@ -1656,7 +1656,7 @@ func TestCreateApplications(t *testing.T) {
 					Name:      obj.Name,
 				}, got)
 
-				err = controllerutil.SetControllerReference(&c.appSet, &obj, r.Scheme)
+				err = controllerutil.SetControllerReference(c.appSet, &obj, r.Scheme)
 				require.NoError(t, err)
 
 				assert.Equal(t, obj, *got)
@@ -1672,7 +1672,7 @@ func TestDeleteInCluster(t *testing.T) {
 
 	for _, c := range []struct {
 		// appSet is the application set on which the delete function is called
-		appSet v1alpha1.ApplicationSet
+		appSet *v1alpha1.ApplicationSet
 		// existingApps is the current state of Applications on the cluster
 		existingApps []v1alpha1.Application
 		// desireApps is the apps generated by the generator that we wish to keep alive
@@ -1683,7 +1683,7 @@ func TestDeleteInCluster(t *testing.T) {
 		notExpected []v1alpha1.Application
 	}{
 		{
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -1773,7 +1773,7 @@ func TestDeleteInCluster(t *testing.T) {
 		initObjs := []crtclient.Object{&c.appSet}
 		for _, a := range c.existingApps {
 			temp := a
-			err = controllerutil.SetControllerReference(&c.appSet, &temp, scheme)
+			err = controllerutil.SetControllerReference(c.appSet, &temp, scheme)
 			require.NoError(t, err)
 			initObjs = append(initObjs, &temp)
 		}
@@ -1800,7 +1800,7 @@ func TestDeleteInCluster(t *testing.T) {
 				Name:      obj.Name,
 			}, got)
 
-			err = controllerutil.SetControllerReference(&c.appSet, &obj, r.Scheme)
+			err = controllerutil.SetControllerReference(c.appSet, &obj, r.Scheme)
 			require.NoError(t, err)
 
 			assert.Equal(t, obj, *got)
@@ -1873,7 +1873,7 @@ func TestRequeueGeneratorFails(t *testing.T) {
 	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
-	appSet := v1alpha1.ApplicationSet{
+	appSet := &v1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "name",
 			Namespace: "argocd",
@@ -1884,7 +1884,7 @@ func TestRequeueGeneratorFails(t *testing.T) {
 			}},
 		},
 	}
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(appSet).Build()
 
 	generator := v1alpha1.ApplicationSetGenerator{
 		PullRequest: &v1alpha1.PullRequestGenerator{},
@@ -2106,7 +2106,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 				Metrics:         metrics,
 			}
 
-			appSetInfo := v1alpha1.ApplicationSet{}
+			appSetInfo := &v1alpha1.ApplicationSet{}
 			validationErrors, _ := r.validateGeneratedApplications(t.Context(), cc.apps, appSetInfo)
 			assert.Equal(t, cc.validationErrors, validationErrors)
 		})
@@ -3608,7 +3608,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 		},
 		{
 			name: "handles an empty set of applications with good 'NotIn' selectors",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: *v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "argocd",
@@ -3642,7 +3642,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 		},
 		{
 			name: "selects 1 application with 1 'NotIn' selector",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "argocd",
@@ -3687,7 +3687,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 		},
 		{
 			name: "'NotIn' selectors that select no applications",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "argocd",
@@ -3741,7 +3741,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 		},
 		{
 			name: "multiple 'NotIn' selectors remove Applications with mising labels on any match",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "argocd",
@@ -3800,7 +3800,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 		},
 		{
 			name: "multiple 'NotIn' selectors filter all matching Applications",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "argocd",
@@ -3880,7 +3880,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 		},
 		{
 			name: "multiple values in the same 'NotIn' matchExpression exclude a match from any value",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "argocd",
@@ -3943,7 +3943,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 		},
 		{
 			name: "in a mix of 'In' and 'NotIn' selectors, 'NotIn' takes precedence",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "argocd",
@@ -4045,14 +4045,14 @@ func TestBuildAppSyncMap(t *testing.T) {
 
 	for _, cc := range []struct {
 		name              string
-		appSet            v1alpha1.ApplicationSet
+		appSet            *v1alpha1.ApplicationSet
 		appMap            map[string]v1alpha1.Application
 		appDependencyList [][]string
 		expectedMap       map[string]bool
 	}{
 		{
 			name: "handles an empty app dependency list",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "argocd",
@@ -4078,7 +4078,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 		},
 		{
 			name: "handles two applications with no statuses",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "argocd",
@@ -4110,7 +4110,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 		},
 		{
 			name: "handles applications after an empty selection",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "argocd",
@@ -4142,7 +4142,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 		},
 		{
 			name: "handles RollingSync applications that are healthy and have no changes",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "argocd",
@@ -4220,7 +4220,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 		},
 		{
 			name: "blocks RollingSync applications that are healthy and have no changes, but are still pending",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "argocd",
@@ -4298,7 +4298,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 		},
 		{
 			name: "handles RollingSync applications that are up to date and healthy, but still syncing",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "argocd",
@@ -4376,7 +4376,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 		},
 		{
 			name: "handles RollingSync applications that are up to date and synced, but degraded",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "argocd",
@@ -4454,7 +4454,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 		},
 		{
 			name: "handles RollingSync applications that are OutOfSync and healthy",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "argocd",
@@ -4532,7 +4532,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 		},
 		{
 			name: "handles a lot of applications",
-			appSet: v1alpha1.ApplicationSet{
+			appSet: &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "argocd",
@@ -7459,13 +7459,13 @@ func TestIsRollingSyncStrategy(t *testing.T) {
 func TestSyncApplication(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    v1alpha1.Application
+		input    *v1alpha1.Application
 		prune    bool
 		expected v1alpha1.Application
 	}{
 		{
 			name: "Default retry limit with no SyncPolicy",
-			input: v1alpha1.Application{
+			input: &v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{},
 			},
 			prune: false,
@@ -7493,7 +7493,7 @@ func TestSyncApplication(t *testing.T) {
 		},
 		{
 			name: "Retry and SyncOptions from SyncPolicy are applied",
-			input: v1alpha1.Application{
+			input: &v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{
 					SyncPolicy: &v1alpha1.SyncPolicy{
 						Retry: &v1alpha1.RetryStrategy{

@@ -113,7 +113,7 @@ func (c *clusterInfoUpdater) updateClusters() {
 	log.Debugf("Successfully saved info of %d clusters", len(clustersFiltered))
 }
 
-func (c *clusterInfoUpdater) updateClusterInfo(ctx context.Context, cluster appv1.Cluster, info *cache.ClusterInfo) error {
+func (c *clusterInfoUpdater) updateClusterInfo(ctx context.Context, cluster *appv1.Cluster, info *cache.ClusterInfo) error {
 	apps, err := c.appLister.List(labels.Everything())
 	if err != nil {
 		return fmt.Errorf("error while fetching the apps list: %w", err)
@@ -123,7 +123,7 @@ func (c *clusterInfoUpdater) updateClusterInfo(ctx context.Context, cluster appv
 	return c.cache.SetClusterInfo(cluster.Server, &updated)
 }
 
-func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*appv1.Application, cluster appv1.Cluster, info *cache.ClusterInfo, now metav1.Time) appv1.ClusterInfo {
+func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*appv1.Application, cluster *appv1.Cluster, info *cache.ClusterInfo, now metav1.Time) appv1.ClusterInfo {
 	var appCount int64
 	for _, a := range apps {
 		if c.projGetter != nil {
@@ -170,7 +170,7 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 	return clusterInfo
 }
 
-func updateClusterLabels(ctx context.Context, clusterInfo *cache.ClusterInfo, cluster appv1.Cluster, updateCluster func(context.Context, *appv1.Cluster) (*appv1.Cluster, error)) error {
+func updateClusterLabels(ctx context.Context, clusterInfo *cache.ClusterInfo, cluster *appv1.Cluster, updateCluster func(context.Context, *appv1.Cluster) (*appv1.Cluster, error)) error {
 	if clusterInfo != nil && cluster.Labels[common.LabelKeyAutoLabelClusterInfo] == "true" && cluster.Labels[common.LabelKeyClusterKubernetesVersion] != clusterInfo.K8SVersion {
 		cluster.Labels[common.LabelKeyClusterKubernetesVersion] = clusterInfo.K8SVersion
 		_, err := updateCluster(ctx, &cluster)

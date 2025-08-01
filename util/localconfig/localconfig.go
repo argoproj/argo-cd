@@ -79,7 +79,7 @@ func (u *User) Claims() (*jwt.RegisteredClaims, error) {
 // ReadLocalConfig loads up the local configuration file. Returns nil if config does not exist
 func ReadLocalConfig(path string) (*LocalConfig, error) {
 	var err error
-	var localconfig LocalConfig
+	var localconfig *LocalConfig
 
 	// check file permission only when argocd config exists
 	if fi, err := os.Stat(path); err == nil {
@@ -89,7 +89,7 @@ func ReadLocalConfig(path string) (*LocalConfig, error) {
 		}
 	}
 
-	err = config.UnmarshalLocalFile(path, &localconfig)
+	err = config.UnmarshalLocalFile(path, localconfig)
 	if os.IsNotExist(err) {
 		return nil, nil
 	}
@@ -97,10 +97,10 @@ func ReadLocalConfig(path string) (*LocalConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &localconfig, nil
+	return localconfig, nil
 }
 
-func ValidateLocalConfig(config LocalConfig) error {
+func ValidateLocalConfig(config *LocalConfig) error {
 	if config.CurrentContext == "" {
 		return nil
 	}
@@ -111,7 +111,7 @@ func ValidateLocalConfig(config LocalConfig) error {
 }
 
 // WriteLocalConfig writes a new local configuration file.
-func WriteLocalConfig(localconfig LocalConfig, configPath string) error {
+func WriteLocalConfig(localconfig *LocalConfig, configPath string) error {
 	err := os.MkdirAll(path.Dir(configPath), os.ModePerm)
 	if err != nil {
 		return err
@@ -165,14 +165,14 @@ func (l *LocalConfig) GetServer(name string) (*Server, error) {
 	return nil, fmt.Errorf("Server '%s' undefined", name)
 }
 
-func (l *LocalConfig) UpsertServer(server Server) {
+func (l *LocalConfig) UpsertServer(server *Server) {
 	for i, s := range l.Servers {
 		if s.Server == server.Server {
-			l.Servers[i] = server
+			l.Servers[i] = *server
 			return
 		}
 	}
-	l.Servers = append(l.Servers, server)
+	l.Servers = append(l.Servers, *server)
 }
 
 // Returns true if server was removed successfully

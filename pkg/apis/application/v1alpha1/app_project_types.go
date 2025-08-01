@@ -115,7 +115,7 @@ func (proj *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) 
 }
 
 // RemoveJWTToken removes the specified JWT from an AppProject
-func (proj AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) error {
+func (proj *AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) error {
 	roleName := proj.Spec.Roles[roleIndex].Name
 	// For backward compatibility
 	_, jwtTokenIndex, err1 := proj.GetJWTTokenFromSpec(roleName, issuedAt, id)
@@ -363,7 +363,7 @@ func (proj *AppProject) ProjectPoliciesString() string {
 }
 
 // IsGroupKindPermitted validates if the given resource group/kind is permitted to be deployed in the project
-func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool) bool {
+func (proj *AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool) bool {
 	var isWhiteListed, isBlackListed bool
 	res := metav1.GroupKind{Group: gk.Group, Kind: gk.Kind}
 
@@ -385,11 +385,11 @@ func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool
 }
 
 // IsLiveResourcePermitted returns whether a live resource found in the cluster is permitted by an AppProject
-func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, destCluster *Cluster, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
+func (proj *AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, destCluster *Cluster, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
 	return proj.IsResourcePermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace(), destCluster, projectClusters)
 }
 
-func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace string, destCluster *Cluster, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
+func (proj *AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace string, destCluster *Cluster, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
 	if !proj.IsGroupKindPermitted(groupKind, namespace != "") {
 		return false, nil
 	}
@@ -400,8 +400,8 @@ func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace
 }
 
 // HasFinalizer returns true if a resource finalizer is set on an AppProject
-func (proj AppProject) HasFinalizer() bool {
-	return getFinalizerIndex(proj.ObjectMeta, ResourcesFinalizerName) > -1
+func (proj *AppProject) HasFinalizer() bool {
+	return getFinalizerIndex(&proj.ObjectMeta, ResourcesFinalizerName) > -1
 }
 
 // RemoveFinalizer removes a resource finalizer from an AppProject
@@ -421,7 +421,7 @@ func globMatch(pattern string, val string, allowNegation bool, separators ...run
 }
 
 // IsSourcePermitted validates if the provided application's source is a one of the allowed sources for the project.
-func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
+func (proj *AppProject) IsSourcePermitted(src ApplicationSource) bool {
 	srcNormalized := git.NormalizeGitURL(src.RepoURL)
 
 	var normalized string
@@ -446,7 +446,7 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 }
 
 // IsDestinationPermitted validates if the provided application's destination is one of the allowed destinations for the project
-func (proj AppProject) IsDestinationPermitted(destCluster *Cluster, destNamespace string, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
+func (proj *AppProject) IsDestinationPermitted(destCluster *Cluster, destNamespace string, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
 	if destCluster == nil {
 		return false, nil
 	}
@@ -470,7 +470,7 @@ func (proj AppProject) IsDestinationPermitted(destCluster *Cluster, destNamespac
 	return destinationMatched, nil
 }
 
-func (proj AppProject) isDestinationMatched(dst ApplicationDestination) bool {
+func (proj *AppProject) isDestinationMatched(dst ApplicationDestination) bool {
 	anyDestinationMatched := false
 
 	for _, item := range proj.Spec.Destinations {
@@ -587,7 +587,7 @@ func jwtTokensCombine(tokens1 []JWTToken, tokens2 []JWTToken) []JWTToken {
 // Applications in the installation namespace are always permitted. Also, at
 // application creation time, its namespace may yet be empty to indicate that
 // the application will be created in the controller's namespace.
-func (proj AppProject) IsAppNamespacePermitted(app *Application, controllerNs string) bool {
+func (proj *AppProject) IsAppNamespacePermitted(app *Application, controllerNs string) bool {
 	if app.Namespace == "" || app.Namespace == controllerNs {
 		return true
 	}

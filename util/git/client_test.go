@@ -916,7 +916,7 @@ func TestNewAuth(t *testing.T) {
 		{
 			name:    "HTTPSCreds with bearer token",
 			repoURL: "https://github.com/org/repo.git",
-			creds: HTTPSCreds{
+			creds: &HTTPSCreds{
 				bearerToken: "test-token",
 			},
 			expected: &githttp.TokenAuth{Token: "test-token"},
@@ -925,7 +925,7 @@ func TestNewAuth(t *testing.T) {
 		{
 			name:    "HTTPSCreds with basic auth",
 			repoURL: "https://github.com/org/repo.git",
-			creds: HTTPSCreds{
+			creds: &HTTPSCreds{
 				username: "test-user",
 				password: "test-password",
 			},
@@ -935,7 +935,7 @@ func TestNewAuth(t *testing.T) {
 		{
 			name:    "HTTPSCreds with basic auth no username",
 			repoURL: "https://github.com/org/repo.git",
-			creds: HTTPSCreds{
+			creds: &HTTPSCreds{
 				password: "test-password",
 			},
 			expected: &githttp.BasicAuth{Username: "x-access-token", Password: "test-password"},

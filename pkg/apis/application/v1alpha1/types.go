@@ -407,7 +407,7 @@ type SourceHydrator struct {
 }
 
 // GetSyncSource gets the source from which we should sync when a source hydrator is configured.
-func (s SourceHydrator) GetSyncSource() ApplicationSource {
+func (s *SourceHydrator) GetSyncSource() ApplicationSource {
 	return ApplicationSource{
 		// Pull the RepoURL from the dry source. The SyncSource's RepoURL is assumed to be the same.
 		RepoURL:        s.DrySource.RepoURL,
@@ -417,7 +417,7 @@ func (s SourceHydrator) GetSyncSource() ApplicationSource {
 }
 
 // GetDrySource gets the dry source when a source hydrator is configured.
-func (s SourceHydrator) GetDrySource() ApplicationSource {
+func (s *SourceHydrator) GetDrySource() ApplicationSource {
 	return ApplicationSource{
 		RepoURL:        s.DrySource.RepoURL,
 		Path:           s.DrySource.Path,
@@ -426,7 +426,7 @@ func (s SourceHydrator) GetDrySource() ApplicationSource {
 }
 
 // DeepEquals returns true if the SourceHydrator is deeply equal to the given SourceHydrator.
-func (s SourceHydrator) DeepEquals(hydrator SourceHydrator) bool {
+func (s *SourceHydrator) DeepEquals(hydrator SourceHydrator) bool {
 	return s.DrySource == hydrator.DrySource && s.SyncSource == hydrator.SyncSource && s.HydrateTo.DeepEquals(hydrator.HydrateTo)
 }
 
@@ -2465,7 +2465,7 @@ func (ro *ResourceOverride) UnmarshalJSON(data []byte) error {
 
 // MarshalJSON marshals a ResourceOverride object into a JSON byte slice.
 // It converts `IgnoreDifferences` and `IgnoreResourceUpdates` fields to YAML format before marshaling.
-func (ro ResourceOverride) MarshalJSON() ([]byte, error) {
+func (ro *ResourceOverride) MarshalJSON() ([]byte, error) {
 	ignoreDifferencesData, err := yaml.Marshal(ro.IgnoreDifferences)
 	if err != nil {
 		return nil, err
@@ -3033,11 +3033,11 @@ func (w *SyncWindows) manualEnabled() bool {
 }
 
 // Active returns true if the sync window is currently active
-func (w SyncWindow) Active() (bool, error) {
+func (w *SyncWindow) Active() (bool, error) {
 	return w.active(time.Now())
 }
 
-func (w SyncWindow) active(currentTime time.Time) (bool, error) {
+func (w *SyncWindow) active(currentTime time.Time) (bool, error) {
 	// If SyncWindow.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before search
 	currentTime = currentTime.UTC()
@@ -3152,7 +3152,7 @@ func (w *SyncWindow) HashIdentity() (uint64, error) {
 }
 
 // DestinationClusters returns a list of cluster URLs allowed as destination in an AppProject
-func (spec AppProjectSpec) DestinationClusters() []string {
+func (spec *AppProjectSpec) DestinationClusters() []string {
 	servers := make([]string, 0)
 
 	for _, d := range spec.Destinations {
@@ -3283,7 +3283,7 @@ func (app *Application) IsHydrateRequested() bool {
 }
 
 func (app *Application) HasPostDeleteFinalizer(stage ...string) bool {
-	return getFinalizerIndex(app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/")) > -1
+	return getFinalizerIndex(&app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/")) > -1
 }
 
 func (app *Application) SetPostDeleteFinalizer(stage ...string) {
@@ -3345,7 +3345,7 @@ func (app *Application) HasChangedManagedNamespaceMetadata() bool {
 
 // IsFinalizerPresent checks if the app has a given finalizer
 func (app *Application) IsFinalizerPresent(finalizer string) bool {
-	return getFinalizerIndex(app.ObjectMeta, finalizer) > -1
+	return getFinalizerIndex(&app.ObjectMeta, finalizer) > -1
 }
 
 // SetConditions updates the application status conditions for a subset of evaluated types.
@@ -3463,7 +3463,7 @@ func (source *ApplicationSource) ExplicitType() (*ApplicationSourceType, error) 
 }
 
 // GetProject returns the application's project. This is preferred over spec.Project which may be empty
-func (spec ApplicationSpec) GetProject() string {
+func (spec *ApplicationSpec) GetProject() string {
 	if spec.Project == "" {
 		return DefaultAppProjectName
 	}
@@ -3471,7 +3471,7 @@ func (spec ApplicationSpec) GetProject() string {
 }
 
 // GetRevisionHistoryLimit returns the currently set revision history limit for an application
-func (spec ApplicationSpec) GetRevisionHistoryLimit() int {
+func (spec *ApplicationSpec) GetRevisionHistoryLimit() int {
 	if spec.RevisionHistoryLimit != nil {
 		return int(*spec.RevisionHistoryLimit)
 	}
@@ -3492,7 +3492,7 @@ func isResourceInList(res metav1.GroupKind, list []metav1.GroupKind) bool {
 }
 
 // getFinalizerIndex returns finalizer index in the list of object finalizers or -1 if finalizer does not exist
-func getFinalizerIndex(meta metav1.ObjectMeta, name string) int {
+func getFinalizerIndex(meta *metav1.ObjectMeta, name string) int {
 	for i, finalizer := range meta.Finalizers {
 		if finalizer == name {
 			return i
@@ -3503,7 +3503,7 @@ func getFinalizerIndex(meta metav1.ObjectMeta, name string) int {
 
 // setFinalizer adds or removes finalizer with the specified name
 func setFinalizer(meta *metav1.ObjectMeta, name string, exist bool) {
-	index := getFinalizerIndex(*meta, name)
+	index := getFinalizerIndex(meta, name)
 	if exist != (index > -1) {
 		if index > -1 {
 			meta.Finalizers[index] = meta.Finalizers[len(meta.Finalizers)-1]
@@ -3711,14 +3711,14 @@ func UnmarshalToUnstructured(resource string) (*unstructured.Unstructured, error
 // LiveObject returns the live object representation of the resource by unmarshalling the
 // `LiveState` field into an unstructured.Unstructured object. This object represents the current
 // live state of the resource in the cluster.
-func (r ResourceDiff) LiveObject() (*unstructured.Unstructured, error) {
+func (r *ResourceDiff) LiveObject() (*unstructured.Unstructured, error) {
 	return UnmarshalToUnstructured(r.LiveState)
 }
 
 // TargetObject returns the target object representation of the resource by unmarshalling the
 // `TargetState` field into an unstructured.Unstructured object. This object represents the desired
 // state of the resource, as defined in the target configuration.
-func (r ResourceDiff) TargetObject() (*unstructured.Unstructured, error) {
+func (r *ResourceDiff) TargetObject() (*unstructured.Unstructured, error) {
 	return UnmarshalToUnstructured(r.TargetState)
 }
 

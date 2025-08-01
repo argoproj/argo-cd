@@ -113,7 +113,7 @@ func getModification(modification string, resource string, scope string, permiss
 	return nil, fmt.Errorf("modification %s is not supported", modification)
 }
 
-func saveProject(ctx context.Context, updated v1alpha1.AppProject, orig v1alpha1.AppProject, projectsIf appclient.AppProjectInterface, dryRun bool) error {
+func saveProject(ctx context.Context, updated *v1alpha1.AppProject, orig v1alpha1.AppProject, projectsIf appclient.AppProjectInterface, dryRun bool) error {
 	fmt.Printf("===== %s ======\n", updated.Name)
 	target, err := kube.ToUnstructured(&updated)
 	errors.CheckError(err)

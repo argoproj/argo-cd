@@ -1140,7 +1140,7 @@ func TestListAppsInDefaultNSWithLabels(t *testing.T) {
 	testListAppsWithLabels(t, appQuery, appServer)
 }
 
-func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery, appServer *Server) {
+func testListAppsWithLabels(t *testing.T, appQuery *application.ApplicationQuery, appServer *Server) {
 	t.Helper()
 	validTests := []struct {
 		testName       string

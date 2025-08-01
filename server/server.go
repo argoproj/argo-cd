@@ -274,7 +274,7 @@ func (g GracefulRestartSignal) String() string {
 func (g GracefulRestartSignal) Signal() {}
 
 // initializeDefaultProject creates the default project if it does not already exist
-func initializeDefaultProject(opts ArgoCDServerOpts) error {
+func initializeDefaultProject(opts *ArgoCDServerOpts) error {
 	defaultProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: v1alpha1.DefaultAppProjectName, Namespace: opts.Namespace},
 		Spec: v1alpha1.AppProjectSpec{
@@ -295,7 +295,7 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 }
 
 // NewServer returns a new instance of the Argo CD API server
-func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts ApplicationSetOpts) *ArgoCDServer {
+func NewServer(ctx context.Context, opts *ArgoCDServerOpts, appsetOpts ApplicationSetOpts) *ArgoCDServer {
 	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
 	settings, err := settingsMgr.InitializeSettings(opts.Insecure)
 	errorsutil.CheckError(err)

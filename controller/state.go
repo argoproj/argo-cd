@@ -1046,7 +1046,7 @@ func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sou
 
 // specEqualsCompareTo compares the application spec to the comparedTo status. It normalizes the destination to match
 // the comparedTo destination before comparing. It does not mutate the original spec or comparedTo.
-func specEqualsCompareTo(spec v1alpha1.ApplicationSpec, sources []v1alpha1.ApplicationSource, comparedTo v1alpha1.ComparedTo) bool {
+func specEqualsCompareTo(spec *v1alpha1.ApplicationSpec, sources []v1alpha1.ApplicationSource, comparedTo v1alpha1.ComparedTo) bool {
 	// Make a copy to be sure we don't mutate the original.
 	specCopy := spec.DeepCopy()
 	compareToSpec := specCopy.BuildComparedToStatus(sources)
@@ -1056,7 +1056,7 @@ func specEqualsCompareTo(spec v1alpha1.ApplicationSpec, sources []v1alpha1.Appli
 func (m *appStateManager) persistRevisionHistory(
 	app *v1alpha1.Application,
 	revision string,
-	source v1alpha1.ApplicationSource,
+	source *v1alpha1.ApplicationSource,
 	revisions []string,
 	sources []v1alpha1.ApplicationSource,
 	hasMultipleSources bool,
@@ -1191,7 +1191,7 @@ func (m *appStateManager) isSelfReferencedObj(live, config *unstructured.Unstruc
 // the given object. It returns false when the ID doesn't match. This sometimes
 // happens when a tracking label or annotation gets accidentally copied to a
 // different resource.
-func isSelfReferencedObj(obj *unstructured.Unstructured, aiv argo.AppInstanceValue) bool {
+func isSelfReferencedObj(obj *unstructured.Unstructured, aiv *argo.AppInstanceValue) bool {
 	return (obj.GetNamespace() == aiv.Namespace || obj.GetNamespace() == "") &&
 		obj.GetName() == aiv.Name &&
 		obj.GetObjectKind().GroupVersionKind().Group == aiv.Group &&

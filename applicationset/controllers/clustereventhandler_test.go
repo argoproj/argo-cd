@@ -566,7 +566,7 @@ func TestClusterEventHandler(t *testing.T) {
 }
 
 func TestNestedGeneratorHasClusterGenerator_NestedClusterGenerator(t *testing.T) {
-	nested := argov1alpha1.ApplicationSetNestedGenerator{
+	nested := &argov1alpha1.ApplicationSetNestedGenerator{
 		Clusters: &argov1alpha1.ClusterGenerator{},
 	}
 
@@ -577,7 +577,7 @@ func TestNestedGeneratorHasClusterGenerator_NestedClusterGenerator(t *testing.T)
 }
 
 func TestNestedGeneratorHasClusterGenerator_NestedMergeGenerator(t *testing.T) {
-	nested := argov1alpha1.ApplicationSetNestedGenerator{
+	nested := &argov1alpha1.ApplicationSetNestedGenerator{
 		Merge: &apiextensionsv1.JSON{
 			Raw: []byte(
 				`{
@@ -604,7 +604,7 @@ func TestNestedGeneratorHasClusterGenerator_NestedMergeGenerator(t *testing.T) {
 }
 
 func TestNestedGeneratorHasClusterGenerator_NestedMergeGeneratorWithInvalidJSON(t *testing.T) {
-	nested := argov1alpha1.ApplicationSetNestedGenerator{
+	nested := &argov1alpha1.ApplicationSetNestedGenerator{
 		Merge: &apiextensionsv1.JSON{
 			Raw: []byte(
 				`{

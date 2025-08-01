@@ -120,7 +120,7 @@ func (h *clusterSecretEventHandler) queueRelatedAppGenerators(ctx context.Contex
 // nestedGeneratorsHaveClusterGenerator iterate over provided nested generators to check if they have a cluster generator.
 func nestedGeneratorsHaveClusterGenerator(generators []argoprojiov1alpha1.ApplicationSetNestedGenerator) (bool, error) {
 	for _, generator := range generators {
-		if ok, err := nestedGeneratorHasClusterGenerator(generator); ok || err != nil {
+		if ok, err := nestedGeneratorHasClusterGenerator(&generator); ok || err != nil {
 			return ok, err
 		}
 	}
@@ -128,7 +128,7 @@ func nestedGeneratorsHaveClusterGenerator(generators []argoprojiov1alpha1.Applic
 }
 
 // nestedGeneratorHasClusterGenerator checks if the provided generator has a cluster generator.
-func nestedGeneratorHasClusterGenerator(nested argoprojiov1alpha1.ApplicationSetNestedGenerator) (bool, error) {
+func nestedGeneratorHasClusterGenerator(nested *argoprojiov1alpha1.ApplicationSetNestedGenerator) (bool, error) {
 	if nested.Clusters != nil {
 		return true, nil
 	}

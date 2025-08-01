@@ -132,7 +132,7 @@ func checkAppNotInAdditionalNamespaces(app *unstructured.Unstructured, namespace
 	return namespace != app.GetNamespace() && !glob.MatchStringInList(applicationNamespaces, app.GetNamespace(), glob.REGEXP)
 }
 
-func (c *notificationController) alterDestinations(obj metav1.Object, destinations services.Destinations, cfg api.Config) services.Destinations {
+func (c *notificationController) alterDestinations(obj metav1.Object, destinations services.Destinations, cfg *api.Config) services.Destinations {
 	app, ok := (obj).(*unstructured.Unstructured)
 	if !ok {
 		return destinations

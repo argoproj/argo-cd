@@ -41,7 +41,7 @@ type Creds interface {
 	GetInsecureSkipVerify() bool
 }
 
-var _ Creds = HelmCreds{}
+var _ Creds = &HelmCreds{}
 
 type HelmCreds struct {
 	Username           string
@@ -52,19 +52,19 @@ type HelmCreds struct {
 	InsecureSkipVerify bool
 }
 
-func (creds HelmCreds) GetUsername() string {
+func (creds *HelmCreds) GetUsername() string {
 	return creds.Username
 }
 
-func (creds HelmCreds) GetPassword() (string, error) {
+func (creds *HelmCreds) GetPassword() (string, error) {
 	return creds.Password, nil
 }
 
-func (creds HelmCreds) GetCAPath() string {
+func (creds *HelmCreds) GetCAPath() string {
 	return creds.CAPath
 }
 
-func (creds HelmCreds) GetCertData() []byte {
+func (creds *HelmCreds) GetCertData() []byte {
 	return creds.CertData
 }
 
@@ -72,11 +72,11 @@ func (creds HelmCreds) GetKeyData() []byte {
 	return creds.KeyData
 }
 
-func (creds HelmCreds) GetInsecureSkipVerify() bool {
+func (creds *HelmCreds) GetInsecureSkipVerify() bool {
 	return creds.InsecureSkipVerify
 }
 
-var _ Creds = AzureWorkloadIdentityCreds{}
+var _ Creds = &AzureWorkloadIdentityCreds{}
 
 type AzureWorkloadIdentityCreds struct {
 	repoURL            string
@@ -87,7 +87,7 @@ type AzureWorkloadIdentityCreds struct {
 	tokenProvider      workloadidentity.TokenProvider
 }
 
-func (creds AzureWorkloadIdentityCreds) GetUsername() string {
+func (creds *AzureWorkloadIdentityCreds) GetUsername() string {
 	return workloadidentity.EmptyGuid
 }
 
@@ -95,24 +95,24 @@ func (creds AzureWorkloadIdentityCreds) GetPassword() (string, error) {
 	return creds.GetAccessToken()
 }
 
-func (creds AzureWorkloadIdentityCreds) GetCAPath() string {
+func (creds *AzureWorkloadIdentityCreds) GetCAPath() string {
 	return creds.CAPath
 }
 
-func (creds AzureWorkloadIdentityCreds) GetCertData() []byte {
+func (creds *AzureWorkloadIdentityCreds) GetCertData() []byte {
 	return creds.CertData
 }
 
-func (creds AzureWorkloadIdentityCreds) GetKeyData() []byte {
+func (creds *AzureWorkloadIdentityCreds) GetKeyData() []byte {
 	return creds.KeyData
 }
 
-func (creds AzureWorkloadIdentityCreds) GetInsecureSkipVerify() bool {
+func (creds *AzureWorkloadIdentityCreds) GetInsecureSkipVerify() bool {
 	return creds.InsecureSkipVerify
 }
 
-func NewAzureWorkloadIdentityCreds(repoURL string, caPath string, certData []byte, keyData []byte, insecureSkipVerify bool, tokenProvider workloadidentity.TokenProvider) AzureWorkloadIdentityCreds {
-	return AzureWorkloadIdentityCreds{
+func NewAzureWorkloadIdentityCreds(repoURL string, caPath string, certData []byte, keyData []byte, insecureSkipVerify bool, tokenProvider workloadidentity.TokenProvider) *AzureWorkloadIdentityCreds {
+	return &AzureWorkloadIdentityCreds{
 		repoURL:            repoURL,
 		CAPath:             caPath,
 		CertData:           certData,
@@ -122,7 +122,7 @@ func NewAzureWorkloadIdentityCreds(repoURL string, caPath string, certData []byt
 	}
 }
 
-func (creds AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
+func (creds *AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
 	registryHost := strings.Split(creds.repoURL, "/")[0]
 
 	// Compute hash as key for refresh token in the cache
@@ -175,7 +175,7 @@ func getJWTExpiry(token string) (time.Time, error) {
 	return time.UnixMilli(exp.UnixMilli()), nil
 }
 
-func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams map[string]string) (string, error) {
+func (creds *AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams map[string]string) (string, error) {
 	realm := tokenParams["realm"]
 	service := tokenParams["service"]
 
@@ -232,7 +232,7 @@ func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams
 	return res.RefreshToken, nil
 }
 
-func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(azureContainerRegistry string) (map[string]string, error) {
+func (creds *AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(azureContainerRegistry string) (map[string]string, error) {
 	requestURL := fmt.Sprintf("https://%s/v2/", azureContainerRegistry)
 
 	client := &http.Client{

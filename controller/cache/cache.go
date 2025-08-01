@@ -328,7 +328,7 @@ func getApp(r *clustercache.Resource, ns map[kube.ResourceKey]*clustercache.Reso
 	return name
 }
 
-func ownerRefGV(ownerRef metav1.OwnerReference) schema.GroupVersion {
+func ownerRefGV(ownerRef *metav1.OwnerReference) schema.GroupVersion {
 	gv, err := schema.ParseGroupVersion(ownerRef.APIVersion)
 	if err != nil {
 		gv = schema.GroupVersion{}
@@ -646,7 +646,7 @@ func (c *liveStateCache) getSyncedCluster(server *appv1.Cluster) (clustercache.C
 	return clusterCache, nil
 }
 
-func (c *liveStateCache) invalidate(cacheSettings cacheSettings) {
+func (c *liveStateCache) invalidate(cacheSettings *cacheSettings) {
 	log.Info("invalidating live state cache")
 	c.lock.Lock()
 	c.cacheSettings = cacheSettings

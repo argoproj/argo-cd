@@ -112,11 +112,11 @@ func WithDisableManifestMaxExtractedSize(disableManifestMaxExtractedSize bool) C
 	}
 }
 
-func NewClient(repoURL string, creds Creds, proxy, noProxy string, layerMediaTypes []string, opts ...ClientOpts) (Client, error) {
+func NewClient(repoURL string, creds *Creds, proxy, noProxy string, layerMediaTypes []string, opts ...ClientOpts) (Client, error) {
 	return NewClientWithLock(repoURL, creds, globalLock, proxy, noProxy, layerMediaTypes, opts...)
 }
 
-func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxyURL, noProxy string, layerMediaTypes []string, opts ...ClientOpts) (Client, error) {
+func NewClientWithLock(repoURL string, creds *Creds, repoLock sync.KeyLock, proxyURL, noProxy string, layerMediaTypes []string, opts ...ClientOpts) (Client, error) {
 	ociRepo := strings.TrimPrefix(repoURL, "oci://")
 	repo, err := remote.NewRepository(ociRepo)
 	if err != nil {
@@ -368,7 +368,7 @@ func (c *nativeOCIClient) resolveDigest(ctx context.Context, revision string) (s
 	return descriptor.Digest.String(), nil
 }
 
-func newTLSConfig(creds Creds) (*tls.Config, error) {
+func newTLSConfig(creds *Creds) (*tls.Config, error) {
 	tlsConfig := &tls.Config{InsecureSkipVerify: creds.InsecureSkipVerify}
 
 	if creds.CAPath != "" {

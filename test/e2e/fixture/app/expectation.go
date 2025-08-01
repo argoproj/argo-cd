@@ -187,7 +187,7 @@ func ResourceResultNumbering(num int) Expectation {
 	}
 }
 
-func ResourceResultIs(result v1alpha1.ResourceResult) Expectation {
+func ResourceResultIs(result *v1alpha1.ResourceResult) Expectation {
 	return func(c *Consequences) (state, string) {
 		results := c.app().Status.OperationState.SyncResult.Resources
 		for _, res := range results {
@@ -199,7 +199,7 @@ func ResourceResultIs(result v1alpha1.ResourceResult) Expectation {
 	}
 }
 
-func sameResourceResult(res1, res2 v1alpha1.ResourceResult) bool {
+func sameResourceResult(res1, res2 *v1alpha1.ResourceResult) bool {
 	return res1.Kind == res2.Kind &&
 		res1.Group == res2.Group &&
 		res1.Namespace == res2.Namespace &&
@@ -209,7 +209,7 @@ func sameResourceResult(res1, res2 v1alpha1.ResourceResult) bool {
 		res1.HookPhase == res2.HookPhase
 }
 
-func ResourceResultMatches(result v1alpha1.ResourceResult) Expectation {
+func ResourceResultMatches(result *v1alpha1.ResourceResult) Expectation {
 	return func(c *Consequences) (state, string) {
 		results := c.app().Status.OperationState.SyncResult.Resources
 		for _, res := range results {

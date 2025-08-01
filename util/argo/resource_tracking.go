@@ -171,7 +171,7 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 }
 
 // BuildAppInstanceValue build resource tracking id in format <application-name>;<group>/<kind>/<namespace>/<name>
-func (rt *resourceTracking) BuildAppInstanceValue(value AppInstanceValue) string {
+func (rt *resourceTracking) BuildAppInstanceValue(value *AppInstanceValue) string {
 	return fmt.Sprintf("%s:%s/%s:%s/%s", value.ApplicationName, value.Group, value.Kind, value.Namespace, value.Name)
 }
 

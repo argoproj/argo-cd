@@ -1178,7 +1178,7 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, a v1alpha1.Application) bool {
+func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, a *v1alpha1.Application) bool {
 	if len(projects) > 0 && !projects[a.Spec.GetProject()] {
 		return false
 	}
@@ -2818,7 +2818,7 @@ func (s *Server) isNamespaceEnabled(namespace string) bool {
 
 // getProjectsFromApplicationQuery gets the project names from a query. If the legacy "project" field was specified, use
 // that. Otherwise, use the newer "projects" field.
-func getProjectsFromApplicationQuery(q application.ApplicationQuery) []string {
+func getProjectsFromApplicationQuery(q *application.ApplicationQuery) []string {
 	if q.Project != nil {
 		return q.Project
 	}

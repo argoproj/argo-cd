@@ -104,10 +104,10 @@ func TestGenerateApplications(t *testing.T) {
 			if cc.generateParamsError == nil {
 				for _, p := range cc.params {
 					if cc.rendererError != nil {
-						rendererMock.On("RenderTemplateParams", GetTempApplication(cc.template), mock.AnythingOfType("*v1alpha1.ApplicationSetSyncPolicy"), p, false, []string(nil)).
+						rendererMock.On("RenderTemplateParams", GetTempApplication(&cc.template), mock.AnythingOfType("*v1alpha1.ApplicationSetSyncPolicy"), p, false, []string(nil)).
 							Return(nil, cc.rendererError)
 					} else {
-						rendererMock.On("RenderTemplateParams", GetTempApplication(cc.template), mock.AnythingOfType("*v1alpha1.ApplicationSetSyncPolicy"), p, false, []string(nil)).
+						rendererMock.On("RenderTemplateParams", GetTempApplication(&cc.template), mock.AnythingOfType("*v1alpha1.ApplicationSetSyncPolicy"), p, false, []string(nil)).
 							Return(&app, nil)
 						expectedApps = append(expectedApps, app)
 					}
@@ -119,7 +119,7 @@ func TestGenerateApplications(t *testing.T) {
 			}
 			renderer := &rendererMock
 
-			got, reason, err := GenerateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
+			got, reason, err := GenerateApplications(log.NewEntry(log.StandardLogger()), &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -156,7 +156,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 		params           []map[string]any
 		template         v1alpha1.ApplicationSetTemplate
 		overrideTemplate v1alpha1.ApplicationSetTemplate
-		expectedMerged   v1alpha1.ApplicationSetTemplate
+		expectedMerged   *v1alpha1.ApplicationSetTemplate
 		expectedApps     []v1alpha1.Application
 	}{
 		{
@@ -177,7 +177,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSpec{},
 			},
-			expectedMerged: v1alpha1.ApplicationSetTemplate{
+			expectedMerged: &v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
 					Name:      "test",
 					Namespace: "namespace",
@@ -221,7 +221,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 			}
 			renderer := &rendererMock
 
-			got, _, _ := GenerateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
+			got, _, _ := GenerateApplications(log.NewEntry(log.StandardLogger()), &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
 					Namespace: "namespace",
@@ -328,7 +328,7 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 			}
 			renderer := &utils.Render{}
 
-			gotApp, _, _ := GenerateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
+			gotApp, _, _ := GenerateApplications(log.NewEntry(log.StandardLogger()), &v1alpha1.ApplicationSet{
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 					Generators: []v1alpha1.ApplicationSetGenerator{{

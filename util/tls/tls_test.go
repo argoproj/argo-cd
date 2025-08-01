@@ -124,7 +124,7 @@ func decodePem(certInput string) (*tls.Certificate, error) {
 func TestEncodeX509KeyPairString(t *testing.T) {
 	certChain, err := decodePem(chain)
 	require.NoError(t, err)
-	cert, _ := EncodeX509KeyPairString(*certChain)
+	cert, _ := EncodeX509KeyPairString(certChain)
 
 	assert.Equal(t, strings.TrimSpace(chain), strings.TrimSpace(cert))
 }
@@ -193,33 +193,33 @@ func TestTLSVersionToString(t *testing.T) {
 
 func TestGenerate(t *testing.T) {
 	t.Run("Invalid: No hosts specified", func(t *testing.T) {
-		opts := CertOptions{Hosts: []string{}, Organization: "Acme", ValidFrom: time.Now(), ValidFor: 10 * time.Hour}
+		opts := &CertOptions{Hosts: []string{}, Organization: "Acme", ValidFrom: time.Now(), ValidFor: 10 * time.Hour}
 		_, _, err := generate(opts)
 		assert.ErrorContains(t, err, "hosts not supplied")
 	})
 
 	t.Run("Invalid: No organization specified", func(t *testing.T) {
-		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "", ValidFrom: time.Now(), ValidFor: 10 * time.Hour}
+		opts := &CertOptions{Hosts: []string{"localhost"}, Organization: "", ValidFrom: time.Now(), ValidFor: 10 * time.Hour}
 		_, _, err := generate(opts)
 		assert.ErrorContains(t, err, "organization not supplied")
 	})
 
 	t.Run("Invalid: Unsupported curve specified", func(t *testing.T) {
-		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ECDSACurve: "Curve?", ValidFrom: time.Now(), ValidFor: 10 * time.Hour}
+		opts := &CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ECDSACurve: "Curve?", ValidFrom: time.Now(), ValidFor: 10 * time.Hour}
 		_, _, err := generate(opts)
 		assert.ErrorContains(t, err, "unrecognized elliptic curve")
 	})
 
 	for _, curve := range []string{"P224", "P256", "P384", "P521"} {
 		t.Run("Create certificate with curve "+curve, func(t *testing.T) {
-			opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ECDSACurve: curve}
+			opts := &CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ECDSACurve: curve}
 			_, _, err := generate(opts)
 			require.NoError(t, err)
 		})
 	}
 
 	t.Run("Create certificate with default options", func(t *testing.T) {
-		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme"}
+		opts := &CertOptions{Hosts: []string{"localhost"}, Organization: "Acme"}
 		certBytes, privKey, err := generate(opts)
 		require.NoError(t, err)
 		assert.NotNil(t, privKey)
@@ -233,7 +233,7 @@ func TestGenerate(t *testing.T) {
 	})
 
 	t.Run("Create certificate with IP ", func(t *testing.T) {
-		opts := CertOptions{Hosts: []string{"localhost", "127.0.0.1"}, Organization: "Acme"}
+		opts := &CertOptions{Hosts: []string{"localhost", "127.0.0.1"}, Organization: "Acme"}
 		certBytes, privKey, err := generate(opts)
 		require.NoError(t, err)
 		assert.NotNil(t, privKey)
@@ -248,7 +248,7 @@ func TestGenerate(t *testing.T) {
 	})
 
 	t.Run("Create certificate with specific validity timeframe", func(t *testing.T) {
-		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ValidFrom: time.Now().Add(1 * time.Hour)}
+		opts := &CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ValidFrom: time.Now().Add(1 * time.Hour)}
 		certBytes, privKey, err := generate(opts)
 		require.NoError(t, err)
 		assert.NotNil(t, privKey)
@@ -261,7 +261,7 @@ func TestGenerate(t *testing.T) {
 	for _, year := range []int{1, 2, 3, 10} {
 		t.Run(fmt.Sprintf("Create certificate with specified ValidFor %d year", year), func(t *testing.T) {
 			validFrom, validFor := time.Now(), 365*24*time.Hour*time.Duration(year)
-			opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ValidFrom: validFrom, ValidFor: validFor}
+			opts := &CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ValidFrom: validFrom, ValidFor: validFor}
 			certBytes, privKey, err := generate(opts)
 			require.NoError(t, err)
 			assert.NotNil(t, privKey)
@@ -276,7 +276,7 @@ func TestGenerate(t *testing.T) {
 
 func TestGeneratePEM(t *testing.T) {
 	t.Run("Invalid - PEM creation failure", func(t *testing.T) {
-		opts := CertOptions{Hosts: nil, Organization: "Acme"}
+		opts := &CertOptions{Hosts: nil, Organization: "Acme"}
 		cert, key, err := generatePEM(opts)
 		require.Error(t, err)
 		assert.Nil(t, cert)
@@ -284,7 +284,7 @@ func TestGeneratePEM(t *testing.T) {
 	})
 
 	t.Run("Create PEM from certficate options", func(t *testing.T) {
-		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme"}
+		opts := &CertOptions{Hosts: []string{"localhost"}, Organization: "Acme"}
 		cert, key, err := generatePEM(opts)
 		require.NoError(t, err)
 		assert.NotNil(t, cert)
@@ -292,7 +292,7 @@ func TestGeneratePEM(t *testing.T) {
 	})
 
 	t.Run("Create X509KeyPair", func(t *testing.T) {
-		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme"}
+		opts := &CertOptions{Hosts: []string{"localhost"}, Organization: "Acme"}
 		cert, err := GenerateX509KeyPair(opts)
 		require.NoError(t, err)
 		assert.NotNil(t, cert)
@@ -463,7 +463,7 @@ func TestLoadX509CertPool(t *testing.T) {
 
 func TestEncodeX509KeyPair_InvalidRSAKey(t *testing.T) {
 	t.Run("Nil RSA private key", func(t *testing.T) {
-		cert := tls.Certificate{
+		cert := &tls.Certificate{
 			Certificate: [][]byte{{0x30, 0x82}}, // minimal DER certificate bytes
 			PrivateKey:  (*rsa.PrivateKey)(nil),
 		}
@@ -481,7 +481,7 @@ func TestEncodeX509KeyPair_InvalidRSAKey(t *testing.T) {
 			},
 			D: big.NewInt(1), // Invalid private exponent
 		}
-		cert := tls.Certificate{
+		cert := &tls.Certificate{
 			Certificate: [][]byte{{0x30, 0x82}}, // minimal DER certificate bytes
 			PrivateKey:  invalidKey,
 		}
@@ -498,7 +498,7 @@ func TestEncodeX509KeyPair_InvalidRSAKey(t *testing.T) {
 			},
 			D: big.NewInt(99999),
 		}
-		cert := tls.Certificate{
+		cert := &tls.Certificate{
 			Certificate: [][]byte{{0x30, 0x82}}, // minimal DER certificate bytes
 			PrivateKey:  invalidKey,
 		}
@@ -509,7 +509,7 @@ func TestEncodeX509KeyPair_InvalidRSAKey(t *testing.T) {
 
 	t.Run("Unsupported private key type", func(t *testing.T) {
 		// Use a type that's not *rsa.PrivateKey or *ecdsa.PrivateKey
-		cert := tls.Certificate{
+		cert := &tls.Certificate{
 			Certificate: [][]byte{{0x30, 0x82}}, // minimal DER certificate bytes
 			PrivateKey:  "not a private key",    // Unsupported type
 		}
@@ -520,11 +520,11 @@ func TestEncodeX509KeyPair_InvalidRSAKey(t *testing.T) {
 
 	t.Run("Valid RSA private key should work", func(t *testing.T) {
 		// Generate a valid RSA key for testing
-		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Test"}
+		opts := &CertOptions{Hosts: []string{"localhost"}, Organization: "Test"}
 		validCert, err := GenerateX509KeyPair(opts)
 		require.NoError(t, err)
 
-		certPEM, keyPEM := EncodeX509KeyPair(*validCert)
+		certPEM, keyPEM := EncodeX509KeyPair(validCert)
 		assert.NotEmpty(t, certPEM)
 		assert.NotEmpty(t, keyPEM)
 		assert.Contains(t, string(keyPEM), "-----BEGIN RSA PRIVATE KEY-----")

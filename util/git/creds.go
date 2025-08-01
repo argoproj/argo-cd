@@ -124,8 +124,8 @@ type GenericHTTPSCreds interface {
 }
 
 var (
-	_ GenericHTTPSCreds = HTTPSCreds{}
-	_ Creds             = HTTPSCreds{}
+	_ GenericHTTPSCreds = &HTTPSCreds{}
+	_ Creds             = &HTTPSCreds{}
 )
 
 // HTTPS creds implementation
@@ -149,7 +149,7 @@ type HTTPSCreds struct {
 }
 
 func NewHTTPSCreds(username string, password string, bearerToken string, clientCertData string, clientCertKey string, insecure bool, store CredsStore, forceBasicAuth bool) GenericHTTPSCreds {
-	return HTTPSCreds{
+	return &HTTPSCreds{
 		username,
 		password,
 		bearerToken,
@@ -162,26 +162,26 @@ func NewHTTPSCreds(username string, password string, bearerToken string, clientC
 }
 
 // GetUserInfo returns the username and email address for the credentials, if they're available.
-func (creds HTTPSCreds) GetUserInfo(_ context.Context) (string, string, error) {
+func (creds *HTTPSCreds) GetUserInfo(context.Context) (string, string, error) {
 	// Email not implemented for HTTPS creds.
 	return creds.username, "", nil
 }
 
-func (creds HTTPSCreds) BasicAuthHeader() string {
+func (creds *HTTPSCreds) BasicAuthHeader() string {
 	h := "Authorization: Basic "
 	t := creds.username + ":" + creds.password
 	h += base64.StdEncoding.EncodeToString([]byte(t))
 	return h
 }
 
-func (creds HTTPSCreds) BearerAuthHeader() string {
+func (creds *HTTPSCreds) BearerAuthHeader() string {
 	h := "Authorization: Bearer " + creds.bearerToken
 	return h
 }
 
 // Get additional required environment variables for executing git client to
 // access specific repository via HTTPS.
-func (creds HTTPSCreds) Environ() (io.Closer, []string, error) {
+func (creds *HTTPSCreds) Environ() (io.Closer, []string, error) {
 	var env []string
 
 	httpCloser := authFilePaths(make([]string, 0))
@@ -252,7 +252,7 @@ func (creds HTTPSCreds) Environ() (io.Closer, []string, error) {
 	}), env, nil
 }
 
-func (creds HTTPSCreds) HasClientCert() bool {
+func (creds *HTTPSCreds) HasClientCert() bool {
 	return creds.clientCertData != "" && creds.clientCertKey != ""
 }
 
@@ -260,7 +260,7 @@ func (creds HTTPSCreds) GetClientCertData() string {
 	return creds.clientCertData
 }
 
-func (creds HTTPSCreds) GetClientCertKey() string {
+func (creds *HTTPSCreds) GetClientCertKey() string {
 	return creds.clientCertKey
 }
 
@@ -384,10 +384,10 @@ type GitHubAppCreds struct {
 
 // NewGitHubAppCreds provide github app credentials
 func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore) GenericHTTPSCreds {
-	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, noProxy: noProxy, store: store}
+	return &GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, noProxy: noProxy, store: store}
 }
 
-func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
+func (g *GitHubAppCreds) Environ() (io.Closer, []string, error) {
 	token, err := g.getAccessToken()
 	if err != nil {
 		return NopCloser{}, nil, err
@@ -453,7 +453,7 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 }
 
 // GetUserInfo returns the username and email address for the credentials, if they're available.
-func (g GitHubAppCreds) GetUserInfo(ctx context.Context) (string, string, error) {
+func (g *GitHubAppCreds) GetUserInfo(ctx context.Context) (string, string, error) {
 	// We use the apps transport to get the app slug.
 	appTransport, err := g.getAppTransport()
 	if err != nil {
@@ -485,7 +485,7 @@ func (g GitHubAppCreds) GetUserInfo(ctx context.Context) (string, string, error)
 
 // getAccessToken fetches GitHub token using the app id, install id, and private key.
 // the token is then cached for re-use.
-func (g GitHubAppCreds) getAccessToken() (string, error) {
+func (g *GitHubAppCreds) getAccessToken() (string, error) {
 	// Timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -499,7 +499,7 @@ func (g GitHubAppCreds) getAccessToken() (string, error) {
 }
 
 // getAppTransport creates a new GitHub transport for the app
-func (g GitHubAppCreds) getAppTransport() (*ghinstallation.AppsTransport, error) {
+func (g *GitHubAppCreds) getAppTransport() (*ghinstallation.AppsTransport, error) {
 	// GitHub API url
 	baseURL := "https://api.github.com"
 	if g.baseURL != "" {
@@ -522,7 +522,7 @@ func (g GitHubAppCreds) getAppTransport() (*ghinstallation.AppsTransport, error)
 }
 
 // getInstallationTransport creates a new GitHub transport for the app installation
-func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, error) {
+func (g *GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, error) {
 	// Compute hash of creds for lookup in cache
 	h := sha256.New()
 	_, err := fmt.Fprintf(h, "%s %d %d %s", g.privateKey, g.appID, g.appInstallId, g.baseURL)
@@ -564,15 +564,15 @@ func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, e
 	return itr, nil
 }
 
-func (g GitHubAppCreds) HasClientCert() bool {
+func (g *GitHubAppCreds) HasClientCert() bool {
 	return g.clientCertData != "" && g.clientCertKey != ""
 }
 
-func (g GitHubAppCreds) GetClientCertData() string {
+func (g *GitHubAppCreds) GetClientCertData() string {
 	return g.clientCertData
 }
 
-func (g GitHubAppCreds) GetClientCertKey() string {
+func (g *GitHubAppCreds) GetClientCertKey() string {
 	return g.clientCertKey
 }
 

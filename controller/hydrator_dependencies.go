@@ -31,7 +31,7 @@ func (ctrl *ApplicationController) GetProcessableApps() (*appv1.ApplicationList,
 	return ctrl.getAppList(metav1.ListOptions{})
 }
 
-func (ctrl *ApplicationController) GetRepoObjs(origApp *appv1.Application, drySource appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
+func (ctrl *ApplicationController) GetRepoObjs(origApp *appv1.Application, drySource *appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
 	drySources := []appv1.ApplicationSource{drySource}
 	dryRevisions := []string{revision}
 

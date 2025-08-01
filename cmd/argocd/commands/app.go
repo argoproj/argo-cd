@@ -1066,7 +1066,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	return command
 }
 
-func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, nothingToUnset bool) {
+func unset(source *argoappv1.ApplicationSource, opts *unsetOpts) (updated bool, nothingToUnset bool) {
 	needToUnsetRef := false
 	if opts.ref && source.IsRef() {
 		source.Ref = ""
@@ -1766,7 +1766,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	return command
 }
 
-func formatSyncPolicy(app argoappv1.Application) string {
+func formatSyncPolicy(app *argoappv1.Application) string {
 	if app.Spec.SyncPolicy == nil || !app.Spec.SyncPolicy.IsAutomatedSyncEnabled() {
 		return "Manual"
 	}
@@ -1777,7 +1777,7 @@ func formatSyncPolicy(app argoappv1.Application) string {
 	return policy
 }
 
-func formatConditionsSummary(app argoappv1.Application) string {
+func formatConditionsSummary(app *argoappv1.Application) string {
 	typeToCnt := make(map[string]int)
 	for i := range app.Status.Conditions {
 		condition := app.Status.Conditions[i]
