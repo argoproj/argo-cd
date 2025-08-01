@@ -1349,14 +1349,20 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			errors.CheckError(err)
 			diffOption := &DifferenceOption{}
 
+			hasServerSideDiffAnnotation := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
+			// Use app annotation if flag not explicitly set
+			if !serverSideDiff {
+				serverSideDiff = hasServerSideDiffAnnotation
+			} else {
+				// If flag is explicitly set, but app annotation is not set, provide note, but preserve control to the user.
+				if !hasServerSideDiffAnnotation {
+					fmt.Fprintf(os.Stderr, "Warning: Application does not have ServerSideDiff=true annotation.")
+				}
+			}
+
 			// Server side diff with local requires server side generate to be set as there will be a mismatch with client-generated manifests.
 			if serverSideDiff && local != "" && !serverSideGenerate {
 				log.Fatal("--server-side-diff with --local requires --server-side-generate.")
-			}
-
-			// If the application has ServerSideDiff=true annotation, provide note, but preserve control to the user.
-			if !serverSideDiff && resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true") {
-				fmt.Println("Note: Application has ServerSideDiff=true annotation. Consider using --server-side-diff")
 			}
 
 			switch {
