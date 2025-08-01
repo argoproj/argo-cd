@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: ClickHouse installation completed successfully
+  inputPath: testdata/healthy_completed.yaml
+- healthStatus:
+    status: Progressing
+    message: ClickHouse installation in progress
+  inputPath: testdata/progressing_inprogress.yaml
+- healthStatus:
+    status: Degraded
+    message: "ClickHouse status: Failed"
+  inputPath: testdata/degraded_failed.yaml
+- healthStatus:
+    status: Progressing
+    message: ClickHouse status not yet available
+  inputPath: testdata/progressing_nostatus.yaml
