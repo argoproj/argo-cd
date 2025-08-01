@@ -2804,18 +2804,15 @@ func (m *ManagedResourcesResponse) GetItems() []*v1alpha1.ResourceDiff {
 	return nil
 }
 
-// ApplicationServerSideDiffQuery is a request for server-side diff calculation
 type ApplicationServerSideDiffQuery struct {
-	Name         *string `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	AppNamespace *string `protobuf:"bytes,2,opt,name=appNamespace" json:"appNamespace,omitempty"`
-	Project      *string `protobuf:"bytes,3,opt,name=project" json:"project,omitempty"`
-	// Live resources from ManagedResources API
-	LiveResources []*v1alpha1.ResourceDiff `protobuf:"bytes,4,rep,name=liveResources" json:"liveResources,omitempty"`
-	// Target manifests to diff against
-	TargetManifests      []string `protobuf:"bytes,5,rep,name=targetManifests" json:"targetManifests,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Name                 *string                  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
+	AppNamespace         *string                  `protobuf:"bytes,2,opt,name=appNamespace" json:"appNamespace,omitempty"`
+	Project              *string                  `protobuf:"bytes,3,opt,name=project" json:"project,omitempty"`
+	LiveResources        []*v1alpha1.ResourceDiff `protobuf:"bytes,4,rep,name=liveResources" json:"liveResources,omitempty"`
+	TargetManifests      []string                 `protobuf:"bytes,5,rep,name=targetManifests" json:"targetManifests,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                 `json:"-"`
+	XXX_unrecognized     []byte                   `json:"-"`
+	XXX_sizecache        int32                    `json:"-"`
 }
 
 func (m *ApplicationServerSideDiffQuery) Reset()         { *m = ApplicationServerSideDiffQuery{} }

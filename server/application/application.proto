@@ -318,14 +318,11 @@ message ManagedResourcesResponse {
 	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceDiff items = 1;
 }
 
-// ApplicationServerSideDiffQuery is a request for server-side diff calculation
 message ApplicationServerSideDiffQuery {
 	required string name = 1;
 	optional string appNamespace = 2;
 	optional string project = 3;
-	// Live resources from ManagedResources API
 	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceDiff liveResources = 4;
-	// Target manifests to diff against
 	repeated string targetManifests = 5;
 }
 

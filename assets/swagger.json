@@ -1912,7 +1912,6 @@
               "type": "string"
             },
             "collectionFormat": "multi",
-            "description": "Target manifests to diff against.",
             "name": "targetManifests",
             "in": "query"
           }
