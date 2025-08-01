@@ -187,7 +187,7 @@ func (s *secretsRepositoryBackend) CreateRepoCreds(ctx context.Context, repoCred
 		},
 	}
 
-	repoCredsToSecret(repoCreds, repoCredsSecret)
+	s.repoCredsToSecret(repoCreds, repoCredsSecret)
 
 	_, err := s.db.createSecret(ctx, repoCredsSecret)
 	if err != nil {
@@ -211,6 +211,20 @@ func (s *secretsRepositoryBackend) GetRepoCreds(_ context.Context, repoURL strin
 	}
 
 	return s.secretToRepoCred(secret)
+}
+
+func (s *secretsRepositoryBackend) GetRepoCredsIfExists(_ context.Context, repoURL string) (bool, *appsv1.RepoCreds, error) {
+	secret, err := s.getRepoCredsSecret(repoURL)
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return false, nil, nil
+		}
+
+		return false, nil, err
+	}
+
+	repository, errRepo := s.secretToRepoCred(secret)
+	return true, repository, errRepo
 }
 
 func (s *secretsRepositoryBackend) ListRepoCreds(_ context.Context) ([]string, error) {
@@ -237,7 +251,7 @@ func (s *secretsRepositoryBackend) UpdateRepoCreds(ctx context.Context, repoCred
 		return nil, err
 	}
 
-	repoCredsToSecret(repoCreds, repoCredsSecret)
+	s.repoCredsToSecret(repoCreds, repoCredsSecret)
 
 	repoCredsSecret, err = s.db.kubeclientset.CoreV1().Secrets(s.db.ns).Update(ctx, repoCredsSecret, metav1.UpdateOptions{})
 	if err != nil {
@@ -486,7 +500,7 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 	return repository, nil
 }
 
-func repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
+func (s *secretsRepositoryBackend) repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
 	if secret.Data == nil {
 		secret.Data = make(map[string][]byte)
 	}
@@ -510,7 +524,7 @@ func repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
 	updateSecretString(secret, "noProxy", repoCreds.NoProxy)
 	updateSecretBool(secret, "forceHttpBasicAuth", repoCreds.ForceHttpBasicAuth)
 	updateSecretBool(secret, "useAzureWorkloadIdentity", repoCreds.UseAzureWorkloadIdentity)
-	addSecretMetadata(secret, common.LabelValueSecretTypeRepoCreds)
+	addSecretMetadata(secret, s.getRepoCredSecretType())
 }
 
 func (s *secretsRepositoryBackend) getRepositorySecret(repoURL, project string, allowFallback bool) (*corev1.Secret, error) {
@@ -549,7 +563,7 @@ func (s *secretsRepositoryBackend) getRepositorySecret(repoURL, project string, 
 }
 
 func (s *secretsRepositoryBackend) getRepoCredsSecret(repoURL string) (*corev1.Secret, error) {
-	secrets, err := s.db.listSecretsByType(common.LabelValueSecretTypeRepoCreds)
+	secrets, err := s.db.listSecretsByType(s.getRepoCredSecretType())
 	if err != nil {
 		return nil, err
 	}
@@ -585,4 +599,11 @@ func (s *secretsRepositoryBackend) getSecretType() string {
 		return common.LabelValueSecretTypeRepositoryWrite
 	}
 	return common.LabelValueSecretTypeRepository
+}
+
+func (s *secretsRepositoryBackend) getRepoCredSecretType() string {
+	if s.writeCreds {
+		return common.LabelValueSecretTypeRepoCredsWrite
+	}
+	return common.LabelValueSecretTypeRepoCreds
 }
