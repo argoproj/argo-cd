@@ -156,6 +156,15 @@ func (ctrl *ApplicationController) cleanupPostDeleteHooks(liveObjs map[kube.Reso
 			if (policy != common.HookDeletePolicyHookFailed || aggregatedHealth != health.HealthStatusDegraded) && (policy != common.HookDeletePolicyHookSucceeded || aggregatedHealth != health.HealthStatusHealthy) {
 				continue
 			}
+			if obj.GetKind() == "Job" {
+				failed, found, _ := unstructured.NestedInt64(obj.Object, "status", "failed")
+				backoff, hasBackoff, _ := unstructured.NestedInt64(obj.Object, "spec", "backoffLimit")
+				if found && hasBackoff && failed < backoff {
+					logCtx.Infof("Skipping deletion for hook %s/%s: backoff limit not yet reached (%d/%d)",
+						obj.GetNamespace(), obj.GetName(), failed, backoff)
+					continue
+				}
+			}
 			pendingDeletionCount++
 			if obj.GetDeletionTimestamp() != nil {
 				continue
