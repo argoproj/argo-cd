@@ -721,7 +721,8 @@ metadata:
   resourceVersion: "123"
 spec:
   resources: {}
-  paused: true
+  updated:
+    something: true
   containers:
    - name: name1
      test: {}
@@ -741,7 +742,7 @@ metadata:
   resourceVersion: "123"
 spec:
   resources: {}
-  paused: false
+  updated: {}
   containers:
    - name: name1
      test: {}
@@ -750,7 +751,7 @@ spec:
        test2: {}
 `
 		const pausedToFalseLua = `
-obj.spec.paused = false
+obj.spec.updated = {}
 return obj
 `
 		testObj := StrToUnstructured(objWithEmptyStruct)
