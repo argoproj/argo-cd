@@ -1492,7 +1492,7 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 		if cert != nil {
 			settings.Certificate = cert
 			settings.CertificateIsExternal = true
-			log.Infof("Loading TLS configuration from secret %s/%s", mgr.namespace, externalServerTLSSecretName)
+			log.Debugf("Loading TLS configuration from secret %s/%s", mgr.namespace, externalServerTLSSecretName)
 		} else {
 			serverCert, certOk := argoCDSecret.Data[settingServerCertificate]
 			serverKey, keyOk := argoCDSecret.Data[settingServerPrivateKey]
