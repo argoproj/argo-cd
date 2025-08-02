@@ -8,6 +8,7 @@ import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
 import {ComparisonStatusIcon, getAppDefaultSource, HealthStatusIcon} from '../utils';
 import {formatClusterQueryParam} from '../../../shared/utils';
+import {COLORS} from '../../../shared/components/colors';
 
 export interface FilterResult {
     repos: boolean;
@@ -253,12 +254,12 @@ function getAutoSyncOptions(apps: FilteredApp[]) {
     return [
         {
             label: 'Enabled',
-            icon: <i className='fa fa-circle-play' />,
+            icon: <i className='fa fa-circle-play' style={{color: COLORS.sync.synced}} />,
             count: counts.get('Enabled')
         },
         {
             label: 'Disabled',
-            icon: <i className='fa fa-ban' />,
+            icon: <i className='fa fa-ban' style={{color: COLORS.sync.out_of_sync}} />,
             count: counts.get('Disabled')
         }
     ];
