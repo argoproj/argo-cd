@@ -76,14 +76,12 @@ func (db *db) ListClusters(_ context.Context) (*appv1.ClusterList, error) {
 		if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
 			if inClusterEnabled == nil {
 				settings, err := db.settingsMgr.GetSettings()
-
 				if err != nil {
 					return nil, err
 				}
 
 				inClusterEnabled = &settings.InClusterEnabled
 			}
-
 			if *inClusterEnabled {
 				hasInClusterCredentials = true
 				clusterList.Items = append(clusterList.Items, *cluster)
@@ -95,14 +93,12 @@ func (db *db) ListClusters(_ context.Context) (*appv1.ClusterList, error) {
 	if !hasInClusterCredentials {
 		if inClusterEnabled == nil {
 			settings, err := db.settingsMgr.GetSettings()
-
 			if err != nil {
 				return nil, err
 			}
 
 			inClusterEnabled = &settings.InClusterEnabled
 		}
-
 		if *inClusterEnabled {
 			clusterList.Items = append(clusterList.Items, *db.getLocalCluster())
 		}
@@ -309,18 +305,13 @@ func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string,
 	}
 
 	var inClusterEnabled *bool
-
 	if len(localClusterSecrets) == 0 && db.getLocalCluster().Name == name {
-		if inClusterEnabled == nil {
-			settings, err := db.settingsMgr.GetSettings()
-
-			if err != nil {
-				return nil, err
-			}
-
-			inClusterEnabled = &settings.InClusterEnabled
+		settings, err := db.settingsMgr.GetSettings()
+		if err != nil {
+			return nil, err
 		}
 
+		inClusterEnabled = &settings.InClusterEnabled
 		if *inClusterEnabled {
 			return []string{appv1.KubernetesInternalAPIServerAddr}, nil
 		}
@@ -337,7 +328,6 @@ func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string,
 		if server == appv1.KubernetesInternalAPIServerAddr {
 			if inClusterEnabled == nil {
 				settings, err := db.settingsMgr.GetSettings()
-
 				if err != nil {
 					return nil, err
 				}
