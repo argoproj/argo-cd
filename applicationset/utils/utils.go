@@ -399,13 +399,13 @@ func addInvalidGeneratorNames(names map[string]bool, applicationSetInfo *argoapp
 	var values map[string]any
 	err := json.Unmarshal([]byte(config), &values)
 	if err != nil {
-		log.Warnf("couldn't unmarshal kubectl.kubernetes.io/last-applied-configuration: %+v", config)
+		log.Warnf("could not unmarshal kubectl.kubernetes.io/last-applied-configuration: %+v", config)
 		return
 	}
 
 	spec, ok := values["spec"].(map[string]any)
 	if !ok {
-		log.Warn("coundn't get spec from kubectl.kubernetes.io/last-applied-configuration annotation")
+		log.Warn("could not get spec from kubectl.kubernetes.io/last-applied-configuration annotation")
 		return
 	}
 
