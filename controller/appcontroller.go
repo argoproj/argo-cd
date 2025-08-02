@@ -1396,6 +1396,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		logCtx.Debug("Finished processing requested app operation")
 	}()
 	terminating := false
+	terminatingCause := ""
 	if isOperationInProgress(app) {
 		state = app.Status.OperationState.DeepCopy()
 		terminating = state.Phase == synccommon.OperationTerminating
@@ -1423,6 +1424,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		case ctrl.syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.syncTimeout)) && !terminating:
 			state.Phase = synccommon.OperationTerminating
 			state.Message = "operation is terminating due to timeout"
+			terminatingCause = "controller sync timeout"
 			ctrl.setOperationState(app, state)
 			logCtx.Infof("Terminating in-progress operation due to timeout. Started at: %v, timeout: %v", state.StartedAt, ctrl.syncTimeout)
 		default:
@@ -1439,6 +1441,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
 
+	terminating = state.Phase == synccommon.OperationTerminating
 	project, err := ctrl.getAppProj(app)
 	if err == nil {
 		// Start or resume the sync
@@ -1473,10 +1476,15 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			} else {
 				state.Phase = synccommon.OperationRunning
 				state.RetryCount++
-				state.Message = fmt.Sprintf("%s due to application controller sync timeout. Retrying attempt #%d at %s.", state.Message, state.RetryCount, retryAt.Format(time.Kitchen))
+				state.Message = fmt.Sprintf("%s. Retrying attempt #%d at %s.", state.Message, state.RetryCount, retryAt.Format(time.Kitchen))
 			}
-		} else if state.RetryCount > 0 {
-			state.Message = fmt.Sprintf("%s (retried %d times).", state.Message, state.RetryCount)
+		} else {
+			if terminating && terminatingCause != "" {
+				state.Message = fmt.Sprintf("%s, triggered by %s", state.Message, terminatingCause)
+			}
+			if state.RetryCount > 0 {
+				state.Message = fmt.Sprintf("%s (retried %d times).", state.Message, state.RetryCount)
+			}
 		}
 	}
 
