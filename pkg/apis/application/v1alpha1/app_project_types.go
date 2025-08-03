@@ -24,24 +24,6 @@ const (
 	serviceAccountDisallowedCharSet = "!*[]{}\\/"
 )
 
-type ErrApplicationNotAllowedToUseProject struct {
-	application string
-	namespace   string
-	project     string
-}
-
-func NewErrApplicationNotAllowedToUseProject(application, namespace, project string) error {
-	return &ErrApplicationNotAllowedToUseProject{
-		application: application,
-		namespace:   namespace,
-		project:     project,
-	}
-}
-
-func (err *ErrApplicationNotAllowedToUseProject) Error() string {
-	return fmt.Sprintf("application '%s' in namespace '%s' is not allowed to use project %s", err.application, err.namespace, err.project)
-}
-
 // AppProjectList is list of AppProject resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AppProjectList struct {
@@ -252,13 +234,17 @@ func (proj *AppProject) ValidateProject() error {
 	}
 
 	if proj.Spec.SyncWindows.HasWindows() {
-		existingWindows := make(map[string]bool)
+		existingWindows := make(map[uint64]bool)
 		for _, window := range proj.Spec.SyncWindows {
 			if window == nil {
 				continue
 			}
-			if _, ok := existingWindows[window.Kind+window.Schedule+window.Duration]; ok {
-				return status.Errorf(codes.AlreadyExists, "window '%s':'%s':'%s' already exists, update or edit", window.Kind, window.Schedule, window.Duration)
+			windowHash, hashErr := window.HashIdentity()
+			if hashErr != nil {
+				return status.Errorf(codes.Internal, "failed to generate hash for sync window with kind '%s', schedule '%s', and duration '%s': %v", window.Kind, window.Schedule, window.Duration, hashErr)
+			}
+			if _, ok := existingWindows[windowHash]; ok {
+				return status.Errorf(codes.AlreadyExists, "sync window with kind '%s', schedule '%s', and duration '%s' already exists (hash=%d, duplicate detected)", window.Kind, window.Schedule, window.Duration, windowHash)
 			}
 			err := window.Validate()
 			if err != nil {
@@ -267,7 +253,7 @@ func (proj *AppProject) ValidateProject() error {
 			if len(window.Applications) == 0 && len(window.Namespaces) == 0 && len(window.Clusters) == 0 {
 				return status.Errorf(codes.OutOfRange, "window '%s':'%s':'%s' requires one of application, cluster or namespace", window.Kind, window.Schedule, window.Duration)
 			}
-			existingWindows[window.Kind+window.Schedule+window.Duration] = true
+			existingWindows[windowHash] = true
 		}
 	}
 
