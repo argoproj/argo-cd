@@ -13,7 +13,7 @@ func ConvertToMapStringString(mapStringInterface map[string]any) map[string]stri
 	return mapStringString
 }
 
-func CombineStringMaps(aSI map[string]any, bSI map[string]any) (map[string]any, error) {
+func CombineStringMaps(aSI, bSI map[string]any) (map[string]any, error) {
 	a := ConvertToMapStringString(aSI)
 	b := ConvertToMapStringString(bSI)
 

@@ -52,7 +52,7 @@ func (c *ExtendedClient) GetContents(repo *Repository, path string) (bool, error
 
 var _ SCMProviderService = &BitBucketCloudProvider{}
 
-func NewBitBucketCloudProvider(owner string, user string, password string, allBranches bool) (*BitBucketCloudProvider, error) {
+func NewBitBucketCloudProvider(owner, user, password string, allBranches bool) (*BitBucketCloudProvider, error) {
 	client := &ExtendedClient{
 		bitbucket.NewBasicAuth(user, password),
 		user,
