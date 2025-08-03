@@ -19,6 +19,7 @@ type MetricsServer struct {
 	repoPendingRequestsGauge *prometheus.GaugeVec
 	redisRequestCounter      *prometheus.CounterVec
 	redisRequestHistogram    *prometheus.HistogramVec
+	upstreamRequestCounter   *prometheus.CounterVec
 	PrometheusRegistry       *prometheus.Registry
 }
 
@@ -100,6 +101,15 @@ func NewMetricsServer() *MetricsServer {
 	)
 	registry.MustRegister(redisRequestHistogram)
 
+	upstreamRequestCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_repo_upstream_requests_total",
+			Help: "Number of upstream repository requests by type and status performed by repo serve",
+		},
+		[]string{"repo_type", "failed"},
+	)
+	registry.MustRegister(upstreamRequestCounter)
+
 	return &MetricsServer{
 		handler:                  promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
 		gitFetchFailCounter:      gitFetchFailCounter,
@@ -109,6 +119,7 @@ func NewMetricsServer() *MetricsServer {
 		repoPendingRequestsGauge: repoPendingRequestsGauge,
 		redisRequestCounter:      redisRequestCounter,
 		redisRequestHistogram:    redisRequestHistogram,
+		upstreamRequestCounter:   upstreamRequestCounter,
 		PrometheusRegistry:       registry,
 	}
 }
@@ -148,4 +159,8 @@ func (m *MetricsServer) IncRedisRequest(failed bool) {
 
 func (m *MetricsServer) ObserveRedisRequestDuration(duration time.Duration) {
 	m.redisRequestHistogram.WithLabelValues("argocd-repo-server").Observe(duration.Seconds())
+}
+
+func (m *MetricsServer) IncUpstreamRepoRequest(repoType string, failed bool) {
+	m.upstreamRequestCounter.WithLabelValues(repoType, strconv.FormatBool(failed)).Inc()
 }

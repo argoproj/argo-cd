@@ -255,14 +255,22 @@ Metrics about the Repo Server. The gRPC metrics are not exposed by default.  Met
 Scraped at the `argocd-repo-server:8084/metrics` endpoint.
 
 
-| Metric                                  |   Type    | Description                                                               |
-| --------------------------------------- | :-------: | ------------------------------------------------------------------------- |
-| `argocd_git_request_duration_seconds`   | histogram | Git requests duration seconds.                                            |
-| `argocd_git_request_total`              |  counter  | Number of git requests performed by repo server                           |
-| `argocd_git_fetch_fail_total`           |  counter  | Number of git fetch requests failures by repo server                      |
-| `argocd_redis_request_duration_seconds` | histogram | Redis requests duration seconds.                                          |
-| `argocd_redis_request_total`            |  counter  | Number of Kubernetes requests executed during application reconciliation. |
-| `argocd_repo_pending_request_total`     |   gauge   | Number of pending requests requiring repository lock                      |
+| Metric                                  |   Type    | Description                                                                        |
+|-----------------------------------------|:---------:|------------------------------------------------------------------------------------|
+| `argocd_git_request_duration_seconds`   | histogram | Git requests duration seconds.                                                     |
+| `argocd_git_request_total`              |  counter  | Number of git requests performed by repo server                                    |
+| `argocd_git_fetch_fail_total`           |  counter  | Number of git fetch requests failures by repo server                               |
+| `argocd_redis_request_duration_seconds` | histogram | Redis requests duration seconds.                                                   |
+| `argocd_redis_request_total`            |  counter  | Number of Kubernetes requests executed during application reconciliation.          |
+| `argocd_repo_pending_request_total`     |   gauge   | Number of pending requests requiring repository lock                               |
+| `argocd_repo_upstream_requests_total`   |  counter  | Number of upstream repository requests by type and status performed by repo server. |
+
+### Labels
+
+| Label Name  | Example Value | Description                                                                                                                                |
+| ----------- |---------------| -------------------------------------------------------------------- |
+| repo_type | git           | Type of repository being accessed (e.g., git, helm, etc.) |
+| failed    | false         | Indicates if the upstream request failed. Possible values: true, false |
 
 ## Commit Server Metrics
 

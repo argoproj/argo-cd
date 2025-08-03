@@ -2772,6 +2772,7 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 	check := checks[repo.Type]
 	apiResp := &apiclient.TestRepositoryResponse{VerifiedRepository: false}
 	err := check()
+	s.metricsServer.IncUpstreamRepoRequest(repo.Type, err != nil)
 	if err != nil {
 		return apiResp, fmt.Errorf("error testing repository connectivity: %w", err)
 	}
