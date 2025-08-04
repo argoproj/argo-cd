@@ -65,7 +65,11 @@ func (db *db) ListClusters(_ context.Context) (*appv1.ClusterList, error) {
 	clusterList := appv1.ClusterList{
 		Items: make([]appv1.Cluster, 0),
 	}
-	var inClusterEnabled *bool
+	settings, err := db.settingsMgr.GetSettings()
+	if err != nil {
+		return nil, err
+	}
+	inClusterEnabled := settings.InClusterEnabled
 	hasInClusterCredentials := false
 	for _, clusterSecret := range clusterSecrets {
 		cluster, err := SecretToCluster(clusterSecret)
@@ -74,15 +78,7 @@ func (db *db) ListClusters(_ context.Context) (*appv1.ClusterList, error) {
 			continue
 		}
 		if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
-			if inClusterEnabled == nil {
-				settings, err := db.settingsMgr.GetSettings()
-				if err != nil {
-					return nil, err
-				}
-
-				inClusterEnabled = &settings.InClusterEnabled
-			}
-			if *inClusterEnabled {
+			if inClusterEnabled {
 				hasInClusterCredentials = true
 				clusterList.Items = append(clusterList.Items, *cluster)
 			}
@@ -90,18 +86,8 @@ func (db *db) ListClusters(_ context.Context) (*appv1.ClusterList, error) {
 			clusterList.Items = append(clusterList.Items, *cluster)
 		}
 	}
-	if !hasInClusterCredentials {
-		if inClusterEnabled == nil {
-			settings, err := db.settingsMgr.GetSettings()
-			if err != nil {
-				return nil, err
-			}
-
-			inClusterEnabled = &settings.InClusterEnabled
-		}
-		if *inClusterEnabled {
-			clusterList.Items = append(clusterList.Items, *db.getLocalCluster())
-		}
+	if inClusterEnabled && !hasInClusterCredentials {
+		clusterList.Items = append(clusterList.Items, *db.getLocalCluster())
 	}
 	return &clusterList, nil
 }
