@@ -1,6 +1,6 @@
 obj.spec.lifecycle.desiredPhase = "Running"
-if obj.metadata.labels == nil then
-    obj.metadata.labels = {}
+if obj.metadata.annotations == nil then
+    obj.metadata.annotations = {}
 end
-obj.metadata.labels["numaflow.numaproj.io/resume-strategy"] = "fast"
+obj.metadata.annotations["numaflow.numaproj.io/resume-strategy"] = "fast"
 return obj
