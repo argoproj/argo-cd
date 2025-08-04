@@ -36,13 +36,13 @@ func osTime(l *lua.LState) int {
 	} else {
 		tbl := l.CheckTable(1)
 		sec := getIntField(tbl, "sec", 0)
-		min := getIntField(tbl, "min", 0)
+		minutes := getIntField(tbl, "min", 0)
 		hour := getIntField(tbl, "hour", 12)
 		day := getIntField(tbl, "day", -1)
 		month := getIntField(tbl, "month", -1)
 		year := getIntField(tbl, "year", -1)
 		isdst := getBoolField(tbl, "isdst", false)
-		t := time.Date(year, time.Month(month), day, hour, min, sec, 0, time.Local)
+		t := time.Date(year, time.Month(month), day, hour, minutes, sec, 0, time.Local)
 		// TODO dst
 		if false {
 			print(isdst)

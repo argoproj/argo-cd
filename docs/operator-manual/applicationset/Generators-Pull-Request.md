@@ -236,7 +236,7 @@ spec:
   generators:
     - pullRequest:
         bitbucket:
-          # Workspace name where the repoistory is stored under. Required.
+          # Workspace name where the repository is stored under. Required.
           owner: myproject
           # Repository slug. Required.
           repo: myrepository
@@ -351,15 +351,18 @@ spec:
   generators:
   - pullRequest:
       # ...
-      # Include any pull request ending with "argocd". (optional)
+      # Include any pull request branch ending with "argocd" 
+      # and pull request title starting with "feat:". (optional)
       filters:
       - branchMatch: ".*-argocd"
+      - titleMatch: "^feat:"
   template:
   # ...
 ```
 
 * `branchMatch`: A regexp matched against source branch names.
 * `targetBranchMatch`: A regexp matched against target branch names.
+* `titleMatch`: A regexp matched against Pull Request title. 
 
 [GitHub](#github) and [GitLab](#gitlab) also support a `labels` filter.
 

@@ -98,7 +98,7 @@ func (h *DefaultPluginHandler) lookForPlugin(filename string) (string, bool) {
 			continue
 		}
 
-		if len(path) == 0 {
+		if path == "" {
 			return "", false
 		}
 

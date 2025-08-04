@@ -62,7 +62,7 @@ func TestNewRedirectServerEmptyRootPath(t *testing.T) {
 	assert.Equal(t, "localhost:8080", server.Addr, "When rootPath is empty, server address should be 'localhost:8080'")
 
 	// Test the redirect handler
-	req := httptest.NewRequest(http.MethodGet, "/applications", nil)
+	req := httptest.NewRequest(http.MethodGet, "/applications", http.NoBody)
 	req.Host = "example.com:8080"
 	w := httptest.NewRecorder()
 
@@ -84,7 +84,7 @@ func TestNewRedirectServerNonEmptyRootPath(t *testing.T) {
 	assert.Equal(t, "localhost:8080/argocd", server.Addr, "When rootPath is '/argocd', server address should be 'localhost:8080/argocd'")
 
 	// Test the redirect handler
-	req := httptest.NewRequest(http.MethodGet, "/applications", nil)
+	req := httptest.NewRequest(http.MethodGet, "/applications", http.NoBody)
 	req.Host = "example.com:8080"
 	w := httptest.NewRecorder()
 
@@ -103,7 +103,7 @@ func TestNewRedirectServerRootPathDuplication(t *testing.T) {
 	server := newRedirectServer(8080, "/argocd")
 
 	// Test the redirect handler with a request path that already includes rootPath
-	req := httptest.NewRequest(http.MethodGet, "/argocd/applications", nil)
+	req := httptest.NewRequest(http.MethodGet, "/argocd/applications", http.NoBody)
 	req.Host = "example.com:8080"
 	w := httptest.NewRecorder()
 

@@ -38,7 +38,6 @@ type terminalSession struct {
 	wsConn         *websocket.Conn
 	sizeChan       chan remotecommand.TerminalSize
 	doneChan       chan struct{}
-	tty            bool
 	readLock       sync.Mutex
 	writeLock      sync.Mutex
 	sessionManager *util_session.SessionManager
@@ -67,7 +66,6 @@ func newTerminalSession(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	session := &terminalSession{
 		ctx:            ctx,
 		wsConn:         conn,
-		tty:            true,
 		sizeChan:       make(chan remotecommand.TerminalSize),
 		doneChan:       make(chan struct{}),
 		sessionManager: sessionManager,

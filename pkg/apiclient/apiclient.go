@@ -21,6 +21,7 @@ import (
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 	"github.com/hashicorp/go-retryablehttp"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -48,7 +49,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/env"
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	http_util "github.com/argoproj/argo-cd/v3/util/http"
-	argoio "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/kube"
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/v3/util/oidc"
@@ -287,13 +288,13 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		// if a call to grpc failed, then try again with GRPCWeb
 		conn, versionIf, err := c.NewVersionClient()
 		if err == nil {
-			defer argoio.Close(conn)
+			defer utilio.Close(conn)
 			_, err = versionIf.Version(context.Background(), &empty.Empty{})
 		}
 		if err != nil {
 			c.GRPCWeb = true
 			conn, versionIf := c.NewVersionClientOrDie()
-			defer argoio.Close(conn)
+			defer utilio.Close(conn)
 
 			_, err := versionIf.Version(context.Background(), &empty.Empty{})
 			if err == nil {
@@ -522,10 +523,9 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	var dialOpts []grpc.DialOption
 	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(endpointCredentials))
 	dialOpts = append(dialOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)))
-	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)))
+	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_util.RetryOnlyForServerStreamInterceptor(retryOpts...)))
 	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor(retryOpts...)))
-	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_util.OTELUnaryClientInterceptor()))
-	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_util.OTELStreamClientInterceptor()))
+	dialOpts = append(dialOpts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
 
 	ctx := context.Background()
 
@@ -544,7 +544,7 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	}
 	conn, e := grpc_util.BlockingDial(ctx, network, serverAddr, creds, dialOpts...)
 	closers = append(closers, conn)
-	return conn, argoio.NewCloser(func() error {
+	return conn, utilio.NewCloser(func() error {
 		var firstErr error
 		for i := range closers {
 			err := closers[i].Close()
@@ -849,7 +849,7 @@ func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, 
 }
 
 func isCanceledContextErr(err error) bool {
-	if err != nil && errors.Is(err, context.Canceled) {
+	if err != nil && errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return true
 	}
 	if stat, ok := status.FromError(err); ok {

@@ -284,8 +284,7 @@ func TestGetResourceActionNoPredefined(t *testing.T) {
 	testObj := StrToUnstructured(objWithNoScriptJSON)
 	vm := VM{}
 	action, err := vm.GetResourceAction(testObj, "test")
-	var expectedErr *ScriptDoesNotExistError
-	require.ErrorAs(t, err, &expectedErr)
+	require.ErrorIs(t, err, errScriptDoesNotExist)
 	assert.Empty(t, action.ActionLua)
 }
 
@@ -396,7 +395,6 @@ func TestExecuteResourceActionDiscovery(t *testing.T) {
 			Name: "scale",
 			Params: []appv1.ResourceActionParam{{
 				Name: "replicas",
-				Type: "number",
 			}},
 		},
 	}
@@ -418,7 +416,6 @@ func TestExecuteResourceActionDiscoveryWithDuplicationActions(t *testing.T) {
 			Name: "scale",
 			Params: []appv1.ResourceActionParam{{
 				Name: "replicas",
-				Type: "number",
 			}},
 		},
 		{
@@ -868,7 +865,7 @@ return hs`
 	})
 
 	t.Run("Get resource health for */* override with empty health.lua", func(t *testing.T) {
-		testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
+		testObj := StrToUnstructured(objWithNoScriptJSON)
 		overrides := getBaseWildcardHealthOverrides
 		status, err := overrides.GetResourceHealth(testObj)
 		require.NoError(t, err)
@@ -953,4 +950,13 @@ func createMockResource(kind string, name string, replicas int) *unstructured.Un
           - name: test-container
             image: nginx
     `, kind, name, replicas))
+}
+
+func Test_getHealthScriptPaths(t *testing.T) {
+	paths, err := getGlobHealthScriptPaths()
+	require.NoError(t, err)
+
+	// This test will fail any time a glob pattern is added to the health script paths. We don't expect that to happen
+	// often.
+	assert.Equal(t, []string{"_.crossplane.io/_", "_.upbound.io/_"}, paths)
 }

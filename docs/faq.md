@@ -190,7 +190,7 @@ argocd ... --grpc-web
 ## Why Am I Getting `x509: certificate signed by unknown authority` When Using The CLI?
 
 The certificate created by default by Argo CD is not automatically recognised by the Argo CD CLI, in order
-to create a secure system you must follow the instructions to [install a certificate](/operator-manual/tls/)
+to create a secure system you must follow the instructions to [install a certificate](operator-manual/tls.md)
 and configure your client OS to trust that certificate.
 
 If you're not running in a production system (e.g. you're testing Argo CD out), try the `--insecure` flag:
@@ -272,7 +272,7 @@ The most common instance of this error is with `env:` fields for `containers`.
 ## How to rotate Redis secret?
 * Delete `argocd-redis` secret in the namespace where Argo CD is installed.
 ```bash
-kubectl delete secret argocd-redis -n <argocd namesapce>
+kubectl delete secret argocd-redis -n <argocd namespace>
 ```
 * If you are running Redis in HA mode, restart Redis in HA.
 ```bash
