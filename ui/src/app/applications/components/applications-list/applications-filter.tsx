@@ -27,6 +27,7 @@ export interface FilterResult {
     health: boolean;
     clusters: boolean;
     namespaces: boolean;
+    targetRevision: boolean;
     operation: boolean;
     annotations: boolean;
     favourite: boolean;
@@ -55,35 +56,76 @@ export function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
     return 'Enabled';
 }
 
+function getAppTargetRevisions(app: Application): string[] {
+    const revisions = new Set<string>();
+
+    if (app.spec.sourceHydrator) {
+        const drySourceRevision = app.spec.sourceHydrator.drySource?.targetRevision;
+        const syncSourceRevision = app.spec.sourceHydrator.syncSource?.targetBranch;
+
+        if (drySourceRevision) {
+            revisions.add(drySourceRevision);
+        }
+        if (syncSourceRevision) {
+            revisions.add(syncSourceRevision);
+        }
+
+        return Array.from(revisions);
+    }
+
+    if (app.spec.sources?.length) {
+        app.spec.sources.forEach(source => {
+            if (source.targetRevision) {
+                revisions.add(source.targetRevision);
+            }
+        });
+
+        return Array.from(revisions);
+    }
+
+    if (app.spec.source?.targetRevision) {
+        revisions.add(app.spec.source.targetRevision);
+    }
+
+    return Array.from(revisions);
+}
+
 export function getAppFilterResults(applications: Application[], pref: AppsListPreferences): FilteredApp[] {
     const labelSelector = createMetadataSelector(pref.labelsFilter || []);
     const annotationSelector = createMetadataSelector(pref.annotationsFilter || []);
 
-    return applications.map(app => ({
-        ...app,
-        filterResult: {
-            sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
-            autosync: pref.autoSyncFilter.length === 0 || pref.autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
-            health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
-            namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
-            favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(app.metadata.name)),
-            clusters:
-                pref.clustersFilter.length === 0 ||
-                pref.clustersFilter.some(filterString => {
-                    const match = filterString.match('^(.*) [(](http.*)[)]$');
-                    if (match?.length === 3) {
-                        const [, name, url] = match;
-                        return url === app.spec.destination.server || name === app.spec.destination.name;
-                    } else {
-                        const inputMatch = filterString.match('^http.*$');
-                        return (inputMatch && inputMatch[0] === app.spec.destination.server) || (app.spec.destination.name && minimatch(app.spec.destination.name, filterString));
-                    }
-                }),
-            labels: pref.labelsFilter.length === 0 || labelSelector(app.metadata.labels),
-            annotations: pref.annotationsFilter.length === 0 || annotationSelector(app.metadata.annotations),
-            operation: pref.operationFilter.length === 0 || pref.operationFilter.includes(getOperationStateTitle(app))
-        }
-    }));
+    return applications.map(app => {
+        const targetRevisions = getAppTargetRevisions(app);
+
+        return {
+            ...app,
+            filterResult: {
+                sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
+                autosync: pref.autoSyncFilter.length === 0 || pref.autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
+                health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
+                namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
+                favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(app.metadata.name)),
+                clusters:
+                    pref.clustersFilter.length === 0 ||
+                    pref.clustersFilter.some(filterString => {
+                        const match = filterString.match('^(.*) [(](http.*)[)]$');
+                        if (match?.length === 3) {
+                            const [, name, url] = match;
+                            return url === app.spec.destination.server || name === app.spec.destination.name;
+                        } else {
+                            const inputMatch = filterString.match('^http.*$');
+                            return (inputMatch && inputMatch[0] === app.spec.destination.server) || (app.spec.destination.name && minimatch(app.spec.destination.name, filterString));
+                        }
+                    }),
+                targetRevision:
+                    pref.targetRevisionFilter.length === 0 ||
+                    pref.targetRevisionFilter.some(filter => targetRevisions.some(targetRevision => minimatch(targetRevision, filter))),
+                labels: pref.labelsFilter.length === 0 || labelSelector(app.metadata.labels),
+                annotations: pref.annotationsFilter.length === 0 || annotationSelector(app.metadata.annotations),
+                operation: pref.operationFilter.length === 0 || pref.operationFilter.includes(getOperationStateTitle(app))
+            }
+        };
+    });
 }
 
 export function getAppSetFilterResults(appSets: ApplicationSet[], pref: AppSetsListPreferences): ApplicationSetFilteredApp[] {
@@ -361,6 +403,23 @@ const NamespaceFilter = React.memo((props: AppFilterProps) => {
     );
 });
 
+const TargetRevisionFilter = (props: AppFilterProps) => {
+    const targetRevisionOptions = React.useMemo(
+        () => optionsFrom(Array.from(new Set(props.apps.flatMap(app => getAppTargetRevisions(app)).filter(item => !!item))), props.pref.targetRevisionFilter),
+        [props.apps, props.pref.targetRevisionFilter]
+    );
+
+    return (
+        <Filter
+            label='TARGET REVISION'
+            selected={props.pref.targetRevisionFilter}
+            setSelected={s => props.onChange({...props.pref, targetRevisionFilter: s})}
+            field={true}
+            options={targetRevisionOptions}
+        />
+    );
+};
+
 const FavoriteFilter = (props: {value: boolean; onChange: (showFavorites: boolean) => void}) => {
     const onChange = (val: boolean) => {
         props.onChange(val);
@@ -471,6 +530,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
         ...(props.pref.projectsFilter || []),
         ...(props.pref.clustersFilter || []),
         ...(props.pref.namespacesFilter || []),
+        ...(props.pref.targetRevisionFilter || []),
         ...(props.pref.autoSyncFilter || []),
         ...(props.pref.showFavorites ? ['favorites'] : [])
     ];
@@ -492,6 +552,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
             <ProjectFilter {...props} />
             <ClusterFilter {...props} />
             <NamespaceFilter {...props} />
+            <TargetRevisionFilter {...props} />
             <AutoSyncFilter {...props} collapsed={true} />
         </FiltersGroup>
     );

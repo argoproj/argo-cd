@@ -72,12 +72,16 @@ export class AbstractAppsListPreferences {
         pref.healthFilter = [];
         pref.labelsFilter = [];
         pref.annotationsFilter = [];
+        pref.targetRevisionFilter = [];
         pref.showFavorites = false;
     }
 
     public labelsFilter: string[];
     public annotationsFilter: string[];
     public healthFilter: string[];
+    public namespacesFilter: string[];
+    public targetRevisionFilter: string[];
+    public clustersFilter: string[];
     public view: AppsListViewType;
     public hideFilters: boolean;
     public statusBarView: HealthStatusBarPreferences;
@@ -86,6 +90,23 @@ export class AbstractAppsListPreferences {
 }
 
 export class AppsListPreferences extends AbstractAppsListPreferences {
+    public static countEnabledFilters(pref: AppsListPreferences) {
+        const enabledFilterGroups = [
+            pref.clustersFilter,
+            pref.healthFilter,
+            pref.labelsFilter,
+            pref.annotationsFilter,
+            pref.namespacesFilter,
+            pref.projectsFilter,
+            pref.syncFilter,
+            pref.targetRevisionFilter,
+            pref.autoSyncFilter,
+            pref.operationFilter
+        ];
+
+        return enabledFilterGroups.reduce((count, filter) => count + (filter && filter.length > 0 ? 1 : 0), pref.showFavorites ? 1 : 0);
+    }
+
     public static clearFilters(pref: AppsListPreferences) {
         super.clearFilters(pref);
 
@@ -102,6 +123,7 @@ export class AppsListPreferences extends AbstractAppsListPreferences {
     public autoSyncFilter: string[];
     public namespacesFilter: string[];
     public clustersFilter: string[];
+    public targetRevisionFilter: string[];
     public operationFilter: string[];
 }
 
@@ -156,6 +178,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         annotationsFilter: new Array<string>(),
         projectsFilter: new Array<string>(),
         namespacesFilter: new Array<string>(),
+        targetRevisionFilter: new Array<string>(),
         clustersFilter: new Array<string>(),
         syncFilter: new Array<string>(),
         autoSyncFilter: new Array<string>(),
@@ -228,6 +251,7 @@ export class ViewPreferencesService {
         appList.annotationsFilter = appList.annotationsFilter || [];
         appList.projectsFilter = appList.projectsFilter || [];
         appList.namespacesFilter = appList.namespacesFilter || [];
+        appList.targetRevisionFilter = appList.targetRevisionFilter || [];
         appList.clustersFilter = appList.clustersFilter || [];
         appList.syncFilter = appList.syncFilter || [];
         appList.autoSyncFilter = appList.autoSyncFilter || [];
