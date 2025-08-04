@@ -41,6 +41,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Back Market](https://www.backmarket.com)
 1. [Bajaj Finserv Health Ltd.](https://www.bajajfinservhealth.in)
 1. [Baloise](https://www.baloise.com)
+1. [Batumbu](https://batumbu.id)
 1. [BCDevExchange DevOps Platform](https://bcdevexchange.org/DevOpsPlatform)
 1. [Beat](https://thebeat.co/en/)
 1. [Beez Innovation Labs](https://www.beezlabs.com/)
