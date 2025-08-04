@@ -2,6 +2,7 @@ apiVersion: numaplane.numaproj.io/v1alpha1
 kind: PipelineRollout
 metadata:
   annotations:
+    numaflow.numaproj.io/resume-strategy: "slow"
     kubectl.kubernetes.io/last-applied-configuration: |
       {"apiVersion":"numaplane.numaproj.io/v1alpha1","kind":"PipelineRollout","metadata":{"annotations":{},"name":"my-pipeline","namespace":"example-namespace"},"spec":{"pipeline":{"spec":{"edges":[{"from":"in","to":"cat"},{"from":"cat","to":"out"}],"interStepBufferServiceName":"my-isbsvc","vertices":[{"name":"in","source":{"generator":{"duration":"1s","rpu":5}}},{"name":"cat","udf":{"builtin":{"name":"cat"}}},{"name":"out","sink":{"log":{}}}]}}}}
   creationTimestamp: "2024-09-26T20:54:55Z"
