@@ -223,6 +223,19 @@ const NamespaceFilter = (props: AppFilterProps) => {
     );
 };
 
+const TargetRevisionFilter = (props: AppFilterProps) => {
+    const namespaceOptions = optionsFrom(Array.from(new Set(props.apps.map(app => app.spec.source.targetRevision).filter(item => !!item))), props.pref.targetRevisionFilter);
+    return (
+        <Filter
+            label='TARGET REVISION'
+            selected={props.pref.targetRevisionFilter}
+            setSelected={s => props.onChange({...props.pref, targetRevisionFilter: s})}
+            field={true}
+            options={namespaceOptions}
+        />
+    );
+};
+
 const FavoriteFilter = (props: AppFilterProps) => {
     const ctx = React.useContext(Context);
     const onChange = (val: boolean) => {
@@ -285,6 +298,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
             <ProjectFilter {...props} />
             <ClusterFilter {...props} />
             <NamespaceFilter {...props} />
+            <TargetRevisionFilter {...props} />
             <AutoSyncFilter {...props} collapsed={true} />
         </FiltersGroup>
     );

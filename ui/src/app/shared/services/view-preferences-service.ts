@@ -54,7 +54,7 @@ export enum AppsListViewKey {
 
 export class AppsListPreferences {
     public static countEnabledFilters(pref: AppsListPreferences) {
-        return [pref.clustersFilter, pref.healthFilter, pref.labelsFilter, pref.namespacesFilter, pref.projectsFilter, pref.reposFilter, pref.syncFilter].reduce(
+        return [pref.clustersFilter, pref.healthFilter, pref.labelsFilter, pref.namespacesFilter, pref.projectsFilter, pref.reposFilter, pref.syncFilter, pref.targetRevisionFilter].reduce(
             (count, filter) => {
                 if (filter && filter.length > 0) {
                     return count + 1;
@@ -70,6 +70,7 @@ export class AppsListPreferences {
         pref.healthFilter = [];
         pref.labelsFilter = [];
         pref.namespacesFilter = [];
+        pref.targetRevisionFilter = [];
         pref.projectsFilter = [];
         pref.reposFilter = [];
         pref.syncFilter = [];
@@ -84,6 +85,7 @@ export class AppsListPreferences {
     public autoSyncFilter: string[];
     public healthFilter: string[];
     public namespacesFilter: string[];
+    public targetRevisionFilter: string[];
     public clustersFilter: string[];
     public view: AppsListViewType;
     public hideFilters: boolean;
@@ -136,6 +138,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         labelsFilter: new Array<string>(),
         projectsFilter: new Array<string>(),
         namespacesFilter: new Array<string>(),
+        targetRevisionFilter: new Array<string>(),
         clustersFilter: new Array<string>(),
         reposFilter: new Array<string>(),
         syncFilter: new Array<string>(),
