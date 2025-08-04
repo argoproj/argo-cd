@@ -23,7 +23,6 @@ The Docker container for the virtualized toolchain will use the following local 
 * `~/go/src` - Your Go workspace's source directory (modifications expected)
 * `~/.cache/go-build` - Your Go build cache (modifications expected)
 * `~/.kube` - Your Kubernetes client configuration (no modifications)
-* `/tmp` - Your system's temp directory (modifications expected)
 
 #### Known issues on macOS
 [Known issues](mac-users.md)

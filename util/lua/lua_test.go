@@ -395,7 +395,6 @@ func TestExecuteResourceActionDiscovery(t *testing.T) {
 			Name: "scale",
 			Params: []appv1.ResourceActionParam{{
 				Name: "replicas",
-				Type: "number",
 			}},
 		},
 	}
@@ -417,7 +416,6 @@ func TestExecuteResourceActionDiscoveryWithDuplicationActions(t *testing.T) {
 			Name: "scale",
 			Params: []appv1.ResourceActionParam{{
 				Name: "replicas",
-				Type: "number",
 			}},
 		},
 		{

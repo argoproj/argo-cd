@@ -9594,20 +9594,8 @@
       "description": "ResourceActionParam represents a parameter for a resource action.\nIt includes a name, value, type, and an optional default value for the parameter.",
       "type": "object",
       "properties": {
-        "default": {
-          "description": "Default is the default value of the parameter, if any.",
-          "type": "string"
-        },
         "name": {
           "description": "Name is the name of the parameter.",
-          "type": "string"
-        },
-        "type": {
-          "description": "Type is the type of the parameter (e.g., string, integer).",
-          "type": "string"
-        },
-        "value": {
-          "description": "Value is the value of the parameter.",
           "type": "string"
         }
       }

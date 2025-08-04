@@ -330,6 +330,12 @@ data:
 
   # Application reconciliation timeout is the amount of time spent before Argo tries to discover if a new manifests version got
   # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Two minutes by default with additional jitter.
+  # For the argocd-repo-server this setting defines the expiration
+  # value for cached git revisions.
+  # When set to 0, the cache expiration value will be taken from the
+  # --default-cache-expiration parameter, which is 24 hours by
+  # default, unless another value is set using the
+  # ARGOCD_DEFAULT_CACHE_EXPIRATION variable).
   # > Note: The argocd-repo-server deployment and the argocd-application-controller statefulset (or deployment, if
   # configured) must be manually restarted after changing the setting.
   timeout.reconciliation: 120s
