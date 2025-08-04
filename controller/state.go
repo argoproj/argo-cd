@@ -974,7 +974,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 
 	compRes := comparisonResult{
-		syncStatus:              &syncStatus,
+		syncStatus:              syncStatus,
 		healthStatus:            healthStatus,
 		resources:               resourceSummaries,
 		managedResources:        managedResources,
