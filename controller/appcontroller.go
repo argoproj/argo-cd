@@ -603,6 +603,9 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 					Group:     managedResource.Group,
 					Namespace: managedResource.Namespace,
 				},
+				Health: &appv1.HealthStatus{
+					Status: health.HealthStatusMissing,
+				},
 			})
 		} else {
 			managedResourcesKeys = append(managedResourcesKeys, kube.GetResourceKey(live))
