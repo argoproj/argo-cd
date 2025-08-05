@@ -15,7 +15,7 @@ actions["unpause-fast"] = {
 }
 actions["allow-data-loss"] = {
   ["disabled"] = true,
-  ["displayName"] = "Allow Data Loss",
+  ["displayName"] = "Allow (Possible) Data Loss",
   ["iconClass"] = "fa-solid fa-fw fa-unlock"
 }
 actions["disallow-data-loss"] = {
