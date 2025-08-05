@@ -17,15 +17,16 @@ import (
 // cluster methods call GetSettings or not.
 
 type GetSettingsCounterMock struct {
-	namespace string
-	clientset kubernetes.Interface
+	namespace            string
+	clientset            kubernetes.Interface
 	getSettingsCallCount int
 }
 
 func NewGetSettingsCounterMock(namespace string, clientset kubernetes.Interface) *GetSettingsCounterMock {
-	return &GetSettingsCounterMock {
-		namespace: namespace,
-		clientset: clientset,
+	return &GetSettingsCounterMock{
+		namespace:            namespace,
+		clientset:            clientset,
+		getSettingsCallCount: 0,
 	}
 }
 
@@ -61,10 +62,10 @@ func (mgr *GetSettingsCounterMock) GetSecretsInformer() (cache.SharedIndexInform
 	}
 
 	indexers := cache.Indexers{
-		"byClusterURL": nilIndexer,
-		"byClusterName": nilIndexer,
-		"byProjectCluster": nilIndexer,
-		"byProjectRepo": nilIndexer,
+		"byClusterURL":       nilIndexer,
+		"byClusterName":      nilIndexer,
+		"byProjectCluster":   nilIndexer,
+		"byProjectRepo":      nilIndexer,
 		"byProjectRepoWrite": nilIndexer,
 	}
 
