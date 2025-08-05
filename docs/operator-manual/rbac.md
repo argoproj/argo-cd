@@ -24,7 +24,7 @@ When Argo CD authenticates a user, the value of `policy.default` in `argocd-rbac
 
 !!! warning "Restricting Default Permissions"
 
-    **All authenticated users get _at least_ the permissions granted by the default policy. These permissions cannot be restricted
+    **All authenticated users get _at least_ the permissions granted by the default role. These permissions cannot be restricted
     by a `deny` rule.** It is recommended to create a new `role:authenticated` with the minimum set of permissions possible,
     then grant permissions to individual roles as needed.
 
@@ -79,18 +79,18 @@ Below is a table that summarizes all possible resources and which actions are va
 
 ### Application-Specific Policy
 
-Some policy only have meaning within an application. It is the case with the following resources:
+Some policies only have meaning within an application. It is the case with the following resources:
 
 - `applications`
 - `applicationsets`
 - `logs`
 - `exec`
 
-While they can be set in the global configuration, they can also be configured in [AppProject's roles](../user-guide/projects.md#project-roles).
+While they can be set in the global configuration, they can also be configured in an [AppProject's roles](../user-guide/projects.md#project-roles).
 The expected `<object>` value in the policy structure is replaced by `<app-project>/<app-name>`.
 
-For instance, these policies would grant `example-user` access to get any applications,
-but only be able to see logs in `my-app` application part of the `example-project` project.
+For instance, these policies would allow `example-user` to view all applications,
+but seeing logs only from the application `my-app`, part of the `example-project` project.
 
 ```csv
 p, example-user, applications, get, *, allow
@@ -165,8 +165,8 @@ p, example-user, applications, update/*, default/prod-app, deny
 
     When disabled, it is not possible to deny fine-grained permissions for a sub-resource
     if the action was **explicitly allowed on the application**.
-    For instance, the following policies will **allow** a user to delete the Pod and any
-    other resources in the application:
+    For instance, the following policies will **allow** a user to delete not only the Pod,
+    but any other resources in the application:
 
     ```csv
     p, example-user, applications, delete, default/prod-app, allow
