@@ -17,14 +17,14 @@ import (
 // cluster methods call GetSettings or not.
 
 type GetSettingsCounterMock struct {
-	ns string
+	namespace string
 	clientset kubernetes.Interface
 	getSettingsCallCount int
 }
 
-func NewGetSettingsCounterMock(ns string, clientset kubernetes.Interface) *GetSettingsCounterMock {
+func NewGetSettingsCounterMock(namespace string, clientset kubernetes.Interface) *GetSettingsCounterMock {
 	return &GetSettingsCounterMock {
-		ns: ns,
+		namespace: namespace,
 		clientset: clientset,
 	}
 }
@@ -56,7 +56,7 @@ func (mgr *GetSettingsCounterMock) ResyncInformers() error {
 }
 
 func (mgr *GetSettingsCounterMock) GetSecretsInformer() (cache.SharedIndexInformer, error) {
-	nilIndexer := func(obj any) ([]string, error) {
+	nilIndexer := func(_ any) ([]string, error) {
 		return nil, nil
 	}
 
@@ -68,7 +68,7 @@ func (mgr *GetSettingsCounterMock) GetSecretsInformer() (cache.SharedIndexInform
 		"byProjectRepoWrite": nilIndexer,
 	}
 
-	return informersv1.NewSecretInformer(mgr.clientset, mgr.ns, 0, indexers), nil
+	return informersv1.NewSecretInformer(mgr.clientset, mgr.namespace, 0, indexers), nil
 }
 
 func (mgr *GetSettingsCounterMock) GetSecretByName(string) (*corev1.Secret, error) {
@@ -76,7 +76,7 @@ func (mgr *GetSettingsCounterMock) GetSecretByName(string) (*corev1.Secret, erro
 }
 
 func (mgr *GetSettingsCounterMock) GetNamespace() string {
-	return mgr.ns
+	return mgr.namespace
 }
 
 func (mgr *GetSettingsCounterMock) SaveGPGPublicKeyData(context.Context, map[string]string) error {

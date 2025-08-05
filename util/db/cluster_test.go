@@ -276,6 +276,7 @@ func TestCreateCluster(t *testing.T) {
 		settingsManager := settingsMocks.NewGetSettingsCounterMock(fakeNamespace, kubeclientset)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
+		//nolint:errcheck
 		db.CreateCluster(t.Context(), &v1alpha1.Cluster{
 			Server: v1alpha1.KubernetesInternalAPIServerAddr,
 		})
@@ -288,6 +289,7 @@ func TestCreateCluster(t *testing.T) {
 		settingsManager := settingsMocks.NewGetSettingsCounterMock(fakeNamespace, kubeclientset)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
+		//nolint:errcheck
 		db.CreateCluster(t.Context(), &v1alpha1.Cluster{
 			Server: "http://mycluster",
 		})
@@ -416,6 +418,7 @@ func TestGetCluster(t *testing.T) {
 		settingsManager := settingsMocks.NewGetSettingsCounterMock(fakeNamespace, kubeclientset)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
+		//nolint:errcheck
 		db.GetCluster(t.Context(), v1alpha1.KubernetesInternalAPIServerAddr)
 
 		assert.Equal(t, 1, settingsManager.GetGetSettingsCallCount())
@@ -426,6 +429,7 @@ func TestGetCluster(t *testing.T) {
 		settingsManager := settingsMocks.NewGetSettingsCounterMock(fakeNamespace, kubeclientset)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
+		//nolint:errcheck
 		db.GetCluster(t.Context(), string(secretForServerWithExternalClusterAddr.Data["server"]))
 
 		assert.Equal(t, 0, settingsManager.GetGetSettingsCallCount())
@@ -726,6 +730,7 @@ func TestGetClusterServersByName(t *testing.T) {
 		settingsManager := settingsMocks.NewGetSettingsCounterMock(fakeNamespace, kubeclientset)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
+		//nolint:errcheck
 		db.GetClusterServersByName(t.Context(), "in-cluster")
 
 		assert.Equal(t, 1, settingsManager.GetGetSettingsCallCount())
@@ -735,6 +740,7 @@ func TestGetClusterServersByName(t *testing.T) {
 		settingsManager := settingsMocks.NewGetSettingsCounterMock(fakeNamespace, kubeclientset)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
+		//nolint:errcheck
 		db.GetClusterServersByName(t.Context(), "my-cluster-name")
 
 		assert.Equal(t, 0, settingsManager.GetGetSettingsCallCount())
