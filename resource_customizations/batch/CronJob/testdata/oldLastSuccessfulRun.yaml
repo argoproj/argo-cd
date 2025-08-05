@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: CronJob
+name: oldLastSuccessfulRunCronJob
+namespace: default
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: oldLastSuccessfulRunCronJob
+            image: busybox
+            command:
+            - /bin/sh
+            - -c
+            - date; echo Hello from the Kubernetes cluster
+          restartPolicy: OnFailure
+status:
+  lastScheduleTime: "2020-08-20T18:00:00Z"
+  lastSuccessfulTime: "2020-08-20T15:00:00Z"
