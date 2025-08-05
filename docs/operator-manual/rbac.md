@@ -1,6 +1,6 @@
 # RBAC Configuration
 
-Argo CD starts with a single user account: the built-in `admin` superuser, that has unrestricted access to the system. 
+Argo CD starts with a single user account: the built-in `admin` superuser, that has unrestricted access to the system.
 When additional users are enabled, [locally](user-management/index.md) or via [SSO](user-management/index.md),
 the Role-Base Access Control (RBAC) framework regulates access to Argo CD resources.
 
@@ -36,7 +36,7 @@ The anonymous access to Argo CD can be enabled using the `users.anonymous.enable
 
 !!! warning
 
-    When enabling anonymous access, consider creating a new default role and assigning it to the default policies
+    When enabling anonymous access, consider creating a new default role and assigning it to the default policy
     with `policy.default: role:unauthenticated`.
 
 ## RBAC Model Structure
