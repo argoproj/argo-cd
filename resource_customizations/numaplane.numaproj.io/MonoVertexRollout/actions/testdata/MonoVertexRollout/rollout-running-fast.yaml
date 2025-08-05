@@ -4,7 +4,6 @@ metadata:
   annotations:
     kubectl.kubernetes.io/last-applied-configuration: >
       {"apiVersion":"numaplane.numaproj.io/v1alpha1","kind":"MonoVertexRollout","metadata":{"annotations":{},"labels":{"argocd.argoproj.io/instance":"demo-app"},"name":"my-monovertex","namespace":"example-namespace"},"spec":{"monoVertex":{"spec":{"sink":{"udsink":{"container":{"image":"quay.io/numaio/numaflow-java/simple-sink:stable"}}},"source":{"transformer":{"container":{"image":"quay.io/numaio/numaflow-rs/source-transformer-now:stable"}},"udsource":{"container":{"image":"quay.io/numaio/numaflow-java/source-simple-source:stable"}}}}}}}
-    numaflow.numaproj.io/resume-strategy: "fast"
   creationTimestamp: '2024-08-21T20:44:18Z'
   finalizers:
     - numaplane.numaproj.io/numaplane-controller

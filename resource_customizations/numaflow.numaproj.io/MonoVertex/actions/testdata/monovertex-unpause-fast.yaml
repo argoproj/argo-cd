@@ -9,8 +9,6 @@ metadata:
   uid: b7b9e4f8-cd4b-4771-9e4b-2880cc50467a
   labels:
     numaplane.numaproj.io/upgrade-state: "in-progress"
-  annotations:
-    numaflow.numaproj.io/resume-strategy: "fast"
 spec:
   lifecycle:
     desiredPhase: Running
