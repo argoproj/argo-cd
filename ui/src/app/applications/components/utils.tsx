@@ -1360,23 +1360,25 @@ export function getAppAllSources(app?: appModels.Application): appModels.Applica
     if (!app) {
         return [];
     }
-    
+
     if (app.spec.sourceHydrator) {
-        return [{
-            repoURL: app.spec.sourceHydrator.drySource.repoURL,
-            targetRevision: app.spec.sourceHydrator.syncSource.targetBranch,
-            path: app.spec.sourceHydrator.syncSource.path
-        } as appModels.ApplicationSource];
+        return [
+            {
+                repoURL: app.spec.sourceHydrator.drySource.repoURL,
+                targetRevision: app.spec.sourceHydrator.syncSource.targetBranch,
+                path: app.spec.sourceHydrator.syncSource.path
+            } as appModels.ApplicationSource
+        ];
     }
-    
+
     if (app.spec.sources && app.spec.sources.length > 0) {
         return app.spec.sources;
     }
-    
+
     if (app.spec.source) {
         return [app.spec.source];
     }
-    
+
     return [];
 }
 

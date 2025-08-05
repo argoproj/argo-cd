@@ -227,11 +227,7 @@ const NamespaceFilter = (props: AppFilterProps) => {
 
 const TargetRevisionFilter = (props: AppFilterProps) => {
     const targetRevisionOptions = optionsFrom(
-        Array.from(new Set(
-            props.apps.flatMap(app => 
-                getAppAllSources(app).map(source => source.targetRevision)
-            ).filter(item => !!item)
-        )), 
+        Array.from(new Set(props.apps.flatMap(app => getAppAllSources(app).map(source => source.targetRevision)).filter(item => !!item))),
         props.pref.targetRevisionFilter
     );
     return (
