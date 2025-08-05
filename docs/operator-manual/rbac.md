@@ -1,11 +1,10 @@
 # RBAC Configuration
 
-The RBAC feature enables restrictions of access to Argo CD resources. Argo CD does not have its own
-user management system and has only one built-in user, `admin`. The `admin` user is a superuser and
-it has unrestricted access to the system. RBAC requires [SSO configuration](user-management/index.md) or [one or more local users setup](user-management/index.md).
-Once SSO or local users are configured, additional RBAC roles can be defined, and SSO groups or local users can then be mapped to roles.
+Argo CD starts with a single user account: the built-in `admin` superuser, that has unrestricted access to the system. 
+When additional users are enabled, [locally](user-management/index.md) or via [SSO](user-management/index.md),
+the Role-Base Access Control (RBAC) framework regulates access to Argo CD resources.
 
-There are two main components where RBAC configuration can be defined:
+There are two main components through which RBAC can be configured:
 
 - The global RBAC config map (see [argo-rbac-cm.yaml](argocd-rbac-cm-yaml.md))
 - The [AppProject's roles](../user-guide/projects.md#project-roles)
