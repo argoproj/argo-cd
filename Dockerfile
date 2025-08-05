@@ -34,7 +34,7 @@ RUN ./install.sh helm && \
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM $BASE_IMAGE AS argocd-base
+FROM --platform=$TARGETPLATFORM $BASE_IMAGE AS argocd-base
 
 LABEL org.opencontainers.image.source="https://github.com/argoproj/argo-cd"
 
