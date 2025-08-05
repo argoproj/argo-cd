@@ -6,7 +6,7 @@ import {Application, ApplicationDestination, Cluster, HealthStatusCode, HealthSt
 import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
-import {ComparisonStatusIcon, getAppDefaultSource, HealthStatusIcon} from '../utils';
+import {ComparisonStatusIcon, getAppDefaultSource, getAppAllSources, HealthStatusIcon} from '../utils';
 import {formatClusterQueryParam} from '../../../shared/utils';
 import {COLORS} from '../../../shared/components/colors';
 
@@ -56,7 +56,7 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
                     }
                 }),
             labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels)),
-            targetRevision: pref.targetRevisionFilter.length === 0 || pref.targetRevisionFilter.includes(getAppDefaultSource(app).targetRevision)
+            targetRevision: pref.targetRevisionFilter.length === 0 || getAppAllSources(app).some(source => pref.targetRevisionFilter.includes(source.targetRevision))
         }
     }));
 }
@@ -226,7 +226,14 @@ const NamespaceFilter = (props: AppFilterProps) => {
 };
 
 const TargetRevisionFilter = (props: AppFilterProps) => {
-    const targetRevisionOptions = optionsFrom(Array.from(new Set(props.apps.map(app => getAppDefaultSource(app).targetRevision).filter(item => !!item))), props.pref.targetRevisionFilter);
+    const targetRevisionOptions = optionsFrom(
+        Array.from(new Set(
+            props.apps.flatMap(app => 
+                getAppAllSources(app).map(source => source.targetRevision)
+            ).filter(item => !!item)
+        )), 
+        props.pref.targetRevisionFilter
+    );
     return (
         <Filter
             label='TARGET REVISION'
