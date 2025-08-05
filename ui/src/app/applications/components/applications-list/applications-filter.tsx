@@ -38,6 +38,7 @@ export interface ApplicationSetFilterResult {
     health: boolean;
     favourite: boolean;
     labels: boolean;
+    targetRevision: boolean;
 }
 
 export interface FilteredApp extends Application {
@@ -408,7 +409,6 @@ const TargetRevisionFilter = (props: AppFilterProps) => {
         () => optionsFrom(Array.from(new Set(props.apps.flatMap(app => getAppTargetRevisions(app)).filter(item => !!item))), props.pref.targetRevisionFilter),
         [props.apps, props.pref.targetRevisionFilter]
     );
-
     return (
         <Filter
             label='TARGET REVISION'
