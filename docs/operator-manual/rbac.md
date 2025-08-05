@@ -20,11 +20,11 @@ These default built-in role definitions can be seen in [builtin-policy.csv](http
 
 ## Default Policy for Authenticated Users
 
-When a user is authenticated in Argo CD, it will be granted the role specified in `policy.default`.
+When Argo CD authenticates a user, the value of `policy.default` in `argocd-rbac-cm.yaml` is used as a default role.
 
 !!! warning "Restricting Default Permissions"
 
-    **All authenticated users get _at least_ the permissions granted by the default policies. This access cannot be blocked
+    **All authenticated users get _at least_ the permissions granted by the default policy. These permissions cannot be restricted
     by a `deny` rule.** It is recommended to create a new `role:authenticated` with the minimum set of permissions possible,
     then grant permissions to individual roles as needed.
 
@@ -36,8 +36,8 @@ The anonymous access to Argo CD can be enabled using the `users.anonymous.enable
 
 !!! warning
 
-    When enabling anonymous access, consider creating a new default role and assigning it to the default policy
-    with `policy.default: role:unauthenticated`.
+    When enabling anonymous access, consider creating a new default role and using it as a default policy
+    by setting `policy.default: role:unauthenticated`. in `argocd-rbac-cm.yaml`
 
 ## RBAC Model Structure
 
