@@ -17,7 +17,7 @@ import {
 import {AppsListPreferences, AppSetsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import {createMetadataSelector} from '../selectors';
-import {ComparisonStatusIcon, getAppSetHealthStatus, HealthStatusIcon, getOperationStateTitle} from '../utils';
+import {ComparisonStatusIcon, getAppAllSources, getAppSetHealthStatus, HealthStatusIcon, getOperationStateTitle} from '../utils';
 import {formatClusterQueryParam} from '../../../shared/utils';
 import {COLORS} from '../../../shared/components/colors';
 
@@ -57,46 +57,14 @@ export function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
     return 'Enabled';
 }
 
-function getAppTargetRevisions(app: Application): string[] {
-    const revisions = new Set<string>();
-
-    if (app.spec.sourceHydrator) {
-        const drySourceRevision = app.spec.sourceHydrator.drySource?.targetRevision;
-        const syncSourceRevision = app.spec.sourceHydrator.syncSource?.targetBranch;
-
-        if (drySourceRevision) {
-            revisions.add(drySourceRevision);
-        }
-        if (syncSourceRevision) {
-            revisions.add(syncSourceRevision);
-        }
-
-        return Array.from(revisions);
-    }
-
-    if (app.spec.sources?.length) {
-        app.spec.sources.forEach(source => {
-            if (source.targetRevision) {
-                revisions.add(source.targetRevision);
-            }
-        });
-
-        return Array.from(revisions);
-    }
-
-    if (app.spec.source?.targetRevision) {
-        revisions.add(app.spec.source.targetRevision);
-    }
-
-    return Array.from(revisions);
-}
-
 export function getAppFilterResults(applications: Application[], pref: AppsListPreferences): FilteredApp[] {
     const labelSelector = createMetadataSelector(pref.labelsFilter || []);
     const annotationSelector = createMetadataSelector(pref.annotationsFilter || []);
 
     return applications.map(app => {
-        const targetRevisions = getAppTargetRevisions(app);
+        const targetRevisions = getAppAllSources(app)
+            .map(source => source.targetRevision)
+            .filter((item): item is string => !!item);
 
         return {
             ...app,
@@ -406,7 +374,17 @@ const NamespaceFilter = React.memo((props: AppFilterProps) => {
 
 const TargetRevisionFilter = (props: AppFilterProps) => {
     const targetRevisionOptions = React.useMemo(
-        () => optionsFrom(Array.from(new Set(props.apps.flatMap(app => getAppTargetRevisions(app)).filter(item => !!item))), props.pref.targetRevisionFilter),
+        () =>
+            optionsFrom(
+                Array.from(
+                    new Set(
+                        props.apps
+                            .flatMap(app => getAppAllSources(app).map(source => source.targetRevision))
+                            .filter((item): item is string => !!item)
+                    )
+                ),
+                props.pref.targetRevisionFilter
+            ),
         [props.apps, props.pref.targetRevisionFilter]
     );
     return (
