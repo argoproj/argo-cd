@@ -18,6 +18,7 @@ spec:
       metadata:
         annotations:
           numaflow.numaproj.io/resume-strategy: "slow"
+          numaflow.numaproj.io/allowed-resume-strategies: "slow, fast"
       lifecycle:
         desiredPhase: Running
       edges:

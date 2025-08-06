@@ -12,6 +12,7 @@ metadata:
   labels:
     numaplane.numaproj.io/upgrade-state: "in-progress"
   annotations:
+    numaflow.numaproj.io/allowed-resume-strategies: "slow, fast"
     numaflow.numaproj.io/resume-strategy: "fast"
 spec:
   edges:
