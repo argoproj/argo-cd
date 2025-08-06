@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"flag"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -41,4 +42,8 @@ func GenerateCacheKey(format string, args ...any) (string, error) {
 
 	key := hex.EncodeToString(h.Sum(nil))
 	return key, nil
+}
+
+func IsTest() bool {
+	return flag.Lookup("test.v") != nil
 }
