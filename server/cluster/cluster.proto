@@ -8,7 +8,6 @@ package cluster;
 
 import "google/api/annotations.proto";
 import "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.proto";
-import "server/application/application.proto";
 
 // ClusterID holds a cluster server URL or cluster name
 message ClusterID {
@@ -26,11 +25,6 @@ message ClusterQuery {
 }
 
 message ClusterResponse {}
-
-message ListClusterLinksRequest {
-	string name = 1;
-	string server = 2;
-}
 
 message ClusterCreateRequest {
 	github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Cluster cluster = 1;
@@ -85,10 +79,5 @@ service ClusterService {
 	// InvalidateCache invalidates cluster cache
 	rpc InvalidateCache(ClusterQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Cluster) {
 		option (google.api.http).post = "/api/v1/clusters/{id.value}/invalidate-cache";
-	}
-
-	// ListLinks returns list of links for a cluster
-	rpc ListLinks(ClusterQuery) returns (application.LinksResponse) {
-		option (google.api.http).get = "/api/v1/clusters/{name}/links";
 	}
 }

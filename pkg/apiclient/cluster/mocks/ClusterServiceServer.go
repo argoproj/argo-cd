@@ -7,7 +7,6 @@ package mocks
 import (
 	"context"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	mock "github.com/stretchr/testify/mock"
@@ -376,74 +375,6 @@ func (_c *ClusterServiceServer_List_Call) Return(clusterList *v1alpha1.ClusterLi
 }
 
 func (_c *ClusterServiceServer_List_Call) RunAndReturn(run func(context1 context.Context, clusterQuery *cluster.ClusterQuery) (*v1alpha1.ClusterList, error)) *ClusterServiceServer_List_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// ListLinks provides a mock function for the type ClusterServiceServer
-func (_mock *ClusterServiceServer) ListLinks(context1 context.Context, clusterQuery *cluster.ClusterQuery) (*application.LinksResponse, error) {
-	ret := _mock.Called(context1, clusterQuery)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ListLinks")
-	}
-
-	var r0 *application.LinksResponse
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *cluster.ClusterQuery) (*application.LinksResponse, error)); ok {
-		return returnFunc(context1, clusterQuery)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *cluster.ClusterQuery) *application.LinksResponse); ok {
-		r0 = returnFunc(context1, clusterQuery)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*application.LinksResponse)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, *cluster.ClusterQuery) error); ok {
-		r1 = returnFunc(context1, clusterQuery)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// ClusterServiceServer_ListLinks_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListLinks'
-type ClusterServiceServer_ListLinks_Call struct {
-	*mock.Call
-}
-
-// ListLinks is a helper method to define mock.On call
-//   - context1 context.Context
-//   - clusterQuery *cluster.ClusterQuery
-func (_e *ClusterServiceServer_Expecter) ListLinks(context1 interface{}, clusterQuery interface{}) *ClusterServiceServer_ListLinks_Call {
-	return &ClusterServiceServer_ListLinks_Call{Call: _e.mock.On("ListLinks", context1, clusterQuery)}
-}
-
-func (_c *ClusterServiceServer_ListLinks_Call) Run(run func(context1 context.Context, clusterQuery *cluster.ClusterQuery)) *ClusterServiceServer_ListLinks_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *cluster.ClusterQuery
-		if args[1] != nil {
-			arg1 = args[1].(*cluster.ClusterQuery)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *ClusterServiceServer_ListLinks_Call) Return(linksResponse *application.LinksResponse, err error) *ClusterServiceServer_ListLinks_Call {
-	_c.Call.Return(linksResponse, err)
-	return _c
-}
-
-func (_c *ClusterServiceServer_ListLinks_Call) RunAndReturn(run func(context1 context.Context, clusterQuery *cluster.ClusterQuery) (*application.LinksResponse, error)) *ClusterServiceServer_ListLinks_Call {
 	_c.Call.Return(run)
 	return _c
 }
