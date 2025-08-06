@@ -1981,15 +1981,6 @@ message ResourceActionDefinition {
 message ResourceActionParam {
   // Name is the name of the parameter.
   optional string name = 1;
-
-  // Value is the value of the parameter.
-  optional string value = 2;
-
-  // Type is the type of the parameter (e.g., string, integer).
-  optional string type = 3;
-
-  // Default is the default value of the parameter, if any.
-  optional string default = 4;
 }
 
 // ResourceActions holds the set of actions that can be applied to a resource.

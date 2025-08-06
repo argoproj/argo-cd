@@ -5,7 +5,7 @@ go 1.24.4
 require (
 	code.gitea.io/sdk/gitea v0.21.0
 	dario.cat/mergo v1.0.2
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.18.1
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.18.2
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.10.1
 	github.com/Azure/kubelogin v0.2.9
 	github.com/Masterminds/semver/v3 v3.4.0
@@ -20,7 +20,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.9.1
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.16.0
-	github.com/casbin/casbin/v2 v2.110.0
+	github.com/casbin/casbin/v2 v2.111.0
 	github.com/casbin/govaluate v1.9.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/chainguard-dev/git-urls v1.0.2
@@ -34,7 +34,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gfleury/go-bitbucket-v1 v0.0.0-20240917142304-df385efaac68
 	github.com/go-git/go-git/v5 v5.16.2
-	github.com/go-jose/go-jose/v4 v4.1.1
+	github.com/go-jose/go-jose/v4 v4.1.2
 	github.com/go-logr/logr v1.4.3
 	github.com/go-openapi/loads v0.22.0
 	github.com/go-openapi/runtime v0.28.0
@@ -72,7 +72,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/patrickmn/go-cache v2.1.1-0.20191004192108-46f407853014+incompatible
-	github.com/prometheus/client_golang v1.22.0
+	github.com/prometheus/client_golang v1.23.0
 	github.com/prometheus/client_model v0.6.2
 	github.com/r3labs/diff/v3 v3.0.1
 	github.com/redis/go-redis/v9 v9.8.0
@@ -124,7 +124,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.7.0 // indirect
 	github.com/42wim/httpsig v1.2.2 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity/cache v0.3.2 // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/internal v1.11.1 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/internal v1.11.2 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
 	github.com/Azure/go-autorest/autorest v0.11.29 // indirect
@@ -240,7 +240,7 @@ require (
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/common v0.64.0 // indirect
+	github.com/prometheus/common v0.65.0 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rs/cors v1.11.1 // indirect
