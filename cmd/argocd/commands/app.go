@@ -1350,14 +1350,13 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			diffOption := &DifferenceOption{}
 
 			hasServerSideDiffAnnotation := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
-			// Use app annotation if flag not explicitly set
-			if !serverSideDiff {
+
+			// Use annotation if flag not explicitly set
+			if !c.Flags().Changed("server-side-diff") {
 				serverSideDiff = hasServerSideDiffAnnotation
-			} else {
-				// If flag is explicitly set, but app annotation is not set, provide note, but preserve control to the user.
-				if !hasServerSideDiffAnnotation {
-					fmt.Fprintf(os.Stderr, "Warning: Application does not have ServerSideDiff=true annotation.")
-				}
+			} else if serverSideDiff && !hasServerSideDiffAnnotation {
+				// Flag explicitly set to true, but app annotation is not set
+				fmt.Fprintf(os.Stderr, "Warning: Application does not have ServerSideDiff=true annotation.\n")
 			}
 
 			// Server side diff with local requires server side generate to be set as there will be a mismatch with client-generated manifests.
@@ -1456,7 +1455,6 @@ func printResourceDiff(group, kind, namespace, name string, live, target *unstru
 
 // findAndPrintServerSideDiff performs a server-side diff by making requests to the api server and prints the response
 func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application, items []objKeyLiveTarget, resources *application.ManagedResourcesResponse, appIf application.ApplicationServiceClient, appName, appNs string) bool {
-
 	// Process each item for server-side diff
 	foundDiffs := false
 	for _, item := range items {
