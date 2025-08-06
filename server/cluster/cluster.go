@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -16,39 +15,30 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
-	"github.com/argoproj/argo-cd/v3/server/deeplinks"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/clusterauth"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
-	"github.com/argoproj/argo-cd/v3/util/settings"
-)
-
-const (
-	ClusterDeepLinks = "cluster.deepLinks"
 )
 
 // Server provides a Cluster service
 type Server struct {
-	db          db.ArgoDB
-	enf         *rbac.Enforcer
-	cache       *servercache.Cache
-	kubectl     kube.Kubectl
-	settingsMgr *settings.SettingsManager
+	db      db.ArgoDB
+	enf     *rbac.Enforcer
+	cache   *servercache.Cache
+	kubectl kube.Kubectl
 }
 
 // NewServer returns a new instance of the Cluster service
-func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache, kubectl kube.Kubectl, settingsMgr *settings.SettingsManager) *Server {
+func NewServer(db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache, kubectl kube.Kubectl) *Server {
 	return &Server{
-		db:          db,
-		enf:         enf,
-		cache:       cache,
-		kubectl:     kubectl,
-		settingsMgr: settingsMgr,
+		db:      db,
+		enf:     enf,
+		cache:   cache,
+		kubectl: kubectl,
 	}
 }
 
@@ -504,29 +494,4 @@ func (s *Server) InvalidateCache(ctx context.Context, q *cluster.ClusterQuery) (
 		return nil, fmt.Errorf("failed to update cluster in database: %w", err)
 	}
 	return s.toAPIResponse(cls), nil
-}
-
-func (s *Server) ListLinks(ctx context.Context, req *cluster.ClusterQuery) (*application.LinksResponse, error) {
-	clst, err := s.getClusterAndVerifyAccess(ctx, req, rbac.ActionGet)
-	if err != nil {
-		return nil, err
-	}
-
-	obj, err := kube.ToUnstructured(clst)
-	if err != nil {
-		return nil, fmt.Errorf("error getting cluster: %w", err)
-	}
-
-	deepLinks, err := s.settingsMgr.GetDeepLinks(ClusterDeepLinks)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read cluster deep links from configmap: %w", err)
-	}
-
-	deeplinksObj := deeplinks.CreateDeepLinksObject(nil, nil, nil, obj)
-	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(deeplinksObj, obj.GetName(), deepLinks)
-	if len(errorList) > 0 {
-		log.Errorf("errorList while evaluating cluster deep links, %v", strings.Join(errorList, ", "))
-	}
-
-	return finalList, nil
 }

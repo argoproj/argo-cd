@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -76,7 +77,7 @@ func CreateDeepLinksObject(resourceObj *unstructured.Unstructured, app *unstruct
 		if app.Object["metadata"] != nil {
 			if metadata, ok := app.Object["metadata"].(map[string]any); ok {
 				if annotations, ok := metadata["annotations"].(map[string]any); ok {
-					if managedByURL, ok := annotations["argocd.argoproj.io/managed-by-url"].(string); ok {
+					if managedByURL, ok := annotations[common.AnnotationKeyManagedByURL].(string); ok {
 						deeplinkObj[ManagedByURLKey] = managedByURL
 					}
 				}
