@@ -20,8 +20,18 @@ if obj.spec.monoVertex.spec.lifecycle ~= nil and obj.spec.monoVertex.spec.lifecy
   paused = true
 end
 if paused then
-  actions["unpause-gradual"]["disabled"] = false
-  actions["unpause-fast"]["disabled"] = false
+  if obj.spec.monoVertex.spec.metadata ~= nil and  obj.spec.monoVertex.spec.metadata.annotations ~= nil and obj.spec.monoVertex.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] ~= nil then
+    if obj.spec.monoVertex.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] == "fast" then
+      actions["unpause-fast"]["disabled"] = false
+    elseif obj.spec.monoVertex.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] == "slow, fast" then
+      actions["unpause-gradual"]["disabled"] = false
+      actions["unpause-fast"]["disabled"] = false
+    else
+      actions["unpause-gradual"]["disabled"] = false
+    end
+  else
+    actions["unpause-gradual"]["disabled"] = false
+  end
 else
   actions["pause"]["disabled"] = false
 end

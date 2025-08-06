@@ -25,8 +25,18 @@ if obj.spec.lifecycle ~= nil and obj.spec.lifecycle.desiredPhase ~= nil and obj.
   paused = true
 end
 if paused then
-  actions["unpause-gradual"]["disabled"] = false
-  actions["unpause-fast"]["disabled"] = false
+  if obj.spec.metadata ~= nil and  obj.spec.metadata.annotations ~= nil and obj.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] ~= nil then
+    if obj.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] == "fast" then
+      actions["unpause-fast"]["disabled"] = false
+    elseif obj.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] == "slow, fast" then
+      actions["unpause-gradual"]["disabled"] = false
+      actions["unpause-fast"]["disabled"] = false
+    else
+      actions["unpause-gradual"]["disabled"] = false
+    end
+  else
+    actions["unpause-gradual"]["disabled"] = false
+  end
 else
   actions["pause"]["disabled"] = false
 end
