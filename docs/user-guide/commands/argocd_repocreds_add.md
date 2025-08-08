@@ -37,6 +37,7 @@ argocd repocreds add REPOURL [flags]
 ### Options
 
 ```
+      --azure-cloud string                      specify the azure cloud for azure workload identity authentication. Options are AzurePublic, AzureChina, AzureGovernment.
       --bearer-token string                     bearer token to the Git repository
       --enable-oci                              Specifies whether helm-oci support should be enabled for this repo
       --force-http-basic-auth                   whether to force basic auth when connecting via HTTP
