@@ -2,7 +2,6 @@ package apiclient
 
 import (
 	"net/http"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,7 +42,6 @@ func Test_parseGRPCHeaders(t *testing.T) {
 }
 
 func Test_NewClientTLS(t *testing.T) {
-
 	t.Run("Test transport using TLS", func(t *testing.T) {
 		opts := &ClientOptions{
 			ServerAddr: "example.com:1234",
@@ -64,8 +62,7 @@ func Test_NewClientTLS(t *testing.T) {
 			AuthToken:  "dummy-token",
 			GRPCWeb:    true,
 		}
-		os.Setenv("ALL_PROXY", "socks5://127.0.0.1:1080")
-		defer os.Unsetenv("ALL_PROXY")
+		t.Setenv("ALL_PROXY", "socks5://127.0.0.1:1080")
 		cl, err := NewClient(opts)
 		require.NoError(t, err)
 		tr := cl.(*client).httpClient.Transport.(*http.Transport)
