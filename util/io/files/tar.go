@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -117,12 +118,15 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 			continue
 		}
 
+		// Additional check: ensure header.Name does not contain ".." or is absolute
+		if strings.Contains(header.Name, "..") || filepath.IsAbs(header.Name) {
+			return fmt.Errorf("illegal filepath in archive entry: %s", header.Name)
+		}
 		target := filepath.Join(dstPath, header.Name)
 		// Sanity check to protect against zip-slip
 		if !Inbound(target, dstPath) {
 			return fmt.Errorf("illegal filepath in archive: %s", target)
 		}
-
 		switch header.Typeflag {
 		case tar.TypeDir:
 			var mode os.FileMode = 0o755
