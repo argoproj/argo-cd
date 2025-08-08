@@ -77,6 +77,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		assert.Equal(t, repo.Password, string(secret.Data["password"]))
 		assert.Empty(t, string(secret.Data["insecureIgnoreHostKey"]))
 		assert.Equal(t, strconv.FormatBool(repo.EnableLFS), string(secret.Data["enableLfs"]))
+		assert.Empty(t, repo.AzureCloud, string(secret.Data["azureCloud"]))
 	})
 	t.Run("will return proper error if secret does not have expected label", func(t *testing.T) {
 		// given
@@ -195,6 +196,21 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 				"project":  []byte("testProject"),
 			},
 		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      "helm-with-oci-and-azure-workload-identity",
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+			},
+			Data: map[string][]byte{
+				"name":                     []byte("Helm with OCI and Azure Workload Identity"),
+				"url":                      []byte("foobar.azurecr.us/helm"),
+				"useAzureWorkloadIdentity": []byte("true"),
+				"enableOCI":                []byte("true"),
+				"azureCloud":               []byte("AzureUSGovernment"),
+				"project":                  []byte("testProject"),
+			},
+		},
 	}
 
 	clientset := getClientset(repoSecrets...)
@@ -237,6 +253,14 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 	assert.Equal(t, "someOtherUsername", repository.Username)
 	assert.Equal(t, "someOtherPassword", repository.Password)
 	assert.Equal(t, "testProject", repository.Project)
+
+	repository, err = testee.GetRepository(t.Context(), "foobar.azurecr.us/helm", "testProject")
+	require.NoError(t, err)
+	assert.NotNil(t, repository)
+	assert.Equal(t, "Helm with OCI and Azure Workload Identity", repository.Name)
+	assert.Equal(t, "foobar.azurecr.us/helm", repository.Repo)
+	assert.Equal(t, "AzureUSGovernment", repository.AzureCloud)
+	assert.True(t, repository.EnableOCI)
 }
 
 func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
@@ -268,6 +292,20 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 				"password": []byte("someOtherPassword"),
 			},
 		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      "helm-with-oci-and-azure-workload-identity",
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+			},
+			Data: map[string][]byte{
+				"name":                     []byte("HelmWithOCIAndAzureWorkloadIdentity"),
+				"url":                      []byte("foobar.azurecr.us/helm"),
+				"azureCloud":               []byte("AzureUSGovernment"),
+				"useAzureWorkloadIdentity": []byte("true"),
+				"enableOCI":                []byte("true"),
+			},
+		},
 	}
 
 	clientset := getClientset(repoSecrets...)
@@ -279,7 +317,7 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 
 	repositories, err := testee.ListRepositories(t.Context(), nil)
 	require.NoError(t, err)
-	assert.Len(t, repositories, 2)
+	assert.Len(t, repositories, 3)
 
 	for _, repository := range repositories {
 		switch repository.Name {
@@ -291,6 +329,11 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 			assert.Equal(t, "git@github.com:argoproj/argoproj.git", repository.Repo)
 			assert.Equal(t, "someOtherUsername", repository.Username)
 			assert.Equal(t, "someOtherPassword", repository.Password)
+		case "HelmWithOCIAndAzureWorkloadIdentity":
+			assert.Equal(t, "foobar.azurecr.us/helm", repository.Repo)
+			assert.Equal(t, "AzureUSGovernment", repository.AzureCloud)
+			assert.True(t, repository.UseAzureWorkloadIdentity)
+			assert.True(t, repository.EnableOCI)
 		default:
 			assert.Fail(t, "unexpected repository found in list")
 		}
@@ -329,6 +372,14 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 		Repo:     "git@github.com:argoproj/argo-events.git",
 		Username: "foo",
 		Password: "bar",
+	}
+	helmWithOCIAndAzureWorkloadIdentityRepository := &appsv1.Repository{
+		Name:                     "Helm with OCI and Azure Workload Identity",
+		Repo:                     "foobar.azurecr.us/helm",
+		UseAzureWorkloadIdentity: true,
+		EnableOCI:                true,
+		AzureCloud:               "AzureUSGovernment",
+		Project:                  "testProject",
 	}
 
 	managedSecretName := RepoURLToSecretName(repoSecretPrefix, managedRepository.Repo, "")
@@ -389,6 +440,21 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 				"username": []byte(userProvidedProjectRepository.Username),
 				"password": []byte(userProvidedProjectRepository.Password),
 				"project":  []byte(userProvidedProjectRepository.Project),
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      "helm-with-oci-and-azure-workload-identity",
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+			},
+			Data: map[string][]byte{
+				"name":                     []byte(helmWithOCIAndAzureWorkloadIdentityRepository.Name),
+				"url":                      []byte(helmWithOCIAndAzureWorkloadIdentityRepository.Repo),
+				"enableOCI":                []byte(strconv.FormatBool(helmWithOCIAndAzureWorkloadIdentityRepository.EnableOCI)),
+				"useAzureWorkloadIdentity": []byte(strconv.FormatBool(helmWithOCIAndAzureWorkloadIdentityRepository.UseAzureWorkloadIdentity)),
+				"azureCloud":               []byte(helmWithOCIAndAzureWorkloadIdentityRepository.AzureCloud),
+				"project":                  []byte(helmWithOCIAndAzureWorkloadIdentityRepository.Project),
 			},
 		},
 	}
@@ -452,6 +518,13 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Equal(t, "newUsernameScoped", string(secret.Data["username"]))
+
+	secret, err = clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), "helm-with-oci-and-azure-workload-identity", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.NotNil(t, secret)
+	assert.Equal(t, "true", string(secret.Data["enableOCI"]))
+	assert.Equal(t, "true", string(secret.Data["useAzureWorkloadIdentity"]))
+	assert.Equal(t, "AzureUSGovernment", string(secret.Data["azureCloud"]))
 }
 
 func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {

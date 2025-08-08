@@ -672,6 +672,7 @@ export interface Repository {
     insecureOCIForceHttp?: boolean;
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
+    azureCloud: string;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}

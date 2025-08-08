@@ -1860,6 +1860,9 @@ message RepoCreds {
 
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
   optional bool insecureOCIForceHttp = 26;
+
+  // AzureCloud specifies which Azure cloud this repository is hosted in. Options are AzurePublic, AzureChina, AzureGovernment.
+  optional string azureCloud = 27;
 }
 
 // RepositoryList is a collection of Repositories.

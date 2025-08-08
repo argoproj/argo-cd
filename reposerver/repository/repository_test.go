@@ -3348,6 +3348,19 @@ func TestGetHelmRepos_OCIHelmDependenciesWithHelmRepo(t *testing.T) {
 	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
 }
 
+func TestGetHelmRepos_OCIHelmDependenciesWithHelmRepoUsingWorkloadIdentity(t *testing.T) {
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{}, HelmRepoCreds: []*v1alpha1.RepoCreds{
+		{URL: "example.com", EnableOCI: true, UseAzureWorkloadIdentity: true, AzureCloud: "AzurePublic"},
+	}}
+
+	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
+	require.NoError(t, err)
+
+	assert.Len(t, helmRepos, 1)
+	assert.True(t, helmRepos[0].EnableOci)
+	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
+}
+
 func TestGetHelmRepos_OCIHelmDependenciesWithRepo(t *testing.T) {
 	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{{Repo: "example.com", Username: "test", Password: "test", EnableOCI: true}}, HelmRepoCreds: []*v1alpha1.RepoCreds{}}
 
@@ -3356,6 +3369,17 @@ func TestGetHelmRepos_OCIHelmDependenciesWithRepo(t *testing.T) {
 
 	assert.Len(t, helmRepos, 1)
 	assert.Equal(t, "test", helmRepos[0].GetUsername())
+	assert.True(t, helmRepos[0].EnableOci)
+	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
+}
+
+func TestGetHelmRepos_OCIHelmDependenciesWithRepoUsingWorkloadIndentity(t *testing.T) {
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{{Repo: "example.com", EnableOCI: true, UseAzureWorkloadIdentity: true, AzureCloud: "AzurePublic"}}, HelmRepoCreds: []*v1alpha1.RepoCreds{}}
+
+	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
+	require.NoError(t, err)
+
+	assert.Len(t, helmRepos, 1)
 	assert.True(t, helmRepos[0].EnableOci)
 	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
 }

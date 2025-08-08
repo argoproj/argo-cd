@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	azcloud "github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
@@ -308,8 +309,13 @@ func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *tes
 		return mockServerURL
 	}
 
-	workloadIdentityMock := &mocks.TokenProvider{}
-	workloadIdentityMock.EXPECT().GetToken("https://management.core.windows.net/.default").Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil)
+	cloud := azcloud.AzurePublic
+	audience := cloud.Services[azcloud.ResourceManager].Audience
+	scope := strings.TrimSuffix(audience, "/") + "/.default"
+
+	workloadIdentityMock := new(mocks.TokenProvider)
+	workloadIdentityMock.On("GetToken", scope).Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil)
+	workloadIdentityMock.On("GetCloudConfiguration").Return(cloud)
 
 	mockServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("called %s", r.URL.Path)

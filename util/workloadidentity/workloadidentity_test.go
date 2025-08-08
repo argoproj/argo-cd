@@ -7,7 +7,10 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	azcloud "github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,6 +32,44 @@ func TestNewWorkloadIdentityTokenProvider_Success(t *testing.T) {
 	// Test the NewWorkloadIdentityTokenProvider function
 	_, err := provider.GetToken("https://management.core.windows.net/.default")
 	require.NoError(t, err, "Expected no error from GetToken")
+}
+
+func TestNewWorkloadIdentityTokenProvider_WithValidCloud_Success(t *testing.T) {
+	tests := []struct {
+		name   string
+		config azcloud.Configuration
+	}{
+		{"AzurePublic", azcloud.AzurePublic},
+		{"AzureChina", azcloud.AzureChina},
+		{"AzureUSGovernment", azcloud.AzureGovernment},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			initError = nil
+			provider := NewWorkloadIdentityTokenProvider(tt.name)
+			require.NoError(t, initError, "Expected no initialization error")
+			require.NotNil(t, provider, "Provider should not be nil")
+			assert.Equal(t, provider.GetCloudConfiguration(), tt.config, "Cloud configuration should match expected")
+		})
+	}
+}
+
+func TestNewWorkloadIdentityTokenProvider_WithInvalidCloud_LogAndDefault(t *testing.T) {
+	oldHooks := logrus.StandardLogger().ReplaceHooks(logrus.LevelHooks{})
+	hook := logtest.NewGlobal()
+	defer logrus.StandardLogger().ReplaceHooks(oldHooks)
+
+	provider := NewWorkloadIdentityTokenProvider("InvalidCloud")
+
+	lastEntry := hook.LastEntry()
+	assert.NotNil(t, lastEntry, t.Name())
+	assert.Equal(t, logrus.WarnLevel, lastEntry.Level, t.Name())
+	assert.Contains(t, lastEntry.Message, "InvalidCloud", t.Name())
+	hook.Reset()
+
+	require.NotNil(t, provider, "Provider should not be nil")
+	assert.Equal(t, provider.GetCloudConfiguration(), azcloud.AzurePublic, "Cloud configuration should match expected")
 }
 
 func TestGetToken_Success(t *testing.T) {
