@@ -9,6 +9,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	v1listers "k8s.io/client-go/listers/core/v1"
+	"k8s.io/client-go/tools/cache"
 
 	log "github.com/sirupsen/logrus"
 
@@ -126,14 +128,27 @@ type ArgoDB interface {
 	GetApplicationControllerReplicas() int
 }
 
+type ArgoDBSettingsSource interface {
+	SaveSSHKnownHostsData(context.Context, []string) error
+	SaveTLSCertificateData(context.Context, map[string]string) error
+	GetConfigMapByName(string) (*corev1.ConfigMap, error)
+	GetSettings() (*settings.ArgoCDSettings, error)
+	ResyncInformers() error
+	GetSecretsInformer() (cache.SharedIndexInformer, error)
+	GetSecretByName(string) (*corev1.Secret, error)
+	GetNamespace() string
+	SaveGPGPublicKeyData(context.Context, map[string]string) error
+	GetSecretsLister() (v1listers.SecretLister, error)
+}
+
 type db struct {
 	ns            string
 	kubeclientset kubernetes.Interface
-	settingsMgr   *settings.SettingsManager
+	settingsMgr   ArgoDBSettingsSource
 }
 
 // NewDB returns a new instance of the argo database
-func NewDB(namespace string, settingsMgr *settings.SettingsManager, kubeclientset kubernetes.Interface) ArgoDB {
+func NewDB(namespace string, settingsMgr ArgoDBSettingsSource, kubeclientset kubernetes.Interface) ArgoDB {
 	return &db{
 		settingsMgr:   settingsMgr,
 		ns:            namespace,
