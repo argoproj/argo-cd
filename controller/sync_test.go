@@ -1531,6 +1531,67 @@ func TestSyncWithImpersonate(t *testing.T) {
 	})
 }
 
+func TestSyncAppState_FailsWhenHookSkipped(t *testing.T) {
+	app := newFakeApp()
+	app.Status.OperationState = nil
+	app.Status.History = nil
+
+	project := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: test.FakeArgoCDNamespace,
+			Name:      "default",
+		},
+	}
+	resKey := kube.ResourceKey{
+		Group:     "batch",
+		Kind:      "Job",
+		Namespace: "some-namespace",
+		Name:      "some-job",
+	}
+	res := &synccommon.ResourceSyncResult{
+		ResourceKey: resKey,
+		HookType:    synccommon.HookTypePostSync,
+		HookPhase:   "",
+		Status:      "",
+	}
+
+	data := &fakeData{
+		apps: []runtime.Object{app, project},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "dummy-rev",
+		},
+	}
+
+	ctrl := newFakeController(data, nil)
+
+	opState := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{},
+		},
+		SyncResult: &v1alpha1.SyncOperationResult{
+			Resources: []*v1alpha1.ResourceResult{
+				{
+					HookType:  res.HookType,
+					Group:     res.ResourceKey.Group,
+					Kind:      res.ResourceKey.Kind,
+					Name:      res.ResourceKey.Name,
+					Namespace: res.ResourceKey.Namespace,
+					HookPhase: res.HookPhase,
+					Status:    res.Status,
+				},
+			},
+		},
+	}
+
+	ctrl.appStateManager.SyncAppState(app, project, opState)
+
+	assert.Equal(t, synccommon.OperationFailed, opState.Phase)
+	assert.Contains(t, opState.Message, "was skipped or deleted before completion")
+}
+
 func TestClientSideApplyMigration(t *testing.T) {
 	t.Parallel()
 

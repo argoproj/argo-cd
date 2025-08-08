@@ -382,6 +382,17 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 	state.Phase, state.Message, resState = syncCtx.GetState()
 	state.SyncResult.Resources = nil
 
+	// Detect prematurely deleted or skipped hook Jobs
+	for _, res := range resState {
+		if res.HookType != "" && res.HookPhase == "" && res.Status == "" {
+			// If a hook was skipped (likely deleted prematurely), fail the operation
+			state.Phase = common.OperationFailed
+			state.Message = fmt.Sprintf("Required hook %s/%s (%s) was skipped or deleted before completion",
+				res.ResourceKey.Namespace, res.ResourceKey.Name, res.HookType)
+			break
+		}
+	}
+
 	if app.Spec.SyncPolicy != nil {
 		state.SyncResult.ManagedNamespaceMetadata = app.Spec.SyncPolicy.ManagedNamespaceMetadata
 	}
