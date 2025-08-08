@@ -9,7 +9,7 @@ metadata:
     - numaplane.numaproj.io/numaplane-controller
   generation: 1
   labels:
-    argocd.argoproj.io/instance: demo-app
+    argocd.argoproj.io/instance: demo-app    
   name: my-monovertex
   namespace: example-namespace
   resourceVersion: '947414'
@@ -18,8 +18,11 @@ spec:
   monoVertex:
     spec:
       metadata:
-        annotations:
+        annotations:  
           numaflow.numaproj.io/allowed-resume-strategies: "slow, fast"
+      replicas: null
+      lifecycle:
+        desiredPhase: Running
       sink:
         udsink:
           container:

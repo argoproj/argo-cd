@@ -2,9 +2,12 @@ actionTests:
 - action: pause
   inputPath: testdata/PipelineRollout/rollout.yaml
   expectedOutputPath: testdata/PipelineRollout/rollout-paused.yaml
-- action: unpause
+- action: unpause-gradual
   inputPath: testdata/PipelineRollout/rollout-paused.yaml
-  expectedOutputPath: testdata/PipelineRollout/rollout-running.yaml
+  expectedOutputPath: testdata/PipelineRollout/rollout-running-gradual.yaml
+- action: unpause-fast
+  inputPath: testdata/PipelineRollout/rollout-paused.yaml
+  expectedOutputPath: testdata/PipelineRollout/rollout-running-fast.yaml
 - action: allow-data-loss
   inputPath: testdata/PipelineRollout/rollout-in-ppnd.yaml
   expectedOutputPath: testdata/PipelineRollout/rollout-allowing-data-loss.yaml
