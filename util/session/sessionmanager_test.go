@@ -30,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+	"github.com/argoproj/argo-cd/v3/util/oidc"
 	"github.com/argoproj/argo-cd/v3/util/password"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	utiltest "github.com/argoproj/argo-cd/v3/util/test"
@@ -248,6 +249,8 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 		name                 string
 		authDisabled         bool
 		cookieHeader         bool
+		isSSOConfigured      bool
+		ssoClientapp         *oidc.ClientApp
 		verifiedClaims       *jwt.RegisteredClaims
 		verifyTokenErr       error
 		expectedStatusCode   int
@@ -259,6 +262,8 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will authenticate successfully",
 			authDisabled:         false,
 			cookieHeader:         true,
+			isSSOConfigured:      false,
+			ssoClientapp:         &oidc.ClientApp{},
 			verifiedClaims:       &jwt.RegisteredClaims{},
 			verifyTokenErr:       nil,
 			expectedStatusCode:   http.StatusOK,
@@ -268,6 +273,8 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will be noop if auth is disabled",
 			authDisabled:         true,
 			cookieHeader:         false,
+			isSSOConfigured:      false,
+			ssoClientapp:         &oidc.ClientApp{},
 			verifiedClaims:       nil,
 			verifyTokenErr:       nil,
 			expectedStatusCode:   http.StatusOK,
@@ -277,6 +284,8 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will return 400 if no cookie header",
 			authDisabled:         false,
 			cookieHeader:         false,
+			isSSOConfigured:      false,
+			ssoClientapp:         &oidc.ClientApp{},
 			verifiedClaims:       &jwt.RegisteredClaims{},
 			verifyTokenErr:       nil,
 			expectedStatusCode:   http.StatusBadRequest,
@@ -286,6 +295,8 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will return 401 verify token fails",
 			authDisabled:         false,
 			cookieHeader:         true,
+			isSSOConfigured:      false,
+			ssoClientapp:         &oidc.ClientApp{},
 			verifiedClaims:       &jwt.RegisteredClaims{},
 			verifyTokenErr:       stderrors.New("token error"),
 			expectedStatusCode:   http.StatusUnauthorized,
@@ -295,6 +306,8 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will return 200 if claims are nil",
 			authDisabled:         false,
 			cookieHeader:         true,
+			isSSOConfigured:      false,
+			ssoClientapp:         &oidc.ClientApp{},
 			verifiedClaims:       nil,
 			verifyTokenErr:       nil,
 			expectedStatusCode:   http.StatusOK,
@@ -311,7 +324,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 				claims: tc.verifiedClaims,
 				err:    tc.verifyTokenErr,
 			}
-			ts := httptest.NewServer(WithAuthMiddleware(tc.authDisabled, tm, mux))
+			ts := httptest.NewServer(WithAuthMiddleware(tc.authDisabled, tc.isSSOConfigured, tc.ssoClientapp, tm, mux))
 			defer ts.Close()
 			req, err := http.NewRequest(http.MethodGet, ts.URL, http.NoBody)
 			require.NoErrorf(t, err, "error creating request: %s", err)

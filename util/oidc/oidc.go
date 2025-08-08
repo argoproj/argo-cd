@@ -18,6 +18,8 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc/codes"
+
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
@@ -638,6 +640,37 @@ func createClaimsAuthenticationRequestParameter(requestedClaims map[string]*oidc
 		return nil, err
 	}
 	return oauth2.SetAuthURLParam("claims", string(claimsRequestRAW)), nil
+}
+
+// AddGroupsFromUserInfo takes a claims object and adds groups claim from userinfo endpoint if available
+// This is required by some SSO implementations as they don't provide the groups claim in the ID token
+// If querying the UserInfo endpoint fails, we silently return the same claims object as received
+// we assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
+// otherwise this would cause a panic
+func (a *ClientApp) AddGroupsFromUserInfo(claims jwt.Claims, SessionManagerClaimsIssuer string) jwt.MapClaims {
+	var groupClaims jwt.MapClaims
+	var ok bool
+	if groupClaims, ok = claims.(jwt.MapClaims); !ok {
+		if tmpClaims, ok := claims.(*jwt.MapClaims); ok {
+			groupClaims = *tmpClaims
+		}
+	}
+	iss := jwtutil.StringField(groupClaims, "iss")
+	if iss != SessionManagerClaimsIssuer && a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
+		userInfo, unauthorized, err := a.GetUserInfo(groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
+		if unauthorized {
+			log.Errorf("error while quering userinfo endpoint: %v", err)
+		}
+		if err != nil {
+			log.Errorf("error fetching user info endpoint: %v", err)
+		}
+		if groupClaims["sub"] != userInfo["sub"] {
+			log.Error(codes.Unknown, "subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
+		}
+		groupClaims["groups"] = userInfo["groups"]
+	}
+
+	return groupClaims
 }
 
 // GetUserInfo queries the IDP userinfo endpoint for claims
