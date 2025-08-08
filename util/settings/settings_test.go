@@ -1392,14 +1392,14 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		tlsSecret.SetResourceVersion("2")
 		_, err = kubeClient.CoreV1().Secrets("default").Update(t.Context(), tlsSecret, metav1.UpdateOptions{})
 		require.NoError(t, err)
-		// runs into timing issues (secret not updated yet before the next
-		// GetSettings call) without this
-		time.Sleep(time.Second)
 
-		// should be called again after secret update
+		// allow time for the udpate to resolve to avoid timing issues below
+		time.Sleep(250 * time.Millisecond)
+
+		// should be called again after secret update resolves
 		_, err = settingsManager.GetSettings()
 		require.NoError(t, err)
-		assert.Greater(t, 1, callCount)
+		assert.Equal(t, 2, callCount)
 	})
 	t.Run("No external TLS secret", func(t *testing.T) {
 		kubeClient := fake.NewClientset(
