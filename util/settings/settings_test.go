@@ -1299,7 +1299,9 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					"app.kubernetes.io/part-of": "argocd",
 				},
 			},
-			Data: map[string][]byte{},
+			Data: map[string][]byte{
+				"server.secretkey": nil,
+			},
 		}
 		tlsSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1328,12 +1330,76 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		assert.Equal(t, 0, callCount)
 
 		// should be called by first call to GetSettings
-		settingsManager.GetSettings()
+		_, err := settingsManager.GetSettings()
+		require.NoError(t, err)
 		assert.Equal(t, 1, callCount)
 
 		// should not be called by subsequent call to GetSettings
-		settingsManager.GetSettings()
+		_, err = settingsManager.GetSettings()
+		require.NoError(t, err)
 		assert.Equal(t, 1, callCount)
+	})
+	t.Run("Invalidates cache when external TLS secret changes", func(t *testing.T) {
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+		}
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string][]byte{
+				"server.secretkey": nil,
+			},
+		}
+		tlsSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            externalServerTLSSecretName,
+				Namespace:       "default",
+				ResourceVersion: "1",
+			},
+			Data: map[string][]byte{
+				"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
+				"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
+			},
+		}
+
+		kubeClient := fake.NewClientset(cm, secret, tlsSecret)
+		callCount := 0
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default", func(mgr *SettingsManager) {
+			mgr.tlsCertParser = func(certpem []byte, keypem []byte) (tls.Certificate, error) {
+				callCount++
+
+				return tls.X509KeyPair(certpem, keypem)
+			}
+		})
+
+		// should be called by first call to GetSettings
+		_, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.Equal(t, 1, callCount)
+
+		// update secret
+		tlsSecret.SetResourceVersion("2")
+		_, err = kubeClient.CoreV1().Secrets("default").Update(t.Context(), tlsSecret, metav1.UpdateOptions{})
+		require.NoError(t, err)
+		// runs into timing issues (secret not updated yet before the next
+		// GetSettings call) without this
+		time.Sleep(time.Second)
+
+		// should be called again after secret update
+		_, err = settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.Equal(t, 2, callCount)
 	})
 	t.Run("No external TLS secret", func(t *testing.T) {
 		kubeClient := fake.NewClientset(

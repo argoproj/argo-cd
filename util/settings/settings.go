@@ -1559,6 +1559,8 @@ func (mgr *SettingsManager) externalServerTLSCertificate() (*tls.Certificate, er
 		}
 		return nil, err
 	}
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
 	if mgr.tlsCertCache != nil && mgr.tlsCertResourceVersion == secret.ResourceVersion {
 		return mgr.tlsCertCache, nil
 	}
