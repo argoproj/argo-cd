@@ -2,6 +2,6 @@ node_modules
 .vscode
 junit.xml
 coverage
-/yarn-error.log
+/pnpm-error.log
 .yalc
 yalc.lock

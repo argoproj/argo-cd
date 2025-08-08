@@ -92,7 +92,7 @@ for version in $versions; do
         }
       )
       # Hack to make sure even if there are no vulnerabilities, a row is added to the table.
-      + [{displayTargetFile: "go.mod"}, {displayTargetFile: "ui/yarn.lock"}]
+      + [{displayTargetFile: "go.mod"}, {displayTargetFile: "ui/pnpm-lock.yaml"}]
       # Group by target file (e.g. go.mod) so we can see where the vulnerabilities are.
       | group_by(.displayTargetFile)
       | map(
