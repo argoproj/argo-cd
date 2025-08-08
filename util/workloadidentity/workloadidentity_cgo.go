@@ -6,16 +6,33 @@ import (
 	"context"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	azcloud "github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+
+	log "github.com/sirupsen/logrus"
 )
+
+var newDefaultAzureCredential = azidentity.NewDefaultAzureCredential
 
 type WorkloadIdentityTokenProvider struct {
 	tokenCredential azcore.TokenCredential
 }
 
-func NewWorkloadIdentityTokenProvider() TokenProvider {
-	cred, err := azidentity.NewDefaultAzureCredential(&azidentity.DefaultAzureCredentialOptions{})
+func NewWorkloadIdentityTokenProvider(azureCloud string) TokenProvider {
+	cloud, err := GetAzureCloudConfigByName(azureCloud)
+
+	if err != nil {
+		log.Warnf("Could not parse Azure cloud '%s'. Possible values are: AzurePublic, AzureChina, AzureGovernment", azureCloud)
+		cloud = azcloud.AzurePublic
+	}
+
+	cred, err := newDefaultAzureCredential(
+		&azidentity.DefaultAzureCredentialOptions{
+			ClientOptions: policy.ClientOptions{
+				Cloud: cloud,
+			},
+		})
 	initError = err
 	return WorkloadIdentityTokenProvider{tokenCredential: cred}
 }
