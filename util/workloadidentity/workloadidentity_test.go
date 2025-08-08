@@ -3,13 +3,19 @@ package workloadidentity
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	azcloud "github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 )
 
 type MockTokenCredential struct {
@@ -29,6 +35,54 @@ func TestNewWorkloadIdentityTokenProvider_Success(t *testing.T) {
 	// Test the NewWorkloadIdentityTokenProvider function
 	_, err := provider.GetToken("https://management.core.windows.net/.default")
 	require.NoError(t, err, "Expected no error from GetToken")
+}
+
+func TestNewWorkloadIdentityTokenProviderWithAzureCloud_Success(t *testing.T) {
+	clouds := map[string]azcloud.Configuration{
+		"AzurePublic":     azcloud.AzurePublic,
+		"AzureChina":      azcloud.AzureChina,
+		"AzureGovernment": azcloud.AzureGovernment,
+	}
+
+	for cloudName, cloud := range clouds {
+		t.Run(cloudName, func(t *testing.T) {
+			// Mock the newDefaultAzureCredential function to capture the cloud configuration
+			var actualCloud azcloud.Configuration
+			newDefaultAzureCredential = func(options *azidentity.DefaultAzureCredentialOptions) (*azidentity.DefaultAzureCredential, error) {
+				actualCloud = options.ClientOptions.Cloud
+				return &azidentity.DefaultAzureCredential{}, nil
+			}
+
+			// Restore the original function after the test
+			defer func() { newDefaultAzureCredential = azidentity.NewDefaultAzureCredential }()
+
+			NewWorkloadIdentityTokenProvider(cloudName)
+
+			assert.Equal(t, cloud.ActiveDirectoryAuthorityHost, actualCloud.ActiveDirectoryAuthorityHost, fmt.Sprintf("Expected cloud to match %s", cloudName))
+		})
+	}
+}
+
+func TestNewWorkloadIdentityTokenProviderWithInvalidAzureCloud_LogWarning(t *testing.T) {
+	// Replace the logger with a test hook to capture log output
+	oldHooks := logrus.StandardLogger().ReplaceHooks(logrus.LevelHooks{})
+	hook := logtest.NewGlobal()
+
+	// Mock the newDefaultAzureCredential function
+	newDefaultAzureCredential = func(options *azidentity.DefaultAzureCredentialOptions) (*azidentity.DefaultAzureCredential, error) {
+		return &azidentity.DefaultAzureCredential{}, nil
+	}
+
+	// Restore after test
+	defer func() { newDefaultAzureCredential = azidentity.NewDefaultAzureCredential }()
+	defer logrus.StandardLogger().ReplaceHooks(oldHooks)
+
+	NewWorkloadIdentityTokenProvider("InvalidCloud")
+
+	lastEntry := hook.LastEntry()
+	assert.NotNil(t, lastEntry, t.Name())
+	assert.Equal(t, logrus.WarnLevel, lastEntry.Level, t.Name())
+	hook.Reset()
 }
 
 func TestGetToken_Success(t *testing.T) {

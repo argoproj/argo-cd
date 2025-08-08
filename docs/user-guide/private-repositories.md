@@ -182,6 +182,12 @@ Using CLI for Helm OCI with Azure workload identity:
 argocd repo add contoso.azurecr.io/charts --type helm --enable-oci --use-azure-workload-identity
 ```
 
+Using CLI for Helm OCI with Azure workload identity in the Azure Government Cloud:
+
+```
+argocd repo add contoso.azurecr.io/charts --type helm --enable-oci --use-azure-workload-identity --azure-cloud AzureGovernment
+```
+
 Using CLI for Azure Repos with Azure workload identity:
 
 ```
@@ -221,6 +227,21 @@ stringData:
   name: contosocharts
   enableOCI: "true"
   useAzureWorkloadIdentity: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: helm-private-repo-in-azure-usgov
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: helm
+  url: contoso.azurecr.io/charts
+  name: contosocharts
+  enableOCI: "true"
+  useAzureWorkloadIdentity: "true"
+  azureCloud: AzureGovernment # Possible values are AzurePublic, AzureChina or AzureGovernment. Defaults to AzurePublic
 ---
 apiVersion: v1
 kind: Secret

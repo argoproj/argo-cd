@@ -191,6 +191,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repoOpts.Repo.NoProxy = repoOpts.NoProxy
 			repoOpts.Repo.ForceHttpBasicAuth = repoOpts.ForceHttpBasicAuth
 			repoOpts.Repo.UseAzureWorkloadIdentity = repoOpts.UseAzureWorkloadIdentity
+			repoOpts.Repo.AzureCloud = repoOpts.AzureCloud
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {
 				errors.Fatal(errors.ErrorGeneric, "Must specify --name for repos of type 'helm'")
@@ -198,6 +199,16 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 			if repoOpts.Repo.Type == "oci" && repoOpts.InsecureOCIForceHTTP {
 				repoOpts.Repo.InsecureOCIForceHttp = repoOpts.InsecureOCIForceHTTP
+			}
+
+			if repoOpts.Repo.AzureCloud != "" {
+				if !repoOpts.Repo.UseAzureWorkloadIdentity {
+					errors.Fatal(errors.ErrorGeneric, "Must specify --use-azure-workload-identity when using --azure-cloud")
+				}
+
+				if repoOpts.Repo.AzureCloud != "AzurePublic" && repoOpts.Repo.AzureCloud != "AzureChina" && repoOpts.Repo.AzureCloud != "AzureGovernment" {
+					errors.Fatal(errors.ErrorGeneric, "Invalid Azure cloud specified. Must be one of: AzurePublic, AzureChina, AzureGovernment")
+				}
 			}
 
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()

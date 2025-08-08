@@ -13,6 +13,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var newDefaultAzureCredential = azidentity.NewDefaultAzureCredential
+
 type WorkloadIdentityTokenProvider struct {
 	tokenCredential azcore.TokenCredential
 }
@@ -32,7 +34,7 @@ func NewWorkloadIdentityTokenProvider(azureCloud string) TokenProvider {
 		log.Warnf("Could not parse Azure cloud '%s'. Possible values are: AzurePublic, AzureChina, AzureGovernment", azureCloud)
 	}
 
-	cred, err := azidentity.NewDefaultAzureCredential(
+	cred, err := newDefaultAzureCredential(
 		&azidentity.DefaultAzureCredentialOptions{
 			ClientOptions: policy.ClientOptions{
 				Cloud: cloud,

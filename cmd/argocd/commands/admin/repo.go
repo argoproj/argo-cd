@@ -139,6 +139,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			repoOpts.Repo.EnableLFS = repoOpts.EnableLfs
 			repoOpts.Repo.EnableOCI = repoOpts.EnableOci
 			repoOpts.Repo.UseAzureWorkloadIdentity = repoOpts.UseAzureWorkloadIdentity
+			repoOpts.Repo.AzureCloud = repoOpts.AzureCloud
 			repoOpts.Repo.InsecureOCIForceHttp = repoOpts.InsecureOCIForceHTTP
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {
@@ -149,6 +150,16 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			// then we prompt for it
 			if repoOpts.Repo.Username != "" && repoOpts.Repo.Password == "" {
 				repoOpts.Repo.Password = cli.PromptPassword(repoOpts.Repo.Password)
+			}
+
+			if repoOpts.Repo.AzureCloud != "" {
+				if !repoOpts.Repo.UseAzureWorkloadIdentity {
+					errors.Fatal(errors.ErrorGeneric, "Must specify --use-azure-workload-identity when using --azure-cloud")
+				}
+
+				if repoOpts.Repo.AzureCloud != "AzurePublic" && repoOpts.Repo.AzureCloud != "AzureChina" && repoOpts.Repo.AzureCloud != "AzureGovernment" {
+					errors.Fatal(errors.ErrorGeneric, "Invalid Azure cloud specified. Must be one of: AzurePublic, AzureChina, AzureGovernment")
+				}
 			}
 
 			err := cmdutil.ValidateBearerTokenAndPasswordCombo(repoOpts.Repo.BearerToken, repoOpts.Repo.Password)

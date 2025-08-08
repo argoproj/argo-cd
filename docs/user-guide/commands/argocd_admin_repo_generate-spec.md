@@ -50,6 +50,7 @@ argocd admin repo generate-spec REPOURL [flags]
 ### Options
 
 ```
+      --azure-cloud string                      the Azure cloud to use when authenticating with azure workload identity (e.g. AzurePublicCloud, AzureUSGovernmentCloud, etc.)
       --bearer-token string                     bearer token to the Git BitBucket Data Center repository
       --enable-lfs                              enable git-lfs (Large File Support) on this repository
       --enable-oci                              enable helm-oci (Helm OCI-Based Repository) (only valid for helm type repositories)

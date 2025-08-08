@@ -27,6 +27,7 @@ type RepoOptions struct {
 	GCPServiceAccountKeyPath       string
 	ForceHttpBasicAuth             bool //nolint:revive //FIXME(var-naming)
 	UseAzureWorkloadIdentity       bool
+	AzureCloud                     string
 }
 
 func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
@@ -52,5 +53,6 @@ func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
 	command.Flags().StringVar(&opts.GCPServiceAccountKeyPath, "gcp-service-account-key-path", "", "service account key for the Google Cloud Platform")
 	command.Flags().BoolVar(&opts.ForceHttpBasicAuth, "force-http-basic-auth", false, "whether to force use of basic auth when connecting repository via HTTP")
 	command.Flags().BoolVar(&opts.UseAzureWorkloadIdentity, "use-azure-workload-identity", false, "whether to use azure workload identity for authentication")
+	command.Flags().StringVar(&opts.AzureCloud, "azure-cloud", "", "the Azure cloud to use when authenticating with azure workload identity (e.g. AzurePublicCloud, AzureUSGovernmentCloud, etc.)")
 	command.Flags().BoolVar(&opts.InsecureOCIForceHTTP, "insecure-oci-force-http", false, "Use http when accessing an OCI repository")
 }
