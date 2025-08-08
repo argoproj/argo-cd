@@ -9297,6 +9297,10 @@
       "type": "object",
       "title": "RepoCreds holds the definition for repository credentials",
       "properties": {
+        "azureCloud": {
+          "description": "AzureCloud specifies which Azure cloud this repository is hosted in. Options are AzurePublic, AzureChina, AzureGovernment.",
+          "type": "string"
+        },
         "bearerToken": {
           "type": "string",
           "title": "BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server"
@@ -9396,6 +9400,10 @@
       "type": "object",
       "title": "Repository is a repository holding application configurations",
       "properties": {
+        "azureCloud": {
+          "description": "AzureCloud specifies which Azure cloud this repository is hosted in. Options are AzurePublic, AzureChina, AzureGovernment.",
+          "type": "string"
+        },
         "bearerToken": {
           "type": "string",
           "title": "BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server"
