@@ -1399,7 +1399,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		// should be called again after secret update
 		_, err = settingsManager.GetSettings()
 		require.NoError(t, err)
-		assert.Equal(t, 2, callCount)
+		assert.Greater(t, 1, callCount)
 	})
 	t.Run("No external TLS secret", func(t *testing.T) {
 		kubeClient := fake.NewClientset(

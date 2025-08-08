@@ -553,14 +553,14 @@ var sourceTypeToEnableGenerationKey = map[v1alpha1.ApplicationSourceType]string{
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
 type SettingsManager struct {
-	ctx                    context.Context
-	clientset              kubernetes.Interface
-	secrets                v1listers.SecretLister
-	secretsInformer        cache.SharedIndexInformer
-	configmaps             v1listers.ConfigMapLister
-	namespace              string
+	ctx             context.Context
+	clientset       kubernetes.Interface
+	secrets         v1listers.SecretLister
+	secretsInformer cache.SharedIndexInformer
+	configmaps      v1listers.ConfigMapLister
+	namespace       string
 	// subscribers is a list of subscribers to settings updates
-	subscribers            []chan<- *ArgoCDSettings
+	subscribers []chan<- *ArgoCDSettings
 	// mutex protects concurrency sensitive parts of settings manager: access to subscribers list and initialization flag
 	mutex                  *sync.Mutex
 	initContextCancel      func()
