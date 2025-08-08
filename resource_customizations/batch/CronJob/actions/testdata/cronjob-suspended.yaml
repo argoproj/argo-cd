@@ -1,21 +1,17 @@
-- k8sOperation: create
-  unstructuredObj:
-    apiVersion: batch/v1
-    kind: Job
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hello
+  namespace: test-ns
+  uid: '123'
+spec:
+  suspend: true
+  schedule: '* * * * *'
+  jobTemplate:
     metadata:
-      ownerReferences:
-        - apiVersion: batch/v1
-          blockOwnerDeletion: true
-          controller: true
-          kind: CronJob
-          name: hello
-          uid: '123'
-      name: hello-00000000000
-      namespace: test-ns
       labels:
         my: label
       annotations:
-        cronjob.kubernetes.io/instantiate: manual
         my: annotation
     spec:
       ttlSecondsAfterFinished: 100
@@ -34,4 +30,5 @@
                 - /bin/sh
                 - -c
                 - date; echo Hello from the Kubernetes cluster
+              resources: {}
           restartPolicy: OnFailure
