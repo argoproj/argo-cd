@@ -99,7 +99,7 @@ require (
 	golang.org/x/time v0.12.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250528174236-200df99c418a
 	google.golang.org/grpc v1.74.0
-	google.golang.org/protobuf v1.36.6
+	google.golang.org/protobuf v1.36.7
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.33.1
