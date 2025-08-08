@@ -34,6 +34,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/argo"
@@ -301,31 +302,47 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		}
 
 		log.Debugf("Generating Manifest for source %s revision %s", source, revision)
-		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-			Repo:                            repo,
-			Repos:                           repos,
-			Revision:                        revision,
-			NoCache:                         noCache,
-			NoRevisionCache:                 noRevisionCache,
-			AppLabelKey:                     appLabelKey,
-			AppName:                         app.InstanceName(m.namespace),
-			Namespace:                       appNamespace,
-			ApplicationSource:               &source,
-			KustomizeOptions:                kustomizeSettings,
-			KubeVersion:                     serverVersion,
-			ApiVersions:                     apiVersions,
-			VerifySignature:                 verifySignature,
-			HelmRepoCreds:                   helmRepoCreds,
-			TrackingMethod:                  trackingMethod,
-			EnabledSourceTypes:              enabledSourceTypes,
-			HelmOptions:                     helmOptions,
-			HasMultipleSources:              app.Spec.HasMultipleSources(),
-			RefSources:                      refSources,
-			ProjectName:                     proj.Name,
-			ProjectSourceRepos:              proj.Spec.SourceRepos,
-			AnnotationManifestGeneratePaths: app.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
-			InstallationID:                  installationID,
-		})
+		var manifestInfo *apiclient.ManifestResponse
+		maxGenerateManifestRetries := 1
+		const generateManifestRetryDelay = 5 * time.Second
+		if app.Status.ReconciledAt == nil && !util.IsTest() {
+			maxGenerateManifestRetries = 20
+		}
+
+		for attempt := 1; attempt <= maxGenerateManifestRetries; attempt++ {
+			log.Debugf("Attempt %d of %d to generate manifest", attempt, maxGenerateManifestRetries)
+			manifestInfo, err = repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+				Repo:                            repo,
+				Repos:                           repos,
+				Revision:                        revision,
+				NoCache:                         noCache,
+				NoRevisionCache:                 noRevisionCache,
+				AppLabelKey:                     appLabelKey,
+				AppName:                         app.InstanceName(m.namespace),
+				Namespace:                       appNamespace,
+				ApplicationSource:               &source,
+				KustomizeOptions:                kustomizeSettings,
+				KubeVersion:                     serverVersion,
+				ApiVersions:                     apiVersions,
+				VerifySignature:                 verifySignature,
+				HelmRepoCreds:                   helmRepoCreds,
+				TrackingMethod:                  trackingMethod,
+				EnabledSourceTypes:              enabledSourceTypes,
+				HelmOptions:                     helmOptions,
+				HasMultipleSources:              app.Spec.HasMultipleSources(),
+				RefSources:                      refSources,
+				ProjectName:                     proj.Name,
+				ProjectSourceRepos:              proj.Spec.SourceRepos,
+				AnnotationManifestGeneratePaths: app.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
+				InstallationID:                  installationID,
+			})
+			if err == nil {
+				log.Info("Successfully generated Manifest")
+				break
+			}
+			log.Debugf("Sleeping for %v", generateManifestRetryDelay)
+			time.Sleep(generateManifestRetryDelay)
+		}
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
 		}
