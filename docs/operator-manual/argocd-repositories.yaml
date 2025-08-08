@@ -98,4 +98,4 @@ stringData:
   name: contosocharts
   enableOCI: "true"
   useAzureWorkloadIdentity: "true"
-  azureCloud: AzureGovernment
+  azureCloud: AzureGovernment # Possible values are AzurePublic, AzureChina or AzureGovernment. Defaults to AzurePublic

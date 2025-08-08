@@ -1,7 +1,10 @@
 package workloadidentity
 
 import (
+	"fmt"
 	"time"
+
+	azcloud "github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 )
 
 const (
@@ -24,4 +27,20 @@ func CalculateCacheExpiryBasedOnTokenExpiry(tokenExpiry time.Time) time.Duration
 	// Calculate the cache expiry as 5 minutes before the token expires
 	cacheExpiry := time.Until(tokenExpiry) - time.Minute*5
 	return cacheExpiry
+}
+
+func GetAzureCloudConfigByName(cloudName string) (error, azcloud.Configuration) {
+	if cloudName != "" && cloudName != "AzurePublic" && cloudName != "AzureChina" && cloudName != "AzureGovernment" {
+		return fmt.Errorf("Could not parse Azure cloud '%s'. Possible values are: AzurePublic, AzureChina, AzureGovernment", cloudName), azcloud.Configuration{}
+	}
+
+	cloud := azcloud.AzurePublic
+	switch cloudName {
+	case "AzureChina":
+		cloud = azcloud.AzureChina
+	case "AzureGovernment":
+		cloud = azcloud.AzureGovernment
+	}
+
+	return nil, cloud
 }

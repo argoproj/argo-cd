@@ -20,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 )
 
 // NewRepoCommand returns a new instance of an `argocd repo` command
@@ -206,8 +207,9 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 					errors.Fatal(errors.ErrorGeneric, "Must specify --use-azure-workload-identity when using --azure-cloud")
 				}
 
-				if repoOpts.Repo.AzureCloud != "AzurePublic" && repoOpts.Repo.AzureCloud != "AzureChina" && repoOpts.Repo.AzureCloud != "AzureGovernment" {
-					errors.Fatal(errors.ErrorGeneric, "Invalid Azure cloud specified. Must be one of: AzurePublic, AzureChina, AzureGovernment")
+				err, _ := workloadidentity.GetAzureCloudConfigByName(repoOpts.Repo.AzureCloud)
+				if err != nil {
+					errors.Fatal(errors.ErrorGeneric, err.Error())
 				}
 			}
 

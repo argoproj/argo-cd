@@ -20,18 +20,11 @@ type WorkloadIdentityTokenProvider struct {
 }
 
 func NewWorkloadIdentityTokenProvider(azureCloud string) TokenProvider {
-	cloud := azcloud.AzurePublic
-	switch azureCloud {
-	case "AzureChina":
-		log.Info("Using Azure China cloud for Workload Identity")
-		cloud = azcloud.AzureChina
-	case "AzureGovernment":
-		log.Info("Using Azure Government cloud for Workload Identity")
-		cloud = azcloud.AzureGovernment
-	}
+	err, cloud := GetAzureCloudConfigByName(azureCloud)
 
-	if azureCloud != "" && azureCloud != "AzurePublic" && azureCloud != "AzureChina" && azureCloud != "AzureGovernment" {
+	if err != nil {
 		log.Warnf("Could not parse Azure cloud '%s'. Possible values are: AzurePublic, AzureChina, AzureGovernment", azureCloud)
+		cloud = azcloud.AzurePublic
 	}
 
 	cred, err := newDefaultAzureCredential(
