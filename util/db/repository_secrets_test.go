@@ -931,6 +931,12 @@ func TestSecretsRepositoryBackend_GetAllHelmRepoCreds(t *testing.T) {
 }
 
 func TestRepoCredsToSecret(t *testing.T) {
+	clientset := getClientset()
+	testee := &secretsRepositoryBackend{db: &db{
+		ns:            testNamespace,
+		kubeclientset: clientset,
+		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+	}}
 	s := &corev1.Secret{}
 	creds := &appsv1.RepoCreds{
 		URL:                        "URL",
@@ -946,7 +952,7 @@ func TestRepoCredsToSecret(t *testing.T) {
 		GithubAppInstallationId:    456,
 		GitHubAppEnterpriseBaseURL: "GitHubAppEnterpriseBaseURL",
 	}
-	repoCredsToSecret(creds, s)
+	testee.repoCredsToSecret(creds, s)
 	assert.Equal(t, []byte(creds.URL), s.Data["url"])
 	assert.Equal(t, []byte(creds.Username), s.Data["username"])
 	assert.Equal(t, []byte(creds.Password), s.Data["password"])
