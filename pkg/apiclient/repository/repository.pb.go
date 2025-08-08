@@ -10,6 +10,10 @@ package repository
 import (
 	context "context"
 	fmt "fmt"
+	io "io"
+	math "math"
+	math_bits "math/bits"
+
 	v1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	apiclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	proto "github.com/gogo/protobuf/proto"
@@ -17,9 +21,6 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	io "io"
-	math "math"
-	math_bits "math/bits"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -401,7 +402,9 @@ type RepoAccessQuery struct {
 	// BearerToken contains the bearer token used for Git auth at the repo server
 	BearerToken string `protobuf:"bytes,21,opt,name=bearerToken,proto3" json:"bearerToken,omitempty"`
 	// Whether https should be disabled for an OCI repo
-	InsecureOciForceHttp bool     `protobuf:"varint,22,opt,name=insecureOciForceHttp,proto3" json:"insecureOciForceHttp,omitempty"`
+	InsecureOciForceHttp bool `protobuf:"varint,22,opt,name=insecureOciForceHttp,proto3" json:"insecureOciForceHttp,omitempty"`
+	// AzureCloud is the Azure cloud environment to use (e.g. AzurePublicCloud, AzureUSGovernment, etc.)
+	AzureCloud           string   `protobuf:"bytes,23,opt,name=azureCloud,proto3" json:"azureCloud,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`

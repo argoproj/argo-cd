@@ -339,6 +339,7 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 		NoProxy:                    string(secret.Data["noProxy"]),
 		Project:                    string(secret.Data["project"]),
 		GCPServiceAccountKey:       string(secret.Data["gcpServiceAccountKey"]),
+		AzureCloud:                 string(secret.Data["azureCloud"]),
 	}
 
 	insecureIgnoreHostKey, err := boolOrFalse(secret, "insecureIgnoreHostKey")

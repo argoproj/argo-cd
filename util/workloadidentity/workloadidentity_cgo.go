@@ -21,7 +21,6 @@ type WorkloadIdentityTokenProvider struct {
 
 func NewWorkloadIdentityTokenProvider(azureCloud string) TokenProvider {
 	cloud, err := GetAzureCloudConfigByName(azureCloud)
-
 	if err != nil {
 		log.Warnf("Could not parse Azure cloud '%s'. Possible values are: AzurePublic, AzureChina, AzureGovernment", azureCloud)
 		cloud = azcloud.AzurePublic

@@ -47,6 +47,7 @@ export interface NewHTTPSRepoParams {
     // write should be true if saving as a write credential.
     write: boolean;
     useAzureWorkloadIdentity: boolean;
+    azureCloud: string;
 }
 
 interface NewGitHubAppRepoParams {
@@ -103,6 +104,7 @@ interface NewHTTPSRepoCredsParams {
     // write should be true if saving as a write credential.
     write: boolean;
     useAzureWorkloadIdentity: boolean;
+    azureCloud: string;
 }
 
 interface NewGitHubAppRepoCredsParams {
@@ -208,7 +210,7 @@ export class ReposList extends React.Component<
     }
 
     private onChooseDefaultValues = (): FormValues => {
-        return {type: 'git', ghType: 'GitHub', write: false};
+        return {type: 'git', ghType: 'GitHub', write: false, azureCloud: 'AzurePublic'};
     };
 
     private onValidateErrors(params: FormValues): FormErrors {
@@ -857,6 +859,17 @@ export class ReposList extends React.Component<
                                                             component={CheckboxField}
                                                         />
                                                     </div>
+                                                    <div className='argo-form-row'>
+                                                        {formApi.getFormState().values.useAzureWorkloadIdentity && (
+                                                            <FormField
+                                                                formApi={formApi}
+                                                                label='Azure Cloud'
+                                                                field='azureCloud'
+                                                                component={FormSelect}
+                                                                componentProps={{options: ['AzurePublic', 'AzureGovernment', 'AzureChina']}}
+                                                            />
+                                                        )}
+                                                    </div>
                                                 </div>
                                             )}
                                             {this.state.method === ConnectionMethod.GITHUBAPP && (
@@ -1075,7 +1088,8 @@ export class ReposList extends React.Component<
                 enableOCI: params.enableOCI,
                 write: params.write,
                 useAzureWorkloadIdentity: params.useAzureWorkloadIdentity,
-                insecureOCIForceHttp: params.insecureOCIForceHttp
+                insecureOCIForceHttp: params.insecureOCIForceHttp,
+                azureCloud: params.azureCloud
             });
         } else {
             this.setState({connecting: true});
