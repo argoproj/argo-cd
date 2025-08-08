@@ -59,7 +59,7 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 	filteredItems := clusterList.Items
 
 	// Filter clusters by id
-	if filteredItems, err = filterClustersById(filteredItems, q.Id); err != nil {
+	if filteredItems, err = filterClustersByID(filteredItems, q.Id); err != nil {
 		return nil, fmt.Errorf("error filtering clusters by id: %w", err)
 	}
 
@@ -89,7 +89,7 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 	return &cl, nil
 }
 
-func filterClustersById(clusters []appv1.Cluster, id *cluster.ClusterID) ([]appv1.Cluster, error) {
+func filterClustersByID(clusters []appv1.Cluster, id *cluster.ClusterID) ([]appv1.Cluster, error) {
 	if id == nil {
 		return clusters, nil
 	}
