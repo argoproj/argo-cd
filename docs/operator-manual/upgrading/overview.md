@@ -38,6 +38,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/<v
 
 <hr/>
 
+- [v3.2 to v3.3](./3.2-3.3.md)
 - [v3.1 to v3.2](./3.1-3.2.md)
 - [v3.0 to v3.1](./3.0-3.1.md)
 - [v2.14 to v3.0](./2.14-3.0.md)
