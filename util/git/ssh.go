@@ -2,8 +2,10 @@ package git
 
 import (
 	"fmt"
+	"os"
 
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -13,6 +15,15 @@ import (
 var SupportedSSHKeyExchangeAlgorithms = []string{
 	"curve25519-sha256",
 	"curve25519-sha256@libssh.org",
+	"ecdh-sha2-nistp256",
+	"ecdh-sha2-nistp384",
+	"ecdh-sha2-nistp521",
+	"diffie-hellman-group-exchange-sha256",
+	"diffie-hellman-group14-sha256",
+	"diffie-hellman-group14-sha1",
+}
+
+var SupportedFIPSCompliantSSHKeyExchangeAlgorithms = []string{
 	"ecdh-sha2-nistp256",
 	"ecdh-sha2-nistp384",
 	"ecdh-sha2-nistp521",
@@ -51,9 +62,30 @@ func (a *PublicKeysWithOptions) ClientConfig() (*ssh.ClientConfig, error) {
 	if len(a.KexAlgorithms) > 0 {
 		kexAlgos = a.KexAlgorithms
 	} else {
-		kexAlgos = DefaultSSHKeyExchangeAlgorithms
+		kexAlgos = getDefaultSSHKeyExchangeAlgorithms()
 	}
 	config := ssh.Config{KeyExchanges: kexAlgos}
 	opts := &ssh.ClientConfig{Config: config, User: a.User, Auth: []ssh.AuthMethod{ssh.PublicKeys(a.Signer)}}
 	return a.SetHostKeyCallback(opts)
+}
+
+// getDefaultSSHKeyExchangeAlgorithms returns the default key exchange algorthim to be used
+func getDefaultSSHKeyExchangeAlgorithms() []string {
+	if isFipsMode, err := isHostRunningInFips(); isFipsMode {
+		if err != nil {
+			log.Warnf("error checking if host running in FIPS mode: %v", err)
+		}
+		return SupportedFIPSCompliantSSHKeyExchangeAlgorithms
+	}
+	return SupportedSSHKeyExchangeAlgorithms
+}
+
+// isHostRunningInFips returns true if the system in which the binary is running in
+func isHostRunningInFips() (bool, error) {
+	const procSysFipsEnabledPath = "/proc/sys/crypto/fips_enabled"
+	b, err := os.ReadFile(procSysFipsEnabledPath)
+	if err != nil {
+		return false, err
+	}
+	return b[0] == '1', nil
 }
