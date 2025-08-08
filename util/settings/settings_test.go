@@ -1281,6 +1281,60 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		require.ErrorContains(t, err, "could not read from secret")
 		assert.NotNil(t, settings)
 	})
+	t.Run("Does not parse external TLS cert key pair if cached", func(t *testing.T) {
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+		}
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string][]byte{},
+		}
+		tlsSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      externalServerTLSSecretName,
+				Namespace: "default",
+			},
+			Data: map[string][]byte{
+				"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
+				"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
+			},
+		}
+
+		kubeClient := fake.NewClientset(cm, secret, tlsSecret)
+
+		var callCount int
+
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default", func(mgr *SettingsManager) {
+			mgr.tlsCertParser = func(certpem []byte, keypem []byte) (tls.Certificate, error) {
+				callCount++
+
+				return tls.X509KeyPair(certpem, keypem)
+			}
+		})
+
+		// should not be called by initialization
+		assert.Equal(t, 0, callCount)
+
+		// should be called by first call to GetSettings
+		settingsManager.GetSettings()
+		assert.Equal(t, 1, callCount)
+
+		// should not be called by subsequent call to GetSettings
+		settingsManager.GetSettings()
+		assert.Equal(t, 1, callCount)
+	})
 	t.Run("No external TLS secret", func(t *testing.T) {
 		kubeClient := fake.NewClientset(
 			&corev1.ConfigMap{

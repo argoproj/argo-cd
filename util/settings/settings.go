@@ -553,18 +553,21 @@ var sourceTypeToEnableGenerationKey = map[v1alpha1.ApplicationSourceType]string{
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
 type SettingsManager struct {
-	ctx             context.Context
-	clientset       kubernetes.Interface
-	secrets         v1listers.SecretLister
-	secretsInformer cache.SharedIndexInformer
-	configmaps      v1listers.ConfigMapLister
-	namespace       string
+	ctx                    context.Context
+	clientset              kubernetes.Interface
+	secrets                v1listers.SecretLister
+	secretsInformer        cache.SharedIndexInformer
+	configmaps             v1listers.ConfigMapLister
+	namespace              string
 	// subscribers is a list of subscribers to settings updates
-	subscribers []chan<- *ArgoCDSettings
+	subscribers            []chan<- *ArgoCDSettings
 	// mutex protects concurrency sensitive parts of settings manager: access to subscribers list and initialization flag
-	mutex                 *sync.Mutex
-	initContextCancel     func()
-	reposOrClusterChanged func()
+	mutex                  *sync.Mutex
+	initContextCancel      func()
+	reposOrClusterChanged  func()
+	tlsCertParser          func([]byte, []byte) (tls.Certificate, error)
+	tlsCertCache           *tls.Certificate
+	tlsCertResourceVersion string
 }
 
 type incompleteSettingsError struct {
@@ -1265,6 +1268,14 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	return &settings, nil
 }
 
+func (mgr *SettingsManager) invalidateCache() {
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
+
+	mgr.tlsCertCache = nil
+	mgr.tlsCertResourceVersion = ""
+}
+
 func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	tweakConfigMap := func(options *metav1.ListOptions) {
 		cmLabelSelector := fields.ParseSelectorOrDie(partOfArgoCDSelector)
@@ -1273,6 +1284,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 
 	eventHandler := cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(_, _ any) {
+			mgr.invalidateCache()
 			mgr.onRepoOrClusterChanged()
 		},
 		AddFunc: func(_ any) {
@@ -1492,12 +1504,11 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 		if cert != nil {
 			settings.Certificate = cert
 			settings.CertificateIsExternal = true
-			log.Infof("Loading TLS configuration from secret %s/%s", mgr.namespace, externalServerTLSSecretName)
 		} else {
 			serverCert, certOk := argoCDSecret.Data[settingServerCertificate]
 			serverKey, keyOk := argoCDSecret.Data[settingServerPrivateKey]
 			if certOk && keyOk {
-				cert, err := tls.X509KeyPair(serverCert, serverKey)
+				cert, err := mgr.tlsCertParser(serverCert, serverKey)
 				if err != nil {
 					errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("invalid x509 key pair %s/%s in secret: %s", settingServerCertificate, settingServerPrivateKey, err)})
 				} else {
@@ -1537,21 +1548,36 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 // external secret, instead of tls.crt and tls.key in argocd-secret. If both
 // return values are nil, no external secret has been configured.
 func (mgr *SettingsManager) externalServerTLSCertificate() (*tls.Certificate, error) {
+	if mgr.namespace == "" {
+		return nil, nil
+	}
 	var cert tls.Certificate
 	secret, err := mgr.GetSecretByName(externalServerTLSSecretName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
 		}
+		return nil, err
 	}
+	if mgr.tlsCertCache != nil && mgr.tlsCertResourceVersion == secret.ResourceVersion {
+		return mgr.tlsCertCache, nil
+	}
+	log.Infof("Loading TLS configuration from secret %s/%s", mgr.namespace, externalServerTLSSecretName)
 	tlsCert, certOK := secret.Data[settingServerCertificate]
-	tlsKey, keyOK := secret.Data[settingServerPrivateKey]
-	if certOK && keyOK {
-		cert, err = tls.X509KeyPair(tlsCert, tlsKey)
-		if err != nil {
-			return nil, err
-		}
+	if !certOK {
+		return nil, fmt.Errorf("key %q in secret %s/%s not found", settingServerCertificate, mgr.namespace, externalServerTLSSecretName)
 	}
+	tlsKey, keyOK := secret.Data[settingServerPrivateKey]
+	if !keyOK {
+		return nil, fmt.Errorf("key %q in secret %s/%s not found", settingServerPrivateKey, mgr.namespace, externalServerTLSSecretName)
+	}
+	cert, err = mgr.tlsCertParser(tlsCert, tlsKey)
+	if err != nil {
+		return nil, err
+	}
+	mgr.tlsCertCache = &cert
+	mgr.tlsCertResourceVersion = secret.ResourceVersion
+
 	return &cert, nil
 }
 
@@ -1591,6 +1617,8 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 	if err != nil {
 		return err
 	}
+
+	mgr.invalidateCache()
 
 	return mgr.updateSecret(func(argoCDSecret *corev1.Secret) error {
 		argoCDSecret.Data[settingServerSignatureKey] = settings.ServerSignature
@@ -1687,10 +1715,11 @@ func WithRepoOrClusterChangedHandler(handler func()) SettingsManagerOpts {
 // NewSettingsManager generates a new SettingsManager pointer and returns it
 func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string, opts ...SettingsManagerOpts) *SettingsManager {
 	mgr := &SettingsManager{
-		ctx:       ctx,
-		clientset: clientset,
-		namespace: namespace,
-		mutex:     &sync.Mutex{},
+		ctx:           ctx,
+		clientset:     clientset,
+		namespace:     namespace,
+		mutex:         &sync.Mutex{},
+		tlsCertParser: tls.X509KeyPair,
 	}
 	for i := range opts {
 		opts[i](mgr)
