@@ -1,9 +1,11 @@
 package git
 
 import (
+	"crypto/fips140"
 	"fmt"
 
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -19,6 +21,14 @@ var SupportedSSHKeyExchangeAlgorithms = []string{
 	"diffie-hellman-group-exchange-sha256",
 	"diffie-hellman-group14-sha256",
 	"diffie-hellman-group14-sha1",
+}
+
+var SupportedFIPSCompliantSSHKeyExchangeAlgorithms = []string{
+	"ecdh-sha2-nistp256",
+	"ecdh-sha2-nistp384",
+	"ecdh-sha2-nistp521",
+	"diffie-hellman-group-exchange-sha256",
+	"diffie-hellman-group14-sha256",
 }
 
 // List of default key exchange algorithms to use. We use those that are
@@ -51,9 +61,19 @@ func (a *PublicKeysWithOptions) ClientConfig() (*ssh.ClientConfig, error) {
 	if len(a.KexAlgorithms) > 0 {
 		kexAlgos = a.KexAlgorithms
 	} else {
-		kexAlgos = DefaultSSHKeyExchangeAlgorithms
+		kexAlgos = getDefaultSSHKeyExchangeAlgorithms()
 	}
 	config := ssh.Config{KeyExchanges: kexAlgos}
 	opts := &ssh.ClientConfig{Config: config, User: a.User, Auth: []ssh.AuthMethod{ssh.PublicKeys(a.Signer)}}
 	return a.SetHostKeyCallback(opts)
+}
+
+// getDefaultSSHKeyExchangeAlgorithms returns the default key exchange algorithms to be used
+func getDefaultSSHKeyExchangeAlgorithms() []string {
+	if fips140.Enabled() {
+		log.Info("loading fips140 compliant default key exchange algorithms")
+		return SupportedFIPSCompliantSSHKeyExchangeAlgorithms
+	}
+	log.Info("loading default key exchange algorithms")
+	return SupportedSSHKeyExchangeAlgorithms
 }
