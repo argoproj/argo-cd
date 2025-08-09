@@ -1,6 +1,7 @@
 package git
 
 import (
+	"crypto/fips140"
 	"fmt"
 	"os"
 
@@ -71,12 +72,11 @@ func (a *PublicKeysWithOptions) ClientConfig() (*ssh.ClientConfig, error) {
 
 // getDefaultSSHKeyExchangeAlgorithms returns the default key exchange algorthim to be used
 func getDefaultSSHKeyExchangeAlgorithms() []string {
-	if isFipsMode, err := isHostRunningInFips(); isFipsMode {
-		if err != nil {
-			log.Warnf("error checking if host running in FIPS mode: %v", err)
-		}
+	if fips140.Enabled() {
+		log.Info("loading fips140 compliant default key exchange algorithms")
 		return SupportedFIPSCompliantSSHKeyExchangeAlgorithms
 	}
+	log.Info("loading default key exchange algorithms")
 	return SupportedSSHKeyExchangeAlgorithms
 }
 
