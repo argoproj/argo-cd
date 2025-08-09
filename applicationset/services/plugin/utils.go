@@ -7,7 +7,7 @@ import (
 )
 
 // ParseSecretKey retrieves secret appSetName if different from common ArgoCDSecretName.
-func ParseSecretKey(key string) (secretName string, tokenKey string) {
+func ParseSecretKey(key string) (secretName, tokenKey string) {
 	if strings.Contains(key, ":") {
 		parts := strings.Split(key, ":")
 		secretName = parts[0][1:]

@@ -195,7 +195,7 @@ func buildClusterDecisions(duckResources *unstructured.UnstructuredList, statusL
 	return clusterDecisions
 }
 
-func findCluster(clustersFromArgoCD []utils.ClusterSpecifier, cluster any, matchKey string, statusListKey string) *utils.ClusterSpecifier {
+func findCluster(clustersFromArgoCD []utils.ClusterSpecifier, cluster any, matchKey, statusListKey string) *utils.ClusterSpecifier {
 	log.Infof("cluster: %v", cluster)
 	matchValue := cluster.(map[string]any)[matchKey]
 	if matchValue == nil || matchValue.(string) == "" {
@@ -217,7 +217,7 @@ func findCluster(clustersFromArgoCD []utils.ClusterSpecifier, cluster any, match
 	return nil
 }
 
-func collectParams(appSet *argoprojiov1alpha1.ApplicationSet, params map[string]any, key string, value string) {
+func collectParams(appSet *argoprojiov1alpha1.ApplicationSet, params map[string]any, key, value string) {
 	if appSet.Spec.GoTemplate {
 		if params["values"] == nil {
 			params["values"] = map[string]string{}

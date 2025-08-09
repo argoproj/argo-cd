@@ -56,7 +56,7 @@ var (
 	_ AzureDevOpsClientFactory = &devopsFactoryImpl{}
 )
 
-func NewAzureDevOpsProvider(accessToken string, org string, url string, project string, allBranches bool) (*AzureDevOpsProvider, error) {
+func NewAzureDevOpsProvider(accessToken, org, url, project string, allBranches bool) (*AzureDevOpsProvider, error) {
 	if accessToken == "" {
 		return nil, errors.New("no access token provided")
 	}
@@ -199,7 +199,7 @@ func (g *AzureDevOpsProvider) GetBranches(ctx context.Context, repo *Repository)
 	return repos, nil
 }
 
-func getValidDevOpsURL(url string, org string) (string, error) {
+func getValidDevOpsURL(url, org string) (string, error) {
 	if url == "" {
 		url = AZURE_DEVOPS_DEFAULT_URL
 	}

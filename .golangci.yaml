@@ -38,6 +38,10 @@ linters:
       - linters:
           - unparam
         path: (.+)_test\.go
+      - linters:
+          - gocritic
+        text: paramTypeCombine
+        path: (cmd|cmpserver|commitserver|controller|pkg|hack|reposerver|server|test|util)
 
     presets:
       - comments
