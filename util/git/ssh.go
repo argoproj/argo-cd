@@ -3,7 +3,6 @@ package git
 import (
 	"crypto/fips140"
 	"fmt"
-	"os"
 
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	log "github.com/sirupsen/logrus"
@@ -30,7 +29,6 @@ var SupportedFIPSCompliantSSHKeyExchangeAlgorithms = []string{
 	"ecdh-sha2-nistp521",
 	"diffie-hellman-group-exchange-sha256",
 	"diffie-hellman-group14-sha256",
-	"diffie-hellman-group14-sha1",
 }
 
 // List of default key exchange algorithms to use. We use those that are
@@ -70,7 +68,7 @@ func (a *PublicKeysWithOptions) ClientConfig() (*ssh.ClientConfig, error) {
 	return a.SetHostKeyCallback(opts)
 }
 
-// getDefaultSSHKeyExchangeAlgorithms returns the default key exchange algorthim to be used
+// getDefaultSSHKeyExchangeAlgorithms returns the default key exchange algorithms to be used
 func getDefaultSSHKeyExchangeAlgorithms() []string {
 	if fips140.Enabled() {
 		log.Info("loading fips140 compliant default key exchange algorithms")
@@ -78,14 +76,4 @@ func getDefaultSSHKeyExchangeAlgorithms() []string {
 	}
 	log.Info("loading default key exchange algorithms")
 	return SupportedSSHKeyExchangeAlgorithms
-}
-
-// isHostRunningInFips returns true if the system in which the binary is running in
-func isHostRunningInFips() (bool, error) {
-	const procSysFipsEnabledPath = "/proc/sys/crypto/fips_enabled"
-	b, err := os.ReadFile(procSysFipsEnabledPath)
-	if err != nil {
-		return false, err
-	}
-	return b[0] == '1', nil
 }
