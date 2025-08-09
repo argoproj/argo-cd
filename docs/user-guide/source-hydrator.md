@@ -174,10 +174,9 @@ code commit.
 git commit -m "Bump image to v1.2.3" \
   # Must be an RFC 5322 name
   --trailer "Argocd-reference-commit-author: Author Name <author@example.com>" \
-  # Must be a valid email address per RFC 5322
-  --trailer "Argocd-reference-commit-author-email: author@example.com" \
   # Must be a hex string 5-40 characters long
   --trailer "Argocd-reference-commit-sha: <code-commit-sha>" \
+  # The subject is the first line of the commit message. It cannot contain newlines.
   --trailer "Argocd-reference-commit-subject: Commit message of the code commit" \
    # The body must be a valid JSON string, including opening and closing quotes
   --trailer 'Argocd-reference-commit-body: "Commit message of the code commit\n\nSigned-off-by: Author Name <author@example.com>"' \
