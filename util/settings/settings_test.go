@@ -1394,7 +1394,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 
 	settings, err := settingsManager.GetSettings()
 	require.NoError(t, err)
-	assert.Equal(t, "mywebhooksecret", settings.WebhookGitHubSecret)
+	assert.Equal(t, "mywebhooksecret", settings.GetWebhookGitHubSecret())
 
 	oidcConfig := settings.OIDCConfig()
 	assert.Equal(t, "https://dev-123456.oktapreview.com", oidcConfig.Issuer)

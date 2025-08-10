@@ -1510,6 +1510,103 @@ func TestCreateAppWithOperation(t *testing.T) {
 	assert.Nil(t, app.Operation)
 }
 
+func TestCreateAppUpsert(t *testing.T) {
+	t.Parallel()
+	t.Run("No error when spec equals", func(t *testing.T) {
+		t.Parallel()
+		appServer := newTestAppServer(t)
+		testApp := newTestApp()
+
+		createReq := application.ApplicationCreateRequest{
+			Application: testApp,
+		}
+		// Call Create() instead of adding the object to the tesst server to make sure the app is correctly normalized.
+		_, err := appServer.Create(t.Context(), &createReq)
+		require.NoError(t, err)
+
+		app, err := appServer.Create(t.Context(), &createReq)
+		require.NoError(t, err)
+		require.NotNil(t, app)
+	})
+	t.Run("Error on update without upsert", func(t *testing.T) {
+		t.Parallel()
+		appServer := newTestAppServer(t)
+		testApp := newTestApp()
+
+		// Call Create() instead of adding the object to the tesst server to make sure the app is correctly normalized.
+		_, err := appServer.Create(t.Context(), &application.ApplicationCreateRequest{
+			Application: testApp,
+		})
+		require.NoError(t, err)
+
+		newApp := newTestApp()
+		newApp.Spec.Source.Name = "updated"
+		createReq := application.ApplicationCreateRequest{
+			Application: newApp,
+		}
+		_, err = appServer.Create(t.Context(), &createReq)
+		require.EqualError(t, err, "rpc error: code = InvalidArgument desc = existing application spec is different, use upsert flag to force update")
+	})
+	t.Run("Invalid existing app can be updated", func(t *testing.T) {
+		t.Parallel()
+		testApp := newTestApp()
+		testApp.Spec.Destination.Server = "https://invalid-cluster"
+		appServer := newTestAppServer(t, testApp)
+
+		newApp := newTestAppWithDestName()
+		newApp.TypeMeta = testApp.TypeMeta
+		newApp.Spec.Source.Name = "updated"
+		createReq := application.ApplicationCreateRequest{
+			Application: newApp,
+			Upsert:      ptr.To(true),
+		}
+		app, err := appServer.Create(t.Context(), &createReq)
+		require.NoError(t, err)
+		require.NotNil(t, app)
+		assert.Equal(t, "updated", app.Spec.Source.Name)
+	})
+	t.Run("Can update application project", func(t *testing.T) {
+		t.Parallel()
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+
+		newApp := newTestAppWithDestName()
+		newApp.TypeMeta = testApp.TypeMeta
+		newApp.Spec.Project = "my-proj"
+		createReq := application.ApplicationCreateRequest{
+			Application: newApp,
+			Upsert:      ptr.To(true),
+		}
+		app, err := appServer.Create(t.Context(), &createReq)
+		require.NoError(t, err)
+		require.NotNil(t, app)
+		assert.Equal(t, "my-proj", app.Spec.Project)
+	})
+	t.Run("Existing label and annotations are preserved", func(t *testing.T) {
+		t.Parallel()
+		testApp := newTestApp()
+		testApp.Annotations = map[string]string{"test": "test-value", "update": "old"}
+		testApp.Labels = map[string]string{"test": "test-value", "update": "old"}
+		appServer := newTestAppServer(t, testApp)
+
+		newApp := newTestAppWithDestName()
+		newApp.TypeMeta = testApp.TypeMeta
+		newApp.Annotations = map[string]string{"update": "new"}
+		newApp.Labels = map[string]string{"update": "new"}
+		createReq := application.ApplicationCreateRequest{
+			Application: newApp,
+			Upsert:      ptr.To(true),
+		}
+		app, err := appServer.Create(t.Context(), &createReq)
+		require.NoError(t, err)
+		require.NotNil(t, app)
+		assert.Len(t, app.Annotations, 2)
+		assert.Equal(t, "new", app.GetAnnotations()["update"])
+		assert.Len(t, app.Labels, 2)
+		assert.Equal(t, "new", app.GetLabels()["update"])
+	})
+}
+
 func TestUpdateApp(t *testing.T) {
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
