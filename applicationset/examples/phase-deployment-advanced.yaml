@@ -1,0 +1,159 @@
+# Advanced phase deployment example
+# Uses Git generator with regional canary deployment and comprehensive checks
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: advanced-phase-deployment
+  namespace: argocd
+spec:
+  generators:
+  - git:
+      repoURL: https://github.com/example/microservices
+      revision: HEAD
+      directories:
+      - path: services/*
+    deploymentStrategy:
+      type: phaseDeployment
+      phases:
+      - name: "canary-us-west"
+        targets:
+        - matchExpressions:
+          - key: "region"
+            operator: "In"
+            values: ["us-west-2"]
+          - key: "role"
+            operator: "In"
+            values: ["canary"]
+        maxUpdate: 1
+        checks:
+        - name: "canary-deployment-check"
+          type: "command"
+          command:
+            command: ["kubectl", "get", "deployment", "{{path.basename}}", "-n", "{{path.basename}}", "-o", "jsonpath={.status.readyReplicas}"]
+          timeout: "5m"
+        - name: "canary-health-check"
+          type: "http"
+          http:
+            url: "https://{{path.basename}}.canary.us-west-2.example.com/actuator/health"
+            expectedStatus: 200
+            headers:
+              User-Agent: "ArgoCD-HealthCheck"
+          timeout: "30s"
+        waitDuration: "10m"
+        onFailure:
+          action: "stop"
+          
+      - name: "full-us-west"
+        targets:
+        - matchExpressions:
+          - key: "region"
+            operator: "In"
+            values: ["us-west-2"]
+        checks:
+        - name: "load-test"
+          type: "command"
+          command:
+            command: ["./scripts/run-load-test.sh"]
+            env:
+              SERVICE_NAME: "{{path.basename}}"
+              REGION: "us-west-2"
+              ENVIRONMENT: "production"
+          timeout: "15m"
+        - name: "metrics-validation"
+          type: "http"
+          http:
+            url: "https://monitoring.example.com/api/v1/query"
+            method: "POST"
+            headers:
+              Content-Type: "application/x-www-form-urlencoded"
+              Authorization: "Bearer {{.Values.prometheusToken}}"
+            body: "query=up{job=\"{{path.basename}}\",region=\"us-west-2\"}"
+            expectedStatus: 200
+        waitDuration: "5m"
+        onFailure:
+          action: "rollback"
+          
+      - name: "canary-us-east"
+        targets:
+        - matchExpressions:
+          - key: "region"
+            operator: "In"
+            values: ["us-east-1"]
+          - key: "role"
+            operator: "In"
+            values: ["canary"]
+        maxUpdate: 1
+        checks:
+        - name: "cross-region-sync-check"
+          type: "command"
+          command:
+            command: ["./scripts/verify-data-sync.sh"]
+            env:
+              SOURCE_REGION: "us-west-2"
+              TARGET_REGION: "us-east-1"
+              SERVICE: "{{path.basename}}"
+          timeout: "10m"
+        - name: "east-canary-health"
+          type: "http"
+          http:
+            url: "https://{{path.basename}}.canary.us-east-1.example.com/health"
+        waitDuration: "10m"
+        onFailure:
+          action: "stop"
+          
+      - name: "full-us-east"
+        targets:
+        - matchExpressions:
+          - key: "region"
+            operator: "In"
+            values: ["us-east-1"]
+        checks:
+        - name: "full-deployment-validation"
+          type: "command"
+          command:
+            command: ["./scripts/validate-full-deployment.sh"]
+            env:
+              SERVICE_NAME: "{{path.basename}}"
+              REGION: "us-east-1"
+              EXPECTED_REPLICAS: "3"
+        - name: "end-to-end-test"
+          type: "http"
+          http:
+            url: "https://{{path.basename}}.us-east-1.example.com/api/v1/healthz"
+            headers:
+              X-Test-Type: "e2e"
+        onFailure:
+          action: "rollback"
+          
+  template:
+    metadata:
+      name: "{{path.basename}}-{{cluster}}"
+      labels:
+        service: "{{path.basename}}"
+        region: "{{metadata.labels.region}}"
+        role: "{{metadata.labels.role}}"
+    spec:
+      project: "microservices"
+      source:
+        repoURL: https://github.com/example/microservices
+        targetRevision: HEAD
+        path: "{{path}}"
+        helm:
+          valueFiles:
+          - values.yaml
+          - values-{{metadata.labels.region}}.yaml
+          parameters:
+          - name: "image.tag"
+            value: "{{.Values.imageTag}}"
+          - name: "replicaCount"
+            value: "{{metadata.labels.role == 'canary' | ternary '1' '3'}}"
+      destination:
+        server: "{{server}}"
+        namespace: "{{path.basename}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+        - CreateNamespace=true
+        - RespectIgnoreDifferences=true

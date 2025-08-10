@@ -1,0 +1,159 @@
+# Percentage-based phase deployment example
+# Deploys applications in percentage-based phases: 10% -> 30% -> 60%
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: percentage-based-deployment
+  namespace: argocd
+spec:
+  generators:
+  - git:
+      repoURL: https://github.com/example/microservices
+      revision: HEAD
+      directories:
+      - path: services/*
+    deploymentStrategy:
+      type: phaseDeployment
+      phases:
+      - name: "canary-10-percent"
+        percentage: 10  # Deploy 10% of all applications
+        checks:
+        - name: "canary-health-check"
+          type: "http"
+          http:
+            url: "https://monitoring.example.com/api/health/{{path.basename}}"
+            headers:
+              X-Phase: "canary"
+              X-Percentage: "10"
+            expectedStatus: 200
+          timeout: "2m"
+        - name: "canary-metrics-check"
+          type: "command"
+          command:
+            command: ["./scripts/check-metrics.sh"]
+            env:
+              SERVICE_NAME: "{{path.basename}}"
+              PHASE: "canary"
+              EXPECTED_INSTANCES: "1"
+              MAX_ERROR_RATE: "0.01"
+          timeout: "5m"
+        waitDuration: "15m"  # Wait 15 minutes to observe canary
+        onFailure:
+          action: "stop"
+          
+      - name: "gradual-30-percent"
+        percentage: 30  # Deploy 30% more (40% total)
+        checks:
+        - name: "partial-deployment-health"
+          type: "http"
+          http:
+            url: "https://{{path.basename}}.example.com/actuator/health"
+            headers:
+              X-Phase: "gradual"
+              X-Percentage: "30"
+        - name: "load-test-check"
+          type: "command"
+          command:
+            command: ["npm", "run", "test:load"]
+            env:
+              TARGET_URL: "https://{{path.basename}}.example.com"
+              LOAD_PROFILE: "moderate"
+              DURATION: "5m"
+          timeout: "10m"
+        - name: "dependency-health"
+          type: "http"
+          http:
+            url: "https://monitoring.example.com/api/dependencies/{{path.basename}}"
+            method: "GET"
+            expectedStatus: 200
+        waitDuration: "10m"
+        onFailure:
+          action: "rollback"
+          
+      - name: "full-deployment-60-percent"
+        percentage: 60  # Deploy remaining 60% (100% total)
+        checks:
+        - name: "full-deployment-health"
+          type: "http"
+          http:
+            url: "https://{{path.basename}}.example.com/health"
+            headers:
+              X-Phase: "full"
+              X-Final-Check: "true"
+        - name: "comprehensive-test"
+          type: "command"
+          command:
+            command: ["./scripts/comprehensive-test.sh"]
+            env:
+              SERVICE: "{{path.basename}}"
+              ENVIRONMENT: "production"
+              TEST_SUITE: "full"
+          timeout: "20m"
+        - name: "performance-validation"
+          type: "http"
+          http:
+            url: "https://perf-monitor.example.com/validate"
+            method: "POST"
+            headers:
+              Content-Type: "application/json"
+            body: |
+              {
+                "service": "{{path.basename}}",
+                "phase": "full",
+                "thresholds": {
+                  "latency_p95": "100ms",
+                  "error_rate": "0.1%",
+                  "throughput": "1000rps"
+                }
+              }
+            expectedStatus: 200
+          timeout: "5m"
+        onFailure:
+          action: "stop"
+          
+  template:
+    metadata:
+      name: "{{path.basename}}"
+      labels:
+        app: "{{path.basename}}"
+        deployment-strategy: "percentage-based"
+      annotations:
+        argocd.argoproj.io/sync-wave: "1"
+        deployment.argoproj.io/strategy: "percentage"
+    spec:
+      project: "production"
+      source:
+        repoURL: https://github.com/example/microservices
+        targetRevision: HEAD
+        path: "{{path}}"
+        helm:
+          valueFiles:
+          - values.yaml
+          - values-production.yaml
+          parameters:
+          - name: "autoscaling.enabled"
+            value: "true"
+          - name: "autoscaling.minReplicas"
+            value: "2"
+          - name: "autoscaling.maxReplicas"
+            value: "10"
+          - name: "resources.requests.cpu"
+            value: "100m"
+          - name: "resources.requests.memory"
+            value: "128Mi"
+      destination:
+        server: "{{server}}"
+        namespace: "{{path.basename}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+        - CreateNamespace=true
+        - RespectIgnoreDifferences=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m
