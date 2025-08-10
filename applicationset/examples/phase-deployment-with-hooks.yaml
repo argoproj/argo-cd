@@ -1,0 +1,149 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook-with-hooks
+  namespace: argocd
+spec:
+  generators:
+  - clusters: {}
+    deploymentStrategy:
+      type: phaseDeployment
+      phases:
+      - name: canary
+        percentage: 10
+        targets:
+        - matchExpressions:
+          - key: environment
+            operator: In
+            values: ["staging"]
+        preHooks:
+        - name: "pre-deployment-notification"
+          type: "http"
+          failurePolicy: "ignore"
+          timeout: "30s"
+          http:
+            url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+            method: "POST"
+            headers:
+              Content-Type: "application/json"
+            body: |
+              {
+                "text": "🚀 Starting canary deployment for {{ .appset.name }}",
+                "channel": "#deployments"
+              }
+        - name: "validate-infrastructure"
+          type: "command"
+          failurePolicy: "fail"
+          timeout: "5m"
+          command:
+            command: ["kubectl", "get", "nodes"]
+            env:
+              KUBECONFIG: "/etc/kubeconfig"
+        postHooks:
+        - name: "deployment-success-notification"
+          type: "http"
+          failurePolicy: "ignore"
+          http:
+            url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+            method: "POST"
+            headers:
+              Content-Type: "application/json"
+            body: |
+              {
+                "text": "✅ Canary deployment completed for {{ .appset.name }}",
+                "channel": "#deployments"
+              }
+        - name: "update-deployment-dashboard"
+          type: "command"
+          failurePolicy: "ignore"
+          command:
+            command: ["curl", "-X", "POST", "https://dashboard.example.com/api/deployment-status"]
+            env:
+              DEPLOYMENT_STATUS: "canary-complete"
+              
+      - name: production
+        percentage: 100
+        targets:
+        - matchExpressions:
+          - key: environment
+            operator: In
+            values: ["production"]
+        preHooks:
+        - name: "production-readiness-check"
+          type: "command"
+          failurePolicy: "abort"
+          timeout: "10m"
+          command:
+            command: ["./scripts/production-readiness-check.sh"]
+            env:
+              ENVIRONMENT: "production"
+              CHECK_LEVEL: "strict"
+        - name: "create-change-request"
+          type: "http"
+          failurePolicy: "fail"
+          http:
+            url: "https://api.servicenow.com/api/now/table/change_request"
+            method: "POST"
+            headers:
+              Authorization: "Bearer {{ .secrets.servicenow.token }}"
+              Content-Type: "application/json"
+            body: |
+              {
+                "short_description": "Production deployment for {{ .appset.name }}",
+                "category": "Software",
+                "impact": "2",
+                "urgency": "2"
+              }
+        postHooks:
+        - name: "run-smoke-tests"
+          type: "command"
+          failurePolicy: "ignore"
+          timeout: "15m"
+          command:
+            command: ["pytest", "tests/smoke/"]
+            env:
+              TEST_ENVIRONMENT: "production"
+              SLACK_WEBHOOK: "{{ .secrets.slack.webhook }}"
+        - name: "production-success-notification"
+          type: "http"
+          failurePolicy: "ignore"
+          http:
+            url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+            method: "POST"
+            headers:
+              Content-Type: "application/json"
+            body: |
+              {
+                "text": "🎉 Production deployment completed successfully for {{ .appset.name }}!",
+                "channel": "#deployments",
+                "attachments": [{
+                  "color": "good",
+                  "fields": [{
+                    "title": "ApplicationSet",
+                    "value": "{{ .appset.name }}",
+                    "short": true
+                  }, {
+                    "title": "Environment",
+                    "value": "Production",
+                    "short": true
+                  }]
+                }]
+              }
+  template:
+    metadata:
+      name: '{{.name}}-guestbook'
+      labels:
+        environment: '{{.metadata.labels.environment}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/argoproj/argocd-example-apps.git
+        targetRevision: HEAD
+        path: guestbook
+      destination:
+        server: '{{.server}}'
+        namespace: guestbook
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true

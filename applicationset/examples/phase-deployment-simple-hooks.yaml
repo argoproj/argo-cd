@@ -1,0 +1,72 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: simple-app-with-hooks
+  namespace: argocd
+spec:
+  generators:
+  - clusters:
+      selector:
+        matchLabels:
+          env: staging
+    deploymentStrategy:
+      type: phaseDeployment
+      phases:
+      - name: validation
+        percentage: 25
+        preHooks:
+        - name: "pre-deployment-validation"
+          type: "command"
+          failurePolicy: "fail"
+          timeout: "2m"
+          command:
+            command: ["bash", "-c", "echo 'Running pre-deployment validation...' && sleep 2"]
+        postHooks:
+        - name: "post-deployment-verification"
+          type: "command"  
+          failurePolicy: "ignore"
+          timeout: "3m"
+          command:
+            command: ["bash", "-c", "echo 'Running post-deployment verification...' && kubectl get pods -n default"]
+
+      - name: full-rollout
+        percentage: 100
+        preHooks:
+        - name: "health-check"
+          type: "http"
+          failurePolicy: "fail"
+          timeout: "30s"
+          http:
+            url: "https://httpbin.org/status/200"
+            method: "GET"
+            expectedStatus: 200
+        postHooks:
+        - name: "completion-notification"
+          type: "http"
+          failurePolicy: "ignore"
+          http:
+            url: "https://httpbin.org/post"
+            method: "POST"
+            headers:
+              Content-Type: "application/json"
+            body: |
+              {
+                "message": "Deployment completed",
+                "appset": "simple-app-with-hooks",
+                "phase": "full-rollout"
+              }
+  template:
+    metadata:
+      name: '{{.name}}-simple-app'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/argoproj/argocd-example-apps.git
+        targetRevision: HEAD
+        path: guestbook
+      destination:
+        server: '{{.server}}'
+        namespace: default
+      syncPolicy:
+        automated:
+          prune: true

@@ -1,0 +1,266 @@
+# Combined percentage-based and cluster-filtered deployment
+# Deploys applications in percentage phases but only to specific cluster groups
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: percentage-with-cluster-filtering
+  namespace: argocd
+spec:
+  generators:
+  - clusters:
+      selector:
+        matchLabels:
+          environment: "*"  # Consider all environments
+    deploymentStrategy:
+      type: phaseDeployment
+      phases:
+      # Phase 1: Deploy 15% of apps to development clusters only
+      - name: "dev-canary-15-percent"
+        percentage: 15
+        targets:
+        - matchExpressions:
+          - key: "environment"
+            operator: "In"
+            values: ["dev", "development"]
+          - key: "region"
+            operator: "In"
+            values: ["us-west-2", "us-east-1"]
+        checks:
+        - name: "dev-health-check"
+          type: "http"
+          http:
+            url: "https://{{name}}.dev.{{metadata.labels.region}}.example.com/health"
+            headers:
+              X-Environment: "development"
+              X-Phase: "canary"
+              X-Percentage: "15"
+            expectedStatus: 200
+          timeout: "3m"
+        - name: "dev-smoke-test"
+          type: "command"
+          command:
+            command: ["./scripts/smoke-test.sh"]
+            env:
+              ENVIRONMENT: "dev"
+              CLUSTER: "{{name}}"
+              APP_COUNT: "15-percent"
+              REGION: "{{metadata.labels.region}}"
+          timeout: "5m"
+        waitDuration: "10m"
+        onFailure:
+          action: "stop"
+          
+      # Phase 2: Deploy 25% more (40% total) to staging clusters
+      - name: "staging-gradual-25-percent"
+        percentage: 25
+        targets:
+        - matchExpressions:
+          - key: "environment"
+            operator: "In"
+            values: ["staging", "stage"]
+          - key: "tier"
+            operator: "NotIn"
+            values: ["experimental"]
+        maxUpdate: 3  # Never deploy more than 3 apps at once to staging
+        checks:
+        - name: "staging-health-check"
+          type: "http"
+          http:
+            url: "https://{{name}}.staging.example.com/actuator/health"
+            headers:
+              X-Environment: "staging"
+              X-Phase: "gradual"
+            expectedStatus: 200
+        - name: "integration-test"
+          type: "command"
+          command:
+            command: ["npm", "run", "test:integration"]
+            env:
+              BASE_URL: "https://{{name}}.staging.example.com"
+              CLUSTER_NAME: "{{name}}"
+              ENVIRONMENT: "staging"
+          timeout: "15m"
+        - name: "dependency-validation"
+          type: "http"
+          http:
+            url: "https://deps-validator.example.com/validate"
+            method: "POST"
+            headers:
+              Content-Type: "application/json"
+            body: |
+              {
+                "service": "{{name}}",
+                "environment": "staging",
+                "cluster": "{{name}}",
+                "phase": "gradual",
+                "percentage": 25
+              }
+            expectedStatus: 200
+        waitDuration: "15m"
+        onFailure:
+          action: "rollback"
+          
+      # Phase 3: Deploy 30% more (70% total) to production canary clusters
+      - name: "prod-canary-30-percent"
+        percentage: 30
+        targets:
+        - matchExpressions:
+          - key: "environment"
+            operator: "In"
+            values: ["prod", "production"]
+          - key: "deployment-tier"
+            operator: "In"
+            values: ["canary", "early"]
+          - key: "region"
+            operator: "Exists"
+        maxUpdate: 2  # Very controlled production canary
+        checks:
+        - name: "prod-canary-health"
+          type: "http"
+          http:
+            url: "https://{{name}}.canary.{{metadata.labels.region}}.prod.example.com/health"
+            headers:
+              X-Environment: "production"
+              X-Tier: "canary"
+              X-Critical-Check: "true"
+            expectedStatus: 200
+          timeout: "2m"
+        - name: "canary-metrics-validation"
+          type: "command"
+          command:
+            command: ["./scripts/validate-canary-metrics.sh"]
+            env:
+              SERVICE: "{{name}}"
+              CLUSTER: "{{name}}"
+              REGION: "{{metadata.labels.region}}"
+              ENVIRONMENT: "production"
+              TIER: "canary"
+              ERROR_RATE_THRESHOLD: "0.01"
+              LATENCY_P99_THRESHOLD: "100ms"
+          timeout: "10m"
+        - name: "business-metrics-check"
+          type: "http"
+          http:
+            url: "https://business-metrics.example.com/api/validate"
+            method: "POST"
+            headers:
+              Authorization: "Bearer {{.Values.metricsToken}}"
+              Content-Type: "application/json"
+            body: |
+              {
+                "service": "{{name}}",
+                "cluster": "{{name}}",
+                "environment": "production",
+                "tier": "canary",
+                "validation_rules": [
+                  "conversion_rate_stable",
+                  "revenue_impact_minimal",
+                  "user_satisfaction_maintained"
+                ]
+              }
+        waitDuration: "30m"  # Long observation period for production canary
+        onFailure:
+          action: "stop"
+          
+      # Phase 4: Deploy remaining 30% (100% total) to all production clusters
+      - name: "prod-full-30-percent"
+        percentage: 30
+        targets:
+        - matchExpressions:
+          - key: "environment"
+            operator: "In"
+            values: ["prod", "production"]
+          # No tier restriction - all production clusters
+        checks:
+        - name: "full-prod-health"
+          type: "http"
+          http:
+            url: "https://{{name}}.{{metadata.labels.region}}.prod.example.com/health"
+            headers:
+              X-Environment: "production"
+              X-Phase: "full-deployment"
+            expectedStatus: 200
+        - name: "comprehensive-monitoring"
+          type: "command"
+          command:
+            command: ["./scripts/comprehensive-monitoring-check.sh"]
+            env:
+              SERVICE: "{{name}}"
+              CLUSTER: "{{name}}"
+              ENVIRONMENT: "production"
+              REGION: "{{metadata.labels.region}}"
+              MONITORING_DURATION: "5m"
+          timeout: "10m"
+        - name: "load-balancer-validation"
+          type: "http"
+          http:
+            url: "https://lb-controller.example.com/validate"
+            method: "POST"
+            headers:
+              Content-Type: "application/json"
+            body: |
+              {
+                "service": "{{name}}",
+                "clusters": ["{{name}}"],
+                "expected_traffic_distribution": "equal",
+                "health_check_path": "/health"
+              }
+        onFailure:
+          action: "stop"
+          
+  template:
+    metadata:
+      name: "{{name}}-{{metadata.labels.environment}}"
+      labels:
+        app: "{{name}}"
+        environment: "{{metadata.labels.environment}}"
+        region: "{{metadata.labels.region}}"
+        deployment-tier: "{{metadata.labels.deployment-tier}}"
+        deployment-strategy: "percentage-with-filtering"
+      annotations:
+        argocd.argoproj.io/sync-wave: "1"
+        deployment.argoproj.io/strategy: "percentage-filtered"
+        cluster.argoproj.io/name: "{{name}}"
+    spec:
+      project: "multi-env-deployment"
+      source:
+        repoURL: https://github.com/example/applications
+        targetRevision: HEAD
+        path: "manifests/{{name}}"
+        helm:
+          valueFiles:
+          - values.yaml
+          - values-{{metadata.labels.environment}}.yaml
+          - values-{{metadata.labels.region}}.yaml
+          parameters:
+          - name: "environment"
+            value: "{{metadata.labels.environment}}"
+          - name: "cluster"
+            value: "{{name}}"
+          - name: "region"
+            value: "{{metadata.labels.region}}"
+          - name: "deployment.tier"
+            value: "{{metadata.labels.deployment-tier}}"
+          - name: "autoscaling.enabled"
+            value: "{{metadata.labels.environment == 'production' | ternary 'true' 'false'}}"
+          - name: "monitoring.enabled"
+            value: "true"
+          - name: "tracing.enabled"
+            value: "{{metadata.labels.environment != 'dev' | ternary 'true' 'false'}}"
+      destination:
+        server: "{{server}}"
+        namespace: "{{name}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+        - CreateNamespace=true
+        - RespectIgnoreDifferences=true
+        - ServerSideApply=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m
