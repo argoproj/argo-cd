@@ -82,7 +82,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 	args := []string{"registry", "login"}
 	registry, err := c.getHelmRegistry(repo)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse OCI repo URL: %w", err)
+		return "", fmt.Errorf("failed to parse registry URL: %w", err)
 	}
 	args = append(args, registry)
 
