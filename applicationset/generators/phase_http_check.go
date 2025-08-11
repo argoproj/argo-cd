@@ -126,7 +126,7 @@ func (p *PhaseDeploymentProcessor) runHTTPCheck(ctx context.Context, appSet *arg
 		"contentLength": resp.ContentLength,
 	}).Debug("HTTP check completed")
 
-	if resp.StatusCode != expectedStatus {
+	if resp.StatusCode != int(expectedStatus) {
 		logger.WithFields(log.Fields{
 			"actualStatus":   resp.StatusCode,
 			"expectedStatus": expectedStatus,

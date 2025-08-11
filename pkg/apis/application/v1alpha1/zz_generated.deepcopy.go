@@ -2127,7 +2127,7 @@ func (in *GeneratorDeploymentPhase) DeepCopyInto(out *GeneratorDeploymentPhase) 
 	}
 	if in.Percentage != nil {
 		in, out := &in.Percentage, &out.Percentage
-		*out = new(int)
+		*out = new(int64)
 		**out = **in
 	}
 	return

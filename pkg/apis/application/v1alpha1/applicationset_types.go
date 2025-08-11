@@ -119,7 +119,7 @@ type GeneratorDeploymentPhase struct {
 	OnFailure    *GeneratorPhaseFailureAction `json:"onFailure,omitempty" protobuf:"bytes,4,opt,name=onFailure"`
 	MaxUpdate    *intstr.IntOrString          `json:"maxUpdate,omitempty" protobuf:"bytes,5,opt,name=maxUpdate"`
 	WaitDuration *metav1.Duration             `json:"waitDuration,omitempty" protobuf:"bytes,6,opt,name=waitDuration"`
-	Percentage   *int                         `json:"percentage,omitempty" protobuf:"bytes,7,opt,name=percentage"`
+	Percentage   *int64                       `json:"percentage,omitempty" protobuf:"bytes,7,opt,name=percentage"`
 }
 
 // GeneratorPhaseTarget defines which applications should be deployed in a phase
@@ -149,7 +149,7 @@ type GeneratorPhaseCheckHTTP struct {
 	URL                string            `json:"url" protobuf:"bytes,1,opt,name=url"`
 	Method             string            `json:"method,omitempty" protobuf:"bytes,2,opt,name=method"`
 	Headers            map[string]string `json:"headers,omitempty" protobuf:"bytes,3,rep,name=headers"`
-	ExpectedStatus     int               `json:"expectedStatus,omitempty" protobuf:"bytes,4,opt,name=expectedStatus"`
+	ExpectedStatus     int64             `json:"expectedStatus,omitempty" protobuf:"bytes,4,opt,name=expectedStatus"`
 	Body               string            `json:"body,omitempty" protobuf:"bytes,5,opt,name=body"`
 	InsecureSkipVerify bool              `json:"insecureSkipVerify,omitempty" protobuf:"bytes,6,opt,name=insecureSkipVerify"`
 }

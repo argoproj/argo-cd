@@ -41,7 +41,7 @@ const (
 	DefaultHookTimeout  = 5 * time.Minute
 	
 	// HTTP defaults
-	DefaultHTTPExpectedStatus = 200
+	DefaultHTTPExpectedStatus = int64(200)
 	DefaultHTTPMethod         = "GET"
 	DefaultHTTPHookMethod     = "POST"
 	
@@ -288,7 +288,7 @@ func (p *PhaseDeploymentProcessor) filterParamsForPhase(allParams []map[string]a
 		}
 		
 		if percentage < 100 && originalCount > 0 {
-			count := (originalCount * percentage) / 100
+			count := (originalCount * int(percentage)) / 100
 			// Ensure at least 1 application if percentage > 0
 			if count == 0 && percentage > 0 {
 				count = 1
@@ -493,7 +493,7 @@ func (p *PhaseDeploymentProcessor) filterParamsForPercentagePhase(allParams []ma
 	}
 
 	totalCount := len(targetFilteredParams)
-	phaseCount := (totalCount * percentage) / 100
+	phaseCount := (totalCount * int(percentage)) / 100
 
 	// Ensure at least 1 application if percentage > 0
 	if phaseCount == 0 && percentage > 0 && totalCount > 0 {
@@ -1093,7 +1093,7 @@ func (p *PhaseDeploymentProcessor) runHTTPHook(ctx context.Context, appSet *argo
 		"contentLength": resp.ContentLength,
 	}).Debug("HTTP hook completed")
 
-	if resp.StatusCode != expectedStatus {
+	if resp.StatusCode != int(expectedStatus) {
 		logger.WithFields(log.Fields{
 			"actualStatus":   resp.StatusCode,
 			"expectedStatus": expectedStatus,
