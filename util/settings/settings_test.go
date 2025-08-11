@@ -1305,8 +1305,9 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		}
 		tlsSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      externalServerTLSSecretName,
-				Namespace: "default",
+				Name:            externalServerTLSSecretName,
+				Namespace:       "default",
+				ResourceVersion: "1",
 			},
 			Data: map[string][]byte{
 				"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
