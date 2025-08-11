@@ -134,7 +134,7 @@ func (c *Cmd) RegistryLogout(repo string, _ Creds) (string, error) {
 	args := []string{"registry", "logout"}
 	registry, err := c.getHelmRegistry(repo)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse OCI repo URL: %w", err)
+		return "", fmt.Errorf("failed to parse registry URL: %w", err)
 	}
 	args = append(args, registry)
 	out, _, err := c.run(args...)
