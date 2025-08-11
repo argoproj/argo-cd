@@ -168,8 +168,8 @@ func TestPhaseDeploymentProcessor_filterParamsForPhase(t *testing.T) {
 	processor := NewPhaseDeploymentProcessor(client)
 
 	maxUpdate := intstr.FromInt(1)
-	percentage20 := 20
-	percentage50 := 50
+	percentage20 := int64(20)
+	percentage50 := int64(50)
 	
 	tests := []struct {
 		name           string
@@ -585,10 +585,10 @@ func TestPhaseDeploymentProcessor_filterParamsForPercentagePhase(t *testing.T) {
 	client := fake.NewClientBuilder().Build()
 	processor := NewPhaseDeploymentProcessor(client)
 
-	percentage10 := 10
-	percentage30 := 30
-	percentage50 := 50
-	percentage60 := 60
+	percentage10 := int64(10)
+	percentage30 := int64(30)
+	percentage50 := int64(50)
+	percentage60 := int64(60)
 	maxUpdate := intstr.FromInt(1)
 
 	allParams := []map[string]any{
@@ -671,7 +671,7 @@ func TestPhaseDeploymentProcessor_isPercentageBasedStrategy(t *testing.T) {
 	client := fake.NewClientBuilder().Build()
 	processor := NewPhaseDeploymentProcessor(client)
 
-	percentage10 := 10
+	percentage10 := int64(10)
 
 	tests := []struct {
 		name     string

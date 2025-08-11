@@ -74,7 +74,7 @@ func TestPhaseDeploymentProcessor_runHTTPCheck(t *testing.T) {
 						"Content-Type": "application/json",
 					},
 					Body:           `{"test": "data"}`,
-					ExpectedStatus: 201,
+					ExpectedStatus: int64(201),
 				},
 			},
 			expectError: false,
@@ -92,7 +92,7 @@ func TestPhaseDeploymentProcessor_runHTTPCheck(t *testing.T) {
 				Type: "http",
 				HTTP: &argoprojiov1alpha1.GeneratorPhaseCheckHTTP{
 					URL:            "", // Will be set to server URL
-					ExpectedStatus: 200,
+					ExpectedStatus: int64(200),
 				},
 			},
 			expectError:  true,
@@ -111,7 +111,7 @@ func TestPhaseDeploymentProcessor_runHTTPCheck(t *testing.T) {
 				Type: "http",
 				HTTP: &argoprojiov1alpha1.GeneratorPhaseCheckHTTP{
 					URL:            "", // Will be set to server URL
-					ExpectedStatus: 404,
+					ExpectedStatus: int64(404),
 				},
 			},
 			expectError: false,
