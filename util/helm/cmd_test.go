@@ -4,8 +4,10 @@ import (
 	"errors"
 	"log"
 	"os/exec"
+	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,74 +35,61 @@ func TestCmd_template_noApiVersionsInError(t *testing.T) {
 		APIVersions: []string{"foo", "bar"},
 	})
 	require.Error(t, err)
-	require.NotContains(t, err.Error(), "--api-version")
-	require.ErrorContains(t, err, "<api versions removed> ")
+	assert.NotContains(t, err.Error(), "--api-version")
+	assert.ErrorContains(t, err, "<api versions removed> ")
 }
 
 func TestNewCmd_helmInvalidVersion(t *testing.T) {
 	_, err := NewCmd(".", "abcd", "", "")
 	log.Println(err)
-	require.EqualError(t, err, "helm chart version 'abcd' is not supported")
+	assert.EqualError(t, err, "helm chart version 'abcd' is not supported")
 }
 
 func TestNewCmd_withProxy(t *testing.T) {
 	cmd, err := NewCmd(".", "", "https://proxy:8888", ".argoproj.io")
 	require.NoError(t, err)
-	require.Equal(t, "https://proxy:8888", cmd.proxy)
-	require.Equal(t, ".argoproj.io", cmd.noProxy)
+	assert.Equal(t, "https://proxy:8888", cmd.proxy)
+	assert.Equal(t, ".argoproj.io", cmd.noProxy)
 }
 
 func TestRegistryLogin(t *testing.T) {
 	tests := []struct {
-		name            string
-		repo            string
-		creds           *HelmCreds
-		expectedErr     error
-		runWithRedactor func(*exec.Cmd, func(string) string) (string, error)
+		name        string
+		repo        string
+		creds       *HelmCreds
+		execErr     error
+		expectedErr error
+		expectedOut string
 	}{
 		{
-			name:  "username and password",
-			repo:  "my.registry.com/repo",
-			creds: &HelmCreds{Username: "user", Password: "pass"},
-			runWithRedactor: func(cmd *exec.Cmd, _ func(string) string) (string, error) {
-				require.Equal(t, []string{"helm", "registry", "login", "my.registry.com", "--username", "user", "--password", "pass"}, cmd.Args)
-				return "", nil
-			},
+			name:        "username and password",
+			repo:        "my.registry.com/repo",
+			creds:       &HelmCreds{Username: "user", Password: "pass"},
+			expectedOut: "helm registry login my.registry.com --username user --password pass",
 		},
 		{
-			name:  "username and password with just the hostname",
-			repo:  "my.registry.com",
-			creds: &HelmCreds{Username: "user", Password: "pass"},
-			runWithRedactor: func(cmd *exec.Cmd, _ func(string) string) (string, error) {
-				require.Equal(t, []string{"helm", "registry", "login", "my.registry.com", "--username", "user", "--password", "pass"}, cmd.Args)
-				return "", nil
-			},
+			name:        "username and password with just the hostname",
+			repo:        "my.registry.com",
+			creds:       &HelmCreds{Username: "user", Password: "pass"},
+			expectedOut: "helm registry login my.registry.com --username user --password pass",
 		},
 		{
-			name:  "ca file path",
-			repo:  "my.registry.com/repo",
-			creds: &HelmCreds{CAPath: "/path/to/ca"},
-			runWithRedactor: func(cmd *exec.Cmd, _ func(string) string) (string, error) {
-				require.Equal(t, []string{"helm", "registry", "login", "my.registry.com", "--ca-file", "/path/to/ca"}, cmd.Args)
-				return "", nil
-			},
+			name:        "ca file path",
+			repo:        "my.registry.com/repo",
+			creds:       &HelmCreds{CAPath: "/path/to/ca"},
+			expectedOut: "helm registry login my.registry.com --ca-file /path/to/ca",
 		},
 		{
-			name:  "insecure skip verify",
-			repo:  "my.registry.com/repo",
-			creds: &HelmCreds{InsecureSkipVerify: true},
-			runWithRedactor: func(cmd *exec.Cmd, _ func(string) string) (string, error) {
-				require.Equal(t, []string{"helm", "registry", "login", "my.registry.com", "--insecure"}, cmd.Args)
-				return "", nil
-			},
+			name:        "insecure skip verify",
+			repo:        "my.registry.com/repo",
+			creds:       &HelmCreds{InsecureSkipVerify: true},
+			expectedOut: "helm registry login my.registry.com --insecure",
 		},
 		{
-			name:  "helm failure",
-			repo:  "my.registry.com/repo",
-			creds: &HelmCreds{},
-			runWithRedactor: func(_ *exec.Cmd, _ func(string) string) (string, error) {
-				return "err out", errors.New("exit status 1")
-			},
+			name:        "helm failure",
+			repo:        "my.registry.com/repo",
+			creds:       &HelmCreds{},
+			execErr:     errors.New("exit status 1"),
 			expectedErr: errors.New("failed to login to registry: failed to get command args to log: exit status 1"),
 		},
 		{
@@ -109,16 +98,10 @@ func TestRegistryLogin(t *testing.T) {
 			expectedErr: errors.New("failed to parse OCI repo URL: parse \":///bad-url\": missing protocol scheme"),
 		},
 		{
-			name:  "username & password",
-			repo:  "my.registry.com/repo",
-			creds: &HelmCreds{Username: "user", Password: "pass"},
-			runWithRedactor: func(cmd *exec.Cmd, _ func(string) string) (string, error) {
-				require.Equal(t, []string{
-					"helm", "registry", "login", "my.registry.com",
-					"--username", "user", "--password", "pass",
-				}, cmd.Args)
-				return "", nil
-			},
+			name:        "username & password",
+			repo:        "my.registry.com/repo",
+			creds:       &HelmCreds{Username: "user", Password: "pass"},
+			expectedOut: "helm registry login my.registry.com --username user --password pass",
 		},
 		{
 			name: "combined flags",
@@ -129,21 +112,20 @@ func TestRegistryLogin(t *testing.T) {
 				CAPath:             "/ca",
 				InsecureSkipVerify: true,
 			},
-			runWithRedactor: func(cmd *exec.Cmd, _ func(string) string) (string, error) {
-				require.Equal(t, []string{
-					"helm", "registry", "login", "my.registry.com:5000",
-					"--username", "u", "--password", "p",
-					"--ca-file", "/ca", "--insecure",
-				}, cmd.Args)
-				return "", nil
-			},
+			expectedOut: "helm registry login my.registry.com:5000 --username u --password p --ca-file /ca --insecure",
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			c, err := newCmdWithVersion(".", false, "", "", tc.runWithRedactor)
+			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
+				if tc.execErr != nil {
+					return "", tc.execErr
+				}
+				return strings.Join(cmd.Args, " "), nil
+			})
 			require.NoError(t, err)
-			_, err = c.RegistryLogin(tc.repo, tc.creds)
+			out, err := c.RegistryLogin(tc.repo, tc.creds)
+			assert.Equal(t, tc.expectedOut, out)
 			if tc.expectedErr != nil {
 				require.EqualError(t, err, tc.expectedErr.Error())
 			} else {
@@ -155,18 +137,16 @@ func TestRegistryLogin(t *testing.T) {
 
 func TestRegistryLogout(t *testing.T) {
 	tests := []struct {
-		name            string
-		repo            string
-		expectedErr     error
-		runWithRedactor func(*exec.Cmd, func(string) string) (string, error)
+		name        string
+		repo        string
+		execErr     error
+		expectedErr error
+		expectedOut string
 	}{
 		{
-			name: "valid repo",
-			repo: "my.registry.com/repo",
-			runWithRedactor: func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
-				require.Equal(t, []string{"helm", "registry", "logout", "my.registry.com"}, cmd.Args)
-				return "", nil
-			},
+			name:        "valid repo",
+			repo:        "my.registry.com/repo",
+			expectedOut: "helm registry logout my.registry.com",
 			expectedErr: nil,
 		},
 		{
@@ -177,9 +157,15 @@ func TestRegistryLogout(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			c, err := newCmdWithVersion(".", false, "", "", tc.runWithRedactor)
+			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
+				if tc.execErr != nil {
+					return "", tc.execErr
+				}
+				return strings.Join(cmd.Args, " "), nil
+			})
 			require.NoError(t, err)
-			_, err = c.RegistryLogout(tc.repo, nil)
+			out, err := c.RegistryLogout(tc.repo, nil)
+			assert.Equal(t, tc.expectedOut, out)
 			if tc.expectedErr != nil {
 				require.EqualError(t, err, tc.expectedErr.Error())
 			} else {
