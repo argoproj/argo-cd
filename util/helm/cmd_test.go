@@ -95,7 +95,7 @@ func TestRegistryLogin(t *testing.T) {
 		{
 			name:        "invalid repo",
 			repo:        ":///bad-url",
-			expectedErr: errors.New("failed to parse OCI repo URL: parse \":///bad-url\": missing protocol scheme"),
+			expectedErr: errors.New("failed to parse registry URL: parse \":///bad-url\": missing protocol scheme"),
 		},
 		{
 			name:        "username & password",
@@ -152,7 +152,7 @@ func TestRegistryLogout(t *testing.T) {
 		{
 			name:        "invalid repo",
 			repo:        ":///bad-url",
-			expectedErr: errors.New("failed to parse OCI repo URL: parse \":///bad-url\": missing protocol scheme"),
+			expectedErr: errors.New("failed to parse registry URL: parse \":///bad-url\": missing protocol scheme"),
 		},
 	}
 	for _, tc := range tests {
