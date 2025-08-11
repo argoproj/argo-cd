@@ -34,7 +34,7 @@ func (p *PhaseDeploymentProcessor) runHTTPCheck(ctx context.Context, appSet *arg
 		log.WithError(err).Error("HTTP check security validation failed")
 		return fmt.Errorf("HTTP check security validation failed: %w", err)
 	}
-	
+
 	method := httpCheck.Method
 	if method == "" {
 		method = DefaultHTTPMethod
@@ -44,7 +44,6 @@ func (p *PhaseDeploymentProcessor) runHTTPCheck(ctx context.Context, appSet *arg
 	if expectedStatus == 0 {
 		expectedStatus = DefaultHTTPExpectedStatus
 	}
-	
 	logger := log.WithFields(log.Fields{
 		"check":          check.Name,
 		"url":            httpCheck.URL,
@@ -132,7 +131,7 @@ func (p *PhaseDeploymentProcessor) runHTTPCheck(ctx context.Context, appSet *arg
 			"expectedStatus": expectedStatus,
 			"responseBody":   string(responseBody),
 		}).Error("HTTP check failed - status code mismatch")
-		return fmt.Errorf("HTTP check failed: expected status %d, got %d. Response: %s", 
+		return fmt.Errorf("HTTP check failed: expected status %d, got %d. Response: %s",
 			expectedStatus, resp.StatusCode, string(responseBody))
 	}
 
