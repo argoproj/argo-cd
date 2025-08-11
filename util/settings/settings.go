@@ -1559,13 +1559,13 @@ func (mgr *SettingsManager) loadTLSCertificateFromSecret(secret *corev1.Secret) 
 		return mgr.tlsCertCache, nil
 	}
 
-	log.Infof("Loading TLS configuration from secret %s/%s", mgr.namespace, secret.Name)
 	tlsCert, certOK := secret.Data[settingServerCertificate]
 	tlsKey, keyOK := secret.Data[settingServerPrivateKey]
 	if !certOK || !keyOK {
 		return nil, nil
 	}
 
+	log.Infof("Loading TLS configuration from secret %s/%s", mgr.namespace, secret.Name)
 	cert, err := mgr.tlsCertParser(tlsCert, tlsKey)
 	if err != nil {
 		return nil, err
