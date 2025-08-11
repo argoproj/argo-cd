@@ -26,47 +26,47 @@ import (
 )
 
 const (
-	PhaseDeploymentType = "phaseDeployment"
-	StopOnFailureAction = "stop"
+	PhaseDeploymentType     = "phaseDeployment"
+	StopOnFailureAction     = "stop"
 	ContinueOnFailureAction = "continue"
 	RollbackOnFailureAction = "rollback"
-	
+
 	// Hook failure policies
-	HookFailurePolicyFail     = "fail"
-	HookFailurePolicyIgnore   = "ignore"
-	HookFailurePolicyAbort    = "abort"
-	
+	HookFailurePolicyFail   = "fail"
+	HookFailurePolicyIgnore = "ignore"
+	HookFailurePolicyAbort  = "abort"
+
 	// Default timeouts
 	DefaultCheckTimeout = 5 * time.Minute
 	DefaultHookTimeout  = 5 * time.Minute
-	
+
 	// HTTP defaults
 	DefaultHTTPExpectedStatus = int64(200)
 	DefaultHTTPMethod         = "GET"
 	DefaultHTTPHookMethod     = "POST"
-	
+
 	// Kubernetes annotation keys
-	PhaseAnnotationPrefix = "applicationset.argoproj.io/phase-"
+	PhaseAnnotationPrefix    = "applicationset.argoproj.io/phase-"
 	RollbackAnnotationPrefix = "applicationset.argoproj.io/rollback-phase-"
-	
+
 	// Security limits
 	MaxResponseBodySize = 1024 * 1024 // 1MB
 	MaxCommandTimeout   = 30 * time.Minute
 	MaxHTTPTimeout      = 10 * time.Minute
 	MaxEnvVarsCount     = 100
 	MaxHeadersCount     = 50
-	
+
 	// Version compatibility
 	MinSupportedVersion = "v2.12.0" // Phase deployment hooks introduced
-	
+
 	// Performance limits
-	MaxConcurrentChecks = 10     // Maximum concurrent phase checks
-	MaxConcurrentHooks  = 5      // Maximum concurrent hooks
+	MaxConcurrentChecks     = 10   // Maximum concurrent phase checks
+	MaxConcurrentHooks      = 5    // Maximum concurrent hooks
 	MaxApplicationsPerPhase = 1000 // Maximum applications per phase
 )
 
 type PhaseDeploymentProcessor struct {
-	client client.Client
+	client client.Client //nolint:unused // Will be used in future implementations
 }
 
 func NewPhaseDeploymentProcessor(client client.Client) *PhaseDeploymentProcessor {
@@ -100,14 +100,14 @@ func (p *PhaseDeploymentProcessor) ProcessPhaseDeployment(
 
 	logger := log.WithFields(log.Fields{
 		"applicationset": appSet.Name,
-		"namespace":     appSet.Namespace,
-		"generator":     p.getGeneratorType(generator),
+		"namespace":      appSet.Namespace,
+		"generator":      p.getGeneratorType(generator),
 	})
 	logger.Info("Processing phase deployment strategy")
 
 	phases := generator.DeploymentStrategy.Phases
 	if len(phases) == 0 {
-		return nil, fmt.Errorf("phase deployment strategy requires at least one phase")
+		return nil, errors.New("phase deployment strategy requires at least one phase")
 	}
 
 	currentPhase := p.getCurrentPhase(appSet, generator)
@@ -198,7 +198,7 @@ func (p *PhaseDeploymentProcessor) setCurrentPhase(appSet *argoprojiov1alpha1.Ap
 
 func (p *PhaseDeploymentProcessor) getPhaseKey(generator *argoprojiov1alpha1.ApplicationSetGenerator) string {
 	genType := p.getGeneratorType(generator)
-	return fmt.Sprintf("applicationset.argoproj.io/phase-%s", genType)
+	return "applicationset.argoproj.io/phase-" + genType
 }
 
 func (p *PhaseDeploymentProcessor) getGeneratorType(generator *argoprojiov1alpha1.ApplicationSetGenerator) string {
@@ -230,22 +230,22 @@ func (p *PhaseDeploymentProcessor) filterParamsForPhase(allParams []map[string]a
 	if allParams == nil {
 		return nil
 	}
-	
+
 	// Performance optimization: validate application count constraints
 	if len(allParams) > MaxApplicationsPerPhase {
 		log.WithFields(log.Fields{
-			"phase": phase.Name,
-			"applications": len(allParams),
+			"phase":          phase.Name,
+			"applications":   len(allParams),
 			"maxRecommended": MaxApplicationsPerPhase,
 		}).Warn("Large number of applications may impact performance")
 	}
-	
+
 	logger := log.WithFields(log.Fields{
-		"phase":      phase.Name,
-		"totalParams": len(allParams),
+		"phase":        phase.Name,
+		"totalParams":  len(allParams),
 		"targetsCount": len(phase.Targets),
 	})
-	
+
 	var filteredParams []map[string]any
 
 	// If no targets specified, use all parameters
@@ -277,7 +277,7 @@ func (p *PhaseDeploymentProcessor) filterParamsForPhase(allParams []map[string]a
 	if phase.Percentage != nil {
 		percentage := *phase.Percentage
 		originalCount := len(filteredParams)
-		
+
 		// Validate percentage range
 		if percentage < 0 {
 			logger.WithField("percentage", percentage).Warn("Negative percentage specified, using 0")
@@ -286,7 +286,7 @@ func (p *PhaseDeploymentProcessor) filterParamsForPhase(allParams []map[string]a
 			logger.WithField("percentage", percentage).Warn("Percentage over 100 specified, using 100")
 			percentage = 100
 		}
-		
+
 		if percentage < 100 && originalCount > 0 {
 			count := (originalCount * int(percentage)) / 100
 			// Ensure at least 1 application if percentage > 0
@@ -308,7 +308,7 @@ func (p *PhaseDeploymentProcessor) filterParamsForPhase(allParams []map[string]a
 	if phase.MaxUpdate != nil {
 		maxUpdate := phase.MaxUpdate.IntValue()
 		originalCount := len(filteredParams)
-		
+
 		if maxUpdate < 0 {
 			logger.WithField("maxUpdate", maxUpdate).Warn("Negative maxUpdate specified, ignoring")
 		} else if maxUpdate > 0 && originalCount > maxUpdate {
@@ -337,7 +337,7 @@ func (p *PhaseDeploymentProcessor) paramMatchesTarget(param map[string]any, targ
 	if param == nil {
 		return false
 	}
-	
+
 	// Check cluster targeting
 	if len(target.Clusters) > 0 {
 		clusterName, ok := param["cluster"].(string)
@@ -384,7 +384,7 @@ func (p *PhaseDeploymentProcessor) paramMatchesTarget(param map[string]any, targ
 		}
 		return true
 	}
-	
+
 	// If no targeting criteria specified, match all
 	return len(target.Clusters) == 0 && len(target.Values) == 0
 }
@@ -393,7 +393,7 @@ func (p *PhaseDeploymentProcessor) evaluateMatchExpression(param map[string]any,
 	if param == nil {
 		return expr.Operator == "DoesNotExist"
 	}
-	
+
 	// Validate expression
 	if expr.Key == "" {
 		log.Warn("Match expression has empty key, skipping")
@@ -401,7 +401,7 @@ func (p *PhaseDeploymentProcessor) evaluateMatchExpression(param map[string]any,
 	}
 
 	paramValue, exists := param[expr.Key]
-	
+
 	switch expr.Operator {
 	case "Exists":
 		return exists
@@ -470,7 +470,7 @@ func (p *PhaseDeploymentProcessor) filterParamsForPercentagePhase(allParams []ma
 		return clusterI < clusterJ
 	})
 
-	// For percentage-based phases with targets, we need to calculate percentage 
+	// For percentage-based phases with targets, we need to calculate percentage
 	// based on the target-filtered parameters, not all parameters
 	if phase.Percentage == nil {
 		// No percentage specified, return all target-filtered params
@@ -522,7 +522,7 @@ func (p *PhaseDeploymentProcessor) filterParamsForPercentagePhase(allParams []ma
 	return result
 }
 
-func (p *PhaseDeploymentProcessor) shouldAdvanceToNextPhase(appSet *argoprojiov1alpha1.ApplicationSet, generator *argoprojiov1alpha1.ApplicationSetGenerator, currentPhase int, filteredParams []map[string]any) bool {
+func (p *PhaseDeploymentProcessor) shouldAdvanceToNextPhase(_ *argoprojiov1alpha1.ApplicationSet, generator *argoprojiov1alpha1.ApplicationSetGenerator, _ int, filteredParams []map[string]any) bool {
 	// For percentage-based strategies, advance when current phase is complete
 	if p.isPercentageBasedStrategy(generator.DeploymentStrategy.Phases) {
 		return len(filteredParams) == 0
@@ -539,24 +539,24 @@ func (p *PhaseDeploymentProcessor) runPhaseChecks(ctx context.Context, appSet *a
 	// Performance optimization: validate phase constraints
 	if len(phase.Checks) > MaxConcurrentChecks*2 {
 		log.WithFields(log.Fields{
-			"phase": phase.Name,
-			"checks": len(phase.Checks),
-			"maxRecommended": MaxConcurrentChecks*2,
+			"phase":          phase.Name,
+			"checks":         len(phase.Checks),
+			"maxRecommended": MaxConcurrentChecks * 2,
 		}).Warn("Large number of checks may impact performance")
 	}
 
 	log.WithField("phase", phase.Name).WithField("checks", len(phase.Checks)).Info("Running phase checks")
 
 	// Determine concurrency level
-	concurrency := min(len(phase.Checks), MaxConcurrentChecks)
-	
+	concurrency := minInt(len(phase.Checks), MaxConcurrentChecks)
+
 	// Run checks concurrently for better performance
 	type checkResult struct {
 		index int
 		check argoprojiov1alpha1.GeneratorPhaseCheck
 		err   error
 	}
-	
+
 	resultChan := make(chan checkResult, len(phase.Checks))
 	semaphore := make(chan struct{}, concurrency)
 	var wg sync.WaitGroup
@@ -566,26 +566,26 @@ func (p *PhaseDeploymentProcessor) runPhaseChecks(ctx context.Context, appSet *a
 		wg.Add(1)
 		go func(index int, check argoprojiov1alpha1.GeneratorPhaseCheck) {
 			defer wg.Done()
-			
+
 			// Acquire semaphore
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
-			
+
 			checkLogger := log.WithFields(log.Fields{
 				"check":      check.Name,
 				"checkIndex": index + 1,
 				"checkType":  check.Type,
 			})
-			
+
 			checkLogger.Debug("Starting phase check")
 			err := p.runSingleCheck(ctx, appSet, check, checkLogger)
-			
+
 			if err != nil {
 				checkLogger.WithError(err).Error("Phase check failed")
 			} else {
 				checkLogger.Info("Phase check passed")
 			}
-			
+
 			resultChan <- checkResult{index: index, check: check, err: err}
 		}(i, check)
 	}
@@ -607,30 +607,29 @@ func (p *PhaseDeploymentProcessor) runPhaseChecks(ctx context.Context, appSet *a
 	var firstError error
 
 	for _, result := range results {
-		if result.err != nil {
-			failedChecks = append(failedChecks, result.check.Name)
-			if firstError == nil {
-				firstError = result.err
-			}
+		if result.err == nil {
+			continue
+		}
+		failedChecks = append(failedChecks, result.check.Name)
+		if firstError == nil {
+			firstError = result.err
+		}
 
-			if phase.OnFailure != nil {
-				switch phase.OnFailure.Action {
-				case StopOnFailureAction:
-					return fmt.Errorf("check %s failed and onFailure action is stop: %w", result.check.Name, result.err)
-				case RollbackOnFailureAction:
-					if rollbackErr := p.performRollback(ctx, appSet, phase); rollbackErr != nil {
-						log.WithError(rollbackErr).Error("Failed to perform rollback")
-					}
-					return fmt.Errorf("check %s failed, rollback attempted: %w", result.check.Name, result.err)
-				case ContinueOnFailureAction:
-					log.WithField("check", result.check.Name).Warn("Check failed but continuing due to onFailure policy")
-					continue
-				default:
-					return fmt.Errorf("check %s failed with unknown onFailure action %s: %w", result.check.Name, phase.OnFailure.Action, result.err)
-				}
-			} else {
-				return fmt.Errorf("check %s failed: %w", result.check.Name, result.err)
+		if phase.OnFailure == nil {
+			return fmt.Errorf("check %s failed: %w", result.check.Name, result.err)
+		}
+		switch phase.OnFailure.Action {
+		case StopOnFailureAction:
+			return fmt.Errorf("check %s failed and onFailure action is stop: %w", result.check.Name, result.err)
+		case RollbackOnFailureAction:
+			if rollbackErr := p.performRollback(ctx, appSet, phase); rollbackErr != nil {
+				log.WithError(rollbackErr).Error("Failed to perform rollback")
 			}
+			return fmt.Errorf("check %s failed, rollback attempted: %w", result.check.Name, result.err)
+		case ContinueOnFailureAction:
+			log.WithField("check", result.check.Name).Warn("Check failed but continuing due to onFailure policy")
+		default:
+			return fmt.Errorf("check %s failed with unknown onFailure action %s: %w", result.check.Name, phase.OnFailure.Action, result.err)
 		}
 	}
 
@@ -640,7 +639,7 @@ func (p *PhaseDeploymentProcessor) runPhaseChecks(ctx context.Context, appSet *a
 
 	if phase.WaitDuration != nil && phase.WaitDuration.Duration > 0 {
 		log.WithField("duration", phase.WaitDuration.Duration).Info("Waiting before proceeding to next phase")
-		
+
 		// Use context-aware sleep for better cancellation support
 		if err := safeContextSleep(ctx, phase.WaitDuration.Duration); err != nil {
 			log.WithError(err).Warn("Wait duration interrupted by context cancellation")
@@ -652,33 +651,33 @@ func (p *PhaseDeploymentProcessor) runPhaseChecks(ctx context.Context, appSet *a
 	return nil
 }
 
-func (p *PhaseDeploymentProcessor) performRollback(ctx context.Context, appSet *argoprojiov1alpha1.ApplicationSet, phase argoprojiov1alpha1.GeneratorDeploymentPhase) error {
+func (p *PhaseDeploymentProcessor) performRollback(_ context.Context, appSet *argoprojiov1alpha1.ApplicationSet, phase argoprojiov1alpha1.GeneratorDeploymentPhase) error {
 	if appSet == nil {
 		return errors.New("applicationSet cannot be nil")
 	}
-	
+
 	logger := log.WithFields(log.Fields{
 		"applicationset": appSet.Name,
-		"namespace":     appSet.Namespace,
-		"phase":         phase.Name,
+		"namespace":      appSet.Namespace,
+		"phase":          phase.Name,
 	})
 	logger.Info("Performing rollback due to check failure")
-	
+
 	key := RollbackAnnotationPrefix + phase.Name
 	if appSet.Annotations == nil {
 		appSet.Annotations = make(map[string]string)
 	}
 	timestamp := time.Now().Format(time.RFC3339)
 	appSet.Annotations[key] = timestamp
-	
+
 	logger.WithFields(log.Fields{
 		"annotation": key,
 		"timestamp":  timestamp,
 	}).Debug("Added rollback annotation")
-	
+
 	// TODO: Implement actual rollback logic based on requirements
 	// This is a placeholder that just adds an annotation
-	
+
 	return nil
 }
 
@@ -693,7 +692,7 @@ func (p *PhaseDeploymentProcessor) runSingleCheck(ctx context.Context, appSet *a
 	if check.Type == "" {
 		return errors.New("check type cannot be empty")
 	}
-	
+
 	timeout := DefaultCheckTimeout
 	if check.Timeout != nil {
 		timeout = check.Timeout.Duration
@@ -706,7 +705,7 @@ func (p *PhaseDeploymentProcessor) runSingleCheck(ctx context.Context, appSet *a
 	defer cancel()
 
 	logger.WithField("timeout", timeout).Debug("Running check with timeout")
-	
+
 	switch check.Type {
 	case "command":
 		return p.runCommandCheck(checkCtx, appSet, check, logger)
@@ -738,7 +737,7 @@ func (p *PhaseDeploymentProcessor) runCommandCheck(ctx context.Context, appSet *
 		"command": cmdName,
 		"args":    cmdArgs,
 	}).Debug("Executing command check")
-	
+
 	cmd := exec.CommandContext(ctx, cmdName, cmdArgs...)
 
 	env := os.Environ()
@@ -748,20 +747,20 @@ func (p *PhaseDeploymentProcessor) runCommandCheck(ctx context.Context, appSet *
 		}
 	}
 
-	env = append(env, fmt.Sprintf("APPSET_NAME=%s", appSet.Name))
-	env = append(env, fmt.Sprintf("APPSET_NAMESPACE=%s", appSet.Namespace))
+	env = append(env, "APPSET_NAME="+appSet.Name)
+	env = append(env, "APPSET_NAMESPACE="+appSet.Namespace)
 
 	cmd.Env = env
 
 	start := time.Now()
 	output, err := cmd.CombinedOutput()
 	duration := time.Since(start)
-	
+
 	logger.WithFields(log.Fields{
 		"duration":   duration,
 		"outputSize": len(output),
 	}).Debug("Command execution completed")
-	
+
 	if err != nil {
 		logger.WithFields(log.Fields{
 			"exitCode": cmd.ProcessState.ExitCode(),
@@ -783,9 +782,9 @@ func (p *PhaseDeploymentProcessor) runPhaseHooks(ctx context.Context, appSet *ar
 	// Performance optimization: validate hook constraints
 	if len(hooks) > MaxConcurrentHooks*2 {
 		logger.WithFields(log.Fields{
-			"hookType": hookType,
-			"hooks": len(hooks),
-			"maxRecommended": MaxConcurrentHooks*2,
+			"hookType":       hookType,
+			"hooks":          len(hooks),
+			"maxRecommended": MaxConcurrentHooks * 2,
 		}).Warn("Large number of hooks may impact performance")
 	}
 
@@ -795,15 +794,15 @@ func (p *PhaseDeploymentProcessor) runPhaseHooks(ctx context.Context, appSet *ar
 	}).Info("Running phase hooks")
 
 	// Determine concurrency level for hooks
-	concurrency := min(len(hooks), MaxConcurrentHooks)
-	
+	concurrency := minInt(len(hooks), MaxConcurrentHooks)
+
 	// Run hooks concurrently for better performance
 	type hookResult struct {
 		index int
 		hook  argoprojiov1alpha1.GeneratorPhaseHook
 		err   error
 	}
-	
+
 	resultChan := make(chan hookResult, len(hooks))
 	semaphore := make(chan struct{}, concurrency)
 	var wg sync.WaitGroup
@@ -813,27 +812,27 @@ func (p *PhaseDeploymentProcessor) runPhaseHooks(ctx context.Context, appSet *ar
 		wg.Add(1)
 		go func(index int, hook argoprojiov1alpha1.GeneratorPhaseHook) {
 			defer wg.Done()
-			
+
 			// Acquire semaphore
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
-			
+
 			hookLogger := logger.WithFields(log.Fields{
 				"hook":      hook.Name,
 				"hookIndex": index + 1,
 				"hookType":  hookType,
 				"type":      hook.Type,
 			})
-			
+
 			hookLogger.Debug("Starting hook execution")
 			err := p.runSingleHook(ctx, appSet, hook, hookType, hookLogger)
-			
+
 			if err != nil {
 				hookLogger.WithError(err).Error("Hook execution failed")
 			} else {
 				hookLogger.Info("Hook completed successfully")
 			}
-			
+
 			resultChan <- hookResult{index: index, hook: hook, err: err}
 		}(i, hook)
 	}
@@ -852,31 +851,31 @@ func (p *PhaseDeploymentProcessor) runPhaseHooks(ctx context.Context, appSet *ar
 
 	// Process results sequentially to maintain failure handling logic
 	for _, result := range results {
-		if result.err != nil {
-			// Handle failure policy
-			failurePolicy := result.hook.FailurePolicy
-			if failurePolicy == "" {
-				failurePolicy = HookFailurePolicyFail
-			}
+		if result.err == nil {
+			continue
+		}
+		// Handle failure policy
+		failurePolicy := result.hook.FailurePolicy
+		if failurePolicy == "" {
+			failurePolicy = HookFailurePolicyFail
+		}
 
-			hookLogger := logger.WithFields(log.Fields{
-				"hook": result.hook.Name,
-				"failurePolicy": failurePolicy,
-				"error":         result.err.Error(),
-			})
-			hookLogger.Error("Hook execution failed")
+		hookLogger := logger.WithFields(log.Fields{
+			"hook":          result.hook.Name,
+			"failurePolicy": failurePolicy,
+			"error":         result.err.Error(),
+		})
+		hookLogger.Error("Hook execution failed")
 
-			switch failurePolicy {
-			case HookFailurePolicyIgnore:
-				hookLogger.WithError(result.err).Warn("Hook failed but ignoring due to failure policy")
-				continue
-			case HookFailurePolicyAbort:
-				return fmt.Errorf("hook %s failed and failure policy is abort: %w", result.hook.Name, result.err)
-			case HookFailurePolicyFail:
-				fallthrough
-			default:
-				return fmt.Errorf("hook %s failed: %w", result.hook.Name, result.err)
-			}
+		switch failurePolicy {
+		case HookFailurePolicyIgnore:
+			hookLogger.WithError(result.err).Warn("Hook failed but ignoring due to failure policy")
+		case HookFailurePolicyAbort:
+			return fmt.Errorf("hook %s failed and failure policy is abort: %w", result.hook.Name, result.err)
+		case HookFailurePolicyFail:
+			return fmt.Errorf("hook %s failed: %w", result.hook.Name, result.err)
+		default:
+			return fmt.Errorf("hook %s failed: %w", result.hook.Name, result.err)
 		}
 	}
 
@@ -894,7 +893,7 @@ func (p *PhaseDeploymentProcessor) runSingleHook(ctx context.Context, appSet *ar
 	if hook.Type == "" {
 		return errors.New("hook type cannot be empty")
 	}
-	
+
 	timeout := DefaultHookTimeout
 	if hook.Timeout != nil {
 		timeout = hook.Timeout.Duration
@@ -907,7 +906,7 @@ func (p *PhaseDeploymentProcessor) runSingleHook(ctx context.Context, appSet *ar
 	defer cancel()
 
 	logger.WithField("timeout", timeout).Debug("Running hook with timeout")
-	
+
 	switch hook.Type {
 	case "command":
 		return p.runCommandHook(hookCtx, appSet, hook, hookType, logger)
@@ -939,7 +938,7 @@ func (p *PhaseDeploymentProcessor) runCommandHook(ctx context.Context, appSet *a
 		"command": cmdName,
 		"args":    cmdArgs,
 	}).Debug("Executing command hook")
-	
+
 	cmd := exec.CommandContext(ctx, cmdName, cmdArgs...)
 
 	env := os.Environ()
@@ -950,22 +949,22 @@ func (p *PhaseDeploymentProcessor) runCommandHook(ctx context.Context, appSet *a
 	}
 
 	// Add hook-specific environment variables
-	env = append(env, fmt.Sprintf("APPSET_NAME=%s", appSet.Name))
-	env = append(env, fmt.Sprintf("APPSET_NAMESPACE=%s", appSet.Namespace))
-	env = append(env, fmt.Sprintf("HOOK_NAME=%s", hook.Name))
-	env = append(env, fmt.Sprintf("HOOK_TYPE=%s", hookType))
+	env = append(env, "APPSET_NAME="+appSet.Name)
+	env = append(env, "APPSET_NAMESPACE="+appSet.Namespace)
+	env = append(env, "HOOK_NAME="+hook.Name)
+	env = append(env, "HOOK_TYPE="+hookType)
 
 	cmd.Env = env
 
 	start := time.Now()
 	output, err := cmd.CombinedOutput()
 	duration := time.Since(start)
-	
+
 	logger.WithFields(log.Fields{
 		"duration":   duration,
 		"outputSize": len(output),
 	}).Debug("Command hook execution completed")
-	
+
 	if err != nil {
 		logger.WithFields(log.Fields{
 			"exitCode": cmd.ProcessState.ExitCode(),
@@ -997,7 +996,7 @@ func (p *PhaseDeploymentProcessor) runHTTPHook(ctx context.Context, appSet *argo
 		log.WithError(err).Error("HTTP hook security validation failed")
 		return fmt.Errorf("HTTP hook security validation failed: %w", err)
 	}
-	
+
 	method := httpHook.Method
 	if method == "" {
 		method = DefaultHTTPHookMethod
@@ -1007,7 +1006,7 @@ func (p *PhaseDeploymentProcessor) runHTTPHook(ctx context.Context, appSet *argo
 	if expectedStatus == 0 {
 		expectedStatus = DefaultHTTPExpectedStatus
 	}
-	
+
 	logger := log.WithFields(log.Fields{
 		"hook":           hook.Name,
 		"hookType":       hookType,
@@ -1099,7 +1098,7 @@ func (p *PhaseDeploymentProcessor) runHTTPHook(ctx context.Context, appSet *argo
 			"expectedStatus": expectedStatus,
 			"responseBody":   string(responseBody),
 		}).Error("HTTP hook failed - status code mismatch")
-		return fmt.Errorf("HTTP hook failed: expected status %d, got %d. Response: %s", 
+		return fmt.Errorf("HTTP hook failed: expected status %d, got %d. Response: %s",
 			expectedStatus, resp.StatusCode, string(responseBody))
 	}
 
@@ -1113,7 +1112,7 @@ func GetGeneratorWithPhaseDeployment(generator *argoprojiov1alpha1.ApplicationSe
 
 func (p *PhaseDeploymentProcessor) GetGeneratorPhaseStatus(appSet *argoprojiov1alpha1.ApplicationSet, generator *argoprojiov1alpha1.ApplicationSetGenerator) (int, int, error) {
 	if generator.DeploymentStrategy == nil || generator.DeploymentStrategy.Type != PhaseDeploymentType {
-		return 0, 0, fmt.Errorf("generator does not use phase deployment strategy")
+		return 0, 0, errors.New("generator does not use phase deployment strategy")
 	}
 
 	currentPhase := p.getCurrentPhase(appSet, generator)
@@ -1123,7 +1122,7 @@ func (p *PhaseDeploymentProcessor) GetGeneratorPhaseStatus(appSet *argoprojiov1a
 }
 
 func GeneratorPhaseStatusToJSON(currentPhase, totalPhases int) string {
-	status := map[string]interface{}{
+	status := map[string]any{
 		"currentPhase": currentPhase,
 		"totalPhases":  totalPhases,
 		"completed":    currentPhase >= totalPhases,
@@ -1137,21 +1136,12 @@ func GeneratorPhaseStatusToJSON(currentPhase, totalPhases int) string {
 	return string(jsonBytes)
 }
 
-// withContextLogger creates a child logger that includes context deadline information
-func withContextLogger(ctx context.Context, baseLogger *log.Entry) *log.Entry {
-	logger := baseLogger
-	if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
-		logger = logger.WithField("deadline", deadline.Format(time.RFC3339))
-	}
-	return logger
-}
-
 // safeContextSleep sleeps for the specified duration but respects context cancellation
 func safeContextSleep(ctx context.Context, duration time.Duration) error {
 	if duration <= 0 {
 		return nil
 	}
-	
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -1167,14 +1157,14 @@ func validateCommandSecurity(command []string, env map[string]string) error {
 	if len(command) == 0 {
 		return errors.New("command cannot be empty")
 	}
-	
+
 	cmdName := command[0]
-	
+
 	// Prevent absolute path traversal attacks
 	if filepath.IsAbs(cmdName) {
 		log.WithField("command", cmdName).Warn("Absolute path command detected")
 	}
-	
+
 	// Check for dangerous commands (basic blacklist)
 	dangerousCommands := []string{
 		"rm", "rmdir", "del", "format", "fdisk",
@@ -1182,7 +1172,7 @@ func validateCommandSecurity(command []string, env map[string]string) error {
 		"su", "sudo", "passwd", "chown", "chmod",
 		"curl", "wget", "nc", "netcat", "telnet",
 	}
-	
+
 	baseName := filepath.Base(cmdName)
 	for _, dangerous := range dangerousCommands {
 		if strings.Contains(baseName, dangerous) {
@@ -1193,12 +1183,12 @@ func validateCommandSecurity(command []string, env map[string]string) error {
 			break
 		}
 	}
-	
+
 	// Validate environment variables
 	if len(env) > MaxEnvVarsCount {
 		return fmt.Errorf("too many environment variables: %d (max: %d)", len(env), MaxEnvVarsCount)
 	}
-	
+
 	// Check for suspicious environment variable names
 	suspiciousEnvPattern := regexp.MustCompile(`(?i)(password|secret|token|key|auth|credential)`)
 	for key := range env {
@@ -1206,7 +1196,7 @@ func validateCommandSecurity(command []string, env map[string]string) error {
 			log.WithField("envVar", key).Warn("Potentially sensitive environment variable detected")
 		}
 	}
-	
+
 	return nil
 }
 
@@ -1215,17 +1205,17 @@ func validateHTTPSecurity(httpConfig *argoprojiov1alpha1.GeneratorPhaseCheckHTTP
 	if httpConfig == nil {
 		return errors.New("HTTP configuration cannot be nil")
 	}
-	
+
 	// Validate URL
 	if httpConfig.URL == "" {
 		return errors.New("HTTP URL cannot be empty")
 	}
-	
+
 	parsedURL, err := url.Parse(httpConfig.URL)
 	if err != nil {
 		return fmt.Errorf("invalid HTTP URL: %w", err)
 	}
-	
+
 	// Security checks for URL
 	switch parsedURL.Scheme {
 	case "http":
@@ -1237,17 +1227,17 @@ func validateHTTPSecurity(httpConfig *argoprojiov1alpha1.GeneratorPhaseCheckHTTP
 	default:
 		return fmt.Errorf("unsupported URL scheme: %s", parsedURL.Scheme)
 	}
-	
+
 	// Check for localhost/internal network access
 	if isInternalAddress(parsedURL.Hostname()) {
 		log.WithField("hostname", parsedURL.Hostname()).Warn("Internal network address detected")
 	}
-	
+
 	// Validate headers count
 	if len(httpConfig.Headers) > MaxHeadersCount {
 		return fmt.Errorf("too many HTTP headers: %d (max: %d)", len(httpConfig.Headers), MaxHeadersCount)
 	}
-	
+
 	// Check for sensitive headers
 	sensitiveHeaders := []string{"authorization", "cookie", "x-api-key", "x-auth-token"}
 	for key := range httpConfig.Headers {
@@ -1259,7 +1249,7 @@ func validateHTTPSecurity(httpConfig *argoprojiov1alpha1.GeneratorPhaseCheckHTTP
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -1268,26 +1258,26 @@ func isInternalAddress(hostname string) bool {
 	if hostname == "" {
 		return false
 	}
-	
+
 	// Check for localhost
 	if hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1" {
 		return true
 	}
-	
+
 	// Check for private IP ranges (basic check)
 	privatePatterns := []string{
-		"10.",     // 10.0.0.0/8
-		"172.",    // 172.16.0.0/12 (simplified)
+		"10.",      // 10.0.0.0/8
+		"172.",     // 172.16.0.0/12 (simplified)
 		"192.168.", // 192.168.0.0/16
 		"169.254.", // 169.254.0.0/16 (link-local)
 	}
-	
+
 	for _, pattern := range privatePatterns {
 		if strings.HasPrefix(hostname, pattern) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -1302,8 +1292,8 @@ func validateTimeout(timeout time.Duration, maxTimeout time.Duration, operation 
 	return nil
 }
 
-// min returns the minimum of two integers
-func min(a, b int) int {
+// minInt returns the minimum of two integers
+func minInt(a, b int) int {
 	if a < b {
 		return a
 	}
@@ -1315,7 +1305,7 @@ func validateVersionCompatibility(appSet *argoprojiov1alpha1.ApplicationSet) err
 	if appSet == nil {
 		return errors.New("applicationSet cannot be nil")
 	}
-	
+
 	// Check for version annotation
 	if appSet.Annotations != nil {
 		if version, exists := appSet.Annotations["argocd.argoproj.io/min-version"]; exists {
@@ -1324,7 +1314,7 @@ func validateVersionCompatibility(appSet *argoprojiov1alpha1.ApplicationSet) err
 			if !versionPattern.MatchString(version) {
 				return fmt.Errorf("invalid version format in min-version annotation: %s", version)
 			}
-			
+
 			// Log the minimum version requirement
 			log.WithFields(log.Fields{
 				"applicationset": appSet.Name,
@@ -1338,6 +1328,6 @@ func validateVersionCompatibility(appSet *argoprojiov1alpha1.ApplicationSet) err
 			}).Info("No min-version annotation found, assuming compatibility")
 		}
 	}
-	
+
 	return nil
 }
