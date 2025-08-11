@@ -628,7 +628,7 @@ func TestKustomizeBuildComponentsNoFoundComponents(t *testing.T) {
 	}
 	_, _, commands, err := kustomize.Build(&kustomizeSource, nil, nil, nil)
 	require.NoError(t, err)
-	
+
 	// Verify that no "edit add component" command was executed
 	for _, cmd := range commands {
 		assert.NotContains(t, cmd, "edit add component", "kustomize edit add component should not be invoked when foundComponents is empty")
