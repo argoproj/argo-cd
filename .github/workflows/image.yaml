@@ -53,7 +53,7 @@ jobs:
     with:
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.24.4
+      go-version: 1.24.6
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: false
 
@@ -70,7 +70,7 @@ jobs:
       ghcr_image_name: ghcr.io/argoproj/argo-cd/argocd:${{ needs.set-vars.outputs.image-tag }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.24.4
+      go-version: 1.24.6
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: true
     secrets:
