@@ -1504,25 +1504,10 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	externalSecret, err := mgr.GetSecretByName(externalServerTLSSecretName)
 	if err != nil && !apierrors.IsNotFound(err) {
 		errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("could not read from secret %s/%s: %v", mgr.namespace, externalServerTLSSecretName, err)})
-	} else if externalSecret != nil {
-		cert, err := mgr.loadTLSCertificateFromSecret(externalSecret)
-
+	} else {
+		err = mgr.loadTLSCertificate(settings, externalSecret, argoCDSecret)
 		if err != nil {
 			errs = append(errs, err)
-		} else if cert != nil {
-			settings.Certificate = cert
-			settings.CertificateIsExternal = true
-		}
-	}
-	// if there was no external cert found, check internal
-	if !settings.CertificateIsExternal {
-		cert, err := mgr.loadTLSCertificateFromSecret(argoCDSecret)
-
-		if err != nil {
-			errs = append(errs, err)
-		} else if cert != nil {
-			settings.Certificate = cert
-			settings.CertificateIsExternal = false
 		}
 	}
 
@@ -1552,9 +1537,34 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	return nil
 }
 
-func (mgr *SettingsManager) loadTLSCertificateFromSecret(secret *corev1.Secret) (*tls.Certificate, error) {
+func (mgr *SettingsManager) loadTLSCertificate(settings *ArgoCDSettings, externalSecret *corev1.Secret, argoCDSecret *corev1.Secret) error {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
+	if externalSecret != nil {
+		cert, err := mgr.loadTLSCertificateFromSecret(externalSecret)
+
+		if err != nil {
+			return err
+		} else if cert != nil {
+			settings.Certificate = cert
+			settings.CertificateIsExternal = true
+		}
+	}
+	// if there was no external cert found, check internal
+	if !settings.CertificateIsExternal {
+		cert, err := mgr.loadTLSCertificateFromSecret(argoCDSecret)
+
+		if err != nil {
+			return err
+		} else if cert != nil {
+			settings.Certificate = cert
+			settings.CertificateIsExternal = false
+		}
+	}
+	return nil
+}
+
+func (mgr *SettingsManager) loadTLSCertificateFromSecret(secret *corev1.Secret) (*tls.Certificate, error) {
 	if mgr.tlsCertCache != nil && mgr.tlsCertCacheSecretName == secret.Name && mgr.tlsCertCacheSecretVersion == secret.ResourceVersion {
 		return mgr.tlsCertCache, nil
 	}
