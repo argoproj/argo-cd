@@ -1420,7 +1420,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 			proj := getProject(ctx, c, clientOpts, app.Spec.Project)
 
-			foundDiffs := findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs)
+			foundDiffs := findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, app.GetName(), app.GetNamespace())
 			if foundDiffs && exitCode {
 				os.Exit(diffExitCode)
 			}
@@ -1445,11 +1445,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 }
 
 // printResourceDiff prints the diff header and calls cli.PrintDiff for a resource
-func printResourceDiff(group, kind, namespace, name string, live, target *unstructured.Unstructured, foundDiffs *bool) {
+func printResourceDiff(group, kind, namespace, name string, live, target *unstructured.Unstructured) {
 	fmt.Printf("\n===== %s/%s %s/%s ======\n", group, kind, namespace, name)
-	if !*foundDiffs {
-		*foundDiffs = true
-	}
 	_ = cli.PrintDiff(name, live, target)
 }
 
@@ -1533,7 +1530,8 @@ func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application,
 				}
 
 				// Print resulting diff for this resource
-				printResourceDiff(resultItem.Group, resultItem.Kind, resultItem.Namespace, resultItem.Name, live, target, &foundDiffs)
+				foundDiffs = true
+				printResourceDiff(resultItem.Group, resultItem.Kind, resultItem.Namespace, resultItem.Name, live, target)
 			}
 		}
 	}
@@ -1552,8 +1550,8 @@ type DifferenceOption struct {
 	revisions     []string
 }
 
-// findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
-func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, diffOptions *DifferenceOption, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts, useServerSideDiff bool, appIf application.ApplicationServiceClient, appName, appNs string) bool {
+// findAndPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
+func findAndPrintDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, diffOptions *DifferenceOption, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts, useServerSideDiff bool, appIf application.ApplicationServiceClient, appName, appNs string) bool {
 	var foundDiffs bool
 
 	items, err := prepareObjectsForDiff(ctx, app, proj, resources, argoSettings, diffOptions)
@@ -1598,7 +1596,8 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 				live = item.live
 				target = item.target
 			}
-			printResourceDiff(item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name, live, target, &foundDiffs)
+			foundDiffs = true
+			printResourceDiff(item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name, live, target)
 		}
 	}
 	return foundDiffs
@@ -2380,7 +2379,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					fmt.Printf("====== Previewing differences between live and desired state of application %s ======\n", appQualifiedName)
 
 					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
-					foundDiffs = findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, false, appIf, appName, appNs)
+					foundDiffs = findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, false, appIf, appName, appNs)
 					if !foundDiffs {
 						fmt.Printf("====== No Differences found ======\n")
 						// if no differences found, then no need to sync
