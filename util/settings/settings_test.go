@@ -1293,8 +1293,9 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		}
 		secret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDSecretName,
-				Namespace: "default",
+				Name:            common.ArgoCDSecretName,
+				Namespace:       "default",
+				ResourceVersion: "1",
 				Labels: map[string]string{
 					"app.kubernetes.io/part-of": "argocd",
 				},
@@ -1350,8 +1351,9 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		}
 		secret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDSecretName,
-				Namespace: "default",
+				Name:            common.ArgoCDSecretName,
+				Namespace:       "default",
+				ResourceVersion: "1",
 				Labels: map[string]string{
 					"app.kubernetes.io/part-of": "argocd",
 				},
@@ -1422,8 +1424,9 @@ func Test_GetTLSConfiguration(t *testing.T) {
 			},
 			&corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      common.ArgoCDSecretName,
-					Namespace: "default",
+					Name:            common.ArgoCDSecretName,
+					Namespace:       "default",
+					ResourceVersion: "1",
 					Labels: map[string]string{
 						"app.kubernetes.io/part-of": "argocd",
 					},
@@ -1446,8 +1449,9 @@ func Test_GetTLSConfiguration(t *testing.T) {
 
 		externalTLSSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      externalServerTLSSecretName,
-				Namespace: "default",
+				Name:            externalServerTLSSecretName,
+				Namespace:       "default",
+				ResourceVersion: "1",
 			},
 			Data: map[string][]byte{
 				"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
