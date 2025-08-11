@@ -40,6 +40,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	k8sversion "k8s.io/apimachinery/pkg/util/version"
 	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
 
 	pluginclient "github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
@@ -1167,6 +1168,20 @@ func isSourcePermitted(url string, repos []string) bool {
 	return p.IsSourcePermitted(v1alpha1.ApplicationSource{RepoURL: url})
 }
 
+// parseKubeVersion is an helper function to remove the non-semantic information supported by kubernetes
+// that may not be supported in all helm versions: https://github.com/helm/helm/pull/31091
+func parseKubeVersion(version string) (string, error) {
+	if version == "" {
+		return "", nil
+	}
+
+	kubeVersion, err := k8sversion.ParseGeneric(version)
+	if err != nil {
+		return "", err
+	}
+	return kubeVersion.String(), nil
+}
+
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths) ([]*unstructured.Unstructured, string, error) {
 	// We use the app name as Helm's release name property, which must not
 	// contain any underscore characters and must not exceed 53 characters.
@@ -1174,10 +1189,15 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	// templating, thus, we just use the name part of the identifier.
 	appName, _ := argo.ParseInstanceName(q.AppName, "")
 
+	kubeVersion, err := parseKubeVersion(q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion))
+	if err != nil {
+		return nil, "", fmt.Errorf("could not parse kubernetes version %s: %w", q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion), err)
+	}
+
 	templateOpts := &helm.TemplateOpts{
 		Name:        appName,
 		Namespace:   q.ApplicationSource.GetNamespaceOrDefault(q.Namespace),
-		KubeVersion: q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion),
+		KubeVersion: kubeVersion,
 		APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
 		Set:         map[string]string{},
 		SetString:   map[string]string{},
@@ -1502,9 +1522,14 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		if q.KustomizeOptions != nil {
 			kustomizeBinary = q.KustomizeOptions.BinaryPath
 		}
+		var kubeVersion string
+		kubeVersion, err = parseKubeVersion(q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion))
+		if err != nil {
+			return nil, fmt.Errorf("could not parse kubernetes version %s: %w", q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion), err)
+		}
 		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
 		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
-			KubeVersion: q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion),
+			KubeVersion: kubeVersion,
 			APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
 		})
 	case v1alpha1.ApplicationSourceTypePlugin:
@@ -2023,8 +2048,12 @@ func makeJsonnetVM(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 }
 
 func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]string, error) {
+	kubeVersion, err := parseKubeVersion(q.KubeVersion)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse kubernetes version %s: %w", q.KubeVersion, err)
+	}
 	envVars := env.Environ()
-	envVars = append(envVars, "KUBE_VERSION="+q.KubeVersion)
+	envVars = append(envVars, "KUBE_VERSION="+kubeVersion)
 	envVars = append(envVars, "KUBE_API_VERSIONS="+strings.Join(q.ApiVersions, ","))
 
 	return getPluginParamEnvs(envVars, q.ApplicationSource.Plugin)
