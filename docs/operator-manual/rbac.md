@@ -117,7 +117,7 @@ The `applications` resource is an [Application-Specific Policy](#application-spe
 The `update` and `delete` actions, when granted on an application, will allow the user to perform the operation on the application itself,
 but not on its resources.
 
-To do so, when the action if performed on an application's resource, the `<action>` will have the `<action>/<group>/<kind>/<ns>/<name>` format.
+To allow an action on the application's resources, specify the action as `<action>/<group>/<kind>/<ns>/<name>`.
 
 For instance, to grant access to `example-user` to only delete Pods in the `prod-app` Application, the policy could be:
 
