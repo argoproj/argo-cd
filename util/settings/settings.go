@@ -562,12 +562,13 @@ type SettingsManager struct {
 	// subscribers is a list of subscribers to settings updates
 	subscribers []chan<- *ArgoCDSettings
 	// mutex protects concurrency sensitive parts of settings manager: access to subscribers list and initialization flag
-	mutex                  *sync.Mutex
-	initContextCancel      func()
-	reposOrClusterChanged  func()
-	tlsCertParser          func([]byte, []byte) (tls.Certificate, error)
-	tlsCertCache           *tls.Certificate
-	tlsCertResourceVersion string
+	mutex                     *sync.Mutex
+	initContextCancel         func()
+	reposOrClusterChanged     func()
+	tlsCertParser             func([]byte, []byte) (tls.Certificate, error)
+	tlsCertCache              *tls.Certificate
+	tlsCertCacheSecretName    string
+	tlsCertCacheSecretVersion string
 }
 
 type incompleteSettingsError struct {
@@ -1268,12 +1269,13 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	return &settings, nil
 }
 
-func (mgr *SettingsManager) invalidateCache() {
+func (mgr *SettingsManager) invalidateTLSCertCache() {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 
 	mgr.tlsCertCache = nil
-	mgr.tlsCertResourceVersion = ""
+	mgr.tlsCertCacheSecretName = ""
+	mgr.tlsCertCacheSecretVersion = ""
 }
 
 func (mgr *SettingsManager) initialize(ctx context.Context) error {
@@ -1284,13 +1286,15 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 
 	eventHandler := cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(_, _ any) {
-			mgr.invalidateCache()
+			mgr.invalidateTLSCertCache()
 			mgr.onRepoOrClusterChanged()
 		},
 		AddFunc: func(_ any) {
+			mgr.invalidateTLSCertCache()
 			mgr.onRepoOrClusterChanged()
 		},
 		DeleteFunc: func(_ any) {
+			mgr.invalidateTLSCertCache()
 			mgr.onRepoOrClusterChanged()
 		},
 	}
@@ -1497,27 +1501,31 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	// The TLS certificate may be externally managed. We try to load it from an
 	// external secret first. If the external secret doesn't exist, we either
 	// load it from argocd-secret or generate (and persist) a self-signed one.
-	cert, err := mgr.externalServerTLSCertificate()
-	if err != nil {
+	externalSecret, err := mgr.GetSecretByName(externalServerTLSSecretName)
+	if err != nil && !apierrors.IsNotFound(err) {
 		errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("could not read from secret %s/%s: %v", mgr.namespace, externalServerTLSSecretName, err)})
-	} else {
-		if cert != nil {
+	} else if externalSecret != nil {
+		cert, err := mgr.loadTLSCertificateFromSecret(externalSecret)
+
+		if err != nil {
+			errs = append(errs, err)
+		} else if cert != nil {
 			settings.Certificate = cert
 			settings.CertificateIsExternal = true
-		} else {
-			serverCert, certOk := argoCDSecret.Data[settingServerCertificate]
-			serverKey, keyOk := argoCDSecret.Data[settingServerPrivateKey]
-			if certOk && keyOk {
-				cert, err := mgr.tlsCertParser(serverCert, serverKey)
-				if err != nil {
-					errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("invalid x509 key pair %s/%s in secret: %s", settingServerCertificate, settingServerPrivateKey, err)})
-				} else {
-					settings.Certificate = &cert
-					settings.CertificateIsExternal = false
-				}
-			}
 		}
 	}
+	// if there was no external cert found, check internal
+	if !settings.CertificateIsExternal {
+		cert, err := mgr.loadTLSCertificateFromSecret(argoCDSecret)
+
+		if err != nil {
+			errs = append(errs, err)
+		} else if cert != nil {
+			settings.Certificate = cert
+			settings.CertificateIsExternal = false
+		}
+	}
+
 	secretValues := make(map[string]string, len(argoCDSecret.Data))
 	for _, s := range secrets {
 		for k, v := range s.Data {
@@ -1544,41 +1552,28 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	return nil
 }
 
-// externalServerTLSCertificate will try and load a TLS certificate from an
-// external secret, instead of tls.crt and tls.key in argocd-secret. If both
-// return values are nil, no external secret has been configured.
-func (mgr *SettingsManager) externalServerTLSCertificate() (*tls.Certificate, error) {
-	if mgr.namespace == "" {
-		return nil, nil
-	}
-	var cert tls.Certificate
-	secret, err := mgr.GetSecretByName(externalServerTLSSecretName)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
+func (mgr *SettingsManager) loadTLSCertificateFromSecret(secret *corev1.Secret) (*tls.Certificate, error) {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
-	if mgr.tlsCertCache != nil && mgr.tlsCertResourceVersion == secret.ResourceVersion {
+	if mgr.tlsCertCache != nil && mgr.tlsCertCacheSecretName == secret.Name && mgr.tlsCertCacheSecretVersion == secret.ResourceVersion {
 		return mgr.tlsCertCache, nil
 	}
-	log.Infof("Loading TLS configuration from secret %s/%s", mgr.namespace, externalServerTLSSecretName)
+
+	log.Infof("Loading TLS configuration from secret %s/%s", mgr.namespace, secret.Name)
 	tlsCert, certOK := secret.Data[settingServerCertificate]
-	if !certOK {
-		return nil, fmt.Errorf("key %q in secret %s/%s not found", settingServerCertificate, mgr.namespace, externalServerTLSSecretName)
-	}
 	tlsKey, keyOK := secret.Data[settingServerPrivateKey]
-	if !keyOK {
-		return nil, fmt.Errorf("key %q in secret %s/%s not found", settingServerPrivateKey, mgr.namespace, externalServerTLSSecretName)
+	if !certOK || !keyOK {
+		return nil, nil
 	}
-	cert, err = mgr.tlsCertParser(tlsCert, tlsKey)
+
+	cert, err := mgr.tlsCertParser(tlsCert, tlsKey)
 	if err != nil {
 		return nil, err
 	}
+
 	mgr.tlsCertCache = &cert
-	mgr.tlsCertResourceVersion = secret.ResourceVersion
+	mgr.tlsCertCacheSecretName = secret.Name
+	mgr.tlsCertCacheSecretVersion = secret.ResourceVersion
 
 	return &cert, nil
 }
@@ -1620,7 +1615,7 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		return err
 	}
 
-	mgr.invalidateCache()
+	mgr.invalidateTLSCertCache()
 
 	return mgr.updateSecret(func(argoCDSecret *corev1.Secret) error {
 		argoCDSecret.Data[settingServerSignatureKey] = settings.ServerSignature
