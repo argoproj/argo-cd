@@ -1,7 +1,7 @@
 ---
 title: ArgoCD to cdEvents Integration
 authors:
-  - lukepatrick
+  - @lukepatrick
 sponsors:
   - TBD
 reviewers:
@@ -9,8 +9,8 @@ reviewers:
 approvers:
   - TBD
 
-creation-date: 2025-01-21
-last-updated: 2025-01-21
+creation-date: 2025-06-21
+last-updated: 2025-08-11
 ---
 
 
@@ -36,14 +36,16 @@ This proposal outlines the integration of ArgoCD's notification system with the 
 * Should cdEvents interface via Notifications Engine/Controller or Core ArgoCD?
   * Existing discussions opt for Notifications Engine. 
   * I would be interested in how ArgoCD can react to a cdEvent message
+* How should multi-application sync events be represented in cdEvents?
+* Should we emit environment events for namespace lifecycle changes?
 
 ## Summary
 
-ArgoCD currently provides a notification system that can send alerts to various destinations (Slack, email, webhooks) based on application lifecycle events. However, these notifications are "argo specific" and may not easily integrate with broader CI/CD toolchain ecosystems.
+ArgoCD currently provides a notification system that can send alerts to various destinations (Slack, email, webhooks) based on application lifecycle events. However, these notifications are ArgoCD-specific and may not easily integrate with broader CI/CD toolchain ecosystems.
 
-This proposal extends ArgoCD's existing notification controller to emit cdEvents-compliant events alongside traditional notifications. cdEvents is an emerging specification for standardizing events across the software development lifecycle, enabling better interoperability between tools.
+This proposal extends ArgoCD's existing notification controller to emit cdEvents-compliant events alongside traditional notifications. cdEvents is a CDF specification for standardizing events across the software development lifecycle, enabling better interoperability between tools.
 
-The integration will allow ArgoCD to participate in standardized CI/CD event ecosystems while maintaining backward compatibility with existing notification workflows.
+The design will allow ArgoCD to participate in interoperable CI/CD event ecosystems while maintaining backward compatibility with existing notification workflows.
 
 ## Motivation
 
@@ -70,6 +72,20 @@ Currently, ArgoCD's notifications are Argo-specific and tied to a set of service
 * Support cdEvents consumption (ArgoCD as event consumer)
 * Add dependencies on external event brokers or message queues
 
+## Background
+
+### ArgoCD Notifications
+ArgoCD's notification system monitors Kubernetes resources and triggers notifications based on configured conditions. It supports multiple services (Slack, email, webhooks) and uses Go templates for message formatting. The system is built on the notifications-engine.
+
+### cdEvents Specification
+cdEvents is a common specification for Continuous Delivery events, enabling interoperability between CI/CD tools. It defines:
+- Standard event types for CI/CD workflows
+- Consistent event structure and semantics
+- CloudEvents binding for transport
+- Language-specific SDKs for implementation
+
+The specification covers multiple domains including Continuous Integration, Deployment, and Operations, with well-defined subjects and predicates for each domain.
+
 ## Proposal
 
 We propose extending ArgoCD's notification system to support cdEvents as a new service type, allowing parallel emission of both traditional notifications and standardized cdEvents without disrupting existing workflows.
@@ -91,11 +107,6 @@ As a DevOps engineer, I want to trigger automated rollback procedures when ArgoC
 ### Current State Analysis
 
 #### ArgoCD Notifications System
-
-**Architecture:**
-- **Notification Controller** (`notification_controller/`) - Kubernetes controller that watches ArgoCD Application CRDs and triggers notifications based on state changes
-- **Notifications Catalog** (`notifications_catalog/`) - Pre-defined notification templates and triggers for common scenarios
-- **Engine Integration** - Uses `github.com/argoproj/notifications-engine` for delivery to various services (Slack, email, webhooks, etc.)
 
 **Current Notification Triggers:**
 - `on-created` - Application created
@@ -124,8 +135,8 @@ As a DevOps engineer, I want to trigger automated rollback procedures when ArgoC
 ### cdEvents Specification (v0.5.0-draft)
 
 **Continuous Deployment Event Types:**
-- `dev.cdevents.service.deployed.0.3.0-draft` - Service deployed to environment
-- `dev.cdevents.service.upgraded.0.3.0-draft` - Service upgraded to new version
+- `dev.cdevents.service.deployed.0.3.0-draft` - Service deployed to environment (new instance)
+- `dev.cdevents.service.upgraded.0.3.0-draft` - Service upgraded to new version (existing instance)
 - `dev.cdevents.service.removed.0.3.0-draft` - Service removed from environment
 - `dev.cdevents.service.published.0.3.0-draft` - Service published and accessible
 - `dev.cdevents.service.rolledback.0.3.0-draft` - Service rolled back to previous version
@@ -175,7 +186,7 @@ As a DevOps engineer, I want to trigger automated rollback procedures when ArgoC
 
 ### Event Mapping Strategy
 
-#### Continuous Deployment Mappings
+#### Continuous Deployment Event Mappings
 
 | ArgoCD Trigger | cdEvents Type | Condition | Description |
 |---|---|---|---|
@@ -187,7 +198,7 @@ As a DevOps engineer, I want to trigger automated rollback procedures when ArgoC
 | `on-deleted` | `environment.deleted` | Namespace-scoped app deletion | Environment lifecycle (optional) |
 | Service accessibility | `service.published` | Service becomes externally accessible | Service ready for consumption |
 
-#### Continuous Operations Mappings
+#### Continuous Operations Event Mappings
 
 | ArgoCD Trigger | cdEvents Type | Condition | Description |
 |---|---|---|---|
@@ -292,26 +303,150 @@ subject:
 }
 ```
 
+## Phase 1 Implementation Design
+
+### Notification Template Architecture
+
+The Phase 1 implementation leverages ArgoCD's existing notification engine with custom webhook templates to emit cdEvents-compliant JSON. This approach requires no modifications to ArgoCD core components.
+
+### Template Mapping Summary
+
+| ArgoCD Template | cdEvents Type | Trigger Condition |
+|---|---|---|
+| `cdevents-service-deployed` | `service.deployed` or `service.upgraded` | `on-deployed` - Application synced and healthy |
+| `cdevents-service-removed` | `service.removed` | `on-deleted` - Application deleted |
+| `cdevents-incident-detected` | `incident.detected` | `on-health-degraded` - Health status degraded |
+| `cdevents-sync-failed` | `incident.detected` | `on-sync-failed` - Sync operation failed |
+| `cdevents-incident-resolved` | `incident.resolved` | Health recovery - Degraded to Healthy |
+
+#### Template Examples
+
+##### Service Deployed/Upgraded Template
+```yaml
+## argo-notifications yaml
+
+  # Template for service deployment events
+  template.cdevents-service-deployed: |
+    webhook:
+      cdevents:
+        method: POST
+        body: |
+          {
+            "context": {
+            },
+            "subject": {
+            },
+            "customData": {
+            }
+          }
+
+  # Trigger binding
+  trigger.on-deployed-cdevents: |
+    - when: app.status.operationState != nil asnd app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
+      send: [cdevents-service-deployed]
+      oncePer: app.status.operationState?.syncResult?.revision
+```
+
 ### Security Considerations
 
-* There are probably some
+* **Authentication**: Support for bearer tokens and basic auth for webhook endpoints
+* **TLS**: Webhook service supports TLS verification (can be disabled for development)
+* **Secret Management**: Sensitive tokens stored in Kubernetes secrets
+* **Rate Limiting**: Consider implementing rate limits on the webhook receiver
+* **Event Signing**: Future enhancement to add event signature verification
+
+## Transport Mechanism Recommendation
+
+### Phase 1: Simple HTTP Webhook Receiver
+
+For initial prototype and testing, we recommend a simple HTTP webhook receiver that can...
+
+- *Is there an existing example/demo service from cdEvents group?*
+
+## Gaps and Future Considerations
+
+### Unmapped ArgoCD Events
+
+The following ArgoCD events do not have direct cdEvents equivalents but could be valuable for the specification:
+
+| ArgoCD Event | Potential cdEvents Type | Rationale |
+|---|---|---|
+| `on-created` | `service.configured` | Application configuration created |
+| `on-sync-running` | `deployment.started` | Deployment process initiated |
+| Environment events | `environment.*` | Namespace lifecycle management |
+| Multi-app sync | `deploymentset.*` | Batch deployment operations |
+| Progressive sync | `deployment.progressing` | Canary/blue-green deployments |
+
+### Future Enhancement Opportunities
+
+#### Phase 2: Native Integration
+- Direct integration using cdEvents Go SDK
+- Eliminate webhook overhead
+- Built-in schema validation
+- Event linking and correlation support
+
+#### Phase 3: Advanced Features
+- Bidirectional event flow (ArgoCD consuming cdEvents)
+- Event-driven GitOps workflows
+- Cross-cluster event federation
+- Advanced filtering and routing
+
+### ArgoCD-Specific Metadata Preservation
+
+The `customData` field in cdEvents allows preservation of ArgoCD-specific information:
+- Application labels and annotations
+- Sync policy details
+- Health check configuration
+- Multi-source application data
+- Application of Applications patterns
 
 ### Risks and Mitigations
 
 #### Technical Risks
-- Performance, Event Volume, Delivery Failure
+- **Event Volume**: High-frequency syncs could generate excessive events
+  - *Mitigation*: Implement rate limiting and event deduplication
+- **Delivery Failures**: Webhook endpoint unavailability
+  - *Mitigation*: Implement retry logic with exponential backoff
+- **Schema Evolution**: cdEvents spec changes
+  - *Mitigation*: Version templates and maintain compatibility matrix
 
 #### Operational Risks  
-- More Configuration / message bus integration
+- **Configuration Complexity**: Additional templates and triggers to manage
+  - *Mitigation*: Provide pre-built template library and documentation
+- **Monitoring Overhead**: New event pipeline to monitor
+  - *Mitigation*: Include metrics and health endpoints in receiver
 
 ### Upgrade / Downgrade Strategy
 
+- **Upgrade**: New templates can be added without affecting existing notifications
+- **Downgrade**: Remove cdEvents templates and webhook configuration
+- **Compatibility**: Maintain parallel traditional and cdEvents notifications during transition
 
 ## Drawbacks
 
-
+- Additional configuration complexity for operators
+- Potential performance impact from webhook calls
+- Dependency on external webhook receiver
+- Learning curve for cdEvents specification
 
 ## Alternatives
 
-* Notifications Engine
-* 
+### Alternative 1: Direct Notifications Engine Modification
+Modify the notifications-engine to natively support cdEvents format
+- **Pros**: Better performance, no webhook overhead
+- **Cons**: Requires modifying upstream project
+
+
+
+## Appendices
+
+### Appendix A: Sequence Diagrams
+*Placeholder for event flow diagrams*
+
+### Appendix B: Architecture Diagrams  
+*Placeholder for component interaction diagrams*
+
+### Appendix C: cdEvents SDK Reference
+- [Go SDK](https://github.com/cdevents/sdk-go)
+- [Specification](https://cdevents.dev/docs/)
+- [CloudEvents Binding](https://github.com/cdevents/spec/blob/main/cloudevents-binding.md) 
