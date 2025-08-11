@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -206,7 +207,8 @@ func TestPhaseDeploymentProcessor_runHTTPCheck_Timeout(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	err := processor.runHTTPCheck(ctx, appSet, check)
+	logger := log.WithField("test", "runSingleCheck")
+	err := processor.runSingleCheck(ctx, appSet, check, logger)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "context deadline exceeded")

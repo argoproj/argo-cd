@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -792,7 +793,8 @@ func TestPhaseDeploymentProcessor_runPhaseHooks(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := processor.runPhaseHooks(ctx, appSet, tt.hooks, tt.hookType)
+			logger := log.WithField("test", "runPhaseHooks")
+			err := processor.runPhaseHooks(ctx, appSet, tt.hooks, tt.hookType, logger)
 			
 			if tt.expectErr {
 				assert.Error(t, err)
@@ -858,7 +860,8 @@ func TestPhaseDeploymentProcessor_runCommandHook(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := processor.runCommandHook(ctx, appSet, tt.hook, tt.hookType)
+			logger := log.WithField("test", "runCommandHook")
+			err := processor.runCommandHook(ctx, appSet, tt.hook, tt.hookType, logger)
 			
 			if tt.expectErr {
 				assert.Error(t, err)
