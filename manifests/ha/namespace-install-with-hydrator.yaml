@@ -473,6 +473,10 @@ subjects:
 ---
 apiVersion: v1
 data:
+  resource.customizations.ignoreDifferences.argoproj.io_Application: |
+    jqPathExpressions:
+      - .metadata.finalizers[]? | select(. == "post-delete-finalizer.argocd.argoproj.io" or . == "post-delete-finalizer.argocd.argoproj.io/cleanup")
+      - if (.metadata.finalizers | length) == 0 then .metadata.finalizers else empty end
   resource.customizations.ignoreResourceUpdates.ConfigMap: |
     jqPathExpressions:
       # Ignore the cluster-autoscaler status
@@ -511,10 +515,6 @@ data:
       - /metadata
       - /endpoints
       - /ports
-  resource.customizations.ignoreDifferences.argoproj.io_Application: |
-    jqPathExpressions:
-      - .metadata.finalizers[]? | select(. == "post-delete-finalizer.argocd.argoproj.io" or . == "post-delete-finalizer.argocd.argoproj.io/cleanup")
-      - if (.metadata.finalizers | length) == 0 then .metadata.finalizers else empty end
   resource.exclusions: |
     ### Network resources created by the Kubernetes control plane and excluded to reduce the number of watched events and UI clutter
     - apiGroups:
