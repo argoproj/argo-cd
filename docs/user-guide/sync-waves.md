@@ -4,14 +4,14 @@ Sync phases and hooks define when resources are applied such as before or after 
 
 Argo CD has the following hook types:
 
-| Hook | Description |
-|------|-------------|
-| `PreSync` | Executes prior to the application of the manifests. |
-| `Sync`  | Executes after all `PreSync` hooks completed and were successful, at the same time as the application of the manifests. |
-| `Skip` | Indicates to Argo CD to skip the application of the manifest. |
-| `PostSync` | Executes after all `Sync` hooks completed and were successful, a successful application, and all resources in a `Healthy` state. |
-| `SyncFail` | Executes when the sync operation fails. |
-| `PostDelete` | Executes after all Application resources are deleted. _Available starting in v2.10._ |
+| Hook         | Description                                                                                                                      |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `PreSync`    | Executes prior to the application of the manifests.                                                                              |
+| `Sync`       | Executes after all `PreSync` hooks completed and were successful, at the same time as the application of the manifests.          |
+| `Skip`       | Indicates to Argo CD to skip the application of the manifest.                                                                    |
+| `PostSync`   | Executes after all `Sync` hooks completed and were successful, a successful application, and all resources in a `Healthy` state. |
+| `SyncFail`   | Executes when the sync operation fails.                                                                                          |
+| `PostDelete` | Executes after all Application resources are deleted. _Available starting in v2.10._                                             |
 
 Adding the argocd.argoproj.io/hook annotation to a resource will assign it to a specific phase. During a Sync operation, Argo CD will apply the resource during the appropriate phase of the deployment. Hooks can be any type of Kubernetes resource kind, but tend to be Pod, Job or Argo Workflows. Multiple hooks can be specified as a comma separated list.
 
@@ -40,12 +40,11 @@ Argo CD offers several methods to clean up hooks and decide how much history wil
 In the most basic case you can use the argocd.argoproj.io/hook-delete-policy to decide when a hook will be deleted.
 This can take the following values:
 
-| Policy | Description |
-|--------|-------------|
-| `HookSucceeded` | The hook resource is deleted after the hook succeeded (e.g. Job/Workflow completed successfully). |
-| `HookFailed` | The hook resource is deleted after the hook failed. |
+| Policy               | Description                                                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `HookSucceeded`      | The hook resource is deleted if the hook's phase succeeded (e.g. All `PreSync` completed successfully).                         |
+| `HookFailed`         | The hook resource is deleted after the hook's phase failed.                                                                     |
 | `BeforeHookCreation` | Any existing hook resource is deleted before the new one is created (since v1.3). It is meant to be used with `/metadata/name`. |
-
 
 ## How sync waves work?
 
@@ -99,7 +98,7 @@ Specify the wave using the following annotation:
 ```yaml
 metadata:
   annotations:
-    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-wave: '5'
 ```
 
 Hooks and resources are assigned to wave zero by default. The wave can be negative, so you can create a wave that runs before all other resources.
@@ -138,6 +137,7 @@ spec:
 ```
 
 The following example runs a db migration command before the main sync operation (also in wave -1):
+
 ```yaml
 apiVersion: batch/v1
 kind: Job
@@ -173,20 +173,20 @@ spec:
 
 Upgrading ingress-nginx controller (managed by helm) with ArgoCD 2.x sometimes fails to work resulting in:
 
-.|.
--|-
-OPERATION|Sync
-PHASE|Running
-MESSAGE|waiting for completion of hook batch/Job/ingress-nginx-admission-create
+| .         | .                                                                       |
+| --------- | ----------------------------------------------------------------------- |
+| OPERATION | Sync                                                                    |
+| PHASE     | Running                                                                 |
+| MESSAGE   | waiting for completion of hook batch/Job/ingress-nginx-admission-create |
 
-.|.
--|-
-KIND     |batch/v1/Job
-NAMESPACE|ingress-nginx
-NAME     |ingress-nginx-admission-create
-STATUS   |Running
-HOOK     |PreSync
-MESSAGE  |Pending deletion
+| .         | .                              |
+| --------- | ------------------------------ |
+| KIND      | batch/v1/Job                   |
+| NAMESPACE | ingress-nginx                  |
+| NAME      | ingress-nginx-admission-create |
+| STATUS    | Running                        |
+| HOOK      | PreSync                        |
+| MESSAGE   | Pending deletion               |
 
 To work around this, a helm user can add:
 
