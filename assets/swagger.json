@@ -374,6 +374,56 @@
         }
       }
     },
+    "/api/v1/applications/{appName}/server-side-diff": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "ServerSideDiff performs server-side diff calculation using dry-run apply",
+        "operationId": "ApplicationService_ServerSideDiff",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "appName",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "name": "targetManifests",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationServerSideDiffResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{application.metadata.name}": {
       "put": {
         "tags": [
@@ -5015,6 +5065,20 @@
           "type": "string"
         },
         "prune": {
+          "type": "boolean"
+        }
+      }
+    },
+    "applicationApplicationServerSideDiffResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceDiff"
+          }
+        },
+        "modified": {
           "type": "boolean"
         }
       }
