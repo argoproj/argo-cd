@@ -1496,7 +1496,7 @@ func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application,
 
 		// Call server-side diff for this individual resource
 		serverSideDiffQuery := &application.ApplicationServerSideDiffQuery{
-			Name:            &appName,
+			AppName:         &appName,
 			AppNamespace:    &appNs,
 			Project:         &app.Spec.Project,
 			LiveResources:   []*argoappv1.ResourceDiff{liveResource},
@@ -2379,7 +2379,11 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					fmt.Printf("====== Previewing differences between live and desired state of application %s ======\n", appQualifiedName)
 
 					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
-					foundDiffs = findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, false, appIf, appName, appNs)
+
+					// Check if application has ServerSideDiff annotation
+					serverSideDiff := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
+
+					foundDiffs = findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs)
 					if !foundDiffs {
 						fmt.Printf("====== No Differences found ======\n")
 						// if no differences found, then no need to sync

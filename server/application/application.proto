@@ -319,7 +319,7 @@ message ManagedResourcesResponse {
 }
 
 message ApplicationServerSideDiffQuery {
-	required string name = 1;
+	required string appName = 1;
 	optional string appNamespace = 2;
 	optional string project = 3;
 	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceDiff liveResources = 4;
@@ -457,7 +457,7 @@ service ApplicationService {
 
 	// ServerSideDiff performs server-side diff calculation using dry-run apply
 	rpc ServerSideDiff(ApplicationServerSideDiffQuery) returns (ApplicationServerSideDiffResponse) {
-		option (google.api.http).get = "/api/v1/applications/{name}/server-side-diff";
+		option (google.api.http).get = "/api/v1/applications/{appName}/server-side-diff";
 	}
 
 	// ResourceTree returns resource tree
