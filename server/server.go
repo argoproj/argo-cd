@@ -908,7 +908,7 @@ func (server *ArgoCDServer) useTLS() bool {
 }
 
 func requestTimeoutGRPCInterceptor(requestTimeout time.Duration) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if requestTimeout == 0 {
 			res, err := handler(ctx, req)
 			return res, err
