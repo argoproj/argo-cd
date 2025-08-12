@@ -46,6 +46,32 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
         });
     }
 
+    private async login(username: string, password: string, returnURL: string) {
+        try {
+            this.setState({loginError: '', loginInProgress: true});
+            this.appContext.apis.navigation.goto('.', {sso_error: null});
+            await services.users.login(username, password);
+            this.setState({loginInProgress: false});
+            if (returnURL) {
+                const url = new URL(returnURL);
+                let redirectURL = url.pathname + url.search;
+                // return url already contains baseHref, so we need to remove it
+                if (this.appContext.apis.baseHref != '/' && redirectURL.startsWith(this.appContext.apis.baseHref)) {
+                    redirectURL = redirectURL.substring(this.appContext.apis.baseHref.length);
+                }
+                this.appContext.apis.navigation.goto(redirectURL);
+            } else {
+                this.appContext.apis.navigation.goto('/applications');
+            }
+        } catch (e) {
+            this.setState({loginError: e.response.body.error, loginInProgress: false});
+        }
+    }
+
+    private get appContext(): AppContext {
+        return this.context as AppContext;
+    }
+
     public render() {
         const authSettings = this.state.authSettings;
         const ssoConfigured = authSettings && ((authSettings.dexConfig && (authSettings.dexConfig.connectors || []).length > 0) || authSettings.oidcConfig);
@@ -125,31 +151,5 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                 </div>
             </div>
         );
-    }
-
-    private async login(username: string, password: string, returnURL: string) {
-        try {
-            this.setState({loginError: '', loginInProgress: true});
-            this.appContext.apis.navigation.goto('.', {sso_error: null});
-            await services.users.login(username, password);
-            this.setState({loginInProgress: false});
-            if (returnURL) {
-                const url = new URL(returnURL);
-                let redirectURL = url.pathname + url.search;
-                // return url already contains baseHref, so we need to remove it
-                if (this.appContext.apis.baseHref != '/' && redirectURL.startsWith(this.appContext.apis.baseHref)) {
-                    redirectURL = redirectURL.substring(this.appContext.apis.baseHref.length);
-                }
-                this.appContext.apis.navigation.goto(redirectURL);
-            } else {
-                this.appContext.apis.navigation.goto('/applications');
-            }
-        } catch (e) {
-            this.setState({loginError: e.response.body.error, loginInProgress: false});
-        }
-    }
-
-    private get appContext(): AppContext {
-        return this.context as AppContext;
     }
 }
