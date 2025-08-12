@@ -409,6 +409,8 @@ spec:
                                     syncSource:
                                       properties:
                                         path:
+                                          minLength: 1
+                                          pattern: ^(?!\.?$)(?!\/?$).+
                                           type: string
                                         targetBranch:
                                           type: string
@@ -1091,6 +1093,8 @@ spec:
                                     syncSource:
                                       properties:
                                         path:
+                                          minLength: 1
+                                          pattern: ^(?!\.?$)(?!\/?$).+
                                           type: string
                                         targetBranch:
                                           type: string
@@ -1774,6 +1778,8 @@ spec:
                                     syncSource:
                                       properties:
                                         path:
+                                          minLength: 1
+                                          pattern: ^(?!\.?$)(?!\/?$).+
                                           type: string
                                         targetBranch:
                                           type: string
@@ -2435,6 +2441,8 @@ spec:
                                     syncSource:
                                       properties:
                                         path:
+                                          minLength: 1
+                                          pattern: ^(?!\.?$)(?!\/?$).+
                                           type: string
                                         targetBranch:
                                           type: string
@@ -3121,6 +3129,8 @@ spec:
                                               syncSource:
                                                 properties:
                                                   path:
+                                                    minLength: 1
+                                                    pattern: ^(?!\.?$)(?!\/?$).+
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -3803,6 +3813,8 @@ spec:
                                               syncSource:
                                                 properties:
                                                   path:
+                                                    minLength: 1
+                                                    pattern: ^(?!\.?$)(?!\/?$).+
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -4486,6 +4498,8 @@ spec:
                                               syncSource:
                                                 properties:
                                                   path:
+                                                    minLength: 1
+                                                    pattern: ^(?!\.?$)(?!\/?$).+
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -5147,6 +5161,8 @@ spec:
                                               syncSource:
                                                 properties:
                                                   path:
+                                                    minLength: 1
+                                                    pattern: ^(?!\.?$)(?!\/?$).+
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -5816,6 +5832,8 @@ spec:
                                               syncSource:
                                                 properties:
                                                   path:
+                                                    minLength: 1
+                                                    pattern: ^(?!\.?$)(?!\/?$).+
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -6712,6 +6730,8 @@ spec:
                                               syncSource:
                                                 properties:
                                                   path:
+                                                    minLength: 1
+                                                    pattern: ^(?!\.?$)(?!\/?$).+
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -7599,6 +7619,8 @@ spec:
                                               syncSource:
                                                 properties:
                                                   path:
+                                                    minLength: 1
+                                                    pattern: ^(?!\.?$)(?!\/?$).+
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -8277,6 +8299,8 @@ spec:
                                     syncSource:
                                       properties:
                                         path:
+                                          minLength: 1
+                                          pattern: ^(?!\.?$)(?!\/?$).+
                                           type: string
                                         targetBranch:
                                           type: string
@@ -8965,6 +8989,8 @@ spec:
                                               syncSource:
                                                 properties:
                                                   path:
+                                                    minLength: 1
+                                                    pattern: ^(?!\.?$)(?!\/?$).+
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -9647,6 +9673,8 @@ spec:
                                               syncSource:
                                                 properties:
                                                   path:
+                                                    minLength: 1
+                                                    pattern: ^(?!\.?$)(?!\/?$).+
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -10330,6 +10358,8 @@ spec:
                                               syncSource:
                                                 properties:
                                                   path:
+                                                    minLength: 1
+                                                    pattern: ^(?!\.?$)(?!\/?$).+
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -10991,6 +11021,8 @@ spec:
                                               syncSource:
                                                 properties:
                                                   path:
+                                                    minLength: 1
+                                                    pattern: ^(?!\.?$)(?!\/?$).+
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -11660,6 +11692,8 @@ spec:
                                               syncSource:
                                                 properties:
                                                   path:
+                                                    minLength: 1
+                                                    pattern: ^(?!\.?$)(?!\/?$).+
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -12556,6 +12590,8 @@ spec:
                                               syncSource:
                                                 properties:
                                                   path:
+                                                    minLength: 1
+                                                    pattern: ^(?!\.?$)(?!\/?$).+
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -13443,6 +13479,8 @@ spec:
                                               syncSource:
                                                 properties:
                                                   path:
+                                                    minLength: 1
+                                                    pattern: ^(?!\.?$)(?!\/?$).+
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -14125,6 +14163,8 @@ spec:
                                     syncSource:
                                       properties:
                                         path:
+                                          minLength: 1
+                                          pattern: ^(?!\.?$)(?!\/?$).+
                                           type: string
                                         targetBranch:
                                           type: string
@@ -14793,6 +14833,8 @@ spec:
                                     syncSource:
                                       properties:
                                         path:
+                                          minLength: 1
+                                          pattern: ^(?!\.?$)(?!\/?$).+
                                           type: string
                                         targetBranch:
                                           type: string
@@ -15689,6 +15731,8 @@ spec:
                                     syncSource:
                                       properties:
                                         path:
+                                          minLength: 1
+                                          pattern: ^(?!\.?$)(?!\/?$).+
                                           type: string
                                         targetBranch:
                                           type: string
@@ -16576,6 +16620,8 @@ spec:
                                     syncSource:
                                       properties:
                                         path:
+                                          minLength: 1
+                                          pattern: ^(?!\.?$)(?!\/?$).+
                                           type: string
                                         targetBranch:
                                           type: string
@@ -17331,6 +17377,8 @@ spec:
                           syncSource:
                             properties:
                               path:
+                                minLength: 1
+                                pattern: ^(?!\.?$)(?!\/?$).+
                                 type: string
                               targetBranch:
                                 type: string

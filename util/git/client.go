@@ -1027,7 +1027,7 @@ func (m *nativeGitClient) RemoveContents(paths []string) (string, error) {
 	if len(paths) == 0 {
 		return "", nil
 	}
-	args := append([]string{"rm", "-r", "--ignore-unmatch"}, paths...)
+	args := append([]string{"rm", "-r", "--ignore-unmatch", "--"}, paths...)
 	out, err := m.runCmd(args...)
 	if err != nil {
 		return out, fmt.Errorf("failed to clear paths %v: %w", paths, err)
