@@ -452,7 +452,7 @@ function formatSize(bytes: number) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
-function formatMetric(name: ResourceName, val: number) {
+export function formatMetric(name: ResourceName, val: number) {
     if (name === ResourceName.ResourceStorage || name === ResourceName.ResourceMemory) {
         // divide by 1000 to convert "milli bytes" to bytes
         return formatSize(val / 1000);

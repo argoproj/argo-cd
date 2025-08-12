@@ -1,33 +1,49 @@
-# `argocd logout` Command Reference
+# `argocd app get-resource` Command Reference
 
-## argocd logout
+## argocd app get-resource
 
-Log out from Argo CD
-
-### Synopsis
-
-Log out from Argo CD
+Get details about the live Kubernetes manifests of a resource in an application. The filter-fields flag can be used to only display fields you want to see.
 
 ```
-argocd logout CONTEXT [flags]
+argocd app get-resource APPNAME [flags]
 ```
 
 ### Examples
 
 ```
-# Logout from the active Argo CD context
-# This can be helpful for security reasons or when you want to switch between different Argo CD contexts or accounts.
-argocd logout CONTEXT
 
-# Logout from a specific context named 'cd.argoproj.io'
-argocd logout cd.argoproj.io
+  # Get a specific resource, Pod my-app-pod, in 'my-app' by name in wide format
+    argocd app get-resource my-app --kind Pod --resource-name my-app-pod
 
+  # Get a specific resource, Pod my-app-pod, in 'my-app' by name in yaml format
+    argocd app get-resource my-app --kind Pod --resource-name my-app-pod -o yaml
+
+  # Get a specific resource, Pod my-app-pod, in 'my-app' by name in json format
+    argocd app get-resource my-app --kind Pod --resource-name my-app-pod -o json
+
+  # Get details about all Pods in the application
+    argocd app get-resource my-app --kind Pod
+
+  # Get a specific resource with managed fields, Pod my-app-pod, in 'my-app' by name in wide format
+    argocd app get-resource my-app --kind Pod --resource-name my-app-pod --show-managed-fields
+
+  # Get the the details of a specific field in a resource in 'my-app' in the wide format
+    argocd app get-resource my-app --kind Pod --filter-fields status.podIP
+
+  # Get the details of multiple specific fields in a specific resource in 'my-app' in the wide format
+    argocd app get-resource my-app --kind Pod --resource-name my-app-pod --filter-fields status.podIP,status.hostIP
 ```
 
 ### Options
 
 ```
-  -h, --help   help for logout
+      --filter-fields strings   A comma separated list of fields to display, if not provided will output the entire manifest
+  -h, --help                    help for get-resource
+      --kind string             Kind of resource [REQUIRED]
+  -o, --output string           Format of the output, wide, yaml, or json (default "wide")
+      --project string          Project of resource
+      --resource-name string    Name of resource, if none is included will output details of all resources with specified kind
+      --show-managed-fields     Show managed fields in the output manifest
 ```
 
 ### Options inherited from parent commands
@@ -63,5 +79,5 @@ argocd logout cd.argoproj.io
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
+* [argocd app](argocd_app.md)	 - Manage applications
 
