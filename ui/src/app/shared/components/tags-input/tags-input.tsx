@@ -32,6 +32,15 @@ export class TagsInput extends React.Component<TagsInputProps, TagsInputState> {
         this.state = {tags: props.tags || [], input: '', focused: false};
     }
 
+    private onTagsChange(tags: string[]) {
+        if (this.props.onChange) {
+            this.props.onChange(tags);
+            if (this.autocompleteApi) {
+                setTimeout(() => this.autocompleteApi.refresh());
+            }
+        }
+    }
+
     public render() {
         return (
             <div
@@ -111,14 +120,5 @@ export class TagsInput extends React.Component<TagsInputProps, TagsInputState> {
                 />
             </div>
         );
-    }
-
-    private onTagsChange(tags: string[]) {
-        if (this.props.onChange) {
-            this.props.onChange(tags);
-            if (this.autocompleteApi) {
-                setTimeout(() => this.autocompleteApi.refresh());
-            }
-        }
     }
 }
