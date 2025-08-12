@@ -215,7 +215,7 @@ const PropagationPolicyOption = ReactForm.FormField((props: {fieldApi: ReactForm
 export const OperationPhaseIcon = ({app, isButton}: {app: appModels.Application; isButton?: boolean}) => {
     const operationState = getAppOperationState(app);
     if (operationState === undefined) {
-        return <React.Fragment />;
+        return null;
     }
     let className = '';
     let color = '';
@@ -246,7 +246,7 @@ export const OperationPhaseIcon = ({app, isButton}: {app: appModels.Application;
 
 export const HydrateOperationPhaseIcon = ({operationState, isButton}: {operationState?: appModels.HydrateOperation; isButton?: boolean}) => {
     if (operationState === undefined) {
-        return <React.Fragment />;
+        return null;
     }
     let className = '';
     let color = '';
@@ -403,17 +403,15 @@ export const deleteSourceAction = (app: appModels.Application, source: appModels
         () => (
             <div>
                 <p>
-                    <>
-                        Are you sure you want to delete the source with URL: <kbd>{source.repoURL}</kbd>
-                        {source.path ? (
-                            <>
-                                {' '}
-                                and path: <kbd>{source.path}</kbd>?
-                            </>
-                        ) : (
-                            <>?</>
-                        )}
-                    </>
+                    Are you sure you want to delete the source with URL: <kbd>{source.repoURL}</kbd>
+                    {source.path ? (
+                        <>
+                            {' '}
+                            and path: <kbd>{source.path}</kbd>?
+                        </>
+                    ) : (
+                        <>?</>
+                    )}
                 </p>
             </div>
         ),
@@ -1145,10 +1143,10 @@ const getOperationStateTitle = (app: appModels.Application) => {
 export const OperationState = ({app, quiet, isButton}: {app: appModels.Application; quiet?: boolean; isButton?: boolean}) => {
     const appOperationState = getAppOperationState(app);
     if (appOperationState === undefined) {
-        return <React.Fragment />;
+        return null;
     }
     if (quiet && [appModels.OperationPhases.Running, appModels.OperationPhases.Failed, appModels.OperationPhases.Error].indexOf(appOperationState.phase) === -1) {
-        return <React.Fragment />;
+        return null;
     }
 
     return (
@@ -1734,3 +1732,9 @@ export const getProgressiveSyncStatusColor = (status: string): string => {
             return COLORS.sync.unknown;
     }
 };
+
+// constant for podrequests
+export const podRequests = {
+    CPU: 'Requests (CPU)',
+    MEMORY: 'Requests (MEM)'
+} as const;

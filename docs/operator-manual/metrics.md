@@ -209,9 +209,11 @@ argocd_cluster_labels{label_environment="production",label_team_name="team3",nam
 
 Metrics about API Server API request and response activity (request totals, response codes, etc...).
 Scraped at the `argocd-server-metrics:8083/metrics` endpoint.
+For GRPC metrics to show up environment variable ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM must be set to true. 
 
-| Metric                                            |   Type    | Description                                                                                 |
-| ------------------------------------------------- | :-------: | ------------------------------------------------------------------------------------------- |
+| Metric                                            |   Type    | Description                                                                        
+|---------------------------------------------------|:---------:|---------------------------------------------------------------------------------------------|
+| `argocd_login_request_total`                      | counter   | Number of login requests.                                                                   |
 | `argocd_redis_request_duration`                   | histogram | Redis requests duration.                                                                    |
 | `argocd_redis_request_total`                      |  counter  | Number of Kubernetes requests executed during application reconciliation.                   |
 | `grpc_server_handled_total`                       |  counter  | Total number of RPCs completed on the server, regardless of success or failure.             |
@@ -248,8 +250,10 @@ Scraped at the `argocd-server-metrics:8083/metrics` endpoint.
 
 ## Repo Server Metrics
 
-Metrics about the Repo Server.
+Metrics about the Repo Server. The gRPC metrics are not exposed by default.  Metrics can be enabled using
+`ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM=true` environment variable.  
 Scraped at the `argocd-repo-server:8084/metrics` endpoint.
+
 
 | Metric                                  |   Type    | Description                                                               |
 | --------------------------------------- | :-------: | ------------------------------------------------------------------------- |

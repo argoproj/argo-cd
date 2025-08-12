@@ -875,7 +875,7 @@ func TestNamespacedResourceAction(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, []*ResourceAction{{Name: "sample", Disabled: false}}, actions.Actions)
 
-			_, err = client.RunResourceAction(t.Context(), &applicationpkg.ResourceActionRunRequest{
+			_, err = client.RunResourceActionV2(t.Context(), &applicationpkg.ResourceActionRunRequestV2{
 				Name:         &app.Name,
 				Group:        ptr.To("apps"),
 				Kind:         ptr.To("Deployment"),
@@ -1076,7 +1076,7 @@ func assertNSResourceActions(t *testing.T, appName string, successful bool) {
 	})
 	assertError(err, expectedError)
 
-	_, err = cdClient.RunResourceAction(t.Context(), &applicationpkg.ResourceActionRunRequest{
+	_, err = cdClient.RunResourceActionV2(t.Context(), &applicationpkg.ResourceActionRunRequestV2{
 		Name:         &appName,
 		AppNamespace: ptr.To(fixture.AppNamespace()),
 		ResourceName: ptr.To("guestbook-ui"),
@@ -1134,6 +1134,7 @@ func TestNamespacedPermissions(t *testing.T) {
 		}).
 		CreateApp().
 		Sync().
+		Wait().
 		Then().
 		// make sure application resource actiions are successful
 		And(func(app *Application) {
