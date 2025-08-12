@@ -30,7 +30,7 @@ argocd app diff APPNAME [flags]
       --refresh                                           Refresh application data when retrieving
       --revision string                                   Compare live app to a particular revision
       --revisions stringArray                             Show manifests at specific revisions for source position in source-positions
-      --server-side-diff                                  Use server-side diff calculation (requires ArgoCD server with server-side diff support)
+      --server-side-diff                                  Use server-side diff to calculate the diff. This will default to true if the ServerSideDiff annotation is set on the application.
       --server-side-generate                              Used with --local, this will send your manifests to the server for diffing
       --source-names stringArray                          List of source names. Default is an empty array.
       --source-positions int64Slice                       List of source positions. Default is empty array. Counting start at 1. (default [])
