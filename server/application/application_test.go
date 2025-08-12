@@ -3627,7 +3627,7 @@ func TestServerSideDiff(t *testing.T) {
 	t.Run("InputValidation", func(t *testing.T) {
 		// Test missing application name
 		query := &application.ApplicationServerSideDiffQuery{
-			Name:            ptr.To(""), // Empty name instead of nil
+			AppName:         ptr.To(""), // Empty name instead of nil
 			AppNamespace:    ptr.To(testNamespace),
 			Project:         ptr.To("test-project"),
 			LiveResources:   []*v1alpha1.ResourceDiff{},
@@ -3640,7 +3640,7 @@ func TestServerSideDiff(t *testing.T) {
 
 		// Test nil application name
 		queryNil := &application.ApplicationServerSideDiffQuery{
-			Name:            nil,
+			AppName:         nil,
 			AppNamespace:    ptr.To(testNamespace),
 			Project:         ptr.To("test-project"),
 			LiveResources:   []*v1alpha1.ResourceDiff{},
@@ -3655,7 +3655,7 @@ func TestServerSideDiff(t *testing.T) {
 	t.Run("InvalidManifest", func(t *testing.T) {
 		// Test error handling for malformed JSON in target manifests
 		query := &application.ApplicationServerSideDiffQuery{
-			Name:            ptr.To("test-app"),
+			AppName:         ptr.To("test-app"),
 			AppNamespace:    ptr.To(testNamespace),
 			Project:         ptr.To("test-project"),
 			LiveResources:   []*v1alpha1.ResourceDiff{},
@@ -3682,7 +3682,7 @@ func TestServerSideDiff(t *testing.T) {
 		}
 
 		query := &application.ApplicationServerSideDiffQuery{
-			Name:            ptr.To("test-app"),
+			AppName:         ptr.To("test-app"),
 			AppNamespace:    ptr.To(testNamespace),
 			Project:         ptr.To("test-project"),
 			LiveResources:   []*v1alpha1.ResourceDiff{liveResource},
@@ -3699,7 +3699,7 @@ func TestServerSideDiff(t *testing.T) {
 	t.Run("EmptyRequest", func(t *testing.T) {
 		// Test with empty resources - should succeed without errors but no diffs
 		query := &application.ApplicationServerSideDiffQuery{
-			Name:            ptr.To("test-app"),
+			AppName:         ptr.To("test-app"),
 			AppNamespace:    ptr.To(testNamespace),
 			Project:         ptr.To("test-project"),
 			LiveResources:   []*v1alpha1.ResourceDiff{},
@@ -3718,7 +3718,7 @@ func TestServerSideDiff(t *testing.T) {
 	t.Run("MissingAppPermission", func(t *testing.T) {
 		// Test RBAC enforcement
 		query := &application.ApplicationServerSideDiffQuery{
-			Name:            ptr.To("nonexistent-app"),
+			AppName:         ptr.To("nonexistent-app"),
 			AppNamespace:    ptr.To(testNamespace),
 			Project:         ptr.To("nonexistent-project"),
 			LiveResources:   []*v1alpha1.ResourceDiff{},
