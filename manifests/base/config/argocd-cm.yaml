@@ -56,6 +56,12 @@ data:
       - /metadata
       - /subsets
 
+  # Ignores diffs caused by metadata post-delete annotations added internally
+  resource.customizations.ignoreDifferences.argoproj.io_Application: |
+    jqPathExpressions:
+      - .metadata.finalizers[]? | select(. == "post-delete-finalizer.argocd.argoproj.io" or . == "post-delete-finalizer.argocd.argoproj.io/cleanup")
+      - if (.metadata.finalizers | length) == 0 then .metadata.finalizers else empty end
+
   ### Default configuration for exclusions.
   # The exclusion list are K8s resources that we assume will never be declared in Git,
   # and are never child objects of managed resources that need to be presented in the resource tree.
