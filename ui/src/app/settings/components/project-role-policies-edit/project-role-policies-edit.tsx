@@ -85,6 +85,76 @@ function removeEl(items: any[], index: number) {
 }
 
 class PolicyWrapper extends React.Component<PolicyProps, any> {
+    private getResource(): string {
+        const fields = (this.props.fieldApi.getValue() as string).split(',');
+        if (fields.length !== 6) {
+            return '';
+        }
+        return fields[2].trim();
+    }
+    private setResource(resource: string) {
+        const fields = (this.props.fieldApi.getValue() as string).split(',');
+        if (fields.length !== 6) {
+            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, resource, '', '', ''));
+            return;
+        }
+        fields[2] = ` ${resource}`;
+        this.props.fieldApi.setValue(fields.join());
+    }
+
+    private getAction(): string {
+        const fields = (this.props.fieldApi.getValue() as string).split(',');
+        if (fields.length !== 6) {
+            return '';
+        }
+        return fields[3].trim();
+    }
+
+    private setAction(action: string) {
+        const fields = (this.props.fieldApi.getValue() as string).split(',');
+        if (fields.length !== 6) {
+            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, '', action, '', ''));
+            return;
+        }
+        fields[3] = ` ${action}`;
+        this.props.fieldApi.setValue(fields.join());
+    }
+
+    private getObject(): string {
+        const fields = (this.props.fieldApi.getValue() as string).split(',');
+        if (fields.length !== 6) {
+            return '';
+        }
+        return fields[4].trim();
+    }
+
+    private setObject(object: string) {
+        const fields = (this.props.fieldApi.getValue() as string).split(',');
+        if (fields.length !== 6) {
+            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, '', '', object, ''));
+            return;
+        }
+        fields[4] = ` ${object}`;
+        this.props.fieldApi.setValue(fields.join());
+    }
+
+    private getPermission(): string {
+        const fields = (this.props.fieldApi.getValue() as string).split(',');
+        if (fields.length !== 6) {
+            return '';
+        }
+        return fields[5].trim();
+    }
+    private setPermission(permission: string) {
+        const fields = (this.props.fieldApi.getValue() as string).split(',');
+        if (fields.length !== 6) {
+            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, '', '', '', permission));
+            return;
+        }
+        fields[5] = ` ${permission}`;
+        this.props.fieldApi.setValue(fields.join());
+    }
+
     public render() {
         return (
             <div className='row project-role-policies-edit__wrapper-row'>
@@ -159,76 +229,6 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
                 </div>
             </div>
         );
-    }
-
-    private getResource(): string {
-        const fields = (this.props.fieldApi.getValue() as string).split(',');
-        if (fields.length !== 6) {
-            return '';
-        }
-        return fields[2].trim();
-    }
-    private setResource(resource: string) {
-        const fields = (this.props.fieldApi.getValue() as string).split(',');
-        if (fields.length !== 6) {
-            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, resource, '', '', ''));
-            return;
-        }
-        fields[2] = ` ${resource}`;
-        this.props.fieldApi.setValue(fields.join());
-    }
-
-    private getAction(): string {
-        const fields = (this.props.fieldApi.getValue() as string).split(',');
-        if (fields.length !== 6) {
-            return '';
-        }
-        return fields[3].trim();
-    }
-
-    private setAction(action: string) {
-        const fields = (this.props.fieldApi.getValue() as string).split(',');
-        if (fields.length !== 6) {
-            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, '', action, '', ''));
-            return;
-        }
-        fields[3] = ` ${action}`;
-        this.props.fieldApi.setValue(fields.join());
-    }
-
-    private getObject(): string {
-        const fields = (this.props.fieldApi.getValue() as string).split(',');
-        if (fields.length !== 6) {
-            return '';
-        }
-        return fields[4].trim();
-    }
-
-    private setObject(object: string) {
-        const fields = (this.props.fieldApi.getValue() as string).split(',');
-        if (fields.length !== 6) {
-            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, '', '', object, ''));
-            return;
-        }
-        fields[4] = ` ${object}`;
-        this.props.fieldApi.setValue(fields.join());
-    }
-
-    private getPermission(): string {
-        const fields = (this.props.fieldApi.getValue() as string).split(',');
-        if (fields.length !== 6) {
-            return '';
-        }
-        return fields[5].trim();
-    }
-    private setPermission(permission: string) {
-        const fields = (this.props.fieldApi.getValue() as string).split(',');
-        if (fields.length !== 6) {
-            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, '', '', '', permission));
-            return;
-        }
-        fields[5] = ` ${permission}`;
-        this.props.fieldApi.setValue(fields.join());
     }
 }
 
