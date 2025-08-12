@@ -1,4 +1,4 @@
-local os = require("os")
+local math = require("math")
 
 -- This action constructs a Job resource from a CronJob resource, to enable creating a CronJob instance on demand.
 -- It returns an array with a single member - a table with the operation to perform (create) and the Job resource.
@@ -36,7 +36,25 @@ job.metadata = deepCopy(obj.spec.jobTemplate.metadata)
 if job.metadata == nil then
   job.metadata = {}
 end
-job.metadata.name = obj.metadata.name .. "-" ..os.date("!%y%m%d%H%M")
+
+-- https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/ allows up to 52 characters for the name
+-- field and up to 11 characters for suffixes.
+-- Exceeding that suffix limit would result in failures if the base name is as long as allowed.
+
+local charset = {
+    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+    "a", "b", "c", "d", "e", "f", "g", "h", "i", "j",
+    "k", "l", "m", "n", "o", "p", "q", "r", "s", "t",
+    "u", "v", "w", "x", "y", "z",
+}
+
+local function randomString(length)
+    if not length or length <= 0 then return '' end
+    return randomString(length - 1) .. charset[math.random(1, #charset)]
+end
+
+local suffix = randomString(6)
+job.metadata.name = obj.metadata.name .. "-man-" .. suffix
 job.metadata.namespace = obj.metadata.namespace
 if job.metadata.annotations == nil then
   job.metadata.annotations = {}
