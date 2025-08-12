@@ -15,8 +15,8 @@ export interface LoginForm {
 }
 
 interface State {
-    authSettings: AuthSettings;
-    loginError: string;
+    authSettings: AuthSettings | null;
+    loginError: string | null;
     loginInProgress: boolean;
     returnUrl: string;
     hasSsoLoginError: boolean;
@@ -28,7 +28,7 @@ export function Login(props: RouteComponentProps<{}>) {
     const [state, setState] = useState<State>({
         authSettings: null,
         loginError: null,
-        returnUrl: null,
+        returnUrl: '',
         hasSsoLoginError: false,
         loginInProgress: false
     });
