@@ -129,7 +129,7 @@ type Client interface {
 	// the base branch.
 	CheckoutOrNew(branch, base string, submoduleEnabled bool) (string, error)
 	// RemoveContents removes all files from the git repository.
-	RemoveContents() (string, error)
+	RemoveContents(path string) (string, error)
 	// CommitAndPush commits and pushes changes to the target branch.
 	CommitAndPush(branch, message string) (string, error)
 }
@@ -1023,8 +1023,8 @@ func (m *nativeGitClient) CheckoutOrNew(branch, base string, submoduleEnabled bo
 }
 
 // RemoveContents removes all files from the git repository.
-func (m *nativeGitClient) RemoveContents() (string, error) {
-	out, err := m.runCmd("rm", "-r", "--ignore-unmatch", ".")
+func (m *nativeGitClient) RemoveContents(path string) (string, error) {
+	out, err := m.runCmd("rm", "-r", "--ignore-unmatch", "--", path)
 	if err != nil {
 		return out, fmt.Errorf("failed to clear repo contents: %w", err)
 	}
