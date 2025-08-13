@@ -1537,7 +1537,6 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 func (mgr *SettingsManager) loadTLSCertificate(settings *ArgoCDSettings, externalSecret *corev1.Secret, argoCDSecret *corev1.Secret) error {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
-	log.Infof("Loading TLS certificate")
 	if externalSecret != nil {
 		cert, err := mgr.loadTLSCertificateFromSecret(externalSecret)
 
@@ -1563,13 +1562,10 @@ func (mgr *SettingsManager) loadTLSCertificate(settings *ArgoCDSettings, externa
 }
 
 func (mgr *SettingsManager) loadTLSCertificateFromSecret(secret *corev1.Secret) (*tls.Certificate, error) {
-	log.Infof("Checking for TLS certificate in secret %s/%s", mgr.namespace, secret.Name)
 	if mgr.tlsCertCache != nil && mgr.tlsCertCacheSecretName == secret.Name && mgr.tlsCertCacheSecretVersion == secret.ResourceVersion {
-		log.Infof("Returning cert cached from %s/%s/%s", mgr.namespace, secret.Name, secret.ResourceVersion)
 		return mgr.tlsCertCache, nil
 	}
 
-	log.Infof("Cache miss for %s/%s/%s", mgr.namespace, secret.Name, secret.ResourceVersion)
 	tlsCert, certOK := secret.Data[settingServerCertificate]
 	tlsKey, keyOK := secret.Data[settingServerPrivateKey]
 	if !certOK || !keyOK {
@@ -1582,7 +1578,6 @@ func (mgr *SettingsManager) loadTLSCertificateFromSecret(secret *corev1.Secret) 
 		return nil, err
 	}
 
-	log.Infof("Caching cert loaded from secret %s/%s", mgr.namespace, secret.Name)
 	mgr.tlsCertCache = &cert
 	mgr.tlsCertCacheSecretName = secret.Name
 	mgr.tlsCertCacheSecretVersion = secret.ResourceVersion
