@@ -1,39 +1,49 @@
-# `argocd app diff` Command Reference
+# `argocd app get-resource` Command Reference
 
-## argocd app diff
+## argocd app get-resource
 
-Perform a diff against the target and live state.
-
-### Synopsis
-
-Perform a diff against the target and live state.
-Uses 'diff' to render the difference. KUBECTL_EXTERNAL_DIFF environment variable can be used to select your own diff tool.
-Returns the following exit codes: 2 on general errors, 1 when a diff is found, and 0 when no diff is found
-Kubernetes Secrets are ignored from this diff.
+Get details about the live Kubernetes manifests of a resource in an application. The filter-fields flag can be used to only display fields you want to see.
 
 ```
-argocd app diff APPNAME [flags]
+argocd app get-resource APPNAME [flags]
+```
+
+### Examples
+
+```
+
+  # Get a specific resource, Pod my-app-pod, in 'my-app' by name in wide format
+    argocd app get-resource my-app --kind Pod --resource-name my-app-pod
+
+  # Get a specific resource, Pod my-app-pod, in 'my-app' by name in yaml format
+    argocd app get-resource my-app --kind Pod --resource-name my-app-pod -o yaml
+
+  # Get a specific resource, Pod my-app-pod, in 'my-app' by name in json format
+    argocd app get-resource my-app --kind Pod --resource-name my-app-pod -o json
+
+  # Get details about all Pods in the application
+    argocd app get-resource my-app --kind Pod
+
+  # Get a specific resource with managed fields, Pod my-app-pod, in 'my-app' by name in wide format
+    argocd app get-resource my-app --kind Pod --resource-name my-app-pod --show-managed-fields
+
+  # Get the the details of a specific field in a resource in 'my-app' in the wide format
+    argocd app get-resource my-app --kind Pod --filter-fields status.podIP
+
+  # Get the details of multiple specific fields in a specific resource in 'my-app' in the wide format
+    argocd app get-resource my-app --kind Pod --resource-name my-app-pod --filter-fields status.podIP,status.hostIP
 ```
 
 ### Options
 
 ```
-  -N, --app-namespace string                              Only render the difference in namespace
-      --diff-exit-code int                                Return specified exit code when there is a diff. Typical error code is 20 but use another exit code if you want to differentiate from the generic exit code (20) returned by all CLI commands. (default 1)
-      --exit-code                                         Return non-zero exit code when there is a diff. May also return non-zero exit code if there is an error. (default true)
-      --hard-refresh                                      Refresh application data as well as target manifests cache
-  -h, --help                                              help for diff
-      --ignore-normalizer-jq-execution-timeout duration   Set ignore normalizer JQ execution timeout (default 1s)
-      --local string                                      Compare live app to a local manifests
-      --local-include stringArray                         Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path. (default [*.yaml,*.yml,*.json])
-      --local-repo-root string                            Path to the repository root. Used together with --local allows setting the repository root (default "/")
-      --refresh                                           Refresh application data when retrieving
-      --revision string                                   Compare live app to a particular revision
-      --revisions stringArray                             Show manifests at specific revisions for source position in source-positions
-      --server-side-diff                                  Use server-side diff to calculate the diff. This will default to true if the ServerSideDiff annotation is set on the application.
-      --server-side-generate                              Used with --local, this will send your manifests to the server for diffing
-      --source-names stringArray                          List of source names. Default is an empty array.
-      --source-positions int64Slice                       List of source positions. Default is empty array. Counting start at 1. (default [])
+      --filter-fields strings   A comma separated list of fields to display, if not provided will output the entire manifest
+  -h, --help                    help for get-resource
+      --kind string             Kind of resource [REQUIRED]
+  -o, --output string           Format of the output, wide, yaml, or json (default "wide")
+      --project string          Project of resource
+      --resource-name string    Name of resource, if none is included will output details of all resources with specified kind
+      --show-managed-fields     Show managed fields in the output manifest
 ```
 
 ### Options inherited from parent commands
