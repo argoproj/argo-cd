@@ -258,7 +258,8 @@ func cleanReturnedObj(newObj, obj map[string]any) map[string]any {
 				switch oldValue := oldValueInterface.(type) {
 				case map[string]any:
 					if len(newValue) == 0 {
-						mapToReturn[key] = oldValue
+						// Lua incorrectly decoded the empty object as an empty array, so set it to an empty object
+						mapToReturn[key] = map[string]any{}
 					}
 				case []any:
 					newArray := cleanReturnedArray(newValue, oldValue)
@@ -275,6 +276,10 @@ func cleanReturnedObj(newObj, obj map[string]any) map[string]any {
 func cleanReturnedArray(newObj, obj []any) []any {
 	arrayToReturn := newObj
 	for i := range newObj {
+		if i >= len(obj) {
+			// If the new object is longer than the old one, we added an item to the array
+			break
+		}
 		switch newValue := newObj[i].(type) {
 		case map[string]any:
 			if oldValue, ok := obj[i].(map[string]any); ok {
