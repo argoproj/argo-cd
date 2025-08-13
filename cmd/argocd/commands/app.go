@@ -1981,102 +1981,152 @@ func printTreeViewDetailed(nodeMapping map[string]argoappv1.ResourceNode, parent
 	_ = w.Flush()
 }
 
-func buildSyncOptions(cmd *cobra.Command, replace, serverSideApply, applyOutOfSyncOnly bool, syncOptionsOverride bool) *application.SyncOptions {
-	// Check if any CLI sync options are provided by checking if flags were changed
-	replaceSet := cmd.Flags().Changed("replace")
-	serverSideApplySet := cmd.Flags().Changed("server-side")
-	applyOutOfSyncOnlySet := cmd.Flags().Changed("apply-out-of-sync-only")
+type SyncOptionsOverrideStyle string
 
-	hasCliOptions := replaceSet || serverSideApplySet || applyOutOfSyncOnlySet
+var (
+	SyncOptionsOverrideReplace SyncOptionsOverrideStyle = "replace"
+	SyncOptionsOverridePatch   SyncOptionsOverrideStyle = "patch"
+)
 
-	// Return null if no CLI options were set
-	if !hasCliOptions {
-		return nil
+func SyncOptionsOverrideStyleFromString(s string) (SyncOptionsOverrideStyle, error) {
+	switch s {
+	case string(SyncOptionsOverrideReplace):
+		return SyncOptionsOverrideReplace, nil
+	case string(SyncOptionsOverridePatch):
+		return SyncOptionsOverridePatch, nil
 	}
+	return "", fmt.Errorf("unknown sync options override style : %s", s)
+}
 
-	if syncOptionsOverride {
-		// Return CLI options regardless of their true/false value to override app spec
-		syncOptions := application.SyncOptions{}
-		items := make([]string, 0)
-		if replaceSet {
-			if replace {
-				items = append(items, common.SyncOptionReplace)
-			} else {
-				items = append(items, "Replace=false") // TODO: use common.SyncOptionDisableReplace
+// Known sync option keys supported from CLI
+var knownSyncOptionKeys = []string{"Replace", "ServerSideApply", "ApplyOutOfSyncOnly"}
+
+// parseKnownMap converts a []string of form Key=true|false into a map for the known keys only
+func parseKnownMap(items []string) (map[string]bool, error) {
+	m := map[string]bool{}
+	for _, it := range items {
+		parts := strings.SplitN(it, "=", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid sync option: %s", it)
+		}
+		key := parts[0]
+		switch key {
+		case "Replace", "ServerSideApply", "ApplyOutOfSyncOnly":
+			m[key] = parts[1] == "true"
+		}
+	}
+	return m, nil
+}
+
+// serializeKnownMap converts known map back to []string in a stable key order
+func serializeKnownMap(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for _, k := range knownSyncOptionKeys {
+		if v, ok := m[k]; ok {
+			out = append(out, fmt.Sprintf("%s=%t", k, v))
+		}
+	}
+	return out
+}
+
+// cliMapFromFlags builds a map from flags that were explicitly changed
+func cliMapFromFlags(cmd *cobra.Command, replace, serverSideApply, applyOutOfSyncOnly bool) (map[string]bool, bool) {
+	changed := cmd.Flags().Changed("replace") || cmd.Flags().Changed("server-side") || cmd.Flags().Changed("apply-out-of-sync-only")
+	m := map[string]bool{}
+	if cmd.Flags().Changed("replace") {
+		m["Replace"] = replace
+	}
+	if cmd.Flags().Changed("server-side") {
+		m["ServerSideApply"] = serverSideApply
+	}
+	if cmd.Flags().Changed("apply-out-of-sync-only") {
+		m["ApplyOutOfSyncOnly"] = applyOutOfSyncOnly
+	}
+	return m, changed
+}
+
+func buildSyncOptions(cmd *cobra.Command, replace, serverSideApply, applyOutOfSyncOnly bool, syncOptionsOverrideStyle SyncOptionsOverrideStyle, currentSpecSyncOpts argoappv1.SyncOptions) (*application.SyncOptions, error) {
+	cliMap, any := cliMapFromFlags(cmd, replace, serverSideApply, applyOutOfSyncOnly)
+
+	if syncOptionsOverrideStyle == "" {
+		// Legacy behavior when override not provided:
+		// - If no CLI flags changed, return nil (AppSpec wins)
+		// - Only include true values for changed flags; false values do not override
+		if !any {
+			return nil, nil
+		}
+		items := make([]string, 0, len(cliMap))
+		for _, k := range knownSyncOptionKeys {
+			if v, ok := cliMap[k]; ok && v {
+				items = append(items, fmt.Sprintf("%s=true", k))
 			}
 		}
-		if serverSideApplySet {
-			if serverSideApply {
-				items = append(items, common.SyncOptionServerSideApply)
-			} else {
-				items = append(items, common.SyncOptionDisableServerSideApply)
-			}
+		if len(items) == 0 {
+			return nil, nil
 		}
-		if applyOutOfSyncOnlySet {
-			if applyOutOfSyncOnly {
-				items = append(items, common.SyncOptionApplyOutOfSyncOnly)
-			} else {
-				items = append(items, "ApplyOutOfSyncOnly=false") // TODO: use common.SyncOptionDisableApplyOutOfSyncOnly
-			}
-		}
-		syncOptions.Items = items
-		return &syncOptions
-	}
-	// Only return options that are explicitly set to true
-	syncOptions := application.SyncOptions{}
-	items := make([]string, 0)
-	if replace {
-		items = append(items, common.SyncOptionReplace)
-	}
-	if serverSideApply {
-		items = append(items, common.SyncOptionServerSideApply)
-	}
-	if applyOutOfSyncOnly {
-		items = append(items, common.SyncOptionApplyOutOfSyncOnly)
+		return &application.SyncOptions{Items: items}, nil
 	}
 
-	// If no options are true (all are false), return null
-	if len(items) == 0 {
-		return nil
-	}
+	switch syncOptionsOverrideStyle {
 
-	syncOptions.Items = items
-	return &syncOptions
+	case SyncOptionsOverrideReplace:
+		if !any {
+			// nullify app spec sync options entirely by returning empty array
+			return &application.SyncOptions{Items: []string{}}, nil
+		}
+		return &application.SyncOptions{Items: serializeKnownMap(cliMap)}, nil
+
+	case SyncOptionsOverridePatch:
+		if !any {
+			// let AppSpec win. returning nil means no sync options will be applied
+			return nil, nil
+		}
+		// merge spec with CLI (CLI wins)
+		specMap, err := parseKnownMap(currentSpecSyncOpts)
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range cliMap {
+			specMap[k] = v
+		}
+		return &application.SyncOptions{Items: serializeKnownMap(specMap)}, nil
+	}
+	return nil, fmt.Errorf("unknown sync options override style: %s", syncOptionsOverrideStyle)
 }
 
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
 func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		revision                string
-		revisions               []string
-		sourcePositions         []int64
-		sourceNames             []string
-		resources               []string
-		labels                  []string
-		selector                string
-		prune                   bool
-		dryRun                  bool
-		timeout                 uint
-		strategy                string
-		force                   bool
-		replace                 bool
-		serverSideApply         bool
-		applyOutOfSyncOnly      bool
-		syncOptionsOverride     bool
-		async                   bool
-		retryLimit              int64
-		retryBackoffDuration    time.Duration
-		retryBackoffMaxDuration time.Duration
-		retryBackoffFactor      int64
-		local                   string
-		localRepoRoot           string
-		infos                   []string
-		diffChanges             bool
-		diffChangesConfirm      bool
-		projects                []string
-		output                  string
-		appNamespace            string
-		ignoreNormalizerOpts    normalizers.IgnoreNormalizerOpts
+		revision                    string
+		revisions                   []string
+		sourcePositions             []int64
+		sourceNames                 []string
+		resources                   []string
+		labels                      []string
+		selector                    string
+		prune                       bool
+		dryRun                      bool
+		timeout                     uint
+		strategy                    string
+		force                       bool
+		replace                     bool
+		serverSideApply             bool
+		applyOutOfSyncOnly          bool
+		syncOptionsOverrideStyleStr string
+		async                       bool
+		retryLimit                  int64
+		retryBackoffDuration        time.Duration
+		retryBackoffMaxDuration     time.Duration
+		retryBackoffFactor          int64
+		local                       string
+		localRepoRoot               string
+		infos                       []string
+		diffChanges                 bool
+		diffChangesConfirm          bool
+		projects                    []string
+		output                      string
+		appNamespace                string
+		ignoreNormalizerOpts        normalizers.IgnoreNormalizerOpts
 	)
 	command := &cobra.Command{
 		Use:   "sync [APPNAME... | -l selector | --project project-name]",
@@ -2291,7 +2341,19 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					diffOption.cluster = cluster
 				}
 
-				syncOptions := buildSyncOptions(c, replace, serverSideApply, applyOutOfSyncOnly, syncOptionsOverride)
+				overrideStyle, err := SyncOptionsOverrideStyleFromString(syncOptionsOverrideStyleStr)
+				if err != nil {
+					log.Fatalf("Unknown value for --sync-options-override-style: '%s'. Allowed values: replace|patch", syncOptionsOverrideStyleStr)
+				}
+				// Determine current spec sync options to support patch semantics
+				var currentSpecSyncOpts argoappv1.SyncOptions
+				if app.Spec.SyncPolicy != nil {
+					currentSpecSyncOpts = app.Spec.SyncPolicy.SyncOptions
+				}
+				syncOptions, err := buildSyncOptions(c, replace, serverSideApply, applyOutOfSyncOnly, overrideStyle, currentSpecSyncOpts)
+				if err != nil {
+					log.Fatalf("Error building sync options: %s", err)
+				}
 
 				syncReq := application.ApplicationSyncRequest{
 					Name:            &appName,
@@ -2392,7 +2454,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&replace, "replace", false, "Use a kubectl create/replace instead apply")
 	command.Flags().BoolVar(&serverSideApply, "server-side", false, "Use server-side apply while syncing the application")
 	command.Flags().BoolVar(&applyOutOfSyncOnly, "apply-out-of-sync-only", false, "Sync only out-of-sync resources")
-	command.Flags().BoolVar(&syncOptionsOverride, "sync-options-override", false, "Override sync options with CLI values regardless of whether they are true or false")
+	command.Flags().StringVar(&syncOptionsOverrideStyleStr, "sync-options-override-style", "", "How to apply CLI sync options: 'replace' to fully override app spec with specified values and nullify unspecified values, or 'patch' to override app spec with specified values and leave unspecified values as is")
 	command.Flags().BoolVar(&async, "async", false, "Do not wait for application to sync before continuing")
 	command.Flags().StringVar(&local, "local", "", "Path to a local directory. When this flag is present no git queries will be made")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
