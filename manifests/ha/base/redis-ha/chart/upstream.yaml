@@ -701,6 +701,10 @@ data:
       stats enable
       stats uri /stats
       stats refresh 10s
+    # Additional configuration
+    global
+      maxconn 4096
+    
   haproxy_init.sh: |
     HAPROXY_CONF=/data/haproxy.cfg
     cp /readonly/haproxy.cfg "$HAPROXY_CONF"
@@ -1092,7 +1096,7 @@ spec:
         prometheus.io/port: "9101"
         prometheus.io/scrape: "true"
         prometheus.io/path: "/metrics"
-        checksum/config: e34e8124c38bcfd2f16e75620bbde30158686692b13bc449eecc44c51b207d54
+        checksum/config: cd6508bdf9819601c454d0cc491fb77a209e3a88761d92514d105b6681829953
     spec:
       # Needed when using unmodified rbac-setup.yml
       
@@ -1101,7 +1105,7 @@ spec:
         fsGroup: 99
         runAsNonRoot: true
         runAsUser: 99
-      automountServiceAccountToken: false
+      automountServiceAccountToken: true
       nodeSelector:
         {}
       tolerations:

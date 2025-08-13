@@ -32,7 +32,7 @@ func constructAppsetFromFileURL(fileURL string) ([]*argoprojiov1alpha1.Applicati
 func readAppsetFromURI(fileURL string, appset *[]*argoprojiov1alpha1.ApplicationSet) error {
 	readFilePayload := func() ([]byte, error) {
 		parsedURL, err := url.ParseRequestURI(fileURL)
-		if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+		if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
 			return os.ReadFile(fileURL)
 		}
 		return config.ReadRemoteFile(fileURL)

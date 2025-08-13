@@ -1883,6 +1883,10 @@ spec:
                         description: 'AllowEmpty allows apps have zero live resources
                           (default: false)'
                         type: boolean
+                      enabled:
+                        description: Enable allows apps to explicitly control automated
+                          sync
+                        type: boolean
                       prune:
                         description: 'Prune specifies whether to delete resources
                           from the cluster that are not found in the sources anymore
@@ -1986,12 +1990,13 @@ spec:
                     format: date-time
                     type: string
                   message:
-                    description: Message is a human-readable informational message
-                      describing the health status
+                    description: |-
+                      Message is a human-readable informational message describing the health status
+
+                      Deprecated: this field is not used and will be removed in a future release.
                     type: string
                   status:
-                    description: Status holds the status code of the application or
-                      resource
+                    description: Status holds the status code of the application
                     type: string
                 type: object
               history:
@@ -3860,6 +3865,12 @@ spec:
                               description: HookType specifies the type of the hook.
                                 Empty for non-hook resources
                               type: string
+                            images:
+                              description: Images contains the images related to the
+                                ResourceResult
+                              items:
+                                type: string
+                              type: array
                             kind:
                               description: Kind specifies the API kind of the resource
                               type: string
@@ -4737,8 +4748,10 @@ spec:
                         (e.g., Healthy, Degraded, Progressing).
                       properties:
                         lastTransitionTime:
-                          description: LastTransitionTime is the time the HealthStatus
-                            was set or updated
+                          description: |-
+                            LastTransitionTime is the time the HealthStatus was set or updated
+
+                            Deprecated: this field is not used and will be removed in a future release.
                           format: date-time
                           type: string
                         message:
@@ -4746,8 +4759,7 @@ spec:
                             describing the health status
                           type: string
                         status:
-                          description: Status holds the status code of the application
-                            or resource
+                          description: Status holds the status code of the resource
                           type: string
                       type: object
                     hook:
@@ -6547,6 +6559,8 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
+                                        enabled:
+                                          type: boolean
                                         prune:
                                           type: boolean
                                         selfHeal:
@@ -7227,6 +7241,8 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
+                                        enabled:
+                                          type: boolean
                                         prune:
                                           type: boolean
                                         selfHeal:
@@ -7293,6 +7309,8 @@ spec:
                         files:
                           items:
                             properties:
+                              exclude:
+                                type: boolean
                               path:
                                 type: string
                             required:
@@ -7905,6 +7923,8 @@ spec:
                                     automated:
                                       properties:
                                         allowEmpty:
+                                          type: boolean
+                                        enabled:
                                           type: boolean
                                         prune:
                                           type: boolean
@@ -8564,6 +8584,8 @@ spec:
                                     automated:
                                       properties:
                                         allowEmpty:
+                                          type: boolean
+                                        enabled:
                                           type: boolean
                                         prune:
                                           type: boolean
@@ -9249,6 +9271,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -9929,6 +9953,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -9995,6 +10021,8 @@ spec:
                                   files:
                                     items:
                                       properties:
+                                        exclude:
+                                          type: boolean
                                         path:
                                           type: string
                                       required:
@@ -10607,6 +10635,8 @@ spec:
                                               automated:
                                                 properties:
                                                   allowEmpty:
+                                                    type: boolean
+                                                  enabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -11266,6 +11296,8 @@ spec:
                                               automated:
                                                 properties:
                                                   allowEmpty:
+                                                    type: boolean
+                                                  enabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -11934,6 +11966,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -12120,12 +12154,16 @@ spec:
                                     - project
                                     - repo
                                     type: object
+                                  continueOnRepoNotFoundError:
+                                    type: boolean
                                   filters:
                                     items:
                                       properties:
                                         branchMatch:
                                           type: string
                                         targetBranchMatch:
+                                          type: string
+                                        titleMatch:
                                           type: string
                                       type: object
                                     type: array
@@ -12135,6 +12173,10 @@ spec:
                                         type: string
                                       insecure:
                                         type: boolean
+                                      labels:
+                                        items:
+                                          type: string
+                                        type: array
                                       owner:
                                         type: string
                                       repo:
@@ -12819,6 +12861,8 @@ spec:
                                               automated:
                                                 properties:
                                                   allowEmpty:
+                                                    type: boolean
+                                                  enabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -13705,6 +13749,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -14380,6 +14426,8 @@ spec:
                                     automated:
                                       properties:
                                         allowEmpty:
+                                          type: boolean
+                                        enabled:
                                           type: boolean
                                         prune:
                                           type: boolean
@@ -15067,6 +15115,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -15747,6 +15797,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -15813,6 +15865,8 @@ spec:
                                   files:
                                     items:
                                       properties:
+                                        exclude:
+                                          type: boolean
                                         path:
                                           type: string
                                       required:
@@ -16425,6 +16479,8 @@ spec:
                                               automated:
                                                 properties:
                                                   allowEmpty:
+                                                    type: boolean
+                                                  enabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -17084,6 +17140,8 @@ spec:
                                               automated:
                                                 properties:
                                                   allowEmpty:
+                                                    type: boolean
+                                                  enabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -17752,6 +17810,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -17938,12 +17998,16 @@ spec:
                                     - project
                                     - repo
                                     type: object
+                                  continueOnRepoNotFoundError:
+                                    type: boolean
                                   filters:
                                     items:
                                       properties:
                                         branchMatch:
                                           type: string
                                         targetBranchMatch:
+                                          type: string
+                                        titleMatch:
                                           type: string
                                       type: object
                                     type: array
@@ -17953,6 +18017,10 @@ spec:
                                         type: string
                                       insecure:
                                         type: boolean
+                                      labels:
+                                        items:
+                                          type: string
+                                        type: array
                                       owner:
                                         type: string
                                       repo:
@@ -18637,6 +18705,8 @@ spec:
                                               automated:
                                                 properties:
                                                   allowEmpty:
+                                                    type: boolean
+                                                  enabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -19523,6 +19593,8 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
+                                                  enabled:
+                                                    type: boolean
                                                   prune:
                                                     type: boolean
                                                   selfHeal:
@@ -20203,6 +20275,8 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
+                                        enabled:
+                                          type: boolean
                                         prune:
                                           type: boolean
                                         selfHeal:
@@ -20869,6 +20943,8 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
+                                        enabled:
+                                          type: boolean
                                         prune:
                                           type: boolean
                                         selfHeal:
@@ -21055,12 +21131,16 @@ spec:
                           - project
                           - repo
                           type: object
+                        continueOnRepoNotFoundError:
+                          type: boolean
                         filters:
                           items:
                             properties:
                               branchMatch:
                                 type: string
                               targetBranchMatch:
+                                type: string
+                              titleMatch:
                                 type: string
                             type: object
                           type: array
@@ -21070,6 +21150,10 @@ spec:
                               type: string
                             insecure:
                               type: boolean
+                            labels:
+                              items:
+                                type: string
+                              type: array
                             owner:
                               type: string
                             repo:
@@ -21754,6 +21838,8 @@ spec:
                                     automated:
                                       properties:
                                         allowEmpty:
+                                          type: boolean
+                                        enabled:
                                           type: boolean
                                         prune:
                                           type: boolean
@@ -22640,6 +22726,8 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
+                                        enabled:
+                                          type: boolean
                                         prune:
                                           type: boolean
                                         selfHeal:
@@ -22752,6 +22840,8 @@ spec:
                 type: object
               strategy:
                 properties:
+                  deletionOrder:
+                    type: string
                   rollingSync:
                     properties:
                       steps:
@@ -23391,6 +23481,8 @@ spec:
                             properties:
                               allowEmpty:
                                 type: boolean
+                              enabled:
+                                type: boolean
                               prune:
                                 type: boolean
                               selfHeal:
@@ -23623,6 +23715,7 @@ spec:
                 type: array
               description:
                 description: Description contains optional project description
+                maxLength: 255
                 type: string
               destinationServiceAccounts:
                 description: DestinationServiceAccounts holds information about the
@@ -23833,6 +23926,11 @@ spec:
                       items:
                         type: string
                       type: array
+                    description:
+                      description: Description of the sync that will be applied to
+                        the schedule, can be used to add any information such as a
+                        ticket number for example
+                      type: string
                     duration:
                       description: Duration is the amount of time the sync window
                         will be open
@@ -24050,14 +24148,21 @@ rules:
   - list
   - watch
 - apiGroups:
-  - apps
-  - extensions
+  - coordination.k8s.io
   resources:
-  - deployments
+  - leases
+  verbs:
+  - create
+- apiGroups:
+  - coordination.k8s.io
+  resourceNames:
+  - 58ac56fa.applicationsets.argoproj.io
+  resources:
+  - leases
   verbs:
   - get
-  - list
-  - watch
+  - update
+  - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -24217,10 +24322,6 @@ data:
       - Endpoints
       - EndpointSlice
     ### Internal Kubernetes resources excluded reduce the number of watched events
-    - apiGroups:
-      - apiregistration.k8s.io
-      kinds:
-      - APIService
     - apiGroups:
       - coordination.k8s.io
       kinds:
@@ -24601,6 +24702,12 @@ spec:
               key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.github.api.metrics
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT
           valueFrom:
             configMapKeyRef:
@@ -24779,26 +24886,6 @@ spec:
           name: gpg-keyring
         - mountPath: /tmp
           name: tmp
-      initContainers:
-      - command:
-        - /bin/cp
-        - -n
-        - /usr/local/bin/argocd
-        - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:latest
-        name: copyutil
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
-        volumeMounts:
-        - mountPath: /var/run/argocd
-          name: var-files
       serviceAccountName: argocd-commit-server
       volumes:
       - configMap:
@@ -24825,8 +24912,6 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-commit-server-tls
-      - emptyDir: {}
-        name: var-files
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -24873,7 +24958,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: redis:7.2.7-alpine
+        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -25404,6 +25489,12 @@ spec:
               key: controller.self.heal.backoff.cap.seconds
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_COOLDOWN_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.self.heal.backoff.cooldown.seconds
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT
           valueFrom:
             configMapKeyRef:
@@ -25542,6 +25633,12 @@ spec:
               key: controller.cluster.cache.events.processing.interval
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_COMMIT_SERVER
+          valueFrom:
+            configMapKeyRef:
+              key: commit.server
+              name: argocd-cmd-params-cm
+              optional: true
         - name: KUBECACHEDIR
           value: /tmp/kubecache
         image: quay.io/argoproj/argocd:latest
@@ -25604,6 +25701,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: application-controller
+    app.kubernetes.io/name: argocd-application-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-application-controller-network-policy
 spec:
   ingress:
@@ -25620,6 +25721,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: applicationset-controller
+    app.kubernetes.io/name: argocd-applicationset-controller
+    app.kubernetes.io/part-of: argocd
   name: argocd-applicationset-controller-network-policy
 spec:
   ingress:
@@ -25639,6 +25744,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: commit-server
+    app.kubernetes.io/name: argocd-commit-server
+    app.kubernetes.io/part-of: argocd
   name: argocd-commit-server-network-policy
 spec:
   ingress:
@@ -25662,6 +25771,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: redis
+    app.kubernetes.io/name: argocd-redis
+    app.kubernetes.io/part-of: argocd
   name: argocd-redis-network-policy
 spec:
   ingress:
@@ -25687,6 +25800,10 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  labels:
+    app.kubernetes.io/component: repo-server
+    app.kubernetes.io/name: argocd-repo-server
+    app.kubernetes.io/part-of: argocd
   name: argocd-repo-server-network-policy
 spec:
   ingress:

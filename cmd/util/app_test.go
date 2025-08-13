@@ -554,7 +554,7 @@ func TestFilterResources(t *testing.T) {
 		}
 
 		filteredResources, err := FilterResources(false, resources, "g", "Service", "argocd-unknown", "test-helm", true)
-		require.ErrorContains(t, err, "No matching resource found")
+		require.ErrorContains(t, err, "no matching resource found")
 		assert.Nil(t, filteredResources)
 	})
 
@@ -569,7 +569,7 @@ func TestFilterResources(t *testing.T) {
 		}
 
 		filteredResources, err := FilterResources(false, resources, "g", "Service", "argocd", "test-helm", false)
-		require.ErrorContains(t, err, "Use the --all flag")
+		require.ErrorContains(t, err, "use the --all flag")
 		assert.Nil(t, filteredResources)
 	})
 }

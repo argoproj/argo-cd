@@ -79,10 +79,10 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, ign
 			return a.Cmp(b) == 0
 		},
 		func(a, b metav1.MicroTime) bool {
-			return a.UTC() == b.UTC()
+			return a.UTC().Equal(b.UTC())
 		},
 		func(a, b metav1.Time) bool {
-			return a.UTC() == b.UTC()
+			return a.UTC().Equal(b.UTC())
 		},
 		func(a, b labels.Selector) bool {
 			return a.String() == b.String()

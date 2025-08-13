@@ -87,7 +87,7 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 		"id":   "argo-cd-pkce",
 		"name": "Argo CD PKCE",
 		"redirectURIs": []string{
-			"http://localhost:4000/pkce/verify",
+			"http://localhost:4000/auth/callback",
 		},
 		"public": true,
 	}

@@ -213,4 +213,4 @@ No idea
 
     Some magic could have inject a container image for the plugin in the ApplicationSet controller in a similar way, Argo Workflow does when creating a pod to execute a job.
 
-    Require an external controler or manual configuration. The plugin would not scale independently of the ApplicationSet controller.
+    Require an external controller or manual configuration. The plugin would not scale independently of the ApplicationSet controller.

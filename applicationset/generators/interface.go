@@ -27,15 +27,15 @@ type Generator interface {
 }
 
 var (
-	EmptyAppSetGeneratorError = errors.New("ApplicationSet is empty")
-	NoRequeueAfter            time.Duration
+	ErrEmptyAppSetGenerator = errors.New("ApplicationSet is empty")
+	NoRequeueAfter          time.Duration
 )
 
 const (
-	DefaultRequeueAfterSeconds = 3 * time.Minute
+	DefaultRequeueAfter = 3 * time.Minute
 )
 
 func getDefaultRequeueAfter() time.Duration {
 	// Default is 3 minutes, min is 1 second, max is 1 year
-	return env.ParseDurationFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REQUEUE_AFTER", DefaultRequeueAfterSeconds, 1*time.Second, 8760*time.Hour)
+	return env.ParseDurationFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REQUEUE_AFTER", DefaultRequeueAfter, 1*time.Second, 8760*time.Hour)
 }

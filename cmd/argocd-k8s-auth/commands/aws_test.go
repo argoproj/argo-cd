@@ -10,6 +10,8 @@ import (
 )
 
 func TestGetSignedRequestWithRetry(t *testing.T) {
+	t.Parallel()
+
 	ctx := t.Context()
 
 	t.Run("will return signed request on first attempt", func(t *testing.T) {
@@ -61,7 +63,7 @@ func TestGetSignedRequestWithRetry(t *testing.T) {
 
 		// then
 		require.Error(t, err)
-		assert.Equal(t, "", signed)
+		assert.Empty(t, signed)
 	})
 }
 

@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,7 +18,6 @@ import (
 // using the Then()
 type Actions struct {
 	context      *Context
-	lastOutput   string
 	lastError    error
 	ignoreErrors bool
 }
@@ -112,12 +112,13 @@ func (a *Actions) And(block func()) *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a}
 }
 
 func (a *Actions) runCli(args ...string) {
 	a.context.t.Helper()
-	a.lastOutput, a.lastError = fixture.RunCli(args...)
+	_, a.lastError = fixture.RunCli(args...)
 	if !a.ignoreErrors {
 		require.NoError(a.context.t, a.lastError)
 	}

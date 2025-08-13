@@ -150,7 +150,7 @@ func readProjFromStdin(proj *v1alpha1.AppProject) error {
 
 func readProjFromURI(fileURL string, proj *v1alpha1.AppProject) error {
 	parsedURL, err := url.ParseRequestURI(fileURL)
-	if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
 		err = config.UnmarshalLocalFile(fileURL, &proj)
 	} else {
 		err = config.UnmarshalRemoteFile(fileURL, &proj)

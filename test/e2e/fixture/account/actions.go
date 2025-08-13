@@ -1,6 +1,8 @@
 package project
 
 import (
+	"time"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -11,10 +13,9 @@ import (
 // none of the func implement error checks, and that is complete intended, you should check for errors
 // using the Then()
 type Actions struct {
-	context      *Context
-	ignoreErrors bool
-	lastOutput   string
-	lastError    error
+	context    *Context
+	lastOutput string
+	lastError  error
 }
 
 func (a *Actions) prepareCanIGetLogsArgs() []string {
@@ -27,16 +28,6 @@ func (a *Actions) prepareCanIGetLogsArgs() []string {
 func (a *Actions) CanIGetLogs() *Actions {
 	a.context.t.Helper()
 	a.runCli(a.prepareCanIGetLogsArgs()...)
-	return a
-}
-
-func (a *Actions) IgnoreErrors() *Actions {
-	a.ignoreErrors = true
-	return a
-}
-
-func (a *Actions) DoNotIgnoreErrors() *Actions {
-	a.ignoreErrors = false
 	return a
 }
 
@@ -81,5 +72,6 @@ func (a *Actions) runCli(args ...string) {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a}
 }

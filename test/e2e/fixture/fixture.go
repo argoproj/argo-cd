@@ -35,7 +35,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	grpcutil "github.com/argoproj/argo-cd/v3/util/grpc"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/rand"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -66,6 +66,9 @@ const (
 	PluginSockFilePath = "/app/config/plugin"
 
 	E2ETestPrefix = "e2e-test-"
+
+	// Account for batch events processing (set to 1ms in e2e tests)
+	WhenThenSleepInterval = 5 * time.Millisecond
 )
 
 const (
@@ -121,6 +124,7 @@ const (
 	RepoURLTypeHelm                 = "helm"
 	RepoURLTypeHelmParent           = "helm-par"
 	RepoURLTypeHelmOCI              = "helm-oci"
+	RepoURLTypeOCI                  = "oci"
 	GitUsername                     = "admin"
 	GitPassword                     = "password"
 	GitBearerToken                  = "test"
@@ -128,6 +132,10 @@ const (
 	GithubAppInstallationID         = "7893789433789"
 	GpgGoodKeyID                    = "D56C4FCA57A46444"
 	HelmOCIRegistryURL              = "localhost:5000/myrepo"
+	HelmAuthenticatedOCIRegistryURL = "localhost:5001/myrepo"
+	OCIRegistryURL                  = "oci://localhost:5000/my-oci-repo"
+	OCIHostURL                      = "oci://localhost:5000"
+	AuthenticatedOCIHostURL         = "oci://localhost:5001"
 )
 
 // TestNamespace returns the namespace where Argo CD E2E test instance will be
@@ -244,7 +252,7 @@ func loginAs(username, password string) error {
 	if err != nil {
 		return err
 	}
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 
 	userInfoResponse, err := client.GetUserInfo(context.Background(), &sessionpkg.GetUserInfoRequest{})
 	if err != nil {
@@ -342,6 +350,8 @@ func RepoURL(urlType RepoURLType) string {
 	// When Helm Repo has sub repos, this is the parent repo URL
 	case RepoURLTypeHelmParent:
 		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo")
+	case RepoURLTypeOCI:
+		return OCIRegistryURL
 	case RepoURLTypeHelmOCI:
 		return HelmOCIRegistryURL
 	default:
@@ -402,6 +412,13 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 		}
 	}
 	return nil
+}
+
+func RegisterKustomizeVersion(version, path string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["kustomize.version."+version] = path
+		return nil
+	})
 }
 
 func SetEnableManifestGeneration(val map[v1alpha1.ApplicationSourceType]bool) error {
@@ -1003,6 +1020,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	}).Info("clean state")
 }
 
+// RunCliWithRetry executes an Argo CD CLI command with retry logic.
 func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
 	var out string
 	var err error
@@ -1016,10 +1034,12 @@ func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
 	return out, err
 }
 
+// RunCli executes an Argo CD CLI command with no stdin input and default server authentication.
 func RunCli(args ...string) (string, error) {
 	return RunCliWithStdin("", false, args...)
 }
 
+// RunCliWithStdin executes an Argo CD CLI command with optional stdin input and authentication.
 func RunCliWithStdin(stdin string, isKubeConextOnlyCli bool, args ...string) (string, error) {
 	if plainText {
 		args = append(args, "--plaintext")
@@ -1032,6 +1052,22 @@ func RunCliWithStdin(stdin string, isKubeConextOnlyCli bool, args ...string) (st
 
 	args = append(args, "--insecure")
 
+	// Create a redactor that only redacts the auth token value
+	redactor := func(text string) string {
+		if token == "" {
+			return text
+		}
+		// Use a more precise approach to only redact the exact auth token
+		// Look for --auth-token followed by the exact token value
+		authTokenPattern := "--auth-token " + token
+		return strings.ReplaceAll(text, authTokenPattern, "--auth-token ******")
+	}
+
+	return RunWithStdinWithRedactor(stdin, "", "../../dist/argocd", redactor, args...)
+}
+
+// RunPluginCli executes an Argo CD CLI plugin with optional stdin input.
+func RunPluginCli(stdin string, args ...string) (string, error) {
 	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
 }
 
@@ -1142,6 +1178,25 @@ func AddTag(t *testing.T, name string) {
 	}
 }
 
+func AddTagWithForce(t *testing.T, name string) {
+	t.Helper()
+	prevGnuPGHome := os.Getenv("GNUPGHOME")
+	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", "-f", name))
+	if IsRemote() {
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+	}
+}
+
+func AddAnnotatedTag(t *testing.T, name string, message string) {
+	t.Helper()
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", "-f", "-a", name, "-m", message))
+	if IsRemote() {
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+	}
+}
+
 // create the resource by creating using "kubectl apply", with bonus templating
 func Declarative(t *testing.T, filename string, values any) (string, error) {
 	t.Helper()
@@ -1181,9 +1236,10 @@ func CreateSubmoduleRepos(t *testing.T, repoType string) {
 		t.Setenv("GIT_ALLOW_PROTOCOL", "file")
 		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
 	}
-	if repoType == "ssh" {
+	switch repoType {
+	case "ssh":
 		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeSSHSubmodule)))
-	} else if repoType == "https" {
+	case "https":
 		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeHTTPSSubmodule)))
 	}
 	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "add", "--all"))

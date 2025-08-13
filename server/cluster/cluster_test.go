@@ -111,7 +111,6 @@ func newServerInMemoryCache() *servercache.Cache {
 		),
 		1*time.Minute,
 		1*time.Minute,
-		1*time.Minute,
 	)
 }
 
@@ -132,6 +131,8 @@ func newEnforcer() *rbac.Enforcer {
 }
 
 func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name    string
 		request cluster.ClusterUpdateRequest
@@ -326,10 +327,10 @@ func TestGetCluster_CannotSetCADataAndInsecureTrue(t *testing.T) {
 			Cluster: localCluster,
 		})
 
-		assert.EqualError(t, err, `error getting REST config: Unable to apply K8s REST config defaults: specifying a root certificates file with the insecure flag is not allowed`)
+		assert.EqualError(t, err, `error getting REST config: unable to apply K8s REST config defaults: specifying a root certificates file with the insecure flag is not allowed`)
 	})
 
-	localCluster.Config.TLSClientConfig.CAData = nil
+	localCluster.Config.CAData = nil
 	t.Run("Create Succeeds When CAData is nil and Insecure is True", func(t *testing.T) {
 		_, err := server.Create(t.Context(), &cluster.ClusterCreateRequest{
 			Cluster: localCluster,
@@ -606,6 +607,8 @@ func getClientset(config map[string]string, ns string, objects ...runtime.Object
 }
 
 func TestListCluster(t *testing.T) {
+	t.Parallel()
+
 	db := &dbmocks.ArgoDB{}
 
 	fooCluster := v1alpha1.Cluster{

@@ -19,7 +19,7 @@ import (
 func TestGetUsername(t *testing.T) {
 	assert.Equal(t, "admin", GetUsername("admin:login"))
 	assert.Equal(t, "admin", GetUsername("admin"))
-	assert.Equal(t, "", GetUsername(""))
+	assert.Empty(t, GetUsername(""))
 }
 
 func TestFilePermission(t *testing.T) {
@@ -43,13 +43,13 @@ func TestFilePermission(t *testing.T) {
 			name:          "Test config file with permission 0700",
 			testfile:      ".config_0700",
 			perm:          0o700,
-			expectedError: errors.New("config file has incorrect permission flags:-rwx------.change the file permission either to 0400 or 0600."),
+			expectedError: errors.New("config file has incorrect permission flags -rwx------, change the file permission either to 0400 or 0600"),
 		},
 		{
 			name:          "Test config file with permission 0777",
 			testfile:      ".config_0777",
 			perm:          0o777,
-			expectedError: errors.New("config file has incorrect permission flags:-rwxrwxrwx.change the file permission either to 0400 or 0600."),
+			expectedError: errors.New("config file has incorrect permission flags -rwxrwxrwx, change the file permission either to 0400 or 0600"),
 		},
 		{
 			name:          "Test config file with permission 0600",
@@ -67,7 +67,7 @@ func TestFilePermission(t *testing.T) {
 			name:          "Test config file with permission 0300",
 			testfile:      ".config_0300",
 			perm:          0o300,
-			expectedError: errors.New("config file has incorrect permission flags:--wx------.change the file permission either to 0400 or 0600."),
+			expectedError: errors.New("config file has incorrect permission flags --wx------, change the file permission either to 0400 or 0600"),
 		},
 	} {
 		t.Run(c.name, func(t *testing.T) {

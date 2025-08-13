@@ -10,7 +10,6 @@ import (
 
 	"github.com/jeremywohl/flatten"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -20,23 +19,19 @@ import (
 )
 
 const (
-	DefaultPluginRequeueAfterSeconds = 30 * time.Minute
+	DefaultPluginRequeueAfter = 30 * time.Minute
 )
 
 var _ Generator = (*PluginGenerator)(nil)
 
 type PluginGenerator struct {
 	client    client.Client
-	ctx       context.Context
-	clientset kubernetes.Interface
 	namespace string
 }
 
-func NewPluginGenerator(ctx context.Context, client client.Client, clientset kubernetes.Interface, namespace string) Generator {
+func NewPluginGenerator(client client.Client, namespace string) Generator {
 	g := &PluginGenerator{
 		client:    client,
-		ctx:       ctx,
-		clientset: clientset,
 		namespace: namespace,
 	}
 	return g
@@ -49,7 +44,7 @@ func (g *PluginGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Ap
 		return time.Duration(*appSetGenerator.Plugin.RequeueAfterSeconds) * time.Second
 	}
 
-	return DefaultPluginRequeueAfterSeconds
+	return DefaultPluginRequeueAfter
 }
 
 func (g *PluginGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
@@ -58,11 +53,11 @@ func (g *PluginGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Applic
 
 func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
-		return nil, EmptyAppSetGeneratorError
+		return nil, ErrEmptyAppSetGenerator
 	}
 
 	if appSetGenerator.Plugin == nil {
-		return nil, EmptyAppSetGeneratorError
+		return nil, ErrEmptyAppSetGenerator
 	}
 
 	ctx := context.Background()

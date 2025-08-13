@@ -316,7 +316,7 @@ func TestCanI_GetLogsAllow(t *testing.T) {
 	ctx := projTokenContext(t.Context())
 	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: ""})
 	require.NoError(t, err)
-	assert.EqualValues(t, "yes", resp.Value)
+	assert.Equal(t, "yes", resp.Value)
 }
 
 func TestCanI_GetLogsDeny(t *testing.T) {
@@ -330,5 +330,5 @@ func TestCanI_GetLogsDeny(t *testing.T) {
 	ctx := projTokenContext(t.Context())
 	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: "*/*"})
 	require.NoError(t, err)
-	assert.EqualValues(t, "no", resp.Value)
+	assert.Equal(t, "no", resp.Value)
 }

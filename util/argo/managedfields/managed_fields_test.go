@@ -135,13 +135,13 @@ func TestNormalize(t *testing.T) {
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(liveResult.Object, &vwcLive)
 		require.NoError(t, err)
 		assert.Len(t, vwcLive.Webhooks, 1)
-		assert.Equal(t, "", string(vwcLive.Webhooks[0].ClientConfig.CABundle))
+		assert.Empty(t, string(vwcLive.Webhooks[0].ClientConfig.CABundle))
 
 		var vwcConfig arv1.ValidatingWebhookConfiguration
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(desiredResult.Object, &vwcConfig)
 		require.NoError(t, err)
 		assert.Len(t, vwcConfig.Webhooks, 1)
-		assert.Equal(t, "", string(vwcConfig.Webhooks[0].ClientConfig.CABundle))
+		assert.Empty(t, string(vwcConfig.Webhooks[0].ClientConfig.CABundle))
 	})
 	t.Run("does not fail if object fails validation schema", func(t *testing.T) {
 		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)

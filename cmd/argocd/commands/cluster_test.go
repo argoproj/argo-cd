@@ -15,14 +15,14 @@ import (
 func Test_getQueryBySelector(t *testing.T) {
 	query := getQueryBySelector("my-cluster")
 	assert.Equal(t, "my-cluster", query.Name)
-	assert.Equal(t, "", query.Server)
+	assert.Empty(t, query.Server)
 
 	query = getQueryBySelector("http://my-server")
-	assert.Equal(t, "", query.Name)
+	assert.Empty(t, query.Name)
 	assert.Equal(t, "http://my-server", query.Server)
 
 	query = getQueryBySelector("https://my-server")
-	assert.Equal(t, "", query.Name)
+	assert.Empty(t, query.Name)
 	assert.Equal(t, "https://my-server", query.Server)
 }
 
@@ -93,7 +93,7 @@ func Test_getRestConfig(t *testing.T) {
 			},
 			nil,
 			true,
-			"Context not-exist does not exist in kubeconfig",
+			"context not-exist does not exist in kubeconfig",
 		},
 	}
 	for _, tt := range tests {

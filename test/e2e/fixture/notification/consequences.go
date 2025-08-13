@@ -2,6 +2,7 @@ package notification
 
 import (
 	"context"
+	"time"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/notification"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -53,6 +54,7 @@ func (c *Consequences) listTemplates() (*notification.TemplateList, error) {
 }
 
 func (c *Consequences) When() *Actions {
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return c.actions
 }
 

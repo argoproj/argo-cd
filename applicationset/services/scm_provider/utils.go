@@ -172,9 +172,10 @@ func getApplicableFilters(filters []*Filter) map[FilterType][]*Filter {
 		FilterTypeRepo:   {},
 	}
 	for _, filter := range filters {
-		if filter.FilterType == FilterTypeBranch {
+		switch filter.FilterType {
+		case FilterTypeBranch:
 			filterMap[FilterTypeBranch] = append(filterMap[FilterTypeBranch], filter)
-		} else if filter.FilterType == FilterTypeRepo {
+		case FilterTypeRepo:
 			filterMap[FilterTypeRepo] = append(filterMap[FilterTypeRepo], filter)
 		}
 	}

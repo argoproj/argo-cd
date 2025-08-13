@@ -159,7 +159,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 			resource:      duckType,
 			values:        nil,
 			expected:      []map[string]any{},
-			expectedError: errors.New("There is a problem with the definition of the ClusterDecisionResource generator"),
+			expectedError: errors.New("there is a problem with the definition of the ClusterDecisionResource generator"),
 		},
 		/*** This does not work with the FAKE runtime client, fieldSelectors are broken.
 		{
@@ -270,7 +270,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 			resource:      duckType,
 			values:        nil,
 			expected:      nil,
-			expectedError: errors.New("There is a problem with the definition of the ClusterDecisionResource generator"),
+			expectedError: errors.New("there is a problem with the definition of the ClusterDecisionResource generator"),
 		},
 	}
 
@@ -455,7 +455,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			resource:      duckType,
 			values:        nil,
 			expected:      []map[string]any{},
-			expectedError: errors.New("There is a problem with the definition of the ClusterDecisionResource generator"),
+			expectedError: errors.New("there is a problem with the definition of the ClusterDecisionResource generator"),
 		},
 		/*** This does not work with the FAKE runtime client, fieldSelectors are broken.
 		{
@@ -566,7 +566,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			resource:      duckType,
 			values:        nil,
 			expected:      nil,
-			expectedError: errors.New("There is a problem with the definition of the ClusterDecisionResource generator"),
+			expectedError: errors.New("there is a problem with the definition of the ClusterDecisionResource generator"),
 		},
 	}
 

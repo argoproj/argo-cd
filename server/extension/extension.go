@@ -398,8 +398,11 @@ func NewProxyRegistry() ProxyRegistry {
 // ProxyKey defines the struct used as a key in the proxy registry
 // map (ProxyRegistry).
 type ProxyKey struct {
+	//nolint:unused // used as part of a map kay
 	extensionName string
-	clusterName   string
+	//nolint:unused // used as part of a map kay
+	clusterName string
+	//nolint:unused // used as part of a map kay
 	clusterServer string
 }
 

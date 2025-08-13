@@ -173,7 +173,7 @@ Argo CD will use the policies defined in the AppProject roles while authorizing 
 
 _Note 1_: It is very important that policy roles follow the pattern `proj:<project-name>:<role-name>` or they won't be effective during the Argo CD authorization process.
 
-_Note 2_: The example above used `applications` as the resource for the policy definition. However other types of resources can also be used: `repositories`, `clusters`, `logs`, `exec` and `projects`. See the [RBAC documentation](../operator-manual/rbac.md) for more details about those resources.
+_Note 2_: The example above used `applications` as the resource for the policy definition. However other types of resources can also be used: `repositories`, `clusters`, `logs` and `exec`. See the [RBAC documentation](../operator-manual/rbac.md) for more details about those resources.
 
 In order to create roles in a project and add policies to a role, a user will need permission to update a project.  The following commands can be used to manage a role.
 
@@ -195,7 +195,7 @@ argocd proj role create-token PROJECT ROLE-NAME
 argocd proj role delete-token PROJECT ROLE-NAME ISSUED-AT
 ```
 
-Since the JWT tokens aren't stored in Argo CD, they can only be retrieved when they are created. A user can leverage them in the cli by either passing them in using the `--auth-token` flag or setting the ARGOCD_AUTH_TOKEN environment variable. The JWT tokens can be used until they expire or are revoked.  The JWT tokens can created with or without an expiration, but the default on the cli is creates them without an expirations date.  Even if a token has not expired, it cannot be used if the token has been revoked.
+Since the JWT tokens aren't stored in Argo CD, they can only be retrieved when they are created. A user can leverage them in the cli by either passing them in using the `--auth-token` flag or setting the ARGOCD_AUTH_TOKEN environment variable. The JWT tokens can be used until they expire or are revoked.  The JWT tokens can be created with or without an expiration.  By default, the cli creates them without an expirations date.  Even if a token has not expired, it cannot be used if the token has been revoked.
 
 Below is an example of leveraging a JWT token to access a guestbook application.  It makes the assumption that the user already has a project named myproject and an application called guestbook-default.
 
@@ -232,7 +232,7 @@ argocd app get $APP --auth-token $JWT
 
 ## Configuring RBAC With Projects
 
-The project Roles allows configuring RBAC rules scoped to the project. The following sample project provides read-only permissions on project applications to any member of `my-oidc-group` group.
+Project roles allow configuring RBAC rules scoped to the project. The following sample project provides read-only permissions on project applications to any member of `my-oidc-group` group.
 
 *AppProject example:*
 
@@ -297,7 +297,7 @@ It is possible to offer a self-service process for developers so that they can a
 For this purpose Argo CD supports project-scoped repositories and clusters.
 
 To begin the process, Argo CD admins must configure RBAC security to allow this self-service behavior.
-For example, to allow users to add project scoped repositories and admin would have to add the following RBAC rules:
+For example, to allow users to add project scoped repositories an admin would have to add the following RBAC rules:
 
 ```
 p, proj:my-project:admin, repositories, create, my-project/*, allow
@@ -335,12 +335,12 @@ stringData:
 ```
 
 !!! warning
-Please keep in mind when using a project-scoped repository, only applications or applicationsets with a matching project 
-name can make use of it. When using an applicationset with a Git generator that also makes use of a templated `project` 
-(i.e. it contains ``{{ ... }}``) only non-scoped repositories can be used with the applicationset (i.e. repositories 
-that do _not_ have a `project` set).
+    Please keep in mind when using a project-scoped repository, only applications or applicationsets with a matching project 
+    name can make use of it. When using an applicationset with a Git generator that also makes use of a templated `project` 
+    (i.e. it contains ``{{ ... }}``) only non-scoped repositories can be used with the applicationset (i.e. repositories 
+    that do _not_ have a `project` set).
 
-All the examples above talk about Git repositories, but the same principles apply to clusters as well.
+All the examples above concern Git repositories, but the same principles apply to clusters as well.
 
 ```yaml
 apiVersion: v1

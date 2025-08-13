@@ -38,7 +38,7 @@ func TestUserAgent(t *testing.T) {
 	defer cancel()
 	s.Init(ctx)
 	go s.Run(ctx, lns)
-	defer func() { time.Sleep(3 * time.Second) }()
+	defer time.Sleep(3 * time.Second)
 
 	type testData struct {
 		userAgent string
@@ -103,14 +103,14 @@ func Test_StaticHeaders(t *testing.T) {
 		defer cancel()
 		s.Init(ctx)
 		go s.Run(ctx, lns)
-		defer func() { time.Sleep(3 * time.Second) }()
+		defer time.Sleep(3 * time.Second)
 
 		// Allow server startup
 		time.Sleep(1 * time.Second)
 
 		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
 		require.NoError(t, err)
 		resp, err := client.Do(req)
 		require.NoError(t, err)
@@ -132,14 +132,14 @@ func Test_StaticHeaders(t *testing.T) {
 		defer cancel()
 		s.Init(ctx)
 		go s.Run(ctx, lns)
-		defer func() { time.Sleep(3 * time.Second) }()
+		defer time.Sleep(3 * time.Second)
 
 		// Allow server startup
 		time.Sleep(1 * time.Second)
 
 		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
 		require.NoError(t, err)
 		resp, err := client.Do(req)
 		require.NoError(t, err)
@@ -161,7 +161,7 @@ func Test_StaticHeaders(t *testing.T) {
 		defer cancel()
 		s.Init(ctx)
 		go s.Run(ctx, lns)
-		defer func() { time.Sleep(3 * time.Second) }()
+		defer time.Sleep(3 * time.Second)
 
 		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", s.ListenPort), 10*time.Second)
 		require.NoError(t, err)
@@ -171,7 +171,7 @@ func Test_StaticHeaders(t *testing.T) {
 
 		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
 		require.NoError(t, err)
 		resp, err := client.Do(req)
 		require.NoError(t, err)

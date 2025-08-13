@@ -100,6 +100,12 @@ const (
 	PluginConfigFileName = "plugin.yaml"
 )
 
+// consts for podrequests metrics in cache/info
+const (
+	PodRequestsCPU = "cpu"
+	PodRequestsMEM = "memory"
+)
+
 // Argo CD application related constants
 const (
 
@@ -195,6 +201,9 @@ const (
 
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
 	AnnotationCompareOptions = "argocd.argoproj.io/compare-options"
+
+	// AnnotationClientSideApplyMigrationManager specifies a custom field manager for client-side apply migration
+	AnnotationClientSideApplyMigrationManager = "argocd.argoproj.io/client-side-apply-migration-manager"
 
 	// AnnotationIgnoreHealthCheck when set on an Application's immediate child indicates that its health check
 	// can be disregarded.
@@ -444,7 +453,7 @@ const (
 // TokenVerificationError is a generic error message for a failure to verify a JWT
 const TokenVerificationError = "failed to verify the token"
 
-var TokenVerificationErr = errors.New(TokenVerificationError)
+var ErrTokenVerification = errors.New(TokenVerificationError)
 
 var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission denied")
 
