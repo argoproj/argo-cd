@@ -1281,7 +1281,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		require.ErrorContains(t, err, "failed to find any PEM data in certificate input")
 		assert.NotNil(t, settings)
 	})
-	t.Run("Does not parse TLS cert key pair if cached", func(t *testing.T) {
+	t.Run("Does not parse TLS cert key pair on cache hit", func(t *testing.T) {
 		cm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
@@ -1339,7 +1339,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 1, callCount)
 	})
-	t.Run("Invalidates cache when TLS secret changes", func(t *testing.T) {
+	t.Run("Parses TLS cert key pair when TLS secret update causes cache miss", func(t *testing.T) {
 		cm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
@@ -1408,7 +1408,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		assert.True(t, settings.CertificateIsExternal)
 		assert.Equal(t, "localhost", getCNFromCertificate(settings.Certificate))
 	})
-	t.Run("Invalidates cached internal TLS cert when external TLS secret added", func(t *testing.T) {
+	t.Run("Overrides cached internal TLS cert when external TLS secret added", func(t *testing.T) {
 		kubeClient := fake.NewClientset(
 			&corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{

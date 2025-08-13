@@ -1273,7 +1273,6 @@ func (mgr *SettingsManager) invalidateTLSCertCache() {
 	mgr.mutex.Lock()
 	defer mgr.mutex.Unlock()
 
-	log.Infof("Invalidating TLS cert cache")
 	mgr.tlsCertCache = nil
 	mgr.tlsCertCacheSecretName = ""
 	mgr.tlsCertCacheSecretVersion = ""
@@ -1287,15 +1286,12 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 
 	eventHandler := cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(_, _ any) {
-			mgr.invalidateTLSCertCache()
 			mgr.onRepoOrClusterChanged()
 		},
 		AddFunc: func(_ any) {
-			mgr.invalidateTLSCertCache()
 			mgr.onRepoOrClusterChanged()
 		},
 		DeleteFunc: func(_ any) {
-			mgr.invalidateTLSCertCache()
 			mgr.onRepoOrClusterChanged()
 		},
 	}
@@ -1573,6 +1569,7 @@ func (mgr *SettingsManager) loadTLSCertificateFromSecret(secret *corev1.Secret) 
 		return mgr.tlsCertCache, nil
 	}
 
+	log.Infof("Cache miss for %s/%s/%s", mgr.namespace, secret.Name, secret.ResourceVersion)
 	tlsCert, certOK := secret.Data[settingServerCertificate]
 	tlsKey, keyOK := secret.Data[settingServerPrivateKey]
 	if !certOK || !keyOK {
@@ -1585,6 +1582,7 @@ func (mgr *SettingsManager) loadTLSCertificateFromSecret(secret *corev1.Secret) 
 		return nil, err
 	}
 
+	log.Infof("Caching cert loaded from secret %s/%s", mgr.namespace, secret.Name)
 	mgr.tlsCertCache = &cert
 	mgr.tlsCertCacheSecretName = secret.Name
 	mgr.tlsCertCacheSecretVersion = secret.ResourceVersion
