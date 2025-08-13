@@ -26,13 +26,9 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 	if un == nil {
 		return nil
 	}
-	if un.GetKind() == "Job" {
-		err := unstructured.SetNestedField(un.Object, map[string]any{"name": "not sure why this works"}, "metadata")
-		if err != nil {
-			return fmt.Errorf("failed to normalize Job: %w", err)
-		}
-	}
 	switch un.GetKind() {
+	case "Job":
+		return t.normalizeJob(un)
 	case "DaemonSet", "Deployment", "StatefulSet":
 		err := unstructured.SetNestedStringMap(un.Object, map[string]string{"kubectl.kubernetes.io/restartedAt": "0001-01-01T00:00:00Z"}, "spec", "template", "metadata", "annotations")
 		if err != nil {
@@ -80,6 +76,28 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 		err := unstructured.SetNestedStringMap(un.Object, map[string]string{"reconcile.fluxcd.io/requestedAt": "By Argo CD at: 0001-01-01T00:00:00"}, "metadata", "annotations")
 		if err != nil {
 			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+		}
+	}
+	return nil
+}
+
+func (t testNormalizer) normalizeJob(un *unstructured.Unstructured) error {
+	if conditions, exist, err := unstructured.NestedSlice(un.Object, "status", "conditions"); err != nil {
+		return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+	} else if exist {
+		changed := false
+		for i := range conditions {
+			condition := conditions[i].(map[string]any)
+			cType := condition["type"].(string)
+			if cType == "FailureTarget" {
+				condition["lastTransitionTime"] = "0001-01-01T00:00:00Z"
+				changed = true
+			}
+		}
+		if changed {
+			if err := unstructured.SetNestedSlice(un.Object, conditions, "status", "conditions"); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
 		}
 	}
 	return nil
@@ -208,8 +226,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 						assert.Equal(t, sourceObj.GetNamespace(), result.GetNamespace())
 					case CreateOperation:
 						switch result.GetKind() {
-						case "Job":
-						case "Workflow":
+						case "Job", "Workflow":
 							// The name of the created resource is derived from the source object name, so the returned name is not actually equal to the testdata output name
 							result.SetName(expectedObj.GetName())
 						}
