@@ -28,9 +28,6 @@ that define default values.
 
 ## Server-Side Diff
 
-!!! warning "Beta Feature (Since v2.10.0)"
-    This feature is in the [Beta][1] stage. It is generally considered stable, but there may be unhandled edge cases.
-
 This diff strategy will execute a Server-Side Apply in dryrun mode for
 each resource of the application. The response of this operation is then
 compared with the live state in order to provide the diff results. The
