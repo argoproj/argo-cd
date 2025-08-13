@@ -12,7 +12,7 @@ FROM docker.io/library/golang:1.24.5@sha256:ef5b4be1f94b36c90385abd9b6b4f201723a
 
 FROM docker.io/library/registry:3.0@sha256:3725021071ec9383eb3d87ddbdff9ed602439b3f7c958c9c2fb941049ea6531d AS registry
 
-FROM docker.io/bitnami/kubectl:1.32@sha256:493d1b871556d48d6b25d471f192c2427571cd6f78523eebcaf4d263353c7487 AS kubectl
+FROM docker.io/bitnamilegacy/kubectl:1.32@sha256:493d1b871556d48d6b25d471f192c2427571cd6f78523eebcaf4d263353c7487 AS kubectl
 
 FROM docker.io/library/ubuntu:25.04@sha256:10bb10bb062de665d4dc3e0ea36715270ead632cfcb74d08ca2273712a0dfb42
 
