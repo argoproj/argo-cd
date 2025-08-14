@@ -270,7 +270,7 @@ jobs:
         run: |
           # We need to vendor go modules for codegen yet
           go mod download
-          go mod vendor -v
+          go work vendor
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
       - name: Install toolchain for codegen
         run: |
