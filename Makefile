@@ -364,7 +364,7 @@ mod-vendor: test-tools-image
 
 .PHONY: mod-vendor-local
 mod-vendor-local: mod-download-local
-	go mod vendor
+	go work vendor
 
 # Run linter on the code
 .PHONY: lint
