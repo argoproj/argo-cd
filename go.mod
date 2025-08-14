@@ -108,7 +108,7 @@ require (
 	k8s.io/client-go v0.33.1
 	k8s.io/code-generator v0.33.1
 	k8s.io/klog/v2 v2.130.1
-	k8s.io/kube-openapi v0.0.0-20250610211856-8b98d1ed966a
+	k8s.io/kube-openapi v0.0.0-20250627150254-e9823e99808e
 	k8s.io/kubectl v0.33.1
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
