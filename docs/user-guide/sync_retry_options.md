@@ -43,7 +43,7 @@ By configuring retry options appropriately, you can:
 
 ### Basic Retry Configuration
 
-Retry options are configured in the Application resource under `spec.syncPolicy.syncOptions` and `spec.retry`:
+Retry options are configured in the Application resource under `spec.syncPolicy`:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -62,8 +62,6 @@ spec:
     automated:
       prune: true
       selfHeal: true
-    syncOptions:
-    - Retry=true
     retry:
       limit: 5
       backoff:
@@ -98,21 +96,6 @@ spec:
       duration: 10s
       factor: 1.5
       maxDuration: 5m
-```
-
-### Per-Resource Retry Configuration
-
-You can also configure retry options for specific resources using annotations:
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: my-deployment
-  annotations:
-    argocd.argoproj.io/sync-options: Retry=true
-spec:
-  # ... deployment spec ...
 ```
 
 ## Exponential Backoff
@@ -208,25 +191,6 @@ retry:
 3. **Documentation**: Document retry policies for your team
 4. **Review cycles**: Regularly review and adjust retry configurations
 
-### Environment-Specific Settings
-```yaml
-# Development environment - quick retries
-retry:
-  limit: 3
-  backoff:
-    duration: 5s
-    factor: 1.5
-    maxDuration: 30s
-
-# Production environment - conservative retries
-retry:
-  limit: 10
-  backoff:
-    duration: 30s
-    factor: 2
-    maxDuration: 10m
-```
-
 ## Troubleshooting
 
 ### Common Issues
@@ -253,9 +217,6 @@ retry:
 # Check application status
 argocd app get <app-name>
 
-# View sync history
-argocd app history <app-name>
-
 # Check sync status
 argocd app sync-status <app-name>
 ```
@@ -278,91 +239,10 @@ argocd app get <app-name> -o yaml
 argocd app health <app-name>
 ```
 
-### Common Error Scenarios
-
-#### Network Failures
-```yaml
-# Recommended retry configuration for network issues
-retry:
-  limit: 5
-  backoff:
-    duration: 10s
-    factor: 2
-    maxDuration: 2m
-```
-
-#### Resource Constraints
-```yaml
-# Recommended retry configuration for resource issues
-retry:
-  limit: 8
-  backoff:
-    duration: 30s
-    factor: 1.5
-    maxDuration: 5m
-```
-
-#### Cluster Maintenance
-```yaml
-# Recommended retry configuration for maintenance windows
-retry:
-  limit: 12
-  backoff:
-    duration: 1m
-    factor: 2
-    maxDuration: 15m
-```
-
-## Monitoring and Observability
-
-### Metrics to Track
-- **Retry count**: Number of retry attempts per application
-- **Retry duration**: Time spent in retry loops
-- **Success rate**: Percentage of successful syncs after retries
-- **Failure patterns**: Common causes of sync failures
-
-### Dashboard Examples
-```yaml
-# Grafana dashboard query example
-# Retry attempts per application
-argocd_app_sync_total{phase="Failed"} / argocd_app_sync_total * 100
-
-# Average retry duration
-histogram_quantile(0.95, argocd_app_sync_duration_seconds)
-```
-
-## Integration with Other Features
-
-### Sync Windows
-Retry options work in conjunction with sync windows. If a sync fails during a sync window, retries will respect the window configuration.
-
-### Resource Hooks
-Retry behavior applies to resource hooks as well. Failed hooks will be retried according to the retry configuration.
-
-### Application Sets
-Retry options can be configured at the ApplicationSet level and inherited by individual applications.
-
 ## Migration and Upgrades
 
 ### Enabling Retries on Existing Applications
 ```bash
-# Enable retries for an existing application
-argocd app set <app-name> --sync-option Retry=true
-
 # Configure retry parameters
 argocd app patch <app-name> --type merge -p '{"spec":{"retry":{"limit":5,"backoff":{"duration":"5s","factor":2,"maxDuration":"1m"}}}}'
 ```
-
-### Disabling Retries
-```bash
-# Disable retries for an application
-argocd app set <app-name> --sync-option Retry=false
-```
-
-## Conclusion
-
-Argo CD retry options provide flexible control over sync failure handling. By understanding and configuring these options appropriately, you can balance automation with control, ensuring reliable application deployments while maintaining operational oversight.
-
-Choose retry settings based on your operational requirements, failure patterns, and resource constraints. Regular monitoring and adjustment of retry configurations will help optimize your Argo CD deployment for your specific use case.
-
-Remember that retry options are just one part of a comprehensive application deployment strategy. Combine them with other Argo CD features like sync windows, resource hooks, and proper monitoring to create robust, reliable deployment pipelines.
