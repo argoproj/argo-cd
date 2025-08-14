@@ -4,16 +4,57 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v3/controller/hydrator/mocks"
+	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/argoproj/argo-cd/v3/controller/hydrator/mocks"
-	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
+
+var message = `testn
+Argocd-reference-commit-repourl: https://github.com/test/argocd-example-apps
+Argocd-reference-commit-author: Argocd-reference-commit-author
+Argocd-reference-commit-subject: testhydratormd
+Signed-off-by: testUser <test@gmail.com>`
+
+var commitMessageTemplate = `{{- range $key, $value := .metadata }}
+    {{- if kindIs "map" $value }}
+        {{ $key }}:
+        {{- range $subKey, $subValue := $value }}
+            {{ $subKey }}: {{ $subValue }}
+        {{- "\n" }}
+        {{- end }}
+    {{- else if kindIs "array" $value }}
+        {{ $key }}:
+        {{- range $item := $value }}
+            {{- if kindIs "map" $item }}
+                - Commit:
+                {{- range $subKey, $subValue := $item.commit }}
+                    {{ $subKey }}: {{ $subValue }}
+                {{- "\n" }}
+                {{- end }}
+            {{- else }}
+                - {{ $item }}
+                {{- "\n" }}
+            {{- end }}
+        {{- end }}
+    {{- else }}
+        {{- if $value }}
+            {{ $key }}: {{ $value }}
+        {{- "\n" }}
+        {{- end }}
+    {{- end }}
+{{- end }}
+{{- if .metadata.labels }}
+Labels:
+    {{- range $key, $value := .metadata.labels }}
+        label-{{ $key }}: {{ $value }}
+    {{- end }}
+{{- end }}`
 
 func Test_appNeedsHydration(t *testing.T) {
 	t.Parallel()
@@ -166,4 +207,63 @@ func Test_getRelevantAppsForHydration_RepoURLNormalization(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Len(t, relevantApps, 2, "Expected both apps to be considered relevant despite URL differences")
+}
+
+func TestHydrator_getHydratorCommitMessage(t *testing.T) {
+	d := mocks.NewDependencies(t)
+	d.On("GetHydratorCommitMessageTemplate").Return(commitMessageTemplate, nil)
+	references := make([]appv1.RevisionReference, 0)
+	revReference := appv1.RevisionReference{
+		Commit: &appv1.CommitMetadata{
+			Author:  "testAuthor",
+			Subject: "test",
+			RepoURL: "https://github.com/test/argocd-example-apps",
+			SHA:     "3ff41cc5247197a6caf50216c4c76cc29d78a97c",
+		},
+	}
+	references = append(references, revReference)
+	type args struct {
+		repoURL           string
+		revision          string
+		dryCommitMetadata *appv1.RevisionMetadata
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "test template",
+			args: args{
+				repoURL:  "https://github.com/test/argocd-example-apps",
+				revision: "3ff41cc5247197a6caf50216c4c76cc29d78a97d",
+				dryCommitMetadata: &appv1.RevisionMetadata{
+					Author: "test test@test.com",
+					Date: &metav1.Time{
+						Time: metav1.Now().Time,
+					},
+					Message:    message,
+					References: references,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := &Hydrator{
+				dependencies: d,
+			}
+			got, err := h.getHydratorCommitMessage(tt.args.repoURL, tt.args.revision, tt.args.dryCommitMetadata)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Hydrator.getHydratorCommitMessage() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got == "" {
+				t.Errorf("Hydrator.getHydratorCommitMessage() = %v, want %v", got, tt.want)
+			}
+			assert.NotEmpty(t, got)
+			assert.Contains(t, got, "Argocd-reference")
+		})
+	}
 }

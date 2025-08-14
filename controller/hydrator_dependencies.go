@@ -100,7 +100,7 @@ func (ctrl *ApplicationController) AddHydrationQueueItem(key types.HydrationQueu
 
 func (ctrl *ApplicationController) GetHydratorCommitMessageTemplate() (string, error) {
 	sourceHydratorCommitMessageKey, err := ctrl.settingsMgr.GetSourceHydratorCommitMessageTemplate()
-	if err != nil || sourceHydratorCommitMessageKey == "" {
+	if err != nil {
 		return "", fmt.Errorf("failed to get sourceHydrator commit message template key: %w", err)
 	}
 

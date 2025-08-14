@@ -366,7 +366,9 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 
 	commitMessage, errMsg := h.getHydratorCommitMessage(repoURL, targetRevision, revisionMetadata)
 	if errMsg != nil {
+		// ?? should it rather use the hard-coded message and log a Warn than to fail?
 		return "", "", fmt.Errorf("failed to get hydrator commit templated message: %w", errMsg)
+		// commitMessage = "[Argo CD Bot] hydrate " + targetRevision // for backward compatiblity
 	}
 
 	manifestsRequest := commitclient.CommitHydratedManifestsRequest{
@@ -443,15 +445,18 @@ func appNeedsHydration(app *appv1.Application, statusHydrateTimeout time.Duratio
 func (h *Hydrator) getHydratorCommitMessage(repoURL, revision string, dryCommitMetadata *appv1.RevisionMetadata) (string, error) {
 	hydratorCommitMetadata, errMD := hydrator.GetHydratorCommitMetadata(repoURL, revision, dryCommitMetadata)
 	if errMD != nil {
-		return "[Argo CD Bot] hydrate " + revision, nil
+		return "", fmt.Errorf("failed to get hydrated commit message %w", errMD)
 	}
 	tmpl, errTemplate := h.dependencies.GetHydratorCommitMessageTemplate()
 	if errTemplate != nil {
-		return "[Argo CD Bot] hydrate " + revision, nil
+		return "", fmt.Errorf("failed to get hydrated commit message template %w", errTemplate)
 	}
-	templatedCommitMsg, errTemplating := hydrator.Render(tmpl, *hydratorCommitMetadata)
-	if errTemplating != nil {
-		return "", fmt.Errorf("failed to parse template %s: %w", tmpl, errTemplating)
+	if tmpl == "" {
+		return "", fmt.Errorf("failed to get hydrated commit message template, template not defined")
+	}
+	templatedCommitMsg, errRendering := hydrator.Render(tmpl, *hydratorCommitMetadata)
+	if errRendering != nil {
+		return "", fmt.Errorf("failed to parse template %s: %w", tmpl, errRendering)
 	}
 	return templatedCommitMsg, nil
 }

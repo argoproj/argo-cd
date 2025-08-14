@@ -20,16 +20,14 @@ func init() {
 	sprigFuncMap["kindIs"] = kindIs
 }
 
-func Render(tmpl string, data any) (string, any) {
+func Render(tmpl string, data any) (string, error) {
 	var dataMap map[string]any
 	var err error
-	// v := reflect.ValueOf(data)
-	// t := v.Type()
 	t := reflect.TypeOf(data)
 	switch t.Kind() {
 	case reflect.Map:
-		if castedMap, ok := data.(map[string]any); ok {
-			dataMap = castedMap
+		if m, ok := data.(map[string]any); ok {
+			dataMap = m
 		} else {
 			return "", fmt.Errorf("failed to cast map type")
 		}
@@ -80,7 +78,7 @@ func kindIs(kind string, value any) bool {
 		_, ok := value.([]any)
 		return ok
 	case "string":
-		_, ok := value.([]any)
+		_, ok := value.(string)
 		return ok
 	default:
 		return false
