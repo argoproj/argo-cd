@@ -1433,16 +1433,16 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 	needToUpdateStatus := false
 
 	if len(applicationStatuses) != len(applicationSet.Status.ApplicationStatus) {
-		logCtx.Debugf("ApplicationSet %s: app status count %d→%d",
-			applicationSet.Name, len(applicationSet.Status.ApplicationStatus), len(applicationStatuses))
+		logCtx.Debugf("app status count %d→%d",
+			len(applicationSet.Status.ApplicationStatus), len(applicationStatuses))
 		needToUpdateStatus = true
 	} else {
 		for i := range applicationStatuses {
 			appStatus := applicationStatuses[i]
 			idx := findApplicationStatusIndex(applicationSet.Status.ApplicationStatus, appStatus.Application)
 			if idx == -1 {
-				logCtx.Debugf("ApplicationSet %s: app %s not found in current status",
-					applicationSet.Name, appStatus.Application)
+				logCtx.Debugf("app %s not found in current status",
+					appStatus.Application)
 				needToUpdateStatus = true
 				break
 			}
@@ -1453,16 +1453,16 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 
 			if statusChanged || stepChanged || messageChanged {
 				if statusChanged {
-					logCtx.Debugf("ApplicationSet %s: app %s status %s→%s",
-						applicationSet.Name, appStatus.Application, currentStatus.Status, appStatus.Status)
+					logCtx.Debugf("app %s status %s→%s",
+						appStatus.Application, currentStatus.Status, appStatus.Status)
 				}
 				if stepChanged {
-					logCtx.Debugf("ApplicationSet %s: app %s step %s→%s",
-						applicationSet.Name, appStatus.Application, currentStatus.Step, appStatus.Step)
+					logCtx.Debugf("app %s step %s→%s",
+						appStatus.Application, currentStatus.Step, appStatus.Step)
 				}
 				if messageChanged {
-					logCtx.Debugf("ApplicationSet %s: app %s message changed",
-						applicationSet.Name, appStatus.Application)
+					logCtx.Debugf("app %s message changed",
+						appStatus.Application)
 				}
 				needToUpdateStatus = true
 				break
