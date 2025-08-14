@@ -169,7 +169,7 @@ func TestUntgz(t *testing.T) {
 		assert.Contains(t, names, "applicationset/latest/kustomization.yaml")
 		assert.Contains(t, names, "applicationset/stable/kustomization.yaml")
 		assert.Contains(t, names, "applicationset/readme-symlink")
-		assert.Equal(t, filepath.Join(destDir, "README.md"), names["applicationset/readme-symlink"])
+		assert.Equal(t, "../README.md", names["applicationset/readme-symlink"])
 	})
 	t.Run("will protect against symlink exploit", func(t *testing.T) {
 		// given
