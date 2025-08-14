@@ -1,0 +1,160 @@
+# Matrix generator with phase deployment
+# Combines multiple generators and applies phase deployment strategy
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: matrix-phase-deployment
+  namespace: argocd
+spec:
+  generators:
+  - matrix:
+      generators:
+      - git:
+          repoURL: https://github.com/example/apps
+          revision: HEAD
+          directories:
+          - path: apps/*
+      - clusters:
+          selector:
+            matchLabels:
+              environment: "*"
+    deploymentStrategy:
+      type: phaseDeployment
+      phases:
+      - name: "development-phase"
+        targets:
+        - values:
+            environment: "development"
+        checks:
+        - name: "dev-smoke-test"
+          type: "command"
+          command:
+            command: ["./smoke-test.sh"]
+            env:
+              APP_NAME: "{{path.basename}}"
+              CLUSTER: "{{name}}"
+          timeout: "5m"
+        waitDuration: "1m"
+        
+      - name: "staging-phase"
+        targets:
+        - values:
+            environment: "staging"
+        checks:
+        - name: "staging-integration-test"
+          type: "command"
+          command:
+            command: ["npm", "run", "test:integration"]
+            env:
+              BASE_URL: "https://{{path.basename}}.staging.{{name}}.example.com"
+              NODE_ENV: "staging"
+          timeout: "10m"
+        - name: "staging-performance-check"
+          type: "http"
+          http:
+            url: "https://perf-monitor.example.com/check"
+            method: "POST"
+            headers:
+              Content-Type: "application/json"
+            body: |
+              {
+                "service": "{{path.basename}}",
+                "environment": "staging",
+                "cluster": "{{name}}"
+              }
+            expectedStatus: 200
+          timeout: "2m"
+        waitDuration: "5m"
+        onFailure:
+          action: "stop"
+          
+      - name: "production-canary"
+        targets:
+        - matchExpressions:
+          - key: "environment"
+            operator: "In"
+            values: ["production"]
+          - key: "tier"
+            operator: "In"
+            values: ["canary"]
+        maxUpdate: 1
+        checks:
+        - name: "canary-health"
+          type: "http"
+          http:
+            url: "https://{{path.basename}}.prod.{{name}}.example.com/health"
+            headers:
+              X-Canary-Check: "true"
+        - name: "canary-metrics"
+          type: "command"
+          command:
+            command: ["./check-canary-metrics.sh"]
+            env:
+              SERVICE: "{{path.basename}}"
+              CLUSTER: "{{name}}"
+              THRESHOLD_ERROR_RATE: "0.01"
+              THRESHOLD_LATENCY_P99: "100ms"
+        waitDuration: "15m"
+        onFailure:
+          action: "rollback"
+          
+      - name: "production-full"
+        targets:
+        - matchExpressions:
+          - key: "environment"
+            operator: "In"
+            values: ["production"]
+        checks:
+        - name: "full-deployment-health"
+          type: "http"
+          http:
+            url: "https://{{path.basename}}.prod.{{name}}.example.com/actuator/health"
+        - name: "dependency-check"
+          type: "command"
+          command:
+            command: ["./check-dependencies.sh"]
+            env:
+              SERVICE: "{{path.basename}}"
+              CLUSTER: "{{name}}"
+        onFailure:
+          action: "stop"
+          
+  template:
+    metadata:
+      name: "{{path.basename}}-{{name}}"
+      labels:
+        app: "{{path.basename}}"
+        cluster: "{{name}}"
+        environment: "{{metadata.labels.environment}}"
+      annotations:
+        argocd.argoproj.io/sync-wave: "{{metadata.labels.tier == 'canary' | ternary '0' '1'}}"
+    spec:
+      project: "default"
+      source:
+        repoURL: https://github.com/example/apps
+        targetRevision: HEAD
+        path: "{{path}}"
+        helm:
+          valueFiles:
+          - values.yaml
+          - values-{{metadata.labels.environment}}.yaml
+          parameters:
+          - name: "environment"
+            value: "{{metadata.labels.environment}}"
+          - name: "cluster"
+            value: "{{name}}"
+          - name: "tier"
+            value: "{{metadata.labels.tier}}"
+      destination:
+        server: "{{server}}"
+        namespace: "{{path.basename}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m
