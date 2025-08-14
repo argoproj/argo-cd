@@ -192,7 +192,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang/glog v1.2.5 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
-	github.com/google/gnostic-models v0.6.9 // indirect
+	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/go-github/v72 v72.0.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
@@ -288,7 +288,7 @@ require (
 	k8s.io/component-base v0.33.1 // indirect
 	k8s.io/component-helpers v0.33.1 // indirect
 	k8s.io/controller-manager v0.33.1 // indirect
-	k8s.io/gengo/v2 v2.0.0-20250207200755-1244d31929d7 // indirect
+	k8s.io/gengo/v2 v2.0.0-20250604051438-85fd79dbfd9f // indirect
 	k8s.io/kube-aggregator v0.33.1 // indirect
 	k8s.io/kubernetes v1.33.1 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
@@ -301,6 +301,7 @@ require (
 replace (
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
+	golang.org/x/tools => golang.org/x/tools v0.35.0
 
 	// Avoid CVE-2022-3064
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.4.0
