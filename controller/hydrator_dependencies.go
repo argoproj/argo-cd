@@ -97,3 +97,12 @@ func (ctrl *ApplicationController) PersistAppHydratorStatus(orig *appv1.Applicat
 func (ctrl *ApplicationController) AddHydrationQueueItem(key types.HydrationQueueKey) {
 	ctrl.hydrationQueue.AddRateLimited(key)
 }
+
+func (ctrl *ApplicationController) GetHydratorCommitMessageTemplate() (string, error) {
+	sourceHydratorCommitMessageKey, err := ctrl.settingsMgr.GetSourceHydratorCommitMessageTemplate()
+	if err != nil || sourceHydratorCommitMessageKey == "" {
+		return "", fmt.Errorf("failed to get sourceHydrator commit message template key: %w", err)
+	}
+
+	return sourceHydratorCommitMessageKey, nil
+}

@@ -16,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/hydrator"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
@@ -59,6 +60,8 @@ type Dependencies interface {
 	// AddHydrationQueueItem adds a hydration queue item to the queue. This is used to trigger the hydration process for
 	// a group of applications which are hydrating to the same repo and target branch.
 	AddHydrationQueueItem(key types.HydrationQueueKey)
+
+	GetHydratorCommitMessageTemplate() (string, error)
 }
 
 // Hydrator is the main struct that implements the hydration logic. It uses the Dependencies interface to access the
@@ -361,12 +364,17 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 		logCtx.Warn("no credentials found for repo, continuing without credentials")
 	}
 
+	commitMessage, errMsg := h.getHydratorCommitMessage(repoURL, targetRevision, revisionMetadata)
+	if errMsg != nil {
+		return "", "", fmt.Errorf("failed to get hydrator commit templated message: %w", errMsg)
+	}
+
 	manifestsRequest := commitclient.CommitHydratedManifestsRequest{
 		Repo:              repo,
 		SyncBranch:        syncBranch,
 		TargetBranch:      targetBranch,
 		DrySha:            targetRevision,
-		CommitMessage:     "[Argo CD Bot] hydrate " + targetRevision,
+		CommitMessage:     commitMessage,
 		Paths:             paths,
 		DryCommitMetadata: revisionMetadata,
 	}
@@ -430,4 +438,20 @@ func appNeedsHydration(app *appv1.Application, statusHydrateTimeout time.Duratio
 	}
 
 	return false, ""
+}
+
+func (h *Hydrator) getHydratorCommitMessage(repoURL, revision string, dryCommitMetadata *appv1.RevisionMetadata) (string, error) {
+	hydratorCommitMetadata, errMD := hydrator.GetHydratorCommitMetadata(repoURL, revision, dryCommitMetadata)
+	if errMD != nil {
+		return "[Argo CD Bot] hydrate " + revision, nil
+	}
+	tmpl, errTemplate := h.dependencies.GetHydratorCommitMessageTemplate()
+	if errTemplate != nil {
+		return "[Argo CD Bot] hydrate " + revision, nil
+	}
+	templatedCommitMsg, errTemplating := hydrator.Render(tmpl, *hydratorCommitMetadata)
+	if errTemplating != nil {
+		return "", fmt.Errorf("failed to parse template %s: %w", tmpl, errTemplating)
+	}
+	return templatedCommitMsg, nil
 }
