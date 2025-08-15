@@ -651,7 +651,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		hasPostDeleteHooks:      cmp.hasPostDeleteHooks(),
 		revisionsMayHaveChanges: revisionsMayHaveChanges,
 	}
-	cmp.amendComparisonResults(compRes, hasMultipleSources)
+	cmp.amendComparisonResults(&compRes, hasMultipleSources)
 
 	app.Status.SetConditions(cmp.conditions, map[v1alpha1.ApplicationConditionType]bool{
 		v1alpha1.ApplicationConditionComparisonError:         true,
@@ -688,7 +688,7 @@ func (m *appStateManager) initialSyncStatus(app *v1alpha1.Application, hasMultip
 	return syncStatus
 }
 
-func (cmp *appStateCmp) amendComparisonResults(compRes comparisonResult, hasMultipleSources bool) {
+func (cmp *appStateCmp) amendComparisonResults(compRes *comparisonResult, hasMultipleSources bool) {
 	if hasMultipleSources {
 		for _, manifestInfo := range cmp.manifestInfos {
 			compRes.appSourceTypes = append(compRes.appSourceTypes, v1alpha1.ApplicationSourceType(manifestInfo.SourceType))
