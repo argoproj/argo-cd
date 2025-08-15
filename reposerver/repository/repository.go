@@ -1067,6 +1067,7 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 				repo.TLSClientCertData = repositoryCredential.TLSClientCertData
 				repo.TLSClientCertKey = repositoryCredential.TLSClientCertKey
 				repo.UseAzureWorkloadIdentity = repositoryCredential.UseAzureWorkloadIdentity
+				repo.AzureCloud = repositoryCredential.AzureCloud
 			} else if repo.EnableOCI {
 				// finally if repo is OCI and no credentials found, use the first OCI credential matching by hostname
 				// see https://github.com/argoproj/argo-cd/issues/14636
@@ -1080,6 +1081,7 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 						repo.Username = cred.Username
 						repo.Password = cred.Password
 						repo.UseAzureWorkloadIdentity = cred.UseAzureWorkloadIdentity
+						repo.AzureCloud = cred.AzureCloud
 						repo.EnableOCI = true
 						break
 					}
