@@ -1,0 +1,20 @@
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: test-ceph-cluster
+  namespace: rook-ceph
+spec:
+  cephVersion:
+    image: quay.io/ceph/ceph:v19.2.0
+status:
+  ceph:
+    health: HEALTH_WARN
+    details:
+      OSD_DOWN:
+        message: 4 osds down
+        severity: HEALTH_WARN
+      POOL_DEGRADED:
+        message: 2 pools degraded
+        severity: HEALTH_WARN
+  state: Created
+  message: Cluster has warnings
