@@ -1300,9 +1300,6 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					"app.kubernetes.io/part-of": "argocd",
 				},
 			},
-			Data: map[string][]byte{
-				"server.secretkey": nil,
-			},
 		}
 		tlsSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1357,9 +1354,6 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				Labels: map[string]string{
 					"app.kubernetes.io/part-of": "argocd",
 				},
-			},
-			Data: map[string][]byte{
-				"server.secretkey": nil,
 			},
 		}
 		tlsSecret := &corev1.Secret{
@@ -1418,9 +1412,6 @@ func Test_GetTLSConfiguration(t *testing.T) {
 						"app.kubernetes.io/part-of": "argocd",
 					},
 				},
-				Data: map[string]string{
-					"oidc.config": "\n  name: Okta\n  clientSecret: test-secret\r\n \n  clientID: aaaabbbbccccddddeee\n",
-				},
 			},
 			&corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1432,8 +1423,6 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					},
 				},
 				Data: map[string][]byte{
-					"admin.password":   nil,
-					"server.secretkey": nil,
 					"tls.crt":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
 					"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
 				},
@@ -1470,6 +1459,64 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		assert.NotNil(t, settings.Certificate)
 		assert.True(t, settings.CertificateIsExternal)
 		assert.Equal(t, "localhost", getCNFromCertificate(settings.Certificate))
+	})
+	t.Run("Falls back to internal TLS cert when external TLS secret deleted", func(t *testing.T) {
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            common.ArgoCDSecretName,
+					Namespace:       "default",
+					ResourceVersion: "1",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"tls.crt":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
+					"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            externalServerTLSSecretName,
+					Namespace:       "default",
+					ResourceVersion: "1",
+				},
+				Data: map[string][]byte{
+					"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
+					"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		settings, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		// should have external cert at this point
+		assert.NotNil(t, settings.Certificate)
+		assert.True(t, settings.CertificateIsExternal)
+		assert.Equal(t, "localhost", getCNFromCertificate(settings.Certificate))
+
+		err = kubeClient.CoreV1().Secrets("default").Delete(t.Context(), externalServerTLSSecretName, metav1.DeleteOptions{})
+		require.NoError(t, err)
+
+		// allow time for the delete to resolve to avoid timing issues below
+		time.Sleep(250 * time.Millisecond)
+
+		settings, err = settingsManager.GetSettings()
+		require.NoError(t, err)
+		// should now have an internal cert
+		assert.NotNil(t, settings.Certificate)
+		assert.False(t, settings.CertificateIsExternal)
+		assert.Equal(t, "Argo CD E2E", getCNFromCertificate(settings.Certificate))
 	})
 	t.Run("No external TLS secret", func(t *testing.T) {
 		kubeClient := fake.NewClientset(
