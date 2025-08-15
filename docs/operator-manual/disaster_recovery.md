@@ -25,4 +25,4 @@ docker run -i -v ~/.kube:/home/argocd/.kube --rm quay.io/argoproj/argocd:$VERSIO
 ```
 
 !!! note
-    If you are running Argo CD on a namespace different than default remember to pass the namespace parameter (-n <namespace>). 'argocd admin export' will not fail if you run it in the wrong namespace.
+    If you are running Argo CD on a namespace different than default, remember to add the namespace parameter (-n <namespace>) so that the 'argocd admin export' command can pass, as it looks for the resources in the default namespace (`argocd`).
