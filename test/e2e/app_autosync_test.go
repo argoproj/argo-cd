@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"testing"
+	"time"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
@@ -91,4 +92,64 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 		And(func(app *Application) {
 			assert.Empty(t, app.Status.Conditions)
 		})
+}
+
+func TestAutoSyncSelfHealRetryAndRefreshEnabled(t *testing.T) {
+	limits := []int64{
+		100, // Repeat enough times to see we move on to 3rd commit without reaching the limit
+		-1,  // Repeat forever
+	}
+
+	for _, limit := range limits {
+		Given(t).
+			Path(guestbookPath).
+			When().
+			// Correctly configured app should be auto-synced once created
+			CreateFromFile(func(app *Application) {
+				app.Spec.SyncPolicy = &SyncPolicy{
+					Automated: &SyncPolicyAutomated{
+						SelfHeal: true,
+					},
+					Retry: &RetryStrategy{
+						Limit:   limit,
+						Refresh: true,
+					},
+				}
+			}).
+			Then().
+			Expect(OperationPhaseIs(OperationSucceeded)).
+			Expect(SyncStatusIs(SyncStatusCodeSynced)).
+			Expect(NoConditions()).
+			// Broken commit should make the app stuck retrying indefinitely
+			When().
+			PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
+			Refresh(RefreshTypeNormal).
+			Then().
+			Expect(OperationPhaseIs(OperationRunning)).
+			Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+			Expect(OperationMessageContains("one or more objects failed to apply")).
+			Expect(OperationMessageContains("Retrying attempt #1")).
+			// Wait to make sure the condition is consistent
+			And(func(_ *Application) {
+				time.Sleep(10 * time.Second)
+			}).
+			Expect(OperationPhaseIs(OperationRunning)).
+			Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+			Expect(OperationMessageContains("one or more objects failed to apply")).
+			Expect(OperationMessageContains("Retrying attempt #2")).
+
+			// Push fix commit and see the app pick it up
+			When().
+			// Fix declaration
+			PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 42}]`).
+			Refresh(RefreshTypeNormal).
+			Then().
+			// Wait for the sync retry to pick up new commit
+			And(func(_ *Application) {
+				time.Sleep(10 * time.Second)
+			}).
+			Expect(NoConditions()).
+			Expect(SyncStatusIs(SyncStatusCodeSynced)).
+			Expect(OperationPhaseIs(OperationSucceeded))
+	}
 }
