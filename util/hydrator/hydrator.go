@@ -9,20 +9,24 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// HydratorCommitMetadata defines the struct used by both Controller and commitServer
+// to define the templated commit message and the hydrated manifest
 type HydratorCommitMetadata struct {
-	RepoURL  string
-	DrySHA   string
-	Commands []string
-	Author   string
-	Date     string
+	RepoURL  string   `json:"repoURL,omitempty"`
+	DrySHA   string   `json:"drySha,omitempty"`
+	Commands []string `json:"commands,omitempty"`
+	Author   string   `json:"author,omitempty"`
+	Date     string   `json:"date,omitempty"`
 	// Subject is the subject line of the DRY commit message, i.e. `git show --format=%s`.
-	Subject string
+	Subject string `json:"subject,omitempty"`
 	// Body is the body of the DRY commit message, excluding the subject line, i.e. `git show --format=%b`.
 	// Known Argocd- trailers with valid values are removed, but all other trailers are kept.
-	Body       string
-	References []appv1.RevisionReference
+	Body       string                    `json:"body,omitempty"`
+	References []appv1.RevisionReference `json:"references,omitempty"`
 }
 
+// GetHydratorCommitMetadata takes repo, drySha and commitMetadata and returns a HydratorCommitMetadata which is a
+// common contract controller and commitServer
 func GetHydratorCommitMetadata(repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata) (*HydratorCommitMetadata, error) { //nolint:revive //FIXME(var-naming)
 	author := ""
 	message := ""

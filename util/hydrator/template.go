@@ -20,6 +20,8 @@ func init() {
 	sprigFuncMap["kindIs"] = kindIs
 }
 
+// Render use a parsed template and calls the Execute to apply the data.
+// currently the method supports struct and a map[string]any as data
 func Render(tmpl string, data any) (string, error) {
 	var dataMap map[string]any
 	var err error

@@ -442,17 +442,21 @@ func appNeedsHydration(app *appv1.Application, statusHydrateTimeout time.Duratio
 	return false, ""
 }
 
+// Gets the multi-line commit message based on the template defined in the configmap. It is a three step process:
+// 1. Get the commit message template defined in the configMap
+// 2. Get the data template engine would use to render the template
+// 3. Pass the output of Step 1 and Step 2 to template Render
 func (h *Hydrator) getHydratorCommitMessage(repoURL, revision string, dryCommitMetadata *appv1.RevisionMetadata) (string, error) {
-	hydratorCommitMetadata, errMD := hydrator.GetHydratorCommitMetadata(repoURL, revision, dryCommitMetadata)
-	if errMD != nil {
-		return "", fmt.Errorf("failed to get hydrated commit message %w", errMD)
-	}
 	tmpl, errTemplate := h.dependencies.GetHydratorCommitMessageTemplate()
 	if errTemplate != nil {
 		return "", fmt.Errorf("failed to get hydrated commit message template %w", errTemplate)
 	}
 	if tmpl == "" {
 		return "", fmt.Errorf("failed to get hydrated commit message template, template not defined")
+	}
+	hydratorCommitMetadata, errMD := hydrator.GetHydratorCommitMetadata(repoURL, revision, dryCommitMetadata)
+	if errMD != nil {
+		return "", fmt.Errorf("failed to get hydrated commit message %w", errMD)
 	}
 	templatedCommitMsg, errRendering := hydrator.Render(tmpl, *hydratorCommitMetadata)
 	if errRendering != nil {
