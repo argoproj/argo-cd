@@ -27,9 +27,7 @@ are some challenges using this strategy to calculate diffs for CRDs
 that define default values.
 
 ## Server-Side Diff
-
-!!! warning "Beta Feature (Since v2.10.0)"
-    This feature is in the [Beta][1] stage. It is generally considered stable, but there may be unhandled edge cases.
+*Current Status: Stable (Since v3.1.0)*
 
 This diff strategy will execute a Server-Side Apply in dryrun mode for
 each resource of the application. The response of this operation is then

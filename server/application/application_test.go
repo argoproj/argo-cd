@@ -3590,3 +3590,145 @@ func Test_DeepCopyInformers(t *testing.T) {
 		assert.NotSame(t, p, &spList[i])
 	}
 }
+
+func TestServerSideDiff(t *testing.T) {
+	// Create test projects (avoid "default" which is already created by newTestAppServerWithEnforcerConfigure)
+	testProj := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-project", Namespace: testNamespace},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
+	}
+
+	forbiddenProj := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "forbidden-project", Namespace: testNamespace},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
+	}
+
+	// Create test applications that will exist in the server
+	testApp := newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "test-app"
+		app.Namespace = testNamespace
+		app.Spec.Project = "test-project"
+	})
+
+	forbiddenApp := newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "forbidden-app"
+		app.Namespace = testNamespace
+		app.Spec.Project = "forbidden-project"
+	})
+
+	appServer := newTestAppServer(t, testProj, forbiddenProj, testApp, forbiddenApp)
+
+	t.Run("InputValidation", func(t *testing.T) {
+		// Test missing application name
+		query := &application.ApplicationServerSideDiffQuery{
+			AppName:         ptr.To(""), // Empty name instead of nil
+			AppNamespace:    ptr.To(testNamespace),
+			Project:         ptr.To("test-project"),
+			LiveResources:   []*v1alpha1.ResourceDiff{},
+			TargetManifests: []string{},
+		}
+
+		_, err := appServer.ServerSideDiff(t.Context(), query)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+
+		// Test nil application name
+		queryNil := &application.ApplicationServerSideDiffQuery{
+			AppName:         nil,
+			AppNamespace:    ptr.To(testNamespace),
+			Project:         ptr.To("test-project"),
+			LiveResources:   []*v1alpha1.ResourceDiff{},
+			TargetManifests: []string{},
+		}
+
+		_, err = appServer.ServerSideDiff(t.Context(), queryNil)
+		assert.Error(t, err)
+		// Should get an error when name is nil
+	})
+
+	t.Run("InvalidManifest", func(t *testing.T) {
+		// Test error handling for malformed JSON in target manifests
+		query := &application.ApplicationServerSideDiffQuery{
+			AppName:         ptr.To("test-app"),
+			AppNamespace:    ptr.To(testNamespace),
+			Project:         ptr.To("test-project"),
+			LiveResources:   []*v1alpha1.ResourceDiff{},
+			TargetManifests: []string{`invalid json`},
+		}
+
+		_, err := appServer.ServerSideDiff(t.Context(), query)
+
+		// Should return error for invalid JSON
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "error unmarshaling target manifest")
+	})
+
+	t.Run("InvalidLiveState", func(t *testing.T) {
+		// Test error handling for malformed JSON in live state
+		liveResource := &v1alpha1.ResourceDiff{
+			Group:       "apps",
+			Kind:        "Deployment",
+			Namespace:   "default",
+			Name:        "test-deployment",
+			LiveState:   `invalid json`,
+			TargetState: "",
+			Modified:    true,
+		}
+
+		query := &application.ApplicationServerSideDiffQuery{
+			AppName:         ptr.To("test-app"),
+			AppNamespace:    ptr.To(testNamespace),
+			Project:         ptr.To("test-project"),
+			LiveResources:   []*v1alpha1.ResourceDiff{liveResource},
+			TargetManifests: []string{`{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"test"}}`},
+		}
+
+		_, err := appServer.ServerSideDiff(t.Context(), query)
+
+		// Should return error for invalid JSON in live state
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "error unmarshaling live state")
+	})
+
+	t.Run("EmptyRequest", func(t *testing.T) {
+		// Test with empty resources - should succeed without errors but no diffs
+		query := &application.ApplicationServerSideDiffQuery{
+			AppName:         ptr.To("test-app"),
+			AppNamespace:    ptr.To(testNamespace),
+			Project:         ptr.To("test-project"),
+			LiveResources:   []*v1alpha1.ResourceDiff{},
+			TargetManifests: []string{},
+		}
+
+		resp, err := appServer.ServerSideDiff(t.Context(), query)
+
+		// Should succeed with empty response
+		require.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.False(t, *resp.Modified)
+		assert.Empty(t, resp.Items)
+	})
+
+	t.Run("MissingAppPermission", func(t *testing.T) {
+		// Test RBAC enforcement
+		query := &application.ApplicationServerSideDiffQuery{
+			AppName:         ptr.To("nonexistent-app"),
+			AppNamespace:    ptr.To(testNamespace),
+			Project:         ptr.To("nonexistent-project"),
+			LiveResources:   []*v1alpha1.ResourceDiff{},
+			TargetManifests: []string{},
+		}
+
+		_, err := appServer.ServerSideDiff(t.Context(), query)
+
+		// Should fail with permission error since nonexistent-app doesn't exist
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "application")
+	})
+}
