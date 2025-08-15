@@ -1300,6 +1300,9 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					"app.kubernetes.io/part-of": "argocd",
 				},
 			},
+			Data: map[string][]byte{
+				"server.secretkey": nil,
+			},
 		}
 		tlsSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1354,6 +1357,9 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				Labels: map[string]string{
 					"app.kubernetes.io/part-of": "argocd",
 				},
+			},
+			Data: map[string][]byte{
+				"server.secretkey": nil,
 			},
 		}
 		tlsSecret := &corev1.Secret{
@@ -1423,6 +1429,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					},
 				},
 				Data: map[string][]byte{
+					"server.secretkey": nil,
 					"tls.crt":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
 					"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
 				},
@@ -1481,6 +1488,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					},
 				},
 				Data: map[string][]byte{
+					"server.secretkey": nil,
 					"tls.crt":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
 					"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
 				},
