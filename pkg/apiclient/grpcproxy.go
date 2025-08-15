@@ -2,6 +2,7 @@ package apiclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -52,7 +53,7 @@ func toFrame(msg []byte) []byte {
 	return frame
 }
 
-func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.MD) (*http.Response, error) {
+func (c *client) executeRequest(ctx context.Context, fullMethodName string, msg []byte, md metadata.MD) (*http.Response, error) {
 	schema := "https"
 	if c.PlainText {
 		schema = "http"
@@ -65,7 +66,8 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 	} else {
 		requestURL = fmt.Sprintf("%s://%s%s", schema, c.ServerAddr, fullMethodName)
 	}
-	req, err := http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(toFrame(msg)))
+	// Use context in the HTTP request
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL, bytes.NewReader(toFrame(msg)))
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +139,7 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 
 			md = metadata.Join(md, headersMD)
 
-			resp, err := c.executeRequest(fullMethodName, msg, md)
+			resp, err := c.executeRequest(stream.Context(), fullMethodName, msg, md)
 			if err != nil {
 				return err
 			}
