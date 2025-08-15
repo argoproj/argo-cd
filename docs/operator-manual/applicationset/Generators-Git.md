@@ -422,11 +422,40 @@ spec:
 
 In `values` we can also interpolate all fields set by the git files generator as mentioned above.
 
+## Git Polling Interval
+
+When using a Git generator, the ApplicationSet controller polls Git
+repositories, by default, every 3 minutes to detect changes, unless
+different default value is set by the
+`ARGOCD_APPLICATIONSET_CONTROLLER_REQUEUE_AFTER` environment variable.
+You can customize this interval per ApplicationSet using
+`requeueAfterSeconds`.
+
+!!!note
+    The Git generator uses the ArgoCD Repo Server to retrieve file
+    and directory lists from Git. Therefore, the Git generator is
+    affected by the Repo Server's Revision Cache Expiration setting
+    (see the description of the `timeout.reconciliation` parameter in
+    [argocd-cm.yaml](../argocd-cm-yaml.md/#:~:text=timeout.reconciliation%3A)).
+    If this value exceeds the configured Git Polling Interval, the
+    Git generator might not see files or directories from new commits
+    until the previous cache entry expires.
+ 
+## The `argocd.argoproj.io/application-set-refresh` Annotation
+
+Setting the `argocd.argoproj.io/application-set-refresh` annotation
+(to any value) triggers an ApplicationSet refresh. This annotation
+forces the Git provider to resolve Git references directly, bypassing
+the Revision Cache. The ApplicationSet controller removes this
+annotation after reconciliation.
+
 ## Webhook Configuration
 
-When using a Git generator, the ApplicationSet controller polls Git repositories every 3 minutes (this can be customized per ApplicationSet with `requeueAfterSeconds`) to detect changes. To eliminate
-this delay from polling, the ApplicationSet webhook server can be configured to receive webhook events. ApplicationSet supports
-Git webhook notifications from GitHub and GitLab. The following explains how to configure a Git webhook for GitHub, but the same process should be applicable to other providers.
+To eliminate the polling delay, the ApplicationSet webhook
+server can be configured to receive webhook events. ApplicationSet
+supports Git webhook notifications from GitHub and GitLab. The
+following explains how to configure a Git webhook for GitHub, but the
+same process should be applicable to other providers.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1

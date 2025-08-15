@@ -162,9 +162,11 @@ spec:
           - preview
 
         # Filters allow selecting which pull requests to generate for
-        # Include any pull request ending with "argocd". (optional)
+        # Include any pull request branch ending with "argocd" 
+        # and pull request title starting with "feat:". (optional)
         filters:
         - branchMatch: ".*-argocd"
+        - titleMatch: "^feat:"
 
         # Specify the project from which to fetch the GitLab merge requests.
         gitlab:

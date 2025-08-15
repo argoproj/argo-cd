@@ -54,6 +54,15 @@ func (ctrl *ApplicationController) GetRepoObjs(origApp *appv1.Application, drySo
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get repo objects: %w", err)
 	}
+	trackingMethod, err := ctrl.settingsMgr.GetTrackingMethod()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get tracking method: %w", err)
+	}
+	for _, obj := range objs {
+		if err := argoutil.NewResourceTracking().RemoveAppInstance(obj, trackingMethod); err != nil {
+			return nil, nil, fmt.Errorf("failed to remove the app instance value: %w", err)
+		}
+	}
 
 	if len(resp) != 1 {
 		return nil, nil, fmt.Errorf("expected one manifest response, got %d", len(resp))

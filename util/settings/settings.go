@@ -1517,17 +1517,18 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 		secretValues[k] = string(v)
 	}
 	settings.Secrets = secretValues
+
+	settings.WebhookGitHubSecret = string(argoCDSecret.Data[settingsWebhookGitHubSecretKey])
+	settings.WebhookGitLabSecret = string(argoCDSecret.Data[settingsWebhookGitLabSecretKey])
+	settings.WebhookBitbucketUUID = string(argoCDSecret.Data[settingsWebhookBitbucketUUIDKey])
+	settings.WebhookBitbucketServerSecret = string(argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey])
+	settings.WebhookGogsSecret = string(argoCDSecret.Data[settingsWebhookGogsSecretKey])
+	settings.WebhookAzureDevOpsUsername = string(argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey])
+	settings.WebhookAzureDevOpsPassword = string(argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey])
+
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
-
-	settings.WebhookGitHubSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGitHubSecretKey]), settings.Secrets)
-	settings.WebhookGitLabSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGitLabSecretKey]), settings.Secrets)
-	settings.WebhookBitbucketUUID = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookBitbucketUUIDKey]), settings.Secrets)
-	settings.WebhookBitbucketServerSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey]), settings.Secrets)
-	settings.WebhookGogsSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGogsSecretKey]), settings.Secrets)
-	settings.WebhookAzureDevOpsUsername = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey]), settings.Secrets)
-	settings.WebhookAzureDevOpsPassword = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey]), settings.Secrets)
 
 	return nil
 }
@@ -1769,6 +1770,41 @@ func (a *ArgoCDSettings) OIDCConfig() *OIDCConfig {
 		return nil
 	}
 	return config.toExported()
+}
+
+// GetWebhookGitHubSecret returns the resolved GitHub webhook secret
+func (a *ArgoCDSettings) GetWebhookGitHubSecret() string {
+	return ReplaceStringSecret(a.WebhookGitHubSecret, a.Secrets)
+}
+
+// GetWebhookGitLabSecret returns the resolved GitLab webhook secret
+func (a *ArgoCDSettings) GetWebhookGitLabSecret() string {
+	return ReplaceStringSecret(a.WebhookGitLabSecret, a.Secrets)
+}
+
+// GetWebhookBitbucketUUID returns the resolved Bitbucket webhook UUID
+func (a *ArgoCDSettings) GetWebhookBitbucketUUID() string {
+	return ReplaceStringSecret(a.WebhookBitbucketUUID, a.Secrets)
+}
+
+// GetWebhookBitbucketServerSecret returns the resolved Bitbucket Server webhook secret
+func (a *ArgoCDSettings) GetWebhookBitbucketServerSecret() string {
+	return ReplaceStringSecret(a.WebhookBitbucketServerSecret, a.Secrets)
+}
+
+// GetWebhookGogsSecret returns the resolved Gogs webhook secret
+func (a *ArgoCDSettings) GetWebhookGogsSecret() string {
+	return ReplaceStringSecret(a.WebhookGogsSecret, a.Secrets)
+}
+
+// GetWebhookAzureDevOpsUsername returns the resolved Azure DevOps webhook username
+func (a *ArgoCDSettings) GetWebhookAzureDevOpsUsername() string {
+	return ReplaceStringSecret(a.WebhookAzureDevOpsUsername, a.Secrets)
+}
+
+// GetWebhookAzureDevOpsPassword returns the resolved Azure DevOps webhook password
+func (a *ArgoCDSettings) GetWebhookAzureDevOpsPassword() string {
+	return ReplaceStringSecret(a.WebhookAzureDevOpsPassword, a.Secrets)
 }
 
 func unmarshalOIDCConfig(configStr string) (oidcConfig, error) {

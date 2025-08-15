@@ -730,7 +730,7 @@ func GetAppProject(ctx context.Context, app *argoappv1.Application, projLister a
 		return nil, err
 	}
 	if !proj.IsAppNamespacePermitted(app, ns) {
-		return nil, argoappv1.NewErrApplicationNotAllowedToUseProject(app.Name, app.Namespace, proj.Name)
+		return nil, NewErrApplicationNotAllowedToUseProject(app.Name, app.Namespace, proj.Name)
 	}
 	return proj, nil
 }
