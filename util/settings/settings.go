@@ -1269,15 +1269,6 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	return &settings, nil
 }
 
-func (mgr *SettingsManager) invalidateTLSCertCache() {
-	mgr.mutex.Lock()
-	defer mgr.mutex.Unlock()
-
-	mgr.tlsCertCache = nil
-	mgr.tlsCertCacheSecretName = ""
-	mgr.tlsCertCacheSecretVersion = ""
-}
-
 func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	tweakConfigMap := func(options *metav1.ListOptions) {
 		cmLabelSelector := fields.ParseSelectorOrDie(partOfArgoCDSelector)
@@ -1621,8 +1612,6 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 	if err != nil {
 		return err
 	}
-
-	mgr.invalidateTLSCertCache()
 
 	return mgr.updateSecret(func(argoCDSecret *corev1.Secret) error {
 		argoCDSecret.Data[settingServerSignatureKey] = settings.ServerSignature
