@@ -42,7 +42,7 @@ type repositoryBackend interface {
 
 	CreateRepoCreds(ctx context.Context, r *v1alpha1.RepoCreds) (*v1alpha1.RepoCreds, error)
 	GetRepoCreds(ctx context.Context, repoURL string) (*v1alpha1.RepoCreds, error)
-	GetRepoCredsSecret(ctx context.Context, repoURL string) (bool, *corev1.Secret, error)
+	GetRepoCredsSecret(ctx context.Context, repoURL string) (*corev1.Secret, bool, error)
 	ListRepoCreds(ctx context.Context) ([]string, error)
 	UpdateRepoCreds(ctx context.Context, r *v1alpha1.RepoCreds) (*v1alpha1.RepoCreds, error)
 	DeleteRepoCreds(ctx context.Context, name string) error
@@ -296,7 +296,7 @@ func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*v1
 // GetWriteRepositoryCredentials retrieves a repository write credential set
 func (db *db) GetWriteRepositoryCredentials(ctx context.Context, repoURL string) (*v1alpha1.RepoCreds, error) {
 	secretBackend := db.repoWriteBackend()
-	exists, secret, err := secretBackend.GetRepoCredsSecret(ctx, repoURL)
+	secret, exists, err := secretBackend.GetRepoCredsSecret(ctx, repoURL)
 	if err != nil {
 		return nil, fmt.Errorf("unable to check if repository write credentials for %q exists from secrets backend: %w", repoURL, err)
 	}

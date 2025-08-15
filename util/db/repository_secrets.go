@@ -213,16 +213,16 @@ func (s *secretsRepositoryBackend) GetRepoCreds(_ context.Context, repoURL strin
 	return s.secretToRepoCred(secret)
 }
 
-func (s *secretsRepositoryBackend) GetRepoCredsSecret(_ context.Context, repoURL string) (bool, *corev1.Secret, error) {
+func (s *secretsRepositoryBackend) GetRepoCredsSecret(_ context.Context, repoURL string) (*corev1.Secret, bool, error) {
 	secret, err := s.getRepoCredsSecret(repoURL)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
-			return false, nil, nil
+			return nil, false, nil
 		}
 
-		return false, nil, err
+		return nil, false, err
 	}
-	return true, secret, nil
+	return secret, true, nil
 }
 
 func (s *secretsRepositoryBackend) ListRepoCreds(_ context.Context) ([]string, error) {

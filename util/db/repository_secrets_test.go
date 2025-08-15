@@ -1,9 +1,14 @@
 package db
 
 import (
+	"context"
+	"reflect"
 	"strconv"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v3/common"
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -16,10 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
-
-	"github.com/argoproj/argo-cd/v3/common"
-	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
@@ -967,4 +968,119 @@ func TestRepoCredsToSecret(t *testing.T) {
 	assert.Equal(t, []byte(creds.GitHubAppEnterpriseBaseURL), s.Data["githubAppEnterpriseBaseUrl"])
 	assert.Equal(t, map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD}, s.Annotations)
 	assert.Equal(t, map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds}, s.Labels)
+}
+
+func Test_secretsRepositoryBackend_GetRepoCredsSecret(t *testing.T) {
+	repoCredSecrets := []runtime.Object{
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace:   testNamespace,
+				Name:        RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj", ""),
+				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCredsWrite},
+			},
+			Data: map[string][]byte{
+				"url":      []byte("git@github.com:argoproj"),
+				"username": []byte("someUsername"),
+				"password": []byte("somePassword"),
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      "user-managed",
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCredsWrite},
+			},
+			Data: map[string][]byte{
+				"url":      []byte("git@gitlab.com"),
+				"username": []byte("someOtherUsername"),
+				"password": []byte("someOtherPassword"),
+			},
+		},
+	}
+
+	clientset := getClientset(repoCredSecrets...)
+	testdb := &db{
+		ns:            testNamespace,
+		kubeclientset: clientset,
+		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+	}
+
+	type fields struct {
+		db         *db
+		writeCreds bool
+	}
+	type args struct {
+		in0     context.Context
+		repoURL string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    bool
+		want1   *corev1.Secret
+		wantErr bool
+	}{
+		{
+			name: "test the getrepocredsecret for argoproj",
+			fields: fields{
+				db:         testdb,
+				writeCreds: true,
+			},
+			args: args{
+				in0:     t.Context(),
+				repoURL: "git@github.com:argoproj",
+			},
+			want:  true,
+			want1: repoCredSecrets[0].(*corev1.Secret),
+		},
+		{
+			name: "test the getrepocredsecret for user-managed gitlab repo",
+			fields: fields{
+				db:         testdb,
+				writeCreds: true,
+			},
+			args: args{
+				in0:     t.Context(),
+				repoURL: "git@gitlab.com",
+			},
+			want:  true,
+			want1: repoCredSecrets[1].(*corev1.Secret),
+		},
+		{
+			name: "test no secret",
+			fields: fields{
+				db:         testdb,
+				writeCreds: false,
+			},
+			args: args{
+				in0:     t.Context(),
+				repoURL: "git@github.com:argoproj",
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &secretsRepositoryBackend{
+				db:         tt.fields.db,
+				writeCreds: tt.fields.writeCreds,
+			}
+			got1, got, err := s.GetRepoCredsSecret(tt.args.in0, tt.args.repoURL)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("secretsRepositoryBackend.GetRepoCredsSecret() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("secretsRepositoryBackend.GetRepoCredsSecret() got = %v, want %v", got, tt.want)
+			}
+			if got && !reflect.DeepEqual(got1, tt.want1) {
+				t.Errorf("secretsRepositoryBackend.GetRepoCredsSecret() got1 = %v, want %v", got1, tt.want1)
+			}
+			if !got {
+				assert.Nil(t, got1)
+			}
+		})
+	}
 }
