@@ -697,6 +697,20 @@ func (m *appStateManager) initialSyncStatus(app *v1alpha1.Application, hasMultip
 	return syncStatus
 }
 
+type appStateCmp struct {
+	now              metav1.Time
+	logCtx           *log.Entry
+	app              *v1alpha1.Application
+	project          *v1alpha1.AppProject
+	noCache          bool
+	cmpSettings      *comparisonSettings
+	verifySignature  bool
+	targetObjs       []*unstructured.Unstructured
+	manifestInfos    []*apiclient.ManifestResponse
+	failedToLoadObjs bool
+	conditions       []v1alpha1.ApplicationCondition
+}
+
 func (cmp *appStateCmp) amendComparisonResults(compRes *comparisonResult, hasMultipleSources bool) {
 	if hasMultipleSources {
 		for _, manifestInfo := range cmp.manifestInfos {
@@ -986,20 +1000,6 @@ func (m *appStateManager) getLiveManifests(cmp *appStateCmp, destCluster *v1alph
 	}
 
 	return liveObjByKey
-}
-
-type appStateCmp struct {
-	now              metav1.Time
-	logCtx           *log.Entry
-	app              *v1alpha1.Application
-	project          *v1alpha1.AppProject
-	noCache          bool
-	cmpSettings      *comparisonSettings
-	verifySignature  bool
-	targetObjs       []*unstructured.Unstructured
-	manifestInfos    []*apiclient.ManifestResponse
-	failedToLoadObjs bool
-	conditions       []v1alpha1.ApplicationCondition
 }
 
 func (cmp *appStateCmp) addConditions(condition ...v1alpha1.ApplicationCondition) {
