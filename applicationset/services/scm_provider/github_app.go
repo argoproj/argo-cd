@@ -8,7 +8,7 @@ import (
 	appsetutils "github.com/argoproj/argo-cd/v3/applicationset/utils"
 )
 
-func NewGithubAppProviderFor(g github_app_auth.Authentication, organization string, url string, allBranches bool, optionalHTTPClient ...*http.Client) (*GithubProvider, error) {
+func NewGithubAppProviderFor(g github_app_auth.Authentication, organization, url string, allBranches bool, optionalHTTPClient ...*http.Client) (*GithubProvider, error) {
 	httpClient := appsetutils.GetOptionalHTTPClient(optionalHTTPClient...)
 	client, err := github_app.Client(g, url, httpClient)
 	if err != nil {
