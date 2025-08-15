@@ -1608,14 +1608,130 @@ func TestCreateAppUpsert(t *testing.T) {
 }
 
 func TestUpdateApp(t *testing.T) {
-	testApp := newTestApp()
-	appServer := newTestAppServer(t, testApp)
-	testApp.Spec.Project = ""
-	app, err := appServer.Update(t.Context(), &application.ApplicationUpdateRequest{
-		Application: testApp,
+	t.Parallel()
+	t.Run("Same spec", func(t *testing.T) {
+		t.Parallel()
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		testApp.Spec.Project = ""
+		app, err := appServer.Update(t.Context(), &application.ApplicationUpdateRequest{
+			Application: testApp,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "default", app.Spec.Project)
 	})
-	require.NoError(t, err)
-	assert.Equal(t, "default", app.Spec.Project)
+	t.Run("Invalid existing app can be updated", func(t *testing.T) {
+		t.Parallel()
+		testApp := newTestApp()
+		testApp.Spec.Destination.Server = "https://invalid-cluster"
+		appServer := newTestAppServer(t, testApp)
+
+		updateApp := newTestAppWithDestName()
+		updateApp.TypeMeta = testApp.TypeMeta
+		updateApp.Spec.Source.Name = "updated"
+		app, err := appServer.Update(t.Context(), &application.ApplicationUpdateRequest{
+			Application: updateApp,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, app)
+		assert.Equal(t, "updated", app.Spec.Source.Name)
+	})
+	t.Run("Can update application project from invalid", func(t *testing.T) {
+		t.Parallel()
+		testApp := newTestApp()
+		restrictedProj := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "restricted-proj", Namespace: "default"},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos:  []string{"not-your-repo"},
+				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "not-your-namespace"}},
+			},
+		}
+		testApp.Spec.Project = restrictedProj.Name
+		appServer := newTestAppServer(t, testApp, restrictedProj)
+
+		updateApp := newTestAppWithDestName()
+		updateApp.TypeMeta = testApp.TypeMeta
+		updateApp.Spec.Project = "my-proj"
+		app, err := appServer.Update(t.Context(), &application.ApplicationUpdateRequest{
+			Application: updateApp,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, app)
+		assert.Equal(t, "my-proj", app.Spec.Project)
+	})
+	t.Run("Cannot update application project to invalid", func(t *testing.T) {
+		t.Parallel()
+		testApp := newTestApp()
+		restrictedProj := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "restricted-proj", Namespace: "default"},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos:  []string{"not-your-repo"},
+				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "not-your-namespace"}},
+			},
+		}
+		appServer := newTestAppServer(t, testApp, restrictedProj)
+
+		updateApp := newTestAppWithDestName()
+		updateApp.TypeMeta = testApp.TypeMeta
+		updateApp.Spec.Project = restrictedProj.Name
+		_, err := appServer.Update(t.Context(), &application.ApplicationUpdateRequest{
+			Application: updateApp,
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "application repo https://github.com/argoproj/argocd-example-apps.git is not permitted in project 'restricted-proj'")
+		require.ErrorContains(t, err, "application destination server 'fake-cluster' and namespace 'fake-dest-ns' do not match any of the allowed destinations in project 'restricted-proj'")
+	})
+	t.Run("Cannot update application project to inexisting", func(t *testing.T) {
+		t.Parallel()
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+
+		updateApp := newTestAppWithDestName()
+		updateApp.TypeMeta = testApp.TypeMeta
+		updateApp.Spec.Project = "i-do-not-exist"
+		_, err := appServer.Update(t.Context(), &application.ApplicationUpdateRequest{
+			Application: updateApp,
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "app is not allowed in project \"i-do-not-exist\", or the project does not exist")
+	})
+	t.Run("Can update application project with project argument", func(t *testing.T) {
+		t.Parallel()
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+
+		updateApp := newTestAppWithDestName()
+		updateApp.TypeMeta = testApp.TypeMeta
+		updateApp.Spec.Project = "my-proj"
+		app, err := appServer.Update(t.Context(), &application.ApplicationUpdateRequest{
+			Application: updateApp,
+			Project:     ptr.To("default"),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, app)
+		assert.Equal(t, "my-proj", app.Spec.Project)
+	})
+	t.Run("Existing label and annotations are replaced", func(t *testing.T) {
+		t.Parallel()
+		testApp := newTestApp()
+		testApp.Annotations = map[string]string{"test": "test-value", "update": "old"}
+		testApp.Labels = map[string]string{"test": "test-value", "update": "old"}
+		appServer := newTestAppServer(t, testApp)
+
+		updateApp := newTestAppWithDestName()
+		updateApp.TypeMeta = testApp.TypeMeta
+		updateApp.Annotations = map[string]string{"update": "new"}
+		updateApp.Labels = map[string]string{"update": "new"}
+		app, err := appServer.Update(t.Context(), &application.ApplicationUpdateRequest{
+			Application: updateApp,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, app)
+		assert.Len(t, app.Annotations, 1)
+		assert.Equal(t, "new", app.GetAnnotations()["update"])
+		assert.Len(t, app.Labels, 1)
+		assert.Equal(t, "new", app.GetLabels()["update"])
+	})
 }
 
 func TestUpdateAppSpec(t *testing.T) {
