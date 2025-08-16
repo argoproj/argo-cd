@@ -1,14 +1,16 @@
 import * as React from 'react';
 import {FormField} from 'argo-ui';
 import {FormApi, Text} from 'react-form';
+import {Link} from 'react-router-dom';
 import {EditablePanel, EditablePanelItem} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {NewHTTPSRepoParams} from '../repos-list/repos-list';
 import {AuthSettingsCtx} from '../../../shared/context';
+import * as AppUtils from '../../../applications/components/utils';
 
-export const RepoDetails = (props: {repo: models.Repository; save?: (params: NewHTTPSRepoParams) => Promise<void>}) => {
+export const RepoDetails = (props: {repo: models.Repository; applications: models.Application[]; save?: (params: NewHTTPSRepoParams) => Promise<void>; registered: boolean}) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
-    const {repo, save} = props;
+    const {repo, applications, save, registered} = props;
     const write = false;
     const FormItems = (repository: models.Repository): EditablePanelItem[] => {
         const items: EditablePanelItem[] = [
@@ -19,6 +21,32 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
             {
                 title: 'Repository URL',
                 view: repository.repo
+            },
+            {
+                title: 'Applications',
+                view:
+                    applications && applications.length > 0 ? (
+                        <div>
+                            {applications.map(app => (
+                                <div key={app.metadata.name}>
+                                    <Link to={`/${AppUtils.getAppUrl(app)}`}>{app.metadata.name}</Link>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <Link
+                            to={`/applications?new=${encodeURIComponent(
+                                JSON.stringify({
+                                    spec: {
+                                        source: {
+                                            repoURL: repo.repo
+                                        }
+                                    }
+                                })
+                            )}`}>
+                            <button className='argo-button argo-button--base'>Create</button>
+                        </Link>
+                    )
             },
             {
                 title: 'Name',
@@ -115,7 +143,8 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
                 params.bearerToken = input.bearerToken || '';
                 save(params);
             }}
-            title='CONNECTED REPOSITORY'
+            registered={registered}
+            title={registered ? 'CONNECTED REPOSITORY' : 'NOT CONNECTED REPOSITORY'}
             items={FormItems(repo)}
         />
     );
