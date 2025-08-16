@@ -17,27 +17,20 @@ interface State {
     authSettings: AuthSettings | null;
     loginError: string | null;
     loginInProgress: boolean;
-    returnUrl: string;
-    hasSsoLoginError: boolean;
 }
 
 export function Login(props: RouteComponentProps<{}>) {
     const appContext = useContext(Context);
 
+    const search = new URLSearchParams(props.history.location.search);
+    const returnUrl = search.get('return_url') || '';
+    const hasSsoLoginError = search.get('has_sso_error') === 'true';
+
     const [state, setState] = useState<State>({
         authSettings: null,
         loginError: null,
-        returnUrl: '',
-        hasSsoLoginError: false,
         loginInProgress: false
     });
-
-    useEffect(() => {
-        const search = new URLSearchParams(props.history.location.search);
-        const returnUrl = search.get('return_url') || '';
-        const hasSsoLoginError = search.get('has_sso_error') === 'true';
-        setState(prevState => ({...prevState, hasSsoLoginError, returnUrl}));
-    }, [props.history.location.search]);
 
     useEffect(() => {
         const fetchAuthSettings = async () => {
@@ -84,7 +77,7 @@ export function Login(props: RouteComponentProps<{}>) {
                 </div>
                 {ssoConfigured && (
                     <div className='login__box_saml width-control'>
-                        <a href={`auth/login?return_url=${encodeURIComponent(state.returnUrl)}`}>
+                        <a href={`auth/login?return_url=${encodeURIComponent(returnUrl)}`}>
                             <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
                                 {(authSettings.oidcConfig && <span>Log in via {authSettings.oidcConfig.name}</span>) ||
                                     (authSettings.dexConfig.connectors.length === 1 && <span>Log in via {authSettings.dexConfig.connectors[0].name}</span>) || (
@@ -92,7 +85,7 @@ export function Login(props: RouteComponentProps<{}>) {
                                     )}
                             </button>
                         </a>
-                        {state.hasSsoLoginError && <div className='argo-form-row__error-msg'>Login failed.</div>}
+                        {hasSsoLoginError && <div className='argo-form-row__error-msg'>Login failed.</div>}
                         {authSettings && !authSettings.userLoginsDisabled && (
                             <div className='login__saml-separator'>
                                 <span>or</span>
@@ -102,7 +95,7 @@ export function Login(props: RouteComponentProps<{}>) {
                 )}
                 {authSettings && !authSettings.userLoginsDisabled && (
                     <Form
-                        onSubmit={(params: LoginForm) => login(params.username, params.password, state.returnUrl)}
+                        onSubmit={(params: LoginForm) => login(params.username, params.password, returnUrl)}
                         validateError={(params: LoginForm) => ({
                             username: !params.username && 'Username is required',
                             password: !params.password && 'Password is required'
