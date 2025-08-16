@@ -13,7 +13,7 @@ The Google Chat notification service send message notifications to a google chat
 3. Under **Incoming Webhooks**, click **Add Webhook**
 4. Give a name to the webhook, optionally add an image and click **Save**
 5. Copy the URL next to your webhook
-6. Store the URL in `argocd-notification-secret` and declare it in `argocd-notifications-cm`
+6. Store the URL in `argocd-notifications-secret` and declare it in `argocd-notifications-cm`
 
 ```yaml
 apiVersion: v1
