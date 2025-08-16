@@ -1433,16 +1433,17 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 	needToUpdateStatus := false
 
 	if len(applicationStatuses) != len(applicationSet.Status.ApplicationStatus) {
-		logCtx.Debugf("app status count %d→%d",
-			len(applicationSet.Status.ApplicationStatus), len(applicationStatuses))
+		logCtx.WithFields(log.Fields{
+			"current_count":  len(applicationSet.Status.ApplicationStatus),
+			"expected_count": len(applicationStatuses),
+		}).Debug("application status count changed")
 		needToUpdateStatus = true
 	} else {
 		for i := range applicationStatuses {
 			appStatus := applicationStatuses[i]
 			idx := findApplicationStatusIndex(applicationSet.Status.ApplicationStatus, appStatus.Application)
 			if idx == -1 {
-				logCtx.Debugf("app %s not found in current status",
-					appStatus.Application)
+				logCtx.WithFields(log.Fields{"application": appStatus.Application}).Debug("application not found in current status")
 				needToUpdateStatus = true
 				break
 			}
@@ -1453,16 +1454,15 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 
 			if statusChanged || stepChanged || messageChanged {
 				if statusChanged {
-					logCtx.Debugf("app %s status %s→%s",
-						appStatus.Application, currentStatus.Status, appStatus.Status)
+					logCtx.WithFields(log.Fields{"application": appStatus.Application, "previous_status": currentStatus.Status, "new_status": appStatus.Status}).
+						Debug("application status changed")
 				}
 				if stepChanged {
-					logCtx.Debugf("app %s step %s→%s",
-						appStatus.Application, currentStatus.Step, appStatus.Step)
+					logCtx.WithFields(log.Fields{"application": appStatus.Application, "previous_step": currentStatus.Step, "new_step": appStatus.Step}).
+						Debug("application step changed")
 				}
 				if messageChanged {
-					logCtx.Debugf("app %s message changed",
-						appStatus.Application)
+					logCtx.WithFields(log.Fields{"application": appStatus.Application}).Debug("application message changed")
 				}
 				needToUpdateStatus = true
 				break
