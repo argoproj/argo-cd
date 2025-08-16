@@ -1798,6 +1798,8 @@ const (
 	ApplicationConditionSyncError = "SyncError"
 	// ApplicationConditionUnknownError indicates an unknown controller error
 	ApplicationConditionUnknownError = "UnknownError"
+	// ApplicationConditionPostSyncHookFailed indicates a PostSync hook (e.g., Job) failed
+	ApplicationConditionPostSyncHookError = "PostSyncHookError"
 	// ApplicationConditionSharedResourceWarning indicates that controller detected resources which belongs to more than one application
 	ApplicationConditionSharedResourceWarning = "SharedResourceWarning"
 	// ApplicationConditionRepeatedResourceWarning indicates that application source has resource with same Group, Kind, Name, Namespace multiple times
