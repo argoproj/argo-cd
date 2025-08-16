@@ -13,12 +13,6 @@ export interface LoginForm {
     password: string;
 }
 
-interface State {
-    authSettings: AuthSettings | null;
-    loginError: string | null;
-    loginInProgress: boolean;
-}
-
 export function Login(props: RouteComponentProps<{}>) {
     const appContext = useContext(Context);
 
@@ -26,25 +20,24 @@ export function Login(props: RouteComponentProps<{}>) {
     const returnUrl = search.get('return_url') || '';
     const hasSsoLoginError = search.get('has_sso_error') === 'true';
 
-    const [state, setState] = useState<State>({
-        authSettings: null,
-        loginError: null,
-        loginInProgress: false
-    });
+    const [authSettings, setAuthSettings] = useState<AuthSettings | null>(null);
+    const [loginError, setLoginError] = useState<string | null>(null);
+    const [loginInProgress, setLoginInProgress] = useState<boolean>(false);
 
     useEffect(() => {
         (async () => {
             const authSettings = await services.authService.settings();
-            setState(prevState => ({...prevState, authSettings}));
+            setAuthSettings(authSettings);
         })();
     }, []);
 
     const login = async (username: string, password: string, returnURL: string) => {
         try {
-            setState(prevState => ({...prevState, loginError: '', loginInProgress: true}));
+            setLoginError('');
+            setLoginInProgress(true);
             appContext.navigation.goto('.', {sso_error: null});
             await services.users.login(username, password);
-            setState(prevState => ({...prevState, loginInProgress: false}));
+            setLoginInProgress(false);
             if (returnURL) {
                 const url = new URL(returnURL);
                 let redirectURL = url.pathname + url.search;
@@ -57,11 +50,11 @@ export function Login(props: RouteComponentProps<{}>) {
                 appContext.navigation.goto('/applications');
             }
         } catch (e) {
-            setState(prevState => ({...prevState, loginError: e.response.body.error, loginInProgress: false}));
+            setLoginError(e.response.body.error);
+            setLoginInProgress(false);
         }
     };
 
-    const {authSettings} = state;
     const ssoConfigured = authSettings && ((authSettings.dexConfig && (authSettings.dexConfig.connectors || []).length > 0) || authSettings.oidcConfig);
 
     return (
@@ -118,10 +111,10 @@ export function Login(props: RouteComponentProps<{}>) {
                                         component={Text}
                                         componentProps={{name: 'password', type: 'password', autoComplete: 'password'}}
                                     />
-                                    {state.loginError && <div className='argo-form-row__error-msg'>{state.loginError}</div>}
+                                    {loginError && <div className='argo-form-row__error-msg'>{loginError}</div>}
                                 </div>
                                 <div className='login__form-row'>
-                                    <button disabled={state.loginInProgress} className='argo-button argo-button--full-width argo-button--xlg' type='submit'>
+                                    <button disabled={loginInProgress} className='argo-button argo-button--full-width argo-button--xlg' type='submit'>
                                         Sign In
                                     </button>
                                 </div>
