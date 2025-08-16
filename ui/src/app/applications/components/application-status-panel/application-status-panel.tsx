@@ -222,7 +222,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     <div className='application-status-panel__item-value__revision show-for-large'>{syncStatusMessage(application)}</div>
                 </div>
                 <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
-                    {application.spec.syncPolicy?.automated ? (
+                    {application.spec.syncPolicy?.automated?.enabled ? (
                         <>
                             <AutoSyncStatusIcon enabled={true} />
                             Auto sync is enabled.
