@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBlockingDial_ProxyEnvironmentHandling(t *testing.T) {
@@ -84,12 +85,12 @@ func TestBlockingDial_ProxyEnvironmentHandling(t *testing.T) {
 			conn, err := BlockingDial(ctx, "tcp", tt.address, nil)
 
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Nil(t, conn)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.NotNil(t, conn)
-				assert.NoError(t, conn.Close())
+				require.NoError(t, conn.Close())
 			}
 		})
 	}
