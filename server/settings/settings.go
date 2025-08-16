@@ -147,7 +147,6 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		if len(argoCDSettings.OIDCConfig().RequestedIDTokenClaims) > 0 {
 			set.OIDCConfig.IDTokenClaims = argoCDSettings.OIDCConfig().RequestedIDTokenClaims
 		}
-
 	}
 	return &set, nil
 }
