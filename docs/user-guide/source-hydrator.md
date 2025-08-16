@@ -108,6 +108,15 @@ spec:
 In this example, the hydrated manifests will be pushed to the `environments/dev` branch of the `argocd-example-apps`
 repository.
 
+!!! note
+
+    When configuring the `SyncSource.Path` field in the Source Hydrator, it is important to ensure that
+    the path points to a subdirectory within the repository rather than the repository root. Setting
+    the path to the root, such as an empty string, `.`, or `/` is not allowed and will cause the application
+    to be skipped during the hydration process. This restriction exists to prevent accidental clearing of the
+    entire repository, as only the contents of the specified subdirectory are intended to be cleared and updated
+    during hydration.
+
 !!! important "Project-Scoped Repositories"
 
     Repository Secrets may contain a `project` field, making the secret only usable by Applications in that project.

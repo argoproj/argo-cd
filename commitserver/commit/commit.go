@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/argoproj/argo-cd/v3/controller/hydrator"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
@@ -118,10 +120,15 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 		return out, "", fmt.Errorf("failed to checkout target branch: %w", err)
 	}
 
-	logCtx.Debug("Clearing repo contents")
-	out, err = gitClient.RemoveContents()
-	if err != nil {
-		return out, "", fmt.Errorf("failed to clear repo: %w", err)
+	logCtx.Debug("Clearing repo path contents")
+	for _, path := range r.Paths {
+		if hydrator.IsRootPath(path.Path) {
+			return "", "", fmt.Errorf("refusing to clear repo root path: %q", path.Path)
+		}
+		out, err = gitClient.RemoveContents(path.Path)
+		if err != nil {
+			return out, "", fmt.Errorf("failed to clear repo: %w", err)
+		}
 	}
 
 	logCtx.Debug("Writing manifests")
