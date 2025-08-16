@@ -1,8 +1,7 @@
 import {FormField} from 'argo-ui';
-import {useContext, useEffect, useState} from 'react';
-import React, {Form, Text} from 'react-form';
+import React, {useContext, useEffect, useState} from 'react';
+import {Form, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
-
 import {AuthSettings} from '../../shared/models';
 import {services} from '../../shared/services';
 import {Context} from '../../shared/context';
