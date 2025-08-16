@@ -2,9 +2,12 @@ actionTests:
 - action: pause
   inputPath: testdata/pipeline.yaml
   expectedOutputPath: testdata/pipeline-paused.yaml
-- action: unpause
+- action: unpause-gradual
   inputPath: testdata/pipeline-paused.yaml
-  expectedOutputPath: testdata/pipeline.yaml
+  expectedOutputPath: testdata/pipeline-unpause-gradual.yaml
+- action: unpause-fast
+  inputPath: testdata/pipeline-paused.yaml
+  expectedOutputPath: testdata/pipeline-unpause-fast.yaml
 - action: force-promote
   inputPath: testdata/pipeline.yaml
   expectedOutputPath: testdata/pipeline-force-promote.yaml
