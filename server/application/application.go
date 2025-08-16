@@ -1424,7 +1424,7 @@ func (s *Server) getAppLiveResource(ctx context.Context, action string, q *appli
 	}
 
 	found := tree.FindNode(q.GetGroup(), q.GetKind(), q.GetNamespace(), q.GetResourceName())
-	if found == nil || found.UID == "" {
+	if found == nil {
 		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.GetKind(), q.GetGroup(), q.GetResourceName(), q.GetName())
 	}
 	config, err := s.getApplicationClusterConfig(ctx, a)
@@ -1446,6 +1446,10 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 	}
 	obj, err := s.kubectl.GetResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace)
 	if err != nil {
+		// If the resource doesn't exist yet (e.g., new resource), provide a more helpful error
+		if apierrors.IsNotFound(err) && res.UID == "" {
+			return nil, status.Errorf(codes.NotFound, "Resource %s %s/%s does not exist yet. It may be a new resource that hasn't been created.", res.Kind, res.Namespace, res.Name)
+		}
 		return nil, fmt.Errorf("error getting resource: %w", err)
 	}
 	obj, err = s.replaceSecretValues(obj)
