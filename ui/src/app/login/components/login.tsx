@@ -33,11 +33,10 @@ export function Login(props: RouteComponentProps<{}>) {
     });
 
     useEffect(() => {
-        const fetchAuthSettings = async () => {
+        (async () => {
             const authSettings = await services.authService.settings();
             setState(prevState => ({...prevState, authSettings}));
-        };
-        fetchAuthSettings();
+        })();
     }, []);
 
     const login = async (username: string, password: string, returnURL: string) => {
