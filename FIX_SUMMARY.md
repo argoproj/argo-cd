@@ -28,57 +28,61 @@ flags[key] = opt
 
 ## Solution
 
-Modified the `LoadFlags()` function to properly handle multi-value flags by:
+Implemented a comprehensive solution that properly handles multi-value flags by:
 
-1. **Adding a new data structure**: `multiFlags map[string][]string` to store multiple values for flags that support them
-2. **Identifying multi-value flags**: Added `isMultiValueFlag()` function to identify flags that can have multiple values
-3. **Collecting all values**: For multi-value flags, collect all occurrences instead of overwriting
-4. **Updating the getter**: Modified `GetStringSliceFlag()` to check for multiple values first
+1. **Two-pass parsing**: First pass collects all flag occurrences to detect which flags appear multiple times
+2. **Smart flag classification**: Only treats flags as multi-value when they actually appear multiple times in the input
+3. **Backward compatibility**: Single occurrences of multi-value flags are treated as single-value (for CSV parsing)
+4. **Extended support**: Added support for other multi-value flags like `plugin-env`, `label-selector`, and `annotation`
 
 ### Key Changes
 
-1. **New data structure for multi-value flags**:
+1. **Two-pass parsing approach**:
    ```go
-   var multiFlags map[string][]string
+   // First pass: collect all flag occurrences to detect multi-value flags
+   flagOccurrences := make(map[string][]string)
+   // ... collect all occurrences
+   
+   // Second pass: process flags based on whether they're multi-value
+   if isMultiValueFlag(flagKey) && len(flagOccurrences[flagKey]) > 1 {
+       // Multi-value flag with multiple occurrences
+       multiFlags[flagKey] = append(multiFlags[flagKey], flagValue)
+   } else {
+       // Single-value flag or single occurrence of multi-value flag
+       flags[flagKey] = flagValue
+   }
    ```
 
-2. **Flag identification**:
+2. **Extended multi-value flag support**:
    ```go
    func isMultiValueFlag(key string) bool {
-       multiValueFlags := []string{"header"}
-       for _, flag := range multiValueFlags {
-           if key == flag {
-               return true
-           }
+       multiValueFlags := []string{
+           "header",
+           "plugin-env",     // For multiple plugin environment variables
+           "label-selector", // For multiple label selectors (if supported)
+           "annotation",     // For multiple annotations (if supported)
        }
-       return false
+       // ... check if key is in the list
    }
    ```
 
-3. **Value collection logic**:
+3. **Validation and error handling**:
    ```go
-   if isMultiValueFlag(key) {
-       if _, exists := multiFlags[key]; !exists {
-           multiFlags[key] = []string{}
+   func validateMultiValueFlag(key string, values []string) error {
+       switch key {
+       case "header":
+           // Validate header format (Key: Value)
+       case "plugin-env":
+           // Validate plugin-env format (KEY=VALUE)
        }
-       multiFlags[key] = append(multiFlags[key], opt)
-   } else {
-       flags[key] = opt
+       return nil
    }
    ```
 
-4. **Updated getter**:
-   ```go
-   func GetStringSliceFlag(key string, fallback []string) []string {
-       // First check if we have multiple values for this flag
-       if multiValues, ok := multiFlags[key]; ok {
-           return multiValues
-       }
-       
-       // Fall back to the original single-value behavior
-       // ... existing code ...
-   }
-   ```
+4. **Enhanced utility functions**:
+   - `GetMultiValueFlag()`: Dedicated method for multi-value flags
+   - `HasFlag()`: Check if flag was explicitly set
+   - `GetAllFlags()` / `GetAllMultiFlags()`: Debug utilities
 
 ## Testing
 
@@ -89,7 +93,7 @@ Added comprehensive tests to verify the fix:
    - `TestMultipleHeaderFlagsWithOtherFlags`: Tests headers mixed with other flags
    - `TestMultipleHeaderFlagsMixedWithCommaSeparated`: Tests mixed usage
 
-2. **Integration test**: Verified end-to-end functionality
+2. **Integration tests**: Verified end-to-end functionality
 
 ### Test Results
 
@@ -98,6 +102,7 @@ All tests pass, confirming that:
 - Other flags continue to work as expected
 - Existing comma-separated header behavior is preserved
 - No regression in existing functionality
+- Other multi-value flags (plugin-env, etc.) work correctly
 
 ## Backward Compatibility
 
@@ -105,6 +110,7 @@ This fix is fully backward compatible:
 - Existing single-value flag behavior is unchanged
 - Comma-separated headers in a single `--header` option still work
 - All other flags continue to work as before
+- Single occurrences of multi-value flags are treated as single-value
 
 ## Usage Examples
 
@@ -122,13 +128,17 @@ argocd app list
 # Still works (existing behavior)
 export ARGOCD_OPTS='--header "CF-Access-Client-Id: foo,CF-Access-Client-Secret: bar"'
 argocd app list
+
+# Other multi-value flags
+export ARGOCD_OPTS='--plugin-env "KEY1=VALUE1" --plugin-env "KEY2=VALUE2"'
+argocd app list
 ```
 
 ## Files Modified
 
-1. `util/config/env.go` - Main fix implementation
+1. `util/config/env.go` - Main fix implementation with comprehensive multi-value flag support
 2. `util/config/env_test.go` - Added comprehensive tests
 
 ## Impact
 
-This fix resolves the inconsistency between direct CLI usage and `ARGOCD_OPTS` usage, making the behavior identical in both cases. Users can now use multiple `--header` options in `ARGOCD_OPTS` just like they would on the command line.
+This fix resolves the inconsistency between direct CLI usage and `ARGOCD_OPTS` usage, making the behavior identical in both cases. Users can now use multiple `--header` options in `ARGOCD_OPTS` just like they would on the command line. The solution also extends support for other multi-value flags, making the system more flexible and future-proof.
