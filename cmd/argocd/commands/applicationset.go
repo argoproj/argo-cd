@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 
@@ -437,7 +438,7 @@ func printApplicationSetTable(apps []arogappsetv1.ApplicationSet, output *string
 			phaseStatus := "-"
 			if hasPhaseDeployment(&app) {
 				currentPhase, totalPhases := getCurrentPhaseInfo(&app)
-				phaseStatus = fmt.Sprintf("%d/%d", currentPhase, totalPhases)
+				phaseStatus = strconv.Itoa(currentPhase) + "/" + strconv.Itoa(totalPhases)
 			}
 			vals = append(vals,
 				app.Spec.Template.Spec.GetSource().RepoURL,
@@ -651,7 +652,7 @@ func NewApplicationSetPhaseAdvanceCommand(clientOpts *argocdclient.ClientOptions
 			if appSet.Annotations == nil {
 				appSet.Annotations = make(map[string]string)
 			}
-			appSet.Annotations["applicationset.argoproj.io/phase-"+getGeneratorTypeFromAppSet(appSet)] = fmt.Sprintf("%d", nextPhase)
+			appSet.Annotations["applicationset.argoproj.io/phase-"+getGeneratorTypeFromAppSet(appSet)] = strconv.Itoa(nextPhase)
 
 			appSetCreateRequest := applicationset.ApplicationSetCreateRequest{
 				Applicationset: appSet,
@@ -715,8 +716,8 @@ func NewApplicationSetPhaseRollbackCommand(clientOpts *argocdclient.ClientOption
 				appSet.Annotations = make(map[string]string)
 			}
 			generatorType := getGeneratorTypeFromAppSet(appSet)
-			appSet.Annotations["applicationset.argoproj.io/phase-"+generatorType] = fmt.Sprintf("%d", previousPhase)
-			appSet.Annotations["applicationset.argoproj.io/rollback-phase-"+generatorType] = fmt.Sprintf("%d", currentPhase)
+			appSet.Annotations["applicationset.argoproj.io/phase-"+generatorType] = strconv.Itoa(previousPhase)
+			appSet.Annotations["applicationset.argoproj.io/rollback-phase-"+generatorType] = strconv.Itoa(currentPhase)
 
 			appSetCreateRequest := applicationset.ApplicationSetCreateRequest{
 				Applicationset: appSet,
@@ -891,12 +892,12 @@ func printPhaseStatusTable(appSet *arogappsetv1.ApplicationSet) {
 			status = "Current"
 		}
 
-		targets := fmt.Sprintf("%d", len(phase.Targets))
+		targets := strconv.Itoa(len(phase.Targets))
 		if phase.Percentage != nil {
-			targets = fmt.Sprintf("%d%% + %s targets", *phase.Percentage, targets)
+			targets = strconv.Itoa(*phase.Percentage) + "% + " + targets + " targets"
 		}
 
-		checks := fmt.Sprintf("%d", len(phase.Checks))
+		checks := strconv.Itoa(len(phase.Checks))
 
 		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\n", i, phase.Name, status, targets, checks)
 	}
