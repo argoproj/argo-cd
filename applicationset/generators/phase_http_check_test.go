@@ -43,7 +43,9 @@ func TestPhaseDeploymentProcessor_runHTTPCheck(t *testing.T) {
 					assert.Equal(t, "default", r.Header.Get("X-AppSet-Namespace"))
 					assert.Equal(t, "health-check", r.Header.Get("X-Check-Name"))
 					w.WriteHeader(http.StatusOK)
-					_, _ = w.Write([]byte("OK"))
+					if _, err := w.Write([]byte("OK")); err != nil {
+						t.Errorf("Failed to write response: %v", err)
+					}
 				}))
 			},
 			check: argoprojiov1alpha1.GeneratorPhaseCheck{
@@ -62,7 +64,9 @@ func TestPhaseDeploymentProcessor_runHTTPCheck(t *testing.T) {
 					assert.Equal(t, "POST", r.Method)
 					assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 					w.WriteHeader(http.StatusCreated)
-					_, _ = w.Write([]byte("Created"))
+					if _, err := w.Write([]byte("Created")); err != nil {
+						t.Errorf("Failed to write response: %v", err)
+					}
 				}))
 			},
 			check: argoprojiov1alpha1.GeneratorPhaseCheck{
@@ -85,7 +89,9 @@ func TestPhaseDeploymentProcessor_runHTTPCheck(t *testing.T) {
 			server: func() *httptest.Server {
 				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					w.WriteHeader(http.StatusInternalServerError)
-					_, _ = w.Write([]byte("Internal Server Error"))
+					if _, err := w.Write([]byte("Internal Server Error")); err != nil {
+						t.Errorf("Failed to write response: %v", err)
+					}
 				}))
 			},
 			check: argoprojiov1alpha1.GeneratorPhaseCheck{
@@ -104,7 +110,9 @@ func TestPhaseDeploymentProcessor_runHTTPCheck(t *testing.T) {
 			server: func() *httptest.Server {
 				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					w.WriteHeader(http.StatusNotFound)
-					_, _ = w.Write([]byte("Not Found"))
+					if _, err := w.Write([]byte("Not Found")); err != nil {
+						t.Errorf("Failed to write response: %v", err)
+					}
 				}))
 			},
 			check: argoprojiov1alpha1.GeneratorPhaseCheck{
@@ -222,7 +230,9 @@ func TestPhaseDeploymentProcessor_runHTTPCheck_HTTPS(t *testing.T) {
 	// Create HTTPS test server
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("HTTPS OK"))
+		if _, err := w.Write([]byte("HTTPS OK")); err != nil {
+			t.Errorf("Failed to write response: %v", err)
+		}
 	}))
 	defer server.Close()
 
