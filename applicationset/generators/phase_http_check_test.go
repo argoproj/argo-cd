@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -42,7 +43,7 @@ func TestPhaseDeploymentProcessor_runHTTPCheck(t *testing.T) {
 					assert.Equal(t, "default", r.Header.Get("X-AppSet-Namespace"))
 					assert.Equal(t, "health-check", r.Header.Get("X-Check-Name"))
 					w.WriteHeader(http.StatusOK)
-					w.Write([]byte("OK"))
+					_, _ = w.Write([]byte("OK"))
 				}))
 			},
 			check: argoprojiov1alpha1.GeneratorPhaseCheck{
@@ -61,7 +62,7 @@ func TestPhaseDeploymentProcessor_runHTTPCheck(t *testing.T) {
 					assert.Equal(t, "POST", r.Method)
 					assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 					w.WriteHeader(http.StatusCreated)
-					w.Write([]byte("Created"))
+					_, _ = w.Write([]byte("Created"))
 				}))
 			},
 			check: argoprojiov1alpha1.GeneratorPhaseCheck{
@@ -82,9 +83,9 @@ func TestPhaseDeploymentProcessor_runHTTPCheck(t *testing.T) {
 		{
 			name: "failed request - wrong status code",
 			server: func() *httptest.Server {
-				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					w.WriteHeader(http.StatusInternalServerError)
-					w.Write([]byte("Internal Server Error"))
+					_, _ = w.Write([]byte("Internal Server Error"))
 				}))
 			},
 			check: argoprojiov1alpha1.GeneratorPhaseCheck{
@@ -101,9 +102,9 @@ func TestPhaseDeploymentProcessor_runHTTPCheck(t *testing.T) {
 		{
 			name: "request with custom expected status",
 			server: func() *httptest.Server {
-				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					w.WriteHeader(http.StatusNotFound)
-					w.Write([]byte("Not Found"))
+					_, _ = w.Write([]byte("Not Found"))
 				}))
 			},
 			check: argoprojiov1alpha1.GeneratorPhaseCheck{
@@ -168,7 +169,7 @@ func TestPhaseDeploymentProcessor_runHTTPCheck(t *testing.T) {
 			err := processor.runHTTPCheck(ctx, appSet, tt.check)
 
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if tt.errorMessage != "" {
 					assert.Contains(t, err.Error(), tt.errorMessage)
 				}
@@ -184,7 +185,7 @@ func TestPhaseDeploymentProcessor_runHTTPCheck_Timeout(t *testing.T) {
 	processor := NewPhaseDeploymentProcessor(client)
 
 	// Create a server that takes longer than the timeout
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(200 * time.Millisecond) // Sleep longer than timeout
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -210,7 +211,7 @@ func TestPhaseDeploymentProcessor_runHTTPCheck_Timeout(t *testing.T) {
 	logger := log.WithField("test", "runSingleCheck")
 	err := processor.runSingleCheck(ctx, appSet, check, logger)
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "context deadline exceeded")
 }
 
@@ -219,9 +220,9 @@ func TestPhaseDeploymentProcessor_runHTTPCheck_HTTPS(t *testing.T) {
 	processor := NewPhaseDeploymentProcessor(client)
 
 	// Create HTTPS test server
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("HTTPS OK"))
+		_, _ = w.Write([]byte("HTTPS OK"))
 	}))
 	defer server.Close()
 
@@ -260,7 +261,7 @@ func TestPhaseDeploymentProcessor_runHTTPCheck_HTTPS(t *testing.T) {
 		ctx := context.Background()
 		err := processor.runHTTPCheck(ctx, appSet, check)
 		// This should fail because we're using a self-signed certificate
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "certificate")
 	})
 }

@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -16,7 +17,7 @@ import (
 func TestNewPhaseDeploymentProcessor(t *testing.T) {
 	client := fake.NewClientBuilder().Build()
 	processor := NewPhaseDeploymentProcessor(client)
-	
+
 	assert.NotNil(t, processor)
 	assert.Equal(t, client, processor.client)
 }
@@ -67,12 +68,12 @@ func TestPhaseDeploymentProcessor_ProcessPhaseDeployment(t *testing.T) {
 	processor := NewPhaseDeploymentProcessor(client)
 
 	tests := []struct {
-		name           string
-		appSet         *argoprojiov1alpha1.ApplicationSet
-		generator      *argoprojiov1alpha1.ApplicationSetGenerator
+		name            string
+		appSet          *argoprojiov1alpha1.ApplicationSet
+		generator       *argoprojiov1alpha1.ApplicationSetGenerator
 		generatedParams []map[string]any
 		expectedParams  []map[string]any
-		expectError    bool
+		expectError     bool
 	}{
 		{
 			name: "no deployment strategy",
@@ -152,11 +153,11 @@ func TestPhaseDeploymentProcessor_ProcessPhaseDeployment(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := processor.ProcessPhaseDeployment(context.TODO(), tt.appSet, tt.generator, tt.generatedParams)
-			
+
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tt.expectedParams, result)
 			}
 		})
@@ -170,7 +171,7 @@ func TestPhaseDeploymentProcessor_filterParamsForPhase(t *testing.T) {
 	maxUpdate := intstr.FromInt(1)
 	percentage20 := int64(20)
 	percentage50 := int64(50)
-	
+
 	tests := []struct {
 		name           string
 		allParams      []map[string]any
@@ -474,9 +475,9 @@ func TestPhaseDeploymentProcessor_getGeneratorType(t *testing.T) {
 			expected: "git",
 		},
 		{
-			name: "unknown generator",
+			name:      "unknown generator",
 			generator: &argoprojiov1alpha1.ApplicationSetGenerator{},
-			expected: "unknown",
+			expected:  "unknown",
 		},
 	}
 
@@ -493,9 +494,9 @@ func TestPhaseDeploymentProcessor_GetGeneratorPhaseStatus(t *testing.T) {
 	processor := NewPhaseDeploymentProcessor(client)
 
 	tests := []struct {
-		name           string
-		appSet         *argoprojiov1alpha1.ApplicationSet
-		generator      *argoprojiov1alpha1.ApplicationSetGenerator
+		name            string
+		appSet          *argoprojiov1alpha1.ApplicationSet
+		generator       *argoprojiov1alpha1.ApplicationSetGenerator
 		expectedCurrent int
 		expectedTotal   int
 		expectError     bool
@@ -540,11 +541,11 @@ func TestPhaseDeploymentProcessor_GetGeneratorPhaseStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			current, total, err := processor.GetGeneratorPhaseStatus(tt.appSet, tt.generator)
-			
+
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tt.expectedCurrent, current)
 				assert.Equal(t, tt.expectedTotal, total)
 			}
@@ -724,7 +725,7 @@ func TestPhaseDeploymentProcessor_runPhaseHooks(t *testing.T) {
 	client := fake.NewClientBuilder().Build()
 	processor := NewPhaseDeploymentProcessor(client)
 	ctx := context.Background()
-	
+
 	appSet := &argoprojiov1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-appset",
@@ -739,9 +740,9 @@ func TestPhaseDeploymentProcessor_runPhaseHooks(t *testing.T) {
 		expectErr bool
 	}{
 		{
-			name:     "no hooks",
-			hooks:    []argoprojiov1alpha1.GeneratorPhaseHook{},
-			hookType: "pre",
+			name:      "no hooks",
+			hooks:     []argoprojiov1alpha1.GeneratorPhaseHook{},
+			hookType:  "pre",
 			expectErr: false,
 		},
 		{
@@ -795,11 +796,11 @@ func TestPhaseDeploymentProcessor_runPhaseHooks(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := log.WithField("test", "runPhaseHooks")
 			err := processor.runPhaseHooks(ctx, appSet, tt.hooks, tt.hookType, logger)
-			
+
 			if tt.expectErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -809,7 +810,7 @@ func TestPhaseDeploymentProcessor_runCommandHook(t *testing.T) {
 	client := fake.NewClientBuilder().Build()
 	processor := NewPhaseDeploymentProcessor(client)
 	ctx := context.Background()
-	
+
 	appSet := &argoprojiov1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-appset",
@@ -862,11 +863,11 @@ func TestPhaseDeploymentProcessor_runCommandHook(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := log.WithField("test", "runCommandHook")
 			err := processor.runCommandHook(ctx, appSet, tt.hook, tt.hookType, logger)
-			
+
 			if tt.expectErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
