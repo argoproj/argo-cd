@@ -12,6 +12,7 @@ import (
 )
 
 var flags map[string]string
+var multiFlags map[string][]string
 
 func init() {
 	err := LoadFlags()
@@ -22,6 +23,7 @@ func init() {
 
 func LoadFlags() error {
 	flags = make(map[string]string)
+	multiFlags = make(map[string][]string)
 
 	opts, err := shellquote.Split(os.Getenv("ARGOCD_OPTS"))
 	if err != nil {
@@ -37,7 +39,15 @@ func LoadFlags() error {
 			}
 			key = strings.TrimPrefix(opt, "--")
 		case key != "":
-			flags[key] = opt
+			// Check if this is a multi-value flag (like --header)
+			if isMultiValueFlag(key) {
+				if _, exists := multiFlags[key]; !exists {
+					multiFlags[key] = []string{}
+				}
+				multiFlags[key] = append(multiFlags[key], opt)
+			} else {
+				flags[key] = opt
+			}
 			key = ""
 		default:
 			return errors.New("ARGOCD_OPTS invalid at '" + opt + "'")
@@ -58,6 +68,17 @@ func LoadFlags() error {
 		}
 	}
 	return nil
+}
+
+// isMultiValueFlag returns true if the flag can have multiple values
+func isMultiValueFlag(key string) bool {
+	multiValueFlags := []string{"header"}
+	for _, flag := range multiValueFlags {
+		if key == flag {
+			return true
+		}
+	}
+	return false
 }
 
 func GetFlag(key, fallback string) string {
@@ -86,6 +107,12 @@ func GetIntFlag(key string, fallback int) int {
 }
 
 func GetStringSliceFlag(key string, fallback []string) []string {
+	// First check if we have multiple values for this flag
+	if multiValues, ok := multiFlags[key]; ok {
+		return multiValues
+	}
+	
+	// Fall back to the original single-value behavior
 	val, ok := flags[key]
 	if !ok {
 		return fallback
