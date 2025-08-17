@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -118,10 +119,11 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 		return out, "", fmt.Errorf("failed to checkout target branch: %w", err)
 	}
 
-	logCtx.Debug("Clearing repo contents")
-	out, err = gitClient.RemoveContents()
+	// Instead of clearing all repo contents, only remove the specific paths being written to
+	logCtx.Debug("Removing specific paths being written to")
+	err = s.removeSpecificPaths(gitClient, r.Paths)
 	if err != nil {
-		return out, "", fmt.Errorf("failed to clear repo: %w", err)
+		return "", "", fmt.Errorf("failed to remove specific paths: %w", err)
 	}
 
 	logCtx.Debug("Writing manifests")
@@ -143,6 +145,39 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 
 	return "", sha, nil
+}
+
+// removeSpecificPaths removes only the specific paths being written to, preserving other paths
+// to avoid wiping out manifests from other applications hydrating to the same branch.
+func (s *Service) removeSpecificPaths(gitClient git.Client, paths []*apiclient.PathDetails) error {
+	for _, path := range paths {
+		pathToRemove := path.Path
+		if pathToRemove == "" || pathToRemove == "." {
+			// For root path, we need to be more careful - only remove files, not directories
+			// that might contain other applications' manifests
+			// Remove only files in the root, not subdirectories
+			out, err := gitClient.RunCmd("find", ".", "-maxdepth", "1", "-type", "f", "-delete")
+			if err != nil {
+				// If no files found, that's fine
+				if strings.Contains(out, "No such file or directory") {
+					continue
+				}
+				return fmt.Errorf("failed to remove root files: %w", err)
+			}
+			continue
+		}
+		
+		// Remove the specific path and its contents
+		out, err := gitClient.RunCmd("rm", "-rf", pathToRemove)
+		if err != nil {
+			// If the path doesn't exist, that's fine - it means we're creating it for the first time
+			if strings.Contains(out, "No such file or directory") {
+				continue
+			}
+			return fmt.Errorf("failed to remove path %s: %w", pathToRemove, err)
+		}
+	}
+	return nil
 }
 
 // initGitClient initializes a git client for the given repository and returns the client, the path to the directory where

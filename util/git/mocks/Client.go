@@ -915,6 +915,66 @@ func (_c *Client_RemoveContents_Call) RunAndReturn(run func() (string, error)) *
 	return _c
 }
 
+// RunCmd provides a mock function for the type Client
+func (_mock *Client) RunCmd(args ...string) (string, error) {
+	ret := _mock.Called(args)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RunCmd")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(...string) (string, error)); ok {
+		return returnFunc(args...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(...string) string); ok {
+		r0 = returnFunc(args...)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(...string) error); ok {
+		r1 = returnFunc(args...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Client_RunCmd_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RunCmd'
+type Client_RunCmd_Call struct {
+	*mock.Call
+}
+
+// RunCmd is a helper method to define mock.On call
+//   - args ...string
+func (_e *Client_Expecter) RunCmd(args ...interface{}) *Client_RunCmd_Call {
+	return &Client_RunCmd_Call{Call: _e.mock.On("RunCmd", args...)}
+}
+
+func (_c *Client_RunCmd_Call) Run(run func(args ...string)) *Client_RunCmd_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 []string
+		for i, arg := range args {
+			if i == 0 {
+				arg0 = arg.([]string)
+			}
+		}
+		run(arg0...)
+	})
+	return _c
+}
+
+func (_c *Client_RunCmd_Call) Return(s string, err error) *Client_RunCmd_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Client_RunCmd_Call) RunAndReturn(run func(...string) (string, error)) *Client_RunCmd_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // RevisionMetadata provides a mock function for the type Client
 func (_mock *Client) RevisionMetadata(revision string) (*git.RevisionMetadata, error) {
 	ret := _mock.Called(revision)
