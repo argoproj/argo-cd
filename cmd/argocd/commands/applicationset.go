@@ -143,7 +143,7 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 	argocd appset create <filename or URL> (<filename or URL>...)
 
 	# Dry-run AppSet creation to see what applications would be managed
-	argocd appset create --dry-run <filename or URL> -o json | jq -r '.status.resources[].name' 
+	argocd appset create --dry-run <filename or URL> -o json | jq -r '.status.resources[].name'
 		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -894,7 +894,7 @@ func printPhaseStatusTable(appSet *arogappsetv1.ApplicationSet) {
 
 		targets := strconv.Itoa(len(phase.Targets))
 		if phase.Percentage != nil {
-			targets = strconv.Itoa(*phase.Percentage) + "% + " + targets + " targets"
+			targets = strconv.FormatInt(*phase.Percentage, 10) + "% + " + targets + " targets"
 		}
 
 		checks := strconv.Itoa(len(phase.Checks))
