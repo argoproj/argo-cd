@@ -1427,6 +1427,7 @@ spec:
                                         body:
                                           type: string
                                         expectedStatus:
+                                          format: int64
                                           type: integer
                                         headers:
                                           additionalProperties:
@@ -1467,6 +1468,7 @@ spec:
                                 - action
                                 type: object
                               percentage:
+                                format: int64
                                 type: integer
                               postHooks:
                                 items:
@@ -1491,6 +1493,7 @@ spec:
                                         body:
                                           type: string
                                         expectedStatus:
+                                          format: int64
                                           type: integer
                                         headers:
                                           additionalProperties:
@@ -1539,6 +1542,7 @@ spec:
                                         body:
                                           type: string
                                         expectedStatus:
+                                          format: int64
                                           type: integer
                                         headers:
                                           additionalProperties:
@@ -4338,6 +4342,7 @@ spec:
                                                   body:
                                                     type: string
                                                   expectedStatus:
+                                                    format: int64
                                                     type: integer
                                                   headers:
                                                     additionalProperties:
@@ -4378,6 +4383,7 @@ spec:
                                           - action
                                           type: object
                                         percentage:
+                                          format: int64
                                           type: integer
                                         postHooks:
                                           items:
@@ -4402,6 +4408,7 @@ spec:
                                                   body:
                                                     type: string
                                                   expectedStatus:
+                                                    format: int64
                                                     type: integer
                                                   headers:
                                                     additionalProperties:
@@ -4450,6 +4457,7 @@ spec:
                                                   body:
                                                     type: string
                                                   expectedStatus:
+                                                    format: int64
                                                     type: integer
                                                   headers:
                                                     additionalProperties:
@@ -10381,6 +10389,7 @@ spec:
                                                   body:
                                                     type: string
                                                   expectedStatus:
+                                                    format: int64
                                                     type: integer
                                                   headers:
                                                     additionalProperties:
@@ -10421,6 +10430,7 @@ spec:
                                           - action
                                           type: object
                                         percentage:
+                                          format: int64
                                           type: integer
                                         postHooks:
                                           items:
@@ -10445,6 +10455,7 @@ spec:
                                                   body:
                                                     type: string
                                                   expectedStatus:
+                                                    format: int64
                                                     type: integer
                                                   headers:
                                                     additionalProperties:
@@ -10493,6 +10504,7 @@ spec:
                                                   body:
                                                     type: string
                                                   expectedStatus:
+                                                    format: int64
                                                     type: integer
                                                   headers:
                                                     additionalProperties:
