@@ -1016,14 +1016,24 @@ func (p *PhaseDeploymentProcessor) runHTTPHook(ctx context.Context, appSet *argo
 	})
 
 	// Create HTTP client with proper timeouts
+	// Use context deadline if available, otherwise use default timeout
+	clientTimeout := 30 * time.Second
+	if deadline, ok := ctx.Deadline(); ok {
+		remaining := time.Until(deadline)
+		if remaining > 0 && remaining < clientTimeout {
+			clientTimeout = remaining
+		}
+	}
+
 	client := &http.Client{
-		Timeout: 30 * time.Second, // Default client timeout as fallback
+		Timeout: clientTimeout,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: httpHook.InsecureSkipVerify,
 			},
 			ResponseHeaderTimeout: 10 * time.Second,
 			IdleConnTimeout:       30 * time.Second,
+			DisableKeepAlives:     true, // Prevent connection reuse that could cause hangs
 		},
 	}
 
