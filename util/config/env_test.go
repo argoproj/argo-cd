@@ -178,4 +178,8 @@ func TestMultipleHeaderFlagsMixedWithCommaSeparated(t *testing.T) {
 	assert.Len(t, strings, 2)
 	assert.Equal(t, "CF-Access-Client-Id: foo,CF-Access-Client-Secret: bar", strings[0])
 	assert.Equal(t, "X-Custom-Header: value", strings[1])
+
 }
+
+}
+

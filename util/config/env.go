@@ -94,12 +94,18 @@ func LoadFlags() error {
 			// Flag with value
 			if isMultiValueFlag(key) && len(flagOccurrences[key]) > 1 {
 				// Multi-value flag with multiple occurrences
+
+			// Check if this is a multi-value flag (like --header)
+			if isMultiValueFlag(key) {
+
 				if _, exists := multiFlags[key]; !exists {
 					multiFlags[key] = []string{}
 				}
 				multiFlags[key] = append(multiFlags[key], opt)
 			} else {
+
 				// Single-value flag or single occurrence of multi-value flag
+
 				flags[key] = opt
 			}
 			key = ""
@@ -170,6 +176,17 @@ func validateMultiValueFlag(key string, values []string) error {
 	return nil
 }
 
+// isMultiValueFlag returns true if the flag can have multiple values
+func isMultiValueFlag(key string) bool {
+	multiValueFlags := []string{"header"}
+	for _, flag := range multiValueFlags {
+		if key == flag {
+			return true
+		}
+	}
+	return false
+}
+
 func GetFlag(key, fallback string) string {
 	val, ok := flags[key]
 	if ok {
@@ -198,6 +215,7 @@ func GetIntFlag(key string, fallback int) int {
 func GetStringSliceFlag(key string, fallback []string) []string {
 	// First check if we have multiple values for this flag
 	if multiValues, ok := multiFlags[key]; ok {
+
 		// Validate the multi-values (but don't fail, just warn)
 		if err := validateMultiValueFlag(key, multiValues); err != nil {
 			log.Warnf("Invalid multi-value flag %s: %v", key, err)
@@ -225,6 +243,7 @@ func GetStringSliceFlag(key string, fallback []string) []string {
 		log.Fatalf("Invalid CSV format for flag '%s': %s", key, val)
 	}
 	return v
+
 }
 
 // GetMultiValueFlag is a dedicated method for getting multi-value flags
@@ -266,3 +285,6 @@ func GetAllMultiFlags() map[string][]string {
 	}
 	return result
 }
+
+}
+
