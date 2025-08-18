@@ -2,9 +2,12 @@ actionTests:
 - action: pause
   inputPath: testdata/monovertex.yaml
   expectedOutputPath: testdata/monovertex-paused.yaml
-- action: unpause
+- action: unpause-gradual
   inputPath: testdata/monovertex-paused.yaml
-  expectedOutputPath: testdata/monovertex.yaml
+  expectedOutputPath: testdata/monovertex-unpause-gradual.yaml
+- action: unpause-fast
+  inputPath: testdata/monovertex-paused.yaml
+  expectedOutputPath: testdata/monovertex-unpause-fast.yaml
 - action: force-promote
   inputPath: testdata/monovertex.yaml
   expectedOutputPath: testdata/monovertex-force-promote.yaml
