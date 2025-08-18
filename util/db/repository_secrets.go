@@ -213,18 +213,6 @@ func (s *secretsRepositoryBackend) GetRepoCreds(_ context.Context, repoURL strin
 	return s.secretToRepoCred(secret)
 }
 
-func (s *secretsRepositoryBackend) GetRepoCredsSecret(_ context.Context, repoURL string) (*corev1.Secret, bool, error) {
-	secret, err := s.getRepoCredsSecret(repoURL)
-	if err != nil {
-		if status.Code(err) == codes.NotFound {
-			return nil, false, nil
-		}
-
-		return nil, false, err
-	}
-	return secret, true, nil
-}
-
 func (s *secretsRepositoryBackend) ListRepoCreds(_ context.Context) ([]string, error) {
 	var repoURLs []string
 
@@ -440,11 +428,6 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretBool(secret, "forceHttpBasicAuth", repository.ForceHttpBasicAuth)
 	updateSecretBool(secret, "useAzureWorkloadIdentity", repository.UseAzureWorkloadIdentity)
 	addSecretMetadata(secret, s.getSecretType())
-}
-
-// just a wrapper around secretToRepoCred to expose it.
-func (s *secretsRepositoryBackend) MapSecretToRepoCred(secret *corev1.Secret) (*appsv1.RepoCreds, error) {
-	return s.secretToRepoCred(secret)
 }
 
 func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*appsv1.RepoCreds, error) {

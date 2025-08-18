@@ -42,7 +42,6 @@ type repositoryBackend interface {
 
 	CreateRepoCreds(ctx context.Context, r *v1alpha1.RepoCreds) (*v1alpha1.RepoCreds, error)
 	GetRepoCreds(ctx context.Context, repoURL string) (*v1alpha1.RepoCreds, error)
-	GetRepoCredsSecret(ctx context.Context, repoURL string) (*corev1.Secret, bool, error)
 	ListRepoCreds(ctx context.Context) ([]string, error)
 	UpdateRepoCreds(ctx context.Context, r *v1alpha1.RepoCreds) (*v1alpha1.RepoCreds, error)
 	DeleteRepoCreds(ctx context.Context, name string) error
@@ -50,10 +49,6 @@ type repositoryBackend interface {
 
 	GetAllHelmRepoCreds(ctx context.Context) ([]*v1alpha1.RepoCreds, error)
 	GetAllOCIRepoCreds(ctx context.Context) ([]*v1alpha1.RepoCreds, error)
-
-	// Mapper functions
-	// TODO Abstract Mapping from here to de-couple the actual logic and i/o from mapping
-	MapSecretToRepoCred(secret *corev1.Secret) (*v1alpha1.RepoCreds, error)
 }
 
 func (db *db) CreateRepository(ctx context.Context, r *v1alpha1.Repository) (*v1alpha1.Repository, error) {
@@ -296,17 +291,16 @@ func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*v1
 // GetWriteRepositoryCredentials retrieves a repository write credential set
 func (db *db) GetWriteRepositoryCredentials(ctx context.Context, repoURL string) (*v1alpha1.RepoCreds, error) {
 	secretBackend := db.repoWriteBackend()
-	secret, exists, err := secretBackend.GetRepoCredsSecret(ctx, repoURL)
+	creds, err := secretBackend.GetRepoCreds(ctx, repoURL)
 	if err != nil {
-		return nil, fmt.Errorf("unable to check if repository write credentials for %q exists from secrets backend: %w", repoURL, err)
+		if creds == nil {
+			return nil, fmt.Errorf("unable to check if repo write credentials for %q exists from secrets backend: %w", repoURL, err)
+		} else {
+			return nil, fmt.Errorf("unable to get repo write credentials for %q from secrets backend: %w", repoURL, err)
+		}
 	}
-	if !exists {
+	if creds == nil { // to cover for not found. In that case both creds and err are nil
 		return nil, nil
-	}
-
-	creds, errMapping := secretBackend.MapSecretToRepoCred(secret)
-	if errMapping != nil {
-		return nil, fmt.Errorf("unable to map repository write credentials for %q from secrets backend: %w", repoURL, err)
 	}
 
 	return creds, nil

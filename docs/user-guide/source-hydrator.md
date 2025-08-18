@@ -266,39 +266,22 @@ All trailers are optional. If a trailer is not specified, the corresponding fiel
 ### Credential Templates
 
 Credential templates allow a single credential to be used for multiple repositories. The source hydrator supports credential templates. For example, if you setup credential templates for the URL prefix `https://github.com/argoproj`, these credentials will be used for all repositories with this URL as prefix (e.g. `https://github.com/argoproj/argocd-example-apps`) that do not have their own credentials configured.
-For more information please refer [credential-template](private-repositories.md#credential-templates)
+For more information please refer [credential-template](private-repositories.md#credential-templates). 
+An example of repo-write-creds secret.
 
-In order for Argo CD to use a credential template for any given repository, the following conditions must be met:
-
-* The repository must either not be configured at all, or if configured, must not contain any credential information 
-* The URL configured for a credential template (e.g. `https://github.com/argoproj`) must match as prefix for the repository URL (e.g. `https://github.com/argoproj/argocd-example-apps`). 
-
-!!! note
-    Repositories that require authentication can be added using CLI or Web UI without specifying credentials only after a matching repository credential has been set up
-
-!!! note
-    Matching credential template URL prefixes is done on a _best match_ effort, so the longest (best) match will take precedence. The order of definition is not important, as opposed to pre v1.4 configuration.
-
-The following is an example CLI session, depicting repository credential set-up:
-
-```bash
-# Try to add a private repository without specifying credentials, will fail
-$ argocd repo add https://docker-build/repos/argocd-example-apps
-FATA[0000] rpc error: code = Unknown desc = authentication required 
-
-# Setup a credential template for all repos under https://docker-build/repos
-$ argocd repocreds add https://docker-build/repos --username test --password test
-repository credentials for 'https://docker-build/repos' added
-
-# Repeat first step, add repo without specifying credentials
-# URL for template matches, will succeed
-$ argocd repo add https://docker-build/repos/argocd-example-apps
-repository 'https://docker-build/repos/argocd-example-apps' added
-
-# Add another repo under https://docker-build/repos, specifying invalid creds
-# Will fail, because it will not use the template (has own creds)
-$ argocd repo add https://docker-build/repos/example-apps-part-two --username test --password invalid
-FATA[0000] rpc error: code = Unknown desc = authentication required
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: private-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-write-creds
+stringData:
+  type: git
+  url: https://github.com/argoproj/private-repo
+  password: my-password
+  username: my-username
 ```
 
 ## Limitations
