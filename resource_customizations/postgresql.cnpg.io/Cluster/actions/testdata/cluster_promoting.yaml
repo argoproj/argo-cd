@@ -12,7 +12,7 @@ spec:
   instances: 3
 status:
   currentPrimary: cluster-example-1
-  currentPrimaryTimestamp: "2025-04-25T20:44:38.190232Z"
+  currentPrimaryTimestamp: "0001-01-01T00:00:00Z"
   instancesStatus:
     healthy:
     - cluster-example-1
@@ -21,4 +21,4 @@ status:
   phase: Switchover in progress
   phaseReason: Switching over to cluster-example-2
   targetPrimary: cluster-example-2
-  targetPrimaryTimestamp: "2025-04-25T20:44:26.214164Z"
+  targetPrimaryTimestamp: "0001-01-01T00:00:00Z"

@@ -2,7 +2,7 @@ apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
   annotations:
-    cnpg.io/kubectl.kubernetes.io/restartedAt: "2025-04-25T20:44:24Z"
+    kubectl.kubernetes.io/restartedAt: "0001-01-01T00:00:00Z"
   creationTimestamp: "2025-04-25T20:44:24Z"
   generation: 1
   name: cluster-example
