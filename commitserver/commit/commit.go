@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -118,10 +119,27 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 		return out, "", fmt.Errorf("failed to checkout target branch: %w", err)
 	}
 
-	logCtx.Debug("Clearing repo contents")
-	out, err = gitClient.RemoveContents()
-	if err != nil {
-		return out, "", fmt.Errorf("failed to clear repo: %w", err)
+	logCtx.Debug("Clearing and preparing paths")
+	for _, p := range r.Paths {
+		targetPath := filepath.Join(dirPath, p.Path)
+
+		if p.Path == "" || p.Path == "." {
+			logCtx.Debug("Using root directory for manifests, no directory removal needed")
+		} else {
+			logCtx.Debugf("Clearing path %s", targetPath)
+			if err := os.RemoveAll(targetPath); err != nil {
+				return "", "", fmt.Errorf("failed to clear path %s: %w", targetPath, err)
+			}
+			logCtx.Debugf("Recreating directory %s", targetPath)
+			if err := os.MkdirAll(targetPath, 0o755); err != nil {
+				return "", "", fmt.Errorf("failed to create directory %s: %w", targetPath, err)
+			}
+		}
+	}
+
+	logCtx.Debugf("Ensuring repository root directory exists: %s", dirPath)
+	if err := os.MkdirAll(dirPath, 0o755); err != nil {
+		return "", "", fmt.Errorf("failed to ensure root directory %s: %w", dirPath, err)
 	}
 
 	logCtx.Debug("Writing manifests")

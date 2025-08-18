@@ -99,12 +99,40 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockGitClient.On("SetAuthor", "Argo CD", "argo-cd@example.com").Return("", nil).Once()
 		mockGitClient.On("CheckoutOrOrphan", "env/test", false).Return("", nil).Once()
 		mockGitClient.On("CheckoutOrNew", "main", "env/test", false).Return("", nil).Once()
-		mockGitClient.On("RemoveContents").Return("", nil).Once()
 		mockGitClient.On("CommitAndPush", "main", "test commit message").Return("", nil).Once()
 		mockGitClient.On("CommitSHA").Return("it-worked!", nil).Once()
 		mockRepoClientFactory.On("NewClient", mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
 
 		resp, err := service.CommitHydratedManifests(t.Context(), validRequest)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, "it-worked!", resp.HydratedSha)
+	})
+
+	t.Run("empty paths array", func(t *testing.T) {
+		t.Parallel()
+
+		service, mockRepoClientFactory := newServiceWithMocks(t)
+		mockGitClient := gitmocks.NewClient(t)
+		mockGitClient.On("Init").Return(nil).Once()
+		mockGitClient.On("Fetch", mock.Anything).Return(nil).Once()
+		mockGitClient.On("SetAuthor", "Argo CD", "argo-cd@example.com").Return("", nil).Once()
+		mockGitClient.On("CheckoutOrOrphan", "env/test", false).Return("", nil).Once()
+		mockGitClient.On("CheckoutOrNew", "main", "env/test", false).Return("", nil).Once()
+		mockGitClient.On("CommitAndPush", "main", "test commit message").Return("", nil).Once()
+		mockGitClient.On("CommitSHA").Return("it-worked!", nil).Once()
+		mockRepoClientFactory.On("NewClient", mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
+
+		requestWithEmptyPaths := &apiclient.CommitHydratedManifestsRequest{
+			Repo: &v1alpha1.Repository{
+				Repo: "https://github.com/argoproj/argocd-example-apps.git",
+			},
+			TargetBranch:  "main",
+			SyncBranch:    "env/test",
+			CommitMessage: "test commit message",
+		}
+
+		resp, err := service.CommitHydratedManifests(t.Context(), requestWithEmptyPaths)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.Equal(t, "it-worked!", resp.HydratedSha)
