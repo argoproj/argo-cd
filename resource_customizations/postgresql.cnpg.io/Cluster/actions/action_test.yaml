@@ -1,17 +1,17 @@
 actionTests:
   - action: promote
     inputPath: testdata/cluster_healthy.yaml
-    expectedOutputPath: testdata/cluster-promoting.yaml
+    expectedOutputPath: testdata/cluster_promoting.yaml
     parameters:
       instance: 'any'
   - action: promote
     inputPath: testdata/cluster_healthy.yaml
-    expectedOutputPath: testdata/cluster-promoting.yaml
+    expectedOutputPath: testdata/cluster_promoting.yaml
     parameters:
       instance: '2'
   - action: promote
     inputPath: testdata/cluster_healthy.yaml
-    expectedOutputPath: testdata/cluster-promoting.yaml
+    expectedOutputPath: testdata/cluster_promoting.yaml
     parameters:
       instance: 'cluster-example-2'
   - action: promote
@@ -21,7 +21,7 @@ actionTests:
       instance: 'nonexistent-instance'
   - action: reload
     inputPath: testdata/cluster_healthy.yaml
-    expectedOutputPath: testdata/cluster-reload.yaml
+    expectedOutputPath: testdata/cluster_reload.yaml
   - action: restart
     inputPath: testdata/cluster_healthy.yaml
-    expectedOutputPath: testdata/cluster-restart.yaml
+    expectedOutputPath: testdata/cluster_restart.yaml
