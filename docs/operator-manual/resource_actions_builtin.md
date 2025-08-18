@@ -57,7 +57,6 @@
 - [numaplane.numaproj.io/PipelineRollout/allow-data-loss](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaplane.numaproj.io/PipelineRollout/actions/allow-data-loss/action.lua)
 - [numaplane.numaproj.io/PipelineRollout/disallow-data-loss](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaplane.numaproj.io/PipelineRollout/actions/disallow-data-loss/action.lua)
 - [numaplane.numaproj.io/PipelineRollout/pause](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaplane.numaproj.io/PipelineRollout/actions/pause/action.lua)
-- [numaplane.numaproj.io/PipelineRollout/unpause](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaplane.numaproj.io/PipelineRollout/actions/unpause/action.lua)
 - [numaplane.numaproj.io/PipelineRollout/unpause-fast](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaplane.numaproj.io/PipelineRollout/actions/unpause-fast/action.lua)
 - [numaplane.numaproj.io/PipelineRollout/unpause-gradual](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaplane.numaproj.io/PipelineRollout/actions/unpause-gradual/action.lua)
 - [postgresql.cnpg.io/Cluster/promote](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/postgresql.cnpg.io/Cluster/actions/promote/action.lua)
