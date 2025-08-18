@@ -21,7 +21,7 @@ actionTests:
       instance: 'nonexistent-instance'
   - action: reload
     inputPath: testdata/cluster_healthy.yaml
-    expectedOutputPath: testdata/cluster-reloaded.yaml
+    expectedOutputPath: testdata/cluster-reload.yaml
   - action: restart
     inputPath: testdata/cluster_healthy.yaml
-    expectedOutputPath: testdata/cluster-restarted.yaml
+    expectedOutputPath: testdata/cluster-restart.yaml
