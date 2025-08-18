@@ -20,9 +20,9 @@ if instance == "any" then
     end
 elseif type(instance) == "string" and tonumber(instance) then
     -- Select by instance number
-    local suffix = "-" .. instance
-    for _, node in ipairs(healthy) do
-        if node:sub(-#suffix) == suffix then
+    local wanted = (obj.metadata and obj.metadata.name or "") .. "-" .. instance
+    for _, node in ipairs(healthy or {}) do
+        if node == wanted then
             selected = node
             break
         end
@@ -40,8 +40,8 @@ end
 if selected then
     obj.status.targetPrimary = selected
     obj.status.targetPrimaryTimestamp = os.date("!%Y-%m-%dT%XZ")
-    obj.status.Phase = "Switchover in progress"
-    obj.status.PhaseReason = "Switching over to " .. selected
+    obj.status.phase = "Switchover in progress"
+    obj.status.phaseReason = "Switching over to " .. selected
 else
     error("Could not find a healthy instance matching the criteria: " .. tostring(instance))
 end
