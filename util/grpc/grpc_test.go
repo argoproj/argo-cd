@@ -9,6 +9,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var proxyEnvKeys = []string{"ALL_PROXY", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"}
+
+func clearProxyEnv(t *testing.T) {
+	t.Helper()
+	for _, k := range proxyEnvKeys {
+		t.Setenv(k, "")
+	}
+}
+
+func applyProxyEnv(t *testing.T, envs map[string]string) {
+	t.Helper()
+	for k, v := range envs {
+		t.Setenv(k, v)
+	}
+}
+
 func TestBlockingDial_ProxyEnvironmentHandling(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -71,13 +87,8 @@ func TestBlockingDial_ProxyEnvironmentHandling(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			for _, env := range []string{"ALL_PROXY", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"} {
-				t.Setenv(env, "")
-			}
-
-			for key, value := range tt.proxyEnv {
-				t.Setenv(key, value)
-			}
+			clearProxyEnv(t)
+			applyProxyEnv(t, tt.proxyEnv)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
