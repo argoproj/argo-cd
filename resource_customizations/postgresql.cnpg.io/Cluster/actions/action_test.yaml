@@ -1,20 +1,27 @@
 actionTests:
+  - action: promote
+    inputPath: testdata/cluster_healthy.yaml
+    expectedOutputPath: testdata/cluster-promoting.yaml
+    parameters:
+      instance: 'any'
+  - action: promote
+    inputPath: testdata/cluster_healthy.yaml
+    expectedOutputPath: testdata/cluster-promoting.yaml
+    parameters:
+      instance: '2'
+  - action: promote
+    inputPath: testdata/cluster_healthy.yaml
+    expectedOutputPath: testdata/cluster-promoting.yaml
+    parameters:
+      instance: 'cluster-example-2'
+  - action: promote
+    inputPath: testdata/cluster_healthy.yaml
+    expectedErrorMessage: 'Could not find a healthy instance matching the criteria: nonexistent-instance'
+    parameters:
+      instance: 'nonexistent-instance'
+  - action: reload
+    inputPath: testdata/cluster_healthy.yaml
+    expectedOutputPath: testdata/cluster-reloaded.yaml
   - action: restart
-    inputPath: testdata/deployment.yaml
-    expectedOutputPath: testdata/deployment-restarted.yaml
-  - action: pause
-    inputPath: testdata/deployment.yaml
-    expectedOutputPath: testdata/deployment-pause.yaml
-  - action: resume
-    inputPath: testdata/deployment-pause.yaml
-    expectedOutputPath: testdata/deployment-resume.yaml
-  - action: scale
-    inputPath: testdata/deployment.yaml
-    expectedOutputPath: testdata/deployment-scaled.yaml
-    parameters:
-      replicas: '6'
-  - action: scale
-    inputPath: testdata/deployment.yaml
-    expectedErrorMessage: 'invalid number: not_a_number'
-    parameters:
-      replicas: 'not_a_number'
+    inputPath: testdata/cluster_healthy.yaml
+    expectedOutputPath: testdata/cluster-restarted.yaml
