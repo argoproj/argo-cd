@@ -214,14 +214,14 @@ func TestUntgz(t *testing.T) {
 		destDir := filepath.Join(tmpDir, "untgz1")
 
 		// when
-		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false, false)
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, true, false)
 		require.NoError(t, err)
 
 		// then
 
 		scriptFileInfo, err := os.Stat(path.Join(destDir, "script.sh"))
 		require.NoError(t, err)
-		assert.Equal(t, os.FileMode(0o644), scriptFileInfo.Mode())
+		assert.Equal(t, os.FileMode(0o755), scriptFileInfo.Mode())
 	})
 	t.Run("relativizes symlinks", func(t *testing.T) {
 		// given
