@@ -237,6 +237,11 @@ func (k *kubectlResourceOperations) ReplaceResource(ctx context.Context, obj *un
 		if err != nil {
 			return err
 		}
+
+		if err := replaceOptions.Validate(); err != nil {
+			return fmt.Errorf("error validating replace options: %w", err)
+		}
+
 		return replaceOptions.Run(k.fact)
 	})
 }
@@ -541,7 +546,11 @@ func (k *kubectlResourceOperations) newReplaceOptions(config *rest.Config, f cmd
 
 	o.DeleteOptions.Filenames = []string{fileName}
 	o.Namespace = namespace
-	o.DeleteOptions.ForceDeletion = force
+
+	if dryRunStrategy == cmdutil.DryRunNone {
+		o.DeleteOptions.ForceDeletion = force
+	}
+
 	return o, nil
 }
 
