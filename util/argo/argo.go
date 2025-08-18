@@ -588,7 +588,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		if !proj.IsSourcePermitted(spec.SourceHydrator.GetDrySource()) {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.GetSource().RepoURL, spec.Project),
+				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.SourceHydrator.GetDrySource().RepoURL, proj.Name),
 			})
 		}
 	case spec.HasMultipleSources():
@@ -602,7 +602,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 			if !proj.IsSourcePermitted(source) {
 				conditions = append(conditions, argoappv1.ApplicationCondition{
 					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", source.RepoURL, spec.Project),
+					Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", source.RepoURL, proj.Name),
 				})
 			}
 		}
@@ -615,7 +615,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		if !proj.IsSourcePermitted(spec.GetSource()) {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.GetSource().RepoURL, spec.Project),
+				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.GetSource().RepoURL, proj.Name),
 			})
 		}
 	}
@@ -628,22 +628,21 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		})
 		return conditions, nil
 	}
-
-	if destCluster.Server != "" {
-		permitted, err := proj.IsDestinationPermitted(destCluster, spec.Destination.Namespace, func(project string) ([]*argoappv1.Cluster, error) {
-			return db.GetProjectClusters(ctx, project)
+	permitted, err := proj.IsDestinationPermitted(destCluster, spec.Destination.Namespace, func(project string) ([]*argoappv1.Cluster, error) {
+		return db.GetProjectClusters(ctx, project)
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !permitted {
+		server := destCluster.Server
+		if spec.Destination.Name != "" {
+			server = destCluster.Name
+		}
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: fmt.Sprintf("application destination server '%s' and namespace '%s' do not match any of the allowed destinations in project '%s'", server, spec.Destination.Namespace, proj.Name),
 		})
-		if err != nil {
-			return nil, err
-		}
-		if !permitted {
-			conditions = append(conditions, argoappv1.ApplicationCondition{
-				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application destination server '%s' and namespace '%s' do not match any of the allowed destinations in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),
-			})
-		}
-	} else if destCluster.Server == "" {
-		conditions = append(conditions, argoappv1.ApplicationCondition{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: ErrDestinationMissing})
 	}
 	return conditions, nil
 }
