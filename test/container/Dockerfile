@@ -8,13 +8,13 @@ RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 # Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
 FROM docker.io/library/node:22.9.0@sha256:69e667a79aa41ec0db50bc452a60e705ca16f35285eaf037ebe627a65a5cdf52 AS node
 
-FROM docker.io/library/golang:1.24.6@sha256:2c89c41fb9efc3807029b59af69645867cfe978d2b877d475be0d72f6c6ce6f6 AS golang
+FROM docker.io/library/golang:1.25.0@sha256:9e56f0d0f043a68bb8c47c819e47dc29f6e8f5129b8885bed9d43f058f7f3ed6 AS golang
 
 FROM docker.io/library/registry:3.0@sha256:3725021071ec9383eb3d87ddbdff9ed602439b3f7c958c9c2fb941049ea6531d AS registry
 
 FROM docker.io/bitnami/kubectl:1.32@sha256:493d1b871556d48d6b25d471f192c2427571cd6f78523eebcaf4d263353c7487 AS kubectl
 
-FROM docker.io/library/ubuntu:25.04@sha256:10bb10bb062de665d4dc3e0ea36715270ead632cfcb74d08ca2273712a0dfb42
+FROM docker.io/library/ubuntu:25.10@sha256:fcdea13661343a0113773e1f3c481336462222a08993a9a83eae58268746d139
 
 ENV DEBIAN_FRONTEND=noninteractive
 

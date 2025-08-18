@@ -26,6 +26,10 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
                 edit: (formApi: FormApi) => <FormField formApi={formApi} field='name' component={Text} />
             },
             {
+                title: 'Connection State Details',
+                view: repository.connectionState.message
+            },
+            {
                 title: 'Username (optional)',
                 view: repository.username || '',
                 edit: (formApi: FormApi) => <FormField formApi={formApi} field='username' component={Text} />
