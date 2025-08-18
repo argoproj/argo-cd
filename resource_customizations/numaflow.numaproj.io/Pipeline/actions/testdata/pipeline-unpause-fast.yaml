@@ -13,6 +13,7 @@ metadata:
     numaplane.numaproj.io/upgrade-state: "in-progress"
   annotations:
     numaflow.numaproj.io/allowed-resume-strategies: "slow, fast"
+    numaflow.numaproj.io/resume-strategy: "fast"
 spec:
   edges:
   - from: in
@@ -21,7 +22,7 @@ spec:
     to: out
   lifecycle:
     deleteGracePeriodSeconds: 30
-    desiredPhase: Paused
+    desiredPhase: Running
     pauseGracePeriodSeconds: 30
   limits:
     bufferMaxLength: 30000
