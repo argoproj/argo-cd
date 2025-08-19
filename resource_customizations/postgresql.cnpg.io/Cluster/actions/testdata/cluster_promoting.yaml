@@ -12,7 +12,7 @@ spec:
   instances: 3
 status:
   currentPrimary: cluster-example-1
-  currentPrimaryTimestamp: "0001-01-01T00:00:00Z"
+  currentPrimaryTimestamp: "2025-04-25T20:44:38.190232Z"
   instancesStatus:
     healthy:
     - cluster-example-1
