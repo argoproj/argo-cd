@@ -42,8 +42,8 @@ This can take the following values:
 
 | Policy               | Description                                                                                                                     |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `HookSucceeded`      | The hook resource is deleted if the hook's phase succeeded (e.g. All `PreSync` completed successfully).                         |
-| `HookFailed`         | The hook resource is deleted after the hook's phase failed.                                                                     |
+| `HookSucceeded`      | The hook resource is deleted if the sync succeeds (e.g. All `PreSync` completed successfully).                                  |
+| `HookFailed`         | The hook resource is deleted after the sync fails.                                                                              |
 | `BeforeHookCreation` | Any existing hook resource is deleted before the new one is created (since v1.3). It is meant to be used with `/metadata/name`. |
 
 ## How sync waves work?
