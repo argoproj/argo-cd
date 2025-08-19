@@ -17,19 +17,23 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // Service is the service that handles commit requests.
 type Service struct {
 	metricsServer     *metrics.Server
 	repoClientFactory RepoClientFactory
+	settingsMgr       *settings.SettingsManager
+	hydratorConfig    hydratorConfigData
 }
 
 // NewService returns a new instance of the commit service.
-func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *Service {
+func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server, settingsMgr *settings.SettingsManager) *Service {
 	return &Service{
 		metricsServer:     metricsServer,
 		repoClientFactory: NewRepoClientFactory(gitCredsStore, metricsServer),
+		settingsMgr:       settingsMgr,
 	}
 }
 
