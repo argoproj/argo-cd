@@ -295,9 +295,8 @@ func (db *db) GetWriteRepositoryCredentials(ctx context.Context, repoURL string)
 	if err != nil {
 		if creds == nil {
 			return nil, fmt.Errorf("unable to check if repo write credentials for %q exists from secrets backend: %w", repoURL, err)
-		} else {
-			return nil, fmt.Errorf("unable to get repo write credentials for %q from secrets backend: %w", repoURL, err)
 		}
+		return nil, fmt.Errorf("unable to get repo write credentials for %q from secrets backend: %w", repoURL, err)
 	}
 	if creds == nil { // to cover for not found. In that case both creds and err are nil
 		return nil, nil
