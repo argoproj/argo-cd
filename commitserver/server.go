@@ -11,6 +11,7 @@ import (
 	versionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v3/server/version"
 	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // ArgoCDCommitServer is the server that handles commit requests.
@@ -19,8 +20,8 @@ type ArgoCDCommitServer struct {
 }
 
 // NewServer returns a new instance of the commit server.
-func NewServer(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *ArgoCDCommitServer {
-	return &ArgoCDCommitServer{commitService: commit.NewService(gitCredsStore, metricsServer)}
+func NewServer(gitCredsStore git.CredsStore, metricsServer *metrics.Server, settingsMgr *settings.SettingsManager) *ArgoCDCommitServer {
+	return &ArgoCDCommitServer{commitService: commit.NewService(gitCredsStore, metricsServer, settingsMgr)}
 }
 
 // CreateGRPC creates a new gRPC server.

@@ -15,19 +15,23 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // Service is the service that handles commit requests.
 type Service struct {
 	metricsServer     *metrics.Server
 	repoClientFactory RepoClientFactory
+	settingsMgr       *settings.SettingsManager
+	hydratorConfig    hydratorConfigData
 }
 
 // NewService returns a new instance of the commit service.
-func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *Service {
+func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server, settingsMgr *settings.SettingsManager) *Service {
 	return &Service{
 		metricsServer:     metricsServer,
 		repoClientFactory: NewRepoClientFactory(gitCredsStore, metricsServer),
+		settingsMgr:       settingsMgr,
 	}
 }
 
@@ -124,6 +128,13 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 		return out, "", fmt.Errorf("failed to clear repo: %w", err)
 	}
 
+	logCtx.Debug("Update Configdata")
+	err = s.updateConfig(logCtx)
+	if err != nil {
+		return out, "", fmt.Errorf("failed to update configmap argo-cd", err)
+	}
+	logCtx.Info("README template file is update: " + s.hydratorConfig.readmeTemplate)
+
 	logCtx.Debug("Writing manifests")
 	err = WriteForPaths(root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths)
 	if err != nil {
@@ -211,6 +222,20 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 	return gitClient, dirPath, cleanupOrLog, nil
 }
 
+func (s *Service) updateConfig(logCtx *log.Entry) error {
+	argoCM, err := s.settingsMgr.GetConfigMapByName("argocd-cm")
+	if err != nil {
+		return fmt.Errorf("failed to update confimap 'argocd-cm'")
+	}
+
+	hydratorReadmeConfigKeyId := "hydrator.readme.template"
+	if _, ok := argoCM.Data[hydratorReadmeConfigKeyId]; ok {
+		logCtx.Debug("hydrator README template is updated")
+		s.hydratorConfig.readmeTemplate = argoCM.Data[hydratorReadmeConfigKeyId]
+	}
+	return nil
+}
+
 type hydratorMetadataFile struct {
 	RepoURL  string   `json:"repoURL,omitempty"`
 	DrySHA   string   `json:"drySha,omitempty"`
@@ -223,6 +248,10 @@ type hydratorMetadataFile struct {
 	// Known Argocd- trailers with valid values are removed, but all other trailers are kept.
 	Body       string                       `json:"body,omitempty"`
 	References []v1alpha1.RevisionReference `json:"references,omitempty"`
+}
+
+type hydratorConfigData struct {
+	readmeTemplate string
 }
 
 // TODO: make this configurable via ConfigMap.
