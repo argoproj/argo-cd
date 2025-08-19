@@ -279,7 +279,7 @@ metadata:
     argocd.argoproj.io/secret-type: repo-write-creds
 stringData:
   type: git
-  url: https://github.com/argoproj/private-repo
+  url: https://github.com/argoproj
   password: my-password
   username: my-username
 ```
