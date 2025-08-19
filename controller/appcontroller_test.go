@@ -2096,7 +2096,9 @@ func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 	ctrl.processRequestedAppOperation(app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
+	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
 	assert.Equal(t, string(synccommon.OperationError), phase)
+	assert.Equal(t, "Failed to load application project: error getting app project \"default\": appproject.argoproj.io \"default\" not found", message)
 }
 
 func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
@@ -2125,8 +2127,8 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 	ctrl.processRequestedAppOperation(app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
-	assert.Equal(t, string(synccommon.OperationError), phase)
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
+	assert.Equal(t, string(synccommon.OperationError), phase)
 	assert.Contains(t, message, "application destination can't have both name and server defined: another-cluster https://localhost:6443")
 }
 
@@ -2150,20 +2152,24 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	ctrl.processRequestedAppOperation(app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
-	assert.Equal(t, string(synccommon.OperationRunning), phase)
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
-	assert.Contains(t, message, "due to application controller sync timeout. Retrying attempt #1")
 	retryCount, _, _ := unstructured.NestedFloat64(receivedPatch, "status", "operationState", "retryCount")
+	assert.Equal(t, string(synccommon.OperationRunning), phase)
+	assert.Contains(t, message, "Failed to load application project: error getting app project \"invalid-project\": appproject.argoproj.io \"invalid-project\" not found. Retrying attempt #1")
 	assert.InEpsilon(t, float64(1), retryCount, 0.0001)
 }
 
 func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
+	failedAttemptFinisedAt := time.Now().Add(-time.Minute * 5)
 	app := newFakeApp()
 	app.Operation = &v1alpha1.Operation{
 		Sync:  &v1alpha1.SyncOperation{},
 		Retry: v1alpha1.RetryStrategy{Limit: 1},
 	}
+	app.Status.OperationState.Operation = *app.Operation
 	app.Status.OperationState.Phase = synccommon.OperationRunning
+	app.Status.OperationState.RetryCount = 1
+	app.Status.OperationState.FinishedAt = &metav1.Time{Time: failedAttemptFinisedAt}
 	app.Status.OperationState.SyncResult.Resources = []*v1alpha1.ResourceResult{{
 		Name:   "guestbook",
 		Kind:   "Deployment",
@@ -2193,7 +2199,58 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
 	ctrl.processRequestedAppOperation(app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
+	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
+	finishedAtStr, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "finishedAt")
+	finishedAt, err := time.Parse(time.RFC3339, finishedAtStr)
+	require.NoError(t, err)
 	assert.Equal(t, string(synccommon.OperationSucceeded), phase)
+	assert.Equal(t, "successfully synced (no more tasks)", message)
+	assert.Truef(t, finishedAt.After(failedAttemptFinisedAt), "finishedAt was expected to be updated. The retry was not performed.")
+}
+
+func TestProcessRequestedAppOperation_RunningPreviouslyFailedBackoff(t *testing.T) {
+	failedAttemptFinisedAt := time.Now().Add(-time.Second)
+	app := newFakeApp()
+	app.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{},
+		Retry: v1alpha1.RetryStrategy{
+			Limit: 1,
+			Backoff: &v1alpha1.Backoff{
+				Duration:    "1h",
+				Factor:      ptr.To(int64(100)),
+				MaxDuration: "1h",
+			},
+		},
+	}
+	app.Status.OperationState.Operation = *app.Operation
+	app.Status.OperationState.Phase = synccommon.OperationRunning
+	app.Status.OperationState.Message = "pending retry"
+	app.Status.OperationState.RetryCount = 1
+	app.Status.OperationState.FinishedAt = &metav1.Time{Time: failedAttemptFinisedAt}
+	app.Status.OperationState.SyncResult.Resources = []*v1alpha1.ResourceResult{{
+		Name:   "guestbook",
+		Kind:   "Deployment",
+		Group:  "apps",
+		Status: synccommon.ResultCodeSyncFailed,
+	}}
+
+	data := &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}
+	ctrl := newFakeController(data, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.PrependReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		require.FailNow(t, "A patch should not have been called if the backoff has not passed")
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	ctrl.processRequestedAppOperation(app)
 }
 
 func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
@@ -2202,6 +2259,7 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 		Sync:  &v1alpha1.SyncOperation{},
 		Retry: v1alpha1.RetryStrategy{Limit: 10},
 	}
+	app.Status.OperationState.Operation = *app.Operation
 	app.Status.OperationState.Phase = synccommon.OperationTerminating
 
 	data := &fakeData{
@@ -2226,7 +2284,9 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 	ctrl.processRequestedAppOperation(app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
+	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
 	assert.Equal(t, string(synccommon.OperationFailed), phase)
+	assert.Equal(t, "Operation terminated", message)
 }
 
 func TestProcessRequestedAppOperation_Successful(t *testing.T) {
@@ -2253,10 +2313,89 @@ func TestProcessRequestedAppOperation_Successful(t *testing.T) {
 	ctrl.processRequestedAppOperation(app)
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
+	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
 	assert.Equal(t, string(synccommon.OperationSucceeded), phase)
+	assert.Equal(t, "successfully synced (no more tasks)", message)
 	ok, level := ctrl.isRefreshRequested(ctrl.toAppKey(app.Name))
 	assert.True(t, ok)
 	assert.Equal(t, CompareWithLatestForceResolve, level)
+}
+
+func TestProcessRequestedAppOperation_SyncTimeout(t *testing.T) {
+	testCases := []struct {
+		name            string
+		startedSince    time.Duration
+		syncTimeout     time.Duration
+		retryAttempt    int
+		currentPhase    synccommon.OperationPhase
+		expectedPhase   synccommon.OperationPhase
+		expectedMessage string
+	}{{
+		name:            "Continue when running operation has not exceeded timeout",
+		syncTimeout:     time.Minute,
+		startedSince:    30 * time.Second,
+		currentPhase:    synccommon.OperationRunning,
+		expectedPhase:   synccommon.OperationSucceeded,
+		expectedMessage: "successfully synced (no more tasks)",
+	}, {
+		name:            "Continue when terminating operation has exceeded timeout",
+		syncTimeout:     time.Minute,
+		startedSince:    2 * time.Minute,
+		currentPhase:    synccommon.OperationTerminating,
+		expectedPhase:   synccommon.OperationFailed,
+		expectedMessage: "Operation terminated",
+	}, {
+		name:            "Terminate when running operation exceeded timeout",
+		syncTimeout:     time.Minute,
+		startedSince:    2 * time.Minute,
+		currentPhase:    synccommon.OperationRunning,
+		expectedPhase:   synccommon.OperationFailed,
+		expectedMessage: "Operation terminated, triggered by controller sync timeout",
+	}, {
+		name:            "Terminate when retried operation exceeded timeout",
+		syncTimeout:     time.Minute,
+		startedSince:    15 * time.Minute,
+		currentPhase:    synccommon.OperationRunning,
+		retryAttempt:    1,
+		expectedPhase:   synccommon.OperationFailed,
+		expectedMessage: "Operation terminated, triggered by controller sync timeout (retried 1 times).",
+	}}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(fmt.Sprintf("case %d: %s", i, tc.name), func(t *testing.T) {
+			app := newFakeApp()
+			app.Spec.Project = "default"
+			app.Operation = &v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Revision: "HEAD",
+				},
+			}
+			ctrl := newFakeController(&fakeData{
+				apps: []runtime.Object{app, &defaultProj},
+				manifestResponses: []*apiclient.ManifestResponse{{
+					Manifests: []string{},
+				}},
+			}, nil)
+
+			ctrl.syncTimeout = tc.syncTimeout
+			app.Status.OperationState = &v1alpha1.OperationState{
+				Operation: *app.Operation,
+				Phase:     tc.currentPhase,
+				StartedAt: metav1.NewTime(time.Now().Add(-tc.startedSince)),
+			}
+			if tc.retryAttempt > 0 {
+				app.Status.OperationState.FinishedAt = ptr.To(metav1.NewTime(time.Now().Add(-tc.startedSince)))
+				app.Status.OperationState.RetryCount = int64(tc.retryAttempt)
+			}
+
+			ctrl.processRequestedAppOperation(app)
+
+			app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedPhase, app.Status.OperationState.Phase)
+			assert.Equal(t, tc.expectedMessage, app.Status.OperationState.Message)
+		})
+	}
 }
 
 func TestGetAppHosts(t *testing.T) {
@@ -2825,55 +2964,4 @@ func TestSelfHealBackoffCooldownElapsed(t *testing.T) {
 		elapsed := ctrl.selfHealBackoffCooldownElapsed(app)
 		assert.False(t, elapsed)
 	})
-}
-
-func TestSyncTimeout(t *testing.T) {
-	testCases := []struct {
-		delta           time.Duration
-		expectedPhase   synccommon.OperationPhase
-		expectedMessage string
-	}{{
-		delta:           2 * time.Minute,
-		expectedPhase:   synccommon.OperationFailed,
-		expectedMessage: "Operation terminated",
-	}, {
-		delta:           30 * time.Second,
-		expectedPhase:   synccommon.OperationSucceeded,
-		expectedMessage: "successfully synced (no more tasks)",
-	}}
-	for i := range testCases {
-		tc := testCases[i]
-		t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
-			app := newFakeApp()
-			app.Spec.Project = "default"
-			app.Operation = &v1alpha1.Operation{
-				Sync: &v1alpha1.SyncOperation{
-					Revision: "HEAD",
-				},
-			}
-			ctrl := newFakeController(&fakeData{
-				apps: []runtime.Object{app, &defaultProj},
-				manifestResponses: []*apiclient.ManifestResponse{{
-					Manifests: []string{},
-				}},
-			}, nil)
-
-			ctrl.syncTimeout = time.Minute
-			app.Status.OperationState = &v1alpha1.OperationState{
-				Operation: v1alpha1.Operation{
-					Sync: &v1alpha1.SyncOperation{
-						Revision: "HEAD",
-					},
-				},
-				Phase:     synccommon.OperationRunning,
-				StartedAt: metav1.NewTime(time.Now().Add(-tc.delta)),
-			}
-			ctrl.processRequestedAppOperation(app)
-
-			app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
-			require.NoError(t, err)
-			require.Equal(t, tc.expectedPhase, app.Status.OperationState.Phase)
-			require.Equal(t, tc.expectedMessage, app.Status.OperationState.Message)
-		})
-	}
 }
