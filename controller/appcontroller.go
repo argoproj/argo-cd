@@ -1800,6 +1800,32 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	app.Status.Sync = *compareResult.syncStatus
 	app.Status.Health.Status = compareResult.healthStatus
 	app.Status.Resources = compareResult.resources
+
+	if failed, msg := hasFailedPostSyncHook(app); failed {
+		app.Status.Health.Status = health.HealthStatusDegraded
+		app.Status.SetConditions(
+			[]appv1.ApplicationCondition{{
+				Type: appv1.ApplicationConditionPostSyncHookError,
+				Message: func() string {
+					if strings.TrimSpace(msg) == "" {
+						return "PostSync hook failed"
+					}
+					return "PostSync hook failed: " + msg
+				}(),
+			}},
+			map[appv1.ApplicationConditionType]bool{
+				appv1.ApplicationConditionPostSyncHookError: true,
+			},
+		)
+	} else {
+		app.Status.SetConditions(
+			[]appv1.ApplicationCondition{},
+			map[appv1.ApplicationConditionType]bool{
+				appv1.ApplicationConditionPostSyncHookError: true,
+			},
+		)
+	}
+
 	sort.Slice(app.Status.Resources, func(i, j int) bool {
 		return resourceStatusKey(app.Status.Resources[i]) < resourceStatusKey(app.Status.Resources[j])
 	})
@@ -1892,6 +1918,55 @@ func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool
 
 func resourceStatusKey(res appv1.ResourceStatus) string {
 	return strings.Join([]string{res.Group, res.Kind, res.Namespace, res.Name}, "/")
+}
+
+// hasFailedPostSyncHook returns whether the *latest* sync (matching current desired revision)
+// has any PostSync hook failures. If so, it returns (true, aggregatedMessage).
+func hasFailedPostSyncHook(app *appv1.Application) (bool, string) {
+	op := app.Status.OperationState
+	if op == nil || op.SyncResult == nil {
+		return false, ""
+	}
+
+	if !app.Spec.HasMultipleSources() {
+		if op.SyncResult.Revision == "" || app.Status.Sync.Revision == "" || op.SyncResult.Revision != app.Status.Sync.Revision {
+			return false, ""
+		}
+	} else {
+		if len(op.SyncResult.Revisions) == 0 || len(app.Status.Sync.Revisions) == 0 {
+			return false, ""
+		}
+		if !reflect.DeepEqual(op.SyncResult.Revisions, app.Status.Sync.Revisions) {
+			return false, ""
+		}
+	}
+
+	if op.Phase.Successful() {
+		return false, ""
+	}
+
+	var msgs []string
+	for _, rr := range op.SyncResult.Resources {
+		isPostSync := fmt.Sprint(rr.HookType) == "PostSync" || fmt.Sprint(rr.SyncPhase) == "PostSync"
+		if !isPostSync {
+			continue
+		}
+		if strings.EqualFold(fmt.Sprint(rr.HookPhase), "Failed") {
+			why := rr.Message
+			if strings.TrimSpace(why) == "" {
+				why = "unknown reason"
+			}
+			if rr.Namespace != "" {
+				msgs = append(msgs, fmt.Sprintf("%s/%s: %s", rr.Namespace, rr.Name, why))
+			} else {
+				msgs = append(msgs, fmt.Sprintf("%s: %s", rr.Name, why))
+			}
+		}
+	}
+	if len(msgs) == 0 {
+		return false, ""
+	}
+	return true, strings.Join(msgs, "; ")
 }
 
 func currentSourceEqualsSyncedSource(app *appv1.Application) bool {

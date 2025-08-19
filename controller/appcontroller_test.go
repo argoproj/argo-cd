@@ -1246,6 +1246,108 @@ func TestFinalizeAppDeletion(t *testing.T) {
 	})
 }
 
+func TestHasFailedPostSyncHook(t *testing.T) {
+	cases := []struct {
+		name       string
+		setup      func(app *v1alpha1.Application)
+		wantFailed bool
+		wantMsg    string
+	}{
+		{
+			name: "single/aggregates-postsync-failures",
+			setup: func(app *v1alpha1.Application) {
+				app.Status.Sync.Revision = "r1"
+				app.Status.OperationState = &v1alpha1.OperationState{
+					Phase: synccommon.OperationFailed,
+					SyncResult: &v1alpha1.SyncOperationResult{
+						Revision: "r1",
+						Resources: []*v1alpha1.ResourceResult{
+							{
+								Kind:      "Job",
+								Namespace: "default",
+								Name:      "post-1",
+								HookType:  synccommon.HookTypePostSync,
+								HookPhase: synccommon.OperationFailed,
+								Message:   "exit code 1",
+							},
+							{
+								Kind:      "Job",
+								Name:      "post-2",
+								SyncPhase: synccommon.SyncPhasePostSync, // alternative to HookType
+								HookPhase: synccommon.OperationFailed,
+								Message:   "", // becomes "unknown reason"
+							},
+						},
+					},
+				}
+			},
+			wantFailed: true,
+			wantMsg:    "default/post-1: exit code 1; post-2: unknown reason",
+		},
+		{
+			name: "single/revision-mismatch",
+			setup: func(app *v1alpha1.Application) {
+				app.Status.Sync.Revision = "status-rev"
+				app.Status.OperationState = &v1alpha1.OperationState{
+					Phase: synccommon.OperationFailed,
+					SyncResult: &v1alpha1.SyncOperationResult{
+						Revision: "op-rev", // mismatch
+						Resources: []*v1alpha1.ResourceResult{
+							{
+								Kind:      "Job",
+								Name:      "post",
+								HookType:  synccommon.HookTypePostSync,
+								HookPhase: synccommon.OperationFailed,
+								Message:   "boom",
+							},
+						},
+					},
+				}
+			},
+			wantFailed: false,
+			wantMsg:    "",
+		},
+		{
+			name: "multi/matches-all-revisions",
+			setup: func(app *v1alpha1.Application) {
+				revs := []string{"r1", "r2"}
+				app.Spec.Sources = []v1alpha1.ApplicationSource{{}, {}} // make HasMultipleSources() true
+				app.Status.Sync.Revisions = append([]string{}, revs...)
+				app.Status.OperationState = &v1alpha1.OperationState{
+					Phase: synccommon.OperationFailed,
+					SyncResult: &v1alpha1.SyncOperationResult{
+						Revisions: append([]string{}, revs...), // DeepEqual required
+						Resources: []*v1alpha1.ResourceResult{
+							{
+								Kind:      "Job",
+								Namespace: "ns-a",
+								Name:      "post-hook",
+								HookType:  synccommon.HookTypePostSync,
+								HookPhase: synccommon.OperationFailed,
+								Message:   "boom",
+							},
+						},
+					},
+				}
+			},
+			wantFailed: true,
+			wantMsg:    "ns-a/post-hook: boom",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			app := newFakeApp()
+			tc.setup(app)
+
+			failed, msg := hasFailedPostSyncHook(app)
+
+			require.Equal(t, tc.wantFailed, failed)
+			assert.Equal(t, tc.wantMsg, msg)
+		})
+	}
+}
+
 // TestNormalizeApplication verifies we normalize an application during reconciliation
 func TestNormalizeApplication(t *testing.T) {
 	defaultProj := v1alpha1.AppProject{
@@ -2257,6 +2359,60 @@ func TestProcessRequestedAppOperation_Successful(t *testing.T) {
 	ok, level := ctrl.isRefreshRequested(ctrl.toAppKey(app.Name))
 	assert.True(t, ok)
 	assert.Equal(t, CompareWithLatestForceResolve, level)
+}
+
+// PostSync hook failures on latest revision -> Health=Degraded + PostSyncHookError condition.
+func TestProcessQueue_PostSyncHookError_SetsDegraded(t *testing.T) {
+	defaultProj := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
+	}
+
+	app := newFakeApp()
+	app.Spec.Project = "default" // avoid normalization patch noise
+	app.Status.OperationState = &v1alpha1.OperationState{
+		Phase: synccommon.OperationFailed,
+		SyncResult: &v1alpha1.SyncOperationResult{
+			Revision: "r1",
+			Resources: []*v1alpha1.ResourceResult{
+				{Kind: "Job", Namespace: "default", Name: "post-1", HookType: synccommon.HookTypePostSync, HookPhase: synccommon.OperationFailed, Message: "exit code 1"},
+				{Kind: "Job", Name: "post-2", SyncPhase: synccommon.SyncPhasePostSync, HookPhase: synccommon.OperationFailed, Message: ""},
+			},
+		},
+	}
+
+	ctrl := newFakeControllerWithResync(&fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{}, Namespace: test.FakeDestNamespace, Server: test.FakeClusterURL, Revision: "r1",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+	}, time.Millisecond*10, nil, nil)
+
+	// Act
+	ctrl.requestAppRefresh(app.Name, nil, nil)
+	_ = ctrl.processAppRefreshQueueItem()
+
+	// Assert: read back and verify Health + condition
+	got, err := ctrl.applicationClientset.ArgoprojV1alpha1().
+		Applications(test.FakeArgoCDNamespace).
+		Get(t.Context(), "my-app", metav1.GetOptions{})
+	require.NoError(t, err)
+
+	assert.Equal(t, health.HealthStatusDegraded, got.Status.Health.Status)
+
+	var cond *v1alpha1.ApplicationCondition
+	for i := range got.Status.Conditions {
+		if got.Status.Conditions[i].Type == v1alpha1.ApplicationConditionPostSyncHookError {
+			cond = &got.Status.Conditions[i]
+			break
+		}
+	}
+	require.NotNil(t, cond, "PostSyncHookError condition must exist")
+	assert.Equal(t, "PostSync hook failed: default/post-1: exit code 1; post-2: unknown reason", cond.Message)
 }
 
 func TestGetAppHosts(t *testing.T) {
