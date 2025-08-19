@@ -59,6 +59,8 @@ const sectionHeader = (info: SectionInfo, onClick?: () => any) => {
 };
 
 const hasRollingSyncEnabled = (application: models.Application): boolean => {
+    // Only show Progressive Sync for applications that have an ApplicationSet owner reference
+    // The actual strategy validation is done in the ProgressiveSyncStatus component
     return application.metadata.ownerReferences?.some(ref => ref.kind === 'ApplicationSet') || false;
 };
 
@@ -81,6 +83,15 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
             }}>
             {(appSet: models.ApplicationSet) => {
                 if (!appSet) {
+                    // If the ApplicationSet doesn't use RollingSync strategy, don't show Progressive Sync at all
+                    return null;
+                }
+
+                // Get the current application's status from the ApplicationSet resources
+                const appResource = appSet.status?.applicationStatus?.find(status => status.application === application.metadata.name);
+
+                // If no application status is found, show a default status
+                if (!appResource) {
                     return (
                         <div className='application-status-panel__item'>
                             {sectionHeader({
@@ -88,14 +99,14 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                                 helpContent: 'Shows the current status of progressive sync for applications managed by an ApplicationSet with RollingSync strategy.'
                             })}
                             <div className='application-status-panel__item-value'>
-                                <i className='fa fa-question-circle' style={{color: COLORS.sync.unknown}} /> Unknown
+                                <i className='fa fa-clock' style={{color: COLORS.sync.out_of_sync}} /> Waiting
+                            </div>
+                            <div className='application-status-panel__item-name'>
+                                Application status not yet available from ApplicationSet
                             </div>
                         </div>
                     );
                 }
-
-                // Get the current application's status from the ApplicationSet resources
-                const appResource = appSet.status?.applicationStatus?.find(status => status.application === application.metadata.name);
 
                 return (
                     <div className='application-status-panel__item'>
