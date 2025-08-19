@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	"strconv"
 	"testing"
 
@@ -22,6 +23,84 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
+
+func testHTTPProxyCRD() *apiextensions.CustomResourceDefinition {
+	return &apiextensions.CustomResourceDefinition{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apiextensions.k8s.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "httpproxies.projectcontour.io",
+		},
+		Spec: apiextensions.CustomResourceDefinitionSpec{
+			Group: "projectcontour.io",
+			Versions: []apiextensions.CustomResourceDefinitionVersion{
+				{
+					Name:    "v1",
+					Served:  true,
+					Storage: true,
+					Schema: &apiextensions.CustomResourceValidation{
+						OpenAPIV3Schema: &apiextensions.JSONSchemaProps{
+							Type: "object",
+							Properties: map[string]apiextensions.JSONSchemaProps{
+								"spec": {
+									Type: "object",
+									Properties: map[string]apiextensions.JSONSchemaProps{
+										"routes": {
+											Type: "array",
+											Items: &apiextensions.JSONSchemaPropsOrArray{
+												Schema: &apiextensions.JSONSchemaProps{
+													Type: "object",
+													Properties: map[string]apiextensions.JSONSchemaProps{
+														"rateLimitPolicy": {
+															Type: "object",
+															Properties: map[string]apiextensions.JSONSchemaProps{
+																"global": {
+																	Type: "object",
+																	Properties: map[string]apiextensions.JSONSchemaProps{
+																		"descriptors": {
+																			Type: "array",
+																			Items: &apiextensions.JSONSchemaPropsOrArray{
+																				Schema: &apiextensions.JSONSchemaProps{
+																					Type: "object",
+																					Properties: map[string]apiextensions.JSONSchemaProps{
+																						"entries": {
+																							Type:         "array",
+																							XListMapKeys: []string{"headerName"}, // crucial for strategic merge patch
+																							Items: &apiextensions.JSONSchemaPropsOrArray{
+																								Schema: &apiextensions.JSONSchemaProps{
+																									Type: "object",
+																								},
+																							},
+																						},
+																					},
+																				},
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			Scope: "Namespaced",
+			Names: apiextensions.CustomResourceDefinitionNames{
+				Plural:   "httpproxies",
+				Singular: "httpproxy",
+				Kind:     "HTTPProxy",
+			},
+		},
+	}
+}
 
 func TestPersistRevisionHistory(t *testing.T) {
 	app := newFakeApp()
