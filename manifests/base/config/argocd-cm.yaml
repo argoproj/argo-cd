@@ -116,6 +116,15 @@ data:
       - BackgroundScanReport
       - ClusterBackgroundScanReport
       - UpdateRequest
+  ### SourceHydrator commit message template.
+  # This template iterates through the fields in the `.metadata` object,
+  # and formats them based on their type (map, array, or primitive values).
+  # 
+  # Features:
+  #   - Handles nested maps and arrays gracefully.
+  #   - Captures key-value pair metadata, such as labels.
+  #   - Specifically accommodates "commit" subfields within array items that
+  #     contain more structured data.
   sourceHydrator.commitMessageTemplate: |
     {{- range $key, $value := .metadata }}
         {{- if kindIs "map" $value }}
@@ -150,5 +159,5 @@ data:
         {{- range $key, $value := .metadata.labels }}
             label-{{ $key }}: {{ $value }}
         {{- end }}
-    {{- end }}
+    {{- end }}    
 

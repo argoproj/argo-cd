@@ -3,6 +3,7 @@ package hydrator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -366,9 +367,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 
 	commitMessage, errMsg := h.getHydratorCommitMessage(repoURL, targetRevision, revisionMetadata)
 	if errMsg != nil {
-		// ?? should it rather use the hard-coded message and log a Warn than to fail?
 		return "", "", fmt.Errorf("failed to get hydrator commit templated message: %w", errMsg)
-		// commitMessage = "[Argo CD Bot] hydrate " + targetRevision // for backward compatiblity
 	}
 
 	manifestsRequest := commitclient.CommitHydratedManifestsRequest{
@@ -452,7 +451,7 @@ func (h *Hydrator) getHydratorCommitMessage(repoURL, revision string, dryCommitM
 		return "", fmt.Errorf("failed to get hydrated commit message template %w", errTemplate)
 	}
 	if tmpl == "" {
-		return "", fmt.Errorf("failed to get hydrated commit message template, template not defined")
+		return "", errors.New("failed to get hydrated commit message template, template not defined")
 	}
 	hydratorCommitMetadata, errMD := hydrator.GetHydratorCommitMetadata(repoURL, revision, dryCommitMetadata)
 	if errMD != nil {

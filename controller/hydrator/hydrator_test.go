@@ -4,15 +4,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/controller/hydrator/mocks"
-	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/v3/controller/hydrator/mocks"
+	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 var message = `testn
@@ -212,9 +212,9 @@ func Test_getRelevantAppsForHydration_RepoURLNormalization(t *testing.T) {
 func TestHydrator_getHydratorCommitMessage(t *testing.T) {
 	d := mocks.NewDependencies(t)
 	d.On("GetHydratorCommitMessageTemplate").Return(commitMessageTemplate, nil)
-	references := make([]appv1.RevisionReference, 0)
-	revReference := appv1.RevisionReference{
-		Commit: &appv1.CommitMetadata{
+	references := make([]v1alpha1.RevisionReference, 0)
+	revReference := v1alpha1.RevisionReference{
+		Commit: &v1alpha1.CommitMetadata{
 			Author:  "testAuthor",
 			Subject: "test",
 			RepoURL: "https://github.com/test/argocd-example-apps",
@@ -225,7 +225,7 @@ func TestHydrator_getHydratorCommitMessage(t *testing.T) {
 	type args struct {
 		repoURL           string
 		revision          string
-		dryCommitMetadata *appv1.RevisionMetadata
+		dryCommitMetadata *v1alpha1.RevisionMetadata
 	}
 	tests := []struct {
 		name    string
@@ -238,7 +238,7 @@ func TestHydrator_getHydratorCommitMessage(t *testing.T) {
 			args: args{
 				repoURL:  "https://github.com/test/argocd-example-apps",
 				revision: "3ff41cc5247197a6caf50216c4c76cc29d78a97d",
-				dryCommitMetadata: &appv1.RevisionMetadata{
+				dryCommitMetadata: &v1alpha1.RevisionMetadata{
 					Author: "test test@test.com",
 					Date: &metav1.Time{
 						Time: metav1.Now().Time,

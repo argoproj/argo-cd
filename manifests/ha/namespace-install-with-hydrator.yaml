@@ -566,6 +566,41 @@ data:
       - BackgroundScanReport
       - ClusterBackgroundScanReport
       - UpdateRequest
+  sourceHydrator.commitMessageTemplate: |
+    {{- range $key, $value := .metadata }}
+        {{- if kindIs "map" $value }}
+            {{ $key }}:
+            {{- range $subKey, $subValue := $value }}
+                {{ $subKey }}: {{ $subValue }}
+            {{- "\n" }}
+            {{- end }}
+        {{- else if kindIs "array" $value }}
+            {{ $key }}:
+            {{- range $item := $value }}
+                {{- if kindIs "map" $item }}
+                    - Commit:
+                    {{- range $subKey, $subValue := $item.commit }}
+                        {{ $subKey }}: {{ $subValue }}
+                    {{- "\n" }}
+                    {{- end }}
+                {{- else }}
+                    - {{ $item }}
+                    {{- "\n" }}
+                {{- end }}
+            {{- end }}
+        {{- else }}
+            {{- if $value }}
+                {{ $key }}: {{ $value }}
+            {{- "\n" }}
+            {{- end }}
+        {{- end }}
+    {{- end }}
+    {{- if .metadata.labels }}
+    Labels:
+        {{- range $key, $value := .metadata.labels }}
+            label-{{ $key }}: {{ $value }}
+        {{- end }}
+    {{- end }}   
 kind: ConfigMap
 metadata:
   labels:

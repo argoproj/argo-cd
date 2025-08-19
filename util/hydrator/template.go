@@ -3,6 +3,7 @@ package hydrator
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"text/template"
@@ -28,18 +29,19 @@ func Render(tmpl string, data any) (string, error) {
 	t := reflect.TypeOf(data)
 	switch t.Kind() {
 	case reflect.Map:
-		if m, ok := data.(map[string]any); ok {
-			dataMap = m
-		} else {
-			return "", fmt.Errorf("failed to cast map type")
+		var m map[string]any
+		var ok bool
+		if m, ok = data.(map[string]any); !ok {
+			return "", errors.New("failed to cast map type")
 		}
+		dataMap = m
 	case reflect.Struct:
 		dataMap, err = structToMap(data)
 		if err != nil {
 			return "", fmt.Errorf("marshaling failed: %w", err)
 		}
 	default:
-		return "", fmt.Errorf("type not supported: %T\n", t)
+		return "", fmt.Errorf("type not supported: %T", t)
 	}
 
 	metadata := map[string]any{

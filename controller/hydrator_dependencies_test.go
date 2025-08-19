@@ -131,7 +131,7 @@ func TestGetHydratorCommitMessageTemplate_WhenTemplateisNotDefined(t *testing.T)
 	tmpl, err := ctrl.GetHydratorCommitMessageTemplate()
 	require.NoError(t, err)
 	assert.NotNil(t, tmpl)
-	assert.Equal(t, "", tmpl)
+	assert.Empty(t, tmpl)
 }
 
 func TestGetHydratorCommitMessageTemplate(t *testing.T) {
@@ -154,6 +154,6 @@ func TestGetHydratorCommitMessageTemplate(t *testing.T) {
 	tmpl, err := ctrl.GetHydratorCommitMessageTemplate()
 	require.NoError(t, err)
 	assert.NotNil(t, tmpl)
-	assert.NotEqual(t, "", tmpl)
+	assert.NotEmpty(t, tmpl)
 	assert.Contains(t, tmpl, "Commit")
 }
