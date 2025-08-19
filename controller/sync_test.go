@@ -385,7 +385,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f := setup(t, ignores)
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -398,7 +398,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f := setup(t, []v1alpha1.ResourceIgnoreDifferences{})
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -418,7 +418,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		unstructured.RemoveNestedField(live.Object, "metadata", "annotations", "iksm-version")
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -443,7 +443,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f := setup(t, ignores)
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -472,7 +472,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -523,7 +523,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
-		patchedTargets, err := normalizeTargetResources(f.comparisonResult)
+		patchedTargets, err := normalizeTargetResources(nil, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -562,7 +562,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -614,7 +614,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
