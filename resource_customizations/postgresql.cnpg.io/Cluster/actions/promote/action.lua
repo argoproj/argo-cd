@@ -43,6 +43,6 @@ if selected then
     obj.status.phase = "Switchover in progress"
     obj.status.phaseReason = "Switching over to " .. selected
 else
-    error("Could not find a healthy instance matching the criteria: " .. tostring(instance))
+    error("Could not find a healthy instance matching the criteria: " .. instance, 0)
 end
 return obj
