@@ -3,12 +3,19 @@ actions["pause"] = {
   ["disabled"] = true,
   ["iconClass"] = "fa-solid fa-fw fa-pause"
 }
-actions["unpause"] = {
+actions["unpause-gradual"] = {
   ["disabled"] = true,
+  ["displayName"] = "Unpause (gradual)",
+  ["iconClass"] = "fa-solid fa-fw fa-play"
+}
+actions["unpause-fast"] = {
+  ["disabled"] = true,
+  ["displayName"] = "Unpause (fast)",
   ["iconClass"] = "fa-solid fa-fw fa-play"
 }
 actions["force-promote"] = {
   ["disabled"] = true,
+  ["displayName"] = "Force Promote",
   ["iconClass"] = "fa-solid fa-fw fa-forward"
 }
 
@@ -18,7 +25,20 @@ if obj.spec.lifecycle ~= nil and obj.spec.lifecycle.desiredPhase ~= nil and obj.
   paused = true
 end
 if paused then
-  actions["unpause"]["disabled"] = false
+  if obj.spec.metadata ~= nil and  obj.spec.metadata.annotations ~= nil and obj.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] ~= nil then
+    -- determine which unpausing strategies will be enabled
+    -- if annotation not found, default will be resume slow
+    if obj.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] == "fast" then
+      actions["unpause-fast"]["disabled"] = false
+    elseif obj.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] == "slow, fast" then
+      actions["unpause-gradual"]["disabled"] = false
+      actions["unpause-fast"]["disabled"] = false
+    else
+      actions["unpause-gradual"]["disabled"] = false
+    end
+  else
+    actions["unpause-gradual"]["disabled"] = false
+  end
 else
   actions["pause"]["disabled"] = false
 end
