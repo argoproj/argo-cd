@@ -130,16 +130,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 			if err := os.RemoveAll(targetPath); err != nil {
 				return "", "", fmt.Errorf("failed to clear path %s: %w", targetPath, err)
 			}
-			logCtx.Debugf("Recreating directory %s", targetPath)
-			if err := os.MkdirAll(targetPath, 0o755); err != nil {
-				return "", "", fmt.Errorf("failed to create directory %s: %w", targetPath, err)
-			}
 		}
-	}
-
-	logCtx.Debugf("Ensuring repository root directory exists: %s", dirPath)
-	if err := os.MkdirAll(dirPath, 0o755); err != nil {
-		return "", "", fmt.Errorf("failed to ensure root directory %s: %w", dirPath, err)
 	}
 
 	logCtx.Debug("Writing manifests")
