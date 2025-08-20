@@ -552,6 +552,8 @@ const (
 	RespectRBACValueNormal = "normal"
 	// impersonationEnabledKey is the key to configure whether the application sync decoupling through impersonation feature is enabled
 	impersonationEnabledKey = "application.sync.impersonation.enabled"
+	// hydratorReadmeConfigKeyId is the key to configure hydrator default commit README.md template
+	hydratorReadmeConfigKeyId = "hydrator.readme.template"
 )
 
 const (
@@ -796,6 +798,18 @@ func (mgr *SettingsManager) getSecrets() ([]*corev1.Secret, error) {
 	// To allow us to modify the secrets, make a copy
 	secrets = util.SliceCopy(secrets)
 	return secrets, nil
+}
+
+func (mgr *SettingsManager) GetHydratorReadmeTemplate() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	readmeTemplate := argoCDCM.Data[hydratorReadmeConfigKeyId]
+	if readmeTemplate == "" {
+		return "", nil
+	}
+	return readmeTemplate, nil
 }
 
 func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {

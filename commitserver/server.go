@@ -1,6 +1,8 @@
 package commitserver
 
 import (
+	"context"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -30,6 +32,8 @@ func (a *ArgoCDCommitServer) CreateGRPC() *grpc.Server {
 	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, func() (bool, error) {
 		return true, nil
 	}))
+
+	go a.commitService.WatchSettings(context.Background())
 	apiclient.RegisterCommitServiceServer(server, a.commitService)
 
 	healthService := health.NewServer()

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/controller/hydrator"
@@ -25,7 +26,9 @@ type Service struct {
 	metricsServer     *metrics.Server
 	repoClientFactory RepoClientFactory
 	settingsMgr       *settings.SettingsManager
-	hydratorConfig    hydratorConfigData
+
+	lock           sync.RWMutex
+	hydratorConfig hydratorConfigData
 }
 
 // NewService returns a new instance of the commit service.
