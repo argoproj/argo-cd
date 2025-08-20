@@ -124,7 +124,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		state.Message = fmt.Sprintf("Failed to generate sync ID: %v", err)
 		return
 	}
-	logEntry := log.WithFields(applog.GetAppLogFields(app)).WithField("syncId", syncId)
+	logger := logutils.NewWithCurrentConfig()
+	logger.SetLevel(log.TraceLevel)
+	logEntry := logger.WithFields(applog.GetAppLogFields(app)).WithField("syncId", syncId)
 
 	if state.Operation.Sync == nil {
 		state.Phase = common.OperationError
