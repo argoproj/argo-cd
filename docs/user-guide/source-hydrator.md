@@ -323,3 +323,10 @@ from pushing to the hydrated branches, enable branch protection in your SCM.
 
 It is best practice to prefix the hydrated branches with a common prefix, such as `environments/`. This makes it easier
 to configure branch protection rules on the destination repository.
+
+!!! note
+    To maintain reproducibility and determinism in the Hydrator’s output,
+    Argo CD-specific metadata (such as `argocd.argoproj.io/tracking-id`) is
+    not written to Git during hydration. These annotations are added dynamically
+    during application sync and comparison.
+!!!

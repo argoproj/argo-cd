@@ -11,7 +11,7 @@ permissions: {}
 
 env:
   # renovate: datasource=golang-version packageName=golang
-  GOLANG_VERSION: '1.24.4' # Note: go-version must also be set in job argocd-image.with.go-version
+  GOLANG_VERSION: '1.25.0' # Note: go-version must also be set in job argocd-image.with.go-version
 
 jobs:
   argocd-image:
@@ -25,7 +25,7 @@ jobs:
       quay_image_name: quay.io/argoproj/argocd:${{ github.ref_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.24.4
+      go-version: 1.25.0
       platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
       push: true
     secrets:
@@ -96,7 +96,7 @@ jobs:
           tool-cache: false
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@9c156ee8a17a598857849441385a2041ef570552 # v6.3.0
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         id: run-goreleaser
         with:
           version: latest

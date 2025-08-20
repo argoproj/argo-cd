@@ -52,6 +52,7 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	iomocks "github.com/argoproj/argo-cd/v3/util/io/mocks"
 	ocimocks "github.com/argoproj/argo-cd/v3/util/oci/mocks"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const testSignature = `gpg: Signature made Wed Feb 26 23:22:34 2020 CET
@@ -237,6 +238,37 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	res2, err := GenerateManifests(t.Context(), "./testdata/concatenated", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 	require.NoError(t, err)
 	assert.Len(t, res2.Manifests, 3)
+}
+
+func Test_GenerateManifest_KustomizeWithVersionOverride(t *testing.T) {
+	t.Parallel()
+
+	service := newService(t, "../../util/kustomize/testdata/kustomize-with-version-override")
+
+	src := v1alpha1.ApplicationSource{Path: "."}
+	q := apiclient.ManifestRequest{
+		Repo:               &v1alpha1.Repository{},
+		ApplicationSource:  &src,
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+		KustomizeOptions: &v1alpha1.KustomizeOptions{
+			Versions: []v1alpha1.KustomizeVersion{},
+		},
+	}
+
+	_, err := service.GenerateManifest(t.Context(), &q)
+	require.ErrorAs(t, err, &settings.KustomizeVersionNotRegisteredError{Version: "v1.2.3"})
+
+	q.KustomizeOptions.Versions = []v1alpha1.KustomizeVersion{
+		{
+			Name: "v1.2.3",
+			Path: "kustomize",
+		},
+	}
+
+	res, err := service.GenerateManifest(t.Context(), &q)
+	require.NoError(t, err)
+	assert.NotNil(t, res)
 }
 
 func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
@@ -1102,6 +1134,27 @@ func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
 	assert.True(t, strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
 }
 
+func TestGenerateHelmKubeVersion(t *testing.T) {
+	service := newService(t, "../../util/helm/testdata/redis")
+
+	res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
+		Repo:    &v1alpha1.Repository{},
+		AppName: "test",
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path: ".",
+			Helm: &v1alpha1.ApplicationSourceHelm{
+				KubeVersion: "1.30.11+IKS",
+			},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+	})
+
+	require.NoError(t, err)
+	assert.Len(t, res.Commands, 1)
+	assert.Contains(t, res.Commands[0], "--kube-version 1.30.11")
+}
+
 func TestGenerateHelmWithValues(t *testing.T) {
 	service := newService(t, "../../util/helm/testdata/redis")
 
@@ -1672,6 +1725,32 @@ func TestGetAppDetailsKustomize(t *testing.T) {
 	assert.Equal(t, "Kustomize", res.Type)
 	assert.NotNil(t, res.Kustomize)
 	assert.Equal(t, []string{"nginx:1.15.4", "registry.k8s.io/nginx-slim:0.8"}, res.Kustomize.Images)
+}
+
+func TestGetAppDetailsKustomize_CustomVersion(t *testing.T) {
+	service := newService(t, "../../util/kustomize/testdata/kustomize-with-version-override")
+
+	q := &apiclient.RepoServerAppDetailsQuery{
+		Repo: &v1alpha1.Repository{},
+		Source: &v1alpha1.ApplicationSource{
+			Path: ".",
+		},
+		KustomizeOptions: &v1alpha1.KustomizeOptions{},
+	}
+
+	_, err := service.GetAppDetails(t.Context(), q)
+	require.ErrorAs(t, err, &settings.KustomizeVersionNotRegisteredError{Version: "v1.2.3"})
+
+	q.KustomizeOptions.Versions = []v1alpha1.KustomizeVersion{
+		{
+			Name: "v1.2.3",
+			Path: "kustomize",
+		},
+	}
+
+	res, err := service.GetAppDetails(t.Context(), q)
+	require.NoError(t, err)
+	assert.Equal(t, "Kustomize", res.Type)
 }
 
 func TestGetHelmCharts(t *testing.T) {
@@ -4275,7 +4354,7 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 		q := apiclient.ManifestRequest{
 			AppName:     "test-app",
 			Namespace:   "test-namespace",
-			KubeVersion: "1.2.3",
+			KubeVersion: "1.2.3+something",
 			ApiVersions: []string{"v1/Test", "v2/Test"},
 			Repo:        &v1alpha1.Repository{},
 			ApplicationSource: &v1alpha1.ApplicationSource{
@@ -4321,7 +4400,7 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 		t.Run("with overrides", func(t *testing.T) {
 			// These can be set explicitly instead of using inferred values. Make sure the overrides apply.
 			q.ApplicationSource.Helm.APIVersions = []string{"v3", "v4"}
-			q.ApplicationSource.Helm.KubeVersion = "5.6.7"
+			q.ApplicationSource.Helm.KubeVersion = "5.6.7+something"
 			q.ApplicationSource.Helm.Namespace = "different-namespace"
 			q.ApplicationSource.Helm.ReleaseName = "different-release-name"
 
@@ -4396,9 +4475,12 @@ images:
 		q := apiclient.ManifestRequest{
 			AppName:     "test-app",
 			Namespace:   "test-namespace",
-			KubeVersion: "1.2.3",
+			KubeVersion: "1.2.3+something",
 			ApiVersions: []string{"v1/Test", "v2/Test"},
 			Repo:        &v1alpha1.Repository{},
+			KustomizeOptions: &v1alpha1.KustomizeOptions{
+				BuildOptions: "--enable-helm",
+			},
 			ApplicationSource: &v1alpha1.ApplicationSource{
 				Path: ".",
 				Kustomize: &v1alpha1.ApplicationSourceKustomize{
@@ -4417,7 +4499,7 @@ images:
 					Images: v1alpha1.KustomizeImages{
 						"image=override",
 					},
-					KubeVersion:           "5.6.7",
+					KubeVersion:           "5.6.7+something",
 					LabelWithoutSelector:  true,
 					LabelIncludeTemplates: true,
 					NamePrefix:            "test-prefix",
@@ -4436,7 +4518,6 @@ images:
 		}
 
 		res, err := service.GenerateManifest(t.Context(), &q)
-
 		require.NoError(t, err)
 		assert.Equal(t, []string{
 			"kustomize edit set nameprefix -- test-prefix",
@@ -4447,7 +4528,7 @@ images:
 			"kustomize edit add annotation --force test:annotation-test-app",
 			"kustomize edit set namespace -- override-namespace",
 			"kustomize edit add component component",
-			"kustomize build .",
+			"kustomize build . --enable-helm --helm-kube-version 5.6.7 --helm-api-versions v1 --helm-api-versions v2",
 		}, res.Commands)
 	})
 }

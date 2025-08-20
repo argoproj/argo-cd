@@ -241,10 +241,10 @@ export class ApplicationsService {
             .then(() => true);
     }
 
-    public rollback(name: string, appNamespace: string, id: number): Promise<boolean> {
+    public rollback(name: string, appNamespace: string, id: number, prune?: boolean): Promise<boolean> {
         return requests
             .post(`/applications/${name}/rollback`)
-            .send({id, appNamespace})
+            .send({id, appNamespace, prune})
             .then(() => true);
     }
 
@@ -347,7 +347,7 @@ export class ApplicationsService {
         resourceActionParameters: models.ResourceActionParam[]
     ): Promise<models.ResourceAction[]> {
         return requests
-            .post(`/applications/${name}/resource/actions`)
+            .post(`/applications/${name}/resource/actions/v2`)
             .send(
                 JSON.stringify({
                     appNamespace,
