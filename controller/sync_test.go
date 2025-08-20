@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"fmt"
 	openapi_v2 "github.com/google/gnostic-models/openapiv2"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/kubectl/pkg/util/openapi"
 	"os"
 	"sigs.k8s.io/yaml"
@@ -46,6 +48,7 @@ func loadHTTPProxySchema(t *testing.T) *openapi_v2.Document {
 
 	doc, err := openapi_v2.ParseDocument(jsonData)
 	require.NoError(t, err)
+	fmt.Printf("definitions: %+v\n", doc.Definitions)
 
 	return doc
 }
@@ -553,6 +556,9 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		f := setupHTTPProxy(t, ignores)
 		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		gvk := schema.GroupVersionKind{Group: "projectcontour.io", Version: "v1", Kind: "HTTPProxy"}
+		fmt.Printf("LookupResource result: %+v\n", oapiResources.LookupResource(gvk))
 
 		// when
 		patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
