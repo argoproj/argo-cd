@@ -4,7 +4,7 @@ import * as classNames from 'classnames';
 import * as models from '../../../shared/models';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {ComparisonStatusIcon, HealthStatusIcon, nodeKey, createdOrNodeKey, isSameNode} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, nodeKey, isSameNode} from '../utils';
 import {AppDetailsPreferences} from '../../../shared/services';
 import {Consumer} from '../../../shared/context';
 import Moment from 'react-moment';
@@ -54,17 +54,52 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
 
     const sortedResources = React.useMemo(() => {
         const resourcesToSort = [...props.resources];
+        resourcesToSort.sort((a, b) => {
+            let compare = 0;
+            switch (sortConfig.key) {
+                case 'name':
+                    compare = a.name.localeCompare(b.name);
+                    break;
 
-        if (sortConfig.key === 'syncOrder') {
-            resourcesToSort.sort((a, b) => {
-                const waveA = a.syncWave ?? 0;
-                const waveB = b.syncWave ?? 0;
-                const compare = waveA - waveB;
-                return sortConfig.direction === 'asc' ? compare : -compare;
-            });
-        } else {
-            resourcesToSort.sort((first, second) => -createdOrNodeKey(first).localeCompare(createdOrNodeKey(second), undefined, {numeric: true}));
-        }
+                case 'group-kind':
+                    {
+                        const groupKindA = [a.group, a.kind].filter(item => !!item).join('/');
+                        const groupKindB = [b.group, b.kind].filter(item => !!item).join('/');
+                        compare = groupKindA.localeCompare(groupKindB);
+                    }
+                    break;
+
+                case 'syncOrder':
+                    {
+                        const waveA = a.syncWave ?? 0;
+                        const waveB = b.syncWave ?? 0;
+                        compare = waveA - waveB;
+                    }
+                    break;
+                case 'namespace':
+                    {
+                        const namespaceA = a.namespace ?? '';
+                        const namespaceB = b.namespace ?? '';
+                        compare = namespaceA.localeCompare(namespaceB);
+                    }
+                    break;
+                case 'createdAt':
+                    {
+                        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                        compare = dateA - dateB;
+                    }
+                    break;
+                case 'status':
+                    {
+                        const statusA = [a.health?.status, a.status].filter(s => !!s).join(',');
+                        const statusB = [b.health?.status, b.status].filter(s => !!s).join(',');
+                        compare = statusA.localeCompare(statusB);
+                    }
+                    break;
+            }
+            return sortConfig.direction === 'asc' ? compare : -compare;
+        });
         return resourcesToSort;
     }, [props.resources, sortConfig]);
 
@@ -103,15 +138,25 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                     <div className='argo-table-list__head'>
                         <div className='row'>
                             <div className='columns small-1 xxxlarge-1' />
-                            <div className='columns small-2 xxxlarge-2'>NAME</div>
-                            <div className='columns small-1 xxxlarge-1'>GROUP/KIND</div>
+                            <div className='columns small-2 xxxlarge-2' onClick={() => handleSort('name')} style={{cursor: 'pointer'}}>
+                                NAME {getSortArrow('name')}
+                            </div>
+                            <div className='columns small-1 xxxlarge-1' onClick={() => handleSort('group-kind')} style={{cursor: 'pointer'}}>
+                                GROUP/KIND {getSortArrow('group-kind')}
+                            </div>
                             <div className='columns small-1 xxxlarge-1' onClick={() => handleSort('syncOrder')} style={{cursor: 'pointer'}}>
                                 SYNC ORDER {getSortArrow('syncOrder')}
                             </div>
-                            <div className='columns small-2 xxxlarge-1'>NAMESPACE</div>
+                            <div className='columns small-2 xxxlarge-1' onClick={() => handleSort('namespace')} style={{cursor: 'pointer'}}>
+                                NAMESPACE {getSortArrow('namespace')}
+                            </div>
                             {isSameKind && props.resources[0].kind === 'ReplicaSet' && <div className='columns small-1 xxxlarge-1'>REVISION</div>}
-                            <div className='columns small-2 xxxlarge-2'>CREATED AT</div>
-                            <div className='columns small-2 xxxlarge-1'>STATUS</div>
+                            <div className='columns small-2 xxxlarge-2' onClick={() => handleSort('createdAt')} style={{cursor: 'pointer'}}>
+                                CREATED AT {getSortArrow('createdAt')}
+                            </div>
+                            <div className='columns small-2 xxxlarge-1' onClick={() => handleSort('status')} style={{cursor: 'pointer'}}>
+                                STATUS {getSortArrow('status')}
+                            </div>
                         </div>
                     </div>
                     {sortedResources.map(res => {
