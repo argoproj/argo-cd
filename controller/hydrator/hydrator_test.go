@@ -21,40 +21,41 @@ Argocd-reference-commit-author: Argocd-reference-commit-author
 Argocd-reference-commit-subject: testhydratormd
 Signed-off-by: testUser <test@gmail.com>`
 
-var commitMessageTemplate = `{{- range $key, $value := .metadata }}
-    {{- if kindIs "map" $value }}
-        {{ $key }}:
-        {{- range $subKey, $subValue := $value }}
-            {{ $subKey }}: {{ $subValue }}
-        {{- "\n" }}
+var commitMessageTemplate = `    {{- if .metadata }}
+        {{- if .metadata.repoURL }}
+            repoURL: {{ .metadata.repoURL }}
         {{- end }}
-    {{- else if kindIs "array" $value }}
-        {{ $key }}:
-        {{- range $item := $value }}
-            {{- if kindIs "map" $item }}
-                - Commit:
-                {{- range $subKey, $subValue := $item.commit }}
-                    {{ $subKey }}: {{ $subValue }}
-                {{- "\n" }}
+        
+        {{- if .metadata.drySha }}
+            drySha: {{ .metadata.drySha }}
+        {{- end }}
+
+        {{- if .metadata.author }}
+            Co-authored-by: {{ .metadata.author }}
+        {{- end }}
+
+        {{- if .metadata.subject }}
+            subject: {{ .metadata.subject }}
+        {{- end }}
+
+        {{- if .metadata.body }}
+            body: {{ .metadata.body }}
+        {{- end }}
+        {{- if .metadata.references }}
+            References:
+            {{- range $reference := .metadata.references }}
+                {{- if kindIs "map" $reference.commit }}
+                    Commit:
+                    {{- range $key, $value := $reference.commit }}
+                        {{- if eq $key "author" }}
+                            Co-authored-by: {{ $value }}
+                        {{- end }}
+                    {{- end }}
                 {{- end }}
-            {{- else }}
-                - {{ $item }}
-                {{- "\n" }}
             {{- end }}
         {{- end }}
-    {{- else }}
-        {{- if $value }}
-            {{ $key }}: {{ $value }}
-        {{- "\n" }}
-        {{- end }}
-    {{- end }}
-{{- end }}
-{{- if .metadata.labels }}
-Labels:
-    {{- range $key, $value := .metadata.labels }}
-        label-{{ $key }}: {{ $value }}
-    {{- end }}
-{{- end }}`
+    {{- end }} 
+`
 
 func Test_appNeedsHydration(t *testing.T) {
 	t.Parallel()
