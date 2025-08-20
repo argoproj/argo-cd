@@ -1,18 +1,21 @@
 swagger: "2.0"
 info:
-  title: "HTTPProxy"
+  title: HTTPProxy
   version: "v1"
 paths: {}
 definitions:
   io.projectcontour.v1.HTTPProxy:
     type: object
+    x-kubernetes-group-version-kind:
+      - group: projectcontour.io
+        version: v1
+        kind: HTTPProxy
     properties:
       spec:
         type: object
         properties:
           routes:
             type: array
-            # no list map keys for routes, so index-based merge
             items:
               type: object
               properties:
