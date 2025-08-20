@@ -22,8 +22,12 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
-// MaxGRPCMessageSize contains max grpc message size
-var MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 100, 0, math.MaxInt32) * 1024 * 1024
+var (
+	// MaxGRPCMessageSize contains max grpc message size
+	MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 200, 0, math.MaxInt32) * 1024 * 1024
+	// MaxGRPCRetriesNum contains max grpc retries
+	MaxGRPCRetriesNum = env.ParseNumFromEnv(common.EnvGRPCMaxMaxRetries, 3, 0, math.MaxInt32)
+)
 
 // TLSConfiguration describes parameters for TLS configuration to be used by a repo server API client
 type TLSConfiguration struct {
@@ -56,7 +60,7 @@ func (c *clientSet) NewRepoServerClient() (utilio.Closer, RepoServerServiceClien
 
 func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfiguration) (*grpc.ClientConn, error) {
 	retryOpts := []grpc_retry.CallOption{
-		grpc_retry.WithMax(3),
+		grpc_retry.WithMax(uint(MaxGRPCRetriesNum)),
 		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),
 	}
 	unaryInterceptors := []grpc.UnaryClientInterceptor{grpc_retry.UnaryClientInterceptor(retryOpts...)}
