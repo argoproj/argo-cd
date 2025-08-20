@@ -60,7 +60,7 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/improbable-eng/grpc-web v0.15.1-0.20230209220825-1d9bbb09a099
 	github.com/itchyny/gojq v0.12.17
-	github.com/jarcoal/httpmock v1.4.0
+	github.com/jarcoal/httpmock v1.4.1
 	github.com/jeremywohl/flatten v1.0.2-0.20211013061545-07e4a09fb8e4
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/ktrysmt/go-bitbucket v0.9.86
