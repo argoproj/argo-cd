@@ -77,6 +77,23 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
     return (
         <DataLoader
             input={application}
+            errorRenderer={(error: Error) => {
+                // Temporarily show error to reproduce the issue
+                return (
+                    <div className='application-status-panel__item'>
+                        {sectionHeader({
+                            title: 'PROGRESSIVE SYNC',
+                            helpContent: 'Shows the current status of progressive sync for applications managed by an ApplicationSet with RollingSync strategy.'
+                        })}
+                        <div className='application-status-panel__item-value'>
+                            <i className='fa fa-exclamation-triangle' style={{color: COLORS.sync.unknown}} /> Error
+                        </div>
+                        <div className='application-status-panel__item-name'>
+                            {error.message}
+                        </div>
+                    </div>
+                );
+            }}
             load={async () => {
                 const appSet = await services.applications.getApplicationSet(appSetRef.name, application.metadata.namespace);
                 return appSet?.spec?.strategy?.type === 'RollingSync' ? appSet : null;
@@ -101,9 +118,7 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                             <div className='application-status-panel__item-value'>
                                 <i className='fa fa-clock' style={{color: COLORS.sync.out_of_sync}} /> Waiting
                             </div>
-                            <div className='application-status-panel__item-name'>
-                                Application status not yet available from ApplicationSet
-                            </div>
+                            <div className='application-status-panel__item-name'>Application status not yet available from ApplicationSet</div>
                         </div>
                     );
                 }
