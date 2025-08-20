@@ -78,7 +78,22 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
         <DataLoader
             input={application}
             errorRenderer={(error: Error) => {
-                // Temporarily show error to reproduce the issue
+                // If user doesn't have permission to read ApplicationSet, show permission message
+                if (error.message && error.message.includes('permission denied')) {
+                    return (
+                        <div className='application-status-panel__item'>
+                            {sectionHeader({
+                                title: 'PROGRESSIVE SYNC',
+                                helpContent: 'Shows the current status of progressive sync for applications managed by an ApplicationSet with RollingSync strategy.'
+                            })}
+                            <div className='application-status-panel__item-value'>
+                                <i className='fa fa-lock' style={{color: COLORS.sync.unknown}} /> No Access
+                            </div>
+                            <div className='application-status-panel__item-name'>You don't have permission to view Progressive Sync information</div>
+                        </div>
+                    );
+                }
+                // For other errors, show a minimal error state
                 return (
                     <div className='application-status-panel__item'>
                         {sectionHeader({
@@ -88,9 +103,7 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                         <div className='application-status-panel__item-value'>
                             <i className='fa fa-exclamation-triangle' style={{color: COLORS.sync.unknown}} /> Error
                         </div>
-                        <div className='application-status-panel__item-name'>
-                            {error.message}
-                        </div>
+                        <div className='application-status-panel__item-name'>Unable to load Progressive Sync status</div>
                     </div>
                 );
             }}
