@@ -21,7 +21,7 @@ As an experimental feature, progressive syncs must be explicitly enabled, in one
 
 ## Strategies
 
-ApplicationSet strategies control both how applications are created/updated and how they are deleted. These are configured using two separate fields:
+ApplicationSet strategies control both how applications are created (or updated) and deleted. These operations are configured using two separate fields:
 
 * **Creation Strategy** (`type` field): Controls application creation and updates
 * **Deletion Strategy** (`deletionOrder` field): Controls application deletion order
