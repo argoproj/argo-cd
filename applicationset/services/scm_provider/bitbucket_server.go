@@ -51,9 +51,8 @@ func NewBitbucketServerProviderNoAuth(ctx context.Context, url, projectKey strin
 func newBitbucketServerProvider(ctx context.Context, bitbucketConfig *bitbucketv1.Configuration, projectKey string, allBranches bool, scmRootCAPath string, insecure bool, caCerts []byte) (*BitbucketServerProvider, error) {
 	bitbucketConfig.BasePath = utils.NormalizeBitbucketBasePath(bitbucketConfig.BasePath)
 	tlsConfig := utils.GetTlsConfig(scmRootCAPath, insecure, caCerts)
-	bitbucketConfig.HTTPClient = &http.Client{Transport: &http.Transport{
-		TLSClientConfig: tlsConfig,
-	}}
+	bitbucketConfig.HTTPClient = &http.Client{Transport: http.DefaultTransport.(*http.Transport).Clone()}
+	bitbucketConfig.HTTPClient.Transport.(*http.Transport).TLSClientConfig = tlsConfig
 	bitbucketClient := bitbucketv1.NewAPIClient(ctx, bitbucketConfig)
 
 	return &BitbucketServerProvider{
