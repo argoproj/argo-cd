@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -23,7 +25,9 @@ type Service struct {
 	metricsServer     *metrics.Server
 	repoClientFactory RepoClientFactory
 	settingsMgr       *settings.SettingsManager
-	hydratorConfig    hydratorConfigData
+
+	lock           sync.RWMutex
+	hydratorConfig hydratorConfigData
 }
 
 // NewService returns a new instance of the commit service.
@@ -32,6 +36,53 @@ func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server, set
 		metricsServer:     metricsServer,
 		repoClientFactory: NewRepoClientFactory(gitCredsStore, metricsServer),
 		settingsMgr:       settingsMgr,
+	}
+}
+
+func (s *Service) loadHydratorConfig() (*hydratorConfigData, error) {
+	readmeTemplate, err := s.settingsMgr.GetHydratorReadmeTemplate()
+	if err != nil {
+		return nil, err
+	}
+
+	return &hydratorConfigData{
+		readmeTemplate: readmeTemplate,
+	}, nil
+}
+
+func (s *Service) updateHydratorConfig(hydratorConfig *hydratorConfigData) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	log.Info("updated before: " + s.hydratorConfig.readmeTemplate + "\n")
+	log.Info("updated after: " + hydratorConfig.readmeTemplate + "\n")
+	if !reflect.DeepEqual(s.hydratorConfig, hydratorConfig) {
+		s.hydratorConfig = *hydratorConfig
+	}
+}
+
+func (s *Service) WatchSettings(ctx context.Context) {
+	log.Info("watch server is start")
+	s.settingsMgr.ResyncInformers()
+	updateCh := make(chan *settings.ArgoCDSettings, 1)
+	s.settingsMgr.Subscribe(updateCh)
+
+	defer s.settingsMgr.Unsubscribe(updateCh)
+	defer close(updateCh)
+
+	for {
+		select {
+		case <-updateCh:
+
+			hydratorConfig, err := s.loadHydratorConfig()
+			if err != nil {
+				log.Infof("Failed to load hydrator config: %v", err)
+				continue
+			}
+			s.updateHydratorConfig(hydratorConfig)
+		case <-ctx.Done():
+			log.Info("watch settings is done")
+			return
+		}
 	}
 }
 
@@ -128,13 +179,6 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 		return out, "", fmt.Errorf("failed to clear repo: %w", err)
 	}
 
-	logCtx.Debug("Update Configdata")
-	err = s.updateConfig(logCtx)
-	if err != nil {
-		return out, "", fmt.Errorf("failed to update configmap argo-cd", err)
-	}
-	logCtx.Info("README template file is update: " + s.hydratorConfig.readmeTemplate)
-
 	logCtx.Debug("Writing manifests")
 	err = WriteForPaths(root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths)
 	if err != nil {
@@ -220,20 +264,6 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 	}
 
 	return gitClient, dirPath, cleanupOrLog, nil
-}
-
-func (s *Service) updateConfig(logCtx *log.Entry) error {
-	argoCM, err := s.settingsMgr.GetConfigMapByName("argocd-cm")
-	if err != nil {
-		return fmt.Errorf("failed to update confimap 'argocd-cm'")
-	}
-
-	hydratorReadmeConfigKeyId := "hydrator.readme.template"
-	if _, ok := argoCM.Data[hydratorReadmeConfigKeyId]; ok {
-		logCtx.Debug("hydrator README template is updated")
-		s.hydratorConfig.readmeTemplate = argoCM.Data[hydratorReadmeConfigKeyId]
-	}
-	return nil
 }
 
 type hydratorMetadataFile struct {
