@@ -436,8 +436,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 //   - copies ignored fields from the matching live resources: apply normalizer to the live resource,
 //     calculates the patch performed by normalizer and applies the patch to the target resource
 func normalizeTargetResources(openAPISchema openapi.Resources, cr *comparisonResult) ([]*unstructured.Unstructured, error) {
-	// Normalize both live and target resources for comparison
-	// This removes fields we ignore in diffing (like replicas if ignoreDifferences is set)
+	// Normalize both live and target resources
 	normalized, err := diff.Normalize(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
 	if err != nil {
 		return nil, err
@@ -446,7 +445,6 @@ func normalizeTargetResources(openAPISchema openapi.Resources, cr *comparisonRes
 	patchedTargets := []*unstructured.Unstructured{}
 
 	for idx, live := range cr.reconciliationResult.Live {
-		// Get the corresponding normalized target resource
 		normalizedTarget := normalized.Targets[idx]
 		gvk := normalizedTarget.GroupVersionKind()
 		if normalizedTarget == nil {
@@ -456,7 +454,6 @@ func normalizeTargetResources(openAPISchema openapi.Resources, cr *comparisonRes
 
 		originalTarget := cr.reconciliationResult.Target[idx]
 
-		// If live resource does not exist in cluster, keep original target as-is
 		if live == nil {
 			patchedTargets = append(patchedTargets, originalTarget)
 			continue
@@ -467,22 +464,20 @@ func normalizeTargetResources(openAPISchema openapi.Resources, cr *comparisonRes
 			versionedObject any
 		)
 
-		if obj, err := scheme.Scheme.New(normalizedTarget.GroupVersionKind()); err == nil {
-			if meta, err := strategicpatch.NewPatchMetaFromStruct(obj); err == nil {
-				lookupPatchMeta = meta
-				versionedObject = obj
-			} else {
+		// Try built-in types first
+		if obj, err := scheme.Scheme.New(gvk); err == nil {
+			var meta strategicpatch.PatchMetaFromStruct
+			if meta, err = strategicpatch.NewPatchMetaFromStruct(obj); err != nil {
 				return nil, err
 			}
-		} else {
-			// CRD - use OpenAPI schema
-			if crdSchema := openAPISchema.LookupResource(gvk); crdSchema != nil {
-				lookupPatchMeta = strategicpatch.NewPatchMetaFromOpenAPI(crdSchema)
-			}
+			lookupPatchMeta = meta
+			versionedObject = obj
+		} else if crdSchema := openAPISchema.LookupResource(gvk); crdSchema != nil {
+			// For CRDs, use OpenAPI schema
+			lookupPatchMeta = strategicpatch.NewPatchMetaFromOpenAPI(crdSchema)
 		}
 
-		// Calculate a merge patch between normalized live and actual live
-		// This patch will contain only the ignored fields that exist in the live cluster
+		// Calculate live patch
 		livePatch, err := getMergePatch(normalized.Lives[idx], live, lookupPatchMeta)
 		if err != nil {
 			return nil, err
@@ -494,7 +489,6 @@ func normalizeTargetResources(openAPISchema openapi.Resources, cr *comparisonRes
 		if err != nil {
 			return nil, err
 		}
-
 		patchedTargets = append(patchedTargets, normalizedTarget)
 	}
 
@@ -519,8 +513,7 @@ func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMet
 	return jsonpatch.CreateMergePatch(originalJSON, modifiedJSON)
 }
 
-// applyMergePatch will apply the given patch in the obj and return the patched
-// unstructure.
+// applyMergePatch will apply the given patch in the obj and return the patched unstructure.
 func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObject any, meta strategicpatch.LookupPatchMeta) (*unstructured.Unstructured, error) {
 	originalJSON, err := obj.MarshalJSON()
 	if err != nil {

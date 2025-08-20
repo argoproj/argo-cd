@@ -2,13 +2,15 @@ package controller
 
 import (
 	"fmt"
+	"os"
+	"strconv"
+	"testing"
+
 	openapi_v2 "github.com/google/gnostic-models/openapiv2"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/kubectl/pkg/util/openapi"
-	"os"
+
 	"sigs.k8s.io/yaml"
-	"strconv"
-	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -705,6 +707,49 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		env0 := env[0].(map[string]any)
 		assert.Equal(t, "EV", env0["name"])
 		assert.Equal(t, "here", env0["value"])
+	})
+
+	t.Run("patches ignored differences in individual array elements of HTTPProxy CRD", func(t *testing.T) {
+		doc := loadHTTPProxySchema(t)
+		disco := &fakeDiscovery{schema: doc}
+		oapiGetter := openapi.NewOpenAPIGetter(disco)
+		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
+		require.NoError(t, err)
+
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "projectcontour.io",
+				Kind:              "HTTPProxy",
+				JQPathExpressions: []string{".spec.routes[].rateLimitPolicy.global.descriptors[].entries[]"},
+			},
+		}
+
+		f := setupHTTPProxy(t, ignores)
+
+		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		live := test.YamlToUnstructured(testdata.LiveHTTPProxy)
+		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+
+		patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
+		require.NoError(t, err)
+		require.Len(t, patchedTargets, 1)
+		patched := patchedTargets[0]
+
+		// verify descriptors array in patched target
+		descriptors := dig(patched.Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors").([]any)
+		require.Len(t, descriptors, 1) // Only the descriptors with ignored entries should remain
+
+		// verify individual entries array inside the descriptor
+		entriesArr := dig(patched.Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries").([]any)
+		require.Len(t, entriesArr, 1) // Only the ignored entry should be patched
+
+		// verify the content of the entry is preserved correctly
+		entry := entriesArr[0].(map[string]interface{})
+		requestHeader := entry["requestHeader"].(map[string]interface{})
+		assert.Equal(t, "sample-header", requestHeader["headerName"])
+		assert.Equal(t, "sample-key", requestHeader["descriptorKey"])
 	})
 }
 
