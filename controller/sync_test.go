@@ -1,7 +1,10 @@
 package controller
 
 import (
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	openapi_v2 "github.com/google/gnostic-models/openapiv2"
+	"k8s.io/kubectl/pkg/util/openapi"
+	"os"
+	"sigs.k8s.io/yaml"
 	"strconv"
 	"testing"
 
@@ -24,82 +27,27 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
 
-func testHTTPProxyCRD() *apiextensions.CustomResourceDefinition {
-	return &apiextensions.CustomResourceDefinition{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apiextensions.k8s.io/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "httpproxies.projectcontour.io",
-		},
-		Spec: apiextensions.CustomResourceDefinitionSpec{
-			Group: "projectcontour.io",
-			Versions: []apiextensions.CustomResourceDefinitionVersion{
-				{
-					Name:    "v1",
-					Served:  true,
-					Storage: true,
-					Schema: &apiextensions.CustomResourceValidation{
-						OpenAPIV3Schema: &apiextensions.JSONSchemaProps{
-							Type: "object",
-							Properties: map[string]apiextensions.JSONSchemaProps{
-								"spec": {
-									Type: "object",
-									Properties: map[string]apiextensions.JSONSchemaProps{
-										"routes": {
-											Type: "array",
-											Items: &apiextensions.JSONSchemaPropsOrArray{
-												Schema: &apiextensions.JSONSchemaProps{
-													Type: "object",
-													Properties: map[string]apiextensions.JSONSchemaProps{
-														"rateLimitPolicy": {
-															Type: "object",
-															Properties: map[string]apiextensions.JSONSchemaProps{
-																"global": {
-																	Type: "object",
-																	Properties: map[string]apiextensions.JSONSchemaProps{
-																		"descriptors": {
-																			Type: "array",
-																			Items: &apiextensions.JSONSchemaPropsOrArray{
-																				Schema: &apiextensions.JSONSchemaProps{
-																					Type: "object",
-																					Properties: map[string]apiextensions.JSONSchemaProps{
-																						"entries": {
-																							Type:         "array",
-																							XListMapKeys: []string{"headerName"}, // crucial for strategic merge patch
-																							Items: &apiextensions.JSONSchemaPropsOrArray{
-																								Schema: &apiextensions.JSONSchemaProps{
-																									Type: "object",
-																								},
-																							},
-																						},
-																					},
-																				},
-																			},
-																		},
-																	},
-																},
-															},
-														},
-													},
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			Scope: "Namespaced",
-			Names: apiextensions.CustomResourceDefinitionNames{
-				Plural:   "httpproxies",
-				Singular: "httpproxy",
-				Kind:     "HTTPProxy",
-			},
-		},
-	}
+type fakeDiscovery struct {
+	schema *openapi_v2.Document
+}
+
+func (f *fakeDiscovery) OpenAPISchema() (*openapi_v2.Document, error) {
+	return f.schema, nil
+}
+
+func loadHTTPProxySchema(t *testing.T) *openapi_v2.Document {
+	t.Helper()
+
+	data, err := os.ReadFile("testdata/httpproxy_openapi_v2.yaml")
+	require.NoError(t, err)
+
+	jsonData, err := yaml.YAMLToJSON(data)
+	require.NoError(t, err)
+
+	doc, err := openapi_v2.ParseDocument(jsonData)
+	require.NoError(t, err)
+
+	return doc
 }
 
 func TestPersistRevisionHistory(t *testing.T) {
@@ -588,6 +536,11 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	}
 
 	t.Run("will properly ignore nested fields within arrays", func(t *testing.T) {
+		doc := loadHTTPProxySchema(t)
+		disco := &fakeDiscovery{schema: doc}
+		oapiGetter := openapi.NewOpenAPIGetter(disco)
+		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
+		require.NoError(t, err)
 		// given
 		ignores := []v1alpha1.ResourceIgnoreDifferences{
 			{
@@ -602,7 +555,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
-		patchedTargets, err := normalizeTargetResources(nil, f.comparisonResult)
+		patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
