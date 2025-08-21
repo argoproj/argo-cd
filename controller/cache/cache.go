@@ -76,6 +76,9 @@ const (
 	// EnvClusterCacheEventsProcessingInterval is the env variable to control the interval between processing events when BatchEventsProcessing is enabled
 	EnvClusterCacheEventsProcessingInterval = "ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL"
 
+	// EnvFailedResourceGVKExpirationTime is the env variable to control how long failed resource GVKs are tracked before being automatically cleared
+	EnvFailedResourceGVKExpirationTime = "ARGOCD_FAILED_RESOURCE_GVK_EXPIRATION_TIME"
+
 	// AnnotationIgnoreResourceUpdates when set to true on an untracked resource,
 	// argo will apply `ignoreResourceUpdates` configuration on it.
 	AnnotationIgnoreResourceUpdates = "argocd.argoproj.io/ignore-resource-updates"
@@ -116,6 +119,10 @@ var (
 
 	// clusterCacheEventsProcessingInterval specifies the interval between processing events when BatchEventsProcessing is enabled
 	clusterCacheEventsProcessingInterval = 100 * time.Millisecond
+
+	// failedResourceGVKExpirationTime controls how long failed resource GVKs are tracked before being automatically cleared
+	// Default is 30 minutes
+	failedResourceGVKExpirationTime = 30 * time.Minute
 )
 
 func init() {
@@ -129,6 +136,7 @@ func init() {
 	clusterCacheRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false)
 	clusterCacheBatchEventsProcessing = env.ParseBoolFromEnv(EnvClusterCacheBatchEventsProcessing, true)
 	clusterCacheEventsProcessingInterval = env.ParseDurationFromEnv(EnvClusterCacheEventsProcessingInterval, clusterCacheEventsProcessingInterval, 0, math.MaxInt64)
+	failedResourceGVKExpirationTime = env.ParseDurationFromEnv(EnvFailedResourceGVKExpirationTime, failedResourceGVKExpirationTime, 0, math.MaxInt64)
 }
 
 type LiveStateCache interface {
@@ -196,14 +204,15 @@ func NewLiveStateCache(
 	resourceTracking argo.ResourceTracking,
 ) LiveStateCache {
 	return &liveStateCache{
-		appInformer:      appInformer,
-		db:               db,
-		clusters:         make(map[string]clustercache.ClusterCache),
-		onObjectUpdated:  onObjectUpdated,
-		settingsMgr:      settingsMgr,
-		metricsServer:    metricsServer,
-		clusterSharding:  clusterSharding,
-		resourceTracking: resourceTracking,
+		appInformer:        appInformer,
+		db:                 db,
+		clusters:           make(map[string]clustercache.ClusterCache),
+		onObjectUpdated:    onObjectUpdated,
+		settingsMgr:        settingsMgr,
+		metricsServer:      metricsServer,
+		clusterSharding:    clusterSharding,
+		resourceTracking:   resourceTracking,
+		failedResourceGVKs: make(map[string]map[string]time.Time),
 	}
 }
 
@@ -232,6 +241,10 @@ type liveStateCache struct {
 	clusters      map[string]clustercache.ClusterCache
 	cacheSettings cacheSettings
 	lock          sync.RWMutex
+	// failedResourceGVKs keeps track of resource GVKs that failed due to conversion webhook errors
+	// The key is cluster server and the value is a map of GVK strings that failed
+	failedResourceGVKs map[string]map[string]time.Time
+	failedGVKLock     sync.RWMutex
 }
 
 func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
@@ -659,10 +672,16 @@ func (c *liveStateCache) getSyncedCluster(server *appv1.Cluster) (clustercache.C
 	if err != nil {
 		if isConversionWebhookError(err) {
 			log.WithField("cluster", server.Server).Warnf("Conversion webhook error during cluster sync, cluster cache may be incomplete: %v", err)
-			// For conversion webhook errors, we still return the cluster cache
+			// Extract the GVK from the error and track it as a failed GVK
+			gvkStr := extractGVKFromConversionWebhookError(err)
+			if gvkStr != "" {
+				c.trackFailedResourceGVK(server.Server, gvkStr)
+			}
+			// For conversion webhook errors, we return the cluster cache without an error
 			// but log the issue. This allows applications to continue with
 			// whatever state is available rather than failing completely.
-			return clusterCache, fmt.Errorf("conversion webhook error during cluster sync: %w", err)
+			// We're handling partial state in each of the methods that use getSyncedCluster
+			return clusterCache, nil
 		}
 		return nil, fmt.Errorf("error synchronizing cache state: %w", err)
 	}
@@ -693,14 +712,44 @@ func (c *liveStateCache) IsNamespaced(server *appv1.Cluster, gk schema.GroupKind
 func (c *liveStateCache) IterateHierarchyV2(server *appv1.Cluster, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
-		if isConversionWebhookError(err) {
-			log.WithField("cluster", server.Server).Warnf("Conversion webhook error in cluster cache, attempting partial operation: %v", err)
-			// For conversion webhook errors, we try to continue with a limited operation
-			// rather than failing completely. This prevents cluster-wide webhook issues
-			// from affecting all applications.
-			return nil
-		}
 		return err
+	}
+
+	// Filter out keys with GVKs that are known to fail with conversion webhook errors
+	filteredKeys := make([]kube.ResourceKey, 0, len(keys))
+	var skippedGVKs []string
+
+	for _, key := range keys {
+		// ResourceKey doesn't have Version field in kube.ResourceKey
+		// Using a wildcard for version to match any version
+		gvkStr := fmt.Sprintf("%s/*, Kind=%s", key.Group, key.Kind)
+
+		if c.isResourceGVKFailed(server.Server, gvkStr) {
+			log.WithFields(log.Fields{
+				"cluster": server.Server,
+				"gvk":     gvkStr,
+				"name":    key.Name,
+				"namespace": key.Namespace,
+			}).Debugf("Skipping resource with previously failed GVK in IterateHierarchyV2")
+			skippedGVKs = append(skippedGVKs, gvkStr)
+			continue
+		}
+
+		filteredKeys = append(filteredKeys, key)
+	}
+
+	// If all keys are filtered out due to failed GVKs, return an error
+	if len(filteredKeys) == 0 && len(keys) > 0 {
+		skippedStr := strings.Join(skippedGVKs, ", ")
+		log.WithFields(log.Fields{
+			"cluster": server.Server,
+			"skipped": skippedGVKs,
+		}).Warnf("All resource keys were filtered out due to previously failed GVKs: %s", skippedStr)
+
+		if len(skippedGVKs) > 0 {
+			return fmt.Errorf("cannot process resources because all target resources have known conversion webhook failures: %s. Check cluster status for more details", skippedStr)
+		}
+		return nil
 	}
 
 	// Wrap the cluster iteration with error recovery
@@ -710,7 +759,7 @@ func (c *liveStateCache) IterateHierarchyV2(server *appv1.Cluster, keys []kube.R
 		}
 	}()
 
-	clusterInfo.IterateHierarchyV2(keys, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
+	clusterInfo.IterateHierarchyV2(filteredKeys, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
 		return action(asResourceNode(resource, namespaceResources), getApp(resource, namespaceResources))
 	})
 	return nil
@@ -733,15 +782,6 @@ func (c *liveStateCache) IterateResources(server *appv1.Cluster, callback func(r
 func (c *liveStateCache) GetNamespaceTopLevelResources(server *appv1.Cluster, namespace string) (map[kube.ResourceKey]appv1.ResourceNode, error) {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
-		if isConversionWebhookError(err) {
-			log.WithFields(log.Fields{
-				"cluster":   server.Server,
-				"namespace": namespace,
-			}).Warnf("Conversion webhook error while getting namespace resources, returning empty result: %v", err)
-			// Return empty map instead of failing - this allows apps to continue
-			// processing even if namespace-level resource discovery fails due to webhooks
-			return make(map[kube.ResourceKey]appv1.ResourceNode), nil
-		}
 		return nil, err
 	}
 
@@ -753,27 +793,92 @@ func (c *liveStateCache) GetNamespaceTopLevelResources(server *appv1.Cluster, na
 	})
 
 	res := make(map[kube.ResourceKey]appv1.ResourceNode)
+	var skippedGVKs []string
+
+	// Filter out resources with GVKs that are known to fail with conversion webhook errors
 	for k, r := range resources {
+		gvk := r.Ref.GroupVersionKind()
+		gvkStr := fmt.Sprintf("%s/%s, Kind=%s", gvk.Group, gvk.Version, gvk.Kind)
+
+		if c.isResourceGVKFailed(server.Server, gvkStr) {
+			log.WithFields(log.Fields{
+				"cluster":   server.Server,
+				"namespace": namespace,
+				"gvk":       gvkStr,
+				"name":      r.Ref.Name,
+			}).Debugf("Skipping resource with previously failed GVK in GetNamespaceTopLevelResources")
+			skippedGVKs = append(skippedGVKs, gvkStr)
+			continue
+		}
+
 		res[k] = asResourceNode(r, namespaceResources)
 	}
+
+	// Log a warning if we skipped resources due to conversion webhook failures
+	if len(skippedGVKs) > 0 && len(resources) > 0 && len(res) == 0 {
+		skippedStr := strings.Join(skippedGVKs, ", ")
+		log.WithFields(log.Fields{
+			"cluster":   server.Server,
+			"namespace": namespace,
+			"skipped":   skippedGVKs,
+		}).Warnf("All resources were filtered out due to conversion webhook failures: %s", skippedStr)
+
+		// Only return an error if ALL resources were filtered out
+		if len(resources) > 0 && len(res) == 0 {
+			return nil, fmt.Errorf("cannot get namespace resources because all resources have known conversion webhook failures: %s. Check cluster status for more details", skippedStr)
+		}
+	}
+
 	return res, nil
 }
 
 func (c *liveStateCache) GetManagedLiveObjs(destCluster *appv1.Cluster, a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
 	clusterInfo, err := c.getSyncedCluster(destCluster)
 	if err != nil {
-		if isConversionWebhookError(err) {
-			log.WithFields(log.Fields{
-				"cluster": destCluster.Server,
-				"app":     a.Name,
-			}).Warnf("Conversion webhook error while getting managed live objects, returning empty result: %v", err)
-			// Return empty map to allow application processing to continue
-			return make(map[kube.ResourceKey]*unstructured.Unstructured), nil
-		}
 		return nil, fmt.Errorf("failed to get cluster info for %q: %w", destCluster.Server, err)
 	}
 
-	return clusterInfo.GetManagedLiveObjs(targetObjs, func(r *clustercache.Resource) bool {
+	// Filter out target objects with GVKs that are known to fail with conversion webhook errors
+	filteredTargetObjs := make([]*unstructured.Unstructured, 0, len(targetObjs))
+	var skippedGVKs []string
+
+	for _, obj := range targetObjs {
+		gvk := obj.GroupVersionKind()
+		gvkStr := fmt.Sprintf("%s/%s, Kind=%s", gvk.Group, gvk.Version, gvk.Kind)
+
+		if c.isResourceGVKFailed(destCluster.Server, gvkStr) {
+			log.WithFields(log.Fields{
+				"cluster": destCluster.Server,
+				"app":     a.Name,
+				"gvk":     gvkStr,
+			}).Debugf("Skipping resource with previously failed GVK")
+			skippedGVKs = append(skippedGVKs, gvkStr)
+			continue
+		}
+
+		filteredTargetObjs = append(filteredTargetObjs, obj)
+	}
+
+	// If we filtered out resources due to conversion webhook failures, and there are no resources left,
+	// return an error instead of proceeding with an empty list
+	if len(skippedGVKs) > 0 && len(filteredTargetObjs) == 0 && len(targetObjs) > 0 {
+		skippedStr := strings.Join(skippedGVKs, ", ")
+		log.WithFields(log.Fields{
+			"cluster": destCluster.Server,
+			"app":     a.Name,
+		}).Warnf("All target resources were filtered due to conversion webhook failures: %s", skippedStr)
+
+		return nil, fmt.Errorf("cannot sync application because all target resources have known conversion webhook failures: %s. Check cluster status for more details", skippedStr)
+	} else if len(skippedGVKs) > 0 {
+		// Some resources were filtered but not all, log a warning
+		log.WithFields(log.Fields{
+			"cluster": destCluster.Server,
+			"app":     a.Name,
+			"skipped": skippedGVKs,
+		}).Warnf("Some target resources were filtered due to conversion webhook failures")
+	}
+
+	return clusterInfo.GetManagedLiveObjs(filteredTargetObjs, func(r *clustercache.Resource) bool {
 		return resInfo(r).AppName == a.InstanceName(c.settingsMgr.GetNamespace())
 	})
 }
@@ -849,6 +954,21 @@ func (c *liveStateCache) Init() error {
 // Run watches for resource changes annotated with application label on all registered clusters and schedule corresponding app refresh.
 func (c *liveStateCache) Run(ctx context.Context) error {
 	go c.watchSettings(ctx)
+
+	// Start a ticker to periodically clean up expired failed GVKs
+	cleanupTicker := time.NewTicker(failedResourceGVKExpirationTime / 2)
+	defer cleanupTicker.Stop()
+
+	go func() {
+		for {
+			select {
+			case <-cleanupTicker.C:
+				c.cleanupExpiredFailedGVKs()
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 
 	kube.RetryUntilSucceed(ctx, clustercache.ClusterRetryTimeout, "watch clusters", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
 		return c.db.WatchClusters(ctx, c.handleAddEvent, c.handleModEvent, c.handleDeleteEvent)
@@ -943,6 +1063,9 @@ func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
 		c.lock.Lock()
 		delete(c.clusters, clusterServer)
 		c.lock.Unlock()
+
+		// Also clear any failed GVKs for the deleted cluster
+		c.clearFailedResourceGVKs(clusterServer)
 	}
 }
 
@@ -955,9 +1078,30 @@ func (c *liveStateCache) GetClustersInfo() []clustercache.ClusterInfo {
 	c.lock.RUnlock()
 
 	res := make([]clustercache.ClusterInfo, 0)
-	for server, c := range clusters {
-		info := c.GetClusterInfo()
+	for server, clusterCache := range clusters {
+		info := clusterCache.GetClusterInfo()
 		info.Server = server
+
+		// Get failed resource GVKs from our tracking
+		var failedGVKList []string
+		c.failedGVKLock.RLock()
+		if failedGVKs, ok := c.failedResourceGVKs[server]; ok {
+			for gvk := range failedGVKs {
+				failedGVKList = append(failedGVKList, gvk)
+			}
+
+			// If there are failed GVKs, modify SyncError to include this information
+			if len(failedGVKList) > 0 {
+				msg := fmt.Sprintf("Cluster has %d unavailable resource types due to conversion webhook errors", len(failedGVKList))
+				if info.SyncError == nil {
+					info.SyncError = fmt.Errorf(msg)
+				} else {
+					info.SyncError = fmt.Errorf("%s; %s", info.SyncError.Error(), msg)
+				}
+			}
+		}
+		c.failedGVKLock.RUnlock()
+
 		res = append(res, info)
 	}
 	return res
@@ -972,10 +1116,125 @@ func (c *liveStateCache) UpdateShard(shard int) bool {
 	return c.clusterSharding.UpdateShard(shard)
 }
 
+// isConversionWebhookError checks if an error is related to conversion webhooks
 func isConversionWebhookError(err error) bool {
 	if err == nil {
 		return false
 	}
 	errStr := err.Error()
 	return strings.Contains(errStr, "conversion webhook")
+}
+
+// extractGVKFromConversionWebhookError attempts to extract the GroupVersionKind from a conversion webhook error
+// Returns an empty string if no GVK could be extracted
+func extractGVKFromConversionWebhookError(err error) string {
+	if err == nil {
+		return ""
+	}
+	errStr := err.Error()
+
+	// Example error: "conversion webhook for conversion.example.com/v1, Kind=Example failed"
+	// Try to extract the GVK from the error message
+	webhookMatch := strings.Index(errStr, "conversion webhook for ")
+	if webhookMatch < 0 {
+		return ""
+	}
+
+	// Extract the text after "conversion webhook for "
+	start := webhookMatch + len("conversion webhook for ")
+	end := strings.Index(errStr[start:], " failed")
+	if end < 0 {
+		return ""
+	}
+
+	// Extract the GVK string
+	gvkStr := errStr[start : start+end]
+	return strings.TrimSpace(gvkStr)
+}
+
+// trackFailedResourceGVK adds a GVK to the failed resources map for a specific cluster
+func (c *liveStateCache) trackFailedResourceGVK(server string, gvkStr string) {
+	if gvkStr == "" {
+		return
+	}
+
+	c.failedGVKLock.Lock()
+	defer c.failedGVKLock.Unlock()
+
+	if _, ok := c.failedResourceGVKs[server]; !ok {
+		c.failedResourceGVKs[server] = make(map[string]time.Time)
+	}
+
+	// Store the time when this GVK failed so we can expire old entries
+	c.failedResourceGVKs[server][gvkStr] = time.Now()
+	log.WithFields(log.Fields{
+		"server": server,
+		"gvk":    gvkStr,
+	}).Infof("Tracked failed resource GVK due to conversion webhook error")
+}
+
+// isResourceGVKFailed checks if a resource GVK is in the failed resources map
+func (c *liveStateCache) isResourceGVKFailed(server string, gvkStr string) bool {
+	c.failedGVKLock.RLock()
+	defer c.failedGVKLock.RUnlock()
+
+	clusterFailures, ok := c.failedResourceGVKs[server]
+	if !ok {
+		return false
+	}
+
+	// Check if this GVK is in the failed map
+	_, failed := clusterFailures[gvkStr]
+	return failed
+}
+
+// clearFailedResourceGVKs clears the failed GVK tracking for a specific cluster
+// This should be called periodically or when cluster cache is invalidated
+func (c *liveStateCache) clearFailedResourceGVKs(server string) {
+	c.failedGVKLock.Lock()
+	defer c.failedGVKLock.Unlock()
+
+	delete(c.failedResourceGVKs, server)
+}
+
+// cleanupExpiredFailedGVKs removes expired entries from the failed GVKs cache
+// This should be called periodically to avoid the cache growing too large
+func (c *liveStateCache) cleanupExpiredFailedGVKs() {
+	c.failedGVKLock.Lock()
+	defer c.failedGVKLock.Unlock()
+
+	now := time.Now()
+	expiredServers := make([]string, 0)
+
+	// For each cluster server
+	for server, gvks := range c.failedResourceGVKs {
+		expiredGVKs := make([]string, 0)
+
+		// Find expired GVKs
+		for gvkStr, timestamp := range gvks {
+			if now.Sub(timestamp) > failedResourceGVKExpirationTime {
+				expiredGVKs = append(expiredGVKs, gvkStr)
+			}
+		}
+
+		// Remove expired GVKs
+		for _, gvkStr := range expiredGVKs {
+			delete(gvks, gvkStr)
+			log.WithFields(log.Fields{
+				"server": server,
+				"gvk":    gvkStr,
+			}).Debug("Removed expired failed resource GVK")
+		}
+
+		// If all GVKs for this cluster have been removed, mark the server for removal
+		if len(gvks) == 0 {
+			expiredServers = append(expiredServers, server)
+		}
+	}
+
+	// Remove empty server entries
+	for _, server := range expiredServers {
+		delete(c.failedResourceGVKs, server)
+		log.WithField("server", server).Debug("Removed empty failed resource GVK tracking for cluster")
+	}
 }
