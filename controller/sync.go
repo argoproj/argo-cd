@@ -436,7 +436,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 //   - copies ignored fields from the matching live resources: apply normalizer to the live resource,
 //     calculates the patch performed by normalizer and applies the patch to the target resource
 func normalizeTargetResources(openAPISchema openapi.Resources, cr *comparisonResult) ([]*unstructured.Unstructured, error) {
-	// Normalize both live and target resources
+	// Normalize live and target resources (cleaning or aligning them)
 	normalized, err := diff.Normalize(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
 	if err != nil {
 		return nil, err
@@ -453,8 +453,8 @@ func normalizeTargetResources(openAPISchema openapi.Resources, cr *comparisonRes
 		}
 
 		originalTarget := cr.reconciliationResult.Target[idx]
-
 		if live == nil {
+			// No live resource, just use target
 			patchedTargets = append(patchedTargets, originalTarget)
 			continue
 		}
@@ -464,7 +464,7 @@ func normalizeTargetResources(openAPISchema openapi.Resources, cr *comparisonRes
 			versionedObject any
 		)
 
-		// Try built-in types first
+		// Load patch meta struct or OpenAPI schema for CRDs
 		if obj, err := scheme.Scheme.New(gvk); err == nil {
 			var meta strategicpatch.PatchMetaFromStruct
 			if meta, err = strategicpatch.NewPatchMetaFromStruct(obj); err != nil {
@@ -473,7 +473,6 @@ func normalizeTargetResources(openAPISchema openapi.Resources, cr *comparisonRes
 			lookupPatchMeta = meta
 			versionedObject = obj
 		} else if crdSchema := openAPISchema.LookupResource(gvk); crdSchema != nil {
-			// For CRDs, use OpenAPI schema
 			lookupPatchMeta = strategicpatch.NewPatchMetaFromOpenAPI(crdSchema)
 		}
 
@@ -507,7 +506,7 @@ func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMet
 		return nil, err
 	}
 	if lookupPatchMeta != nil {
-		return strategicpatch.CreateThreeWayMergePatch(modifiedJSON, modifiedJSON, originalJSON, lookupPatchMeta, true)
+		return strategicpatch.CreateThreeWayMergePatch(originalJSON, modifiedJSON, originalJSON, lookupPatchMeta, true)
 	}
 
 	return jsonpatch.CreateMergePatch(originalJSON, modifiedJSON)

@@ -38,4 +38,10 @@ var (
 
 	//go:embed simple-app-target.yaml
 	SimpleAppTargetYaml string
+
+	//go:embed target-rollout.yaml
+	TargetRolloutYaml string
+
+	//go:embed live-rollout.yaml
+	LiveRolloutYaml string
 )

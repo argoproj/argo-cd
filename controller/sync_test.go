@@ -540,7 +540,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	}
 
 	t.Run("will properly ignore nested fields within arrays", func(t *testing.T) {
-		doc := loadCRDSchema(t, "testdata/httpproxy_openapi_v2.yaml")
+		doc := loadCRDSchema(t, "testdata/schemas/httpproxy_openapi_v2.yaml")
 		disco := &fakeDiscovery{schema: doc}
 		oapiGetter := openapi.NewOpenAPIGetter(disco)
 		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
@@ -709,7 +709,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	})
 
 	t.Run("patches ignored differences in individual array elements of HTTPProxy CRD", func(t *testing.T) {
-		doc := loadCRDSchema(t, "testdata/httpproxy_openapi_v2.yaml")
+		doc := loadCRDSchema(t, "testdata/schemas/httpproxy_openapi_v2.yaml")
 		disco := &fakeDiscovery{schema: doc}
 		oapiGetter := openapi.NewOpenAPIGetter(disco)
 		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
@@ -777,7 +777,7 @@ func TestNormalizeTargetResourcesCRDs(t *testing.T) {
 	}
 
 	t.Run("sample-app", func(t *testing.T) {
-		doc := loadCRDSchema(t, "testdata/simple-app.yaml")
+		doc := loadCRDSchema(t, "testdata/schemas/simple-app.yaml")
 		disco := &fakeDiscovery{schema: doc}
 		oapiGetter := openapi.NewOpenAPIGetter(disco)
 		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
@@ -828,6 +828,53 @@ func TestNormalizeTargetResourcesCRDs(t *testing.T) {
 		// second server's 'enabled' should be true (respected from live due to ignoreDifferences)
 		enabled2 := dig(patched.Object, "spec", "servers", 1, "enabled").(bool)
 		assert.True(t, enabled2)
+	})
+	t.Run("rollout-obj", func(t *testing.T) {
+		// Load Rollout CRD schema like SimpleApp
+		doc := loadCRDSchema(t, "testdata/schemas/rollout-schema.yaml")
+		disco := &fakeDiscovery{schema: doc}
+		oapiGetter := openapi.NewOpenAPIGetter(disco)
+		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
+		require.NoError(t, err)
+
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "argoproj.io",
+				Kind:              "Rollout",
+				JQPathExpressions: []string{`.spec.template.spec.containers[] | select(.name == "init") | .image`},
+			},
+		}
+
+		f := setupHTTPProxy(t, ignores)
+
+		live := test.YamlToUnstructured(testdata.LiveRolloutYaml)
+		target := test.YamlToUnstructured(testdata.TargetRolloutYaml)
+		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		targets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		patched := targets[0]
+		require.NotNil(t, patched)
+
+		containers := dig(patched.Object, "spec", "template", "spec", "containers").([]any)
+		require.Len(t, containers, 2)
+
+		initContainer := containers[0].(map[string]interface{})
+		mainContainer := containers[1].(map[string]interface{})
+
+		// Assert init container image is preserved (ignoreDifferences works)
+		initImage := dig(initContainer, "image").(string)
+		assert.Equal(t, "init-container:v1", initImage)
+
+		// Assert main container fields as expected
+		mainName := dig(mainContainer, "name").(string)
+		assert.Equal(t, "main", mainName)
+
+		mainImage := dig(mainContainer, "image").(string)
+		assert.Equal(t, "main-container:v1", mainImage)
 	})
 }
 
