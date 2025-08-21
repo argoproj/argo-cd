@@ -42,6 +42,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 		{nil, nil, v1alpha1.ConnectionStatusUnknown},
 		{&now, nil, v1alpha1.ConnectionStatusSuccessful},
 		{&now, errors.New("sync failed"), v1alpha1.ConnectionStatusFailed},
+		{&now, errors.New("Cluster has 1 unavailable resource types due to conversion webhook errors"), v1alpha1.ConnectionStatusDegraded},
 	}
 
 	emptyArgoCDConfigMap := &corev1.ConfigMap{
@@ -98,6 +99,11 @@ func TestClusterSecretUpdater(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, updatedK8sVersion, clusterInfo.ServerVersion)
 		assert.Equal(t, test.ExpectedStatus, clusterInfo.ConnectionState.Status)
+		
+		// For degraded state, verify that the error message indicates conversion webhook errors
+		if test.ExpectedStatus == v1alpha1.ConnectionStatusDegraded {
+			assert.Contains(t, clusterInfo.ConnectionState.Message, "unavailable resource types")
+		}
 	}
 }
 
