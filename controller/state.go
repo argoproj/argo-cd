@@ -695,11 +695,29 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		if isConversionWebhookError(err) {
 			logCtx.Warnf("Conversion webhook error while getting managed live objects, continuing with empty live state: %v", err)
 			liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
-			conditions = append(conditions, v1alpha1.ApplicationCondition{
-				Type:               v1alpha1.ApplicationConditionComparisonError,
-				Message:            fmt.Sprintf("Conversion webhook error while retrieving live state: %v", err),
-				LastTransitionTime: &now,
-			})
+
+			// Extract more detailed information from the error message for better diagnostics
+			errorMsg := err.Error()
+			if strings.Contains(errorMsg, "cannot sync application because all target resources have known conversion webhook failures") {
+				// More detailed error message
+				conditions = append(conditions, v1alpha1.ApplicationCondition{
+					Type:               v1alpha1.ApplicationConditionComparisonError,
+					Message:            fmt.Sprintf("This application cannot be synced because it contains resources with conversion webhook failures: %v. Check cluster status for more details about the affected resource types.", errorMsg),
+					LastTransitionTime: &now,
+				})
+			} else if strings.Contains(errorMsg, "conversion webhook") || strings.Contains(errorMsg, "unavailable resource types") {
+				conditions = append(conditions, v1alpha1.ApplicationCondition{
+					Type:               v1alpha1.ApplicationConditionComparisonError,
+					Message:            fmt.Sprintf("Application contains resources affected by conversion webhook failures. Some resources may not be properly synchronized. Check cluster status for more details about the affected resource types."),
+					LastTransitionTime: &now,
+				})
+			} else {
+				conditions = append(conditions, v1alpha1.ApplicationCondition{
+					Type:               v1alpha1.ApplicationConditionComparisonError,
+					Message:            fmt.Sprintf("Error retrieving live state: %v", err),
+					LastTransitionTime: &now,
+				})
+			}
 			// Don't set failedToLoadObjs = true here to allow processing to continue
 		} else {
 			liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
@@ -795,6 +813,17 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 
 	reconciliation := sync.Reconcile(targetObjsForSync, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
+
+	// Check if the app has conversion webhook error conditions
+	hasConversionWebhookIssues := false
+	for _, condition := range app.Status.Conditions {
+		if condition.Type == v1alpha1.ApplicationConditionComparisonError &&
+		   (strings.Contains(condition.Message, "conversion webhook") || strings.Contains(condition.Message, "unavailable resource types")) {
+			hasConversionWebhookIssues = true
+			break
+		}
+	}
+
 	ts.AddCheckpoint("live_ms")
 
 	compareOptions, err := m.settingsMgr.GetResourceCompareOptions()
@@ -975,6 +1004,14 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	if failedToLoadObjs {
 		syncCode = v1alpha1.SyncStatusCodeUnknown
+	} else if hasConversionWebhookIssues && len(targetObjs) == 0 {
+		// If we have conversion webhook issues and no target objects successfully loaded,
+		// the sync status should be Unknown since we can't determine real state
+		syncCode = v1alpha1.SyncStatusCodeUnknown
+	} else if hasConversionWebhookIssues {
+		// If we have conversion webhook issues but some targets loaded, mark as OutOfSync
+		// This ensures the user knows something needs attention
+		syncCode = v1alpha1.SyncStatusCodeOutOfSync
 	} else if app.HasChangedManagedNamespaceMetadata() {
 		syncCode = v1alpha1.SyncStatusCodeOutOfSync
 	}

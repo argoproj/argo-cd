@@ -2229,6 +2229,12 @@ const (
 	ConnectionStatusFailed = "Failed"
 	// ConnectionStatusUnknown indicates that the connection status could not be reliably determined
 	ConnectionStatusUnknown = "Unknown"
+	// ConnectionStatusDegraded indicates that a connection has been established but some resources are unavailable
+	// When this status is set, the UI should:
+	// 1. Display the cluster with a "Degraded" badge in the settings/clusters list
+	// 2. Show details of unavailable resource types in the connection details dialog
+	// 3. Display the count of unavailable resource types in the cache info section
+	ConnectionStatusDegraded = "Degraded"
 )
 
 // ConnectionState contains information about remote resource connection state, currently used for clusters and repositories
@@ -2372,6 +2378,10 @@ type ClusterCacheInfo struct {
 	APIsCount int64 `json:"apisCount,omitempty" protobuf:"bytes,2,opt,name=apisCount"`
 	// LastCacheSyncTime holds time of most recent cache synchronization
 	LastCacheSyncTime *metav1.Time `json:"lastCacheSyncTime,omitempty" protobuf:"bytes,3,opt,name=lastCacheSyncTime"`
+	// FailedResourceGVKs contains a list of GroupVersionKind strings that had conversion webhook failures
+	// UI should display these GVKs in the cluster details page under "Unavailable Resources"
+	// When this list is not empty, the cluster connection status should be set to "Degraded"
+	FailedResourceGVKs []string `json:"failedResourceGVKs,omitempty" protobuf:"bytes,4,opt,name=failedResourceGVKs"`
 }
 
 // ClusterList is a collection of Clusters.
