@@ -952,3 +952,201 @@ func Test_asResourceNode_same_namespace_parent(t *testing.T) {
 	assert.Equal(t, "my-deployment", resNode.ParentRefs[0].Name)
 	assert.Equal(t, "my-namespace", resNode.ParentRefs[0].Namespace, "Deployment parent should have same namespace")
 }
+
+func TestConversionWebhookGVKTracking(t *testing.T) {
+	// Create a test liveStateCache
+	c := &liveStateCache{
+		clusters:           make(map[string]clustercache.ClusterCache),
+		failedResourceGVKs: make(map[string]map[string]time.Time),
+	}
+
+	// Test server and GVK strings
+	server := "test-server"
+	gvkStr1 := "example.com/v1, Kind=Example"
+	gvkStr2 := "example.com/v2, Kind=AnotherExample"
+
+	// Test tracking a failed GVK
+	c.trackFailedResourceGVK(server, gvkStr1)
+	assert.True(t, c.isResourceGVKFailed(server, gvkStr1), "GVK should be tracked as failed")
+	assert.False(t, c.isResourceGVKFailed(server, gvkStr2), "Untracked GVK should not be marked as failed")
+	assert.False(t, c.isResourceGVKFailed("another-server", gvkStr1), "GVK should not be tracked for a different server")
+
+	// Test tracking multiple GVKs
+	c.trackFailedResourceGVK(server, gvkStr2)
+	assert.True(t, c.isResourceGVKFailed(server, gvkStr1), "First GVK should still be tracked")
+	assert.True(t, c.isResourceGVKFailed(server, gvkStr2), "Second GVK should also be tracked")
+
+	// Test clearing failed GVKs
+	c.clearFailedResourceGVKs(server)
+	assert.False(t, c.isResourceGVKFailed(server, gvkStr1), "GVK should no longer be tracked after clearing")
+	assert.False(t, c.isResourceGVKFailed(server, gvkStr2), "GVK should no longer be tracked after clearing")
+}
+
+func TestExtractGVKFromConversionWebhookError(t *testing.T) {
+	testCases := []struct {
+		name           string
+		errorMsg       string
+		expectedGVKStr string
+	}{
+		{
+			name:           "typical conversion webhook error",
+			errorMsg:       "failed to sync cluster: failed to load initial state of resource Example.conversion.example.com: conversion webhook for conversion.example.com/v1, Kind=Example failed: Post \"https://conversion-webhook-service.webhook-system.svc:443/convert?timeout=30s\": service \"conversion-webhook-service\" not found",
+			expectedGVKStr: "conversion.example.com/v1, Kind=Example",
+		},
+		{
+			name:           "error with list operation",
+			errorMsg:       "failed to list resources: conversion webhook for conversion.example.com/v1, Kind=Example failed: Post \"https://conversion-webhook-service.webhook-system.svc:443/convert?timeout=30s\": service \"conversion-webhook-service\" not found",
+			expectedGVKStr: "conversion.example.com/v1, Kind=Example",
+		},
+		{
+			name:           "non-conversion webhook error",
+			errorMsg:       "failed to sync cluster: some other error",
+			expectedGVKStr: "",
+		},
+		{
+			name:           "nil error",
+			errorMsg:       "",
+			expectedGVKStr: "",
+		},
+		{
+			name:           "malformed conversion webhook error",
+			errorMsg:       "conversion webhook for failed somehow",
+			expectedGVKStr: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var err error
+			if tc.errorMsg != "" {
+				err = errors.New(tc.errorMsg)
+			}
+			gvkStr := extractGVKFromConversionWebhookError(err)
+			assert.Equal(t, tc.expectedGVKStr, gvkStr)
+		})
+	}
+}
+
+// Test that isConversionWebhookError correctly identifies conversion webhook errors
+func TestIsConversionWebhookError(t *testing.T) {
+	testCases := []struct {
+		name        string
+		errorMsg    string
+		expectMatch bool
+	}{
+		{
+			name:        "conversion webhook error",
+			errorMsg:    "failed to sync cluster: failed to load initial state of resource: conversion webhook for example.com/v1, Kind=Test failed: Post error",
+			expectMatch: true,
+		},
+		{
+			name:        "list error with conversion webhook",
+			errorMsg:    "failed to list resources: conversion webhook for example.com/v1, Kind=Test failed: Post error",
+			expectMatch: true,
+		},
+		{
+			name:        "other error",
+			errorMsg:    "failed to sync cluster: connection refused",
+			expectMatch: false,
+		},
+		{
+			name:        "nil error",
+			errorMsg:    "",
+			expectMatch: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var err error
+			if tc.errorMsg != "" {
+				err = errors.New(tc.errorMsg)
+			}
+			result := isConversionWebhookError(err)
+			assert.Equal(t, tc.expectMatch, result)
+		})
+	}
+}
+
+func TestCleanupExpiredFailedGVKs(t *testing.T) {
+	// Create a test liveStateCache
+	c := &liveStateCache{
+		clusters:           make(map[string]clustercache.ClusterCache),
+		failedResourceGVKs: make(map[string]map[string]time.Time),
+	}
+
+	// Test server and GVK strings
+	server1 := "test-server-1"
+	server2 := "test-server-2"
+	gvkStr1 := "example.com/v1, Kind=Example"
+	gvkStr2 := "example.com/v2, Kind=AnotherExample"
+
+	// Set up test data with different timestamps
+	now := time.Now()
+	expired := now.Add(-failedResourceGVKExpirationTime * 2)
+
+	// Track some GVKs with different timestamps
+	c.failedGVKLock.Lock()
+	c.failedResourceGVKs[server1] = map[string]time.Time{
+		gvkStr1: expired, // This one should be cleaned up
+		gvkStr2: now,     // This one should remain
+	}
+	c.failedResourceGVKs[server2] = map[string]time.Time{
+		gvkStr1: expired, // All entries for server2 should be cleaned up
+	}
+	c.failedGVKLock.Unlock()
+
+	// Run the cleanup
+	c.cleanupExpiredFailedGVKs()
+
+	// Check that expired entries were removed but recent ones remain
+	assert.False(t, c.isResourceGVKFailed(server1, gvkStr1), "Expired GVK should have been cleaned up")
+	assert.True(t, c.isResourceGVKFailed(server1, gvkStr2), "Recent GVK should still be tracked")
+
+	// Check that server2 was completely removed since all its entries expired
+	c.failedGVKLock.RLock()
+	_, server2Exists := c.failedResourceGVKs[server2]
+	c.failedGVKLock.RUnlock()
+	assert.False(t, server2Exists, "Server with all expired GVKs should have been removed")
+}
+
+func TestGetClustersInfoWithFailedGVKs(t *testing.T) {
+	// Create a test liveStateCache
+	mockCache := &mocks.ClusterCache{}
+	clusterInfo := clustercache.ClusterInfo{
+		Server:     "test-server",
+		K8SVersion: "1.26.0",
+	}
+	mockCache.On("GetClusterInfo").Return(clusterInfo)
+
+	c := &liveStateCache{
+		clusters: map[string]clustercache.ClusterCache{
+			"test-server": mockCache,
+		},
+		failedResourceGVKs: make(map[string]map[string]time.Time),
+	}
+
+	// Add failed GVKs
+	gvkStr1 := "example.com/v1, Kind=Example"
+	gvkStr2 := "example.com/v2, Kind=AnotherExample"
+	c.failedGVKLock.Lock()
+	c.failedResourceGVKs["test-server"] = map[string]time.Time{
+		gvkStr1: time.Now(),
+		gvkStr2: time.Now(),
+	}
+	c.failedGVKLock.Unlock()
+
+	// Get cluster info
+	infos := c.GetClustersInfo()
+
+	// Verify that the failed GVKs are included in the cluster info
+	require.Equal(t, 1, len(infos), "Should have info for one cluster")
+	info := infos[0]
+	assert.Equal(t, "test-server", info.Server)
+	assert.Equal(t, "1.26.0", info.K8SVersion)
+
+	// Verify failed GVKs are included
+	assert.Contains(t, info.FailedResourceGVKs, gvkStr1)
+	assert.Contains(t, info.FailedResourceGVKs, gvkStr2)
+	assert.Equal(t, 2, len(info.FailedResourceGVKs), "Should have 2 failed GVKs")
+}

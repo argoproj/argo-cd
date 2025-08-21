@@ -1884,7 +1884,37 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.ReconciledAt = &now
 	}
 	app.Status.Sync = *compareResult.syncStatus
-	app.Status.Health.Status = compareResult.healthStatus
+	// Check both for conversion webhook errors in app state and compareResult conditions
+	hasConversionIssues := hasConversionWebhookErrors(app)
+	
+	// Also check if compareResult detected conversion webhook errors during refresh
+	// This helps identify conversion webhook errors during refresh operations
+	for _, condition := range app.Status.Conditions {
+		if condition.Type == appv1.ApplicationConditionComparisonError && 
+		   (strings.Contains(condition.Message, "conversion webhook") || 
+		    strings.Contains(condition.Message, "known conversion webhook failures") || 
+		    strings.Contains(condition.Message, "unavailable resource types")) {
+			hasConversionIssues = true
+			break
+		}
+	}
+	
+	// Also check resources for conversion webhook errors
+	for _, res := range app.Status.Resources {
+		if res.Health != nil && res.Health.Message != "" && 
+		   (strings.Contains(res.Health.Message, "conversion webhook") || 
+		    strings.Contains(res.Health.Message, "unavailable resource types")) {
+			hasConversionIssues = true
+			break
+		}
+	}
+	
+	// If the application has conversion webhook errors, set health status to degraded
+	if hasConversionIssues {
+		app.Status.Health.Status = health.HealthStatusDegraded
+	} else {
+		app.Status.Health.Status = compareResult.healthStatus
+	}
 	app.Status.Resources = compareResult.resources
 	sort.Slice(app.Status.Resources, func(i, j int) bool {
 		return resourceStatusKey(app.Status.Resources[i]) < resourceStatusKey(app.Status.Resources[j])
@@ -2062,6 +2092,36 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		return true, refreshType, compareWith
 	}
 	return false, refreshType, compareWith
+}
+
+// hasConversionWebhookErrors checks if the application has conversion webhook errors
+// in either its sync results or conditions
+func hasConversionWebhookErrors(app *appv1.Application) bool {
+	// Check operation state for conversion webhook errors
+	if app.Status.OperationState != nil {
+		if strings.Contains(app.Status.OperationState.Message, "conversion webhook") || strings.Contains(app.Status.OperationState.Message, "known conversion webhook failures") || strings.Contains(app.Status.OperationState.Message, "unavailable resource types") {
+			return true
+		}
+		// Also check sync result resources
+		if app.Status.OperationState.SyncResult != nil {
+			for _, res := range app.Status.OperationState.SyncResult.Resources {
+				if strings.Contains(res.Message, "conversion webhook") || strings.Contains(res.Message, "known conversion webhook failures") || strings.Contains(res.Message, "unavailable resource types") {
+					return true
+				}
+			}
+		}
+	}
+
+	// Check application conditions
+	for _, condition := range app.Status.Conditions {
+		if (condition.Type == appv1.ApplicationConditionComparisonError || 
+		    condition.Type == appv1.ApplicationConditionSyncError) && 
+		    (strings.Contains(condition.Message, "conversion webhook") || strings.Contains(condition.Message, "known conversion webhook failures") || strings.Contains(condition.Message, "unavailable resource types")) {
+			return true
+		}
+	}
+	
+	return false
 }
 
 func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) (*appv1.AppProject, bool) {
