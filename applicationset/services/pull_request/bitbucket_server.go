@@ -49,10 +49,11 @@ func NewBitbucketServiceNoAuth(ctx context.Context, url, projectKey, repositoryS
 }
 
 func newBitbucketService(ctx context.Context, bitbucketConfig *bitbucketv1.Configuration, projectKey, repositorySlug string, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
-	bitbucketConfig.BasePath = utils.NormalizeBitbucketBasePath(bitbucketConfig.BasePath)
+	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tlsConfig := utils.GetTlsConfig(scmRootCAPath, insecure, caCerts)
-	bitbucketConfig.HTTPClient = &http.Client{Transport: http.DefaultTransport.(*http.Transport).Clone()}
-	bitbucketConfig.HTTPClient.Transport.(*http.Transport).TLSClientConfig = tlsConfig
+	tr.TLSClientConfig = tlsConfig
+	bitbucketConfig.HTTPClient = &http.Client{Transport: tr}
+	bitbucketConfig.BasePath = utils.NormalizeBitbucketBasePath(bitbucketConfig.BasePath)
 	bitbucketClient := bitbucketv1.NewAPIClient(ctx, bitbucketConfig)
 
 	return &BitbucketService{
