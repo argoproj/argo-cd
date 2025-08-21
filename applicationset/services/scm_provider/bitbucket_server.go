@@ -7,9 +7,10 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	bitbucketv1 "github.com/gfleury/go-bitbucket-v1"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/v3/applicationset/services"
 )
 
 type BitbucketServerProvider struct {

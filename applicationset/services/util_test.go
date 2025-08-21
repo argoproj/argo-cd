@@ -32,6 +32,6 @@ func TestSetupBitbucketClient(t *testing.T) {
 
 	// Defaults from http.DefaultTransport.Clone() should be preserved
 	require.Greater(t, tr.IdleConnTimeout, time.Duration(0), "IdleConnTimeout should be non-zero")
-	require.Greater(t, tr.MaxIdleConns, 0, "MaxIdleConns should be non-zero")
+	require.Positive(t, tr.MaxIdleConns, "MaxIdleConns should be non-zero")
 	require.Greater(t, tr.TLSHandshakeTimeout, time.Duration(0), "TLSHandshakeTimeout should be non-zero")
 }
