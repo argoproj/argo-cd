@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -121,14 +120,13 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 
 	logCtx.Debug("Clearing and preparing paths")
 	for _, p := range r.Paths {
-		targetPath := filepath.Join(dirPath, p.Path)
-
 		if p.Path == "" || p.Path == "." {
 			logCtx.Debug("Using root directory for manifests, no directory removal needed")
 		} else {
-			logCtx.Debugf("Clearing path %s", targetPath)
-			if err := os.RemoveAll(targetPath); err != nil {
-				return "", "", fmt.Errorf("failed to clear path %s: %w", targetPath, err)
+			logCtx.Debugf("Clearing path %s", p.Path)
+			out, err := gitClient.RemoveContents(p.Path)
+			if err != nil {
+				return out, "", fmt.Errorf("failed to clear path %s: %w", p.Path, err)
 			}
 		}
 	}
