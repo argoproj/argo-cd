@@ -385,7 +385,7 @@ jobs:
         run: |
           go tool covdata percent -i=test-results,e2e-code-coverage/applicationset-controller,e2e-code-coverage/repo-server,e2e-code-coverage/app-controller,e2e-code-coverage/commit-server -o test-results/full-coverage.out
       - name: Upload code coverage information to codecov.io
-        uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
+        uses: codecov/codecov-action@fdcc8476540edceab3de004e990f80d881c6cc00 # v5.5.0
         with:
           files: test-results/full-coverage.out
           fail_ci_if_error: true
