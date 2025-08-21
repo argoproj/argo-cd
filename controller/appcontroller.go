@@ -2092,23 +2092,6 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	return patchDuration
 }
 
-func hasNewRevisionsToResync(app *appv1.Application) bool {
-	if app.Spec.SyncPolicy == nil || !app.Spec.SyncPolicy.IsAutomatedSyncEnabled() {
-		return false
-	}
-
-	desiredRevisions := []string{app.Status.Sync.Revision}
-	if app.Spec.HasMultipleSources() {
-		desiredRevisions = app.Status.Sync.Revisions
-	}
-
-	alreadyAttempted, lastRevs, _ := alreadyAttemptedSync(app, desiredRevisions, true)
-	if !alreadyAttempted && len(lastRevs) != 0 {
-		return true
-	}
-	return false
-}
-
 // autoSync will initiate a sync operation for an application configured with automated sync
 func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus, shouldCompareRevisions bool) (*appv1.ApplicationCondition, time.Duration) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
