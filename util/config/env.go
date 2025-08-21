@@ -38,36 +38,41 @@ func LoadFlags() error {
 	for _, opt := range opts {
 		switch {
 		case strings.HasPrefix(opt, "--"):
+			// Commit previous pending key with "true"
 			if key != "" {
 				flags[key] = "true"
 				multiFlags[key] = append(multiFlags[key], "true")
+				key = ""
 			}
-			key = strings.TrimPrefix(opt, "--")
+
+			// Check if flag is in --key=value form
+			kv := strings.SplitN(strings.TrimPrefix(opt, "--"), "=", 2)
+			if len(kv) == 2 {
+				k, v := kv[0], kv[1]
+				flags[k] = v
+				multiFlags[k] = append(multiFlags[k], v)
+			} else {
+				// Save key and wait for value in next token
+				key = kv[0]
+			}
+
 		case key != "":
+			// Assign value to previous key
 			flags[key] = opt
 			multiFlags[key] = append(multiFlags[key], opt)
 			key = ""
+
 		default:
 			return errors.New("ARGOCD_OPTS invalid at '" + opt + "'")
 		}
 	}
 
+	// If last key was standalone, treat as bool flag
 	if key != "" {
 		flags[key] = "true"
 		multiFlags[key] = append(multiFlags[key], "true")
 	}
 
-	// Handle --foo=bar form
-	for k, v := range flags {
-		if strings.Contains(k, "=") && v == "true" {
-			kv := strings.SplitN(k, "=", 2)
-			actualKey, actualValue := kv[0], kv[1]
-			if _, ok := flags[actualKey]; !ok {
-				flags[actualKey] = actualValue
-			}
-			multiFlags[actualKey] = append(multiFlags[actualKey], actualValue)
-		}
-	}
 	return nil
 }
 
