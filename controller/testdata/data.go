@@ -32,4 +32,10 @@ var (
 
 	//go:embed additional-image-replicas-deployment.yaml
 	AdditionalImageReplicaDeploymentYaml string
+
+	//go:embed simple-app-live.yaml
+	SimpleAppLiveYaml string
+
+	//go:embed simple-app-target.yaml
+	SimpleAppTargetYaml string
 )

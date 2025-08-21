@@ -39,10 +39,10 @@ func (f *fakeDiscovery) OpenAPISchema() (*openapi_v2.Document, error) {
 	return f.schema, nil
 }
 
-func loadHTTPProxySchema(t *testing.T) *openapi_v2.Document {
+func loadCRDSchema(t *testing.T, path string) *openapi_v2.Document {
 	t.Helper()
 
-	data, err := os.ReadFile("testdata/httpproxy_openapi_v2.yaml")
+	data, err := os.ReadFile(path)
 	require.NoError(t, err)
 
 	jsonData, err := yaml.YAMLToJSON(data)
@@ -50,7 +50,6 @@ func loadHTTPProxySchema(t *testing.T) *openapi_v2.Document {
 
 	doc, err := openapi_v2.ParseDocument(jsonData)
 	require.NoError(t, err)
-	fmt.Printf("definitions: %+v\n", doc.Definitions)
 
 	return doc
 }
@@ -541,7 +540,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	}
 
 	t.Run("will properly ignore nested fields within arrays", func(t *testing.T) {
-		doc := loadHTTPProxySchema(t)
+		doc := loadCRDSchema(t, "testdata/httpproxy_openapi_v2.yaml")
 		disco := &fakeDiscovery{schema: doc}
 		oapiGetter := openapi.NewOpenAPIGetter(disco)
 		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
@@ -710,7 +709,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	})
 
 	t.Run("patches ignored differences in individual array elements of HTTPProxy CRD", func(t *testing.T) {
-		doc := loadHTTPProxySchema(t)
+		doc := loadCRDSchema(t, "testdata/httpproxy_openapi_v2.yaml")
 		disco := &fakeDiscovery{schema: doc}
 		oapiGetter := openapi.NewOpenAPIGetter(disco)
 		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
@@ -750,6 +749,85 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		requestHeader := entry["requestHeader"].(map[string]interface{})
 		assert.Equal(t, "sample-header", requestHeader["headerName"])
 		assert.Equal(t, "sample-key", requestHeader["descriptorKey"])
+	})
+}
+
+func TestNormalizeTargetResourcesCRDs(t *testing.T) {
+	type fixture struct {
+		comparisonResult *comparisonResult
+	}
+	setupHTTPProxy := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
+		t.Helper()
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		live := test.YamlToUnstructured(testdata.SimpleAppLiveYaml)
+		target := test.YamlToUnstructured(testdata.SimpleAppTargetYaml)
+		return &fixture{
+			&comparisonResult{
+				reconciliationResult: sync.ReconciliationResult{
+					Live:   []*unstructured.Unstructured{live},
+					Target: []*unstructured.Unstructured{target},
+				},
+				diffConfig: dc,
+			},
+		}
+	}
+
+	t.Run("sample-app", func(t *testing.T) {
+		doc := loadCRDSchema(t, "testdata/simple-app.yaml")
+		disco := &fakeDiscovery{schema: doc}
+		oapiGetter := openapi.NewOpenAPIGetter(disco)
+		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
+		require.NoError(t, err)
+
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "example.com",
+				Kind:              "SimpleApp",
+				JQPathExpressions: []string{".spec.servers[1].enabled", ".spec.servers[0].port"},
+			},
+		}
+
+		f := setupHTTPProxy(t, ignores)
+
+		target := test.YamlToUnstructured(testdata.SimpleAppTargetYaml)
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		live := test.YamlToUnstructured(testdata.SimpleAppLiveYaml)
+		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+
+		patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
+		require.NoError(t, err)
+		require.Len(t, patchedTargets, 1)
+
+		patched := patchedTargets[0]
+		require.NotNil(t, patched)
+
+		// 'spec.servers' array has length 2
+		servers := dig(patched.Object, "spec", "servers").([]any)
+		require.Len(t, servers, 2)
+
+		// first server's 'name' is 'server1'
+		name1 := dig(patched.Object, "spec", "servers", 0, "name").(string)
+		assert.Equal(t, "server1", name1)
+
+		assert.Equal(t, int64(8081), dig(patched.Object, "spec", "servers", 0, "port").(int64))
+		assert.Equal(t, int64(9090), dig(patched.Object, "spec", "servers", 1, "port").(int64))
+
+		// first server's 'enabled' should be true
+		enabled1 := dig(patched.Object, "spec", "servers", 0, "enabled").(bool)
+		assert.True(t, enabled1)
+
+		// second server's 'name' should be 'server2'
+		name2 := dig(patched.Object, "spec", "servers", 1, "name").(string)
+		assert.Equal(t, "server2", name2)
+
+		// second server's 'enabled' should be true (respected from live due to ignoreDifferences)
+		enabled2 := dig(patched.Object, "spec", "servers", 1, "enabled").(bool)
+		assert.True(t, enabled2)
 	})
 }
 
