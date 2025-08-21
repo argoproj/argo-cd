@@ -58,14 +58,14 @@ const sectionHeader = (info: SectionInfo, onClick?: () => any) => {
     );
 };
 
-const hasRollingSyncEnabled = (application: models.Application): boolean => {
+const hasApplicationSetParent = (application: models.Application): boolean => {
     // Only show Progressive Sync for applications that have an ApplicationSet owner reference
     // The actual strategy validation is done in the ProgressiveSyncStatus component
     return application.metadata.ownerReferences?.some(ref => ref.kind === 'ApplicationSet') || false;
 };
 
 const ProgressiveSyncStatus = ({application}: {application: models.Application}) => {
-    if (!hasRollingSyncEnabled(application)) {
+    if (!hasApplicationSetParent(application)) {
         return null;
     }
 
@@ -162,7 +162,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
     const [showProgressiveSync, setShowProgressiveSync] = React.useState(false);
 
     React.useEffect(() => {
-        setShowProgressiveSync(hasRollingSyncEnabled(application));
+        setShowProgressiveSync(hasApplicationSetParent(application));
     }, [application]);
 
     const today = new Date();
