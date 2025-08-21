@@ -691,7 +691,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(destCluster, app, targetObjs)
 	if err != nil {
-		// CONVERSION WEBHOOK FIX: Handle conversion webhook errors gracefully
+		// Handle cluster cache errors gracefully - this includes conversion webhook errors,
+		// pagination token expiration, and other issues that might result in partial data
 		if isConversionWebhookError(err) {
 			logCtx.Warnf("Conversion webhook error while getting managed live objects, continuing with empty live state: %v", err)
 			liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)

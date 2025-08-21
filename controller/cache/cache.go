@@ -671,14 +671,42 @@ func (c *liveStateCache) getSyncedCluster(server *appv1.Cluster) (clustercache.C
 
 	err = clusterCache.EnsureSynced()
 	if err != nil {
-		if isConversionWebhookError(err) {
-			log.WithField("cluster", server.Server).Warnf("Conversion webhook error during cluster sync, cluster cache may be incomplete: %v", err)
+		if isClusterCacheError(err) {
+			log.WithField("cluster", server.Server).Warnf("Cluster cache sync error detected, cluster cache may be incomplete: %v", err)
+
 			// Extract the GVK from the error and track it as a failed GVK
-			gvkStr := extractGVKFromConversionWebhookError(err)
+			gvkStr := extractGVKFromCacheError(err)
 			if gvkStr != "" {
 				c.trackFailedResourceGVK(server.Server, gvkStr)
+
+				// Also mark the cluster as tainted
+				errorType := "unknown"
+				errStr := err.Error()
+				if strings.Contains(errStr, "conversion webhook") {
+					errorType = "conversion_webhook"
+				} else if strings.Contains(errStr, "Expired: too old resource version") {
+					errorType = "pagination_token_expired"
+				} else if strings.Contains(errStr, "connection") {
+					errorType = "connection_issue"
+				}
+
+				markClusterTainted(server.Server, errStr, gvkStr, errorType)
 			}
-			// For conversion webhook errors, we return the cluster cache without an error
+
+			// Mark the cluster as tainted
+			errorType := "unknown"
+			errStr := err.Error()
+			if strings.Contains(errStr, "conversion webhook") {
+				errorType = "conversion_webhook"
+			} else if strings.Contains(errStr, "Expired: too old resource version") {
+				errorType = "pagination_token_expired"
+			} else if strings.Contains(errStr, "connection") {
+				errorType = "connection_issue"
+			}
+
+			markClusterTainted(server.Server, errStr, gvkStr, errorType)
+
+			// For known cache errors, we return the cluster cache without an error
 			// but log the issue. This allows applications to continue with
 			// whatever state is available rather than failing completely.
 			// We're handling partial state in each of the methods that use getSyncedCluster
@@ -1090,18 +1118,40 @@ func (c *liveStateCache) GetClustersInfo() []clustercache.ClusterInfo {
 			for gvk := range failedGVKs {
 				failedGVKList = append(failedGVKList, gvk)
 			}
-
-			// If there are failed GVKs, modify SyncError to include this information
-			if len(failedGVKList) > 0 {
-				msg := fmt.Sprintf("Cluster has %d unavailable resource types due to conversion webhook errors", len(failedGVKList))
-				if info.SyncError == nil {
-					info.SyncError = fmt.Errorf(msg)
-				} else {
-					info.SyncError = fmt.Errorf("%s; %s", info.SyncError.Error(), msg)
-				}
-			}
 		}
 		c.failedGVKLock.RUnlock()
+
+		// Update cluster info with failed resource GVKs from our tracking
+
+		// Check if this cluster is tainted
+		ClusterTaintLock.RLock()
+		taints, exists := clusterTaints[server]
+		ClusterTaintLock.RUnlock()
+
+		// Update cluster info with taint status and reason
+		if exists && len(taints) > 0 {
+			info.IsTainted = true
+
+			// Add any tainted GVKs that aren't already in the list
+			for gvk := range taints {
+				if !contains(failedGVKList, gvk) {
+					info.FailedResourceGVKs = append(info.FailedResourceGVKs, gvk)
+				}
+			}
+
+			// Set taint reason
+			info.TaintReason = "Cluster has tainted resource types"
+		}
+
+		// If there are failed GVKs, modify SyncError to include this information
+		if len(failedGVKList) > 0 {
+			msg := fmt.Sprintf("Cluster has %d unavailable resource types", len(failedGVKList))
+			if info.SyncError == nil {
+				info.SyncError = errors.New(msg)
+			} else {
+				info.SyncError = errors.New(info.SyncError.Error() + "; " + msg)
+			}
+		}
 
 		res = append(res, info)
 	}
@@ -1117,7 +1167,42 @@ func (c *liveStateCache) UpdateShard(shard int) bool {
 	return c.clusterSharding.UpdateShard(shard)
 }
 
+// isClusterCacheError checks if an error is a known cluster cache error
+// This handles a broader class of errors that can happen when syncing cluster cache
+func isClusterCacheError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+
+	// Define all the error patterns we want to catch
+	errorPatterns := []string{
+		// Conversion webhook errors
+		"conversion webhook",
+
+		// Pagination token expiration errors
+		"Expired: too old resource version",
+
+		// General resource list errors
+		"failed to list resources",
+
+		// Connection issues
+		"connection refused",
+		"connection reset by peer",
+		"i/o timeout",
+	}
+
+	for _, pattern := range errorPatterns {
+		if strings.Contains(errStr, pattern) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // isConversionWebhookError checks if an error is related to conversion webhooks
+// Kept for backward compatibility
 func isConversionWebhookError(err error) bool {
 	if err == nil {
 		return false
@@ -1126,9 +1211,9 @@ func isConversionWebhookError(err error) bool {
 	return strings.Contains(errStr, "conversion webhook")
 }
 
-// extractGVKFromConversionWebhookError attempts to extract the GroupVersionKind from a conversion webhook error
+// extractGVKFromCacheError attempts to extract the GroupVersionKind from various cache errors
 // Returns an empty string if no GVK could be extracted
-func extractGVKFromConversionWebhookError(err error) string {
+func extractGVKFromCacheError(err error) string {
 	if err == nil {
 		return ""
 	}
@@ -1174,6 +1259,53 @@ func (c *liveStateCache) trackFailedResourceGVK(server string, gvkStr string) {
 	}).Infof("Tracked failed resource GVK due to conversion webhook error")
 }
 
+// Map of server URL to tainted resource GVKs and error types
+var clusterTaints = make(map[string]map[string]string) // server -> gvk -> error type
+var ClusterTaintLock = sync.RWMutex{}
+
+// markClusterTainted marks a cluster as having tainted cache state
+func markClusterTainted(server string, reason string, gvk string, errorType string) {
+	ClusterTaintLock.Lock()
+	defer ClusterTaintLock.Unlock()
+
+	// Initialize if not exists
+	_, exists := clusterTaints[server]
+	if !exists {
+		clusterTaints[server] = make(map[string]string)
+	}
+
+	// Store the GVK and error type
+	if gvk != "" {
+		clusterTaints[server][gvk] = errorType
+	}
+}
+
+// IsClusterTainted checks if a cluster is in tainted state
+func IsClusterTainted(server string) bool {
+	ClusterTaintLock.RLock()
+	defer ClusterTaintLock.RUnlock()
+
+	taints, exists := clusterTaints[server]
+	return exists && len(taints) > 0
+}
+
+// GetTaintedGVKs returns a list of tainted GVKs for a cluster
+func GetTaintedGVKs(server string) []string {
+	ClusterTaintLock.RLock()
+	defer ClusterTaintLock.RUnlock()
+
+	taints, exists := clusterTaints[server]
+	if !exists {
+		return nil
+	}
+
+	gvks := make([]string, 0, len(taints))
+	for gvk := range taints {
+		gvks = append(gvks, gvk)
+	}
+	return gvks
+}
+
 // isResourceGVKFailed checks if a resource GVK is in the failed resources map
 func (c *liveStateCache) isResourceGVKFailed(server string, gvkStr string) bool {
 	c.failedGVKLock.RLock()
@@ -1196,6 +1328,21 @@ func (c *liveStateCache) clearFailedResourceGVKs(server string) {
 	defer c.failedGVKLock.Unlock()
 
 	delete(c.failedResourceGVKs, server)
+}
+
+// contains checks if a string is in a slice
+func contains(slice []string, str string) bool {
+	for _, s := range slice {
+		if s == str {
+			return true
+		}
+	}
+	return false
+}
+
+// GetClusterTaints returns the map of cluster taints
+func GetClusterTaints() map[string]map[string]string {
+	return clusterTaints
 }
 
 // cleanupExpiredFailedGVKs removes expired entries from the failed GVKs cache
