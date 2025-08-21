@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -113,6 +114,16 @@ func (c *clusterInfoUpdater) updateClusters() {
 	log.Debugf("Successfully saved info of %d clusters", len(clustersFiltered))
 }
 
+// isConversionWebhookErrorInSyncError checks if an error is related to conversion webhooks
+func isConversionWebhookErrorInSyncError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "conversion webhook") || 
+	       strings.Contains(errStr, "unavailable resource types")
+}
+
 func (c *clusterInfoUpdater) updateClusterInfo(ctx context.Context, cluster appv1.Cluster, info *cache.ClusterInfo) error {
 	apps, err := c.appLister.List(labels.Everything())
 	if err != nil {
@@ -151,7 +162,15 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 		case info.LastCacheSyncTime == nil:
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusUnknown
 		case info.SyncError == nil:
+			// If there's no sync error, the connection is successful
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusSuccessful
+			syncTime := metav1.NewTime(*info.LastCacheSyncTime)
+			clusterInfo.CacheInfo.LastCacheSyncTime = &syncTime
+			clusterInfo.CacheInfo.APIsCount = int64(info.APIsCount)
+		case isConversionWebhookErrorInSyncError(info.SyncError):
+			// We have a successful connection but some resources failed to sync
+			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusDegraded
+			clusterInfo.ConnectionState.Message = fmt.Sprintf("Conversion webhook errors detected: %v", info.SyncError.Error())
 			syncTime := metav1.NewTime(*info.LastCacheSyncTime)
 			clusterInfo.CacheInfo.LastCacheSyncTime = &syncTime
 			clusterInfo.CacheInfo.APIsCount = int64(info.APIsCount)
