@@ -1423,14 +1423,14 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
 				return
 			}
-      
-      // Remove the desired revisions if the sync failed and we are retrying. The latest revision from the source will be used.
-      extraMsg := ""
-      if state.Operation.Retry.Refresh {
-        extraMsg += " with latest revisions"
-        state.Operation.Revision = ""
-        state.Operation.Revisions = nil
-      }
+
+			// Remove the desired revisions if the sync failed and we are retrying. The latest revision from the source will be used.
+			extraMsg := ""
+			if state.Operation.Retry.Refresh {
+				extraMsg += " with latest revisions"
+				state.Operation.Sync.Revision = ""
+				state.Operation.Sync.Revisions = nil
+			}
 
 			// Get rid of sync results and null out previous operation completion time
 			// This will start the retry attempt
@@ -2154,16 +2154,20 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		}
 	}
 
+	source := ptr.To(app.Spec.GetSource())
 	desiredRevisions := []string{syncStatus.Revision}
 	if app.Spec.HasMultipleSources() {
+		source = nil
 		desiredRevisions = syncStatus.Revisions
 	}
 
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
+			Source:      source,
 			Revision:    syncStatus.Revision,
 			Prune:       app.Spec.SyncPolicy.Automated.Prune,
 			SyncOptions: app.Spec.SyncPolicy.SyncOptions,
+			Sources:     app.Spec.Sources,
 			Revisions:   syncStatus.Revisions,
 		},
 		InitiatedBy: appv1.OperationInitiator{Automated: true},
