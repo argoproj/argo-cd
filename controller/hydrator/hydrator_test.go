@@ -210,9 +210,7 @@ func Test_getRelevantAppsForHydration_RepoURLNormalization(t *testing.T) {
 	assert.Len(t, relevantApps, 2, "Expected both apps to be considered relevant despite URL differences")
 }
 
-func TestHydrator_getHydratorCommitMessage(t *testing.T) {
-	d := mocks.NewDependencies(t)
-	d.On("GetHydratorCommitMessageTemplate").Return(commitMessageTemplate, nil)
+func TestHydrator_getTemplatedCommitMessage(t *testing.T) {
 	references := make([]v1alpha1.RevisionReference, 0)
 	revReference := v1alpha1.RevisionReference{
 		Commit: &v1alpha1.CommitMetadata{
@@ -227,6 +225,7 @@ func TestHydrator_getHydratorCommitMessage(t *testing.T) {
 		repoURL           string
 		revision          string
 		dryCommitMetadata *v1alpha1.RevisionMetadata
+		template          string
 	}
 	tests := []struct {
 		name    string
@@ -247,24 +246,38 @@ func TestHydrator_getHydratorCommitMessage(t *testing.T) {
 					Message:    message,
 					References: references,
 				},
+				template: commitMessageTemplate,
+			},
+		},
+		{
+			name: "test empty template",
+			args: args{
+				repoURL:  "https://github.com/test/argocd-example-apps",
+				revision: "3ff41cc5247197a6caf50216c4c76cc29d78a97d",
+				dryCommitMetadata: &v1alpha1.RevisionMetadata{
+					Author: "test test@test.com",
+					Date: &metav1.Time{
+						Time: metav1.Now().Time,
+					},
+					Message:    message,
+					References: references,
+				},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := &Hydrator{
-				dependencies: d,
-			}
-			got, err := h.getHydratorCommitMessage(tt.args.repoURL, tt.args.revision, tt.args.dryCommitMetadata)
+			got, err := getTemplatedCommitMessage(tt.args.repoURL, tt.args.revision, tt.args.template, tt.args.dryCommitMetadata)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Hydrator.getHydratorCommitMessage() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got == "" {
-				t.Errorf("Hydrator.getHydratorCommitMessage() = %v, want %v", got, tt.want)
+			if tt.args.template != "" {
+				assert.NotEmpty(t, got)
+				assert.Contains(t, got, "Commit")
+			} else {
+				assert.Empty(t, got)
 			}
-			assert.NotEmpty(t, got)
-			assert.Contains(t, got, "Argocd-reference")
 		})
 	}
 }

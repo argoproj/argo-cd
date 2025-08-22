@@ -3,9 +3,7 @@ package hydrator
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"reflect"
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
@@ -23,27 +21,17 @@ func init() {
 
 // Render use a parsed template and calls the Execute to apply the data.
 // currently the method supports struct and a map[string]any as data
-func Render(tmpl string, data any) (string, error) {
+func Render(tmpl string, data HydratorCommitMetadata) (string, error) {
 	var dataMap map[string]any
 	var err error
-	t := reflect.TypeOf(data)
-	switch t.Kind() {
-	case reflect.Map:
-		var m map[string]any
-		var ok bool
-		if m, ok = data.(map[string]any); !ok {
-			return "", errors.New("failed to cast map type")
-		}
-		dataMap = m
-	case reflect.Struct:
-		dataMap, err = structToMap(data)
-		if err != nil {
-			return "", fmt.Errorf("marshaling failed: %w", err)
-		}
-	default:
-		return "", fmt.Errorf("type not supported: %T", t)
+	// short-circuit if template is not defined
+	if tmpl == "" {
+		return "", nil
 	}
-
+	dataMap, err = structToMap(data)
+	if err != nil {
+		return "", fmt.Errorf("marshaling failed: %w", err)
+	}
 	metadata := map[string]any{
 		"metadata": dataMap,
 	}

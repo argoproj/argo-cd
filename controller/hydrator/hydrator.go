@@ -3,7 +3,6 @@ package hydrator
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -365,8 +364,12 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 		}
 		logCtx.Warn("no credentials found for repo, continuing without credentials")
 	}
-
-	commitMessage, errMsg := h.getHydratorCommitMessage(repoURL, targetRevision, revisionMetadata)
+	// get the commit message template
+	commitMessageTemplate, err := h.dependencies.GetHydratorCommitMessageTemplate()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get hydrated commit message template: %w", err)
+	}
+	commitMessage, errMsg := getTemplatedCommitMessage(repoURL, targetRevision, commitMessageTemplate, revisionMetadata)
 	if errMsg != nil {
 		return "", "", fmt.Errorf("failed to get hydrator commit templated message: %w", errMsg)
 	}
@@ -446,21 +449,14 @@ func appNeedsHydration(app *appv1.Application, statusHydrateTimeout time.Duratio
 // 1. Get the commit message template defined in the configMap
 // 2. Get the data template engine would use to render the template
 // 3. Pass the output of Step 1 and Step 2 to template Render
-func (h *Hydrator) getHydratorCommitMessage(repoURL, revision string, dryCommitMetadata *appv1.RevisionMetadata) (string, error) {
-	tmpl, err := h.dependencies.GetHydratorCommitMessageTemplate()
-	if errTemplate != nil {
-		return "", fmt.Errorf("failed to get hydrated commit message template: %w", err)
-	}
-	if tmpl == "" {
-		return "", errors.New("failed to get hydrated commit message template, template not defined")
-	}
+func getTemplatedCommitMessage(repoURL, revision, commitMessageTemplate string, dryCommitMetadata *appv1.RevisionMetadata) (string, error) {
 	hydratorCommitMetadata, err := hydrator.GetHydratorCommitMetadata(repoURL, revision, dryCommitMetadata)
-	if errMD != nil {
+	if err != nil {
 		return "", fmt.Errorf("failed to get hydrated commit message: %w", err)
 	}
-	templatedCommitMsg, err := hydrator.Render(tmpl, *hydratorCommitMetadata)
-	if errRendering != nil {
-		return "", fmt.Errorf("failed to parse template %s: %w", tmpl, err)
+	templatedCommitMsg, err := hydrator.Render(commitMessageTemplate, hydratorCommitMetadata)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse template %s: %w", commitMessageTemplate, err)
 	}
 	return templatedCommitMsg, nil
 }

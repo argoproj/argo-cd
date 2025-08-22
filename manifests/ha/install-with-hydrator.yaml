@@ -24761,6 +24761,19 @@ data:
       - BackgroundScanReport
       - ClusterBackgroundScanReport
       - UpdateRequest
+  sourceHydrator.commitMessageTemplate: "{{- if .metadata }}\n    {{- if .metadata.repoURL
+    }}\n        repoURL: {{ .metadata.repoURL }}\n    {{- end }}\n    \n    {{- if
+    .metadata.drySha }}\n        drySha: {{ .metadata.drySha }}\n    {{- end }}\n\n
+    \   {{- if .metadata.author }}\n        Co-authored-by: {{ .metadata.author }}\n
+    \   {{- end }}\n\n    {{- if .metadata.subject }}\n        subject: {{ .metadata.subject
+    }}\n    {{- end }}\n\n    {{- if .metadata.body }}\n        body: {{ .metadata.body
+    }}\n    {{- end }}\n    {{- if .metadata.references }}\n        References:\n
+    \       {{- range $reference := .metadata.references }}\n            {{- if kindIs
+    \"map\" $reference.commit }}\n                Commit:\n                {{- range
+    $key, $value := $reference.commit }}\n                    {{- if eq $key \"author\"
+    }}\n                        Co-authored-by: {{ $value }}\n                    {{-
+    end }}\n                {{- end }}\n            {{- end }}\n        {{- end }}\n
+    \   {{- end }}\n{{- end }} \n"
 kind: ConfigMap
 metadata:
   labels:

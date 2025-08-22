@@ -43,7 +43,7 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 	}
 
 	// Write the top-level readme.
-	err = writeMetadata(root, "", *hydratorMetadata)
+	err = writeMetadata(root, "", hydratorMetadata)
 	if err != nil {
 		return fmt.Errorf("failed to write top-level hydrator metadata: %w", err)
 	}

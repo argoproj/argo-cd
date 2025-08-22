@@ -1008,11 +1008,7 @@ func (mgr *SettingsManager) GetSourceHydratorCommitMessageTemplate() (string, er
 	if err != nil {
 		return "", err
 	}
-	label := argoCDCM.Data[settingsSourceHydratorCommitMessageTemplateKey]
-	if label == "" {
-		return "", nil
-	}
-	return label, nil
+	return argoCDCM.Data[settingsSourceHydratorCommitMessageTemplateKey], nil
 }
 
 func addStatusOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverride, groupKind string) {

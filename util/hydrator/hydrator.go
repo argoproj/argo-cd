@@ -28,7 +28,7 @@ type HydratorCommitMetadata struct {
 
 // GetHydratorCommitMetadata takes repo, drySha and commitMetadata and returns a HydratorCommitMetadata which is a
 // common contract controller and commitServer
-func GetHydratorCommitMetadata(repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata) (*HydratorCommitMetadata, error) { //nolint:revive //FIXME(var-naming)
+func GetHydratorCommitMetadata(repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata) (HydratorCommitMetadata, error) { //nolint:revive //FIXME(var-naming)
 	author := ""
 	message := ""
 	date := ""
@@ -46,7 +46,7 @@ func GetHydratorCommitMetadata(repoUrl, drySha string, dryCommitMetadata *appv1.
 
 	_, bodyMinusTrailers := git.GetReferences(log.WithFields(log.Fields{"repo": repoUrl, "revision": drySha}), body)
 
-	hydratorCommitMetadata := &HydratorCommitMetadata{
+	hydratorCommitMetadata := HydratorCommitMetadata{
 		RepoURL:    repoUrl,
 		DrySHA:     drySha,
 		Author:     author,
