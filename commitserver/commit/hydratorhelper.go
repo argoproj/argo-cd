@@ -37,7 +37,7 @@ func init() {
 // WriteForPaths writes the manifests, hydrator.metadata, and README.md files for each path in the provided paths. It
 // also writes a root-level hydrator.metadata file containing the repo URL and dry SHA.
 func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails) error { //nolint:revive //FIXME(var-naming)
-	hydratorMetadata, err := hydrator.GetHydratorCommitMetadata(repoUrl, drySha, dryCommitMetadata)
+	hydratorMetadata, err := hydrator.GetCommitMetadata(repoUrl, drySha, dryCommitMetadata)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve hydrator metadata: %w", err)
 	}

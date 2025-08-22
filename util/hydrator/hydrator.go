@@ -26,9 +26,9 @@ type HydratorCommitMetadata struct {
 	References []appv1.RevisionReference `json:"references,omitempty"`
 }
 
-// GetHydratorCommitMetadata takes repo, drySha and commitMetadata and returns a HydratorCommitMetadata which is a
+// GetCommitMetadata takes repo, drySha and commitMetadata and returns a HydratorCommitMetadata which is a
 // common contract controller and commitServer
-func GetHydratorCommitMetadata(repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata) (HydratorCommitMetadata, error) { //nolint:revive //FIXME(var-naming)
+func GetCommitMetadata(repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata) (HydratorCommitMetadata, error) { //nolint:revive //FIXME(var-naming)
 	author := ""
 	message := ""
 	date := ""
