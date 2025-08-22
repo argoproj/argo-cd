@@ -971,12 +971,14 @@ func TestRepoCredsToSecret(t *testing.T) {
 
 func TestRepoWriteCredsToSecret(t *testing.T) {
 	clientset := getClientset()
-	testee := &secretsRepositoryBackend{db: &db{
-		ns:            testNamespace,
-		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
-	},
-		writeCreds: true}
+	testee := &secretsRepositoryBackend{
+		db: &db{
+			ns:            testNamespace,
+			kubeclientset: clientset,
+			settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+		},
+		writeCreds: true,
+	}
 	s := &corev1.Secret{}
 	creds := &appsv1.RepoCreds{
 		URL:                        "URL",

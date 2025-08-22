@@ -177,10 +177,6 @@ func TestCreateWriteRepoCredentials(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "https://github.com/argoproj/argo-cd", created.Repo)
 
-	// There seems to be a race or some other hiccup in the fake K8s clientset used for this test.
-	// Just give it a little time to settle.
-	time.Sleep(1 * time.Second)
-
 	repo, err := db.GetWriteRepository(t.Context(), created.Repo, "")
 	require.NoError(t, err)
 	assert.Equal(t, "test-username", repo.Username)
