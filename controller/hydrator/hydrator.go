@@ -446,20 +446,20 @@ func appNeedsHydration(app *appv1.Application, statusHydrateTimeout time.Duratio
 // 2. Get the data template engine would use to render the template
 // 3. Pass the output of Step 1 and Step 2 to template Render
 func (h *Hydrator) getHydratorCommitMessage(repoURL, revision string, dryCommitMetadata *appv1.RevisionMetadata) (string, error) {
-	tmpl, errTemplate := h.dependencies.GetHydratorCommitMessageTemplate()
+	tmpl, err := h.dependencies.GetHydratorCommitMessageTemplate()
 	if errTemplate != nil {
-		return "", fmt.Errorf("failed to get hydrated commit message template %w", errTemplate)
+		return "", fmt.Errorf("failed to get hydrated commit message template: %w", err)
 	}
 	if tmpl == "" {
 		return "", errors.New("failed to get hydrated commit message template, template not defined")
 	}
-	hydratorCommitMetadata, errMD := hydrator.GetHydratorCommitMetadata(repoURL, revision, dryCommitMetadata)
+	hydratorCommitMetadata, err := hydrator.GetHydratorCommitMetadata(repoURL, revision, dryCommitMetadata)
 	if errMD != nil {
-		return "", fmt.Errorf("failed to get hydrated commit message %w", errMD)
+		return "", fmt.Errorf("failed to get hydrated commit message: %w", err)
 	}
-	templatedCommitMsg, errRendering := hydrator.Render(tmpl, *hydratorCommitMetadata)
+	templatedCommitMsg, err := hydrator.Render(tmpl, *hydratorCommitMetadata)
 	if errRendering != nil {
-		return "", fmt.Errorf("failed to parse template %s: %w", tmpl, errRendering)
+		return "", fmt.Errorf("failed to parse template %s: %w", tmpl, err)
 	}
 	return templatedCommitMsg, nil
 }
