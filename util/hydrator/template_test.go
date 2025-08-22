@@ -3,12 +3,13 @@ package hydrator
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
-var commitMessageTemplate = `    {{- if .metadata }}
+var commitMessageTemplate = `{{- if .metadata }}
         {{- if .metadata.repoURL }}
             repoURL: {{ .metadata.repoURL }}
         {{- end }}
@@ -65,7 +66,7 @@ func TestRender(t *testing.T) {
 		RepoURL:    "https://github.com/test/argocd-example-apps",
 		DrySHA:     "3ff41cc5247197a6caf50216c4c76cc29d78a97d",
 		Author:     "test test@test.com",
-		Date:       metav1.Now().Time.String(),
+		Date:       metav1.Now().String(),
 		References: references,
 		Body:       "testBody",
 		Subject:    "testSubject",
