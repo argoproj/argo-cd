@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -112,6 +113,7 @@ func (a *Actions) And(block func()) *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a}
 }
 

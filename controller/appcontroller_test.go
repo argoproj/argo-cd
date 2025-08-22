@@ -172,6 +172,7 @@ func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, 
 		time.Second,
 		time.Minute,
 		nil,
+		time.Minute,
 		0,
 		time.Second*10,
 		common.DefaultPortArgoCDMetrics,
@@ -1826,7 +1827,7 @@ apps/Deployment:
     hs = {}
     hs.status = ""
     hs.message = ""
-    
+
     if obj.metadata ~= nil then
       if obj.metadata.labels ~= nil then
         current_status = obj.metadata.labels["status"]
@@ -2050,7 +2051,7 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	assert.Equal(t, string(synccommon.OperationRunning), phase)
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
-	assert.Contains(t, message, "Retrying attempt #1")
+	assert.Contains(t, message, "due to application controller sync timeout. Retrying attempt #1")
 	retryCount, _, _ := unstructured.NestedFloat64(receivedPatch, "status", "operationState", "retryCount")
 	assert.InEpsilon(t, float64(1), retryCount, 0.0001)
 }
@@ -2607,10 +2608,18 @@ func TestSelfHealExponentialBackoff(t *testing.T) {
 		alreadyAttempted: false,
 		expectedAttempts: 0,
 		syncStatus:       v1alpha1.SyncStatusCodeOutOfSync,
-	}, {
+	}, { // backoff will not reset as finished tme isn't >= cooldown
 		attempts:         6,
-		finishedAt:       nil,
-		expectedDuration: 0,
+		finishedAt:       ptr.To(metav1.Now()),
+		expectedDuration: 120 * time.Second,
+		shouldSelfHeal:   false,
+		alreadyAttempted: true,
+		expectedAttempts: 6,
+		syncStatus:       v1alpha1.SyncStatusCodeSynced,
+	}, { // backoff will reset as finished time is >= cooldown
+		attempts:         40,
+		finishedAt:       &metav1.Time{Time: time.Now().Add(-(1 * time.Minute))},
+		expectedDuration: -60 * time.Second,
 		shouldSelfHeal:   true,
 		alreadyAttempted: true,
 		expectedAttempts: 0,

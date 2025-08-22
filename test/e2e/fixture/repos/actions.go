@@ -2,6 +2,7 @@ package repos
 
 import (
 	"log"
+	"time"
 
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
@@ -77,6 +78,7 @@ func (a *Actions) Project(project string) *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a}
 }
 

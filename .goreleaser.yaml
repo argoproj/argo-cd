@@ -24,8 +24,8 @@ builds:
       - -extldflags="-static"
     goos:
       - linux
-      - darwin
       - windows
+      - darwin
     goarch:
       - amd64
       - arm64

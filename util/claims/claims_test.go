@@ -134,10 +134,6 @@ func TestMapClaimsToArgoClaims(t *testing.T) {
 				Email:         "email@test.com",
 				EmailVerified: true,
 				Name:          "the-name",
-				Groups: []string{
-					"my-org:my-team2",
-					"my-org:my-team1",
-				},
 				FederatedClaims: &FederatedClaims{
 					ConnectorID: "my-connector",
 					UserID:      "user-id",

@@ -31,7 +31,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/test"
-	"github.com/argoproj/argo-cd/v3/util/argo"
 )
 
 // TestCompareAppStateEmpty tests comparison when both git and live have no objects
@@ -719,7 +718,7 @@ func TestSetHealth(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
-	assert.False(t, compRes.healthStatus.LastTransitionTime.IsZero())
+	assert.Equal(t, app.Status.Health.LastTransitionTime, compRes.healthStatus.LastTransitionTime)
 }
 
 func TestPreserveStatusTimestamp(t *testing.T) {
@@ -794,7 +793,7 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
-	assert.False(t, compRes.healthStatus.LastTransitionTime.IsZero())
+	assert.Equal(t, app.Status.Health.LastTransitionTime, compRes.healthStatus.LastTransitionTime)
 }
 
 func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
@@ -870,7 +869,7 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusUnknown, compRes.healthStatus.Status)
-	assert.False(t, compRes.healthStatus.LastTransitionTime.IsZero())
+	assert.Equal(t, app.Status.Health.LastTransitionTime, compRes.healthStatus.LastTransitionTime)
 	assert.Equal(t, v1alpha1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
 }
 
@@ -1415,8 +1414,8 @@ func TestIsLiveResourceManaged(t *testing.T) {
 		configObj := managedObj.DeepCopy()
 
 		// then
-		assert.True(t, manager.isSelfReferencedObj(managedObj, configObj, appName, argo.TrackingMethodLabel, ""))
-		assert.True(t, manager.isSelfReferencedObj(managedObj, configObj, appName, argo.TrackingMethodAnnotation, ""))
+		assert.True(t, manager.isSelfReferencedObj(managedObj, configObj, appName, v1alpha1.TrackingMethodLabel, ""))
+		assert.True(t, manager.isSelfReferencedObj(managedObj, configObj, appName, v1alpha1.TrackingMethodAnnotation, ""))
 	})
 	t.Run("will return true if tracked with label", func(t *testing.T) {
 		// given
@@ -1424,43 +1423,43 @@ func TestIsLiveResourceManaged(t *testing.T) {
 		configObj := managedObjWithLabel.DeepCopy()
 
 		// then
-		assert.True(t, manager.isSelfReferencedObj(managedObjWithLabel, configObj, appName, argo.TrackingMethodLabel, ""))
+		assert.True(t, manager.isSelfReferencedObj(managedObjWithLabel, configObj, appName, v1alpha1.TrackingMethodLabel, ""))
 	})
 	t.Run("will handle if trackingId has wrong resource name and config is nil", func(t *testing.T) {
 		// given
 		t.Parallel()
 
 		// then
-		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongName, nil, appName, argo.TrackingMethodLabel, ""))
-		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongName, nil, appName, argo.TrackingMethodAnnotation, ""))
+		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongName, nil, appName, v1alpha1.TrackingMethodLabel, ""))
+		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongName, nil, appName, v1alpha1.TrackingMethodAnnotation, ""))
 	})
 	t.Run("will handle if trackingId has wrong resource group and config is nil", func(t *testing.T) {
 		// given
 		t.Parallel()
 
 		// then
-		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, nil, appName, argo.TrackingMethodLabel, ""))
-		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, nil, appName, argo.TrackingMethodAnnotation, ""))
+		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, nil, appName, v1alpha1.TrackingMethodLabel, ""))
+		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, nil, appName, v1alpha1.TrackingMethodAnnotation, ""))
 	})
 	t.Run("will handle if trackingId has wrong kind and config is nil", func(t *testing.T) {
 		// given
 		t.Parallel()
 
 		// then
-		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, nil, appName, argo.TrackingMethodLabel, ""))
-		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, nil, appName, argo.TrackingMethodAnnotation, ""))
+		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, nil, appName, v1alpha1.TrackingMethodLabel, ""))
+		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, nil, appName, v1alpha1.TrackingMethodAnnotation, ""))
 	})
 	t.Run("will handle if trackingId has wrong namespace and config is nil", func(t *testing.T) {
 		// given
 		t.Parallel()
 
 		// then
-		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, nil, appName, argo.TrackingMethodLabel, ""))
-		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, nil, appName, argo.TrackingMethodAnnotationAndLabel, ""))
+		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, nil, appName, v1alpha1.TrackingMethodLabel, ""))
+		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, nil, appName, v1alpha1.TrackingMethodAnnotationAndLabel, ""))
 	})
 	t.Run("will return true if live is nil", func(t *testing.T) {
 		t.Parallel()
-		assert.True(t, manager.isSelfReferencedObj(nil, nil, appName, argo.TrackingMethodAnnotation, ""))
+		assert.True(t, manager.isSelfReferencedObj(nil, nil, appName, v1alpha1.TrackingMethodAnnotation, ""))
 	})
 
 	t.Run("will handle upgrade in desired state APIGroup", func(t *testing.T) {
@@ -1470,7 +1469,7 @@ func TestIsLiveResourceManaged(t *testing.T) {
 		delete(config.GetAnnotations(), common.AnnotationKeyAppInstance)
 
 		// then
-		assert.True(t, manager.isSelfReferencedObj(managedWrongAPIGroup, config, appName, argo.TrackingMethodAnnotation, ""))
+		assert.True(t, manager.isSelfReferencedObj(managedWrongAPIGroup, config, appName, v1alpha1.TrackingMethodAnnotation, ""))
 	})
 }
 

@@ -1,4 +1,4 @@
-package helm
+package versions
 
 import "github.com/Masterminds/semver/v3"
 

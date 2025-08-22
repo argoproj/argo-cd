@@ -126,10 +126,11 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 			chart:    {{Version: "1.0.0"}, {Version: version}},
 			oobChart: {{Version: "1.0.0"}, {Version: version}},
 		}}, nil)
-		helmClient.On("ExtractChart", chart, version, "", false, int64(0), false).Return("./testdata/my-chart", io.NopCloser, nil)
-		helmClient.On("ExtractChart", oobChart, version, "", false, int64(0), false).Return("./testdata2/out-of-bounds-chart", io.NopCloser, nil)
-		helmClient.On("CleanChartCache", chart, version, "").Return(nil)
-		helmClient.On("CleanChartCache", oobChart, version, "").Return(nil)
+		helmClient.On("GetTags", mock.Anything, mock.Anything).Return(nil, nil)
+		helmClient.On("ExtractChart", chart, version, false, int64(0), false).Return("./testdata/my-chart", io.NopCloser, nil)
+		helmClient.On("ExtractChart", oobChart, version, false, int64(0), false).Return("./testdata2/out-of-bounds-chart", io.NopCloser, nil)
+		helmClient.On("CleanChartCache", chart, version).Return(nil)
+		helmClient.On("CleanChartCache", oobChart, version).Return(nil)
 		helmClient.On("DependencyBuild").Return(nil)
 
 		paths.On("Add", mock.Anything, mock.Anything).Return(root, nil)
@@ -1595,7 +1596,7 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	assert.NotNil(t, res.Helm)
 
 	assert.Equal(t, "Helm", res.Type)
-	assert.EqualValues(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
+	assert.Equal(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
 }
 
 func TestGetAppDetailsHelmUsesCache(t *testing.T) {
@@ -1612,7 +1613,7 @@ func TestGetAppDetailsHelmUsesCache(t *testing.T) {
 	assert.NotNil(t, res.Helm)
 
 	assert.Equal(t, "Helm", res.Type)
-	assert.EqualValues(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
+	assert.Equal(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
 }
 
 func TestGetAppDetailsHelm_WithNoValuesFile(t *testing.T) {
@@ -1630,7 +1631,7 @@ func TestGetAppDetailsHelm_WithNoValuesFile(t *testing.T) {
 
 	assert.Equal(t, "Helm", res.Type)
 	assert.Empty(t, res.Helm.ValueFiles)
-	assert.Equal(t, "", res.Helm.Values)
+	assert.Empty(t, res.Helm.Values)
 }
 
 func TestGetAppDetailsKustomize(t *testing.T) {
@@ -1647,7 +1648,7 @@ func TestGetAppDetailsKustomize(t *testing.T) {
 
 	assert.Equal(t, "Kustomize", res.Type)
 	assert.NotNil(t, res.Kustomize)
-	assert.EqualValues(t, []string{"nginx:1.15.4", "registry.k8s.io/nginx-slim:0.8"}, res.Kustomize.Images)
+	assert.Equal(t, []string{"nginx:1.15.4", "registry.k8s.io/nginx-slim:0.8"}, res.Kustomize.Images)
 }
 
 func TestGetHelmCharts(t *testing.T) {
@@ -1664,11 +1665,11 @@ func TestGetHelmCharts(t *testing.T) {
 
 	item := res.Items[0]
 	assert.Equal(t, "my-chart", item.Name)
-	assert.EqualValues(t, []string{"1.0.0", "1.1.0"}, item.Versions)
+	assert.Equal(t, []string{"1.0.0", "1.1.0"}, item.Versions)
 
 	item2 := res.Items[1]
 	assert.Equal(t, "out-of-bounds-chart", item2.Name)
-	assert.EqualValues(t, []string{"1.0.0", "1.1.0"}, item2.Versions)
+	assert.Equal(t, []string{"1.0.0", "1.1.0"}, item2.Versions)
 }
 
 func TestGetRevisionMetadata(t *testing.T) {
@@ -1692,7 +1693,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Equal(t, "test", res.Message)
 	assert.Equal(t, now, res.Date.Time)
 	assert.Equal(t, "author", res.Author)
-	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
+	assert.Equal(t, []string{"tag1", "tag2"}, res.Tags)
 	assert.NotEmpty(t, res.SignatureInfo)
 
 	// Check for truncated revision value
@@ -1706,7 +1707,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Equal(t, "test", res.Message)
 	assert.Equal(t, now, res.Date.Time)
 	assert.Equal(t, "author", res.Author)
-	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
+	assert.Equal(t, []string{"tag1", "tag2"}, res.Tags)
 	assert.NotEmpty(t, res.SignatureInfo)
 
 	// Cache hit - signature info should not be in result
@@ -1826,12 +1827,12 @@ func TestService_newHelmClientResolveRevision(t *testing.T) {
 	service := newService(t, ".")
 
 	t.Run("EmptyRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "", "", true)
-		assert.EqualError(t, err, "invalid revision '': improper constraint: ")
+		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "", "my-chart", true)
+		assert.EqualError(t, err, "invalid revision: failed to determine semver constraint: improper constraint: ")
 	})
 	t.Run("InvalidRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "???", "", true)
-		assert.EqualError(t, err, "invalid revision '???': improper constraint: ???", true)
+		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "???", "my-chart", true)
+		assert.EqualError(t, err, "invalid revision: failed to determine semver constraint: improper constraint: ???")
 	})
 }
 
@@ -1847,7 +1848,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				},
 			})
 			require.NoError(t, err)
-			assert.EqualValues(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.2"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("No app specific override", func(t *testing.T) {
@@ -1862,7 +1863,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				AppName: "testapp",
 			})
 			require.NoError(t, err)
-			assert.EqualValues(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.2"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("Only app specific override", func(t *testing.T) {
@@ -1877,7 +1878,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				AppName: "testapp",
 			})
 			require.NoError(t, err)
-			assert.EqualValues(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.3"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.3"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("App specific override", func(t *testing.T) {
@@ -1892,7 +1893,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				AppName: "testapp",
 			})
 			require.NoError(t, err)
-			assert.EqualValues(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.3"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.3"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("App specific overrides containing non-mergeable field", func(t *testing.T) {
@@ -1907,7 +1908,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				AppName: "unmergeable",
 			})
 			require.NoError(t, err)
-			assert.EqualValues(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.3"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.3"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("Broken app-specific overrides", func(t *testing.T) {
@@ -1979,7 +1980,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			require.True(t, ok)
 			image, ok, _ := unstructured.NestedString(containers[0].(map[string]any), "image")
 			require.True(t, ok)
-			assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.2", image)
+			assert.Equal(t, "quay.io/argoprojlabs/argocd-e2e-container:0.2", image)
 		})
 	})
 
@@ -2009,7 +2010,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			require.True(t, ok)
 			image, ok, _ := unstructured.NestedString(containers[0].(map[string]any), "image")
 			require.True(t, ok)
-			assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.2", image)
+			assert.Equal(t, "quay.io/argoprojlabs/argocd-e2e-container:0.2", image)
 		})
 	})
 
@@ -2040,7 +2041,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			require.True(t, ok)
 			image, ok, _ := unstructured.NestedString(containers[0].(map[string]any), "image")
 			require.True(t, ok)
-			assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.3", image)
+			assert.Equal(t, "quay.io/argoprojlabs/argocd-e2e-container:0.3", image)
 		})
 	})
 
@@ -2093,7 +2094,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			require.True(t, ok)
 			image, ok, _ := unstructured.NestedString(containers[0].(map[string]any), "image")
 			require.True(t, ok)
-			assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.1", image)
+			assert.Equal(t, "quay.io/argoprojlabs/argocd-e2e-container:0.1", image)
 		})
 	})
 
@@ -3270,8 +3271,7 @@ func Test_getResolvedValueFiles(t *testing.T) {
 	tempDir := t.TempDir()
 	paths := io.NewRandomizedTempPaths(tempDir)
 
-	key, _ := json.Marshal(map[string]string{"url": git.NormalizeGitURL("https://github.com/org/repo1"), "project": ""})
-	paths.Add(string(key), path.Join(tempDir, "repo1"))
+	paths.Add(git.NormalizeGitURL("https://github.com/org/repo1"), path.Join(tempDir, "repo1"))
 
 	testCases := []struct {
 		name         string
@@ -4102,7 +4102,7 @@ func TestGetRefs_CacheLockTryLockGitRefCacheError(t *testing.T) {
 }
 
 func TestGetRevisionChartDetails(t *testing.T) {
-	t.Run("Test revision semvar", func(t *testing.T) {
+	t.Run("Test revision semver", func(t *testing.T) {
 		root := t.TempDir()
 		service := newService(t, root)
 		_, err := service.GetRevisionChartDetails(t.Context(), &apiclient.RepoServerRevisionChartDetailsRequest{

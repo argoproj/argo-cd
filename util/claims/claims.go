@@ -9,10 +9,9 @@ import (
 // ArgoClaims defines the claims structure based on Dex's documented claims
 type ArgoClaims struct {
 	jwt.RegisteredClaims
-	Email         string   `json:"email,omitempty"`
-	EmailVerified bool     `json:"email_verified,omitempty"`
-	Name          string   `json:"name,omitempty"`
-	Groups        []string `json:"groups,omitempty"`
+	Email         string `json:"email,omitempty"`
+	EmailVerified bool   `json:"email_verified,omitempty"`
+	Name          string `json:"name,omitempty"`
 	// As per Dex docs, federated_claims has a specific structure
 	FederatedClaims *FederatedClaims `json:"federated_claims,omitempty"`
 }

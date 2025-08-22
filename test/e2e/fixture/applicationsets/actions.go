@@ -61,6 +61,7 @@ func (a *Actions) And(block func()) *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a}
 }
 

@@ -66,6 +66,9 @@ const (
 	PluginSockFilePath = "/app/config/plugin"
 
 	E2ETestPrefix = "e2e-test-"
+
+	// Account for batch events processing (set to 1ms in e2e tests)
+	WhenThenSleepInterval = 5 * time.Millisecond
 )
 
 const (

@@ -719,6 +719,7 @@ func (creds AzureWorkloadIdentityCreds) Environ() (io.Closer, []string, error) {
 	}
 	nonce := creds.store.Add("", token)
 	env := creds.store.Environ(nonce)
+	env = append(env, fmt.Sprintf("%s=Authorization: Bearer %s", bearerAuthHeaderEnv, token))
 
 	return argoioutils.NewCloser(func() error {
 		creds.store.Remove(nonce)
@@ -735,7 +736,7 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 
 	t, found := azureTokenCache.Get(key)
 	if found {
-		return t.(string), nil
+		return t.(*workloadidentity.Token).AccessToken, nil
 	}
 
 	token, err := creds.tokenProvider.GetToken(scope)
@@ -743,8 +744,11 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 		return "", fmt.Errorf("failed to get Azure access token: %w", err)
 	}
 
-	azureTokenCache.Set(key, token, 2*time.Hour)
-	return token, nil
+	cacheExpiry := workloadidentity.CalculateCacheExpiryBasedOnTokenExpiry(token.ExpiresOn)
+	if cacheExpiry > 0 {
+		azureTokenCache.Set(key, token, cacheExpiry)
+	}
+	return token.AccessToken, nil
 }
 
 func (creds AzureWorkloadIdentityCreds) GetAzureDevOpsAccessToken() (string, error) {

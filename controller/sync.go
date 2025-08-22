@@ -109,15 +109,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 	syncOp = *state.Operation.Sync
 
-	// validates if it should fail the sync if it finds shared resources
-	hasSharedResource, sharedResourceMessage := hasSharedResourceCondition(app)
-	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") &&
-		hasSharedResource {
-		state.Phase = common.OperationFailed
-		state.Message = "Shared resource found: " + sharedResourceMessage
-		return
-	}
-
 	isMultiSourceRevision := app.Spec.HasMultipleSources()
 	rollback := len(syncOp.Sources) > 0 || syncOp.Source != nil
 	if rollback {
@@ -207,6 +198,15 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 	syncRes.Revision = compareResult.syncStatus.Revision
 	syncRes.Revisions = compareResult.syncStatus.Revisions
+
+	// validates if it should fail the sync if it finds shared resources
+	hasSharedResource, sharedResourceMessage := hasSharedResourceCondition(app)
+	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") &&
+		hasSharedResource {
+		state.Phase = common.OperationFailed
+		state.Message = "Shared resource found: %s" + sharedResourceMessage
+		return
+	}
 
 	// If there are any comparison or spec errors error conditions do not perform the operation
 	if errConditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
@@ -309,7 +309,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		log.Errorf("Could not get installation ID: %v", err)
 		return
 	}
-	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
+	trackingMethod, err := m.settingsMgr.GetTrackingMethod()
+	if err != nil {
+		log.Errorf("Could not get trackingMethod: %v", err)
+		return
+	}
 
 	impersonationEnabled, err := m.settingsMgr.IsImpersonationEnabled()
 	if err != nil {
@@ -317,7 +321,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 	if impersonationEnabled {
-		serviceAccountToImpersonate, err := deriveServiceAccountToImpersonate(proj, app)
+		serviceAccountToImpersonate, err := deriveServiceAccountToImpersonate(proj, app, destCluster)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to find a matching service account to impersonate: %v", err)
@@ -360,7 +364,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			return (len(syncOp.Resources) == 0 ||
 				isPostDeleteHook(target) ||
 				argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)) &&
-				m.isSelfReferencedObj(live, target, app.GetName(), trackingMethod, installationID)
+				m.isSelfReferencedObj(live, target, app.GetName(), v1alpha1.TrackingMethod(trackingMethod), installationID)
 		}),
 		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
 		sync.WithSyncWaveHook(delayBetweenSyncWaves),
@@ -594,7 +598,7 @@ func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject
 
 // deriveServiceAccountToImpersonate determines the service account to be used for impersonation for the sync operation.
 // The returned service account will be fully qualified including namespace and the service account name in the format system:serviceaccount:<namespace>:<service_account>
-func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application *v1alpha1.Application) (string, error) {
+func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application *v1alpha1.Application, destCluster *v1alpha1.Cluster) (string, error) {
 	// spec.Destination.Namespace is optional. If not specified, use the Application's
 	// namespace
 	serviceAccountNamespace := application.Spec.Destination.Namespace
@@ -604,7 +608,7 @@ func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application
 	// Loop through the destinationServiceAccounts and see if there is any destination that is a candidate.
 	// if so, return the service account specified for that destination.
 	for _, item := range project.Spec.DestinationServiceAccounts {
-		dstServerMatched, err := glob.MatchWithError(item.Server, application.Spec.Destination.Server)
+		dstServerMatched, err := glob.MatchWithError(item.Server, destCluster.Server)
 		if err != nil {
 			return "", fmt.Errorf("invalid glob pattern for destination server: %w", err)
 		}
