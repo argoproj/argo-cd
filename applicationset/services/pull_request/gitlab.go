@@ -21,7 +21,7 @@ type GitLabService struct {
 
 var _ PullRequestService = (*GitLabService)(nil)
 
-func NewGitLabService(token, url, project string, labels []string, pullRequestState string, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
+func NewGitLabService(token, url, project string, labels []string, pullRequestState, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
 	var clientOptionFns []gitlab.ClientOptionFunc
 
 	// Set a custom Gitlab base URL if one is provided

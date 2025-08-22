@@ -41,7 +41,7 @@ type SCMConfig struct {
 	tokenRefStrictMode     bool
 }
 
-func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool, enableGitHubAPIMetrics bool, gitHubApps github_app_auth.Credentials, tokenRefStrictMode bool) SCMConfig {
+func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders, enableGitHubAPIMetrics bool, gitHubApps github_app_auth.Credentials, tokenRefStrictMode bool) SCMConfig {
 	return SCMConfig{
 		scmRootCAPath:          scmRootCAPath,
 		allowedSCMProviders:    allowedSCMProviders,
