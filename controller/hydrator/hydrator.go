@@ -62,6 +62,7 @@ type Dependencies interface {
 	// a group of applications which are hydrating to the same repo and target branch.
 	AddHydrationQueueItem(key types.HydrationQueueKey)
 
+	// GetHydratorCommitMessageTemplate gets the configured template for rendering commit messages.
 	GetHydratorCommitMessageTemplate() (string, error)
 }
 
