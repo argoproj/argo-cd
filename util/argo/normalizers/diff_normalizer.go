@@ -217,11 +217,63 @@ func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 		docData = patchedDocData
 	}
 
+	var tempObj map[string]any
+	err = json.Unmarshal(docData, &tempObj)
+	if err != nil {
+		return err
+	}
+
+	removeEmptyObjects(tempObj)
+
+	docData, err = json.Marshal(tempObj)
+	if err != nil {
+		return err
+	}
+
 	err = json.Unmarshal(docData, un)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+// removeEmptyObjects recursively removes empty objects and arrays from the given map
+func removeEmptyObjects(obj map[string]any) {
+	keysToDelete := make([]string, 0)
+
+	for key, value := range obj {
+		switch v := value.(type) {
+		case map[string]any:
+			removeEmptyObjects(v)
+			if len(v) == 0 {
+				keysToDelete = append(keysToDelete, key)
+			}
+		case []any:
+			cleanedArray := make([]any, 0, len(v))
+			for _, item := range v {
+				if itemMap, ok := item.(map[string]any); ok {
+					removeEmptyObjects(itemMap)
+					if len(itemMap) > 0 {
+						cleanedArray = append(cleanedArray, item)
+					}
+				} else {
+					cleanedArray = append(cleanedArray, item)
+				}
+			}
+
+			if len(cleanedArray) != len(v) {
+				obj[key] = cleanedArray
+			}
+
+			if len(cleanedArray) == 0 {
+				keysToDelete = append(keysToDelete, key)
+			}
+		}
+	}
+
+	for _, key := range keysToDelete {
+		delete(obj, key)
+	}
 }
 
 func shouldLogError(e error) bool {
