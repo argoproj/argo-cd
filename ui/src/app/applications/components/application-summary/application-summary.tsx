@@ -490,7 +490,9 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                             <p>SYNC POLICY</p>
                             <div className='row white-box__details-row'>
                                 <div className='columns small-3'>
-                                    {(app.spec.syncPolicy && app.spec.syncPolicy.automated && app.spec.syncPolicy?.automated?.enabled && <span>AUTOMATED</span>) || (
+                                    {app.spec.syncPolicy && app.spec.syncPolicy.automated && !(app.spec.syncPolicy.automated.enabled === false) ? (
+                                        <span>AUTOMATED</span>
+                                    ) : (
                                         <span>NONE</span>
                                     )}
                                 </div>
