@@ -17,6 +17,9 @@ metadata:
 spec:
   monoVertex:
     spec:
+      metadata:
+        annotations:
+          numaflow.numaproj.io/allowed-resume-strategies: "slow, fast"
       lifecycle:
         desiredPhase: Paused
       sink:
