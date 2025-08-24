@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -184,6 +185,12 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 		return
 	}
 	logCtx.WithField("appCount", len(relevantApps)).Debug("Successfully hydrated apps")
+	// return early if there are no relevant apps found to hydrate
+	// otherwise you'll be stuck in hydrating
+	if len(relevantApps) == 0 {
+		logCtx.Println("Skipping hydration since there are no apps found to hydrate")
+		return
+	}
 	finishedAt := metav1.Now()
 	for _, app := range relevantApps {
 		origApp := app.DeepCopy()
@@ -251,6 +258,17 @@ func (h *Hydrator) getRelevantAppsForHydration(logCtx *log.Entry, hydrationKey t
 		if destinationBranch != hydrationKey.DestinationBranch {
 			continue
 		}
+		path := app.Spec.SourceHydrator.SyncSource.Path
+
+		// ensure that the path is always set to a path that doesn't resolve to the root of the repo
+		if IsRootPath(path) {
+			logCtx.Warnf(
+				"App %q has SyncSource.Path %q which resolves to the repository root. "+
+					"SyncSource.Path must point to a subdirectory within the repository, not the root.",
+				app.QualifiedName(), path,
+			)
+			continue
+		}
 
 		var proj *appv1.AppProject
 		proj, err = h.dependencies.GetProcessableAppProj(&app)
@@ -268,7 +286,7 @@ func (h *Hydrator) getRelevantAppsForHydration(logCtx *log.Entry, hydrationKey t
 			sourceRepoURL:        git.NormalizeGitURLAllowInvalid(app.Spec.SourceHydrator.DrySource.RepoURL),
 			sourceTargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
 			destinationBranch:    destinationBranch,
-			destinationPath:      app.Spec.SourceHydrator.SyncSource.Path,
+			destinationPath:      path,
 		}
 		// TODO: test the dupe detection
 		if _, ok := uniqueDestinations[uniqueDestinationKey]; ok {
@@ -281,8 +299,14 @@ func (h *Hydrator) getRelevantAppsForHydration(logCtx *log.Entry, hydrationKey t
 	return relevantApps, nil
 }
 
+func IsRootPath(path string) bool {
+	clean := filepath.Clean(path)
+	return clean == "" || clean == "." || clean == string(filepath.Separator)
+}
+
 func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string, string, error) {
 	if len(apps) == 0 {
+		logCtx.Println("apps length is 0")
 		return "", "", nil
 	}
 	repoURL := apps[0].Spec.SourceHydrator.DrySource.RepoURL
