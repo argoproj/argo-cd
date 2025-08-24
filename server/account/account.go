@@ -126,6 +126,15 @@ func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.Can
 		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbac.Resources, r.Resource)
 	}
 
+	// Application resources have a special notation - for simplicity's sake,
+	// if user gives no sub-resource (or specifies simple '*'), we construct
+	// the required notation by setting subresource to '*/*'.
+	if r.Resource == rbacpolicy.ResourceApplications {
+		if r.Subresource == "*" || r.Subresource == "" {
+			r.Subresource = "*/*"
+		}
+	}
+
 	ok := s.enf.Enforce(ctx.Value("claims"), r.Resource, r.Action, r.Subresource)
 	if ok {
 		return &account.CanIResponse{Value: "yes"}, nil
