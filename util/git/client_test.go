@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -1207,6 +1208,259 @@ Argocd-reference-commit-repourl: https://github.com/another/repo.git`,
 			result, message := GetReferences(logCtx, tt.input)
 			assert.Equal(t, tt.expectedReferences, result)
 			assert.Equal(t, tt.expectedMessage, message)
+		})
+	}
+}
+
+func Test_nativeGitClient_garbageCollection(t *testing.T) {
+	tempDir := t.TempDir()
+
+	t.Setenv("ARGOCD_GIT_CLEANUP_ENABLED", "true")
+	// Set a short timeout for testing (30 seconds)
+	t.Setenv("ARGOCD_EXEC_TIMEOUT", "30s")
+
+	gitClient := &nativeGitClient{
+		repoURL: "https://github.com/argoproj/test-repo.git",
+		root:    tempDir,
+	}
+
+	gitDir := filepath.Join(tempDir, ".git", "objects", "pack")
+	err := os.MkdirAll(gitDir, 0o755)
+	require.NoError(t, err)
+
+	// Calculate expected grace period (2x timeout = 60s, but min is 3m)
+	expectedGracePeriod := gitClient.getCleanupGracePeriod()
+	assert.Equal(t, 3*time.Minute, expectedGracePeriod, "grace period should be minimum 3 minutes")
+
+	// Create old temporary pack file (older than grace period - should be deleted)
+	oldPackFile := filepath.Join(gitDir, "tmp_pack_123456")
+	err = os.WriteFile(oldPackFile, []byte("old pack data"), 0o644)
+	require.NoError(t, err)
+
+	// Set modification time to 4 minutes ago (older than grace period)
+	oldTime := time.Now().Add(-4 * time.Minute)
+	err = os.Chtimes(oldPackFile, oldTime, oldTime)
+	require.NoError(t, err)
+
+	// Create recent temporary pack file (within grace period - should NOT be deleted)
+	recentPackFile := filepath.Join(gitDir, "tmp_pack_654321")
+	err = os.WriteFile(recentPackFile, []byte("recent pack data"), 0o644)
+	require.NoError(t, err)
+
+	// Set modification time to 1 minute ago (within grace period)
+	recentTime := time.Now().Add(-1 * time.Minute)
+	err = os.Chtimes(recentPackFile, recentTime, recentTime)
+	require.NoError(t, err)
+
+	tmpObjDir := filepath.Join(tempDir, ".git", "objects", "tmp")
+	err = os.MkdirAll(tmpObjDir, 0o755)
+	require.NoError(t, err)
+
+	err = gitClient.garbageCollection()
+	require.NoError(t, err)
+
+	// Verify old pack file was removed
+	_, err = os.Stat(oldPackFile)
+	assert.True(t, os.IsNotExist(err), "old temporary pack file should have been removed")
+
+	// Verify recent pack file still exists
+	_, err = os.Stat(recentPackFile)
+	require.NoError(t, err, "recent temporary pack file should still exist")
+
+	// Verify tmp objects directory was removed
+	_, err = os.Stat(tmpObjDir)
+	assert.True(t, os.IsNotExist(err), "temporary objects directory should have been removed")
+}
+
+func Test_nativeGitClient_Fetch_CleanupOnError(t *testing.T) {
+	tests := []struct {
+		name           string
+		cleanupEnabled string
+		repoURL        string
+		wantCleanup    bool
+	}{
+		{
+			name:           "cleanup disabled",
+			cleanupEnabled: "false",
+			repoURL:        "https://github.com/argoproj/test-repo.git",
+			wantCleanup:    false,
+		},
+		{
+			name:           "cleanup enabled",
+			cleanupEnabled: "true",
+			repoURL:        "https://github.com/argoproj/test-repo.git",
+			wantCleanup:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup
+			tempDir := t.TempDir()
+			t.Setenv("ARGOCD_GIT_CLEANUP_ENABLED", tt.cleanupEnabled)
+
+			// Create git client with invalid remote to ensure fetch fails
+			gitClient := &nativeGitClient{
+				repoURL: tt.repoURL,
+				root:    tempDir,
+				creds:   NopCreds{},
+			}
+
+			// Create git directory structure
+			gitDir := filepath.Join(tempDir, ".git")
+			err := os.MkdirAll(gitDir, 0o755)
+			require.NoError(t, err)
+
+			// Initialize as a git repo
+			err = runCmd(tempDir, "git", "init")
+			require.NoError(t, err)
+
+			// Add invalid remote to ensure fetch will fail
+			err = runCmd(tempDir, "git", "remote", "add", "origin", "file:///invalid/path/does/not/exist")
+			require.NoError(t, err)
+
+			// Create old temporary pack file
+			packDir := filepath.Join(gitDir, "objects", "pack")
+			err = os.MkdirAll(packDir, 0o755)
+			require.NoError(t, err)
+
+			oldPackFile := filepath.Join(packDir, "tmp_pack_abcdef")
+			err = os.WriteFile(oldPackFile, []byte("interrupted fetch data"), 0o644)
+			require.NoError(t, err)
+
+			// Make file old enough (4 minutes = older than minimum grace period of 3 minutes)
+			oldTime := time.Now().Add(-4 * time.Minute)
+			err = os.Chtimes(oldPackFile, oldTime, oldTime)
+			require.NoError(t, err)
+
+			// Execute fetch (will fail due to invalid remote)
+			err = gitClient.Fetch("")
+			require.Error(t, err, "fetch should fail with invalid remote")
+
+			// Verify cleanup behavior
+			_, err = os.Stat(oldPackFile)
+			if tt.wantCleanup {
+				assert.True(t, os.IsNotExist(err), "pack file should be cleaned up")
+			} else {
+				assert.NoError(t, err, "pack file should still exist")
+			}
+		})
+	}
+}
+
+func Test_nativeGitClient_isCleanupEnabled(t *testing.T) {
+	tests := []struct {
+		name           string
+		repoURL        string
+		cleanupEnabled string
+		want           bool
+	}{
+		{
+			name:           "cleanup enabled true",
+			repoURL:        "https://github.com/argoproj/argo-cd.git",
+			cleanupEnabled: "true",
+			want:           true,
+		},
+		{
+			name:           "cleanup disabled false",
+			repoURL:        "https://github.com/argoproj/argo-cd.git",
+			cleanupEnabled: "false",
+			want:           false,
+		},
+		{
+			name:           "cleanup empty (defaults to false)",
+			repoURL:        "https://github.com/argoproj/argo-cd.git",
+			cleanupEnabled: "",
+			want:           false,
+		},
+		{
+			name:           "invalid value (defaults to false)",
+			repoURL:        "https://github.com/argoproj/argo-cd.git",
+			cleanupEnabled: "invalid",
+			want:           false,
+		},
+		{
+			name:           "case insensitive true",
+			repoURL:        "https://github.com/argoproj/argo-cd.git",
+			cleanupEnabled: "TRUE",
+			want:           true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("ARGOCD_GIT_CLEANUP_ENABLED", tt.cleanupEnabled)
+
+			client, err := NewClient(tt.repoURL, NopCreds{}, true, false, "", "")
+			require.NoError(t, err)
+
+			gitClient, ok := client.(*nativeGitClient)
+			require.True(t, ok)
+
+			got := gitClient.isCleanupEnabled()
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func Test_nativeGitClient_getCleanupGracePeriod(t *testing.T) {
+	tests := []struct {
+		name           string
+		execTimeout    string
+		maxAttempts    string
+		expectedPeriod time.Duration
+	}{
+		{
+			name:           "default timeout with default attempts",
+			execTimeout:    "",
+			maxAttempts:    "",
+			expectedPeriod: 216 * time.Second, // 90s * 2 * 1 * 1.2 = 216s = 3.6m
+		},
+		{
+			name:           "short timeout - minimum applies",
+			execTimeout:    "30s",
+			maxAttempts:    "",
+			expectedPeriod: 3 * time.Minute, // 30s * 2 * 1 * 1.2 = 72s, but min is 3m
+		},
+		{
+			name:           "long timeout",
+			execTimeout:    "5m",
+			maxAttempts:    "",
+			expectedPeriod: 12 * time.Minute, // 5m * 2 * 1 * 1.2 = 12m
+		},
+		{
+			name:           "with retry attempts",
+			execTimeout:    "60s",
+			maxAttempts:    "3",
+			expectedPeriod: 432 * time.Second, // 60s * 2 * 3 * 1.2 = 432s = 7.2m
+		},
+		{
+			name:           "very short timeout - minimum applies",
+			execTimeout:    "10s",
+			maxAttempts:    "",
+			expectedPeriod: 3 * time.Minute, // 10s * 2 * 1 * 1.2 = 24s, but min is 3m
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Save original values
+			origMaxAttempts := maxAttemptsCount
+			defer func() {
+				maxAttemptsCount = origMaxAttempts
+			}()
+
+			if tt.execTimeout != "" {
+				t.Setenv("ARGOCD_EXEC_TIMEOUT", tt.execTimeout)
+			}
+			if tt.maxAttempts != "" {
+				attempts, _ := strconv.Atoi(tt.maxAttempts)
+				maxAttemptsCount = attempts
+			}
+
+			gitClient := &nativeGitClient{}
+			gracePeriod := gitClient.getCleanupGracePeriod()
+			assert.Equal(t, tt.expectedPeriod, gracePeriod)
 		})
 	}
 }
