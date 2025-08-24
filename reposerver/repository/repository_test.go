@@ -1930,7 +1930,7 @@ func Test_newEnv(t *testing.T) {
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: "https://github.com/my-org/my-repo"},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: "my-path"},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: "my-target-revision"},
-	}, newEnv(&apiclient.ManifestRequest{
+	}, newEnv(t.Context(), &apiclient.ManifestRequest{
 		AppName:     "my-app-name",
 		Namespace:   "my-namespace",
 		ProjectName: "my-project-name",
