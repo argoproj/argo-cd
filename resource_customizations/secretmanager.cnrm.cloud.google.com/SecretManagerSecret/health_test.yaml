@@ -1,0 +1,21 @@
+tests:
+- healthStatus:
+    status: Degraded
+    message: "Dependency not found"
+  inputPath: testdata/dependency_not_found.yaml
+- healthStatus:
+    status: Suspended
+    message: "Dependency not ready"
+  inputPath: testdata/dependency_not_ready.yaml
+- healthStatus:
+    status: Healthy
+    message: "The resource is up to date"
+  inputPath: testdata/up_to_date.yaml
+- healthStatus:
+    status: Degraded
+    message: "Update failed"
+  inputPath: testdata/update_failed.yaml
+- healthStatus:
+    status: Progressing
+    message: "Update in progress"
+  inputPath: testdata/update_in_progress.yaml
