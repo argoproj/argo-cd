@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	cmd "github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
@@ -345,7 +345,7 @@ func TestOverrideReplaceCLIOptsTrueAppOptsFalseCLIWins(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		ApplyOutOfSyncOnly(true).
-		SyncOptionsOverrideStyle(cmd.SyncOptionsOverrideReplace).
+		SyncOptionsOverrideStyle(commands.SyncOptionsOverrideReplace).
 		When().
 		CreateFromFile(func(app *Application) {
 			ns = app.Spec.Destination.Namespace
@@ -374,7 +374,7 @@ func TestOverrideReplaceCLIOptsTrueAppOptsEmptyCLIWins(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		ApplyOutOfSyncOnly(true).
-		SyncOptionsOverrideStyle(cmd.SyncOptionsOverrideReplace).
+		SyncOptionsOverrideStyle(commands.SyncOptionsOverrideReplace).
 		When().
 		CreateFromFile(func(app *Application) {
 			ns = app.Spec.Destination.Namespace
@@ -399,7 +399,7 @@ func TestOverrideReplaceCLIOptsFalseAppOptsTrueCLIWins(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		ApplyOutOfSyncOnly(false).
-		SyncOptionsOverrideStyle(cmd.SyncOptionsOverrideReplace).
+		SyncOptionsOverrideStyle(commands.SyncOptionsOverrideReplace).
 		When().
 		CreateFromFile(func(app *Application) {
 			ns = app.Spec.Destination.Namespace
@@ -427,7 +427,7 @@ func TestOverrideReplaceCLIOptsEmptyAppOptsTrueCLIWins(t *testing.T) {
 	var ns string
 	Given(t).
 		Path(guestbookPath).
-		SyncOptionsOverrideStyle(cmd.SyncOptionsOverrideReplace).
+		SyncOptionsOverrideStyle(commands.SyncOptionsOverrideReplace).
 		When().
 		CreateFromFile(func(app *Application) {
 			ns = app.Spec.Destination.Namespace
@@ -456,7 +456,7 @@ func TestOverrideReplaceHasCLIOptHasAnotherAppOptCLIWins(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		ApplyOutOfSyncOnly(true).
-		SyncOptionsOverrideStyle(cmd.SyncOptionsOverrideReplace).
+		SyncOptionsOverrideStyle(commands.SyncOptionsOverrideReplace).
 		When().
 		CreateFromFile(func(app *Application) {
 			ns = app.Spec.Destination.Namespace
@@ -486,7 +486,7 @@ func TestOverrideMergeHasCLIOptHasAnotherAppOptBothWin(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		ApplyOutOfSyncOnly(true).
-		SyncOptionsOverrideStyle(cmd.SyncOptionsOverridePatch).
+		SyncOptionsOverrideStyle(commands.SyncOptionsOverridePatch).
 		When().
 		CreateFromFile(func(app *Application) {
 			ns = app.Spec.Destination.Namespace
