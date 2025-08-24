@@ -2043,21 +2043,20 @@ func cliMapFromFlags(cmd *cobra.Command, replace, serverSideApply, applyOutOfSyn
 }
 
 func buildSyncOptions(cmd *cobra.Command, replace, serverSideApply, applyOutOfSyncOnly bool, syncOptionsOverrideStyle SyncOptionsOverrideStyle, currentSpecSyncOpts argoappv1.SyncOptions) (*application.SyncOptions, error) {
-	cliMap, any := cliMapFromFlags(cmd, replace, serverSideApply, applyOutOfSyncOnly)
+	cliMap, anythingChanged := cliMapFromFlags(cmd, replace, serverSideApply, applyOutOfSyncOnly)
 
 	if syncOptionsOverrideStyle == "" {
 		// Legacy behavior when override is not provided (not exactly like override with patch and not exactly like override with replace):
 		// - If no CLI flags changed, return nil (AppSpec wins)
 		// - If CLI flags only included false values, return nil (AppSpec wins)
 		// - If CLI flags included any true values, return them (CLI wins)
-		if !any {
+		if !anythingChanged {
 			return nil, nil
 		}
 		items := make([]string, 0, len(cliMap))
 		for _, k := range knownSyncOptionKeys {
 			if v, ok := cliMap[k]; ok && v {
 				items = append(items, k+"=true")
-
 			}
 		}
 		if len(items) == 0 {
@@ -2065,17 +2064,15 @@ func buildSyncOptions(cmd *cobra.Command, replace, serverSideApply, applyOutOfSy
 		}
 		return &application.SyncOptions{Items: items}, nil
 	}
-
 	switch syncOptionsOverrideStyle {
 	case SyncOptionsOverrideReplace:
-		if !any {
+		if !anythingChanged {
 			// nullify app spec sync options entirely by returning empty array
 			return &application.SyncOptions{Items: []string{}}, nil
 		}
 		return &application.SyncOptions{Items: serializeKnownMap(cliMap)}, nil
-
 	case SyncOptionsOverridePatch:
-		if !any {
+		if !anythingChanged {
 			// let AppSpec win. returning nil means no sync options will be applied
 			return nil, nil
 		}

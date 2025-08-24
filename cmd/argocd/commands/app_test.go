@@ -2394,7 +2394,8 @@ func runSyncOptionsTests(t *testing.T, tt struct {
 	expectedNil         bool
 	expectedContains    []string
 	expectedError       bool
-}) {
+},
+) {
 	t.Helper()
 	// Create a fresh command with flags
 	cmd := &cobra.Command{}
@@ -2566,6 +2567,7 @@ func TestBuildSyncOptionsOverrideReplaceStyle(t *testing.T) {
 		})
 	}
 }
+
 func TestBuildSyncOptionOverridePatchStyle(t *testing.T) {
 	tests := []struct {
 		name                string
