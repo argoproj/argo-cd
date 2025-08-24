@@ -511,7 +511,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                     val
                                                 );
                                             }}
-                                            checked={!!app.spec.syncPolicy?.automated?.enabled}
+                                            checked={!!(app.spec.syncPolicy?.automated?.enabled ?? app.spec.syncPolicy?.automated)}
                                             id='enable-auto-sync'
                                         />
                                         <label htmlFor='enable-auto-sync'>ENABLE AUTO-SYNC</label>
