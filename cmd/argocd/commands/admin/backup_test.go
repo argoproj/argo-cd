@@ -2,7 +2,6 @@ package admin
 
 import (
 	"bytes"
-	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -14,14 +13,11 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
-	"k8s.io/client-go/util/retry"
 
 	"github.com/argoproj/argo-cd/v3/common"
 )
@@ -386,21 +382,16 @@ status: {}
 	}
 }
 
-func Test_importResources(t *testing.T) {
+func Test_executeImport(t *testing.T) {
 	type args struct {
 		bak  string
 		live string
 	}
 
 	tests := []struct {
-		name                     string
-		args                     args
-		applicationNamespaces    []string
-		applicationsetNamespaces []string
-		prune                    bool
-		skipResourcesWithLabel   string
-		stopOperation            bool
-		overrideOnConflict       bool
+		name string
+		args args
+		opts importOpts
 	}{
 		{
 			name: "Update live object when backup does not match skip label",
@@ -433,11 +424,11 @@ data:
   foo: old
 `,
 			},
-			applicationNamespaces:    []string{"argocd", "dev"},
-			applicationsetNamespaces: []string{"argocd", "prod"},
-			skipResourcesWithLabel:   "env=dev",
-			stopOperation:            false,
-			overrideOnConflict:       true,
+			opts: importOpts{
+				applicationNamespaces:    []string{"argocd", "dev"},
+				applicationsetNamespaces: []string{"argocd", "prod"},
+				skipResourcesWithLabel:   "env=dev",
+			},
 		},
 		{
 			name: "Update live object when data differs from backup",
@@ -459,8 +450,10 @@ data:
   foo: old				
 `,
 			},
-			applicationNamespaces:    []string{},
-			applicationsetNamespaces: []string{},
+			opts: importOpts{
+				applicationNamespaces:    []string{},
+				applicationsetNamespaces: []string{},
+			},
 		},
 		{
 			name: "Update live if spec differs from backup for Application",
@@ -490,8 +483,10 @@ spec:
     server: https://kubernetes.default.svc
 `,
 			},
-			applicationNamespaces:    []string{"argocd", "dev"},
-			applicationsetNamespaces: []string{"prod"},
+			opts: importOpts{
+				applicationNamespaces:    []string{"argocd", "dev"},
+				applicationsetNamespaces: []string{"prod"},
+			},
 		},
 		{
 			name: "Update live if spec differs from backup for ApplicationSet",
@@ -527,8 +522,10 @@ spec:
     spec: {}
 `,
 			},
-			applicationNamespaces:    []string{},
-			applicationsetNamespaces: []string{"dev"},
+			opts: importOpts{
+				applicationNamespaces:    []string{},
+				applicationsetNamespaces: []string{"dev"},
+			},
 		},
 		{
 			name: "Should not update live object if it matches the backup",
@@ -554,8 +551,10 @@ data:
   foo: bar
 `,
 			},
-			applicationNamespaces:    []string{"argo-*"},
-			applicationsetNamespaces: []string{"argo-*"},
+			opts: importOpts{
+				applicationNamespaces:    []string{"argo-*"},
+				applicationsetNamespaces: []string{"argo-*"},
+			},
 		},
 		{
 			name: "Create resource if it's missing from live",
@@ -579,30 +578,39 @@ metadata:
     env: dev
 `,
 			},
-			applicationNamespaces:    []string{"argocd", "dev"},
-			applicationsetNamespaces: []string{"argocd", "prod"},
+			opts: importOpts{
+				applicationNamespaces:    []string{"argocd", "dev"},
+				applicationsetNamespaces: []string{"argocd", "prod"},
+			},
 		},
 		{
 			name: "Prune live resources when not present in backup",
 			args: args{
 				bak: `apiVersion: argoproj.io/v1alpha1
-kind: ConfigMap
+kind: Application
 metadata:
-  name: configmap-to-keep
-  namespace: default
+  name: app
+  namespace: argocd
 `,
 				live: `apiVersion: argoproj.io/v1alpha1
-kind: ConfigMap
+kind: Application
 metadata:
-  name: configmap-to-keep
-  namespace: default
-  labels:
-    env: dev
-data:
-  foo: bar
+  name: app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/example/repo.git
+    path: .
+    targetRevision: HEAD
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
 `,
 			},
-			prune: true,
+			opts: importOpts{
+				prune: true,
+			},
 		},
 		{
 			name: "Clear the operation field when stopOperation is enabled",
@@ -640,7 +648,9 @@ status:
         revision: HEAD
 `,
 			},
-			stopOperation: true,
+			opts: importOpts{
+				stopOperation: true,
+			},
 		},
 		{
 			name: "Override live object on conflict with backup",
@@ -670,16 +680,18 @@ data:
   password: old-pwd
 `,
 			},
-			applicationNamespaces:    []string{"argocd"},
-			applicationsetNamespaces: []string{},
-			overrideOnConflict:       true,
+			opts: importOpts{
+				applicationNamespaces:    []string{"argocd"},
+				applicationsetNamespaces: []string{},
+				overrideOnConflict:       true,
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bakObj := decodeYAMLToUnstructured(t, tt.args.bak)
-			liveObj := decodeYAMLToUnstructured(t, tt.args.live)
+			bakObjArr := []*unstructured.Unstructured{bakObj}
 
 			var (
 				configMapGVR = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
@@ -689,11 +701,7 @@ data:
 				appSetGVR    = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "applicationsets"}
 			)
 
-			cm := newConfigmapObject()
-			secret := newSecretsObject()
 			application := newApplication("argocd")
-			project := newAppProject()
-			applicationSet := newApplicationSet("argocd")
 
 			scheme := runtime.NewScheme()
 
@@ -705,7 +713,7 @@ data:
 				appSetGVR:    "ApplicationSetList",
 			}
 
-			fakeClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listKinds, cm, secret, application, project, applicationSet)
+			fakeClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, listKinds, application)
 			acdClientsets := &argoCDClientsets{
 				configMaps:      fakeClient.Resource(configMapGVR).Namespace("argocd"),
 				secrets:         fakeClient.Resource(secretGVR).Namespace("argocd"),
@@ -714,99 +722,25 @@ data:
 				applicationSets: fakeClient.Resource(appSetGVR).Namespace("argocd"),
 			}
 
-			configMap := &unstructured.Unstructured{}
-			configMap.SetUnstructuredContent(map[string]any{
-				"apiVersion": "v1",
-				"kind":       "ConfigMap",
-				"metadata": map[string]any{
-					"name":      "argocd-cmd-params-cm",
-					"namespace": "default",
-				},
-				"data": map[string]any{
-					"application.namespaces":    "argocd,dev",
-					"applicationset.namespaces": "argocd,stage",
-				},
-			})
-
 			ctx := t.Context()
-			gvr := schema.GroupVersionResource{
-				Group:    "",
-				Version:  "v1",
-				Resource: "configmaps",
-			}
 
-			dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, configMap)
-			configMapResource := dynamicClient.Resource(gvr).Namespace("default")
-
-			if len(tt.applicationNamespaces) == 0 || len(tt.applicationsetNamespaces) == 0 {
-				defaultNs := getAdditionalNamespaces(ctx, configMapResource)
-
-				if len(tt.applicationNamespaces) == 0 {
-					tt.applicationNamespaces = defaultNs.applicationNamespaces
-				}
-
-				if len(tt.applicationsetNamespaces) == 0 {
-					tt.applicationsetNamespaces = defaultNs.applicationsetNamespaces
-				}
-			}
-
-			pruneObjects, err := createPruneObject(ctx, acdClientsets, tt.applicationNamespaces, namespace, tt.applicationsetNamespaces)
+			pruneObjects, err := createPruneObject(ctx, acdClientsets, tt.opts.applicationNamespaces, namespace, tt.opts.applicationsetNamespaces)
 			require.NoError(t, err)
 
-			gvk := bakObj.GroupVersionKind()
-			if bakObj.GetNamespace() == "" {
-				bakObj.SetNamespace("argocd")
+			opts := importOpts{
+				prune:                    tt.opts.prune,
+				skipResourcesWithLabel:   tt.opts.skipResourcesWithLabel,
+				stopOperation:            tt.opts.stopOperation,
+				overrideOnConflict:       tt.opts.overrideOnConflict,
+				applicationNamespaces:    tt.opts.applicationNamespaces,
+				applicationsetNamespaces: tt.opts.applicationsetNamespaces,
+				dryRun:                   tt.opts.dryRun,
+				verbose:                  tt.opts.verbose,
+				ignoreTracking:           tt.opts.ignoreTracking,
+				promptsEnabled:           tt.opts.promptsEnabled,
 			}
-			key := kube.ResourceKey{Group: gvk.Group, Kind: gvk.Kind, Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}
-			liveObject, exists := pruneObjects[key]
-			delete(pruneObjects, key)
-
-			var updatedLive *unstructured.Unstructured
-			dynClient := setDynamicClient(&dynamic.DynamicClient{}, bakObj, "argocd", tt.applicationNamespaces, tt.applicationsetNamespaces)
-
-			if bakObj.GetKind() == "Secret" {
-				dynClient = dynamicClient.Resource(secretResource).Namespace(bakObj.GetNamespace())
-			}
-
-			if slices.Contains(tt.applicationNamespaces, bakObj.GetNamespace()) || slices.Contains(tt.applicationsetNamespaces, bakObj.GetNamespace()) {
-				if !isSkipLabelMatches(bakObj, tt.skipResourcesWithLabel) || !isSkipLabelMatches(liveObj, tt.skipResourcesWithLabel) {
-					if tt.prune {
-						err := dynClient.Delete(ctx, key.Name, metav1.DeleteOptions{})
-						require.NoError(t, err)
-					} else {
-						updatedLive = updateLive(bakObj, liveObj, tt.stopOperation)
-
-						if tt.overrideOnConflict {
-							switch {
-							case !exists:
-								_, err := dynClient.Create(ctx, bakObj, metav1.CreateOptions{})
-								require.NoError(t, err)
-							default:
-								newLive := updateLive(bakObj, &liveObject, tt.stopOperation)
-								_, err := dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
-								if apierrors.IsConflict(err) && tt.overrideOnConflict {
-									err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-										liveObj, _ := dynClient.Get(ctx, newLive.GetName(), metav1.GetOptions{})
-
-										newLive.SetResourceVersion(liveObj.GetResourceVersion())
-										_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
-										return err
-									})
-
-									require.NoError(t, err)
-								}
-							}
-						} else {
-							assert.Equal(t, bakObj.GetLabels(), updatedLive.GetLabels())
-							assert.Equal(t, bakObj.GetAnnotations(), updatedLive.GetAnnotations())
-							assert.Equal(t, bakObj.GetFinalizers(), updatedLive.GetFinalizers())
-							assert.Equal(t, bakObj.Object["data"], updatedLive.Object["data"])
-						}
-					}
-				}
-			} else {
-				assert.Nil(t, updatedLive)
-			}
+			err = opts.executeImport(bakObjArr, pruneObjects, fakeClient, "argocd", " (dry run)", ctx)
+			require.NoError(t, err)
 		})
 	}
 }
