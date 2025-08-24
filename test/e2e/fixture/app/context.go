@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	cmd "github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/certs"
@@ -43,7 +44,7 @@ type Context struct {
 	revision                 string
 	force                    bool
 	applyOutOfSyncOnly       *bool
-	syncOptionsOverride      *bool
+	syncOptionsOverrideStyle string
 	directoryRecurse         bool
 	replace                  *bool
 	helmPassCredentials      bool
@@ -261,8 +262,8 @@ func (c *Context) Replace(replace bool) *Context {
 	return c
 }
 
-func (c *Context) SyncOptionsOverride(override bool) *Context {
-	c.syncOptionsOverride = &override
+func (c *Context) SyncOptionsOverrideStyle(style cmd.SyncOptionsOverrideStyle) *Context {
+	c.syncOptionsOverrideStyle = string(style)
 	return c
 }
 

@@ -436,14 +436,9 @@ func (a *Actions) Sync(args ...string) *Actions {
 		}
 	}
 
-	if a.context.syncOptionsOverride != nil {
-		if *a.context.syncOptionsOverride {
-			args = append(args, "--sync-options-override=true")
-		} else {
-			args = append(args, "--sync-options-override=false")
-		}
+	if a.context.syncOptionsOverrideStyle != "" {
+		args = append(args, "--sync-options-override-style", a.context.syncOptionsOverrideStyle)
 	}
-
 	//  are you adding new context values? if you only use them for this func, then use args instead
 
 	a.runCli(args...)

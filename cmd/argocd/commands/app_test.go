@@ -2392,7 +2392,9 @@ func runSyncOptionsTests(t *testing.T, tt struct {
 	currentSpecSyncOpts argoappv1.SyncOptions
 	expectedNil         bool
 	expectedContains    []string
+	expectedError       bool
 }) {
+	t.Helper()
 	// Create a fresh command with flags
 	cmd := &cobra.Command{}
 	cmd.Flags().Bool("replace", false, "test")
@@ -2415,7 +2417,11 @@ func runSyncOptionsTests(t *testing.T, tt struct {
 	} else {
 		var err error
 		style, err = SyncOptionsOverrideStyleFromString(styleStr)
-		require.NoError(t, err)
+		if tt.expectedError {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+		}
 	}
 
 	result, err := buildSyncOptions(cmd, replace, serverSideApply, applyOutOfSyncOnly, style, tt.currentSpecSyncOpts)
@@ -2443,6 +2449,7 @@ func TestBuildSyncOptionsNoOverride(t *testing.T) {
 		currentSpecSyncOpts argoappv1.SyncOptions
 		expectedNil         bool
 		expectedContains    []string
+		expectedError       bool
 	}{
 		// Test cases without syncOptionsOverride (default behavior)
 		{
@@ -2484,16 +2491,6 @@ func TestBuildSyncOptionsNoOverride(t *testing.T) {
 			expectedNil:      false,
 			expectedContains: []string{"Replace=true", "ServerSideApply=true"},
 		},
-		{
-			name: "mixed true/false values passed, override - includes true values",
-			setupFlags: func(cmd *cobra.Command) {
-				_ = cmd.Flags().Set("replace", "true")
-				_ = cmd.Flags().Set("server-side", "false")
-				_ = cmd.Flags().Set("apply-out-of-sync-only", "true")
-			},
-			expectedNil:      false,
-			expectedContains: []string{"Replace=true", "ApplyOutOfSyncOnly=true"},
-		},
 	}
 
 	for _, tt := range tests {
@@ -2510,6 +2507,7 @@ func TestBuildSyncOptionsOverrideReplaceStyle(t *testing.T) {
 		currentSpecSyncOpts argoappv1.SyncOptions
 		expectedNil         bool
 		expectedContains    []string
+		expectedError       bool
 	}{
 		{
 			name: "no flags passed, with override - should return empty array",
@@ -2575,6 +2573,7 @@ func TestBuildSyncOptionOverridePatchStyle(t *testing.T) {
 		currentSpecSyncOpts argoappv1.SyncOptions
 		expectedNil         bool
 		expectedContains    []string
+		expectedError       bool
 	}{
 		{
 			name: "no flags passed, will override should return nil",
@@ -2626,6 +2625,32 @@ func TestBuildSyncOptionOverridePatchStyle(t *testing.T) {
 			},
 			expectedNil:      false,
 			expectedContains: []string{"Replace=true", common.SyncOptionDisableServerSideApply, "ApplyOutOfSyncOnly=false"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			runSyncOptionsTests(t, tt)
+		})
+	}
+}
+
+func TestBuildSyncOptionInvalidOverrideStyle(t *testing.T) {
+	tests := []struct {
+		name                string
+		setupFlags          func(*cobra.Command) // Function to setup flags as user would
+		currentSpecSyncOpts argoappv1.SyncOptions
+		expectedNil         bool
+		expectedContains    []string
+		expectedError       bool
+	}{
+		{
+			name: "invalid override style passed, should return error",
+			setupFlags: func(cmd *cobra.Command) {
+				_ = cmd.Flags().Set("sync-options-override-style", "invalid")
+			},
+			expectedNil:      true,
+			expectedContains: []string{},
+			expectedError:    true,
 		},
 	}
 	for _, tt := range tests {
