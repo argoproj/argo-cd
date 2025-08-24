@@ -2056,7 +2056,8 @@ func buildSyncOptions(cmd *cobra.Command, replace, serverSideApply, applyOutOfSy
 		items := make([]string, 0, len(cliMap))
 		for _, k := range knownSyncOptionKeys {
 			if v, ok := cliMap[k]; ok && v {
-				items = append(items, fmt.Sprintf("%s=true", k))
+				items = append(items, k+"=true")
+
 			}
 		}
 		if len(items) == 0 {
@@ -2066,7 +2067,6 @@ func buildSyncOptions(cmd *cobra.Command, replace, serverSideApply, applyOutOfSy
 	}
 
 	switch syncOptionsOverrideStyle {
-
 	case SyncOptionsOverrideReplace:
 		if !any {
 			// nullify app spec sync options entirely by returning empty array
@@ -2339,7 +2339,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				var overrideStyle SyncOptionsOverrideStyle
 				if syncOptionsOverrideStyle == "" {
 					overrideStyle = ""
-
 				} else {
 					var err error
 					overrideStyle, err = SyncOptionsOverrideStyleFromString(syncOptionsOverrideStyle)

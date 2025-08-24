@@ -46,8 +46,9 @@ import (
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
 	versionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 )
 
@@ -2389,7 +2390,7 @@ func (c *fakeAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _
 func runSyncOptionsTests(t *testing.T, tt struct {
 	name                string
 	setupFlags          func(*cobra.Command) // Function to setup flags as user would
-	currentSpecSyncOpts argoappv1.SyncOptions
+	currentSpecSyncOpts v1alpha1.SyncOptions
 	expectedNil         bool
 	expectedContains    []string
 	expectedError       bool
@@ -2413,7 +2414,6 @@ func runSyncOptionsTests(t *testing.T, tt struct {
 	var style SyncOptionsOverrideStyle
 	if styleStr == "" {
 		style = ""
-
 	} else {
 		var err error
 		style, err = SyncOptionsOverrideStyleFromString(styleStr)
@@ -2446,7 +2446,7 @@ func TestBuildSyncOptionsNoOverride(t *testing.T) {
 	tests := []struct {
 		name                string
 		setupFlags          func(*cobra.Command) // Function to setup flags as user would
-		currentSpecSyncOpts argoappv1.SyncOptions
+		currentSpecSyncOpts v1alpha1.SyncOptions
 		expectedNil         bool
 		expectedContains    []string
 		expectedError       bool
@@ -2504,7 +2504,7 @@ func TestBuildSyncOptionsOverrideReplaceStyle(t *testing.T) {
 	tests := []struct {
 		name                string
 		setupFlags          func(*cobra.Command) // Function to setup flags as user would
-		currentSpecSyncOpts argoappv1.SyncOptions
+		currentSpecSyncOpts v1alpha1.SyncOptions
 		expectedNil         bool
 		expectedContains    []string
 		expectedError       bool
@@ -2570,7 +2570,7 @@ func TestBuildSyncOptionOverridePatchStyle(t *testing.T) {
 	tests := []struct {
 		name                string
 		setupFlags          func(*cobra.Command) // Function to setup flags as user would
-		currentSpecSyncOpts argoappv1.SyncOptions
+		currentSpecSyncOpts v1alpha1.SyncOptions
 		expectedNil         bool
 		expectedContains    []string
 		expectedError       bool
@@ -2585,7 +2585,7 @@ func TestBuildSyncOptionOverridePatchStyle(t *testing.T) {
 		},
 		{
 			name:                "apply-out-of-sync-only=false passed, spec is true - includes false value",
-			currentSpecSyncOpts: argoappv1.SyncOptions{}.AddOption(common.SyncOptionApplyOutOfSyncOnly),
+			currentSpecSyncOpts: v1alpha1.SyncOptions{}.AddOption(common.SyncOptionApplyOutOfSyncOnly),
 			setupFlags: func(cmd *cobra.Command) {
 				_ = cmd.Flags().Set("apply-out-of-sync-only", "false")
 				_ = cmd.Flags().Set("sync-options-override-style", string(SyncOptionsOverridePatch))
@@ -2638,7 +2638,7 @@ func TestBuildSyncOptionInvalidOverrideStyle(t *testing.T) {
 	tests := []struct {
 		name                string
 		setupFlags          func(*cobra.Command) // Function to setup flags as user would
-		currentSpecSyncOpts argoappv1.SyncOptions
+		currentSpecSyncOpts v1alpha1.SyncOptions
 		expectedNil         bool
 		expectedContains    []string
 		expectedError       bool
