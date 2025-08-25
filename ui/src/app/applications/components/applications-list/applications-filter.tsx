@@ -25,8 +25,8 @@ export interface FilteredApp extends Application {
     filterResult: FilterResult;
 }
 
-function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
-    if (!syncPolicy || !syncPolicy.automated) {
+export function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
+    if (!syncPolicy || !syncPolicy.automated || syncPolicy.automated.enabled === false) {
         return 'Disabled';
     }
     return 'Enabled';
