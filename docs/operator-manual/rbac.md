@@ -49,7 +49,12 @@ The model syntax is based on [Casbin](https://casbin.org/docs/overview) (an open
 Syntax: `g, <user/group>, <role>`
 
 - `<user/group>`: The entity to whom the role will be assigned. It can be a local user or a user authenticated with SSO.
-  When SSO is used, the `user` will be based on the `sub` claims, while the group is one of the values returned by the `scopes` configuration.
+  When SSO is used:
+  - For Argo CD versions prior to 3.0, the `user` will be based on the `sub` claim.
+  - Starting with Argo CD 3.0, when using Dex SSO, the `user` will be based on the `federated_claims.user_id` claim (from the `federated:id` scope). The group is one of the values returned by the `scopes` configuration.
+  
+  !!! note "RBAC subject change in Argo CD 3.0 with Dex SSO"
+      As of Argo CD 3.0, the RBAC subject for Dex SSO authentication is now derived from the `federated_claims.user_id` claim, not the `sub` claim. See the [upgrade guide](https://argo-cd.readthedocs.io/en/stable/operator-manual/upgrading/2.14-3.0/#changes-to-rbac-with-dex-sso-authentication) for details.
 - `<role>`: The internal role to which the entity will be assigned.
 
 **Policy**: Allows to assign permissions to an entity.

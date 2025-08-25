@@ -132,6 +132,8 @@ type Client interface {
 	RemoveContents() (string, error)
 	// CommitAndPush commits and pushes changes to the target branch.
 	CommitAndPush(branch, message string) (string, error)
+	// RunCmd runs a git command with the given arguments and returns the output.
+	RunCmd(args ...string) (string, error)
 }
 
 type EventHandlers struct {
@@ -1070,6 +1072,11 @@ func (m *nativeGitClient) runGnuPGWrapper(wrapper string, args ...string) (strin
 func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
 	return m.runCmdOutput(cmd, runOpts{})
+}
+
+// RunCmd runs a git command with the given arguments and returns the output.
+func (m *nativeGitClient) RunCmd(args ...string) (string, error) {
+	return m.runCmd(args...)
 }
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
