@@ -17,6 +17,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 )
 
 const (
@@ -139,6 +140,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			repoOpts.Repo.EnableLFS = repoOpts.EnableLfs
 			repoOpts.Repo.EnableOCI = repoOpts.EnableOci
 			repoOpts.Repo.UseAzureWorkloadIdentity = repoOpts.UseAzureWorkloadIdentity
+			repoOpts.Repo.AzureCloud = repoOpts.AzureCloud
 			repoOpts.Repo.InsecureOCIForceHttp = repoOpts.InsecureOCIForceHTTP
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {
@@ -149,6 +151,17 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			// then we prompt for it
 			if repoOpts.Repo.Username != "" && repoOpts.Repo.Password == "" {
 				repoOpts.Repo.Password = cli.PromptPassword(repoOpts.Repo.Password)
+			}
+
+			if repoOpts.Repo.AzureCloud != "" {
+				if !repoOpts.Repo.UseAzureWorkloadIdentity {
+					errors.Fatal(errors.ErrorGeneric, "Must specify --use-azure-workload-identity when using --azure-cloud")
+				}
+
+				_, err := workloadidentity.GetAzureCloudConfigByName(repoOpts.Repo.AzureCloud)
+				if err != nil {
+					errors.Fatal(errors.ErrorGeneric, err.Error())
+				}
 			}
 
 			err := cmdutil.ValidateBearerTokenAndPasswordCombo(repoOpts.Repo.BearerToken, repoOpts.Repo.Password)
