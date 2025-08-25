@@ -59,6 +59,19 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 		if err != nil {
 			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
 		}
+	case "Cluster":
+		err := unstructured.SetNestedStringMap(un.Object, map[string]string{"cnpg.io/reloadedAt": "0001-01-01T00:00:00Z"}, "metadata", "annotations")
+		if err != nil {
+			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+		}
+		err = unstructured.SetNestedStringMap(un.Object, map[string]string{"kubectl.kubernetes.io/restartedAt": "0001-01-01T00:00:00Z"}, "metadata", "annotations")
+		if err != nil {
+			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+		}
+		err = unstructured.SetNestedField(un.Object, nil, "status", "targetPrimaryTimestamp")
+		if err != nil {
+			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+		}
 	case "Workflow":
 		err := unstructured.SetNestedField(un.Object, nil, "metadata", "resourceVersion")
 		if err != nil {
