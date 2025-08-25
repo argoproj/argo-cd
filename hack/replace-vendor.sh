@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to replace all occurrences of "go work vendor" with "go work vendor" recursively
+# Script to replace all occurrences of "go mod vendor" with "go work vendor" recursively
 
 set -e
 
