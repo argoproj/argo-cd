@@ -426,6 +426,10 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		pkceVerifier = oauth2.GenerateVerifier()
 		opts = append(opts, oauth2.S256ChallengeOption(pkceVerifier))
 	}
+	if a.settings.DexAuthConnectorID != "" {
+		log.Infof("force redirect to selected connector_id: %s", a.settings.DexAuthConnectorID)
+		opts = append(opts, oauth2.SetAuthURLParam("connector_id", a.settings.DexAuthConnectorID))
+	}
 	stateNonce, err := a.generateAppState(returnURL, pkceVerifier, w)
 	if err != nil {
 		log.Errorf("Failed to initiate login flow: %v", err)
