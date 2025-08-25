@@ -5,11 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
-	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
@@ -17,6 +12,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 // TestSyncWithCreateNamespace verifies that the namespace is created when the
