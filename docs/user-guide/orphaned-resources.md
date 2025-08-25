@@ -1,6 +1,6 @@
 # Orphaned Resources Monitoring
 
-An orphaned Kubernetes resource is a top-level namespaced resource that does not belong to any Argo CD Application. The Orphaned Resources Monitoring feature allows detecting
+An [orphaned Kubernetes resource](https://kubernetes.io/docs/concepts/architecture/garbage-collection/#orphaned-dependents) is a top-level namespaced resource that does not belong to any Argo CD Application. The Orphaned Resources Monitoring feature allows detecting
 orphaned resources, inspecting/removing resources using the Argo CD UI, and generating a warning.
 
 The Orphaned Resources monitoring is enabled in the [Project](projects.md) settings.
