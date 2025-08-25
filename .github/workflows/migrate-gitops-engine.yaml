@@ -1,0 +1,65 @@
+name: Migrate GitOps engine
+on:
+  workflow_dispatch:
+    inputs:
+      githubHandle:
+        description: 'Github handle of the gitops-engine prepared branch to migrate'
+        required: true
+        type: string
+      branch:
+        description: 'Name of the of the gitops-engine prepared branch to migrate'
+        required: true
+        type: string
+
+permissions:
+  contents: write  # for peter-evans/create-pull-request to create branch
+  pull-requests: write  # for peter-evans/create-pull-request to create a PR
+
+jobs:
+  migrate-gitops-engine:
+    name: Migrate gitops-engine to ArgoCD repo preserving the commit history
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694  # v4.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Migrate changes gitops-engine by preserving commit history
+        run: |
+          git remote add ge-migrated git@github.com:${{ inputs.githubHandle }}/gitops-engine.git
+          git fetch ge-migrated
+          git merge --no-edit ge-migrated/${{ inputs.branch }} --allow-unrelated-histories
+
+      - name: Setup Golang
+        uses: actions/setup-go@v5.5.0 # v5.5.0
+        with:
+          go-version: 1.25
+
+      - name: Add ~/go/bin to PATH
+        run: |
+          echo "/home/runner/go/bin" >> $GITHUB_PATH
+
+      - name: Run script to use go work instead
+        run: |
+          hack/replace-vendor.sh
+
+      - name: Run script to update docker file
+        run: |
+          hack/update-dockerfile.sh
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7.0.8
+        with:
+          commit-message: "Migrate gitops-engine to ArgoCD main repo preserving history"
+          title: "Migrate gitops-engine to ArgoCD main repo preserving history"
+          body: |
+            Congrats! You've just migrated gitops-engine to this repo by preserving history.
+            
+            Next steps:
+            - [ ] Merge this PR
+          branch: migrate-gitops-engine
+          branch-suffix: random
+          signoff: true
+          token: ${{ secrets.GITHUB_TOKEN }}
