@@ -84,8 +84,8 @@ export const ApplicationsTable = (props: {
                                                             <ApplicationURLs urls={app.status.summary.externalURLs} />
                                                         </div>
                                                     </div>
-                                                    <div className='show-for-xxlrage columns small-4'>Name:</div>
-                                                    <div className='colums small-12  xxlarge-6'>
+                                                    <div className='show-for-xxlarge columns small-4'>Name:</div>
+                                                    <div className='columns small-12 xxlarge-6'>
                                                         <Tooltip
                                                             content={
                                                                 <>
