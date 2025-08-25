@@ -1,0 +1,55 @@
+name: Bump major version
+on:
+  workflow_dispatch:
+    inputs:
+      githubHandle:
+        description: 'Github handle of the gitops-engine prepared branch to migrate'
+        required: true
+        type: string
+      branch:
+        description: 'Name of the of the gitops-engine prepared branch to migrate'
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  prepare-release:
+    permissions:
+      contents: write  # for peter-evans/create-pull-request to create branch
+      pull-requests: write  # for peter-evans/create-pull-request to create a PR
+    name: Migrate gitops-engine to ArgoCD repo preserving the commit history
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694  # v4.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Migrate changes gitops-engine by preserving commit history
+        run: |
+          git remote add ge-migrated git@github.com:${{ inputs.githubHandle }}/gitops-engine.git
+          git fetch ge-migrated
+          git merge ge-migrated/${{ inputs.branch }} --allow-unrelated-histories
+
+      - name: Run script to use go work instead
+        run: |
+          hack/replace-vendor.sh
+
+      - name: Run script to update docker file
+        run: |
+          hack/update-dockerfile.sh
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e  # v7.0.8
+        with:
+          commit-message: "Migrate gitops-engine to ArgoCD main repo preserving history"
+          title: "Migrate gitops-engine to ArgoCD main repo preserving history"
+          body: |
+            Congrats! You've just migrated gitops-engine to this repo by preserving history.
+            
+            Next steps:
+            - [ ] Merge this PR
+          branch: migrate-gitops-engine
+          branch-suffix: random
+          signoff: true
