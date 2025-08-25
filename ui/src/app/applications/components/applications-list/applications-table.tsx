@@ -84,13 +84,8 @@ export const ApplicationsTable = (props: {
                                                             <ApplicationURLs urls={app.status.summary.externalURLs} />
                                                         </div>
                                                     </div>
-                                                    <div className='show-for-xxlarge columns small-4'>Project:</div>
-                                                    <div className='columns small-12 xxlarge-6'>{app.spec.project}</div>
-                                                </div>
-                                                <div className='row'>
-                                                    <div className=' columns small-2' />
-                                                    <div className='show-for-xxlarge columns small-4'>Name:</div>
-                                                    <div className='columns small-12 xxlarge-6'>
+                                                    <div className='show-for-xxlrage columns small-4'>Name:</div>
+                                                    <div className='colums small-12  xxlarge-6'>
                                                         <Tooltip
                                                             content={
                                                                 <>
@@ -101,9 +96,14 @@ export const ApplicationsTable = (props: {
                                                                     </Moment>
                                                                 </>
                                                             }>
-                                                            <span>{app.metadata.name}</span>
+                                                            <span className='application-name'>{app.metadata.name}</span>
                                                         </Tooltip>
                                                     </div>
+                                                </div>
+                                                <div className='row'>
+                                                    <div className=' columns small-2' />
+                                                    <div className='show-for-xxlarge columns small-4'>Project:</div>
+                                                    <div className='columns small-12 xxlarge-6'>{app.spec.project}</div>
                                                 </div>
                                             </div>
 
