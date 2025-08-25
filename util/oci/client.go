@@ -508,9 +508,9 @@ func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc imagev1.D
 		defer os.RemoveAll(srcDir)
 
 		if strings.HasSuffix(desc.MediaType, "tar+gzip") {
-			err = files.Untgz(srcDir, content, s.maxSize, false)
+			err = files.Untgz(srcDir, content, s.maxSize, false, true)
 		} else {
-			err = files.Untar(srcDir, content, s.maxSize, false)
+			err = files.Untar(srcDir, content, s.maxSize, false, true)
 		}
 
 		if err != nil {

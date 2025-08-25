@@ -49,7 +49,7 @@ func ReceiveRepoStream(ctx context.Context, receiver StreamReceiver, destDir str
 	if err != nil {
 		return nil, fmt.Errorf("error receiving tgz file: %w", err)
 	}
-	err = files.Untgz(destDir, tgzFile, math.MaxInt64, preserveFileMode)
+	err = files.Untgz(destDir, tgzFile, math.MaxInt64, preserveFileMode, false)
 	if err != nil {
 		return nil, fmt.Errorf("error decompressing tgz file: %w", err)
 	}
