@@ -857,7 +857,7 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 
 	// Detect if the destination is invalid (name doesn't correspond to a matching cluster)
 	if destCluster, err := argoutil.GetDestinationCluster(ctx, app.Spec.Destination, r.ArgoDB); err != nil {
-		appLog.Warnf("The destination cluster for %s couldn't be found: %v", app.Name, err)
+		appLog.Warnf("The destination cluster for %s could not be found: %v", app.Name, err)
 		validDestination = false
 	} else {
 		// Detect if the destination's server field does not match an existing cluster
@@ -876,7 +876,7 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 		}
 
 		if !matchingCluster {
-			appLog.Warnf("A match for the destination cluster for %s, by server url, couldn't be found", app.Name)
+			appLog.Warnf("A match for the destination cluster for %s, by server url, could not be found", app.Name)
 		}
 
 		validDestination = matchingCluster
