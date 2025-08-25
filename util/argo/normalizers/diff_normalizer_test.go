@@ -39,6 +39,153 @@ func TestNormalizeObjectWithMatchedGroupKind(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestNormalizeRemovesEmptyObjects(t *testing.T) {
+	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group:        "apps",
+		Kind:         "Deployment",
+		JSONPointers: []string{"/metadata/labels/app", "/metadata/labels/version"},
+	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
+	require.NoError(t, err)
+
+	deploymentYAML := `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-deployment
+  labels:
+    app: test-app
+    version: "1.0"
+spec:
+  replicas: 1
+`
+	deployment := &unstructured.Unstructured{}
+	err = yaml.Unmarshal([]byte(deploymentYAML), deployment)
+	require.NoError(t, err)
+
+	labels, exists, err := unstructured.NestedMap(deployment.Object, "metadata", "labels")
+	require.NoError(t, err)
+	assert.True(t, exists)
+	assert.Len(t, labels, 2)
+
+	err = normalizer.Normalize(deployment)
+	require.NoError(t, err)
+
+	_, exists, err = unstructured.NestedMap(deployment.Object, "metadata", "labels")
+	require.NoError(t, err)
+	assert.False(t, exists)
+
+	metadata, exists, err := unstructured.NestedMap(deployment.Object, "metadata")
+	require.NoError(t, err)
+	assert.True(t, exists)
+	assert.Contains(t, metadata, "name")
+}
+
+func TestRemoveEmptyObjects(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    map[string]any
+		expected map[string]any
+	}{
+		{
+			name: "empty labels removed",
+			input: map[string]any{
+				"metadata": map[string]any{
+					"name":   "test",
+					"labels": map[string]any{},
+				},
+				"spec": map[string]any{
+					"replicas": 1,
+				},
+			},
+			expected: map[string]any{
+				"metadata": map[string]any{
+					"name": "test",
+				},
+				"spec": map[string]any{
+					"replicas": 1,
+				},
+			},
+		},
+		{
+			name: "empty arrays cleaned up",
+			input: map[string]any{
+				"metadata": map[string]any{
+					"name":        "test",
+					"annotations": []any{},
+				},
+			},
+			expected: map[string]any{
+				"metadata": map[string]any{
+					"name": "test",
+				},
+			},
+		},
+		{
+			name: "nested empties gone",
+			input: map[string]any{
+				"spec": map[string]any{
+					"template": map[string]any{
+						"metadata": map[string]any{
+							"labels": map[string]any{},
+						},
+					},
+				},
+			},
+			expected: map[string]any{},
+		},
+		{
+			name: "keeps non-empty stuff",
+			input: map[string]any{
+				"spec": map[string]any{
+					"replicas": 1,
+					"template": map[string]any{
+						"metadata": map[string]any{
+							"labels": map[string]any{},
+							"name":   "test",
+						},
+					},
+				},
+			},
+			expected: map[string]any{
+				"spec": map[string]any{
+					"replicas": 1,
+					"template": map[string]any{
+						"metadata": map[string]any{
+							"name": "test",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "actual labels preserved",
+			input: map[string]any{
+				"metadata": map[string]any{
+					"name": "test",
+					"labels": map[string]any{
+						"app": "test-app",
+					},
+				},
+			},
+			expected: map[string]any{
+				"metadata": map[string]any{
+					"name": "test",
+					"labels": map[string]any{
+						"app": "test-app",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			removeEmptyObjects(tc.input)
+			assert.Equal(t, tc.expected, tc.input)
+		})
+	}
+}
+
 func TestNormalizeNoMatchedGroupKinds(t *testing.T) {
 	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
 		Group:        "",
