@@ -16,6 +16,41 @@ import (
 	"github.com/argoproj/argo-cd/v3/test"
 )
 
+var commitMessageTemplate = `    {{- if .metadata }}
+        {{- if .metadata.repoURL }}
+            repoURL: {{ .metadata.repoURL }}
+        {{- end }}
+        
+        {{- if .metadata.drySha }}
+            drySha: {{ .metadata.drySha }}
+        {{- end }}
+
+        {{- if .metadata.author }}
+            Co-authored-by: {{ .metadata.author }}
+        {{- end }}
+
+        {{- if .metadata.subject }}
+            subject: {{ .metadata.subject }}
+        {{- end }}
+
+        {{- if .metadata.body }}
+            body: {{ .metadata.body }}
+        {{- end }}
+        {{- if .metadata.references }}
+            References:
+            {{- range $reference := .metadata.references }}
+                {{- if kindIs "map" $reference.commit }}
+                    Commit:
+                    {{- range $key, $value := $reference.commit }}
+                        {{- if eq $key "author" }}
+                            Co-authored-by: {{ $value }}
+                        {{- end }}
+                    {{- end }}
+                {{- end }}
+            {{- end }}
+        {{- end }}
+    {{- end }}`
+
 func TestGetRepoObjs(t *testing.T) {
 	cm := test.NewConfigMap()
 	cm.SetAnnotations(map[string]string{
@@ -76,4 +111,49 @@ func TestGetRepoObjs(t *testing.T) {
 	assert.NotContains(t, annotations, common.AnnotationKeyAppInstance)
 
 	assert.Equal(t, "ConfigMap", objs[0].GetKind())
+}
+
+func TestGetHydratorCommitMessageTemplate_WhenTemplateisNotDefined(t *testing.T) {
+	cm := test.NewConfigMap()
+	cmBytes, _ := json.Marshal(cm)
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{string(cmBytes)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}
+
+	ctrl := newFakeControllerWithResync(&data, time.Minute, nil, errors.New("this should not be called"))
+
+	tmpl, err := ctrl.GetHydratorCommitMessageTemplate()
+	require.NoError(t, err)
+	assert.NotNil(t, tmpl)
+	assert.Empty(t, tmpl)
+}
+
+func TestGetHydratorCommitMessageTemplate(t *testing.T) {
+	cm := test.NewFakeConfigMap()
+	cm.Data["sourceHydrator.commitMessageTemplate"] = commitMessageTemplate
+	cmBytes, _ := json.Marshal(cm)
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{string(cmBytes)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		configMapData: cm.Data,
+	}
+
+	ctrl := newFakeControllerWithResync(&data, time.Minute, nil, errors.New("this should not be called"))
+
+	tmpl, err := ctrl.GetHydratorCommitMessageTemplate()
+	require.NoError(t, err)
+	assert.NotNil(t, tmpl)
+	assert.NotEmpty(t, tmpl)
+	assert.Contains(t, tmpl, "Commit")
 }
