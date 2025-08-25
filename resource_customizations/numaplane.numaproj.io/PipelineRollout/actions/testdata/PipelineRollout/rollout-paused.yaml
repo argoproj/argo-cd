@@ -15,6 +15,9 @@ metadata:
 spec:
   pipeline:
     spec:
+      metadata:
+        annotations:
+          numaflow.numaproj.io/allowed-resume-strategies: "slow, fast"
       lifecycle:
         desiredPhase: Paused
       edges:
