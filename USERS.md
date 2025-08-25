@@ -339,6 +339,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Snapp](https://snapp.ir/)
 1. [Snyk](https://snyk.io/)
 1. [Softway Medical](https://www.softwaymedical.fr/)
+1. [Sophotech](https://sopho.tech)
 1. [South China Morning Post (SCMP)](https://www.scmp.com/)
 1. [Speee](https://speee.jp/)
 1. [Spendesk](https://spendesk.com/)
