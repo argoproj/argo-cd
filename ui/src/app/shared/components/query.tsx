@@ -1,49 +1,43 @@
-import * as PropTypes from 'prop-types';
 import * as React from 'react';
-import {BehaviorSubject, Observable} from 'rxjs';
+import {BehaviorSubject, type Observable} from 'rxjs';
 import {map} from 'rxjs/operators';
 
-import {AppContext, Consumer} from '../context';
+import {Context} from '../context';
 
-export const Query = (props: {children: (params: URLSearchParams) => React.ReactNode}) => (
-    <Consumer>{ctx => props.children(new URLSearchParams(ctx.history.location.search))}</Consumer>
-);
+function Query({children}: {children: (params: URLSearchParams) => React.ReactNode}) {
+    const context = React.useContext(Context);
+
+    return <>{children(new URLSearchParams(context?.history?.location.search))}</>;
+}
 
 export interface ObservableQueryProps {
     children: (params: Observable<URLSearchParams>) => React.ReactNode;
 }
 
-export class ObservableQuery extends React.Component<ObservableQueryProps> {
-    public static contextTypes = {
-        router: PropTypes.object
-    };
+function ObservableQuery({children}: ObservableQueryProps) {
+    const context = React.useContext(Context);
 
-    private search: BehaviorSubject<string>;
-    private stopListen: () => void;
+    const search = React.useMemo(() => {
+        return new BehaviorSubject(context.history.location.search);
+    }, []);
 
-    constructor(props: ObservableQueryProps) {
-        super(props);
-    }
+    const searchParams$ = React.useMemo(() => {
+        return search.pipe(map(searchStr => new URLSearchParams(searchStr)));
+    }, [search]);
 
-    public componentWillMount() {
-        this.search = new BehaviorSubject(this.appContext.router.history.location.search);
-        this.stopListen = this.appContext.router.history.listen(location => {
-            this.search.next(location.search);
-        });
-    }
+    const handleLocationChange = React.useCallback(
+        (location: any) => {
+            search.next(location.search);
+        },
+        [search]
+    );
 
-    public componentWillUnmount() {
-        if (this.stopListen) {
-            this.stopListen();
-            this.stopListen = null;
-        }
-    }
+    React.useEffect(() => {
+        const unsubscribe = context.history.listen(handleLocationChange);
+        return unsubscribe;
+    }, [context.history, handleLocationChange]);
 
-    public render() {
-        return this.props.children(this.search.pipe(map(search => new URLSearchParams(search))));
-    }
-
-    private get appContext(): AppContext {
-        return this.context as AppContext;
-    }
+    return <>{children(searchParams$)}</>;
 }
+
+export {ObservableQuery, Query};
