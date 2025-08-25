@@ -14,7 +14,8 @@ import {
     HydrateOperationPhaseIcon,
     hydrationStatusMessage,
     getProgressiveSyncStatusColor,
-    getProgressiveSyncStatusIcon
+    getProgressiveSyncStatusIcon,
+    isAutoSyncEnabled
 } from '../utils';
 import {getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage, getAppDefaultSyncRevision, getAppDefaultOperationSyncRevision} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
@@ -221,7 +222,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     <div className='application-status-panel__item-value__revision show-for-large'>{syncStatusMessage(application)}</div>
                 </div>
                 <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
-                    {application.spec.syncPolicy?.automated && application.spec.syncPolicy.automated.enabled !== false ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}
+                    {isAutoSyncEnabled(application) ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}
                 </div>
                 {application.status &&
                     application.status.sync &&

@@ -22,7 +22,17 @@ import {services} from '../../../shared/services';
 
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
-import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, formatCreationTimestamp, getAppDefaultSource, getAppSpecDefaultSource, helpTip} from '../utils';
+import {
+    ComparisonStatusIcon,
+    HealthStatusIcon,
+    syncStatusMessage,
+    urlPattern,
+    formatCreationTimestamp,
+    getAppDefaultSource,
+    getAppSpecDefaultSource,
+    helpTip,
+    isAutoSyncEnabled
+} from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
 import {Link} from 'react-router-dom';
@@ -508,13 +518,9 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                         <div className='white-box__details'>
                             <p>SYNC POLICY</p>
                             <div className='row white-box__details-row'>
-                                <div className='columns small-3'>
-                                    {(app.spec.syncPolicy && app.spec.syncPolicy.automated && app.spec.syncPolicy.automated.enabled !== false && <span>AUTOMATED</span>) || (
-                                        <span>NONE</span>
-                                    )}
-                                </div>
+                                <div className='columns small-3'>{(isAutoSyncEnabled(app) && <span>AUTOMATED</span>) || <span>NONE</span>}</div>
                                 <div className='columns small-9'>
-                                    {(app.spec.syncPolicy && app.spec.syncPolicy.automated && app.spec.syncPolicy.automated.enabled !== false && (
+                                    {(isAutoSyncEnabled(app) && (
                                         <button className='argo-button argo-button--base' onClick={() => unsetAutoSync(ctx)}>
                                             <Spinner show={changeSync} style={{marginRight: '5px'}} />
                                             Disable Auto-Sync
@@ -550,7 +556,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                             val
                                                         );
                                                     }}
-                                                    checked={app.spec.syncPolicy?.automated ? app.spec.syncPolicy.automated.enabled !== false : false}
+                                                    checked={isAutoSyncEnabled(app)}
                                                     id='enable-auto-sync'
                                                 />
                                                 <label htmlFor='enable-auto-sync'>ENABLE AUTO-SYNC</label>

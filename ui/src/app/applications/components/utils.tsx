@@ -1732,3 +1732,7 @@ export const getProgressiveSyncStatusColor = (status: string): string => {
             return COLORS.sync.unknown;
     }
 };
+
+export const isAutoSyncEnabled = (app: appModels.Application) => {
+    return app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false;
+};
