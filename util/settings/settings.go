@@ -74,6 +74,8 @@ type ArgoCDSettings struct {
 	StatusBadgeRootUrl string `json:"statusBadgeRootUrl,omitempty"` //nolint:revive //FIXME(var-naming)
 	// DexConfig contains portions of a dex config yaml
 	DexConfig string `json:"dexConfig,omitempty"`
+	// DexAuthConnectorID holds default dex auth connector ID
+	DexAuthConnectorID string `json:"dexAuthConnectorID,omitempty"`
 	// OIDCConfigRAW holds OIDC configuration as a raw string
 	OIDCConfigRAW string `json:"oidcConfig,omitempty"`
 	// ServerSignature holds the key used to generate JWT tokens.
@@ -437,6 +439,8 @@ const (
 	settingAdditionalUrlsKey = "additionalUrls"
 	// settingDexConfigKey designates the key for the dex config
 	settingDexConfigKey = "dex.config"
+	// settingDexAuthConnectorIDKey designates the key for the default dex auth connector ID
+	settingDexAuthConnectorIDKey = "dex.auth.connectorId"
 	// settingsOIDCConfigKey designates the key for OIDC config
 	settingsOIDCConfigKey = "oidc.config"
 	// statusBadgeEnabledKey holds the key which enables of disables status badge feature
@@ -1483,6 +1487,7 @@ func getDownloadBinaryUrlsFromConfigMap(argoCDCM *corev1.ConfigMap) map[string]s
 // updateSettingsFromConfigMap transfers settings from a Kubernetes configmap into an ArgoCDSettings struct.
 func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.ConfigMap) {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
+	settings.DexAuthConnectorID = getDexAuthConnectorID(argoCDCM.Data)
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
 	settings.OIDCRefreshTokenThreshold = settings.RefreshTokenThreshold()
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
@@ -1558,8 +1563,37 @@ func getExtensionConfigs(cmData map[string]string) map[string]string {
 	return result
 }
 
-// ValidateExternalURL ensures the external URL that is set on the configmap is valid
-func ValidateExternalURL(u string) error {
+func getDexAuthConnectorID(cmData map[string]string) string {
+	dexConfig := cmData[settingDexConfigKey]
+	dexAuthConnectorID := cmData[settingDexAuthConnectorIDKey]
+	if dexConfig == "" {
+		return ""
+	}
+	dexCfg, err := UnmarshalDexConfig(dexConfig)
+	if err != nil {
+		log.Warn("invalid dex.config YAML")
+		return ""
+	}
+	connectors, ok := dexCfg["connectors"].([]any)
+	if !ok {
+		return ""
+	}
+	for _, c := range connectors {
+		connector, ok := c.(map[string]any)
+		if !ok {
+			continue
+		}
+		connID, ok := connector["id"].(string)
+		if ok && connID == dexAuthConnectorID {
+			return dexAuthConnectorID
+		}
+	}
+	log.Warnf("dex.auth.connectorId is not found in dex connectors: %s", dexAuthConnectorID)
+	return ""
+}
+
+// validateExternalURL ensures the external URL that is set on the configmap is valid
+func validateExternalURL(u string) error {
 	if u == "" {
 		return nil
 	}

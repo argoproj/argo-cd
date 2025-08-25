@@ -2298,3 +2298,63 @@ func TestSettingsManager_GetAllowedNodeLabels(t *testing.T) {
 		})
 	}
 }
+
+func Test_getDexAuthConnectorID(t *testing.T) {
+	tests := []struct {
+		name              string
+		cmData            map[string]string
+		expectedConnector string
+	}{
+		{
+			name:              "dexConfig missing",
+			cmData:            map[string]string{},
+			expectedConnector: "",
+		},
+		{
+			name: "dexConfig invalid YAML",
+			cmData: map[string]string{
+				settingDexConfigKey: "invalid: [",
+			},
+			expectedConnector: "",
+		},
+		{
+			name: "connectors not a slice",
+			cmData: map[string]string{
+				settingDexConfigKey: "connectors: foo",
+			},
+			expectedConnector: "",
+		},
+		{
+			name: "connector not a map",
+			cmData: map[string]string{
+				settingDexConfigKey:          "connectors: [github]",
+				settingDexAuthConnectorIDKey: "github",
+			},
+			expectedConnector: "",
+		},
+		{
+			name: "connector id matches",
+			cmData: map[string]string{
+				settingDexConfigKey:          "connectors: [{id: github}]",
+				settingDexAuthConnectorIDKey: "github",
+			},
+			expectedConnector: "github",
+		},
+		{
+			name: "connector id does not match",
+			cmData: map[string]string{
+				settingDexConfigKey:          "connectors: [{id: github}]",
+				settingDexAuthConnectorIDKey: "gitlab",
+			},
+			expectedConnector: "",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			got := getDexAuthConnectorID(tc.cmData)
+			assert.Equal(t, tc.expectedConnector, got)
+		})
+	}
+}
