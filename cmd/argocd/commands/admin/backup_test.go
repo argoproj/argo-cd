@@ -383,20 +383,14 @@ status: {}
 }
 
 func Test_executeImport(t *testing.T) {
-	type args struct {
-		bak  string
-		live string
-	}
-
 	tests := []struct {
 		name string
-		args args
+		bak  string
 		opts importOpts
 	}{
 		{
 			name: "Update live object when backup does not match skip label",
-			args: args{
-				bak: `apiVersion: argoproj.io/v1alpha1
+			bak: `apiVersion: argoproj.io/v1alpha1
 kind: ConfigMap
 metadata:
   name: my-configmap
@@ -410,30 +404,15 @@ metadata:
 data:
   foo: bar
 `,
-				live: `apiVersion: argoproj.io/v1alpha1
-kind: ConfigMap
-metadata:
-  name: my-configmap
-  namespace: namespace
-  labels:
-    env: prod
-  annotations:
-    argocd.argoproj.io/instance: old-instance
-  finalizers: []
-data:
-  foo: old
-`,
-			},
 			opts: importOpts{
 				applicationNamespaces:    []string{"argocd", "dev"},
 				applicationsetNamespaces: []string{"argocd", "prod"},
-				skipResourcesWithLabel:   "env=dev",
+				skipResourcesWithLabel:   "env=prod",
 			},
 		},
 		{
 			name: "Update live object when data differs from backup",
-			args: args{
-				bak: `apiVersion: argoproj.io/v1alpha1
+			bak: `apiVersion: argoproj.io/v1alpha1
 kind: ConfigMap
 metadata:
   name: my-configmap
@@ -441,15 +420,6 @@ metadata:
 data:
   foo: bar
 `,
-				live: `apiVersion: argoproj.io/v1alpha1
-kind: ConfigMap
-metadata:
-  name: my-configmap
-  namespace: namespace
-data:
-  foo: old				
-`,
-			},
 			opts: importOpts{
 				applicationNamespaces:    []string{},
 				applicationsetNamespaces: []string{},
@@ -457,8 +427,7 @@ data:
 		},
 		{
 			name: "Update live if spec differs from backup for Application",
-			args: args{
-				bak: `apiVersion: argoproj.io/v1alpha1
+			bak: `apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: app
@@ -470,19 +439,6 @@ spec:
     namespace: default
     server: https://kubernetes.default.svc
 `,
-				live: `apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: app
-  namespace: argocd
-spec:
-  source:
-    repoURL: https://github.com/example/old.git
-  destination:
-    namespace: default
-    server: https://kubernetes.default.svc
-`,
-			},
 			opts: importOpts{
 				applicationNamespaces:    []string{"argocd", "dev"},
 				applicationsetNamespaces: []string{"prod"},
@@ -490,8 +446,7 @@ spec:
 		},
 		{
 			name: "Update live if spec differs from backup for ApplicationSet",
-			args: args{
-				bak: `apiVersion: argoproj.io/v1alpha1
+			bak: `apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
   name: my-appset
@@ -506,22 +461,6 @@ spec:
       name: '{{appName}}'
     spec: {}
 `,
-				live: `apiVersion: argoproj.io/v1alpha1
-kind: ApplicationSet
-metadata:
-  name: my-appset
-  namespace: argocd
-spec:
-  generators:
-    - list:
-        elements:
-          - clusters: prod
-  template:
-    metadata:
-      name: '{{appName}}'
-    spec: {}
-`,
-			},
 			opts: importOpts{
 				applicationNamespaces:    []string{},
 				applicationsetNamespaces: []string{"dev"},
@@ -529,8 +468,7 @@ spec:
 		},
 		{
 			name: "Should not update live object if it matches the backup",
-			args: args{
-				bak: `apiVersion: argoproj.io/v1alpha1
+			bak: `apiVersion: argoproj.io/v1alpha1
 kind: ConfigMap
 metadata:
   name: my-cm
@@ -540,17 +478,6 @@ metadata:
 data:
   foo: bar
 `,
-				live: `apiVersion: argoproj.io/v1alpha1
-kind: ConfigMap
-metadata:
-  name: my-cm
-  namespace: argo-cd
-  labels:
-    env: dev
-data:
-  foo: bar
-`,
-			},
 			opts: importOpts{
 				applicationNamespaces:    []string{"argo-*"},
 				applicationsetNamespaces: []string{"argo-*"},
@@ -558,8 +485,7 @@ data:
 		},
 		{
 			name: "Create resource if it's missing from live",
-			args: args{
-				bak: `apiVersion: argoproj.io/v1alpha1
+			bak: `apiVersion: argoproj.io/v1alpha1
 kind: ConfigMap
 metadata:
   name: my-cm
@@ -569,15 +495,6 @@ metadata:
 data:
   foo: bar
 `,
-				live: `apiVersion: argoproj.io/v1alpha1
-kind: ConfigMap
-metadata:
-  name: my-cm
-  namespaces: argocd
-  labels:
-    env: dev
-`,
-			},
 			opts: importOpts{
 				applicationNamespaces:    []string{"argocd", "dev"},
 				applicationsetNamespaces: []string{"argocd", "prod"},
@@ -585,37 +502,19 @@ metadata:
 		},
 		{
 			name: "Prune live resources when not present in backup",
-			args: args{
-				bak: `apiVersion: argoproj.io/v1alpha1
+			bak: `apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: app
   namespace: argocd
 `,
-				live: `apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: app
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/example/repo.git
-    path: .
-    targetRevision: HEAD
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: default
-`,
-			},
 			opts: importOpts{
 				prune: true,
 			},
 		},
 		{
 			name: "Clear the operation field when stopOperation is enabled",
-			args: args{
-				bak: `apiVersion: argoproj.io/v1alpha1
+			bak: `apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: app
@@ -630,32 +529,13 @@ spec:
     server: https://kubernetes.default.svc
     namespace: default
 `,
-				live: `apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: app
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/example/repo.git
-    namespace: default
-status:
-  operationState:
-    phase: Running
-    operation:
-      sync:
-        revision: HEAD
-`,
-			},
 			opts: importOpts{
 				stopOperation: true,
 			},
 		},
 		{
 			name: "Override live object on conflict with backup",
-			args: args{
-				bak: `apiVersion: argoproj.io/v1alpha1
+			bak: `apiVersion: argoproj.io/v1alpha1
 kind: Secret
 metadata:
   name: my-secret
@@ -667,19 +547,6 @@ data:
   username: bar
   password: abc
 `,
-				live: `apiVersion: argoproj.io/v1alpha1
-kind: Secret
-metadata:
-  name: my-secret
-  namespace: argocd
-  labels:
-    env: prod
-type: Opaque
-data:
-  username: old
-  password: old-pwd
-`,
-			},
 			opts: importOpts{
 				applicationNamespaces:    []string{"argocd"},
 				applicationsetNamespaces: []string{},
@@ -690,7 +557,7 @@ data:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bakObj := decodeYAMLToUnstructured(t, tt.args.bak)
+			bakObj := decodeYAMLToUnstructured(t, tt.bak)
 			bakObjArr := []*unstructured.Unstructured{bakObj}
 
 			var (
@@ -739,8 +606,10 @@ data:
 				ignoreTracking:           tt.opts.ignoreTracking,
 				promptsEnabled:           tt.opts.promptsEnabled,
 			}
-			err = opts.executeImport(bakObjArr, pruneObjects, fakeClient, "argocd", " (dry run)", ctx)
+			arr, err := opts.executeImport(ctx, bakObjArr, pruneObjects, fakeClient, "argocd", " (dry run)")
 			require.NoError(t, err)
+
+			assert.Equal(t, bakObj, arr[0])
 		})
 	}
 }

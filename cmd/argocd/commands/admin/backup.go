@@ -242,7 +242,7 @@ func NewImportCommand() *cobra.Command {
 			}
 
 			errors.CheckError(err)
-			err = opts.executeImport(backupObjects, pruneObjects, client, namespace, dryRunMsg, ctx)
+			_, err = opts.executeImport(ctx, backupObjects, pruneObjects, client, namespace, dryRunMsg)
 			errors.CheckError(err)
 
 			duration := time.Since(tt)
@@ -351,8 +351,9 @@ type importOpts struct {
 	applicationsetNamespaces []string
 }
 
-func (opts *importOpts) executeImport(bakObjs []*unstructured.Unstructured, pruneObjects map[kube.ResourceKey]unstructured.Unstructured, client dynamic.Interface, namespace string, dryRunMsg string, ctx context.Context) error {
+func (opts *importOpts) executeImport(ctx context.Context, bakObjs []*unstructured.Unstructured, pruneObjects map[kube.ResourceKey]unstructured.Unstructured, client dynamic.Interface, namespace string, dryRunMsg string) ([]*unstructured.Unstructured, error) {
 	var err error
+	appliedObjs := make([]*unstructured.Unstructured, 0)
 
 	for _, bakObj := range bakObjs {
 		gvk := bakObj.GroupVersionKind()
@@ -382,7 +383,10 @@ func (opts *importOpts) executeImport(bakObjs []*unstructured.Unstructured, prun
 		case !exists:
 			isForbidden := false
 			if !opts.dryRun {
-				_, err = dynClient.Create(ctx, bakObj, metav1.CreateOptions{})
+				created, err := dynClient.Create(ctx, bakObj, metav1.CreateOptions{})
+				if err == nil {
+					appliedObjs = append(appliedObjs, created)
+				}
 				if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
 					isForbidden = true
 					log.Warnf("%s/%s %s: %v", gvk.Group, gvk.Kind, bakObj.GetName(), err)
@@ -401,7 +405,10 @@ func (opts *importOpts) executeImport(bakObjs []*unstructured.Unstructured, prun
 			isForbidden := false
 			if !opts.dryRun {
 				newLive := updateLive(bakObj, &liveObj, opts.stopOperation)
-				_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
+				updated, err := dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
+				if err == nil {
+					appliedObjs = append(appliedObjs, updated)
+				}
 				if apierrors.IsConflict(err) {
 					fmt.Printf("Failed to update %s/%s %s in namespace %s: %v\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace(), err)
 					if opts.overrideOnConflict {
@@ -488,7 +495,7 @@ func (opts *importOpts) executeImport(bakObjs []*unstructured.Unstructured, prun
 		}
 	}
 
-	return err
+	return appliedObjs, err
 }
 
 // check app has no need to stop operation.
