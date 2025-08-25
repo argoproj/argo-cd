@@ -11,7 +11,8 @@ export const COLORS = {
     connection_status: {
         failed: ARGO_FAILED_COLOR,
         successful: ARGO_SUCCESS_COLOR,
-        unknown: ARGO_GRAY4_COLOR
+        unknown: ARGO_GRAY4_COLOR,
+        notRegistered: ARGO_WARNING_COLOR
     },
     health: {
         degraded: ARGO_FAILED_COLOR,
