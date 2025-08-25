@@ -1417,11 +1417,19 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				return
 			}
 			retryAfter := time.Until(retryAt)
+
 			if retryAfter > 0 {
 				logCtx.Infof("Skipping retrying in-progress operation. Attempting again at: %s", retryAt.Format(time.RFC3339))
 				ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
 				return
 			}
+
+			if state.Operation.Retry.Refresh {
+				logCtx.Infof("Refreshing the retry")
+				state.Operation.Sync.Revision = ""
+				state.Operation.Sync.Revisions = nil
+			}
+
 			// Get rid of sync results and null out previous operation completion time
 			// This will start the retry attempt
 			state.Message = fmt.Sprintf("Retrying operation. Attempt #%d", state.RetryCount)
