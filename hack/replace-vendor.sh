@@ -9,7 +9,7 @@ go work use .
 go work vendor
 go mod tidy
 
-echo "Searching for files containing 'go work vendor'..."
+echo "About to replace files containing 'go mod vendor'..."
 
 # Replace in each file
 for file in Makefile Tiltfile hack/generate-proto.sh .github/workflows/bump-major-version.yaml .github/workflows/ci-build.yaml; do
