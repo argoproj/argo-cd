@@ -3,7 +3,6 @@ package pull_request
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	bitbucketv1 "github.com/gfleury/go-bitbucket-v1"
 	log "github.com/sirupsen/logrus"
