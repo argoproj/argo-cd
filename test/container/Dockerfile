@@ -14,6 +14,8 @@ FROM docker.io/library/registry:3.1@sha256:85347ed2ecde64161c7a4788a4d7d3dcc9d6f
 
 FROM docker.io/bitnamilegacy/kubectl:1.32@sha256:9524faf8e3cefb47fa28244a5d15f95ec21a73d963273798e593e61f80712333 AS kubectl
 
+FROM ghcr.io/dexidp/dex:v2.45.0@sha256:b8469881d3cb3a73001506f0d3aaefecb9c45d2311c1e0f405d8ac538316c59d AS dex
+
 FROM docker.io/library/ubuntu:26.04@sha256:53958ec7b67c2c9355df922dd08dbf0360611f8c3cdb656875e81873db9ffdba
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -40,7 +42,7 @@ RUN  apt-get update && apt-get install --fix-missing --no-install-recommends -y 
     unzip \
     zip && \
     if [ "$(uname -m)" = "aarch64" ]; then \
-       apt-get install --fix-missing -y binutils-gold; \
+    apt-get install --fix-missing -y binutils-gold; \
     fi && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -48,6 +50,8 @@ RUN  apt-get update && apt-get install --fix-missing --no-install-recommends -y 
 COPY --from=golang /usr/local/go /usr/local/go
 
 COPY --from=kubectl /opt/bitnami/kubectl/bin/kubectl /usr/local/bin/kubectl
+
+COPY --from=dex /usr/local/bin/dex /usr/local/bin/dex
 
 ENV PATH=/dist:/go/bin:/usr/local/go/bin:/go/src/github.com/argoproj/argo-cd/dist:$PATH
 ENV GOROOT=/usr/local/go
