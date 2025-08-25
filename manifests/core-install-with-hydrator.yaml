@@ -7293,6 +7293,209 @@ spec:
                             type: string
                           type: object
                       type: object
+                    deploymentStrategy:
+                      properties:
+                        phases:
+                          items:
+                            properties:
+                              checks:
+                                items:
+                                  properties:
+                                    command:
+                                      properties:
+                                        command:
+                                          items:
+                                            type: string
+                                          type: array
+                                        env:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                      required:
+                                      - command
+                                      type: object
+                                    http:
+                                      properties:
+                                        body:
+                                          type: string
+                                        expectedStatus:
+                                          format: int64
+                                          type: integer
+                                        headers:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                        insecureSkipVerify:
+                                          type: boolean
+                                        method:
+                                          type: string
+                                        url:
+                                          type: string
+                                      required:
+                                      - url
+                                      type: object
+                                    name:
+                                      type: string
+                                    timeout:
+                                      type: string
+                                    type:
+                                      type: string
+                                  required:
+                                  - name
+                                  - type
+                                  type: object
+                                type: array
+                              maxUpdate:
+                                anyOf:
+                                - type: integer
+                                - type: string
+                                x-kubernetes-int-or-string: true
+                              name:
+                                type: string
+                              onFailure:
+                                properties:
+                                  action:
+                                    type: string
+                                required:
+                                - action
+                                type: object
+                              percentage:
+                                format: int64
+                                type: integer
+                              postHooks:
+                                items:
+                                  properties:
+                                    command:
+                                      properties:
+                                        command:
+                                          items:
+                                            type: string
+                                          type: array
+                                        env:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                      required:
+                                      - command
+                                      type: object
+                                    failurePolicy:
+                                      type: string
+                                    http:
+                                      properties:
+                                        body:
+                                          type: string
+                                        expectedStatus:
+                                          format: int64
+                                          type: integer
+                                        headers:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                        insecureSkipVerify:
+                                          type: boolean
+                                        method:
+                                          type: string
+                                        url:
+                                          type: string
+                                      required:
+                                      - url
+                                      type: object
+                                    name:
+                                      type: string
+                                    timeout:
+                                      type: string
+                                    type:
+                                      type: string
+                                  required:
+                                  - name
+                                  - type
+                                  type: object
+                                type: array
+                              preHooks:
+                                items:
+                                  properties:
+                                    command:
+                                      properties:
+                                        command:
+                                          items:
+                                            type: string
+                                          type: array
+                                        env:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                      required:
+                                      - command
+                                      type: object
+                                    failurePolicy:
+                                      type: string
+                                    http:
+                                      properties:
+                                        body:
+                                          type: string
+                                        expectedStatus:
+                                          format: int64
+                                          type: integer
+                                        headers:
+                                          additionalProperties:
+                                            type: string
+                                          type: object
+                                        insecureSkipVerify:
+                                          type: boolean
+                                        method:
+                                          type: string
+                                        url:
+                                          type: string
+                                      required:
+                                      - url
+                                      type: object
+                                    name:
+                                      type: string
+                                    timeout:
+                                      type: string
+                                    type:
+                                      type: string
+                                  required:
+                                  - name
+                                  - type
+                                  type: object
+                                type: array
+                              targets:
+                                items:
+                                  properties:
+                                    clusters:
+                                      items:
+                                        type: string
+                                      type: array
+                                    matchExpressions:
+                                      items:
+                                        properties:
+                                          key:
+                                            type: string
+                                          operator:
+                                            type: string
+                                          values:
+                                            items:
+                                              type: string
+                                            type: array
+                                        type: object
+                                      type: array
+                                    values:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                  type: object
+                                type: array
+                              waitDuration:
+                                type: string
+                            required:
+                            - name
+                            - targets
+                            type: object
+                          type: array
+                        type:
+                          type: string
+                      type: object
                     git:
                       properties:
                         directories:
@@ -10004,6 +10207,209 @@ spec:
                                     additionalProperties:
                                       type: string
                                     type: object
+                                type: object
+                              deploymentStrategy:
+                                properties:
+                                  phases:
+                                    items:
+                                      properties:
+                                        checks:
+                                          items:
+                                            properties:
+                                              command:
+                                                properties:
+                                                  command:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  env:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                required:
+                                                - command
+                                                type: object
+                                              http:
+                                                properties:
+                                                  body:
+                                                    type: string
+                                                  expectedStatus:
+                                                    format: int64
+                                                    type: integer
+                                                  headers:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  insecureSkipVerify:
+                                                    type: boolean
+                                                  method:
+                                                    type: string
+                                                  url:
+                                                    type: string
+                                                required:
+                                                - url
+                                                type: object
+                                              name:
+                                                type: string
+                                              timeout:
+                                                type: string
+                                              type:
+                                                type: string
+                                            required:
+                                            - name
+                                            - type
+                                            type: object
+                                          type: array
+                                        maxUpdate:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
+                                          x-kubernetes-int-or-string: true
+                                        name:
+                                          type: string
+                                        onFailure:
+                                          properties:
+                                            action:
+                                              type: string
+                                          required:
+                                          - action
+                                          type: object
+                                        percentage:
+                                          format: int64
+                                          type: integer
+                                        postHooks:
+                                          items:
+                                            properties:
+                                              command:
+                                                properties:
+                                                  command:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  env:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                required:
+                                                - command
+                                                type: object
+                                              failurePolicy:
+                                                type: string
+                                              http:
+                                                properties:
+                                                  body:
+                                                    type: string
+                                                  expectedStatus:
+                                                    format: int64
+                                                    type: integer
+                                                  headers:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  insecureSkipVerify:
+                                                    type: boolean
+                                                  method:
+                                                    type: string
+                                                  url:
+                                                    type: string
+                                                required:
+                                                - url
+                                                type: object
+                                              name:
+                                                type: string
+                                              timeout:
+                                                type: string
+                                              type:
+                                                type: string
+                                            required:
+                                            - name
+                                            - type
+                                            type: object
+                                          type: array
+                                        preHooks:
+                                          items:
+                                            properties:
+                                              command:
+                                                properties:
+                                                  command:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  env:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                required:
+                                                - command
+                                                type: object
+                                              failurePolicy:
+                                                type: string
+                                              http:
+                                                properties:
+                                                  body:
+                                                    type: string
+                                                  expectedStatus:
+                                                    format: int64
+                                                    type: integer
+                                                  headers:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  insecureSkipVerify:
+                                                    type: boolean
+                                                  method:
+                                                    type: string
+                                                  url:
+                                                    type: string
+                                                required:
+                                                - url
+                                                type: object
+                                              name:
+                                                type: string
+                                              timeout:
+                                                type: string
+                                              type:
+                                                type: string
+                                            required:
+                                            - name
+                                            - type
+                                            type: object
+                                          type: array
+                                        targets:
+                                          items:
+                                            properties:
+                                              clusters:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              matchExpressions:
+                                                items:
+                                                  properties:
+                                                    key:
+                                                      type: string
+                                                    operator:
+                                                      type: string
+                                                    values:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  type: object
+                                                type: array
+                                              values:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
+                                            type: object
+                                          type: array
+                                        waitDuration:
+                                          type: string
+                                      required:
+                                      - name
+                                      - targets
+                                      type: object
+                                    type: array
+                                  type:
+                                    type: string
                                 type: object
                               git:
                                 properties:
@@ -15848,6 +16254,209 @@ spec:
                                     additionalProperties:
                                       type: string
                                     type: object
+                                type: object
+                              deploymentStrategy:
+                                properties:
+                                  phases:
+                                    items:
+                                      properties:
+                                        checks:
+                                          items:
+                                            properties:
+                                              command:
+                                                properties:
+                                                  command:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  env:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                required:
+                                                - command
+                                                type: object
+                                              http:
+                                                properties:
+                                                  body:
+                                                    type: string
+                                                  expectedStatus:
+                                                    format: int64
+                                                    type: integer
+                                                  headers:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  insecureSkipVerify:
+                                                    type: boolean
+                                                  method:
+                                                    type: string
+                                                  url:
+                                                    type: string
+                                                required:
+                                                - url
+                                                type: object
+                                              name:
+                                                type: string
+                                              timeout:
+                                                type: string
+                                              type:
+                                                type: string
+                                            required:
+                                            - name
+                                            - type
+                                            type: object
+                                          type: array
+                                        maxUpdate:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
+                                          x-kubernetes-int-or-string: true
+                                        name:
+                                          type: string
+                                        onFailure:
+                                          properties:
+                                            action:
+                                              type: string
+                                          required:
+                                          - action
+                                          type: object
+                                        percentage:
+                                          format: int64
+                                          type: integer
+                                        postHooks:
+                                          items:
+                                            properties:
+                                              command:
+                                                properties:
+                                                  command:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  env:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                required:
+                                                - command
+                                                type: object
+                                              failurePolicy:
+                                                type: string
+                                              http:
+                                                properties:
+                                                  body:
+                                                    type: string
+                                                  expectedStatus:
+                                                    format: int64
+                                                    type: integer
+                                                  headers:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  insecureSkipVerify:
+                                                    type: boolean
+                                                  method:
+                                                    type: string
+                                                  url:
+                                                    type: string
+                                                required:
+                                                - url
+                                                type: object
+                                              name:
+                                                type: string
+                                              timeout:
+                                                type: string
+                                              type:
+                                                type: string
+                                            required:
+                                            - name
+                                            - type
+                                            type: object
+                                          type: array
+                                        preHooks:
+                                          items:
+                                            properties:
+                                              command:
+                                                properties:
+                                                  command:
+                                                    items:
+                                                      type: string
+                                                    type: array
+                                                  env:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                required:
+                                                - command
+                                                type: object
+                                              failurePolicy:
+                                                type: string
+                                              http:
+                                                properties:
+                                                  body:
+                                                    type: string
+                                                  expectedStatus:
+                                                    format: int64
+                                                    type: integer
+                                                  headers:
+                                                    additionalProperties:
+                                                      type: string
+                                                    type: object
+                                                  insecureSkipVerify:
+                                                    type: boolean
+                                                  method:
+                                                    type: string
+                                                  url:
+                                                    type: string
+                                                required:
+                                                - url
+                                                type: object
+                                              name:
+                                                type: string
+                                              timeout:
+                                                type: string
+                                              type:
+                                                type: string
+                                            required:
+                                            - name
+                                            - type
+                                            type: object
+                                          type: array
+                                        targets:
+                                          items:
+                                            properties:
+                                              clusters:
+                                                items:
+                                                  type: string
+                                                type: array
+                                              matchExpressions:
+                                                items:
+                                                  properties:
+                                                    key:
+                                                      type: string
+                                                    operator:
+                                                      type: string
+                                                    values:
+                                                      items:
+                                                        type: string
+                                                      type: array
+                                                  type: object
+                                                type: array
+                                              values:
+                                                additionalProperties:
+                                                  type: string
+                                                type: object
+                                            type: object
+                                          type: array
+                                        waitDuration:
+                                          type: string
+                                      required:
+                                      - name
+                                      - targets
+                                      type: object
+                                    type: array
+                                  type:
+                                    type: string
                                 type: object
                               git:
                                 properties:
