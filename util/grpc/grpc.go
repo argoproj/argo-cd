@@ -48,8 +48,16 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 	}
 
 	dialer := func(ctx context.Context, address string) (net.Conn, error) {
-		proxyDialer := proxy.FromEnvironment()
-		conn, err := proxyDialer.Dial(network, address)
+		var conn net.Conn
+		var err error
+
+		if network == "unix" {
+			conn, err = net.Dial(network, address)
+		} else {
+			proxyDialer := proxy.FromEnvironment()
+			conn, err = proxyDialer.Dial(network, address)
+		}
+
 		if err != nil {
 			writeResult(err)
 			return nil, fmt.Errorf("error dial proxy: %w", err)
