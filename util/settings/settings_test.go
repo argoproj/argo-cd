@@ -1302,7 +1302,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 
 		kubeClient := fake.NewClientset(cm, secret, tlsSecret)
 		callCount := 0
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default", func(mgr *SettingsManager) {
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default", func(mgr *SettingsManager) {
 			mgr.tlsCertParser = func(certpem []byte, keypem []byte) (tls.Certificate, error) {
 				callCount++
 
@@ -1360,7 +1360,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 
 		kubeClient := fake.NewClientset(cm, secret, tlsSecret)
 		callCount := 0
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default", func(mgr *SettingsManager) {
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default", func(mgr *SettingsManager) {
 			mgr.tlsCertParser = func(certpem []byte, keypem []byte) (tls.Certificate, error) {
 				callCount++
 
