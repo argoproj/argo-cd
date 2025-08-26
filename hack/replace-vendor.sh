@@ -4,6 +4,9 @@
 
 set -e
 
+# Add common Go binary path to PATH if not already present
+export PATH=$PATH:/usr/local/go/bin
+
 go work init ./gitops-engine
 go work use .
 go work vendor

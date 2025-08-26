@@ -1,4 +1,4 @@
-name: Bump major version
+name: Migrate GitOps engine
 on:
   workflow_dispatch:
     inputs:
@@ -11,13 +11,12 @@ on:
         required: true
         type: string
 
-permissions: {}
+permissions:
+  contents: write  # for peter-evans/create-pull-request to create branch
+  pull-requests: write  # for peter-evans/create-pull-request to create a PR
 
 jobs:
-  prepare-release:
-    permissions:
-      contents: write  # for peter-evans/create-pull-request to create branch
-      pull-requests: write  # for peter-evans/create-pull-request to create a PR
+  migrate-gitops-engine:
     name: Migrate gitops-engine to ArgoCD repo preserving the commit history
     runs-on: ubuntu-22.04
     steps:
@@ -31,7 +30,16 @@ jobs:
         run: |
           git remote add ge-migrated git@github.com:${{ inputs.githubHandle }}/gitops-engine.git
           git fetch ge-migrated
-          git merge ge-migrated/${{ inputs.branch }} --allow-unrelated-histories
+          git merge --no-edit ge-migrated/${{ inputs.branch }} --allow-unrelated-histories
+
+      - name: Setup Golang
+        uses: actions/setup-go@v5.5.0 # v5.5.0
+        with:
+          go-version: 1.25
+
+      - name: Add ~/go/bin to PATH
+        run: |
+          echo "/home/runner/go/bin" >> $GITHUB_PATH
 
       - name: Run script to use go work instead
         run: |
@@ -40,8 +48,9 @@ jobs:
       - name: Run script to update docker file
         run: |
           hack/update-dockerfile.sh
-      - name: Create pull request
-        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e  # v7.0.8
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7.0.8
         with:
           commit-message: "Migrate gitops-engine to ArgoCD main repo preserving history"
           title: "Migrate gitops-engine to ArgoCD main repo preserving history"
@@ -53,3 +62,4 @@ jobs:
           branch: migrate-gitops-engine
           branch-suffix: random
           signoff: true
+          token: ${{ secrets.GITHUB_TOKEN }}
