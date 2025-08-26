@@ -363,11 +363,15 @@ func (s *Server) Generate(ctx context.Context, q *applicationset.ApplicationSetG
 	if appset == nil {
 		return nil, errors.New("error creating ApplicationSets: ApplicationSets is nil in request")
 	}
-	namespace := s.appsetNamespaceOrDefault(appset.Namespace)
 
+	// The RBAC check needs to be performed against the appset namespace
+	// However, when trying to generate params, the server namespace needs
+	// to be passed.
+	namespace := s.appsetNamespaceOrDefault(appset.Namespace)
 	if !s.isNamespaceEnabled(namespace) {
 		return nil, security.NamespaceNotPermittedError(namespace)
 	}
+
 	projectName, err := s.validateAppSet(appset)
 	if err != nil {
 		return nil, fmt.Errorf("error validating ApplicationSets: %w", err)
@@ -380,7 +384,7 @@ func (s *Server) Generate(ctx context.Context, q *applicationset.ApplicationSetG
 	logger := log.New()
 	logger.SetOutput(logs)
 
-	// The server namespace needs to be passed to the function
+	// The server namespace will be used in the function
 	// since this is the exact namespace that is being used
 	// to generate parameters (especially for git generator).
 	//
