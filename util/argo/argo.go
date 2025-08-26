@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
@@ -30,6 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	pathutil "github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -189,6 +191,77 @@ func FilterByCluster(apps []argoappv1.Application, cluster string) []argoappv1.A
 	for i := 0; i < len(apps); i++ {
 		if apps[i].Spec.Destination.Server == cluster || apps[i].Spec.Destination.Name == cluster {
 			items = append(items, apps[i])
+		}
+	}
+	return items
+}
+
+// FilterByPath returns a list of applications after post-filtering by path
+func FilterByPath(apps []argoappv1.Application, filterPath string) []argoappv1.Application {
+	if filterPath == "" {
+		return apps
+	}
+	filteredApps := make([]argoappv1.Application, 0)
+
+	filterPath, err := filepath.Abs(filterPath)
+	if err != nil {
+		return nil
+	}
+
+	for _, app := range apps {
+
+		for _, source := range app.Spec.GetSources() {
+			appSourcePath := filepath.ToSlash(filepath.Clean(source.Path))
+			index := strings.Index(filterPath, appSourcePath)
+			if index == -1 {
+				continue
+			}
+			filterPath := filterPath[index:]
+			fmt.Println(appSourcePath)
+			fmt.Println(filterPath)
+			if pathutil.AppFilesHaveChanged([]string{appSourcePath}, []string{filterPath}) {
+				filteredApps = append(filteredApps, app)
+				break
+			}
+		}
+	}
+
+	return filteredApps
+}
+
+// FilterByFiles returns a list of applications post filtering by affected files
+func FilterByFiles(apps []argoappv1.Application, files []string) []argoappv1.Application {
+	if len(files) == 0 {
+		return apps
+	}
+
+	absFiles := make([]string, 0)
+	for _, file := range files {
+		absFilePath, err := filepath.Abs(file)
+		if err != nil {
+			continue
+		}
+		absFiles = append(absFiles, absFilePath)
+	}
+	items := make([]argoappv1.Application, 0)
+
+	for _, app := range apps {
+		manifestGeneratePaths := pathutil.GetAppRefreshPaths(&app)
+		filterFiles := make([]string, 0)
+		for _, manifestGenPath := range manifestGeneratePaths {
+			for _, file := range absFiles {
+				index := strings.Index(file, manifestGenPath)
+				if index == -1 {
+					continue
+				}
+				filterFiles = append(filterFiles, file[index:])
+			}
+		}
+		if len(filterFiles) == 0 {
+			continue
+		}
+		if pathutil.AppFilesHaveChanged(manifestGeneratePaths, filterFiles) {
+			items = append(items, app)
 		}
 	}
 	return items
