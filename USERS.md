@@ -5,6 +5,7 @@ PR with your organization name if you are using Argo CD.
 
 Currently, the following organizations are **officially** using Argo CD:
 
+1. [100ms](https://www.100ms.ai/)
 1. [127Labs](https://127labs.com/)
 1. [3Rein](https://www.3rein.com/)
 1. [42 School](https://42.fr/)
@@ -421,4 +422,3 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Zimpler](https://www.zimpler.com/)
 1. [ZipRecruiter](https://www.ziprecruiter.com/)
 1. [ZOZO](https://corp.zozo.com/)
-1. [100ms](https://www.100ms.ai/)
