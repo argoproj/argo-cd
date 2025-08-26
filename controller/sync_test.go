@@ -489,7 +489,6 @@ func TestNormalizeTargetResources(t *testing.T) {
 		assert.Equal(t, int64(4), replicas)
 	})
 	t.Run("will keep new array entries not found in live state if not ignored", func(t *testing.T) {
-		t.Skip("limitation in the current implementation")
 		// given
 		ignores := []v1alpha1.ResourceIgnoreDifferences{
 			{
@@ -745,8 +744,8 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		require.Len(t, entriesArr, 1) // Only the ignored entry should be patched
 
 		// verify the content of the entry is preserved correctly
-		entry := entriesArr[0].(map[string]interface{})
-		requestHeader := entry["requestHeader"].(map[string]interface{})
+		entry := entriesArr[0].(map[string]any)
+		requestHeader := entry["requestHeader"].(map[string]any)
 		assert.Equal(t, "sample-header", requestHeader["headerName"])
 		assert.Equal(t, "sample-key", requestHeader["descriptorKey"])
 	})
@@ -862,8 +861,8 @@ func TestNormalizeTargetResourcesCRDs(t *testing.T) {
 		containers := dig(patched.Object, "spec", "template", "spec", "containers").([]any)
 		require.Len(t, containers, 2)
 
-		initContainer := containers[0].(map[string]interface{})
-		mainContainer := containers[1].(map[string]interface{})
+		initContainer := containers[0].(map[string]any)
+		mainContainer := containers[1].(map[string]any)
 
 		// Assert init container image is preserved (ignoreDifferences works)
 		initImage := dig(initContainer, "image").(string)

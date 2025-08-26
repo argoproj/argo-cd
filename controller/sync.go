@@ -523,7 +523,7 @@ func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObje
 	case versionedObject != nil:
 		patchedJSON, err = strategicpatch.StrategicMergePatch(originalJSON, patch, versionedObject)
 	case meta != nil:
-		var originalMap, patchMap map[string]interface{}
+		var originalMap, patchMap map[string]any
 		if err := json.Unmarshal(originalJSON, &originalMap); err != nil {
 			return nil, err
 		}
