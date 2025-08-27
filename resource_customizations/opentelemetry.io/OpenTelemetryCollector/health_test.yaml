@@ -4,6 +4,10 @@ tests:
     message: "All replicas are ready"
   inputPath: testdata/healthy.yaml
 - healthStatus:
+    status: Healthy
+    message: ""
+  inputPath: testdata/healthy_sidecar.yaml
+- healthStatus:
     status: Degraded
     message: "No replicas are ready"
   inputPath: testdata/degraded.yaml
