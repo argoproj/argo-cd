@@ -1,3 +1,5 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
 .application-operation-state {
     &__icons_container {
         position: absolute;
@@ -14,6 +16,20 @@
         line-height: 16px;
         display: inline-block;
         vertical-align: middle;
+    }
+
+    &__images-count {
+        color: $argo-running-color;
+        font-size: 0.9em;
+        
+        &:hover {
+            color: $argo-running-color-dark;
+        }
+    }
+
+    &__images-list {
+        padding: 0;
+        margin: 10px;
     }
 
 }
