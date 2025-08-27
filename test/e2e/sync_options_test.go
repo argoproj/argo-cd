@@ -10,10 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/v3/util/errors"
@@ -199,6 +201,14 @@ func TestSyncWithSkipHook(t *testing.T) {
 }
 
 func TestSyncWithForceReplace(t *testing.T) {
+	t.Cleanup(func() {
+		// remove finalizer to ensure proper cleanup if test fails at early stage
+		_, err := Run("", "kubectl", "patch", "deployment", "guestbook-ui", "-n", fixture.DeploymentNamespace(), "-p", `{"metadata":{"finalizers":[]}}`, "--type=merge")
+		if err != nil && !apierrors.IsNotFound(err) {
+			require.NoError(t, err)
+		}
+	})
+
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -207,14 +217,18 @@ func TestSyncWithForceReplace(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		// app having `Replace=true` and `Force=true` annotation should sync succeed if change in immutable field
+		// The finalizers allow us to validate that the existing resource (no finalizers) is just deleted once
+		// and does not get stuck in terminating state
 		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "add", "path": "/metadata/finalizers", "value": ["argocd.argoproj.io/e2e-test"]}]`).
 		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "add", "path": "/metadata/annotations", "value": { "argocd.argoproj.io/sync-options": "Force=true,Replace=true" }}]`).
 		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "add", "path": "/spec/selector/matchLabels/env", "value": "e2e" }, { "op": "add", "path": "/spec/template/metadata/labels/env", "value": "e2e" }]`).
 		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 1 }]`).
 		Refresh(RefreshTypeNormal).
 		Sync().
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
 // Given application is set with --sync-option CreateNamespace=true and --sync-option ServerSideApply=true
