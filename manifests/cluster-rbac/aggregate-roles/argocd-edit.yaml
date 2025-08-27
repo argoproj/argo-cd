@@ -1,0 +1,24 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-edit
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: controller
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
+  name: argocd-edit
+rules:
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  - applicationsets
+  - argocdextensions
+  - appprojects
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - patch
+  - update
