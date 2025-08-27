@@ -124,6 +124,14 @@ function removeEl(items: any[], index: number) {
 }
 
 class AttributeWrapper extends React.Component<AttributeProps, any> {
+    private getApplication(): string {
+        return this.props.fieldApi.getValue();
+    }
+
+    private setApplication(application: string) {
+        this.props.fieldApi.setValue(application);
+    }
+
     public render() {
         return (
             <div className='row'>
@@ -141,14 +149,6 @@ class AttributeWrapper extends React.Component<AttributeProps, any> {
                 </div>
             </div>
         );
-    }
-
-    private getApplication(): string {
-        return this.props.fieldApi.getValue();
-    }
-
-    private setApplication(application: string) {
-        this.props.fieldApi.setValue(application);
     }
 }
 
