@@ -123,33 +123,27 @@ function removeEl(items: any[], index: number) {
     return items;
 }
 
-class AttributeWrapper extends React.Component<AttributeProps, any> {
-    private getApplication(): string {
-        return this.props.fieldApi.getValue();
-    }
+function AttributeWrapper({fieldApi, deleteApp}: AttributeProps) {
+    const getApplication = () => fieldApi.getValue();
 
-    private setApplication(application: string) {
-        this.props.fieldApi.setValue(application);
-    }
+    const setApplication = (application: string) => fieldApi.setValue(application);
 
-    public render() {
-        return (
-            <div className='row'>
-                <div className='columns small-6'>
-                    <input
-                        className='argo-field'
-                        value={this.getApplication()}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            this.setApplication(e.target.value);
-                        }}
-                    />
-                </div>
-                <div className='columns small-1'>
-                    <i className='fa fa-times' onClick={() => this.props.deleteApp()} style={{cursor: 'pointer'}} />
-                </div>
+    return (
+        <div className='row'>
+            <div className='columns small-6'>
+                <input
+                    className='argo-field'
+                    value={getApplication()}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                        setApplication(e.target.value);
+                    }}
+                />
             </div>
-        );
-    }
+            <div className='columns small-1'>
+                <i className='fa fa-times' onClick={deleteApp} style={{cursor: 'pointer'}} />
+            </div>
+        </div>
+    );
 }
 
 const Attribute = ReactForm.FormField(AttributeWrapper);
