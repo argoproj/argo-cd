@@ -197,6 +197,24 @@ spec:
                 name: argocd-cmd-params-cm
                 key: reposerver.disable.helm.manifest.max.extracted.size
                 optional: true
+          - name: ARGOCD_REPO_SERVER_OCI_MANIFEST_MAX_EXTRACTED_SIZE
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.oci.manifest.max.extracted.size
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_REPO_SERVER_DISABLE_OCI_MANIFEST_MAX_EXTRACTED_SIZE
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.disable.oci.manifest.max.extracted.size
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_REPO_SERVER_OCI_LAYER_MEDIA_TYPES
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.oci.layer.media.types
+                name: argocd-cmd-params-cm
+                optional: true
           - name: ARGOCD_REVISION_CACHE_LOCK_TIMEOUT
             valueFrom:
               configMapKeyRef:

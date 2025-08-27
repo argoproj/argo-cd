@@ -374,6 +374,56 @@
         }
       }
     },
+    "/api/v1/applications/{appName}/server-side-diff": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "ServerSideDiff performs server-side diff calculation using dry-run apply",
+        "operationId": "ApplicationService_ServerSideDiff",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "appName",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "name": "targetManifests",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationServerSideDiffResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{application.metadata.name}": {
       "put": {
         "tags": [
@@ -1473,10 +1523,11 @@
         }
       },
       "post": {
+        "description": "Deprecated: use RunResourceActionV2 instead. This version does not support resource action parameters but is\nmaintained for backward compatibility. It will be removed in a future release.",
         "tags": [
           "ApplicationService"
         ],
-        "summary": "RunResourceAction run resource action",
+        "summary": "RunResourceAction runs a resource action",
         "operationId": "ApplicationService_RunResourceAction",
         "parameters": [
           {
@@ -1490,7 +1541,81 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/applicationResourceActionRunRequest"
+              "type": "string"
+            }
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "version",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "group",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "kind",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applications/{name}/resource/actions/v2": {
+      "post": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "RunResourceActionV2 runs a resource action with parameters",
+        "operationId": "ApplicationService_RunResourceActionV2",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationResourceActionRunRequestV2"
             }
           }
         ],
@@ -4944,6 +5069,20 @@
         }
       }
     },
+    "applicationApplicationServerSideDiffResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceDiff"
+          }
+        },
+        "modified": {
+          "type": "boolean"
+        }
+      }
+    },
     "applicationApplicationSyncRequest": {
       "type": "object",
       "title": "ApplicationSyncRequest is a request to apply the config state to live state",
@@ -5127,7 +5266,7 @@
         }
       }
     },
-    "applicationResourceActionRunRequest": {
+    "applicationResourceActionRunRequestV2": {
       "type": "object",
       "properties": {
         "action": {
@@ -7185,6 +7324,10 @@
       "description": "ApplicationSetStrategy configures how generated Applications are updated in sequence.",
       "type": "object",
       "properties": {
+        "deletionOrder": {
+          "type": "string",
+          "title": "DeletionOrder allows specifying the order for deleting generated apps when progressive sync is enabled.\naccepts values \"AllAtOnce\" and \"Reverse\""
+        },
         "rollingSync": {
           "$ref": "#/definitions/v1alpha1ApplicationSetRolloutStrategy"
         },
@@ -8560,12 +8703,20 @@
       "title": "KustomizeOptions are options for kustomize to use when building manifests",
       "properties": {
         "binaryPath": {
+          "description": "Deprecated: Use settings.Settings instead. See: settings.Settings.KustomizeVersions.\nIf this field is set, it will be used as the Kustomize binary path.\nOtherwise, Versions is used.",
           "type": "string",
           "title": "BinaryPath holds optional path to kustomize binary"
         },
         "buildOptions": {
           "type": "string",
           "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
+        },
+        "versions": {
+          "description": "Versions is a list of Kustomize versions and their corresponding binary paths and build options.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KustomizeVersion"
+          }
         }
       }
     },
@@ -8626,6 +8777,24 @@
         },
         "resId": {
           "$ref": "#/definitions/v1alpha1KustomizeResId"
+        }
+      }
+    },
+    "v1alpha1KustomizeVersion": {
+      "type": "object",
+      "title": "KustomizeVersion holds information about additional Kustomize versions",
+      "properties": {
+        "buildOptions": {
+          "type": "string",
+          "title": "BuildOptions that are specific to a Kustomize version"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name holds Kustomize version name"
+        },
+        "path": {
+          "type": "string",
+          "title": "Path holds the corresponding binary path"
         }
       }
     },
@@ -9489,20 +9658,8 @@
       "description": "ResourceActionParam represents a parameter for a resource action.\nIt includes a name, value, type, and an optional default value for the parameter.",
       "type": "object",
       "properties": {
-        "default": {
-          "description": "Default is the default value of the parameter, if any.",
-          "type": "string"
-        },
         "name": {
           "description": "Name is the name of the parameter.",
-          "type": "string"
-        },
-        "type": {
-          "description": "Type is the type of the parameter (e.g., string, integer).",
-          "type": "string"
-        },
-        "value": {
-          "description": "Value is the value of the parameter.",
           "type": "string"
         }
       }

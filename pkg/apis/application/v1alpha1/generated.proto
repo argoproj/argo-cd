@@ -376,6 +376,10 @@ message ApplicationSetStrategy {
   optional string type = 1;
 
   optional ApplicationSetRolloutStrategy rollingSync = 2;
+
+  // DeletionOrder allows specifying the order for deleting generated apps when progressive sync is enabled.
+  // accepts values "AllAtOnce" and "Reverse"
+  optional string deletionOrder = 3;
 }
 
 // ApplicationSetSyncPolicy configures how generated Applications will relate to their
@@ -1061,9 +1065,6 @@ message EnvEntry {
   optional string value = 2;
 }
 
-message ErrApplicationNotAllowedToUseProject {
-}
-
 // ExecProviderConfig is config used to call an external command to perform cluster authentication
 // See: https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
 message ExecProviderConfig {
@@ -1308,7 +1309,14 @@ message KustomizeOptions {
   optional string buildOptions = 1;
 
   // BinaryPath holds optional path to kustomize binary
+  //
+  // Deprecated: Use settings.Settings instead. See: settings.Settings.KustomizeVersions.
+  // If this field is set, it will be used as the Kustomize binary path.
+  // Otherwise, Versions is used.
   optional string binaryPath = 2;
+
+  // Versions is a list of Kustomize versions and their corresponding binary paths and build options.
+  repeated KustomizeVersion versions = 3;
 }
 
 message KustomizePatch {
@@ -1343,6 +1351,18 @@ message KustomizeSelector {
   optional string annotationSelector = 2;
 
   optional string labelSelector = 3;
+}
+
+// KustomizeVersion holds information about additional Kustomize versions
+message KustomizeVersion {
+  // Name holds Kustomize version name
+  optional string name = 1;
+
+  // Path holds the corresponding binary path
+  optional string path = 2;
+
+  // BuildOptions that are specific to a Kustomize version
+  optional string buildOptions = 3;
 }
 
 // ListGenerator include items info
@@ -1961,15 +1981,6 @@ message ResourceActionDefinition {
 message ResourceActionParam {
   // Name is the name of the parameter.
   optional string name = 1;
-
-  // Value is the value of the parameter.
-  optional string value = 2;
-
-  // Type is the type of the parameter (e.g., string, integer).
-  optional string type = 3;
-
-  // Default is the default value of the parameter, if any.
-  optional string default = 4;
 }
 
 // ResourceActions holds the set of actions that can be applied to a resource.

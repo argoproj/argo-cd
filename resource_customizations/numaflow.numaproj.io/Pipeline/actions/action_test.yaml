@@ -2,9 +2,48 @@ actionTests:
 - action: pause
   inputPath: testdata/pipeline.yaml
   expectedOutputPath: testdata/pipeline-paused.yaml
-- action: unpause
+- action: unpause-gradual
   inputPath: testdata/pipeline-paused.yaml
-  expectedOutputPath: testdata/pipeline.yaml
+  expectedOutputPath: testdata/pipeline-unpause-gradual.yaml
+- action: unpause-fast
+  inputPath: testdata/pipeline-paused.yaml
+  expectedOutputPath: testdata/pipeline-unpause-fast.yaml
 - action: force-promote
   inputPath: testdata/pipeline.yaml
   expectedOutputPath: testdata/pipeline-force-promote.yaml
+
+discoveryTests:
+  - inputPath: testdata/pipeline.yaml
+    result:
+      - name: pause
+        disabled: false
+        iconClass: 'fa-solid fa-fw fa-pause'
+      - name: unpause-gradual
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-play'
+        displayName: 'Unpause (gradual)'
+      - name: unpause-fast
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-play'
+        displayName: 'Unpause (fast)'
+      - name: force-promote
+        disabled: false
+        iconClass: 'fa-solid fa-fw fa-forward'
+        displayName: 'Force Promote'
+  - inputPath: testdata/pipeline-paused.yaml
+    result:
+      - name: pause
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-pause'
+      - name: unpause-gradual
+        disabled: false
+        iconClass: 'fa-solid fa-fw fa-play'
+        displayName: 'Unpause (gradual)'
+      - name: unpause-fast
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-play'
+        displayName: 'Unpause (fast)'
+      - name: force-promote
+        disabled: false
+        iconClass: 'fa-solid fa-fw fa-forward'
+        displayName: 'Force Promote'
