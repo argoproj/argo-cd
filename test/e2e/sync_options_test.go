@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -204,9 +203,7 @@ func TestSyncWithForceReplace(t *testing.T) {
 	t.Cleanup(func() {
 		// remove finalizer to ensure proper cleanup if test fails at early stage
 		_, err := Run("", "kubectl", "patch", "deployment", "guestbook-ui", "-n", fixture.DeploymentNamespace(), "-p", `{"metadata":{"finalizers":[]}}`, "--type=merge")
-		if err != nil && !apierrors.IsNotFound(err) {
-			require.NoError(t, err)
-		}
+		require.NoError(t, err)
 	})
 
 	Given(t).
