@@ -458,7 +458,7 @@ func TestHandlerRevisionIsEnabledMultipleSources(t *testing.T) {
 
 	settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm(), argoCDSecret()), "default")
 	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default", []string{})
-	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&revision=true", nil)
+	req, err := http.NewRequest(http.MethodGet, "/api/badge?name=test-app&revision=true", http.NoBody)
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()
