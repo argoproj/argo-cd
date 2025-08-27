@@ -1,5 +1,5 @@
 import {Tooltip} from 'argo-ui';
-import * as React from 'react';
+import React, {ChangeEvent} from 'react';
 import * as ReactForm from 'react-form';
 import {SyncWindow} from '../../../shared/models';
 
@@ -134,7 +134,7 @@ function AttributeWrapper({fieldApi, deleteApp}: AttributeProps) {
                 <input
                     className='argo-field'
                     value={getApplication()}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => {
                         setApplication(e.target.value);
                     }}
                 />
@@ -277,7 +277,7 @@ function ScheduleWrapper({fieldApi}: ScheduleProps) {
                     name='minute'
                     multiple={true}
                     value={getValues(0)}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                    onChange={(e: ChangeEvent<HTMLSelectElement>) => {
                         const minuteOptions = e.target.options;
                         const minuteValues = [];
                         for (let i = 0, l = minuteOptions.length; i < l; i++) {
@@ -302,7 +302,7 @@ function ScheduleWrapper({fieldApi}: ScheduleProps) {
                     name='hours'
                     multiple={true}
                     value={getValues(1)}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                    onChange={(e: ChangeEvent<HTMLSelectElement>) => {
                         const hourOptions = e.target.options;
                         const hourValues = [];
                         for (let i = 0, l = hourOptions.length; i < l; i++) {
@@ -327,7 +327,7 @@ function ScheduleWrapper({fieldApi}: ScheduleProps) {
                     name='dom'
                     multiple={true}
                     value={getValues(2)}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                    onChange={(e: ChangeEvent<HTMLSelectElement>) => {
                         const domOptions = e.target.options;
                         const domValues = [];
                         for (let i = 0, l = domOptions.length; i < l; i++) {
@@ -352,7 +352,7 @@ function ScheduleWrapper({fieldApi}: ScheduleProps) {
                     name='month'
                     multiple={true}
                     value={getValues(3)}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                    onChange={(e: ChangeEvent<HTMLSelectElement>) => {
                         const monthOptions = e.target.options;
                         const monthValues = [];
                         for (let i = 0, l = monthOptions.length; i < l; i++) {
@@ -410,7 +410,7 @@ function ScheduleWrapper({fieldApi}: ScheduleProps) {
                     name='dow'
                     multiple={true}
                     value={getValues(4)}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                    onChange={(e: ChangeEvent<HTMLSelectElement>) => {
                         const dowOptions = e.target.options;
                         const dowValues = [];
                         for (let i = 0, l = dowOptions.length; i < l; i++) {
