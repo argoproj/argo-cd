@@ -1,7 +1,11 @@
 #!/bin/bash
 set -eux -o pipefail
 
+# check for local installation of go-junit-report otherwise install locally
 which go-junit-report || go install github.com/jstemmer/go-junit-report@latest
+
+# check for local installation of gotestsum otherwise install locally
+which gotestsum || go install gotest.tools/gotestsum@latest
 
 TEST_RESULTS=${TEST_RESULTS:-test-results}
 TEST_FLAGS=${TEST_FLAGS:-}
