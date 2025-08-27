@@ -233,6 +233,42 @@ function setRanges(config: string[]): string {
 }
 
 class ScheduleWrapper extends React.Component<ScheduleProps, any> {
+    private getValues(f: number): string[] {
+        if (this.props.fieldApi.getValue() !== undefined) {
+            const fields = (this.props.fieldApi.getValue() as string).split(' ');
+            const subFields = getRanges(fields[f]);
+            return subFields;
+        }
+        return ['*'];
+    }
+
+    private setValues(values: string[], f: number) {
+        if (this.props.fieldApi.getValue() !== undefined) {
+            const fields = (this.props.fieldApi.getValue() as string).split(' ');
+            fields[f] = setRanges(values);
+            this.props.fieldApi.setValue(fields.join(' '));
+        } else {
+            switch (f) {
+                case 0:
+                    this.props.fieldApi.setValue(generateSchedule(values.join(','), '*', '*', '*', '*'));
+                    break;
+                case 1:
+                    this.props.fieldApi.setValue(generateSchedule('*', values.join(','), '*', '*', '*'));
+                    break;
+                case 2:
+                    this.props.fieldApi.setValue(generateSchedule('*', '*', values.join(','), '*', '*'));
+                    break;
+                case 3:
+                    this.props.fieldApi.setValue(generateSchedule('*', '*', '*', values.join(','), '*'));
+                    break;
+                case 4:
+                    this.props.fieldApi.setValue(generateSchedule('*', '*', '*', '*', values.join(',')));
+                    break;
+            }
+        }
+        return;
+    }
+
     public render() {
         return (
             <React.Fragment>
@@ -414,42 +450,6 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                 </div>
             </React.Fragment>
         );
-    }
-
-    private getValues(f: number): string[] {
-        if (this.props.fieldApi.getValue() !== undefined) {
-            const fields = (this.props.fieldApi.getValue() as string).split(' ');
-            const subFields = getRanges(fields[f]);
-            return subFields;
-        }
-        return ['*'];
-    }
-
-    private setValues(values: string[], f: number) {
-        if (this.props.fieldApi.getValue() !== undefined) {
-            const fields = (this.props.fieldApi.getValue() as string).split(' ');
-            fields[f] = setRanges(values);
-            this.props.fieldApi.setValue(fields.join(' '));
-        } else {
-            switch (f) {
-                case 0:
-                    this.props.fieldApi.setValue(generateSchedule(values.join(','), '*', '*', '*', '*'));
-                    break;
-                case 1:
-                    this.props.fieldApi.setValue(generateSchedule('*', values.join(','), '*', '*', '*'));
-                    break;
-                case 2:
-                    this.props.fieldApi.setValue(generateSchedule('*', '*', values.join(','), '*', '*'));
-                    break;
-                case 3:
-                    this.props.fieldApi.setValue(generateSchedule('*', '*', '*', values.join(','), '*'));
-                    break;
-                case 4:
-                    this.props.fieldApi.setValue(generateSchedule('*', '*', '*', '*', values.join(',')));
-                    break;
-            }
-        }
-        return;
     }
 }
 
