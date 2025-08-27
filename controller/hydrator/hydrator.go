@@ -135,6 +135,7 @@ func getHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {
 	}
 	return key
 }
+
 // ProcessHydrationQueueItem processes a hydration queue item. It retrieves the relevant applications for the given
 // hydration key, hydrates their latest commit, and updates their status accordingly. If the hydration fails, it marks
 // the operation as failed and logs the error. If successful, it updates the operation to indicate that hydration was
