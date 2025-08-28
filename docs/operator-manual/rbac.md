@@ -341,7 +341,7 @@ spec:
     - name: admin
       description: Admin privileges to team-beta
       policies:
-        - p, proj:team-beta-project:admin, applications, *, *, allow
+        - p, proj:team-beta-project:admin, applications, *, team-beta-project/*, allow
       groups:
         - user@example.org # Value from the email scope
         - my-org:team-beta # Value from the groups scope

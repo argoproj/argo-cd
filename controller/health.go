@@ -27,10 +27,9 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 		if res.Target != nil && hookutil.Skip(res.Target) {
 			continue
 		}
-		if res.Target != nil && res.Target.GetAnnotations() != nil && res.Target.GetAnnotations()[common.AnnotationIgnoreHealthCheck] == "true" {
+		if res.Live != nil && res.Live.GetAnnotations() != nil && res.Live.GetAnnotations()[common.AnnotationIgnoreHealthCheck] == "true" {
 			continue
 		}
-
 		if res.Live != nil && (hookutil.IsHook(res.Live) || ignore.Ignore(res.Live)) {
 			continue
 		}
