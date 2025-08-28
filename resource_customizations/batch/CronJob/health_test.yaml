@@ -1,0 +1,25 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: CronJob has completed its last execution successfully
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Healthy
+      message: ''
+    inputPath: testdata/never-scheduled.yaml
+  - healthStatus:
+      status: Degraded
+      message: CronJob has not completed its last execution successfully
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Degraded
+      message: CronJob has not completed its last execution successfully
+    inputPath: testdata/never-succeeded.yaml
+  - healthStatus:
+      status: Progressing
+      message: Waiting for 1 Jobs to complete
+    inputPath: testdata/active.yaml
+  - healthStatus:
+      status: Suspended
+      message: CronJob is Suspended
+    inputPath: testdata/suspended.yaml
