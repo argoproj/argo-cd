@@ -16,7 +16,6 @@ spec:
         app.kubernetes.io/name: argocd-commit-server
     spec:
       serviceAccountName: argocd-commit-server
-      automountServiceAccountToken: false
       containers:
       - name: argocd-commit-server
         image: quay.io/argoproj/argocd:latest
