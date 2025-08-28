@@ -263,6 +263,34 @@ specified more than once, the last one will be used.
 
 All trailers are optional. If a trailer is not specified, the corresponding field in the metadata will be omitted.
 
+## Commit Message Template
+
+Source Hydrator currently generates hard-coded commit messages when committing hydrated manifests. This message was previously static and lacked customization. With this added capability commit message are now `fully templateable`, allowing users to define commit formatting. This will enable users to tailor commit messages to suit their workflows and organizational standards.
+
+The commit message is generated using a `Go text/template`, optionally configured by the user via the argocd-cm ConfigMap. The template is rendered using the values from `hydrator.metadata`. The template can be multi-line, allowing users to define a subject line, body and optional trailers. To define the commit message template, you need to set the `ourceHydrator.commitMessageTemplate` field in argocd-cm ConfigMap.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  sourceHydrator.commitMessageTemplate: |
+    {{ .metadata.subject }}
+    {{- if .metadata.body }}
+      {{ .metadata.body }}
+    {{- end }}
+    {{ range $ref := .metadata.references }}
+      {{- if and $ref.commit $ref.commit.author }}
+        Co-authored-by: {{ $ref.commit.author }}
+      {{- end }}
+    {{- end }}
+    {{- if .metadata.author }}
+      Co-authored-by: {{ .metadata.author }}
+    {{- end }}
+```
+
 ## Limitations
 
 ### Signature Verification

@@ -21,40 +21,19 @@ Argocd-reference-commit-author: Argocd-reference-commit-author
 Argocd-reference-commit-subject: testhydratormd
 Signed-off-by: testUser <test@gmail.com>`
 
-var commitMessageTemplate = `    {{- if .metadata }}
-        {{- if .metadata.repoURL }}
-            repoURL: {{ .metadata.repoURL }}
-        {{- end }}
-        
-        {{- if .metadata.drySha }}
-            drySha: {{ .metadata.drySha }}
-        {{- end }}
+var commitMessageTemplate = `{{ .metadata.subject }}
+{{- if .metadata.body }}
 
-        {{- if .metadata.author }}
-            Co-authored-by: {{ .metadata.author }}
-        {{- end }}
-
-        {{- if .metadata.subject }}
-            subject: {{ .metadata.subject }}
-        {{- end }}
-
-        {{- if .metadata.body }}
-            body: {{ .metadata.body }}
-        {{- end }}
-        {{- if .metadata.references }}
-            References:
-            {{- range $reference := .metadata.references }}
-                {{- if kindIs "map" $reference.commit }}
-                    Commit:
-                    {{- range $key, $value := $reference.commit }}
-                        {{- if eq $key "author" }}
-                            Co-authored-by: {{ $value }}
-                        {{- end }}
-                    {{- end }}
-                {{- end }}
-            {{- end }}
-        {{- end }}
-    {{- end }} 
+{{ .metadata.body }}
+{{- end }}
+{{ range $ref := .metadata.references }}
+{{- if and $ref.commit $ref.commit.author }}
+Co-authored-by: {{ $ref.commit.author }}
+{{- end }}
+{{- end }}
+{{- if .metadata.author }}
+Co-authored-by: {{ .metadata.author }}
+{{- end }}
 `
 
 func Test_appNeedsHydration(t *testing.T) {
@@ -248,6 +227,15 @@ func TestHydrator_getTemplatedCommitMessage(t *testing.T) {
 				},
 				template: commitMessageTemplate,
 			},
+			want: `testn
+Argocd-reference-commit-repourl: https://github.com/test/argocd-example-apps
+Argocd-reference-commit-author: Argocd-reference-commit-author
+Argocd-reference-commit-subject: testhydratormd
+Signed-off-by: testUser <test@gmail.com>
+
+Co-authored-by: testAuthor
+Co-authored-by: test test@test.com
+`,
 		},
 		{
 			name: "test empty template",
@@ -263,6 +251,7 @@ func TestHydrator_getTemplatedCommitMessage(t *testing.T) {
 					References: references,
 				},
 			},
+			want: "",
 		},
 	}
 	for _, tt := range tests {
@@ -272,12 +261,7 @@ func TestHydrator_getTemplatedCommitMessage(t *testing.T) {
 				t.Errorf("Hydrator.getHydratorCommitMessage() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if tt.args.template != "" {
-				assert.NotEmpty(t, got)
-				assert.Contains(t, got, "Commit")
-			} else {
-				assert.Empty(t, got)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

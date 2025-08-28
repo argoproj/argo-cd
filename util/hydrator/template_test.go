@@ -26,18 +26,18 @@ Co-authored-by: {{ .metadata.author }}
 
 func TestRender(t *testing.T) {
 	tests := []struct {
-		name    string
+		name     string
 		metadata HydratorCommitMetadata
-		want    string
-		wantErr bool
+		want     string
+		wantErr  bool
 	}{
 		{
 			name: "author and multiple references",
 			metadata: HydratorCommitMetadata{
-				RepoURL:    "https://github.com/test/argocd-example-apps",
-				DrySHA:     "3ff41cc5247197a6caf50216c4c76cc29d78a97d",
-				Author:     "test <test@test.com>",
-				Date:       metav1.Now().String(),
+				RepoURL: "https://github.com/test/argocd-example-apps",
+				DrySHA:  "3ff41cc5247197a6caf50216c4c76cc29d78a97d",
+				Author:  "test <test@test.com>",
+				Date:    metav1.Now().String(),
 				References: []v1alpha1.RevisionReference{
 					{
 						Commit: &v1alpha1.CommitMetadata{
@@ -56,10 +56,10 @@ func TestRender(t *testing.T) {
 						},
 					},
 				},
-				Body:       "testBody",
-				Subject:    "testSubject",
+				Body:    "testBody",
+				Subject: "testSubject",
 			},
-			want:    `testSubject
+			want: `testSubject
 
 testBody
 
@@ -71,12 +71,12 @@ Co-authored-by: test <test@test.com>
 		{
 			name: "no references",
 			metadata: HydratorCommitMetadata{
-				RepoURL:    "https://github.com/test/argocd-example-apps",
-				DrySHA:     "3ff41cc5247197a6caf50216c4c76cc29d78a97d",
-				Author:     "test <test@test.com>",
-				Date:       metav1.Now().String(),
-				Body:       "testBody",
-				Subject:    "testSubject",
+				RepoURL: "https://github.com/test/argocd-example-apps",
+				DrySHA:  "3ff41cc5247197a6caf50216c4c76cc29d78a97d",
+				Author:  "test <test@test.com>",
+				Date:    metav1.Now().String(),
+				Body:    "testBody",
+				Subject: "testSubject",
 			},
 			want: `testSubject
 
@@ -88,11 +88,11 @@ Co-authored-by: test <test@test.com>
 		{
 			name: "no body",
 			metadata: HydratorCommitMetadata{
-				RepoURL:    "https://github.com/test/argocd-example-apps",
-				DrySHA:     "3ff41cc5247197a6caf50216c4c76cc29d78a97d",
-				Author:     "test <test@test.com>",
-				Date:       metav1.Now().String(),
-				Subject:    "testSubject",
+				RepoURL: "https://github.com/test/argocd-example-apps",
+				DrySHA:  "3ff41cc5247197a6caf50216c4c76cc29d78a97d",
+				Author:  "test <test@test.com>",
+				Date:    metav1.Now().String(),
+				Subject: "testSubject",
 			},
 			want: `testSubject
 

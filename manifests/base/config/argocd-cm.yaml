@@ -119,45 +119,19 @@ data:
   ### SourceHydrator commit message template.
   # This template iterates through the fields in the `.metadata` object,
   # and formats them based on their type (map, array, or primitive values).
-  # 
-  # Features:
-  #   - Handles nested maps and arrays gracefully.
-  #   - Capable and extensible of handling key-value pair metadata, such as labels.
-  #   - Specifically accommodates "commit" subfields within array items that
-  #     contain more structured data.
+  # This is the default template and targets specific metadata properties.
   sourceHydrator.commitMessageTemplate: |
-    {{- if .metadata }}
-        {{- if .metadata.repoURL }}
-            repoURL: {{ .metadata.repoURL }}
-        {{- end }}
-        
-        {{- if .metadata.drySha }}
-            drySha: {{ .metadata.drySha }}
-        {{- end }}
+    {{ .metadata.subject }}
+    {{- if .metadata.body }}
+      {{ .metadata.body }}
+    {{- end }}
+    {{ range $ref := .metadata.references }}
+      {{- if and $ref.commit $ref.commit.author }}
+        Co-authored-by: {{ $ref.commit.author }}
+      {{- end }}
+    {{- end }}
+    {{- if .metadata.author }}
+      Co-authored-by: {{ .metadata.author }}
+    {{- end }}
 
-        {{- if .metadata.author }}
-            Co-authored-by: {{ .metadata.author }}
-        {{- end }}
-
-        {{- if .metadata.subject }}
-            subject: {{ .metadata.subject }}
-        {{- end }}
-
-        {{- if .metadata.body }}
-            body: {{ .metadata.body }}
-        {{- end }}
-        {{- if .metadata.references }}
-            References:
-            {{- range $reference := .metadata.references }}
-                {{- if kindIs "map" $reference.commit }}
-                    Commit:
-                    {{- range $key, $value := $reference.commit }}
-                        {{- if eq $key "author" }}
-                            Co-authored-by: {{ $value }}
-                        {{- end }}
-                    {{- end }}
-                {{- end }}
-            {{- end }}
-        {{- end }}
-    {{- end }} 
 

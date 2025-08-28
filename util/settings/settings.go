@@ -45,6 +45,21 @@ import (
 	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 )
 
+var commitMessageTemplate = `{{ .metadata.subject }}
+{{- if .metadata.body }}
+
+{{ .metadata.body }}
+{{- end }}
+{{ range $ref := .metadata.references }}
+{{- if and $ref.commit $ref.commit.author }}
+Co-authored-by: {{ $ref.commit.author }}
+{{- end }}
+{{- end }}
+{{- if .metadata.author }}
+Co-authored-by: {{ .metadata.author }}
+{{- end }}
+`
+
 // ArgoCDSettings holds in-memory runtime configuration options.
 type ArgoCDSettings struct {
 	// URL is the externally facing URL users will visit to reach Argo CD.
@@ -1007,6 +1022,9 @@ func (mgr *SettingsManager) GetSourceHydratorCommitMessageTemplate() (string, er
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return "", err
+	}
+	if argoCDCM.Data[settingsSourceHydratorCommitMessageTemplateKey] == "" {
+		return commitMessageTemplate, nil // in case template is not defined return default
 	}
 	return argoCDCM.Data[settingsSourceHydratorCommitMessageTemplateKey], nil
 }
