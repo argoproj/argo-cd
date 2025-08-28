@@ -131,6 +131,9 @@ func (c *clusterInfoUpdater) updateClusterInfo(ctx context.Context, cluster appv
 	}
 
 	updated := c.getUpdatedClusterInfo(ctx, apps, cluster, info, metav1.Now())
+	
+
+	
 	return c.cache.SetClusterInfo(cluster.Server, &updated)
 }
 
@@ -154,10 +157,13 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 	clusterInfo := appv1.ClusterInfo{
 		ConnectionState:   appv1.ConnectionState{ModifiedAt: &now},
 		ApplicationsCount: appCount,
+		CacheInfo:        appv1.ClusterCacheInfo{},
 	}
 	if info != nil {
 		clusterInfo.ServerVersion = info.K8SVersion
 		clusterInfo.APIVersions = argo.APIResourcesToStrings(info.APIResources, true)
+		
+		
 		switch {
 		case info.LastCacheSyncTime == nil:
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusUnknown
@@ -167,6 +173,8 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 			syncTime := metav1.NewTime(*info.LastCacheSyncTime)
 			clusterInfo.CacheInfo.LastCacheSyncTime = &syncTime
 			clusterInfo.CacheInfo.APIsCount = int64(info.APIsCount)
+			clusterInfo.CacheInfo.ResourcesCount = int64(info.ResourcesCount)
+			clusterInfo.CacheInfo.FailedResourceGVKs = info.FailedResourceGVKs
 		case isConversionWebhookErrorInSyncError(info.SyncError):
 			// We have a successful connection but some resources failed to sync
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusDegraded
@@ -175,6 +183,7 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 			clusterInfo.CacheInfo.LastCacheSyncTime = &syncTime
 			clusterInfo.CacheInfo.APIsCount = int64(info.APIsCount)
 			clusterInfo.CacheInfo.ResourcesCount = int64(info.ResourcesCount)
+			clusterInfo.CacheInfo.FailedResourceGVKs = info.FailedResourceGVKs
 		default:
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusFailed
 			clusterInfo.ConnectionState.Message = info.SyncError.Error()

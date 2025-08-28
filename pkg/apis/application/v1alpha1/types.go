@@ -2381,7 +2381,7 @@ type ClusterCacheInfo struct {
 	// FailedResourceGVKs contains a list of GroupVersionKind strings that had conversion webhook failures
 	// UI should display these GVKs in the cluster details page under "Unavailable Resources"
 	// When this list is not empty, the cluster connection status should be set to "Degraded"
-	FailedResourceGVKs []string `json:"failedResourceGVKs,omitempty" protobuf:"bytes,4,opt,name=failedResourceGVKs"`
+	FailedResourceGVKs []string `json:"failedResourceGVKs" protobuf:"bytes,4,opt,name=failedResourceGVKs"`
 }
 
 // ClusterList is a collection of Clusters.

@@ -8095,6 +8095,13 @@
           "format": "int64",
           "title": "APIsCount holds number of observed Kubernetes API count"
         },
+        "failedResourceGVKs": {
+          "type": "array",
+          "title": "FailedResourceGVKs contains a list of GroupVersionKind strings that had conversion webhook failures\nUI should display these GVKs in the cluster details page under \"Unavailable Resources\"\nWhen this list is not empty, the cluster connection status should be set to \"Degraded\"",
+          "items": {
+            "type": "string"
+          }
+        },
         "lastCacheSyncTime": {
           "$ref": "#/definitions/v1Time"
         },

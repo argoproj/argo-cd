@@ -75,8 +75,6 @@ const (
 	// EnvClusterCacheEventsProcessingInterval is the env variable to control the interval between processing events when BatchEventsProcessing is enabled
 	EnvClusterCacheEventsProcessingInterval = "ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL"
 
-	// EnvFailedResourceGVKExpirationTime is the env variable to control how long failed resource GVKs are tracked before being automatically cleared
-	EnvFailedResourceGVKExpirationTime = "ARGOCD_FAILED_RESOURCE_GVK_EXPIRATION_TIME"
 
 	// AnnotationIgnoreResourceUpdates when set to true on an untracked resource,
 	// argo will apply `ignoreResourceUpdates` configuration on it.
@@ -119,9 +117,6 @@ var (
 	// clusterCacheEventsProcessingInterval specifies the interval between processing events when BatchEventsProcessing is enabled
 	clusterCacheEventsProcessingInterval = 100 * time.Millisecond
 
-	// failedResourceGVKExpirationTime controls how long failed resource GVKs are tracked before being automatically cleared
-	// Default is 30 minutes
-	failedResourceGVKExpirationTime = 30 * time.Minute
 )
 
 func init() {
@@ -135,7 +130,6 @@ func init() {
 	clusterCacheRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false)
 	clusterCacheBatchEventsProcessing = env.ParseBoolFromEnv(EnvClusterCacheBatchEventsProcessing, true)
 	clusterCacheEventsProcessingInterval = env.ParseDurationFromEnv(EnvClusterCacheEventsProcessingInterval, clusterCacheEventsProcessingInterval, 0, math.MaxInt64)
-	failedResourceGVKExpirationTime = env.ParseDurationFromEnv(EnvFailedResourceGVKExpirationTime, failedResourceGVKExpirationTime, 0, math.MaxInt64)
 }
 
 type LiveStateCache interface {
@@ -211,7 +205,6 @@ func NewLiveStateCache(
 		metricsServer:      metricsServer,
 		clusterSharding:    clusterSharding,
 		resourceTracking:   resourceTracking,
-		failedResourceGVKs: make(map[string]map[string]time.Time),
 	}
 }
 
@@ -240,10 +233,6 @@ type liveStateCache struct {
 	clusters      map[string]clustercache.ClusterCache
 	cacheSettings cacheSettings
 	lock          sync.RWMutex
-	// failedResourceGVKs keeps track of resource GVKs that failed due to conversion webhook errors
-	// The key is cluster server and the value is a map of GVK strings that failed
-	failedResourceGVKs map[string]map[string]time.Time
-	failedGVKLock     sync.RWMutex
 }
 
 func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
@@ -673,39 +662,9 @@ func (c *liveStateCache) getSyncedCluster(server *appv1.Cluster) (clustercache.C
 	if err != nil {
 		if isClusterCacheError(err) {
 			log.WithField("cluster", server.Server).Warnf("Cluster cache sync error detected, cluster cache may be incomplete: %v", err)
+			
 
-			// Extract the GVK from the error and track it as a failed GVK
-			gvkStr := extractGVKFromCacheError(err)
-			if gvkStr != "" {
-				c.trackFailedResourceGVK(server.Server, gvkStr)
-
-				// Also mark the cluster as tainted
-				errorType := "unknown"
-				errStr := err.Error()
-				if strings.Contains(errStr, "conversion webhook") {
-					errorType = "conversion_webhook"
-				} else if strings.Contains(errStr, "Expired: too old resource version") {
-					errorType = "pagination_token_expired"
-				} else if strings.Contains(errStr, "connection") {
-					errorType = "connection_issue"
-				}
-
-				markClusterTainted(server.Server, errStr, gvkStr, errorType)
-			}
-
-			// Mark the cluster as tainted
-			errorType := "unknown"
-			errStr := err.Error()
-			if strings.Contains(errStr, "conversion webhook") {
-				errorType = "conversion_webhook"
-			} else if strings.Contains(errStr, "Expired: too old resource version") {
-				errorType = "pagination_token_expired"
-			} else if strings.Contains(errStr, "connection") {
-				errorType = "connection_issue"
-			}
-
-			markClusterTainted(server.Server, errStr, gvkStr, errorType)
-
+			
 			// For known cache errors, we return the cluster cache without an error
 			// but log the issue. This allows applications to continue with
 			// whatever state is available rather than failing completely.
@@ -714,6 +673,8 @@ func (c *liveStateCache) getSyncedCluster(server *appv1.Cluster) (clustercache.C
 		}
 		return nil, fmt.Errorf("error synchronizing cache state: %w", err)
 	}
+
+
 	return clusterCache, nil
 }
 
@@ -724,8 +685,11 @@ func (c *liveStateCache) invalidate(cacheSettings cacheSettings) {
 	clusters := c.clusters
 	c.lock.Unlock()
 
-	for _, clust := range clusters {
+	for server, clust := range clusters {
 		clust.Invalidate(clustercache.SetSettings(cacheSettings.clusterSettings))
+
+		// Clear any cluster taints when invalidating a cluster cache
+		ClearClusterTaints(server)
 	}
 	log.Info("live state cache invalidated")
 }
@@ -744,42 +708,6 @@ func (c *liveStateCache) IterateHierarchyV2(server *appv1.Cluster, keys []kube.R
 		return err
 	}
 
-	// Filter out keys with GVKs that are known to fail with conversion webhook errors
-	filteredKeys := make([]kube.ResourceKey, 0, len(keys))
-	var skippedGVKs []string
-
-	for _, key := range keys {
-		// ResourceKey doesn't have Version field in kube.ResourceKey
-		// Using a wildcard for version to match any version
-		gvkStr := fmt.Sprintf("%s/*, Kind=%s", key.Group, key.Kind)
-
-		if c.isResourceGVKFailed(server.Server, gvkStr) {
-			log.WithFields(log.Fields{
-				"cluster": server.Server,
-				"gvk":     gvkStr,
-				"name":    key.Name,
-				"namespace": key.Namespace,
-			}).Debugf("Skipping resource with previously failed GVK in IterateHierarchyV2")
-			skippedGVKs = append(skippedGVKs, gvkStr)
-			continue
-		}
-
-		filteredKeys = append(filteredKeys, key)
-	}
-
-	// If all keys are filtered out due to failed GVKs, return an error
-	if len(filteredKeys) == 0 && len(keys) > 0 {
-		skippedStr := strings.Join(skippedGVKs, ", ")
-		log.WithFields(log.Fields{
-			"cluster": server.Server,
-			"skipped": skippedGVKs,
-		}).Warnf("All resource keys were filtered out due to previously failed GVKs: %s", skippedStr)
-
-		if len(skippedGVKs) > 0 {
-			return fmt.Errorf("cannot process resources because all target resources have known conversion webhook failures: %s. Check cluster status for more details", skippedStr)
-		}
-		return nil
-	}
 
 	// Wrap the cluster iteration with error recovery
 	defer func() {
@@ -788,7 +716,7 @@ func (c *liveStateCache) IterateHierarchyV2(server *appv1.Cluster, keys []kube.R
 		}
 	}()
 
-	clusterInfo.IterateHierarchyV2(filteredKeys, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
+	clusterInfo.IterateHierarchyV2(keys, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
 		return action(asResourceNode(resource, namespaceResources), getApp(resource, namespaceResources))
 	})
 	return nil
@@ -822,40 +750,9 @@ func (c *liveStateCache) GetNamespaceTopLevelResources(server *appv1.Cluster, na
 	})
 
 	res := make(map[kube.ResourceKey]appv1.ResourceNode)
-	var skippedGVKs []string
 
-	// Filter out resources with GVKs that are known to fail with conversion webhook errors
 	for k, r := range resources {
-		gvk := r.Ref.GroupVersionKind()
-		gvkStr := fmt.Sprintf("%s/%s, Kind=%s", gvk.Group, gvk.Version, gvk.Kind)
-
-		if c.isResourceGVKFailed(server.Server, gvkStr) {
-			log.WithFields(log.Fields{
-				"cluster":   server.Server,
-				"namespace": namespace,
-				"gvk":       gvkStr,
-				"name":      r.Ref.Name,
-			}).Debugf("Skipping resource with previously failed GVK in GetNamespaceTopLevelResources")
-			skippedGVKs = append(skippedGVKs, gvkStr)
-			continue
-		}
-
-		res[k] = asResourceNode(r, namespaceResources)
-	}
-
-	// Log a warning if we skipped resources due to conversion webhook failures
-	if len(skippedGVKs) > 0 && len(resources) > 0 && len(res) == 0 {
-		skippedStr := strings.Join(skippedGVKs, ", ")
-		log.WithFields(log.Fields{
-			"cluster":   server.Server,
-			"namespace": namespace,
-			"skipped":   skippedGVKs,
-		}).Warnf("All resources were filtered out due to conversion webhook failures: %s", skippedStr)
-
-		// Only return an error if ALL resources were filtered out
-		if len(resources) > 0 && len(res) == 0 {
-			return nil, fmt.Errorf("cannot get namespace resources because all resources have known conversion webhook failures: %s. Check cluster status for more details", skippedStr)
-		}
+		res[k] = asResourceNode(r)
 	}
 
 	return res, nil
@@ -867,47 +764,8 @@ func (c *liveStateCache) GetManagedLiveObjs(destCluster *appv1.Cluster, a *appv1
 		return nil, fmt.Errorf("failed to get cluster info for %q: %w", destCluster.Server, err)
 	}
 
-	// Filter out target objects with GVKs that are known to fail with conversion webhook errors
-	filteredTargetObjs := make([]*unstructured.Unstructured, 0, len(targetObjs))
-	var skippedGVKs []string
 
-	for _, obj := range targetObjs {
-		gvk := obj.GroupVersionKind()
-		gvkStr := fmt.Sprintf("%s/%s, Kind=%s", gvk.Group, gvk.Version, gvk.Kind)
-
-		if c.isResourceGVKFailed(destCluster.Server, gvkStr) {
-			log.WithFields(log.Fields{
-				"cluster": destCluster.Server,
-				"app":     a.Name,
-				"gvk":     gvkStr,
-			}).Debugf("Skipping resource with previously failed GVK")
-			skippedGVKs = append(skippedGVKs, gvkStr)
-			continue
-		}
-
-		filteredTargetObjs = append(filteredTargetObjs, obj)
-	}
-
-	// If we filtered out resources due to conversion webhook failures, and there are no resources left,
-	// return an error instead of proceeding with an empty list
-	if len(skippedGVKs) > 0 && len(filteredTargetObjs) == 0 && len(targetObjs) > 0 {
-		skippedStr := strings.Join(skippedGVKs, ", ")
-		log.WithFields(log.Fields{
-			"cluster": destCluster.Server,
-			"app":     a.Name,
-		}).Warnf("All target resources were filtered due to conversion webhook failures: %s", skippedStr)
-
-		return nil, fmt.Errorf("cannot sync application because all target resources have known conversion webhook failures: %s. Check cluster status for more details", skippedStr)
-	} else if len(skippedGVKs) > 0 {
-		// Some resources were filtered but not all, log a warning
-		log.WithFields(log.Fields{
-			"cluster": destCluster.Server,
-			"app":     a.Name,
-			"skipped": skippedGVKs,
-		}).Warnf("Some target resources were filtered due to conversion webhook failures")
-	}
-
-	return clusterInfo.GetManagedLiveObjs(filteredTargetObjs, func(r *clustercache.Resource) bool {
+	return clusterInfo.GetManagedLiveObjs(targetObjs, func(r *clustercache.Resource) bool {
 		return resInfo(r).AppName == a.InstanceName(c.settingsMgr.GetNamespace())
 	})
 }
@@ -984,20 +842,6 @@ func (c *liveStateCache) Init() error {
 func (c *liveStateCache) Run(ctx context.Context) error {
 	go c.watchSettings(ctx)
 
-	// Start a ticker to periodically clean up expired failed GVKs
-	cleanupTicker := time.NewTicker(failedResourceGVKExpirationTime / 2)
-	defer cleanupTicker.Stop()
-
-	go func() {
-		for {
-			select {
-			case <-cleanupTicker.C:
-				c.cleanupExpiredFailedGVKs()
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
 
 	kube.RetryUntilSucceed(ctx, clustercache.ClusterRetryTimeout, "watch clusters", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
 		return c.db.WatchClusters(ctx, c.handleAddEvent, c.handleModEvent, c.handleDeleteEvent)
@@ -1074,6 +918,13 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 
 		if len(updateSettings) > 0 || forceInvalidate {
 			cluster.Invalidate(updateSettings...)
+
+			// When explicitly refreshed, clear any cluster taints
+			if forceInvalidate {
+				ClearClusterTaints(newCluster.Server)
+				log.WithField("server", newCluster.Server).Info("Cleared cluster taints due to explicit refresh")
+			}
+
 			go func() {
 				// warm up cluster cache
 				_ = cluster.EnsureSynced()
@@ -1092,9 +943,9 @@ func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
 		c.lock.Lock()
 		delete(c.clusters, clusterServer)
 		c.lock.Unlock()
-
-		// Also clear any failed GVKs for the deleted cluster
-		c.clearFailedResourceGVKs(clusterServer)
+		
+		// Also clear any cluster taints for the deleted/invalidated cluster
+		ClearClusterTaints(clusterServer)
 	}
 }
 
@@ -1111,48 +962,10 @@ func (c *liveStateCache) GetClustersInfo() []clustercache.ClusterInfo {
 		info := clusterCache.GetClusterInfo()
 		info.Server = server
 
-		// Get failed resource GVKs from our tracking
-		var failedGVKList []string
-		c.failedGVKLock.RLock()
-		if failedGVKs, ok := c.failedResourceGVKs[server]; ok {
-			for gvk := range failedGVKs {
-				failedGVKList = append(failedGVKList, gvk)
-			}
-		}
-		c.failedGVKLock.RUnlock()
-
-		// Update cluster info with failed resource GVKs from our tracking
-
-		// Check if this cluster is tainted
-		ClusterTaintLock.RLock()
-		taints, exists := clusterTaints[server]
-		ClusterTaintLock.RUnlock()
-
-		// Update cluster info with taint status and reason
-		if exists && len(taints) > 0 {
-			info.IsTainted = true
-
-			// Add any tainted GVKs that aren't already in the list
-			for gvk := range taints {
-				if !contains(failedGVKList, gvk) {
-					info.FailedResourceGVKs = append(info.FailedResourceGVKs, gvk)
-				}
-			}
-
-			// Set taint reason
-			info.TaintReason = "Cluster has tainted resource types"
-		}
-
-		// If there are failed GVKs, modify SyncError to include this information
-		if len(failedGVKList) > 0 {
-			msg := fmt.Sprintf("Cluster has %d unavailable resource types", len(failedGVKList))
-			if info.SyncError == nil {
-				info.SyncError = errors.New(msg)
-			} else {
-				info.SyncError = errors.New(info.SyncError.Error() + "; " + msg)
-			}
-		}
-
+		// Trust the in-band tracking from gitops-engine
+		// The gitops-engine's GetClusterInfo() already populates FailedResourceGVKs with cache-tainting errors
+		// We don't need to overlay our own tracking - just use what the engine provides
+		
 		res = append(res, info)
 	}
 	return res
@@ -1238,67 +1051,72 @@ func extractGVKFromCacheError(err error) string {
 	return strings.TrimSpace(gvkStr)
 }
 
-// trackFailedResourceGVK adds a GVK to the failed resources map for a specific cluster
-func (c *liveStateCache) trackFailedResourceGVK(server string, gvkStr string) {
-	if gvkStr == "" {
-		return
-	}
 
-	c.failedGVKLock.Lock()
-	defer c.failedGVKLock.Unlock()
-
-	if _, ok := c.failedResourceGVKs[server]; !ok {
-		c.failedResourceGVKs[server] = make(map[string]time.Time)
-	}
-
-	// Store the time when this GVK failed so we can expire old entries
-	c.failedResourceGVKs[server][gvkStr] = time.Now()
-	log.WithFields(log.Fields{
-		"server": server,
-		"gvk":    gvkStr,
-	}).Infof("Tracked failed resource GVK due to conversion webhook error")
+// clusterTaintManager manages cluster taint state in a thread-safe manner
+type clusterTaintManager struct {
+	mu     sync.RWMutex
+	taints map[string]map[string]string // server -> gvk -> error type
 }
 
-// Map of server URL to tainted resource GVKs and error types
-var clusterTaints = make(map[string]map[string]string) // server -> gvk -> error type
-var ClusterTaintLock = sync.RWMutex{}
+// newClusterTaintManager creates a new instance of cluster taint manager
+func newClusterTaintManager() *clusterTaintManager {
+	return &clusterTaintManager{
+		taints: make(map[string]map[string]string),
+	}
+}
 
-// markClusterTainted marks a cluster as having tainted cache state
-func markClusterTainted(server string, reason string, gvk string, errorType string) {
-	ClusterTaintLock.Lock()
-	defer ClusterTaintLock.Unlock()
+// Global instance for backward compatibility (will be moved to liveStateCache in future)
+var globalTaintManager = newClusterTaintManager()
 
+// markTainted marks a specific GVK as tainted for a cluster
+func (ctm *clusterTaintManager) markTainted(server, gvk, errorType, reason string) {
+	ctm.mu.Lock()
+	defer ctm.mu.Unlock()
+	
 	// Initialize if not exists
-	_, exists := clusterTaints[server]
-	if !exists {
-		clusterTaints[server] = make(map[string]string)
+	if ctm.taints[server] == nil {
+		ctm.taints[server] = make(map[string]string)
 	}
 
 	// Store the GVK and error type
 	if gvk != "" {
-		clusterTaints[server][gvk] = errorType
+		ctm.taints[server][gvk] = errorType
+
+		log.WithFields(log.Fields{
+			"server":    server,
+			"gvk":       gvk,
+			"errorType": errorType,
+			"reason":    reason,
+		}).Warnf("Marked cluster GVK as tainted")
 	}
 }
 
-// IsClusterTainted checks if a cluster is in tainted state
-func IsClusterTainted(server string) bool {
-	ClusterTaintLock.RLock()
-	defer ClusterTaintLock.RUnlock()
+// MarkClusterTainted marks a cluster as having tainted cache state
+// Exported for testing purposes
+func MarkClusterTainted(server string, reason string, gvk string, errorType string) {
+	globalTaintManager.markTainted(server, gvk, errorType, reason)
+}
 
-	taints, exists := clusterTaints[server]
+// isTainted checks if a cluster is in tainted state
+func (ctm *clusterTaintManager) isTainted(server string) bool {
+	ctm.mu.RLock()
+	defer ctm.mu.RUnlock()
+
+	taints, exists := ctm.taints[server]
 	return exists && len(taints) > 0
 }
 
-// GetTaintedGVKs returns a list of tainted GVKs for a cluster
-func GetTaintedGVKs(server string) []string {
-	ClusterTaintLock.RLock()
-	defer ClusterTaintLock.RUnlock()
+// getTaintedGVKs returns a copy of tainted GVKs for a cluster
+func (ctm *clusterTaintManager) getTaintedGVKs(server string) []string {
+	ctm.mu.RLock()
+	defer ctm.mu.RUnlock()
 
-	taints, exists := clusterTaints[server]
+	taints, exists := ctm.taints[server]
 	if !exists {
 		return nil
 	}
 
+	// Return a copy to avoid concurrent modification issues
 	gvks := make([]string, 0, len(taints))
 	for gvk := range taints {
 		gvks = append(gvks, gvk)
@@ -1306,83 +1124,59 @@ func GetTaintedGVKs(server string) []string {
 	return gvks
 }
 
-// isResourceGVKFailed checks if a resource GVK is in the failed resources map
-func (c *liveStateCache) isResourceGVKFailed(server string, gvkStr string) bool {
-	c.failedGVKLock.RLock()
-	defer c.failedGVKLock.RUnlock()
-
-	clusterFailures, ok := c.failedResourceGVKs[server]
-	if !ok {
-		return false
-	}
-
-	// Check if this GVK is in the failed map
-	_, failed := clusterFailures[gvkStr]
-	return failed
+// IsClusterTainted checks if a cluster is in tainted state
+// Exported for testing purposes
+func IsClusterTainted(server string) bool {
+	return globalTaintManager.isTainted(server)
 }
 
-// clearFailedResourceGVKs clears the failed GVK tracking for a specific cluster
-// This should be called periodically or when cluster cache is invalidated
-func (c *liveStateCache) clearFailedResourceGVKs(server string) {
-	c.failedGVKLock.Lock()
-	defer c.failedGVKLock.Unlock()
-
-	delete(c.failedResourceGVKs, server)
+// GetTaintedGVKs returns a list of tainted GVKs for a cluster
+// Exported for testing purposes
+func GetTaintedGVKs(server string) []string {
+	return globalTaintManager.getTaintedGVKs(server)
 }
 
-// contains checks if a string is in a slice
-func contains(slice []string, str string) bool {
-	for _, s := range slice {
-		if s == str {
-			return true
+
+
+
+
+// getAllTaints returns a copy of all cluster taints
+func (ctm *clusterTaintManager) getAllTaints() map[string]map[string]string {
+	ctm.mu.RLock()
+	defer ctm.mu.RUnlock()
+
+	// Return a deep copy to prevent external modifications
+	result := make(map[string]map[string]string)
+	for server, taints := range ctm.taints {
+		result[server] = make(map[string]string)
+		for gvk, errorType := range taints {
+			result[server][gvk] = errorType
 		}
 	}
-	return false
+	return result
 }
 
 // GetClusterTaints returns the map of cluster taints
+// Exported for testing purposes
 func GetClusterTaints() map[string]map[string]string {
-	return clusterTaints
+	return globalTaintManager.getAllTaints()
 }
 
-// cleanupExpiredFailedGVKs removes expired entries from the failed GVKs cache
-// This should be called periodically to avoid the cache growing too large
-func (c *liveStateCache) cleanupExpiredFailedGVKs() {
-	c.failedGVKLock.Lock()
-	defer c.failedGVKLock.Unlock()
+// ClearClusterTaints removes all taints for a specific cluster
+// clearTaints removes all taints for a cluster
+func (ctm *clusterTaintManager) clearTaints(server string) {
+	ctm.mu.Lock()
+	defer ctm.mu.Unlock()
 
-	now := time.Now()
-	expiredServers := make([]string, 0)
-
-	// For each cluster server
-	for server, gvks := range c.failedResourceGVKs {
-		expiredGVKs := make([]string, 0)
-
-		// Find expired GVKs
-		for gvkStr, timestamp := range gvks {
-			if now.Sub(timestamp) > failedResourceGVKExpirationTime {
-				expiredGVKs = append(expiredGVKs, gvkStr)
-			}
-		}
-
-		// Remove expired GVKs
-		for _, gvkStr := range expiredGVKs {
-			delete(gvks, gvkStr)
-			log.WithFields(log.Fields{
-				"server": server,
-				"gvk":    gvkStr,
-			}).Debug("Removed expired failed resource GVK")
-		}
-
-		// If all GVKs for this cluster have been removed, mark the server for removal
-		if len(gvks) == 0 {
-			expiredServers = append(expiredServers, server)
-		}
-	}
-
-	// Remove empty server entries
-	for _, server := range expiredServers {
-		delete(c.failedResourceGVKs, server)
-		log.WithField("server", server).Debug("Removed empty failed resource GVK tracking for cluster")
-	}
+	delete(ctm.taints, server)
+	log.WithFields(log.Fields{
+		"server": server,
+	}).Info("Cleared cluster taints")
 }
+
+// ClearClusterTaints removes all taints for a cluster
+// Exported for testing purposes
+func ClearClusterTaints(server string) {
+	globalTaintManager.clearTaints(server)
+}
+
