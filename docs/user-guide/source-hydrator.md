@@ -265,9 +265,9 @@ All trailers are optional. If a trailer is not specified, the corresponding fiel
 
 ## Commit Message Template
 
-Source Hydrator currently generates hard-coded commit messages when committing hydrated manifests. This message was previously static and lacked customization. With this added capability commit message are now `fully templateable`, allowing users to define commit formatting. This will enable users to tailor commit messages to suit their workflows and organizational standards.
+The commit message is generated using a [Go text/template](https://pkg.go.dev/text/template), optionally configured by the user via the argocd-cm ConfigMap. The template is rendered using the values from `hydrator.metadata`. The template can be multi-line, allowing users to define a subject line, body and optional trailers. To define the commit message template, you need to set the `sourceHydrator.commitMessageTemplate` field in argocd-cm ConfigMap.
 
-The commit message is generated using a `Go text/template`, optionally configured by the user via the argocd-cm ConfigMap. The template is rendered using the values from `hydrator.metadata`. The template can be multi-line, allowing users to define a subject line, body and optional trailers. To define the commit message template, you need to set the `ourceHydrator.commitMessageTemplate` field in argocd-cm ConfigMap.
+The template may functions from the [Sprig function library](https://github.com/Masterminds/sprig).
 
 ```yaml
 apiVersion: v1
