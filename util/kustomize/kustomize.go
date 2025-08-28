@@ -365,15 +365,18 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 					foundComponents = append(foundComponents, c)
 				}
 			}
-			args := []string{"edit", "add", "component"}
-			args = append(args, foundComponents...)
-			cmd := exec.Command(k.getBinaryPath(), args...)
-			cmd.Dir = k.path
-			cmd.Env = env
-			commands = append(commands, executil.GetCommandArgsToLog(cmd))
-			_, err := executil.Run(cmd)
-			if err != nil {
-				return nil, nil, nil, err
+
+			if len(foundComponents) > 0 {
+				args := []string{"edit", "add", "component"}
+				args = append(args, foundComponents...)
+				cmd := exec.Command(k.getBinaryPath(), args...)
+				cmd.Dir = k.path
+				cmd.Env = env
+				commands = append(commands, executil.GetCommandArgsToLog(cmd))
+				_, err := executil.Run(cmd)
+				if err != nil {
+					return nil, nil, nil, err
+				}
 			}
 		}
 	}

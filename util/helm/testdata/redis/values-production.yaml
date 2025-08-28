@@ -3,7 +3,7 @@
 ##
 image:
   registry: docker.io
-  repository: bitnami/redis
+  repository: bitnamilegacy/redis
   tag: 4.0.10-debian-9
   pullPolicy: IfNotPresent
   ## Optionally specify an array of imagePullSecrets.

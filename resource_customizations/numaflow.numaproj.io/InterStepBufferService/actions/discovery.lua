@@ -16,3 +16,6 @@ if forcePromote then
   actions["force-promote"]["disabled"] = false
 else
   actions["force-promote"]["disabled"] = true
+end
+
+return actions
