@@ -68,6 +68,7 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/errors"
+	errorutils "github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	"github.com/argoproj/argo-cd/v3/util/helm"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
@@ -626,7 +627,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 		return true
 	})
 	if err != nil {
-		if !isConversionWebhookError(err) {
+		if !errorutils.IsConversionWebhookError(err) {
 			return nil, fmt.Errorf("failed to iterate resource hierarchy v2: %w", err)
 		}
 
@@ -667,7 +668,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 		return true
 	})
 	if err != nil {
-		if !isConversionWebhookError(err) {
+		if !errorutils.IsConversionWebhookError(err) {
 			return nil, fmt.Errorf("failed to iterate resource hierarchy v2 for orphaned resources: %w", err)
 		}
 
@@ -1888,6 +1889,10 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	hasCacheIssues := false
 	usesTaintedResources := false
 	
+	// Take a snapshot of cluster taint state to ensure consistency throughout the function
+	clusterURL := app.Spec.Destination.Server
+	failedGVKs := ctrl.stateCache.GetTaintedGVKs(clusterURL)
+	
 	// 1. First check if the app itself reports conversion webhook errors
 	hasCacheIssues = hasClusterCacheIssues(app)
 	
@@ -1915,16 +1920,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 	}
 	
-	// 4. Check if the app directly uses any tainted resources
-	clusterURL := app.Spec.Destination.Server
-	// Check if cluster is tainted directly using our cluster taint tracking
-	allTaints := statecache.GetClusterTaints()
-	taints, exists := allTaints[clusterURL]
-	
-	// If the cluster is tainted, check if the app uses any of the affected resource types
-	if exists && len(taints) > 0 {
-		// Check if app directly uses any of the tainted GVKs
-		failedGVKs := statecache.GetTaintedGVKs(clusterURL)
+	// 4. Check if the app directly uses any tainted resources (using consistent snapshot)
+	if len(failedGVKs) > 0 {
 		
 		resLoop:
 		for _, res := range app.Status.Resources {

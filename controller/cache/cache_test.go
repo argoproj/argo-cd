@@ -40,6 +40,18 @@ func (n netError) Error() string   { return string(n) }
 func (n netError) Timeout() bool   { return false }
 func (n netError) Temporary() bool { return false }
 
+// newTestLiveStateCache creates a minimal liveStateCache instance for testing
+func newTestLiveStateCache(t *testing.T) *liveStateCache {
+	db := &dbmocks.ArgoDB{}
+	db.On("GetApplicationControllerReplicas").Return(1)
+
+	return &liveStateCache{
+		clusters:        make(map[string]cache.ClusterCache),
+		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
+		taintManager:    newClusterTaintManager(),
+	}
+}
+
 func fixtures(ctx context.Context, data map[string]string, opts ...func(secret *corev1.Secret)) (*fake.Clientset, *argosettings.SettingsManager) {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -179,7 +191,10 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		},
 		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
 		settingsMgr:     settingsMgr,
-		lock:            sync.RWMutex{},
+		taintManager:    newClusterTaintManager(),
+		// Set the lock here so we can reference it later
+		//nolint:govet // We need to overwrite here to have access to the lock
+		lock: liveStateCacheLock,
 	}
 	channel := make(chan string)
 	// Mocked lock held by the gitops-engine cluster cache
@@ -954,32 +969,38 @@ func Test_asResourceNode_same_namespace_parent(t *testing.T) {
 }
 
 func TestConversionWebhookGVKTracking(t *testing.T) {
-	// Create a test liveStateCache
-	c := &liveStateCache{
-		clusters:           make(map[string]cache.ClusterCache),
-		failedResourceGVKs: make(map[string]map[string]time.Time),
-	}
-
 	// Test server and GVK strings
 	server := "test-server"
 	gvkStr1 := "example.com/v1, Kind=Example"
 	gvkStr2 := "example.com/v2, Kind=AnotherExample"
 
+	// Create test cache instance
+	cache := newTestLiveStateCache(t)
+
 	// Test tracking a failed GVK
-	c.trackFailedResourceGVK(server, gvkStr1)
-	assert.True(t, c.isResourceGVKFailed(server, gvkStr1), "GVK should be tracked as failed")
-	assert.False(t, c.isResourceGVKFailed(server, gvkStr2), "Untracked GVK should not be marked as failed")
-	assert.False(t, c.isResourceGVKFailed("another-server", gvkStr1), "GVK should not be tracked for a different server")
+	cache.MarkClusterTainted(server, "test reason", gvkStr1, "ConversionError")
+	taintedGVKs := cache.GetTaintedGVKs(server)
+	assert.Contains(t, taintedGVKs, gvkStr1, "GVK should be tracked as failed")
+	assert.NotContains(t, taintedGVKs, gvkStr2, "Untracked GVK should not be marked as failed")
 
+	otherServerGVKs := cache.GetTaintedGVKs("another-server")
+	assert.NotContains(t, otherServerGVKs, gvkStr1, "GVK should not be tracked for a different server")
+	
 	// Test tracking multiple GVKs
-	c.trackFailedResourceGVK(server, gvkStr2)
-	assert.True(t, c.isResourceGVKFailed(server, gvkStr1), "First GVK should still be tracked")
-	assert.True(t, c.isResourceGVKFailed(server, gvkStr2), "Second GVK should also be tracked")
+	cache.MarkClusterTainted(server, "test reason 2", gvkStr2, "ConversionError")
+	taintedGVKs = cache.GetTaintedGVKs(server)
+	assert.Contains(t, taintedGVKs, gvkStr1, "First GVK should still be tracked")
+	assert.Contains(t, taintedGVKs, gvkStr2, "Second GVK should also be tracked")
 
+	// Test cluster is marked as tainted
+	assert.True(t, cache.IsClusterTainted(server), "Cluster should be marked as tainted")
+	assert.False(t, cache.IsClusterTainted("another-server"), "Other cluster should not be tainted")
+	
 	// Test clearing failed GVKs
-	c.clearFailedResourceGVKs(server)
-	assert.False(t, c.isResourceGVKFailed(server, gvkStr1), "GVK should no longer be tracked after clearing")
-	assert.False(t, c.isResourceGVKFailed(server, gvkStr2), "GVK should no longer be tracked after clearing")
+	cache.ClearClusterTaints(server)
+	taintedGVKs = cache.GetTaintedGVKs(server)
+	assert.Empty(t, taintedGVKs, "GVKs should no longer be tracked after clearing")
+	assert.False(t, cache.IsClusterTainted(server), "Cluster should no longer be tainted after clearing")
 }
 
 func TestExtractGVKFromCacheError(t *testing.T) {
@@ -1027,8 +1048,8 @@ func TestExtractGVKFromCacheError(t *testing.T) {
 	}
 }
 
-// Test that isConversionWebhookError correctly identifies conversion webhook errors
-func TestIsClusterCacheError(t *testing.T) {
+// Test that isPartialCacheError correctly identifies partial cache errors
+func TestIsPartialCacheError(t *testing.T) {
 	testCases := []struct {
 		name        string
 		errorMsg    string
@@ -1047,7 +1068,7 @@ func TestIsClusterCacheError(t *testing.T) {
 		{
 			name:        "connection refused error",
 			errorMsg:    "failed to sync cluster: connection refused",
-			expectMatch: true, // Now detected as a cluster cache error
+			expectMatch: false, // Connection errors are not partial cache errors
 		},
 		{
 			name:        "nil error",
@@ -1082,7 +1103,7 @@ func TestIsClusterCacheError(t *testing.T) {
 			if tc.errorMsg != "" {
 				err = errors.New(tc.errorMsg)
 			}
-			result := isClusterCacheError(err)
+			result := isPartialCacheError(err)
 			assert.Equal(t, tc.expectMatch, result)
 		})
 	}
@@ -1090,32 +1111,26 @@ func TestIsClusterCacheError(t *testing.T) {
 
 func TestCleanupExpiredFailedGVKs(t *testing.T) {
 	// Create a test liveStateCache
-	c := &liveStateCache{
-		clusters:           make(map[string]cache.ClusterCache),
-		failedResourceGVKs: make(map[string]map[string]time.Time),
-	}
+	c := newTestLiveStateCache(t)
 
 	// Test server and GVK strings
 	server1 := "test-server-1"
 	server2 := "test-server-2"
 	gvkStr1 := "example.com/v1, Kind=Example"
 	gvkStr2 := "example.com/v2, Kind=AnotherExample"
+	
+	// Track some GVKs
+	c.MarkClusterTainted(server1, "test reason 1", gvkStr1, "ConversionError")
+	c.MarkClusterTainted(server1, "test reason 2", gvkStr2, "ConversionError")
+	c.MarkClusterTainted(server2, "test reason 3", gvkStr1, "ConversionError")
 
-	// Set up test data with different timestamps
-	now := time.Now()
-	expired := now.Add(-failedResourceGVKExpirationTime * 2)
-
-	// Track some GVKs with different timestamps
-	c.failedGVKLock.Lock()
-	c.failedResourceGVKs[server1] = map[string]time.Time{
-		gvkStr1: expired, // This one should be cleaned up
-		gvkStr2: now,     // This one should remain
-	}
-	c.failedResourceGVKs[server2] = map[string]time.Time{
-		gvkStr1: expired, // All entries for server2 should be cleaned up
-	}
-	c.failedGVKLock.Unlock()
-
+	// Manually set one of the timestamps to be expired by accessing the taint manager
+	c.taintManager.mu.Lock()
+	expired := time.Now().Add(-failedGVKExpirationTime * 2)
+	c.taintManager.taintTimes[server1][gvkStr1] = expired
+	c.taintManager.taintTimes[server2][gvkStr1] = expired
+	c.taintManager.mu.Unlock()
+	
 	// Run the cleanup
 	c.cleanupExpiredFailedGVKs()
 
@@ -1124,10 +1139,8 @@ func TestCleanupExpiredFailedGVKs(t *testing.T) {
 	assert.True(t, c.isResourceGVKFailed(server1, gvkStr2), "Recent GVK should still be tracked")
 
 	// Check that server2 was completely removed since all its entries expired
-	c.failedGVKLock.RLock()
-	_, server2Exists := c.failedResourceGVKs[server2]
-	c.failedGVKLock.RUnlock()
-	assert.False(t, server2Exists, "Server with all expired GVKs should have been removed")
+	assert.False(t, c.isResourceGVKFailed(server2, gvkStr1), "Expired GVK should have been cleaned up")
+	assert.Empty(t, c.GetTaintedGVKs(server2), "Server with all expired GVKs should have been removed")
 }
 
 func TestGetClustersInfoWithFailedGVKs(t *testing.T) {
@@ -1138,26 +1151,19 @@ func TestGetClustersInfoWithFailedGVKs(t *testing.T) {
 		K8SVersion: "1.26.0",
 	}
 	mockCache.On("GetClusterInfo").Return(clusterInfo)
-
-	c := &liveStateCache{
-		clusters: map[string]cache.ClusterCache{
-			"test-server": mockCache,
-		},
-		failedResourceGVKs: make(map[string]map[string]time.Time),
+	
+	c := newTestLiveStateCache(t)
+	c.clusters = map[string]cache.ClusterCache{
+		"test-server": mockCache,
 	}
-
-	// Add failed GVKs
+	
+	// Add failed GVKs using the cluster taint manager
 	gvkStr1 := "example.com/v1, Kind=Example"
 	gvkStr2 := "example.com/v2, Kind=AnotherExample"
-	c.failedGVKLock.Lock()
-	c.failedResourceGVKs["test-server"] = map[string]time.Time{
-		gvkStr1: time.Now(),
-		gvkStr2: time.Now(),
-	}
-	c.failedGVKLock.Unlock()
 
-	// Also mark the cluster as tainted
-	MarkClusterTainted("test-server", "Test taint reason", gvkStr1, "conversion_webhook")
+	// Mark the cluster as tainted
+	c.MarkClusterTainted("test-server", "Test taint reason", gvkStr1, "conversion_webhook")
+	c.MarkClusterTainted("test-server", "Test taint reason", gvkStr2, "conversion_webhook")
 	
 	// Get cluster info
 	infos := c.GetClustersInfo()
@@ -1168,8 +1174,11 @@ func TestGetClustersInfoWithFailedGVKs(t *testing.T) {
 	assert.Equal(t, "test-server", info.Server)
 	assert.Equal(t, "1.26.0", info.K8SVersion)
 
-	// We can't directly assert on FailedResourceGVKs because it's added via reflection
-	// The important part is that the test doesn't panic
-	// and our code is now resilient to the field not being present
-	assert.NotNil(t, info)
+	// Verify that the cluster is marked as tainted
+	assert.True(t, c.IsClusterTainted("test-server"), "Cluster should be marked as tainted")
+
+	// Verify that the GVKs are tracked as tainted
+	taintedGVKs := c.GetTaintedGVKs("test-server")
+	assert.Contains(t, taintedGVKs, gvkStr1, "First GVK should be tracked as tainted")
+	assert.Contains(t, taintedGVKs, gvkStr2, "Second GVK should be tracked as tainted")
 }
