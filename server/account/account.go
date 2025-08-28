@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -17,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/password"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/session"
@@ -156,8 +158,8 @@ func toAPIAccount(name string, a settings.Account) *account.Account {
 func (s *Server) ensureHasAccountPermission(ctx context.Context, action string, account string) error {
 	id := session.GetUserIdentifier(ctx)
 
-	// account has always has access to itself
-	if id == account && session.Iss(ctx) == session.SessionManagerClaimsIssuer {
+	// account always has access to itself (both local and SSO users)
+	if id == account {
 		return nil
 	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceAccounts, action, account); err != nil {
@@ -202,6 +204,19 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 		return nil, fmt.Errorf("permission denied to create token for account %s: %w", r.Name, err)
 	}
 
+	// For SSO users, limit token expiration to SSO token expiration
+	currentUser := session.GetUserIdentifier(ctx)
+	if currentUser == r.Name && session.Iss(ctx) != session.SessionManagerClaimsIssuer {
+		if claims, ok := ctx.Value("claims").(jwt.MapClaims); ok {
+			if ssoExp, err := jwtutil.ExpirationTime(claims); err == nil {
+				maxDuration := int64(time.Until(ssoExp).Seconds())
+				if r.ExpiresIn == 0 || r.ExpiresIn > maxDuration {
+					r.ExpiresIn = maxDuration
+				}
+			}
+		}
+	}
+
 	id := r.Id
 	if id == "" {
 		uniqueId, err := uuid.NewRandom()
@@ -211,8 +226,24 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 		id = uniqueId.String()
 	}
 
+	// Check if account exists, if not and user is creating token for themselves, create account
+	_, err := s.settingsMgr.GetAccount(r.Name)
+	if err != nil && status.Code(err) == codes.NotFound && currentUser == r.Name {
+		// Create account for SSO user with apiKey capability
+		newAccount := settings.Account{
+			Enabled:      true,
+			Capabilities: []settings.AccountCapability{settings.AccountCapabilityApiKey},
+			Tokens:       []settings.Token{},
+		}
+		if err := s.settingsMgr.AddAccount(r.Name, newAccount); err != nil {
+			return nil, fmt.Errorf("failed to create account for SSO user %s: %w", r.Name, err)
+		}
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to get account %s: %w", r.Name, err)
+	}
+
 	var tokenString string
-	err := s.settingsMgr.UpdateAccount(r.Name, func(account *settings.Account) error {
+	err = s.settingsMgr.UpdateAccount(r.Name, func(account *settings.Account) error {
 		if account.TokenIndex(id) > -1 {
 			return fmt.Errorf("account already has token with id '%s'", id)
 		}

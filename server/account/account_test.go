@@ -293,6 +293,99 @@ func TestCreateToken_UserSpecifiedID(t *testing.T) {
 	assert.ErrorContains(t, err, "account already has token with id 'test'")
 }
 
+func TestCreateToken_SSOUserCreatesOwnToken(t *testing.T) {
+	// Create SSO user context for user "ssouser"
+	ssoUserContext := func(ctx context.Context) context.Context {
+		//nolint:staticcheck
+		return context.WithValue(ctx, "claims", &jwt.RegisteredClaims{
+			Subject:  "ssouser",
+			Issuer:   "https://myargocdhost.com/api/dex",
+			IssuedAt: jwt.NewNumericDate(time.Now()),
+		})
+	}
+
+	ctx := ssoUserContext(t.Context())
+	accountServer, _ := newTestAccountServer(t, ctx)
+
+	// SSO user should be able to create token for themselves even without pre-existing account
+	resp, err := accountServer.CreateToken(ctx, &account.CreateTokenRequest{Name: "ssouser"})
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp.Token)
+
+	// Verify account was created with apiKey capability
+	accountResp, err := accountServer.GetAccount(ctx, &account.GetAccountRequest{Name: "ssouser"})
+	require.NoError(t, err)
+	assert.True(t, accountResp.Enabled)
+	assert.Contains(t, accountResp.Capabilities, "apiKey")
+	assert.Len(t, accountResp.Tokens, 1)
+}
+
+func TestCreateToken_SSOUserCannotCreateTokenForOtherUser(t *testing.T) {
+	// Create SSO user context for user "ssouser"
+	ssoUserContext := func(ctx context.Context) context.Context {
+		//nolint:staticcheck
+		return context.WithValue(ctx, "claims", &jwt.RegisteredClaims{
+			Subject:  "ssouser",
+			Issuer:   "https://myargocdhost.com/api/dex",
+			IssuedAt: jwt.NewNumericDate(time.Now()),
+		})
+	}
+
+	// Create enforcer that denies access to other accounts
+	enforcer := func(claims jwt.Claims, rvals ...any) bool {
+		// Allow access only if user is trying to access their own account
+		if len(rvals) >= 3 {
+			accountName := rvals[2].(string)
+			subject := claims.(*jwt.RegisteredClaims).Subject
+			return subject == accountName
+		}
+		return false
+	}
+
+	ctx := ssoUserContext(t.Context())
+	accountServer, _ := newTestAccountServerExt(t, ctx, enforcer, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
+		cm.Data["accounts.otheruser"] = "apiKey"
+	})
+
+	// SSO user should not be able to create token for another user
+	_, err := accountServer.CreateToken(ctx, &account.CreateTokenRequest{Name: "otheruser"})
+	require.ErrorContains(t, err, "permission denied")
+}
+
+func TestCreateToken_SSOTokenExpirationLimit(t *testing.T) {
+	// Create SSO user context with token expiring in 1 hour
+	ssoExpiration := time.Now().Add(1 * time.Hour)
+	ssoUserContext := func(ctx context.Context) context.Context {
+		//nolint:staticcheck
+		return context.WithValue(ctx, "claims", jwt.MapClaims{
+			"sub": "ssouser",
+			"iss": "https://myargocdhost.com/api/dex",
+			"iat": time.Now().Unix(),
+			"exp": ssoExpiration.Unix(),
+		})
+	}
+
+	ctx := ssoUserContext(t.Context())
+	accountServer, _ := newTestAccountServer(t, ctx)
+
+	// Try to create token with 2 hours expiration (should be limited to 1 hour)
+	resp, err := accountServer.CreateToken(ctx, &account.CreateTokenRequest{
+		Name:      "ssouser",
+		ExpiresIn: 2 * 60 * 60, // 2 hours in seconds
+	})
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp.Token)
+
+	// Verify account was created and token expiration is limited
+	accountResp, err := accountServer.GetAccount(ctx, &account.GetAccountRequest{Name: "ssouser"})
+	require.NoError(t, err)
+	assert.Len(t, accountResp.Tokens, 1)
+	
+	// Token should expire around the same time as SSO token (within 1 minute tolerance)
+	tokenExp := time.Unix(accountResp.Tokens[0].ExpiresAt, 0)
+	assert.WithinDuration(t, ssoExpiration, tokenExp, time.Minute)
+}
+
 func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {
 	ctx := adminContext(t.Context())
 	accountServer, _ := newTestAccountServer(t, ctx, func(cm *corev1.ConfigMap, secret *corev1.Secret) {
