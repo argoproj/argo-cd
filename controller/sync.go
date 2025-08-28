@@ -33,6 +33,7 @@ import (
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/diff"
+	errorutils "github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
@@ -117,24 +118,7 @@ func newSyncOperationResult(app *v1alpha1.Application, op v1alpha1.SyncOperation
 	return syncRes
 }
 
-// isConversionWebhookErrorInSync checks if an error is related to conversion webhook failures
-func isConversionWebhookErrorInSync(err error) bool {
-	if err == nil {
-		return false
-	}
-	errStr := err.Error()
-	return strings.Contains(errStr, "conversion webhook") || 
-	       strings.Contains(errStr, "known conversion webhook failures") || 
-	       strings.Contains(errStr, "unavailable resource types")
-}
 
-// IsConversionWebhookError checks if the given message is related to conversion webhook failures
-// This is exported so other packages can use it for detection
-func IsConversionWebhookError(message string) bool {
-	return strings.Contains(message, "conversion webhook") ||
-	       strings.Contains(message, "known conversion webhook failures") ||
-	       strings.Contains(message, "unavailable resource types")
-}
 
 func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState) {
 	syncId, err := syncid.Generate()
@@ -182,7 +166,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		state.Phase = common.OperationError
 		
 		// Check if this is a conversion webhook error and provide a more helpful message
-		if isConversionWebhookErrorInSyncError(err) {
+		if errorutils.IsConversionWebhookError(err) {
 			state.Message = fmt.Sprintf("Application contains resources with conversion webhook failures. Some resources cannot be properly synchronized. Check cluster status for more details about the affected resource types.")
 		} else {
 			state.Message = err.Error()

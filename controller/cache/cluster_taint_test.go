@@ -9,32 +9,32 @@ import (
 )
 
 func TestClusterTaintFunctions(t *testing.T) {
-	// Start with a clean state by creating a new global taint manager
-	globalTaintManager = newClusterTaintManager()
+	// Create a test cache instance with a clean taint manager
+	cache := newTestLiveStateCache(t)
 	
 	testServer := "https://test-server"
 	testGVK := "test.group/v1, Kind=TestResource"
 	
 	// Test the tainted state functions
-	assert.False(t, IsClusterTainted(testServer), "Cluster should not be tainted initially")
+	assert.False(t, cache.IsClusterTainted(testServer), "Cluster should not be tainted initially")
 	
 	// Mark the cluster as tainted
-	MarkClusterTainted(testServer, "Test taint reason", testGVK, "TestErrorType")
+	cache.MarkClusterTainted(testServer, "Test taint reason", testGVK, "TestErrorType")
 	
 	// Verify the cluster is now tainted
-	assert.True(t, IsClusterTainted(testServer), "Cluster should be tainted after marking")
+	assert.True(t, cache.IsClusterTainted(testServer), "Cluster should be tainted after marking")
 	
 	// Get the tainted GVKs
-	taintedGVKs := GetTaintedGVKs(testServer)
+	taintedGVKs := cache.GetTaintedGVKs(testServer)
 	assert.Len(t, taintedGVKs, 1, "Should have 1 tainted GVK")
 	assert.Equal(t, testGVK, taintedGVKs[0], "Tainted GVK should match")
 	
 	// Clear the taints
-	ClearClusterTaints(testServer)
+	cache.ClearClusterTaints(testServer)
 	
 	// Verify cluster is no longer tainted
-	assert.False(t, IsClusterTainted(testServer), "Cluster should not be tainted after clearing")
-	assert.Empty(t, GetTaintedGVKs(testServer), "Should have no tainted GVKs after clearing")
+	assert.False(t, cache.IsClusterTainted(testServer), "Cluster should not be tainted after clearing")
+	assert.Empty(t, cache.GetTaintedGVKs(testServer), "Should have no tainted GVKs after clearing")
 }
 
 // Test for JSON serialization behavior of the failedResourceGVKs field
