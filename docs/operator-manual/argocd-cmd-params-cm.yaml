@@ -205,6 +205,12 @@ data:
   reposerver.streamed.manifest.max.tar.size: "100M"
   # Maximum size of extracted manifests when streaming manifests to the repo server for generation
   reposerver.streamed.manifest.max.extracted.size: "1G"
+  # Maximum size of extracted manifests when streaming manifests to the repo server for generation
+  reposerver.oci.manifest.max.extracted.size: "1G"
+  # Whether to disable manifest size check for OCI artifacts
+  reposerver.disable.oci.manifest.max.extracted.size: "false"
+  # The allowlist of the OCI media types which the repo-server will make use of. If an OCI media type for a given artifact is not in the given list, the repo-server will return an error.
+  reposerver.oci.layer.media.types: "application/vnd.oci.image.layer.v1.tar,application/vnd.oci.image.layer.v1.tar+gzip,application/vnd.cncf.helm.chart.content.v1.tar+gzip"
   # Enable git submodule support
   reposerver.enable.git.submodule: "true"
   # Number of concurrent git ls-remote requests. Any value less than 1 means no limit.

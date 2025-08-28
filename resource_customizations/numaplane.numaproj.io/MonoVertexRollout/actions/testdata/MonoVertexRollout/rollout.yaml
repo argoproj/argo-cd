@@ -16,6 +16,9 @@ metadata:
   uid: a63f377e-1500-437e-9267-579f4a790518
 spec:
   monoVertex:
+    metadata:
+      annotations:
+        numaflow.numaproj.io/allowed-resume-strategies: "slow, fast"
     spec:
       sink:
         udsink:

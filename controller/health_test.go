@@ -82,7 +82,7 @@ func TestSetApplicationHealth(t *testing.T) {
 	// The app is considered healthy
 	failedJob.SetAnnotations(nil)
 	failedJobIgnoreHealthcheck := resourceFromFile("./testdata/job-failed-ignore-healthcheck.yaml")
-	resources[1].Target = &failedJobIgnoreHealthcheck
+	resources[1].Live = &failedJobIgnoreHealthcheck
 	healthStatus, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusHealthy, healthStatus)

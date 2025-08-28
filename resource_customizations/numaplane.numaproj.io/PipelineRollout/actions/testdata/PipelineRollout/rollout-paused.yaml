@@ -14,6 +14,9 @@ metadata:
   uid: ab9286a1-f453-433e-846e-48900ab2068a
 spec:
   pipeline:
+    metadata:
+      annotations:
+        numaflow.numaproj.io/allowed-resume-strategies: "slow, fast"
     spec:
       lifecycle:
         desiredPhase: Paused
