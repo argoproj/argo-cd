@@ -190,14 +190,18 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}> & {o
                                 {cluster.info.cacheInfo.failedResourceGVKs && cluster.info.cacheInfo.failedResourceGVKs.length > 0 && (
                                     <div role='group' aria-label='Degraded Resources Information'>
                                         <div className='row white-box__details-row'>
-                                            <div className='columns small-3' id='degraded-resources-count-label'>DEGRADED RESOURCES COUNT:</div>
-                                            <div className='columns small-9' aria-labelledby='degraded-resources-count-label' data-testid='degraded-resources-count'> 
+                                            <div className='columns small-3' id='degraded-resources-count-label'>
+                                                DEGRADED RESOURCES COUNT:
+                                            </div>
+                                            <div className='columns small-9' aria-labelledby='degraded-resources-count-label' data-testid='degraded-resources-count'>
                                                 {cluster.info.cacheInfo.failedResourceGVKs.length}
                                             </div>
                                         </div>
                                         <div className='row white-box__details-row'>
-                                            <div className='columns small-3' id='degraded-resources-list-label'>DEGRADED RESOURCES:</div>
-                                            <div className='columns small-9' aria-labelledby='degraded-resources-list-label' data-testid='degraded-resources-list'> 
+                                            <div className='columns small-3' id='degraded-resources-list-label'>
+                                                DEGRADED RESOURCES:
+                                            </div>
+                                            <div className='columns small-9' aria-labelledby='degraded-resources-list-label' data-testid='degraded-resources-list'>
                                                 {(() => {
                                                     const gvks = cluster.info.cacheInfo.failedResourceGVKs;
                                                     const MAX_DISPLAY_GVKS = 5;
