@@ -166,7 +166,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockGitClient.On("SetAuthor", "Argo CD", "argo-cd@example.com").Return("", nil).Once()
 		mockGitClient.On("CheckoutOrOrphan", "env/test", false).Return("", nil).Once()
 		mockGitClient.On("CheckoutOrNew", "main", "env/test", false).Return("", nil).Once()
-		mockGitClient.On("RemoveContents", "apps/staging").Return("", nil).Once()
+		mockGitClient.On("RemoveContents", []string{"apps/staging"}).Return("", nil).Once()
 		mockGitClient.On("CommitAndPush", "main", "test commit message").Return("", nil).Once()
 		mockGitClient.On("CommitSHA").Return("subdir-path-sha", nil).Once()
 		mockRepoClientFactory.On("NewClient", mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
@@ -206,7 +206,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockGitClient.On("SetAuthor", "Argo CD", "argo-cd@example.com").Return("", nil).Once()
 		mockGitClient.On("CheckoutOrOrphan", "env/test", false).Return("", nil).Once()
 		mockGitClient.On("CheckoutOrNew", "main", "env/test", false).Return("", nil).Once()
-		mockGitClient.On("RemoveContents", "apps/production").Return("", nil).Once()
+		mockGitClient.On("RemoveContents", []string{"apps/production", "apps/staging"}).Return("", nil).Once()
 		mockGitClient.On("CommitAndPush", "main", "test commit message").Return("", nil).Once()
 		mockGitClient.On("CommitSHA").Return("mixed-paths-sha", nil).Once()
 		mockRepoClientFactory.On("NewClient", mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
@@ -232,6 +232,14 @@ func Test_CommitHydratedManifests(t *testing.T) {
 					Manifests: []*apiclient.HydratedManifestDetails{
 						{
 							ManifestJSON: `{"apiVersion":"v1","kind":"Deployment","metadata":{"name":"prod-app"}}`,
+						},
+					},
+				},
+				{
+					Path: "apps/staging", // another subdirectory path - SHOULD trigger removal
+					Manifests: []*apiclient.HydratedManifestDetails{
+						{
+							ManifestJSON: `{"apiVersion":"v1","kind":"Deployment","metadata":{"name":"staging-app"}}`,
 						},
 					},
 				},

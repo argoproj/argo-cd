@@ -119,15 +119,19 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 
 	logCtx.Debug("Clearing and preparing paths")
+	var pathsToClear []string
 	for _, p := range r.Paths {
 		if p.Path == "" || p.Path == "." {
 			logCtx.Debug("Using root directory for manifests, no directory removal needed")
 		} else {
-			logCtx.Debugf("Clearing path %s", p.Path)
-			out, err := gitClient.RemoveContents(p.Path)
-			if err != nil {
-				return out, "", fmt.Errorf("failed to clear path %s: %w", p.Path, err)
-			}
+			pathsToClear = append(pathsToClear, p.Path)
+		}
+	}
+	if len(pathsToClear) > 0 {
+		logCtx.Debugf("Clearing paths: %v", pathsToClear)
+		out, err := gitClient.RemoveContents(pathsToClear)
+		if err != nil {
+			return out, "", fmt.Errorf("failed to clear paths %v: %w", pathsToClear, err)
 		}
 	}
 

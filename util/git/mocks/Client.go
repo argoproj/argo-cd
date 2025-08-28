@@ -863,8 +863,8 @@ func (_c *Client_LsRemote_Call) RunAndReturn(run func(revision string) (string, 
 }
 
 // RemoveContents provides a mock function for the type Client
-func (_mock *Client) RemoveContents(path string) (string, error) {
-	ret := _mock.Called(path)
+func (_mock *Client) RemoveContents(paths []string) (string, error) {
+	ret := _mock.Called(paths)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RemoveContents")
@@ -872,16 +872,16 @@ func (_mock *Client) RemoveContents(path string) (string, error) {
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string) (string, error)); ok {
-		return returnFunc(path)
+	if returnFunc, ok := ret.Get(0).(func([]string) (string, error)); ok {
+		return returnFunc(paths)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string) string); ok {
-		r0 = returnFunc(path)
+	if returnFunc, ok := ret.Get(0).(func([]string) string); ok {
+		r0 = returnFunc(paths)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
-		r1 = returnFunc(path)
+	if returnFunc, ok := ret.Get(1).(func([]string) error); ok {
+		r1 = returnFunc(paths)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -894,16 +894,16 @@ type Client_RemoveContents_Call struct {
 }
 
 // RemoveContents is a helper method to define mock.On call
-//   - path string
-func (_e *Client_Expecter) RemoveContents(path interface{}) *Client_RemoveContents_Call {
-	return &Client_RemoveContents_Call{Call: _e.mock.On("RemoveContents", path)}
+//   - paths []string
+func (_e *Client_Expecter) RemoveContents(paths interface{}) *Client_RemoveContents_Call {
+	return &Client_RemoveContents_Call{Call: _e.mock.On("RemoveContents", paths)}
 }
 
-func (_c *Client_RemoveContents_Call) Run(run func(path string)) *Client_RemoveContents_Call {
+func (_c *Client_RemoveContents_Call) Run(run func(paths []string)) *Client_RemoveContents_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
+		var arg0 []string
 		if args[0] != nil {
-			arg0 = args[0].(string)
+			arg0 = args[0].([]string)
 		}
 		run(
 			arg0,
@@ -917,7 +917,7 @@ func (_c *Client_RemoveContents_Call) Return(s string, err error) *Client_Remove
 	return _c
 }
 
-func (_c *Client_RemoveContents_Call) RunAndReturn(run func(path string) (string, error)) *Client_RemoveContents_Call {
+func (_c *Client_RemoveContents_Call) RunAndReturn(run func(paths []string) (string, error)) *Client_RemoveContents_Call {
 	_c.Call.Return(run)
 	return _c
 }

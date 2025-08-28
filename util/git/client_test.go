@@ -831,7 +831,7 @@ func Test_nativeGitClient_RemoveContents(t *testing.T) {
 	require.NoError(t, err)
 
 	// when: remove only "scripts" directory
-	_, err = client.RemoveContents("scripts")
+	_, err = client.RemoveContents([]string{"scripts"})
 	require.NoError(t, err)
 
 	// then: "scripts" should be gone, "README.md" should still exist
