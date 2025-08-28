@@ -13,6 +13,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/mocks"
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 var message = `testn
@@ -20,21 +21,6 @@ Argocd-reference-commit-repourl: https://github.com/test/argocd-example-apps
 Argocd-reference-commit-author: Argocd-reference-commit-author
 Argocd-reference-commit-subject: testhydratormd
 Signed-off-by: testUser <test@gmail.com>`
-
-var commitMessageTemplate = `{{ .metadata.subject }}
-{{- if .metadata.body }}
-
-{{ .metadata.body }}
-{{- end }}
-{{ range $ref := .metadata.references }}
-{{- if and $ref.commit $ref.commit.author }}
-Co-authored-by: {{ $ref.commit.author }}
-{{- end }}
-{{- end }}
-{{- if .metadata.author }}
-Co-authored-by: {{ .metadata.author }}
-{{- end }}
-`
 
 func Test_appNeedsHydration(t *testing.T) {
 	t.Parallel()
@@ -225,7 +211,7 @@ func TestHydrator_getTemplatedCommitMessage(t *testing.T) {
 					Message:    message,
 					References: references,
 				},
-				template: commitMessageTemplate,
+				template: settings.CommitMessageTemplate,
 			},
 			want: `testn
 Argocd-reference-commit-repourl: https://github.com/test/argocd-example-apps

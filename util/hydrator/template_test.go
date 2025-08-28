@@ -7,22 +7,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
-
-var commitMessageTemplate = `{{ .metadata.subject }}
-{{- if .metadata.body }}
-
-{{ .metadata.body }}
-{{- end }}
-{{ range $ref := .metadata.references }}
-{{- if and $ref.commit $ref.commit.author }}
-Co-authored-by: {{ $ref.commit.author }}
-{{- end }}
-{{- end }}
-{{- if .metadata.author }}
-Co-authored-by: {{ .metadata.author }}
-{{- end }}
-`
 
 func TestRender(t *testing.T) {
 	tests := []struct {
@@ -102,7 +88,7 @@ Co-authored-by: test <test@test.com>
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Render(commitMessageTemplate, tt.metadata)
+			got, err := Render(settings.CommitMessageTemplate, tt.metadata)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Render() error = %v, wantErr %v", err, tt.wantErr)
 				return

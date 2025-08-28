@@ -288,7 +288,7 @@ data:
     {{- if .metadata.author }}
       Co-authored-by: {{ .metadata.author }}
     {{- end }}
-    
+
 ### Credential Templates
 
 Credential templates allow a single credential to be used for multiple repositories. The source hydrator supports credential templates. For example, if you setup credential templates for the URL prefix `https://github.com/argoproj`, these credentials will be used for all repositories with this URL as prefix (e.g. `https://github.com/argoproj/argocd-example-apps`) that do not have their own credentials configured.

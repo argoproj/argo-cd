@@ -16,7 +16,6 @@ func init() {
 	delete(sprigFuncMap, "env")
 	delete(sprigFuncMap, "expandenv")
 	delete(sprigFuncMap, "getHostByName")
-	sprigFuncMap["kindIs"] = kindIs
 }
 
 // Render use a parsed template and calls the Execute to apply the data.
@@ -59,20 +58,4 @@ func structToMap(s any) (map[string]any, error) {
 		return nil, err
 	}
 	return result, nil
-}
-
-func kindIs(kind string, value any) bool {
-	switch kind {
-	case "map":
-		_, ok := value.(map[string]any)
-		return ok
-	case "array":
-		_, ok := value.([]any)
-		return ok
-	case "string":
-		_, ok := value.(string)
-		return ok
-	default:
-		return false
-	}
 }

@@ -45,7 +45,7 @@ import (
 	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 )
 
-var commitMessageTemplate = `{{ .metadata.subject }}
+var CommitMessageTemplate = `{{ .metadata.subject }}
 {{- if .metadata.body }}
 
 {{ .metadata.body }}
@@ -1028,7 +1028,7 @@ func (mgr *SettingsManager) GetSourceHydratorCommitMessageTemplate() (string, er
 		return "", err
 	}
 	if argoCDCM.Data[settingsSourceHydratorCommitMessageTemplateKey] == "" {
-		return commitMessageTemplate, nil // in case template is not defined return default
+		return CommitMessageTemplate, nil // in case template is not defined return default
 	}
 	return argoCDCM.Data[settingsSourceHydratorCommitMessageTemplateKey], nil
 }
