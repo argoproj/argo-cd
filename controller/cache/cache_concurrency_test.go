@@ -150,32 +150,32 @@ func TestClusterTaintManagerIsolation(t *testing.T) {
 	assert.Equal(t, 100, len(manager.getTaintedGVKs(server2)), "Server2 should still have all GVKs")
 }
 
-func TestGlobalTaintManagerFunctions(t *testing.T) {
-	// Test the exported functions that use the global manager
-	server := "https://global-test-server"
+func TestInstanceTaintManagerFunctions(t *testing.T) {
+	// Test the instance-based functions via LiveStateCache
+	cache := newTestLiveStateCache(t)
+	server := "https://instance-test-server"
 	
-	// Clean state
-	ClearClusterTaints(server)
-	require.False(t, IsClusterTainted(server))
+	// Clean state - should be clean already since it's a new instance
+	require.False(t, cache.IsClusterTainted(server))
 	
 	// Mark as tainted
-	MarkClusterTainted(server, "test error", "test/v1/Resource", "ConversionError")
-	assert.True(t, IsClusterTainted(server))
+	cache.MarkClusterTainted(server, "test error", "test/v1/Resource", "ConversionError")
+	assert.True(t, cache.IsClusterTainted(server))
 	
-	gvks := GetTaintedGVKs(server)
+	gvks := cache.GetTaintedGVKs(server)
 	assert.Equal(t, 1, len(gvks))
 	assert.Contains(t, gvks, "test/v1/Resource")
 	
-	// Test GetClusterTaints
-	allTaints := GetClusterTaints()
+	// Test getAllTaints via the taint manager directly
+	allTaints := cache.taintManager.getAllTaints()
 	assert.Contains(t, allTaints, server)
 	assert.Contains(t, allTaints[server], "test/v1/Resource")
 	assert.Equal(t, "ConversionError", allTaints[server]["test/v1/Resource"])
 	
 	// Clear and verify
-	ClearClusterTaints(server)
-	assert.False(t, IsClusterTainted(server))
-	assert.Empty(t, GetTaintedGVKs(server))
+	cache.ClearClusterTaints(server)
+	assert.False(t, cache.IsClusterTainted(server))
+	assert.Empty(t, cache.GetTaintedGVKs(server))
 }
 
 func BenchmarkClusterTaintManager(b *testing.B) {
