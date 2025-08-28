@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v3/controller/cache"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
@@ -138,9 +137,3 @@ func VerifyFailedResourcesInResponse(t *testing.T, clusterServer string) {
 		cluster.Info.CacheInfo.FailedResourceGVKs)
 }
 
-// ClearMockConversionWebhookFailure removes the mock failure state
-func ClearMockConversionWebhookFailure(t *testing.T, clusterServer string) {
-	t.Helper()
-	cache.ClearClusterTaints(clusterServer)
-	t.Log("Cleared mock conversion webhook failure state")
-}

@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -22,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
+	errorutils "github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 const (
@@ -114,15 +114,6 @@ func (c *clusterInfoUpdater) updateClusters() {
 	log.Debugf("Successfully saved info of %d clusters", len(clustersFiltered))
 }
 
-// isConversionWebhookErrorInSyncError checks if an error is related to conversion webhooks
-func isConversionWebhookErrorInSyncError(err error) bool {
-	if err == nil {
-		return false
-	}
-	errStr := err.Error()
-	return strings.Contains(errStr, "conversion webhook") || 
-	       strings.Contains(errStr, "unavailable resource types")
-}
 
 func (c *clusterInfoUpdater) updateClusterInfo(ctx context.Context, cluster appv1.Cluster, info *cache.ClusterInfo) error {
 	apps, err := c.appLister.List(labels.Everything())
@@ -131,9 +122,7 @@ func (c *clusterInfoUpdater) updateClusterInfo(ctx context.Context, cluster appv
 	}
 
 	updated := c.getUpdatedClusterInfo(ctx, apps, cluster, info, metav1.Now())
-	
 
-	
 	return c.cache.SetClusterInfo(cluster.Server, &updated)
 }
 
@@ -157,13 +146,12 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 	clusterInfo := appv1.ClusterInfo{
 		ConnectionState:   appv1.ConnectionState{ModifiedAt: &now},
 		ApplicationsCount: appCount,
-		CacheInfo:        appv1.ClusterCacheInfo{},
+		CacheInfo:         appv1.ClusterCacheInfo{},
 	}
 	if info != nil {
 		clusterInfo.ServerVersion = info.K8SVersion
 		clusterInfo.APIVersions = argo.APIResourcesToStrings(info.APIResources, true)
-		
-		
+
 		switch {
 		case info.LastCacheSyncTime == nil:
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusUnknown
@@ -175,7 +163,7 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 			clusterInfo.CacheInfo.APIsCount = int64(info.APIsCount)
 			clusterInfo.CacheInfo.ResourcesCount = int64(info.ResourcesCount)
 			clusterInfo.CacheInfo.FailedResourceGVKs = info.FailedResourceGVKs
-		case isConversionWebhookErrorInSyncError(info.SyncError):
+		case errorutils.IsConversionWebhookError(info.SyncError):
 			// We have a successful connection but some resources failed to sync
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusDegraded
 			clusterInfo.ConnectionState.Message = fmt.Sprintf("Conversion webhook errors detected: %v", info.SyncError.Error())

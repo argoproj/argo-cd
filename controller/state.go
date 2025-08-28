@@ -44,6 +44,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/gpg"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	errorutils "github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/stats"
 )
@@ -693,7 +694,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	if err != nil {
 		// Handle cluster cache errors gracefully - this includes conversion webhook errors,
 		// pagination token expiration, and other issues that might result in partial data
-		if isConversionWebhookError(err) {
+		if errorutils.IsConversionWebhookError(err) {
 			logCtx.Warnf("Conversion webhook error while getting managed live objects, continuing with empty live state: %v", err)
 			liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
 
@@ -1273,11 +1274,3 @@ func isSelfReferencedObj(obj *unstructured.Unstructured, aiv argo.AppInstanceVal
 		obj.GetObjectKind().GroupVersionKind().Kind == aiv.Kind
 }
 
-// Helper function to check if an error is related to conversion webhooks
-func isConversionWebhookError(err error) bool {
-	if err == nil {
-		return false
-	}
-	errStr := err.Error()
-	return strings.Contains(errStr, "conversion webhook")
-}
