@@ -71,6 +71,10 @@ func NewCommand() *cobra.Command {
 			kubeclientset := kubernetes.NewForConfigOrDie(config)
 
 			settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, namespace)
+			err = settingsMgr.ResyncInformers()
+			if err != nil {
+				errors.CheckError(err)
+			}
 
 			server := commitserver.NewServer(askPassServer, metricsServer, settingsMgr)
 			grpc := server.CreateGRPC()

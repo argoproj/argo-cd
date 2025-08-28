@@ -36,25 +36,31 @@ func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server, set
 		metricsServer:     metricsServer,
 		repoClientFactory: NewRepoClientFactory(gitCredsStore, metricsServer),
 		settingsMgr:       settingsMgr,
+		hydratorConfig: hydratorConfigData{
+			manifestHydrationReadmeTemplate: defaultManifestHydrationReadmeTemplate,
+		},
 	}
 }
 
 func (s *Service) loadHydratorConfig() (*hydratorConfigData, error) {
-	readmeTemplate, err := s.settingsMgr.GetHydratorReadmeTemplate()
+	manifestHydrationReadmeTemplate, err := s.settingsMgr.GetHydratorReadmeTemplate()
 	if err != nil {
 		return nil, err
 	}
 
+	if manifestHydrationReadmeTemplate == "" {
+		manifestHydrationReadmeTemplate = defaultManifestHydrationReadmeTemplate
+	}
+
 	return &hydratorConfigData{
-		readmeTemplate: readmeTemplate,
+		manifestHydrationReadmeTemplate: manifestHydrationReadmeTemplate,
 	}, nil
 }
 
 func (s *Service) updateHydratorConfig(hydratorConfig *hydratorConfigData) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	log.Info("updated before: " + s.hydratorConfig.readmeTemplate + "\n")
-	log.Info("updated after: " + hydratorConfig.readmeTemplate + "\n")
+
 	if !reflect.DeepEqual(s.hydratorConfig, hydratorConfig) {
 		s.hydratorConfig = *hydratorConfig
 	}
@@ -62,7 +68,9 @@ func (s *Service) updateHydratorConfig(hydratorConfig *hydratorConfigData) {
 
 func (s *Service) WatchSettings(ctx context.Context) {
 	log.Info("watch server is start")
-	s.settingsMgr.ResyncInformers()
+	initialHydratorConfig, _ := s.loadHydratorConfig()
+	s.updateHydratorConfig(initialHydratorConfig)
+
 	updateCh := make(chan *settings.ArgoCDSettings, 1)
 	s.settingsMgr.Subscribe(updateCh)
 
@@ -72,10 +80,9 @@ func (s *Service) WatchSettings(ctx context.Context) {
 	for {
 		select {
 		case <-updateCh:
-
 			hydratorConfig, err := s.loadHydratorConfig()
 			if err != nil {
-				log.Infof("Failed to load hydrator config: %v", err)
+				log.Warnf("Failed to load hydrator config: %v", err)
 				continue
 			}
 			s.updateHydratorConfig(hydratorConfig)
@@ -180,7 +187,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 
 	logCtx.Debug("Writing manifests")
-	err = WriteForPaths(root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths)
+	err = WriteForPaths(root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths, s.hydratorConfig)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}
@@ -281,11 +288,10 @@ type hydratorMetadataFile struct {
 }
 
 type hydratorConfigData struct {
-	readmeTemplate string
+	manifestHydrationReadmeTemplate string
 }
 
-// TODO: make this configurable via ConfigMap.
-var manifestHydrationReadmeTemplate = `# Manifest Hydration
+var defaultManifestHydrationReadmeTemplate = `# Manifest Hydration
 
 To hydrate the manifests in this repository, run the following commands:
 
