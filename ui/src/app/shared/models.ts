@@ -715,6 +715,12 @@ export interface ClusterCacheInfo {
     resourcesCount: number;
     apisCount: number;
     lastCacheSyncTime: models.Time;
+    /**
+     * List of Group/Version/Kind identifiers that failed during conversion webhook processing.
+     * Only present when there are conversion errors affecting resource caching.
+     * Format: typically "group/version/kind" (e.g., "apps/v1/Deployment", "v1/ConfigMap")
+     */
+    failedResourceGVKs?: string[];
 }
 
 export interface ClusterList extends ItemsList<Cluster> {}

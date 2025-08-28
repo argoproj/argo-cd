@@ -875,6 +875,11 @@ message ClusterCacheInfo {
 
   // LastCacheSyncTime holds time of most recent cache synchronization
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastCacheSyncTime = 3;
+
+  // FailedResourceGVKs contains a list of GroupVersionKind strings that had conversion webhook failures
+  // UI should display these GVKs in the cluster details page under "Unavailable Resources"
+  // When this list is not empty, the cluster connection status should be set to "Degraded"
+  repeated string failedResourceGVKs = 4;
 }
 
 // ClusterConfig is the configuration attributes. This structure is subset of the go-client

@@ -1157,8 +1157,8 @@ func TestGetClustersInfoWithFailedGVKs(t *testing.T) {
 	c.failedGVKLock.Unlock()
 
 	// Also mark the cluster as tainted
-	markClusterTainted("test-server", "Test taint reason", gvkStr1, "conversion_webhook")
-
+	MarkClusterTainted("test-server", "Test taint reason", gvkStr1, "conversion_webhook")
+	
 	// Get cluster info
 	infos := c.GetClustersInfo()
 

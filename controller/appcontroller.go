@@ -1929,9 +1929,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	// 4. Check if the app directly uses any tainted resources
 	clusterURL := app.Spec.Destination.Server
 	// Check if cluster is tainted directly using our cluster taint tracking
-	statecache.ClusterTaintLock.RLock()
-	taints, exists := statecache.GetClusterTaints()[clusterURL]
-	statecache.ClusterTaintLock.RUnlock()
+	allTaints := statecache.GetClusterTaints()
+	taints, exists := allTaints[clusterURL]
 	
 	// If the cluster is tainted, check if the app uses any of the affected resource types
 	if exists && len(taints) > 0 {

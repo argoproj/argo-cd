@@ -34,6 +34,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
 	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
@@ -743,6 +744,16 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 				metav1.DeleteOptions{PropagationPolicy: &policy},
 				metav1.ListOptions{LabelSelector: TestingLabel + "=true"})
 		},
+		func() error {
+			// Invalidate cluster caches to clear any stale failed GVKs from previous test runs
+			// This ensures each test starts with a clean cluster state
+			err := invalidateAllClusterCaches(t)
+			if err == nil {
+				// Give the cluster cache some time to stabilize after invalidation
+				time.Sleep(2 * time.Second)
+			}
+			return err
+		},
 	})
 	RunFunctionsInParallelAndCheckErrors(t, []func() error{
 		func() error {
@@ -1329,4 +1340,34 @@ func GetNotificationServerAddress() string {
 
 func GetToken() string {
 	return token
+}
+
+// invalidateAllClusterCaches invalidates cluster caches for all registered clusters
+// to clear any stale failed GVKs from previous test runs
+func invalidateAllClusterCaches(t *testing.T) error {
+	t.Helper()
+	
+	// Get cluster client
+	_, clusterClient, _ := ArgoCDClientset.NewClusterClient()
+	
+	// Get list of all clusters
+	clusterList, err := clusterClient.List(t.Context(), &clusterpkg.ClusterQuery{})
+	if err != nil {
+		// If we can't list clusters (e.g., during initial setup), just skip cache invalidation
+		log.WithFields(log.Fields{"error": err}).Warn("Failed to list clusters during cleanup, skipping cache invalidation")
+		return nil
+	}
+	
+	// Invalidate cache for each cluster
+	for _, cluster := range clusterList.Items {
+		_, err := clusterClient.InvalidateCache(t.Context(), &clusterpkg.ClusterQuery{
+			Server: cluster.Server,
+		})
+		if err != nil {
+			// Log error but don't fail the cleanup - cache invalidation is best effort during cleanup
+			log.WithFields(log.Fields{"server": cluster.Server, "error": err}).Warn("Failed to invalidate cluster cache during cleanup")
+		}
+	}
+	
+	return nil
 }
