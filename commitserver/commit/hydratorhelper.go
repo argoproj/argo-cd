@@ -2,9 +2,7 @@ package commit
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -60,7 +58,7 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 			hydratePath = ""
 		}
 
-		err = mkdirAll(root, hydratePath)
+		err = root.MkdirAll(hydratePath, 0o755)
 		if err != nil {
 			return fmt.Errorf("failed to create path: %w", err)
 		}
@@ -197,27 +195,5 @@ func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.Hydrat
 		}
 	}
 
-	return nil
-}
-
-// mkdirAll creates the directory and all its parents if they do not exist. It returns an error if the directory
-// cannot be.
-func mkdirAll(root *os.Root, dirPath string) error {
-	parts := strings.Split(dirPath, string(os.PathSeparator))
-	builtPath := ""
-	for _, part := range parts {
-		if part == "" {
-			continue
-		}
-		builtPath = filepath.Join(builtPath, part)
-		err := root.Mkdir(builtPath, os.ModePerm)
-		if err != nil {
-			if errors.Is(err, fs.ErrExist) {
-				log.WithError(err).Warnf("path %s already exists, skipping", dirPath)
-				continue
-			}
-			return fmt.Errorf("failed to create path: %w", err)
-		}
-	}
 	return nil
 }

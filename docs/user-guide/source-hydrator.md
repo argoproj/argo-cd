@@ -174,10 +174,9 @@ code commit.
 git commit -m "Bump image to v1.2.3" \
   # Must be an RFC 5322 name
   --trailer "Argocd-reference-commit-author: Author Name <author@example.com>" \
-  # Must be a valid email address per RFC 5322
-  --trailer "Argocd-reference-commit-author-email: author@example.com" \
   # Must be a hex string 5-40 characters long
   --trailer "Argocd-reference-commit-sha: <code-commit-sha>" \
+  # The subject is the first line of the commit message. It cannot contain newlines.
   --trailer "Argocd-reference-commit-subject: Commit message of the code commit" \
    # The body must be a valid JSON string, including opening and closing quotes
   --trailer 'Argocd-reference-commit-body: "Commit message of the code commit\n\nSigned-off-by: Author Name <author@example.com>"' \
@@ -289,6 +288,26 @@ data:
     {{- if .metadata.author }}
       Co-authored-by: {{ .metadata.author }}
     {{- end }}
+    
+### Credential Templates
+
+Credential templates allow a single credential to be used for multiple repositories. The source hydrator supports credential templates. For example, if you setup credential templates for the URL prefix `https://github.com/argoproj`, these credentials will be used for all repositories with this URL as prefix (e.g. `https://github.com/argoproj/argocd-example-apps`) that do not have their own credentials configured.
+For more information please refer [credential-template](private-repositories.md#credential-templates). 
+An example of repo-write-creds secret.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: private-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-write-creds
+stringData:
+  type: git
+  url: https://github.com/argoproj
+  password: my-password
+  username: my-username
 ```
 
 ## Limitations
@@ -304,11 +323,6 @@ verification when Argo CD attempts to sync the hydrated manifests.
 If all the Applications for a given destination repo/branch are under the same project, then the hydrator will use any
 available project-scoped push secrets. If two Applications for a given repo/branch are in different projects, then the
 hydrator will not be able to use a project-scoped push secret and will require a global push secret.
-
-### Credential Templates
-
-Credential templates allow a single credential to be used for multiple repositories. The source hydrator does not 
-currently support credential templates. You will need a separate credential for each repository.
 
 ### `manifest-generate-paths` Annotation Support
 
