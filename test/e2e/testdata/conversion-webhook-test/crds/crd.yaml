@@ -1,0 +1,38 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: examples.conversion.example.com
+  labels:
+    e2e.argoproj.io: "true"
+spec:
+  group: conversion.example.com
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              field:
+                type: string
+  - name: v2
+    served: true
+    storage: false
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              newField:
+                type: string
+  scope: Namespaced
+  names:
+    plural: examples
+    singular: example
+    kind: Example
