@@ -177,13 +177,19 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 		}
 	}
 
-	err = s.cache.SetClusterInfo(c.Server, &appv1.ClusterInfo{
-		ServerVersion: serverVersion,
-		ConnectionState: appv1.ConnectionState{
-			Status:     appv1.ConnectionStatusSuccessful,
-			ModifiedAt: &metav1.Time{Time: time.Now()},
-		},
-	})
+	// Get existing cluster info to preserve any failed GVKs from controller
+	var existingInfo appv1.ClusterInfo
+	_ = s.cache.GetClusterInfo(c.Server, &existingInfo)
+	
+	// Update with new connection info while preserving cache data
+	updatedInfo := existingInfo
+	updatedInfo.ServerVersion = serverVersion
+	updatedInfo.ConnectionState = appv1.ConnectionState{
+		Status:     appv1.ConnectionStatusSuccessful,
+		ModifiedAt: &metav1.Time{Time: time.Now()},
+	}
+	
+	err = s.cache.SetClusterInfo(c.Server, &updatedInfo)
 	if err != nil {
 		return nil, fmt.Errorf("error setting cluster info in cache: %w", err)
 	}
@@ -334,13 +340,19 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 	if err != nil {
 		return nil, fmt.Errorf("failed to update cluster in database: %w", err)
 	}
-	err = s.cache.SetClusterInfo(clust.Server, &appv1.ClusterInfo{
-		ServerVersion: serverVersion,
-		ConnectionState: appv1.ConnectionState{
-			Status:     appv1.ConnectionStatusSuccessful,
-			ModifiedAt: &metav1.Time{Time: time.Now()},
-		},
-	})
+	// Get existing cluster info to preserve any failed GVKs from controller
+	var existingInfo appv1.ClusterInfo
+	_ = s.cache.GetClusterInfo(clust.Server, &existingInfo)
+	
+	// Update with new connection info while preserving cache data
+	updatedInfo := existingInfo
+	updatedInfo.ServerVersion = serverVersion
+	updatedInfo.ConnectionState = appv1.ConnectionState{
+		Status:     appv1.ConnectionStatusSuccessful,
+		ModifiedAt: &metav1.Time{Time: time.Now()},
+	}
+	
+	err = s.cache.SetClusterInfo(clust.Server, &updatedInfo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set cluster info in cache: %w", err)
 	}
@@ -451,13 +463,19 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 		if err != nil {
 			return nil, fmt.Errorf("failed to update cluster in database: %w", err)
 		}
-		err = s.cache.SetClusterInfo(clust.Server, &appv1.ClusterInfo{
-			ServerVersion: serverVersion,
-			ConnectionState: appv1.ConnectionState{
-				Status:     appv1.ConnectionStatusSuccessful,
-				ModifiedAt: &metav1.Time{Time: time.Now()},
-			},
-		})
+		// Get existing cluster info to preserve any failed GVKs from controller
+		var existingInfo appv1.ClusterInfo
+		_ = s.cache.GetClusterInfo(clust.Server, &existingInfo)
+		
+		// Update with new connection info while preserving cache data
+		updatedInfo := existingInfo
+		updatedInfo.ServerVersion = serverVersion
+		updatedInfo.ConnectionState = appv1.ConnectionState{
+			Status:     appv1.ConnectionStatusSuccessful,
+			ModifiedAt: &metav1.Time{Time: time.Now()},
+		}
+		
+		err = s.cache.SetClusterInfo(clust.Server, &updatedInfo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to set cluster info in cache: %w", err)
 		}
@@ -471,7 +489,14 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 }
 
 func (s *Server) toAPIResponse(clust *appv1.Cluster) *appv1.Cluster {
-	_ = s.cache.GetClusterInfo(clust.Server, &clust.Info)
+	// Get basic cluster info from server cache first (for compatibility)
+	err := s.cache.GetClusterInfo(clust.Server, &clust.Info)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"server": clust.Server,
+			"error": err,
+		}).Warn("Failed to get cluster info from cache")
+	}
 
 	clust.Config.Password = ""
 	clust.Config.BearerToken = ""
@@ -484,6 +509,15 @@ func (s *Server) toAPIResponse(clust *appv1.Cluster) *appv1.Cluster {
 		clust.Config.ExecProviderConfig.Env = make(map[string]string)
 		clust.Config.ExecProviderConfig.Args = nil
 	}
+
+	if len(clust.Info.CacheInfo.FailedResourceGVKs) > 0 {
+		// When failed resources exist, make sure the connection state is marked as degraded
+		if clust.Info.ConnectionState.Status != appv1.ConnectionStatusFailed {
+			clust.Info.ConnectionState.Status = appv1.ConnectionStatusDegraded
+			clust.Info.ConnectionState.Message = fmt.Sprintf("Cluster has %d unavailable resource types", len(clust.Info.CacheInfo.FailedResourceGVKs))
+		}
+	}
+	
 	// populate deprecated fields for backward compatibility
 	//nolint:staticcheck
 	clust.ServerVersion = clust.Info.ServerVersion
