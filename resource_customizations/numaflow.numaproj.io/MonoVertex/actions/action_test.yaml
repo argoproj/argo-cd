@@ -8,3 +8,27 @@ actionTests:
 - action: force-promote
   inputPath: testdata/monovertex.yaml
   expectedOutputPath: testdata/monovertex-force-promote.yaml
+
+discoveryTests:
+  - inputPath: testdata/monovertex.yaml
+    result:
+      - name: pause
+        disabled: false
+        iconClass: 'fa-solid fa-fw fa-pause'
+      - name: unpause
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-play'
+      - name: force-promote
+        disabled: false
+        iconClass: 'fa-solid fa-fw fa-forward'
+  - inputPath: testdata/monovertex-paused.yaml
+    result:
+      - name: pause
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-pause'
+      - name: unpause
+        disabled: false
+        iconClass: 'fa-solid fa-fw fa-play'
+      - name: force-promote
+        disabled: false
+        iconClass: 'fa-solid fa-fw fa-forward'
