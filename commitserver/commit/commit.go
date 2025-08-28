@@ -37,6 +37,9 @@ func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server, set
 		metricsServer:     metricsServer,
 		repoClientFactory: NewRepoClientFactory(gitCredsStore, metricsServer),
 		settingsMgr:       settingsMgr,
+		hydratorConfig: hydratorConfigData{
+			manifestHydrationReadmeTemplate: defaultManifestHydrationReadmeTemplate,
+		},
 	}
 }
 
@@ -186,7 +189,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 
 	logCtx.Debug("Writing manifests")
-	err = WriteForPaths(root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths)
+	err = WriteForPaths(root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths, s.hydratorConfig)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}
