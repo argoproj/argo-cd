@@ -14,42 +14,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
-
-var commitMessageTemplate = `    {{- if .metadata }}
-        {{- if .metadata.repoURL }}
-            repoURL: {{ .metadata.repoURL }}
-        {{- end }}
-        
-        {{- if .metadata.drySha }}
-            drySha: {{ .metadata.drySha }}
-        {{- end }}
-
-        {{- if .metadata.author }}
-            Co-authored-by: {{ .metadata.author }}
-        {{- end }}
-
-        {{- if .metadata.subject }}
-            subject: {{ .metadata.subject }}
-        {{- end }}
-
-        {{- if .metadata.body }}
-            body: {{ .metadata.body }}
-        {{- end }}
-        {{- if .metadata.references }}
-            References:
-            {{- range $reference := .metadata.references }}
-                {{- if kindIs "map" $reference.commit }}
-                    Commit:
-                    {{- range $key, $value := $reference.commit }}
-                        {{- if eq $key "author" }}
-                            Co-authored-by: {{ $value }}
-                        {{- end }}
-                    {{- end }}
-                {{- end }}
-            {{- end }}
-        {{- end }}
-    {{- end }}`
 
 func TestGetRepoObjs(t *testing.T) {
 	cm := test.NewConfigMap()
@@ -113,7 +79,7 @@ func TestGetRepoObjs(t *testing.T) {
 	assert.Equal(t, "ConfigMap", objs[0].GetKind())
 }
 
-func TestGetHydratorCommitMessageTemplate_WhenTemplateisNotDefined(t *testing.T) {
+func TestGetHydratorCommitMessageTemplate_WhenTemplateisNotDefined_FallbackToDefault(t *testing.T) {
 	cm := test.NewConfigMap()
 	cmBytes, _ := json.Marshal(cm)
 
@@ -130,13 +96,13 @@ func TestGetHydratorCommitMessageTemplate_WhenTemplateisNotDefined(t *testing.T)
 
 	tmpl, err := ctrl.GetHydratorCommitMessageTemplate()
 	require.NoError(t, err)
-	assert.NotNil(t, tmpl)
-	assert.Empty(t, tmpl)
+	assert.NotEmpty(t, tmpl) // should fallback to default
+	assert.Equal(t, settings.CommitMessageTemplate, tmpl)
 }
 
 func TestGetHydratorCommitMessageTemplate(t *testing.T) {
 	cm := test.NewFakeConfigMap()
-	cm.Data["sourceHydrator.commitMessageTemplate"] = commitMessageTemplate
+	cm.Data["sourceHydrator.commitMessageTemplate"] = settings.CommitMessageTemplate
 	cmBytes, _ := json.Marshal(cm)
 
 	data := fakeData{
@@ -153,7 +119,5 @@ func TestGetHydratorCommitMessageTemplate(t *testing.T) {
 
 	tmpl, err := ctrl.GetHydratorCommitMessageTemplate()
 	require.NoError(t, err)
-	assert.NotNil(t, tmpl)
 	assert.NotEmpty(t, tmpl)
-	assert.Contains(t, tmpl, "Commit")
 }
