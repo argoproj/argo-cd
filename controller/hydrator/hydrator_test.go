@@ -213,7 +213,7 @@ func TestHydrator_getTemplatedCommitMessage(t *testing.T) {
 				},
 				template: settings.CommitMessageTemplate,
 			},
-			want: `testn
+			want: `3ff41cc: testn
 Argocd-reference-commit-repourl: https://github.com/test/argocd-example-apps
 Argocd-reference-commit-author: Argocd-reference-commit-author
 Argocd-reference-commit-subject: testhydratormd

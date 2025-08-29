@@ -45,7 +45,7 @@ func TestRender(t *testing.T) {
 				Body:    "testBody",
 				Subject: "testSubject",
 			},
-			want: `testSubject
+			want: `3ff41cc: testSubject
 
 testBody
 
@@ -64,7 +64,7 @@ Co-authored-by: test <test@test.com>
 				Body:    "testBody",
 				Subject: "testSubject",
 			},
-			want: `testSubject
+			want: `3ff41cc: testSubject
 
 testBody
 
@@ -80,7 +80,7 @@ Co-authored-by: test <test@test.com>
 				Date:    metav1.Now().String(),
 				Subject: "testSubject",
 			},
-			want: `testSubject
+			want: `3ff41cc: testSubject
 
 Co-authored-by: test <test@test.com>
 `,
