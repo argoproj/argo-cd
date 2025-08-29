@@ -19,7 +19,6 @@ const (
 	MockKind    = "FailingResource"
 )
 
-
 // VerifyHealthyClusterState checks that the cluster is in a healthy state with no failed resources
 func VerifyHealthyClusterState(t *testing.T, clusterServer string) {
 	t.Helper()
@@ -42,18 +41,18 @@ func VerifyHealthyClusterState(t *testing.T, clusterServer string) {
 
 	// Verify the field exists in the JSON output
 	jsonString := string(clusterJSON)
-	
+
 	// The failedResourceGVKs field should exist but be empty
 	require.Contains(t, jsonString, "failedResourceGVKs")
-	
+
 	// Cluster should be successful, not degraded
 	require.Equal(t, v1alpha1.ConnectionStatusSuccessful, cluster.Info.ConnectionState.Status,
 		"Expected cluster to be in Successful state when healthy")
-	
+
 	// The failedResourceGVKs field should be empty
 	require.Empty(t, cluster.Info.CacheInfo.FailedResourceGVKs,
 		"Expected failedResourceGVKs to be empty for healthy cluster")
-	
+
 	t.Logf("📊 Failed resource GVKs: %v (should be empty)", cluster.Info.CacheInfo.FailedResourceGVKs)
 }
 
@@ -80,10 +79,10 @@ func VerifyFailedResourcesInResponse(t *testing.T, clusterServer string) {
 
 	// Verify the field exists in the JSON output
 	jsonString := string(clusterJSON)
-	
+
 	// The failedResourceGVKs field should exist and not be omitted
 	require.Contains(t, jsonString, "failedResourceGVKs")
-	
+
 	// Wait up to 30 seconds for cluster to become degraded and failedResourceGVKs to be populated
 	var gvks []string
 	var isDegraded bool
@@ -93,38 +92,38 @@ func VerifyFailedResourcesInResponse(t *testing.T, clusterServer string) {
 		isDegraded = cluster.Info.ConnectionState.Status == v1alpha1.ConnectionStatusDegraded
 		connectionMsg = cluster.Info.ConnectionState.Message
 		hasFailedGVKs := len(cluster.Info.CacheInfo.FailedResourceGVKs) > 0
-		
+
 		if isDegraded && hasFailedGVKs {
 			gvks = cluster.Info.CacheInfo.FailedResourceGVKs
 			break
 		}
-		
+
 		time.Sleep(1 * time.Second)
 		// Re-fetch cluster info
 		err = fixture.DoHttpJsonRequest("GET", "/api/v1/clusters/"+clusterURL, &cluster)
 		require.NoError(t, err)
-		
+
 		// Log current status for debugging
 		if i%5 == 0 { // Log every 5 seconds
-			t.Logf("📊 Waiting for degraded status... Current: status=%s, failedGVKs=%v", 
+			t.Logf("📊 Waiting for degraded status... Current: status=%s, failedGVKs=%v",
 				cluster.Info.ConnectionState.Status, cluster.Info.CacheInfo.FailedResourceGVKs)
 		}
 	}
-	
+
 	// We should see a degraded status due to conversion webhook failures
-	require.Equal(t, v1alpha1.ConnectionStatusDegraded, cluster.Info.ConnectionState.Status, 
+	require.Equal(t, v1alpha1.ConnectionStatusDegraded, cluster.Info.ConnectionState.Status,
 		"Expected cluster to be in Degraded state due to conversion webhook failures")
-	
+
 	// The message should mention conversion webhook errors or unavailable resource types
-	require.True(t, 
+	require.True(t,
 		strings.Contains(connectionMsg, "conversion webhook") || strings.Contains(connectionMsg, "unavailable resource types"),
 		"Expected connection message to mention conversion webhook or unavailable resource types, got: %s", connectionMsg)
-	require.NotEmpty(t, gvks, 
+	require.NotEmpty(t, gvks,
 		"Expected failedResourceGVKs to contain failed GVKs after waiting 30 seconds")
-	
+
 	// Log the failed GVKs for debugging
 	t.Logf("📊 Failed resource GVKs: %v", cluster.Info.CacheInfo.FailedResourceGVKs)
-	
+
 	// Should contain the conversion.example.com GVK that we're testing with
 	found := false
 	for _, gvk := range cluster.Info.CacheInfo.FailedResourceGVKs {
@@ -133,7 +132,6 @@ func VerifyFailedResourcesInResponse(t *testing.T, clusterServer string) {
 			break
 		}
 	}
-	require.True(t, found, "Expected to find conversion.example.com/Example GVK in failedResourceGVKs: %v", 
+	require.True(t, found, "Expected to find conversion.example.com/Example GVK in failedResourceGVKs: %v",
 		cluster.Info.CacheInfo.FailedResourceGVKs)
 }
-

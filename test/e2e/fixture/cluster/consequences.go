@@ -42,11 +42,11 @@ func (c *Consequences) AndFailedResourceGVKsExist() *Consequences {
 	if c.actions.lastOutput == "" {
 		c.context.t.Fatal("No output to check")
 	}
-	
+
 	if !FailedResourceGVKsFieldExists(c.actions.lastOutput) {
 		c.context.t.Fatal("failedResourceGVKs field missing from output")
 	}
-	
+
 	return c
 }
 
