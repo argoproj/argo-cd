@@ -53,6 +53,46 @@ var repoArgoProj = &corev1.Secret{
 	},
 }
 
+var repoArgoCDWrite = &corev1.Secret{
+	ObjectMeta: metav1.ObjectMeta{
+		Namespace: testNamespace,
+		Name:      "some-repo-secret",
+		Annotations: map[string]string{
+			common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+		},
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeRepositoryWrite,
+		},
+	},
+	Data: map[string][]byte{
+		"name":     []byte("SomeRepo"),
+		"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+		"username": []byte("someUsername"),
+		"password": []byte("somePassword"),
+		"type":     []byte("git"),
+	},
+}
+
+var repoArgoProjWrite = &corev1.Secret{
+	ObjectMeta: metav1.ObjectMeta{
+		Namespace: testNamespace,
+		Name:      "some-other-repo-secret",
+		Annotations: map[string]string{
+			common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+		},
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeRepositoryWrite,
+		},
+	},
+	Data: map[string][]byte{
+		"name":     []byte("OtherRepo"),
+		"url":      []byte("git@github.com:argoproj/argoproj.git"),
+		"username": []byte("someUsername"),
+		"password": []byte("somePassword"),
+		"type":     []byte("git"),
+	},
+}
+
 func TestDb_CreateRepository(t *testing.T) {
 	clientset := getClientset()
 	settingsManager := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
@@ -106,6 +146,41 @@ func TestDb_GetRepository(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, repository)
 	assert.Equal(t, "git@github.com:argoproj/not-existing.git", repository.Repo)
+}
+
+func TestDb_GetWriteRepository(t *testing.T) {
+	clientset := getClientset(repoArgoCDWrite, repoArgoProjWrite)
+	settingsManager := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
+	testee := &db{
+		ns:            testNamespace,
+		kubeclientset: clientset,
+		settingsMgr:   settingsManager,
+	}
+
+	repository, err := testee.GetWriteRepository(t.Context(), "git@github.com:argoproj/argoproj.git", "")
+	require.NoError(t, err)
+	require.NotNil(t, repository)
+	assert.Equal(t, "OtherRepo", repository.Name)
+
+	repository, err = testee.GetWriteRepository(t.Context(), "git@github.com:argoproj/argo-cd.git", "")
+	require.NoError(t, err)
+	require.NotNil(t, repository)
+	assert.Equal(t, "SomeRepo", repository.Name)
+}
+
+func TestDb_GetWriteRepository_SecretNotFound_DefaultRepo(t *testing.T) {
+	clientset := getClientset(repoArgoCD)
+	settingsManager := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
+	testee := &db{
+		ns:            testNamespace,
+		kubeclientset: clientset,
+		settingsMgr:   settingsManager,
+	}
+
+	repository, err := testee.GetWriteRepository(t.Context(), "git@github.com:argoproj/argo-cd.git", "")
+	require.NoError(t, err)
+	require.NotNil(t, repository)
+	assert.Empty(t, repository.Name)
 }
 
 func TestDb_ListRepositories(t *testing.T) {

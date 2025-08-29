@@ -4,6 +4,13 @@ if obj.spec.suspend ~= nil and obj.spec.suspend == true then
   hs.status = "Suspended"
   return hs
 end
+-- Helm repositories of type "oci" do not contain any information in the status
+-- https://fluxcd.io/flux/components/source/helmrepositories/#helmrepository-status
+if obj.spec.type ~= nil and obj.spec.type == "oci" then
+  hs.message = "Helm repositories of type 'oci' do not contain any information in the status."
+  hs.status = "Healthy"
+  return hs
+end
 if obj.status ~= nil then
   if obj.status.conditions ~= nil then
     local numProgressing = 0
