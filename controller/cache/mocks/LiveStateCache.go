@@ -43,6 +43,46 @@ func (_m *LiveStateCache) EXPECT() *LiveStateCache_Expecter {
 	return &LiveStateCache_Expecter{mock: &_m.Mock}
 }
 
+// ClearClusterTaints provides a mock function for the type LiveStateCache
+func (_mock *LiveStateCache) ClearClusterTaints(server string) {
+	_mock.Called(server)
+	return
+}
+
+// LiveStateCache_ClearClusterTaints_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ClearClusterTaints'
+type LiveStateCache_ClearClusterTaints_Call struct {
+	*mock.Call
+}
+
+// ClearClusterTaints is a helper method to define mock.On call
+//   - server string
+func (_e *LiveStateCache_Expecter) ClearClusterTaints(server interface{}) *LiveStateCache_ClearClusterTaints_Call {
+	return &LiveStateCache_ClearClusterTaints_Call{Call: _e.mock.On("ClearClusterTaints", server)}
+}
+
+func (_c *LiveStateCache_ClearClusterTaints_Call) Run(run func(server string)) *LiveStateCache_ClearClusterTaints_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *LiveStateCache_ClearClusterTaints_Call) Return() *LiveStateCache_ClearClusterTaints_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *LiveStateCache_ClearClusterTaints_Call) RunAndReturn(run func(server string)) *LiveStateCache_ClearClusterTaints_Call {
+	_c.Run(run)
+	return _c
+}
+
 // GetClusterCache provides a mock function for the type LiveStateCache
 func (_mock *LiveStateCache) GetClusterCache(server *v1alpha1.Cluster) (cache.ClusterCache, error) {
 	ret := _mock.Called(server)
@@ -293,6 +333,59 @@ func (_c *LiveStateCache_GetNamespaceTopLevelResources_Call) RunAndReturn(run fu
 	return _c
 }
 
+// GetTaintedGVKs provides a mock function for the type LiveStateCache
+func (_mock *LiveStateCache) GetTaintedGVKs(server string) []string {
+	ret := _mock.Called(server)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTaintedGVKs")
+	}
+
+	var r0 []string
+	if returnFunc, ok := ret.Get(0).(func(string) []string); ok {
+		r0 = returnFunc(server)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	return r0
+}
+
+// LiveStateCache_GetTaintedGVKs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetTaintedGVKs'
+type LiveStateCache_GetTaintedGVKs_Call struct {
+	*mock.Call
+}
+
+// GetTaintedGVKs is a helper method to define mock.On call
+//   - server string
+func (_e *LiveStateCache_Expecter) GetTaintedGVKs(server interface{}) *LiveStateCache_GetTaintedGVKs_Call {
+	return &LiveStateCache_GetTaintedGVKs_Call{Call: _e.mock.On("GetTaintedGVKs", server)}
+}
+
+func (_c *LiveStateCache_GetTaintedGVKs_Call) Run(run func(server string)) *LiveStateCache_GetTaintedGVKs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *LiveStateCache_GetTaintedGVKs_Call) Return(strings []string) *LiveStateCache_GetTaintedGVKs_Call {
+	_c.Call.Return(strings)
+	return _c
+}
+
+func (_c *LiveStateCache_GetTaintedGVKs_Call) RunAndReturn(run func(server string) []string) *LiveStateCache_GetTaintedGVKs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVersionsInfo provides a mock function for the type LiveStateCache
 func (_mock *LiveStateCache) GetVersionsInfo(server *v1alpha1.Cluster) (string, []kube.APIResourceInfo, error) {
 	ret := _mock.Called(server)
@@ -401,6 +494,57 @@ func (_c *LiveStateCache_Init_Call) Return(err error) *LiveStateCache_Init_Call 
 }
 
 func (_c *LiveStateCache_Init_Call) RunAndReturn(run func() error) *LiveStateCache_Init_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// IsClusterTainted provides a mock function for the type LiveStateCache
+func (_mock *LiveStateCache) IsClusterTainted(server string) bool {
+	ret := _mock.Called(server)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsClusterTainted")
+	}
+
+	var r0 bool
+	if returnFunc, ok := ret.Get(0).(func(string) bool); ok {
+		r0 = returnFunc(server)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	return r0
+}
+
+// LiveStateCache_IsClusterTainted_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsClusterTainted'
+type LiveStateCache_IsClusterTainted_Call struct {
+	*mock.Call
+}
+
+// IsClusterTainted is a helper method to define mock.On call
+//   - server string
+func (_e *LiveStateCache_Expecter) IsClusterTainted(server interface{}) *LiveStateCache_IsClusterTainted_Call {
+	return &LiveStateCache_IsClusterTainted_Call{Call: _e.mock.On("IsClusterTainted", server)}
+}
+
+func (_c *LiveStateCache_IsClusterTainted_Call) Run(run func(server string)) *LiveStateCache_IsClusterTainted_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *LiveStateCache_IsClusterTainted_Call) Return(b bool) *LiveStateCache_IsClusterTainted_Call {
+	_c.Call.Return(b)
+	return _c
+}
+
+func (_c *LiveStateCache_IsClusterTainted_Call) RunAndReturn(run func(server string) bool) *LiveStateCache_IsClusterTainted_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -591,6 +735,64 @@ func (_c *LiveStateCache_IterateResources_Call) RunAndReturn(run func(server *v1
 	return _c
 }
 
+// MarkClusterTainted provides a mock function for the type LiveStateCache
+func (_mock *LiveStateCache) MarkClusterTainted(server string, reason string, gvk string, errorType string) {
+	_mock.Called(server, reason, gvk, errorType)
+	return
+}
+
+// LiveStateCache_MarkClusterTainted_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkClusterTainted'
+type LiveStateCache_MarkClusterTainted_Call struct {
+	*mock.Call
+}
+
+// MarkClusterTainted is a helper method to define mock.On call
+//   - server string
+//   - reason string
+//   - gvk string
+//   - errorType string
+func (_e *LiveStateCache_Expecter) MarkClusterTainted(server interface{}, reason interface{}, gvk interface{}, errorType interface{}) *LiveStateCache_MarkClusterTainted_Call {
+	return &LiveStateCache_MarkClusterTainted_Call{Call: _e.mock.On("MarkClusterTainted", server, reason, gvk, errorType)}
+}
+
+func (_c *LiveStateCache_MarkClusterTainted_Call) Run(run func(server string, reason string, gvk string, errorType string)) *LiveStateCache_MarkClusterTainted_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *LiveStateCache_MarkClusterTainted_Call) Return() *LiveStateCache_MarkClusterTainted_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *LiveStateCache_MarkClusterTainted_Call) RunAndReturn(run func(server string, reason string, gvk string, errorType string)) *LiveStateCache_MarkClusterTainted_Call {
+	_c.Run(run)
+	return _c
+}
+
 // Run provides a mock function for the type LiveStateCache
 func (_mock *LiveStateCache) Run(ctx context.Context) error {
 	ret := _mock.Called(ctx)
@@ -689,162 +891,6 @@ func (_c *LiveStateCache_UpdateShard_Call) Return(b bool) *LiveStateCache_Update
 }
 
 func (_c *LiveStateCache_UpdateShard_Call) RunAndReturn(run func(shard int) bool) *LiveStateCache_UpdateShard_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// ClearClusterTaints provides a mock function for the type LiveStateCache
-func (_mock *LiveStateCache) ClearClusterTaints(server string) {
-	_mock.Called(server)
-}
-
-// LiveStateCache_ClearClusterTaints_Call is a type for mocking the ClearClusterTaints method
-type LiveStateCache_ClearClusterTaints_Call struct {
-	*mock.Call
-}
-
-// ClearClusterTaints is a helper method to define mock.On call
-func (_e *LiveStateCache_Expecter) ClearClusterTaints() *LiveStateCache_ClearClusterTaints_Call {
-	return &LiveStateCache_ClearClusterTaints_Call{Call: _e.mock.On("ClearClusterTaints")}
-}
-
-func (_c *LiveStateCache_ClearClusterTaints_Call) Run(run func(server string)) *LiveStateCache_ClearClusterTaints_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
-	})
-	return _c
-}
-
-func (_c *LiveStateCache_ClearClusterTaints_Call) Return() *LiveStateCache_ClearClusterTaints_Call {
-	_c.Call.Return()
-	return _c
-}
-
-func (_c *LiveStateCache_ClearClusterTaints_Call) RunAndReturn(run func(server string)) *LiveStateCache_ClearClusterTaints_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetTaintedGVKs provides a mock function for the type LiveStateCache
-func (_mock *LiveStateCache) GetTaintedGVKs(server string) []string {
-	ret := _mock.Called(server)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetTaintedGVKs")
-	}
-
-	var r0 []string
-	if returnFunc, ok := ret.Get(0).(func(string) []string); ok {
-		r0 = returnFunc(server)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
-	}
-
-	return r0
-}
-
-// LiveStateCache_GetTaintedGVKs_Call is a type for mocking the GetTaintedGVKs method
-type LiveStateCache_GetTaintedGVKs_Call struct {
-	*mock.Call
-}
-
-// GetTaintedGVKs is a helper method to define mock.On call
-func (_e *LiveStateCache_Expecter) GetTaintedGVKs() *LiveStateCache_GetTaintedGVKs_Call {
-	return &LiveStateCache_GetTaintedGVKs_Call{Call: _e.mock.On("GetTaintedGVKs")}
-}
-
-func (_c *LiveStateCache_GetTaintedGVKs_Call) Run(run func(server string)) *LiveStateCache_GetTaintedGVKs_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
-	})
-	return _c
-}
-
-func (_c *LiveStateCache_GetTaintedGVKs_Call) Return(_a0 []string) *LiveStateCache_GetTaintedGVKs_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *LiveStateCache_GetTaintedGVKs_Call) RunAndReturn(run func(server string) []string) *LiveStateCache_GetTaintedGVKs_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// IsClusterTainted provides a mock function for the type LiveStateCache
-func (_mock *LiveStateCache) IsClusterTainted(server string) bool {
-	ret := _mock.Called(server)
-
-	if len(ret) == 0 {
-		panic("no return value specified for IsClusterTainted")
-	}
-
-	var r0 bool
-	if returnFunc, ok := ret.Get(0).(func(string) bool); ok {
-		r0 = returnFunc(server)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	return r0
-}
-
-// LiveStateCache_IsClusterTainted_Call is a type for mocking the IsClusterTainted method
-type LiveStateCache_IsClusterTainted_Call struct {
-	*mock.Call
-}
-
-// IsClusterTainted is a helper method to define mock.On call
-func (_e *LiveStateCache_Expecter) IsClusterTainted() *LiveStateCache_IsClusterTainted_Call {
-	return &LiveStateCache_IsClusterTainted_Call{Call: _e.mock.On("IsClusterTainted")}
-}
-
-func (_c *LiveStateCache_IsClusterTainted_Call) Run(run func(server string)) *LiveStateCache_IsClusterTainted_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
-	})
-	return _c
-}
-
-func (_c *LiveStateCache_IsClusterTainted_Call) Return(_a0 bool) *LiveStateCache_IsClusterTainted_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *LiveStateCache_IsClusterTainted_Call) RunAndReturn(run func(server string) bool) *LiveStateCache_IsClusterTainted_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// MarkClusterTainted provides a mock function for the type LiveStateCache
-func (_mock *LiveStateCache) MarkClusterTainted(server string, reason string, gvk string, errorType string) {
-	_mock.Called(server, reason, gvk, errorType)
-}
-
-// LiveStateCache_MarkClusterTainted_Call is a type for mocking the MarkClusterTainted method
-type LiveStateCache_MarkClusterTainted_Call struct {
-	*mock.Call
-}
-
-// MarkClusterTainted is a helper method to define mock.On call
-func (_e *LiveStateCache_Expecter) MarkClusterTainted() *LiveStateCache_MarkClusterTainted_Call {
-	return &LiveStateCache_MarkClusterTainted_Call{Call: _e.mock.On("MarkClusterTainted")}
-}
-
-func (_c *LiveStateCache_MarkClusterTainted_Call) Run(run func(server string, reason string, gvk string, errorType string)) *LiveStateCache_MarkClusterTainted_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string), args[2].(string), args[3].(string))
-	})
-	return _c
-}
-
-func (_c *LiveStateCache_MarkClusterTainted_Call) Return() *LiveStateCache_MarkClusterTainted_Call {
-	_c.Call.Return()
-	return _c
-}
-
-func (_c *LiveStateCache_MarkClusterTainted_Call) RunAndReturn(run func(server string, reason string, gvk string, errorType string)) *LiveStateCache_MarkClusterTainted_Call {
 	_c.Call.Return(run)
 	return _c
 }
