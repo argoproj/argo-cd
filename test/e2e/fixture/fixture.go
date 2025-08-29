@@ -1009,8 +1009,8 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			}
 			shortId = strings.ToLower(randString)
 			id = fmt.Sprintf("%s-%s", t.Name(), shortId)
-			name = DnsFriendly(t.Name(), fmt.Sprintf("-%s", shortId))
-			deploymentNamespace = DnsFriendly("argocd-e2e-"+t.Name(), fmt.Sprintf("-%s", shortId))
+			name = DnsFriendly(t.Name(), "-"+shortId)
+			deploymentNamespace = DnsFriendly("argocd-e2e-"+t.Name(), "-"+shortId)
 			// create namespace
 			_, err = Run("", "kubectl", "create", "ns", DeploymentNamespace())
 			if err != nil {

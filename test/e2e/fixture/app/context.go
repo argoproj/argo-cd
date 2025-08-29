@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test"
@@ -101,7 +101,7 @@ func GivenWithSameState(t *testing.T) *Context {
 // Unique application names prevents from potential conflicts between test run
 // caused by the tracking annotation on existing objects
 func (c *Context) AppName() string {
-	suffix := fmt.Sprintf("-%s", fixture.ShortId())
+	suffix := "-" + fixture.ShortId()
 	if strings.HasSuffix(c.name, suffix) {
 		return c.name
 	}
@@ -490,7 +490,7 @@ func (c *Context) Resource(content string) *Context {
 	if mapping == nil {
 		require.NoError(c.t, fmt.Errorf("cannot find mapping for %s", u.GroupVersionKind().String()))
 	}
-	_, err = fixture.DynamicClientset.Resource(mapping.Resource).Namespace(fixture.DeploymentNamespace()).Apply(c.t.Context(), u.GetName(), u, v1.ApplyOptions{FieldManager: "e2e-given-step"})
+	_, err = fixture.DynamicClientset.Resource(mapping.Resource).Namespace(fixture.DeploymentNamespace()).Apply(c.t.Context(), u.GetName(), u, metav1.ApplyOptions{FieldManager: "e2e-given-step"})
 	require.NoError(c.t, err)
 	return c
 }

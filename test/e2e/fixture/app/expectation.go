@@ -44,7 +44,7 @@ func Or(e1 Expectation, e2 Expectation) Expectation {
 		if s2 == pending {
 			return s2, m2
 		}
-		return failed, fmt.Sprintf("expectations unsuccessful: %s and %s")
+		return failed, fmt.Sprintf("expectations unsuccessful: %s and %s", m1, m2)
 	}
 }
 
