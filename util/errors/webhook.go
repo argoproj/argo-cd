@@ -4,9 +4,9 @@ import "strings"
 
 // IsConversionWebhookError checks if an error or message is related to conversion webhook failures
 // This function handles both error objects and plain strings
-func IsConversionWebhookError(input interface{}) bool {
+func IsConversionWebhookError(input any) bool {
 	var message string
-	
+
 	switch v := input.(type) {
 	case error:
 		if v == nil {
@@ -18,7 +18,7 @@ func IsConversionWebhookError(input interface{}) bool {
 	default:
 		return false
 	}
-	
+
 	return strings.Contains(message, "conversion webhook") ||
 		strings.Contains(message, "known conversion webhook failures") ||
 		strings.Contains(message, "unavailable resource types")

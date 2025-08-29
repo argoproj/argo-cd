@@ -75,10 +75,10 @@ func TestClusterDegradedState(t *testing.T) {
 	// Wait for cache invalidation, refresh, and conversion webhook failure detection
 	// Also wait for cluster info updater to run and populate failedResourceGVKs
 	time.Sleep(10 * time.Second)
-	
+
 	// Verify that the cluster is now in a degraded state and the field appears in the API
 	clusterFixture.VerifyFailedResourcesInResponse(t, KubernetesInternalAPIServerAddr)
-	
+
 	t.Log("✅ Conversion webhook failure detected and cluster degraded state validated via API")
 
 	// Clean up the real conversion webhook failure resources

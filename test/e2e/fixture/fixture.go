@@ -1346,10 +1346,10 @@ func GetToken() string {
 // to clear any stale failed GVKs from previous test runs
 func invalidateAllClusterCaches(t *testing.T) error {
 	t.Helper()
-	
+
 	// Get cluster client
 	_, clusterClient, _ := ArgoCDClientset.NewClusterClient()
-	
+
 	// Get list of all clusters
 	clusterList, err := clusterClient.List(t.Context(), &clusterpkg.ClusterQuery{})
 	if err != nil {
@@ -1357,7 +1357,7 @@ func invalidateAllClusterCaches(t *testing.T) error {
 		log.WithFields(log.Fields{"error": err}).Warn("Failed to list clusters during cleanup, skipping cache invalidation")
 		return nil
 	}
-	
+
 	// Invalidate cache for each cluster
 	for _, cluster := range clusterList.Items {
 		_, err := clusterClient.InvalidateCache(t.Context(), &clusterpkg.ClusterQuery{
@@ -1368,6 +1368,6 @@ func invalidateAllClusterCaches(t *testing.T) error {
 			log.WithFields(log.Fields{"server": cluster.Server, "error": err}).Warn("Failed to invalidate cluster cache during cleanup")
 		}
 	}
-	
+
 	return nil
 }
