@@ -204,10 +204,11 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             &nbsp;
                                                             {app.status.sourceHydrator?.currentOperation && (
                                                                 <>
-                                                                    <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} /> {app.status.sourceHydrator.currentOperation.phase}
+                                                                    <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />{' '}
+                                                                    {app.status.sourceHydrator.currentOperation.phase}
+                                                                    &nbsp;
                                                                 </>
                                                             )}
-                                                            &nbsp;
                                                             <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status}
                                                             &nbsp;
                                                             <OperationState app={app} quiet={true} />
