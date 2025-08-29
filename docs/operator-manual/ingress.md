@@ -434,6 +434,8 @@ spec:
 
 Once we create this service, we can configure the Ingress to conditionally route all `application/grpc` traffic to the new HTTP2 backend, using the `alb.ingress.kubernetes.io/conditions` annotation, as seen below. Note: The value after the . in the condition annotation _must_ be the same name as the service that you want traffic to route to - and will be applied on any path with a matching serviceName.
 
+Also note that we can configure the health check to return the gRPC health status code `OK - 0` from the argocd-server by setting the health check path to `/grpc.health.v1.Health/Check`. By default, the ALB health check for gRPC returns the status code `UNIMPLEMENTED - 12` on health check path `/AWS.ALB/healthcheck`.
+
 ```yaml
   apiVersion: networking.k8s.io/v1
   kind: Ingress
@@ -444,6 +446,9 @@ Once we create this service, we can configure the Ingress to conditionally route
       alb.ingress.kubernetes.io/conditions.argogrpc: |
         [{"field":"http-header","httpHeaderConfig":{"httpHeaderName": "Content-Type", "values":["application/grpc"]}}]
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+      # Use this annotation to receive OK - 0 instead of UNIMPLEMENTED - 12 for gRPC health check.
+      alb.ingress.kubernetes.io/healthcheck-path: /grpc.health.v1.Health/Check
+      alb.ingress.kubernetes.io/success-codes: '0'
     name: argocd
     namespace: argocd
   spec:
