@@ -24703,6 +24703,7 @@ data:
       - BackgroundScanReport
       - ClusterBackgroundScanReport
       - UpdateRequest
+  sourceHydrator.commitMessageTemplate: ""
 kind: ConfigMap
 metadata:
   labels:
