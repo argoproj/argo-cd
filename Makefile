@@ -113,7 +113,6 @@ define run-in-test-server
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
-		-v /tmp:/tmp${VOLUME_MOUNT} \
 		-w ${DOCKER_WORKDIR} \
 		-p ${ARGOCD_E2E_APISERVER_PORT}:8080 \
 		-p 4000:4000 \
@@ -138,7 +137,6 @@ define run-in-test-client
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
-		-v /tmp:/tmp${VOLUME_MOUNT} \
 		-w ${DOCKER_WORKDIR} \
 		$(PODMAN_ARGS) \
 		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
@@ -598,11 +596,13 @@ install-test-tools-local:
 	./hack/install.sh kustomize
 	./hack/install.sh helm
 	./hack/install.sh gotestsum
+	./hack/install.sh oras
 
 # Installs all tools required for running codegen (Linux packages)
 .PHONY: install-codegen-tools-local
 install-codegen-tools-local:
 	./hack/install.sh codegen-tools
+	./hack/install.sh codegen-go-tools
 
 # Installs all tools required for running codegen (Go packages)
 .PHONY: install-go-tools-local

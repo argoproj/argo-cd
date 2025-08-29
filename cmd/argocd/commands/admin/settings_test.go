@@ -233,7 +233,7 @@ func tempFile(content string) (string, io.Closer, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	_, err = f.Write([]byte(content))
+	_, err = f.WriteString(content)
 	if err != nil {
 		_ = os.Remove(f.Name())
 		return "", nil, err

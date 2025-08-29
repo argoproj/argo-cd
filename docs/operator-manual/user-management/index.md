@@ -347,10 +347,9 @@ data:
     # use the same clientID as the Argo CD server
     cliClientID: vvvvwwwwxxxxyyyyzzzz
 
-    # PKCE authentication flow processes authorization flow from browser only - default false
-    # uses the clientID
-    # make sure the Identity Provider (IdP) is public and doesn't need clientSecret
-    # make sure the Identity Provider (IdP) has this redirect URI registered: https://argocd.example.com/pkce/verify
+    # PKCE is an OIDC extension to prevent authorization code interception attacks.
+    # Make sure the identity provider supports it and that it is activated for Argo CD OIDC client.
+    # Default is false.
     enablePKCEAuthentication: true
 ```
 

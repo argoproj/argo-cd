@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"bytes"
+	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,6 +24,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/cespare/xxhash/v2"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -300,6 +303,10 @@ func (source *ApplicationSource) AllowsConcurrentProcessing() bool {
 		return source.Kustomize.AllowsConcurrentProcessing()
 	}
 	return true
+}
+
+func (source *ApplicationSource) IsOCI() bool {
+	return strings.HasPrefix(source.RepoURL, "oci://")
 }
 
 // IsRef returns true when the application source is of type Ref
@@ -1237,15 +1244,15 @@ func (status *ApplicationStatus) GetRevisions() []string {
 
 // BuildComparedToStatus will build a ComparedTo object based on the current
 // Application state.
-func (spec *ApplicationSpec) BuildComparedToStatus() ComparedTo {
+func (spec *ApplicationSpec) BuildComparedToStatus(sources []ApplicationSource) ComparedTo {
 	ct := ComparedTo{
 		Destination:       spec.Destination,
 		IgnoreDifferences: spec.IgnoreDifferences,
 	}
 	if spec.HasMultipleSources() {
-		ct.Sources = spec.Sources
+		ct.Sources = sources
 	} else {
-		ct.Source = spec.GetSource()
+		ct.Source = sources[0]
 	}
 	return ct
 }
@@ -1565,14 +1572,48 @@ type SyncStrategyHook struct {
 	SyncStrategyApply `json:",inline" protobuf:"bytes,1,opt,name=syncStrategyApply"`
 }
 
-// RevisionMetadata contains metadata for a specific revision in a Git repository
+// CommitMetadata contains metadata about a commit that is related in some way to another commit.
+type CommitMetadata struct {
+	// Author is the author of the commit, i.e. `git show -s --format=%an <%ae>`.
+	// Must be formatted according to RFC 5322 (mail.Address.String()).
+	// Comes from the Argocd-reference-commit-author trailer.
+	Author string `json:"author,omitempty" protobuf:"bytes,1,opt,name=author"`
+	// Date is the date of the commit, formatted as by `git show -s --format=%aI` (RFC 3339).
+	// It can also be an empty string if the date is unknown.
+	// Comes from the Argocd-reference-commit-date trailer.
+	Date string `json:"date,omitempty" protobuf:"bytes,2,opt,name=date"`
+	// Subject is the commit message subject line, i.e. `git show -s --format=%s`.
+	// Comes from the Argocd-reference-commit-subject trailer.
+	Subject string `json:"subject,omitempty" protobuf:"bytes,3,opt,name=subject"`
+	// Body is the commit message body minus the subject line, i.e. `git show -s --format=%b`.
+	// Comes from the Argocd-reference-commit-body trailer.
+	Body string `json:"body,omitempty" protobuf:"bytes,4,opt,name=body"`
+	// SHA is the commit hash.
+	// Comes from the Argocd-reference-commit-sha trailer.
+	SHA string `json:"sha,omitempty" protobuf:"bytes,5,opt,name=sha"`
+	// RepoURL is the URL of the repository where the commit is located.
+	// Comes from the Argocd-reference-commit-repourl trailer.
+	// This value is not validated and should not be used to construct UI links unless it is properly
+	// validated and/or sanitized first.
+	RepoURL string `json:"repoUrl,omitempty" protobuf:"bytes,6,opt,name=repoUrl"`
+}
+
+// RevisionReference contains a reference to a some information that is related in some way to another commit. For now,
+// it supports only references to a commit. In the future, it may support other types of references.
+type RevisionReference struct {
+	// Commit contains metadata about the commit that is related in some way to another commit.
+	Commit *CommitMetadata `json:"commit,omitempty" protobuf:"bytes,1,opt,name=commit"`
+}
+
+// RevisionMetadata contains metadata for a specific revision in a Git repository. This field is used by the
+// Source Hydrator feature which may be removed in the future.
 type RevisionMetadata struct {
 	// who authored this revision,
 	// typically their name and email, e.g. "John Doe <john_doe@my-company.com>",
 	// but might not match this example
 	Author string `json:"author,omitempty" protobuf:"bytes,1,opt,name=author"`
 	// Date specifies when the revision was authored
-	Date metav1.Time `json:"date" protobuf:"bytes,2,opt,name=date"`
+	Date *metav1.Time `json:"date" protobuf:"bytes,2,opt,name=date"`
 	// Tags specifies any tags currently attached to the revision
 	// Floating tags can move from one revision to another
 	Tags []string `json:"tags,omitempty" protobuf:"bytes,3,opt,name=tags"`
@@ -1580,6 +1621,19 @@ type RevisionMetadata struct {
 	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
 	// SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
 	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
+	// References contains references to information that's related to this commit in some way.
+	References []RevisionReference `json:"references,omitempty" protobuf:"bytes,6,opt,name=references"`
+}
+
+// OCIMetadata contains metadata for a specific revision in an OCI repository
+type OCIMetadata struct {
+	CreatedAt   string `json:"createdAt,omitempty" protobuf:"bytes,1,opt,name=createdAt"`
+	Authors     string `json:"authors,omitempty" protobuf:"bytes,2,opt,name=authors"`
+	ImageURL    string `json:"imageUrl,omitempty" protobuf:"bytes,3,opt,name=imageUrl"`
+	DocsURL     string `json:"docsUrl,omitempty" protobuf:"bytes,4,opt,name=docsUrl"`
+	SourceURL   string `json:"sourceUrl,omitempty" protobuf:"bytes,5,opt,name=sourceUrl"`
+	Version     string `json:"version,omitempty" protobuf:"bytes,6,opt,name=version"`
+	Description string `json:"description,omitempty" protobuf:"bytes,7,opt,name=description"`
 }
 
 // ChartDetails contains helm chart metadata for a specific version
@@ -1855,6 +1909,8 @@ type HostInfo struct {
 	ResourcesInfo []HostResourceInfo `json:"resourcesInfo,omitempty" protobuf:"bytes,2,name=resourcesInfo"`
 	// SystemInfo contains detailed system-level information about the host, such as OS, kernel version, and architecture.
 	SystemInfo corev1.NodeSystemInfo `json:"systemInfo,omitempty" protobuf:"bytes,3,opt,name=systemInfo"`
+	// Labels holds the labels attached to the host.
+	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,4,opt,name=labels"`
 }
 
 // ApplicationTree represents the hierarchical structure of resources associated with an Argo CD application.
@@ -2474,12 +2530,6 @@ type ResourceAction struct {
 type ResourceActionParam struct {
 	// Name is the name of the parameter.
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	// Value is the value of the parameter.
-	Value string `json:"value,omitempty" protobuf:"bytes,2,opt,name=value"`
-	// Type is the type of the parameter (e.g., string, integer).
-	Type string `json:"type,omitempty" protobuf:"bytes,3,opt,name=type"`
-	// Default is the default value of the parameter, if any.
-	Default string `json:"default,omitempty" protobuf:"bytes,4,opt,name=default"`
 }
 
 // TODO: refactor to use rbac.ActionGet, rbac.ActionCreate, without import cycle
@@ -2730,22 +2780,23 @@ func (w *SyncWindows) inactiveAllows(currentTime time.Time) (*SyncWindows, error
 		var inactive SyncWindows
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 		for _, w := range *w {
-			if w.Kind == "allow" {
-				schedule, sErr := specParser.Parse(w.Schedule)
-				if sErr != nil {
-					return nil, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
-				}
-				duration, dErr := time.ParseDuration(w.Duration)
-				if dErr != nil {
-					return nil, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
-				}
-				// Offset the nextWindow time to consider the timeZone of the sync window
-				timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
-				nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
+			if w.Kind != "allow" {
+				continue
+			}
+			schedule, sErr := specParser.Parse(w.Schedule)
+			if sErr != nil {
+				return nil, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
+			}
+			duration, dErr := time.ParseDuration(w.Duration)
+			if dErr != nil {
+				return nil, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
+			}
+			// Offset the nextWindow time to consider the timeZone of the sync window
+			timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
+			nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
 
-				if !nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) {
-					inactive = append(inactive, w)
-				}
+			if !nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) {
+				inactive = append(inactive, w)
 			}
 		}
 		if len(inactive) > 0 {
@@ -2767,7 +2818,7 @@ func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
 
 // AddWindow adds a sync window with the given parameters to the AppProject
 func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string, andOperator bool, description string) error {
-	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {
+	if knd == "" || sch == "" || dur == "" {
 		return errors.New("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 	}
 
@@ -3010,15 +3061,15 @@ func (w SyncWindow) active(currentTime time.Time) (bool, error) {
 
 // Update updates a sync window's settings with the given parameter
 func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string, description string) error {
-	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 && len(description) == 0 {
+	if s == "" && d == "" && len(a) == 0 && len(n) == 0 && len(c) == 0 && description == "" {
 		return errors.New("cannot update: require one or more of schedule, duration, application, namespace, cluster or description")
 	}
 
-	if len(s) > 0 {
+	if s != "" {
 		w.Schedule = s
 	}
 
-	if len(d) > 0 {
+	if d != "" {
 		w.Duration = d
 	}
 
@@ -3034,7 +3085,7 @@ func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []stri
 		w.Clusters = c
 	}
 
-	if len(description) > 0 {
+	if description != "" {
 		w.Description = description
 	}
 
@@ -3074,6 +3125,30 @@ func (w *SyncWindow) Validate() error {
 	}
 
 	return nil
+}
+
+func (w *SyncWindow) HashIdentity() (uint64, error) {
+	// Create a copy of the window with only the core identity fields
+	// Excluding ManualSync and Description as they are behavioral/metadata fields
+	identityWindow := SyncWindow{
+		Kind:           w.Kind,
+		Schedule:       w.Schedule,
+		Duration:       w.Duration,
+		Applications:   w.Applications,
+		Namespaces:     w.Namespaces,
+		Clusters:       w.Clusters,
+		TimeZone:       w.TimeZone,
+		UseAndOperator: w.UseAndOperator,
+		// ManualSync and Description are excluded as they don't affect window identity
+	}
+
+	var windowBuffer bytes.Buffer
+	enc := gob.NewEncoder(&windowBuffer)
+	err := enc.Encode(identityWindow)
+	if err != nil {
+		return 0, fmt.Errorf("failed to encode sync window for hashing: %w", err)
+	}
+	return xxhash.Sum64(windowBuffer.Bytes()), nil
 }
 
 // DestinationClusters returns a list of cluster URLs allowed as destination in an AppProject
@@ -3127,12 +3202,30 @@ type HelmOptions struct {
 	ValuesFileSchemes []string `protobuf:"bytes,1,opt,name=valuesFileSchemes"`
 }
 
+// KustomizeVersion holds information about additional Kustomize versions
+type KustomizeVersion struct {
+	// Name holds Kustomize version name
+	Name string `protobuf:"bytes,1,opt,name=name"`
+	// Path holds the corresponding binary path
+	Path string `protobuf:"bytes,2,opt,name=path"`
+	// BuildOptions that are specific to a Kustomize version
+	BuildOptions string `protobuf:"bytes,3,opt,name=buildOptions"`
+}
+
 // KustomizeOptions are options for kustomize to use when building manifests
 type KustomizeOptions struct {
 	// BuildOptions is a string of build parameters to use when calling `kustomize build`
 	BuildOptions string `protobuf:"bytes,1,opt,name=buildOptions"`
+
 	// BinaryPath holds optional path to kustomize binary
+	//
+	// Deprecated: Use settings.Settings instead. See: settings.Settings.KustomizeVersions.
+	// If this field is set, it will be used as the Kustomize binary path.
+	// Otherwise, Versions is used.
 	BinaryPath string `protobuf:"bytes,2,opt,name=binaryPath"`
+
+	// Versions is a list of Kustomize versions and their corresponding binary paths and build options.
+	Versions []KustomizeVersion `protobuf:"bytes,3,rep,name=versions"`
 }
 
 // ApplicationDestinationServiceAccount holds information about the service account to be impersonated for the application sync operation.
@@ -3303,7 +3396,7 @@ func findConditionIndexByType(conditions []ApplicationCondition, t ApplicationCo
 	return -1
 }
 
-// GetErrorConditions returns list of application error conditions
+// GetConditions returns list of application error conditions
 func (status *ApplicationStatus) GetConditions(conditionTypes map[ApplicationConditionType]bool) []ApplicationCondition {
 	result := make([]ApplicationCondition, 0)
 	for i := range status.Conditions {

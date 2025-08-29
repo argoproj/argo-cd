@@ -312,7 +312,7 @@ func (c *nativeHelmChart) loadRepoIndex(maxIndexSize int64) ([]byte, error) {
 		return nil, fmt.Errorf("error getting index URL: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, indexURL, nil)
+	req, err := http.NewRequest(http.MethodGet, indexURL, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("error creating HTTP request: %w", err)
 	}
@@ -496,7 +496,11 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) ([]string, error) 
 		).Info("took to get tags")
 
 		if c.indexCache != nil {
-			if err := c.indexCache.SetHelmIndex(tagsURL, data); err != nil {
+			cacheData, err := json.Marshal(entries)
+			if err != nil {
+				return nil, fmt.Errorf("failed to encode tags: %w", err)
+			}
+			if err := c.indexCache.SetHelmIndex(tagsURL, cacheData); err != nil {
 				log.Warnf("Failed to store tags list cache for repo: %s: %v", tagsURL, err)
 			}
 		}

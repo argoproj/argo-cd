@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"go.uber.org/automaxprocs/maxprocs"
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -100,19 +98,6 @@ type AppOptions struct {
 	syncSourceBranch                string
 	syncSourcePath                  string
 	hydrateToBranch                 string
-}
-
-// SetAutoMaxProcs sets the GOMAXPROCS value based on the binary name.
-// It suppresses logs for CLI binaries and logs the setting for services.
-func SetAutoMaxProcs(isCLI bool) {
-	if isCLI {
-		_, _ = maxprocs.Set() // Intentionally ignore errors for CLI binaries
-	} else {
-		_, err := maxprocs.Set(maxprocs.Logger(log.Infof))
-		if err != nil {
-			log.Errorf("Error setting GOMAXPROCS: %v", err)
-		}
-	}
 }
 
 func AddAppFlags(command *cobra.Command, opts *AppOptions) {
@@ -429,7 +414,7 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	if opts.ignoreMissingValueFiles {
 		src.Helm.IgnoreMissingValueFiles = opts.ignoreMissingValueFiles
 	}
-	if len(opts.values) > 0 {
+	if opts.values != "" {
 		err := src.Helm.SetValuesString(opts.values)
 		if err != nil {
 			log.Fatal(err)

@@ -13,8 +13,8 @@ import (
 
 func TestParseNumFromEnv(t *testing.T) {
 	const envKey = "SOMEKEY"
-	const min = math.MinInt + 1
-	const max = math.MaxInt - 1
+	const minimum = math.MinInt + 1
+	const maximum = math.MaxInt - 1
 	const def = 10
 	testCases := []struct {
 		name     string
@@ -24,8 +24,8 @@ func TestParseNumFromEnv(t *testing.T) {
 		{"Valid positive number", "200", 200},
 		{"Valid negative number", "-200", -200},
 		{"Invalid number", "abc", def},
-		{"Equals minimum", strconv.Itoa(math.MinInt + 1), min},
-		{"Equals maximum", strconv.Itoa(math.MaxInt - 1), max},
+		{"Equals minimum", strconv.Itoa(math.MinInt + 1), minimum},
+		{"Equals maximum", strconv.Itoa(math.MaxInt - 1), maximum},
 		{"Less than minimum", strconv.Itoa(math.MinInt), def},
 		{"Greater than maximum", strconv.Itoa(math.MaxInt), def},
 		{"Variable not set", "", def},
@@ -34,7 +34,7 @@ func TestParseNumFromEnv(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv(envKey, tt.env)
-			n := ParseNumFromEnv(envKey, def, min, max)
+			n := ParseNumFromEnv(envKey, def, minimum, maximum)
 			assert.Equal(t, tt.expected, n)
 		})
 	}
@@ -42,8 +42,8 @@ func TestParseNumFromEnv(t *testing.T) {
 
 func TestParseFloatFromEnv(t *testing.T) {
 	const envKey = "SOMEKEY"
-	var min float32 = -1000.5
-	var max float32 = 1000.5
+	var minimum float32 = -1000.5
+	var maximum float32 = 1000.5
 	const def float32 = 10.5
 	testCases := []struct {
 		name     string
@@ -54,17 +54,17 @@ func TestParseFloatFromEnv(t *testing.T) {
 		{"Valid negative float", "-2.0", -2.0},
 		{"Valid integer as float", "2", 2.0},
 		{"Text as invalid float", "abc", def},
-		{"Equals maximum", fmt.Sprintf("%v", max), max},
-		{"Equals minimum", fmt.Sprintf("%v", min), min},
-		{"Greater than maximum", fmt.Sprintf("%f", max+1), def},
-		{"Lesser than minimum", fmt.Sprintf("%f", min-1), def},
+		{"Equals maximum", fmt.Sprintf("%v", maximum), maximum},
+		{"Equals minimum", fmt.Sprintf("%v", minimum), minimum},
+		{"Greater than maximum", fmt.Sprintf("%f", maximum+1), def},
+		{"Lesser than minimum", fmt.Sprintf("%f", minimum-1), def},
 		{"Environment not set at", "", def},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv(envKey, tt.env)
-			f := ParseFloatFromEnv(envKey, def, min, max)
+			f := ParseFloatFromEnv(envKey, def, minimum, maximum)
 			assert.InEpsilon(t, tt.expected, f, 0.0001)
 		})
 	}
@@ -72,8 +72,8 @@ func TestParseFloatFromEnv(t *testing.T) {
 
 func TestParseInt64FromEnv(t *testing.T) {
 	const envKey = "SOMEKEY"
-	const min int64 = 1
-	const max int64 = math.MaxInt64 - 1
+	const minimum int64 = 1
+	const maximum int64 = math.MaxInt64 - 1
 	const def int64 = 10
 	testCases := []struct {
 		name     string
@@ -82,17 +82,17 @@ func TestParseInt64FromEnv(t *testing.T) {
 	}{
 		{"Valid int64", "200", 200},
 		{"Text as invalid int64", "abc", def},
-		{"Equals maximum", strconv.FormatInt(max, 10), max},
-		{"Equals minimum", strconv.FormatInt(min, 10), min},
-		{"Greater than maximum", strconv.FormatInt(max+1, 10), def},
-		{"Less than minimum", strconv.FormatInt(min-1, 10), def},
+		{"Equals maximum", strconv.FormatInt(maximum, 10), maximum},
+		{"Equals minimum", strconv.FormatInt(minimum, 10), minimum},
+		{"Greater than maximum", strconv.FormatInt(maximum+1, 10), def},
+		{"Less than minimum", strconv.FormatInt(minimum-1, 10), def},
 		{"Environment not set", "", def},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv(envKey, tt.env)
-			n := ParseInt64FromEnv(envKey, def, min, max)
+			n := ParseInt64FromEnv(envKey, def, minimum, maximum)
 			assert.Equal(t, tt.expected, n)
 		})
 	}
@@ -101,8 +101,8 @@ func TestParseInt64FromEnv(t *testing.T) {
 func TestParseDurationFromEnv(t *testing.T) {
 	envKey := "SOMEKEY"
 	def := 3 * time.Second
-	min := 2 * time.Second
-	max := 5 * time.Second
+	minimum := 2 * time.Second
+	maximum := 5 * time.Second
 
 	testCases := []struct {
 		name     string
@@ -136,7 +136,7 @@ func TestParseDurationFromEnv(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv(envKey, tc.env)
-			val := ParseDurationFromEnv(envKey, def, min, max)
+			val := ParseDurationFromEnv(envKey, def, minimum, maximum)
 			assert.Equal(t, tc.expected, val)
 		})
 	}

@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/validation"
 	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
@@ -215,22 +216,6 @@ type HelmRepoCredentials struct {
 	KeySecret      *corev1.SecretKeySelector `json:"keySecret,omitempty"`
 }
 
-// KustomizeVersion holds information about additional Kustomize version
-type KustomizeVersion struct {
-	// Name holds Kustomize version name
-	Name string
-	// Path holds corresponding binary path
-	Path string
-	// BuildOptions that are specific to Kustomize version
-	BuildOptions string
-}
-
-// KustomizeSettings holds kustomize settings
-type KustomizeSettings struct {
-	BuildOptions string
-	Versions     []KustomizeVersion
-}
-
 var (
 	ByClusterURLIndexer     = "byClusterURL"
 	byClusterURLIndexerFunc = func(obj any) ([]string, error) {
@@ -289,29 +274,39 @@ var (
 	}
 )
 
-func (ks *KustomizeSettings) GetOptions(source v1alpha1.ApplicationSource) (*v1alpha1.KustomizeOptions, error) {
-	binaryPath := ""
-	buildOptions := ""
+// KustomizeVersionNotRegisteredError is an error type that indicates a requested Kustomize version is not registered in
+// the Kustomize options in argocd-cm.
+type KustomizeVersionNotRegisteredError struct {
+	// Version is the Kustomize version that is not registered
+	Version string
+}
+
+func (e KustomizeVersionNotRegisteredError) Error() string {
+	return fmt.Sprintf("kustomize version %s is not registered", e.Version)
+}
+
+// GetKustomizeBinaryPath returns the path to the kustomize binary based on the provided KustomizeOptions and ApplicationSource.
+func GetKustomizeBinaryPath(ks *v1alpha1.KustomizeOptions, source v1alpha1.ApplicationSource) (string, error) {
+	if ks == nil {
+		// No versions or binary path specified, stick with defaults.
+		return "", nil
+	}
+
+	if ks.BinaryPath != "" { // nolint:staticcheck // BinaryPath is deprecated, but still supported for backward compatibility
+		log.Warn("kustomizeOptions.binaryPath is deprecated, use KustomizeOptions.versions instead")
+		// nolint:staticcheck // BinaryPath is deprecated, but if it's set, we'll use it to ensure backward compatibility
+		return ks.BinaryPath, nil
+	}
+
 	if source.Kustomize != nil && source.Kustomize.Version != "" {
 		for _, ver := range ks.Versions {
 			if ver.Name == source.Kustomize.Version {
-				// add version specific path and build options
-				binaryPath = ver.Path
-				buildOptions = ver.BuildOptions
-				break
+				return ver.Path, nil
 			}
 		}
-		if binaryPath == "" {
-			return nil, fmt.Errorf("kustomize version %s is not registered", source.Kustomize.Version)
-		}
-	} else {
-		// add build options for the default version
-		buildOptions = ks.BuildOptions
+		return "", KustomizeVersionNotRegisteredError{Version: source.Kustomize.Version}
 	}
-	return &v1alpha1.KustomizeOptions{
-		BuildOptions: buildOptions,
-		BinaryPath:   binaryPath,
-	}, nil
+	return "", nil
 }
 
 // Credentials for accessing a Git repository
@@ -455,6 +450,8 @@ const (
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
 	// settingsResourceTrackingMethodKey is the key to configure tracking method for application resources
 	settingsResourceTrackingMethodKey = "application.resourceTrackingMethod"
+	// allowedNodeLabelsKey is the key to the list of allowed node labels for the application pod view
+	allowedNodeLabelsKey = "application.allowedNodeLabels"
 	// settingsInstallationID holds the key for the instance installation ID
 	settingsInstallationID = "installationID"
 	// resourcesCustomizationsKey is the key to the map of resource overrides
@@ -565,11 +562,13 @@ type SettingsManager struct {
 	// subscribers is a list of subscribers to settings updates
 	subscribers []chan<- *ArgoCDSettings
 	// mutex protects concurrency sensitive parts of settings manager: access to subscribers list and initialization flag
-	mutex                 *sync.Mutex
-	initContextCancel     func()
-	reposCache            []Repository
-	repoCredsCache        []RepositoryCredentials
-	reposOrClusterChanged func()
+	mutex                     *sync.Mutex
+	initContextCancel         func()
+	reposOrClusterChanged     func()
+	tlsCertParser             func([]byte, []byte) (tls.Certificate, error)
+	tlsCertCache              *tls.Certificate
+	tlsCertCacheSecretName    string
+	tlsCertCacheSecretVersion string
 }
 
 type incompleteSettingsError struct {
@@ -714,8 +713,6 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*corev1.ConfigMap) err
 		return err
 	}
 
-	mgr.invalidateCache()
-
 	return mgr.ResyncInformers()
 }
 
@@ -746,7 +743,7 @@ func (mgr *SettingsManager) getSecret() (*corev1.Secret, error) {
 	return mgr.GetSecretByName(common.ArgoCDSecretName)
 }
 
-// Returns the Secret with the given name from the cluster.
+// GetSecretByName returns the Secret with the given name from the cluster.
 func (mgr *SettingsManager) GetSecretByName(secretName string) (*corev1.Secret, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
@@ -1154,14 +1151,14 @@ func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 }
 
 // GetKustomizeSettings loads the kustomize settings from argocd-cm ConfigMap
-func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
+func (mgr *SettingsManager) GetKustomizeSettings() (*v1alpha1.KustomizeOptions, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
-	kustomizeVersionsMap := map[string]KustomizeVersion{}
+	kustomizeVersionsMap := map[string]v1alpha1.KustomizeVersion{}
 	buildOptions := map[string]string{}
-	settings := &KustomizeSettings{}
+	settings := &v1alpha1.KustomizeOptions{}
 
 	// extract build options for the default version
 	if options, ok := argoCDCM.Data[kustomizeBuildOptionsKey]; ok {
@@ -1201,12 +1198,12 @@ func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
 	return settings, nil
 }
 
-func addKustomizeVersion(prefix, name, path string, kvMap map[string]KustomizeVersion) error {
+func addKustomizeVersion(prefix, name, path string, kvMap map[string]v1alpha1.KustomizeVersion) error {
 	version := name[len(prefix)+1:]
 	if _, ok := kvMap[version]; ok {
 		return fmt.Errorf("found duplicate kustomize version: %s", version)
 	}
-	kvMap[version] = KustomizeVersion{
+	kvMap[version] = v1alpha1.KustomizeVersion{
 		Name: version,
 		Path: path,
 	}
@@ -1272,15 +1269,6 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	return &settings, nil
 }
 
-// Clears cached settings on configmap/secret change
-func (mgr *SettingsManager) invalidateCache() {
-	mgr.mutex.Lock()
-	defer mgr.mutex.Unlock()
-
-	mgr.reposCache = nil
-	mgr.repoCredsCache = nil
-}
-
 func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	tweakConfigMap := func(options *metav1.ListOptions) {
 		cmLabelSelector := fields.ParseSelectorOrDie(partOfArgoCDSelector)
@@ -1289,7 +1277,6 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 
 	eventHandler := cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(_, _ any) {
-			mgr.invalidateCache()
 			mgr.onRepoOrClusterChanged()
 		},
 		AddFunc: func(_ any) {
@@ -1502,28 +1489,16 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	// The TLS certificate may be externally managed. We try to load it from an
 	// external secret first. If the external secret doesn't exist, we either
 	// load it from argocd-secret or generate (and persist) a self-signed one.
-	cert, err := mgr.externalServerTLSCertificate()
-	if err != nil {
+	externalSecret, err := mgr.GetSecretByName(externalServerTLSSecretName)
+	if err != nil && !apierrors.IsNotFound(err) {
 		errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("could not read from secret %s/%s: %v", mgr.namespace, externalServerTLSSecretName, err)})
 	} else {
-		if cert != nil {
-			settings.Certificate = cert
-			settings.CertificateIsExternal = true
-			log.Infof("Loading TLS configuration from secret %s/%s", mgr.namespace, externalServerTLSSecretName)
-		} else {
-			serverCert, certOk := argoCDSecret.Data[settingServerCertificate]
-			serverKey, keyOk := argoCDSecret.Data[settingServerPrivateKey]
-			if certOk && keyOk {
-				cert, err := tls.X509KeyPair(serverCert, serverKey)
-				if err != nil {
-					errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("invalid x509 key pair %s/%s in secret: %s", settingServerCertificate, settingServerPrivateKey, err)})
-				} else {
-					settings.Certificate = &cert
-					settings.CertificateIsExternal = false
-				}
-			}
+		err = mgr.loadTLSCertificate(settings, externalSecret, argoCDSecret)
+		if err != nil {
+			errs = append(errs, err)
 		}
 	}
+
 	secretValues := make(map[string]string, len(argoCDSecret.Data))
 	for _, s := range secrets {
 		for k, v := range s.Data {
@@ -1534,40 +1509,70 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 		secretValues[k] = string(v)
 	}
 	settings.Secrets = secretValues
+
+	settings.WebhookGitHubSecret = string(argoCDSecret.Data[settingsWebhookGitHubSecretKey])
+	settings.WebhookGitLabSecret = string(argoCDSecret.Data[settingsWebhookGitLabSecretKey])
+	settings.WebhookBitbucketUUID = string(argoCDSecret.Data[settingsWebhookBitbucketUUIDKey])
+	settings.WebhookBitbucketServerSecret = string(argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey])
+	settings.WebhookGogsSecret = string(argoCDSecret.Data[settingsWebhookGogsSecretKey])
+	settings.WebhookAzureDevOpsUsername = string(argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey])
+	settings.WebhookAzureDevOpsPassword = string(argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey])
+
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
 
-	settings.WebhookGitHubSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGitHubSecretKey]), settings.Secrets)
-	settings.WebhookGitLabSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGitLabSecretKey]), settings.Secrets)
-	settings.WebhookBitbucketUUID = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookBitbucketUUIDKey]), settings.Secrets)
-	settings.WebhookBitbucketServerSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey]), settings.Secrets)
-	settings.WebhookGogsSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGogsSecretKey]), settings.Secrets)
-	settings.WebhookAzureDevOpsUsername = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey]), settings.Secrets)
-	settings.WebhookAzureDevOpsPassword = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey]), settings.Secrets)
-
 	return nil
 }
 
-// externalServerTLSCertificate will try and load a TLS certificate from an
-// external secret, instead of tls.crt and tls.key in argocd-secret. If both
-// return values are nil, no external secret has been configured.
-func (mgr *SettingsManager) externalServerTLSCertificate() (*tls.Certificate, error) {
-	var cert tls.Certificate
-	secret, err := mgr.GetSecretByName(externalServerTLSSecretName)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, nil
+func (mgr *SettingsManager) loadTLSCertificate(settings *ArgoCDSettings, externalSecret *corev1.Secret, argoCDSecret *corev1.Secret) error {
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
+	if externalSecret != nil {
+		cert, err := mgr.loadTLSCertificateFromSecret(externalSecret)
+
+		if err != nil {
+			return err
+		} else if cert != nil {
+			settings.Certificate = cert
+			settings.CertificateIsExternal = true
 		}
 	}
+	// if there was no external cert found, check internal
+	if !settings.CertificateIsExternal {
+		cert, err := mgr.loadTLSCertificateFromSecret(argoCDSecret)
+
+		if err != nil {
+			return err
+		} else if cert != nil {
+			settings.Certificate = cert
+			settings.CertificateIsExternal = false
+		}
+	}
+	return nil
+}
+
+func (mgr *SettingsManager) loadTLSCertificateFromSecret(secret *corev1.Secret) (*tls.Certificate, error) {
+	if mgr.tlsCertCache != nil && mgr.tlsCertCacheSecretName == secret.Name && mgr.tlsCertCacheSecretVersion == secret.ResourceVersion {
+		return mgr.tlsCertCache, nil
+	}
+
 	tlsCert, certOK := secret.Data[settingServerCertificate]
 	tlsKey, keyOK := secret.Data[settingServerPrivateKey]
-	if certOK && keyOK {
-		cert, err = tls.X509KeyPair(tlsCert, tlsKey)
-		if err != nil {
-			return nil, err
-		}
+	if !certOK || !keyOK {
+		return nil, nil
 	}
+
+	log.Infof("Loading TLS configuration from secret %s/%s", mgr.namespace, secret.Name)
+	cert, err := mgr.tlsCertParser(tlsCert, tlsKey)
+	if err != nil {
+		return nil, err
+	}
+
+	mgr.tlsCertCache = &cert
+	mgr.tlsCertCacheSecretName = secret.Name
+	mgr.tlsCertCacheSecretVersion = secret.ResourceVersion
+
 	return &cert, nil
 }
 
@@ -1703,10 +1708,11 @@ func WithRepoOrClusterChangedHandler(handler func()) SettingsManagerOpts {
 // NewSettingsManager generates a new SettingsManager pointer and returns it
 func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string, opts ...SettingsManagerOpts) *SettingsManager {
 	mgr := &SettingsManager{
-		ctx:       ctx,
-		clientset: clientset,
-		namespace: namespace,
-		mutex:     &sync.Mutex{},
+		ctx:           ctx,
+		clientset:     clientset,
+		namespace:     namespace,
+		mutex:         &sync.Mutex{},
+		tlsCertParser: tls.X509KeyPair,
 	}
 	for i := range opts {
 		opts[i](mgr)
@@ -1786,6 +1792,41 @@ func (a *ArgoCDSettings) OIDCConfig() *OIDCConfig {
 		return nil
 	}
 	return config.toExported()
+}
+
+// GetWebhookGitHubSecret returns the resolved GitHub webhook secret
+func (a *ArgoCDSettings) GetWebhookGitHubSecret() string {
+	return ReplaceStringSecret(a.WebhookGitHubSecret, a.Secrets)
+}
+
+// GetWebhookGitLabSecret returns the resolved GitLab webhook secret
+func (a *ArgoCDSettings) GetWebhookGitLabSecret() string {
+	return ReplaceStringSecret(a.WebhookGitLabSecret, a.Secrets)
+}
+
+// GetWebhookBitbucketUUID returns the resolved Bitbucket webhook UUID
+func (a *ArgoCDSettings) GetWebhookBitbucketUUID() string {
+	return ReplaceStringSecret(a.WebhookBitbucketUUID, a.Secrets)
+}
+
+// GetWebhookBitbucketServerSecret returns the resolved Bitbucket Server webhook secret
+func (a *ArgoCDSettings) GetWebhookBitbucketServerSecret() string {
+	return ReplaceStringSecret(a.WebhookBitbucketServerSecret, a.Secrets)
+}
+
+// GetWebhookGogsSecret returns the resolved Gogs webhook secret
+func (a *ArgoCDSettings) GetWebhookGogsSecret() string {
+	return ReplaceStringSecret(a.WebhookGogsSecret, a.Secrets)
+}
+
+// GetWebhookAzureDevOpsUsername returns the resolved Azure DevOps webhook username
+func (a *ArgoCDSettings) GetWebhookAzureDevOpsUsername() string {
+	return ReplaceStringSecret(a.WebhookAzureDevOpsUsername, a.Secrets)
+}
+
+// GetWebhookAzureDevOpsPassword returns the resolved Azure DevOps webhook password
+func (a *ArgoCDSettings) GetWebhookAzureDevOpsPassword() string {
+	return ReplaceStringSecret(a.WebhookAzureDevOpsPassword, a.Secrets)
 }
 
 func unmarshalOIDCConfig(configStr string) (oidcConfig, error) {
@@ -1902,6 +1943,13 @@ func (a *ArgoCDSettings) OAuth2ClientSecret() string {
 		return a.DexOAuth2ClientSecret()
 	}
 	return ""
+}
+
+func (a *ArgoCDSettings) OAuth2UsePKCE() bool {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+		return oidcConfig.EnablePKCEAuthentication
+	}
+	return false
 }
 
 func (a *ArgoCDSettings) UseAzureWorkloadIdentity() bool {
@@ -2299,4 +2347,27 @@ func (mgr *SettingsManager) IsImpersonationEnabled() (bool, error) {
 		return defaultImpersonationEnabledFlag, fmt.Errorf("error checking %s property in configmap: %w", impersonationEnabledKey, err)
 	}
 	return cm.Data[impersonationEnabledKey] == "true", nil
+}
+
+func (mgr *SettingsManager) GetAllowedNodeLabels() []string {
+	labelKeys := []string{}
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		log.Error(fmt.Errorf("failed getting allowedNodeLabels from configmap: %w", err))
+		return labelKeys
+	}
+	value, ok := argoCDCM.Data[allowedNodeLabelsKey]
+	if !ok || value == "" {
+		return labelKeys
+	}
+	value = strings.ReplaceAll(value, " ", "")
+	keys := strings.SplitSeq(value, ",")
+	for k := range keys {
+		if errs := validation.IsQualifiedName(k); len(errs) > 0 {
+			log.Warnf("Invalid node label key '%s' in configmap: %v", k, errs)
+			continue
+		}
+		labelKeys = append(labelKeys, k)
+	}
+	return labelKeys
 }

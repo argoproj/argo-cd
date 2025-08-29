@@ -138,7 +138,7 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 		var err error
 		switch r.RequestURI {
 		case "/repositories/OWNER/REPO/pullrequests/":
-			_, err = io.WriteString(w, fmt.Sprintf(`{
+			_, err = fmt.Fprintf(w, `{
 				"size": 2,
 				"pagelen": 1,
 				"page": 1,
@@ -177,9 +177,9 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 						}
 					}
 				]
-			}`, r.Host))
+			}`, r.Host)
 		case "/repositories/OWNER/REPO/pullrequests/?pagelen=1&page=2":
-			_, err = io.WriteString(w, fmt.Sprintf(`{
+			_, err = fmt.Fprintf(w, `{
 				"size": 2,
 				"pagelen": 1,
 				"page": 2,
@@ -202,7 +202,7 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 						}
 					}
 				]
-			}`, r.Host))
+			}`, r.Host)
 		default:
 			t.Fail()
 		}
@@ -329,7 +329,7 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 		var err error
 		switch r.RequestURI {
 		case "/repositories/OWNER/REPO/pullrequests/":
-			_, err = io.WriteString(w, fmt.Sprintf(`{
+			_, err = fmt.Fprintf(w, `{
 				"size": 2,
 				"pagelen": 1,
 				"page": 1,
@@ -378,9 +378,9 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 						}
 					}
 				]
-			}`, r.Host))
+			}`, r.Host)
 		case "/repositories/OWNER/REPO/pullrequests/?pagelen=1&page=2":
-			_, err = io.WriteString(w, fmt.Sprintf(`{
+			_, err = fmt.Fprintf(w, `{
 				"size": 2,
 				"pagelen": 1,
 				"page": 2,
@@ -408,7 +408,7 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 						}
 					}
 				]
-			}`, r.Host))
+			}`, r.Host)
 		default:
 			t.Fail()
 		}
@@ -491,4 +491,30 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 		Author:       "testName",
 		TargetBranch: "branch-200",
 	}, *pullRequests[0])
+}
+
+func TestBitbucketCloudListReturnsRepositoryNotFoundError(t *testing.T) {
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	path := "/repositories/nonexistent/nonexistent/pullrequests/"
+
+	mux.HandleFunc(path, func(w http.ResponseWriter, _ *http.Request) {
+		// Return 404 status to simulate repository not found
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
+	})
+
+	svc, err := NewBitbucketCloudServiceNoAuth(server.URL, "nonexistent", "nonexistent")
+	require.NoError(t, err)
+
+	prs, err := svc.List(t.Context())
+
+	// Should return empty pull requests list
+	assert.Empty(t, prs)
+
+	// Should return RepositoryNotFoundError
+	require.Error(t, err)
+	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
 }

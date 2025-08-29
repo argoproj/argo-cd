@@ -34,6 +34,8 @@ and might fail. To avoid failed syncs use the `ARGOCD_GIT_ATTEMPTS_COUNT` enviro
 
 * `argocd-repo-server` executes config management tools such as `helm` or `kustomize` and enforces a 90 second timeout. This timeout can be changed by using the `ARGOCD_EXEC_TIMEOUT` env variable. The value should be in the Go time duration string format, for example, `2m30s`.
 
+* `argocd-repo-server` will issue a `SIGTERM` signal to a command that has elapsed the `ARGOCD_EXEC_TIMEOUT`. In most cases, well-behaved commands will exit immediately when receiving the signal. However, if this does not happen, `argocd-repo-server` will wait an additional timeout of `ARGOCD_EXEC_FATAL_TIMEOUT` and then forcefully exit the command with a `SIGKILL` to prevent stalling. Note that a failure to exit with `SIGTERM` is usually a bug in either the offending command or in the way `argocd-repo-server` calls it and should be reported to the issue tracker for further investigation.
+
 **metrics:**
 
 * `argocd_git_request_total` - Number of git requests. This metric provides two tags:

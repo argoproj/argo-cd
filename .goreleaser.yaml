@@ -24,8 +24,8 @@ builds:
       - -extldflags="-static"
     goos:
       - linux
-      - darwin
       - windows
+      - darwin
     goarch:
       - amd64
       - arm64
@@ -49,7 +49,7 @@ archives:
       - argocd-cli
     name_template: |-
       {{ .ProjectName }}-{{ .Os }}-{{ .Arch }}
-    formats: [binary]
+    formats: [ binary ]
 
 checksum:
   name_template: 'cli_checksums.txt'

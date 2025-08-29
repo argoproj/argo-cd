@@ -1,7 +1,6 @@
 package util
 
 import (
-	"bytes"
 	"log"
 	"os"
 	"testing"
@@ -571,29 +570,5 @@ func TestFilterResources(t *testing.T) {
 		filteredResources, err := FilterResources(false, resources, "g", "Service", "argocd", "test-helm", false)
 		require.ErrorContains(t, err, "use the --all flag")
 		assert.Nil(t, filteredResources)
-	})
-}
-
-func TestSetAutoMaxProcs(t *testing.T) {
-	t.Run("CLI mode ignores errors", func(t *testing.T) {
-		logBuffer := &bytes.Buffer{}
-		oldLogger := log.Default()
-		log.SetOutput(logBuffer)
-		defer log.SetOutput(oldLogger.Writer())
-
-		SetAutoMaxProcs(true)
-
-		assert.Empty(t, logBuffer.String(), "Expected no log output when isCLI is true")
-	})
-
-	t.Run("Non-CLI mode logs error on failure", func(t *testing.T) {
-		logBuffer := &bytes.Buffer{}
-		oldLogger := log.Default()
-		log.SetOutput(logBuffer)
-		defer log.SetOutput(oldLogger.Writer())
-
-		SetAutoMaxProcs(false)
-
-		assert.NotContains(t, logBuffer.String(), "Error setting GOMAXPROCS", "Unexpected log output detected")
 	})
 }
