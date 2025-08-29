@@ -41,10 +41,10 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
+	errorutils "github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/gpg"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
-	errorutils "github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/stats"
 )
@@ -707,20 +707,28 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 			// Extract more detailed information from the error message for better diagnostics
 			errorMsg := err.Error()
-			if strings.Contains(errorMsg, "cannot sync application because all target resources have known conversion webhook failures") {
+			switch {
+			case strings.Contains(errorMsg, "cannot sync application because all target resources have known conversion webhook failures"):
 				// More detailed error message
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:               v1alpha1.ApplicationConditionComparisonError,
 					Message:            fmt.Sprintf("This application cannot be synced because it contains resources with conversion webhook failures: %v. Check cluster status for more details about the affected resource types.", errorMsg),
 					LastTransitionTime: &now,
 				})
-			} else if strings.Contains(errorMsg, "conversion webhook") || strings.Contains(errorMsg, "unavailable resource types") {
+			case strings.Contains(errorMsg, "failed to list resources") && strings.Contains(errorMsg, "conversion webhook"):
+				// Specific handling for list operation failures due to conversion webhook issues
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:               v1alpha1.ApplicationConditionComparisonError,
-					Message:            fmt.Sprintf("Application contains resources affected by conversion webhook failures. Some resources may not be properly synchronized. Check cluster status for more details about the affected resource types."),
+					Message:            fmt.Sprintf("Failed to list resources due to conversion webhook error: %v. Check cluster status for more details about the affected resource types.", errorMsg),
 					LastTransitionTime: &now,
 				})
-			} else {
+			case strings.Contains(errorMsg, "conversion webhook") || strings.Contains(errorMsg, "unavailable resource types"):
+				conditions = append(conditions, v1alpha1.ApplicationCondition{
+					Type:               v1alpha1.ApplicationConditionComparisonError,
+					Message:            "Application contains resources affected by conversion webhook failures. Some resources may not be properly synchronized. Check cluster status for more details about the affected resource types.",
+					LastTransitionTime: &now,
+				})
+			default:
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:               v1alpha1.ApplicationConditionComparisonError,
 					Message:            fmt.Sprintf("Error retrieving live state: %v", err),
@@ -827,7 +835,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	hasConversionWebhookIssues := false
 	for _, condition := range app.Status.Conditions {
 		if condition.Type == v1alpha1.ApplicationConditionComparisonError &&
-		   (strings.Contains(condition.Message, "conversion webhook") || strings.Contains(condition.Message, "unavailable resource types")) {
+			(strings.Contains(condition.Message, "conversion webhook") || strings.Contains(condition.Message, "unavailable resource types")) {
 			hasConversionWebhookIssues = true
 			break
 		}
@@ -1018,17 +1026,18 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		resourceSummaries[i] = resState
 	}
 
-	if failedToLoadObjs {
+	switch {
+	case failedToLoadObjs:
 		syncCode = v1alpha1.SyncStatusCodeUnknown
-	} else if hasConversionWebhookIssues && len(targetObjs) == 0 {
+	case hasConversionWebhookIssues && len(targetObjs) == 0:
 		// If we have conversion webhook issues and no target objects successfully loaded,
 		// the sync status should be Unknown since we can't determine real state
 		syncCode = v1alpha1.SyncStatusCodeUnknown
-	} else if hasConversionWebhookIssues {
+	case hasConversionWebhookIssues:
 		// If we have conversion webhook issues but some targets loaded, mark as OutOfSync
 		// This ensures the user knows something needs attention
 		syncCode = v1alpha1.SyncStatusCodeOutOfSync
-	} else if app.HasChangedManagedNamespaceMetadata() {
+	case app.HasChangedManagedNamespaceMetadata():
 		syncCode = v1alpha1.SyncStatusCodeOutOfSync
 	}
 
@@ -1287,4 +1296,3 @@ func isSelfReferencedObj(obj *unstructured.Unstructured, aiv argo.AppInstanceVal
 		obj.GetObjectKind().GroupVersionKind().Group == aiv.Group &&
 		obj.GetObjectKind().GroupVersionKind().Kind == aiv.Kind
 }
-
