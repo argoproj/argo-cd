@@ -231,6 +231,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	mockStateCache.EXPECT().IsNamespaced(mock.Anything, mock.Anything).Return(true, nil)
 	mockStateCache.EXPECT().GetManagedLiveObjs(mock.Anything, mock.Anything, mock.Anything).Return(data.managedLiveObjs, nil)
 	mockStateCache.EXPECT().GetVersionsInfo(mock.Anything).Return("v1.2.3", nil, nil)
+	mockStateCache.EXPECT().GetTaintedGVKs(mock.Anything).Return([]string{}, nil)
 	response := make(map[kube.ResourceKey]v1alpha1.ResourceNode)
 	for k, v := range data.namespacedResources {
 		response[k] = v.ResourceNode
@@ -3205,7 +3206,7 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 
 	// Create a conversion webhook error
 	conversionError := errors.New("failed to sync cluster: failed to load initial state of resource BucketServerSideEncryptionConfiguration.s3.aws.upbound.io: conversion webhook for s3.aws.upbound.io/v1beta1, Kind=BucketServerSideEncryptionConfiguration failed: Post \"https://provider-aws-s3.crossplane-system.svc:9443/convert?timeout=30s\": no endpoints available for service \"provider-aws-s3\"")
-	
+
 	// Create a specific list operation conversion webhook error
 	listConversionError := errors.New("failed to list resources: conversion webhook for conversion.example.com/v1, Kind=Example failed: Post \"https://conversion-webhook-service.webhook-system.svc:443/convert?timeout=30s\": service \"conversion-webhook-service\" not found")
 
@@ -3245,6 +3246,9 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 	customMockStateCache.On("IterateHierarchyV2", mock.Anything, mock.Anything, mock.Anything).Return(conversionError)
 	customMockStateCache.On("IterateResources", mock.Anything, mock.Anything).Return(nil)
 
+	// Set up taint manager methods
+	customMockStateCache.On("GetTaintedGVKs", mock.Anything).Return([]string{}, nil)
+
 	// Set up cluster cache mock
 	clusterCacheMock := &mocks.ClusterCache{}
 	clusterCacheMock.EXPECT().IsNamespaced(mock.Anything).Return(true, nil)
@@ -3279,7 +3283,7 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 	// Verify that conversion webhook errors are properly handled and reported
 	hasConversionError := false
 	hasListConversionError := false
-	
+
 	for _, app := range []*v1alpha1.Application{updatedApp1, updatedApp2} {
 		for _, condition := range app.Status.Conditions {
 			if condition.Type == v1alpha1.ApplicationConditionComparisonError {
