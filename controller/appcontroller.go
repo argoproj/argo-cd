@@ -68,7 +68,6 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	errorutils "github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	"github.com/argoproj/argo-cd/v3/util/helm"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
@@ -627,7 +626,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 		return true
 	})
 	if err != nil {
-		if !errorutils.IsConversionWebhookError(err) {
+		if !errors.IsConversionWebhookError(err) {
 			return nil, fmt.Errorf("failed to iterate resource hierarchy v2: %w", err)
 		}
 
@@ -668,7 +667,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 		return true
 	})
 	if err != nil {
-		if !errorutils.IsConversionWebhookError(err) {
+		if !errors.IsConversionWebhookError(err) {
 			return nil, fmt.Errorf("failed to iterate resource hierarchy v2 for orphaned resources: %w", err)
 		}
 
@@ -1888,46 +1887,45 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	// Check for cluster cache issues that affect this application
 	hasCacheIssues := false
 	usesTaintedResources := false
-	
+
 	// Take a snapshot of cluster taint state to ensure consistency throughout the function
 	clusterURL := app.Spec.Destination.Server
 	failedGVKs := ctrl.stateCache.GetTaintedGVKs(clusterURL)
-	
+
 	// 1. First check if the app itself reports conversion webhook errors
 	hasCacheIssues = hasClusterCacheIssues(app)
-	
+
 	// 2. Check app conditions for cache-related errors during refresh
 	for _, condition := range app.Status.Conditions {
-		if condition.Type == appv1.ApplicationConditionComparisonError && 
-		   (strings.Contains(condition.Message, "conversion webhook") || 
-		    strings.Contains(condition.Message, "known conversion webhook failures") || 
-		    strings.Contains(condition.Message, "unavailable resource types") ||
-		    strings.Contains(condition.Message, "failed to list resources") ||
-		    strings.Contains(condition.Message, "Expired: too old resource version")) {
+		if condition.Type == appv1.ApplicationConditionComparisonError &&
+			(strings.Contains(condition.Message, "conversion webhook") ||
+				strings.Contains(condition.Message, "known conversion webhook failures") ||
+				strings.Contains(condition.Message, "unavailable resource types") ||
+				strings.Contains(condition.Message, "failed to list resources") ||
+				strings.Contains(condition.Message, "Expired: too old resource version")) {
 			hasCacheIssues = true
 			break
 		}
 	}
-	
+
 	// 3. Check resources for errors
 	for _, res := range app.Status.Resources {
-		if res.Health != nil && res.Health.Message != "" && 
-		   (strings.Contains(res.Health.Message, "conversion webhook") || 
-		    strings.Contains(res.Health.Message, "unavailable resource types") ||
-		    strings.Contains(res.Health.Message, "failed to get resource")) {
+		if res.Health != nil && res.Health.Message != "" &&
+			(strings.Contains(res.Health.Message, "conversion webhook") ||
+				strings.Contains(res.Health.Message, "unavailable resource types") ||
+				strings.Contains(res.Health.Message, "failed to get resource")) {
 			hasCacheIssues = true
 			break
 		}
 	}
-	
+
 	// 4. Check if the app directly uses any tainted resources (using consistent snapshot)
 	if len(failedGVKs) > 0 {
-		
-		resLoop:
+	resLoop:
 		for _, res := range app.Status.Resources {
 			gvkStr := fmt.Sprintf("%s/%s, Kind=%s", res.Group, res.Version, res.Kind)
 			gvkWildcard := fmt.Sprintf("%s/*, Kind=%s", res.Group, res.Kind)
-			
+
 			for _, failedGVK := range failedGVKs {
 				if failedGVK == gvkStr || failedGVK == gvkWildcard {
 					usesTaintedResources = true
@@ -1936,10 +1934,10 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			}
 		}
 	}
-	
-	// If the application has conversion webhook errors, set health status to degraded
+
 	// Set health status based on the severity of detected issues
-	if usesTaintedResources {
+	switch {
+	case usesTaintedResources:
 		// Application directly uses tainted resources - mark as degraded
 		app.Status.Health.Status = health.HealthStatusDegraded
 		// Add a condition explaining why it's degraded
@@ -1947,17 +1945,17 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.SetConditions(
 			[]appv1.ApplicationCondition{
 				{
-					Type:    appv1.ApplicationConditionComparisonError,
-					Message: "Application directly uses resources with known issues in the cluster cache",
+					Type:               appv1.ApplicationConditionComparisonError,
+					Message:            "Application directly uses resources with known issues in the cluster cache",
 					LastTransitionTime: &now,
 				},
 			},
 			map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionComparisonError: true},
 		)
-	} else if hasCacheIssues {
+	case hasCacheIssues:
 		// Application has cache issues but doesn't directly use tainted resources
 		app.Status.Health.Status = health.HealthStatusDegraded
-	} else {
+	default:
 		app.Status.Health.Status = compareResult.healthStatus
 	}
 	app.Status.Resources = compareResult.resources
@@ -2144,21 +2142,21 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 func hasClusterCacheIssues(app *appv1.Application) bool {
 	// Check operation state for conversion webhook errors
 	if app.Status.OperationState != nil {
-		if strings.Contains(app.Status.OperationState.Message, "conversion webhook") || 
-		   strings.Contains(app.Status.OperationState.Message, "known conversion webhook failures") || 
-		   strings.Contains(app.Status.OperationState.Message, "unavailable resource types") ||
-		   strings.Contains(app.Status.OperationState.Message, "failed to list resources") ||
-		   strings.Contains(app.Status.OperationState.Message, "Expired: too old resource version") {
+		if strings.Contains(app.Status.OperationState.Message, "conversion webhook") ||
+			strings.Contains(app.Status.OperationState.Message, "known conversion webhook failures") ||
+			strings.Contains(app.Status.OperationState.Message, "unavailable resource types") ||
+			strings.Contains(app.Status.OperationState.Message, "failed to list resources") ||
+			strings.Contains(app.Status.OperationState.Message, "Expired: too old resource version") {
 			return true
 		}
 		// Also check sync result resources
 		if app.Status.OperationState.SyncResult != nil {
 			for _, res := range app.Status.OperationState.SyncResult.Resources {
-				if strings.Contains(res.Message, "conversion webhook") || 
-				   strings.Contains(res.Message, "known conversion webhook failures") || 
-				   strings.Contains(res.Message, "unavailable resource types") ||
-				   strings.Contains(res.Message, "failed to list resources") ||
-				   strings.Contains(res.Message, "Expired: too old resource version") {
+				if strings.Contains(res.Message, "conversion webhook") ||
+					strings.Contains(res.Message, "known conversion webhook failures") ||
+					strings.Contains(res.Message, "unavailable resource types") ||
+					strings.Contains(res.Message, "failed to list resources") ||
+					strings.Contains(res.Message, "Expired: too old resource version") {
 					return true
 				}
 			}
@@ -2167,17 +2165,17 @@ func hasClusterCacheIssues(app *appv1.Application) bool {
 
 	// Check application conditions
 	for _, condition := range app.Status.Conditions {
-		if (condition.Type == appv1.ApplicationConditionComparisonError || 
-		    condition.Type == appv1.ApplicationConditionSyncError) && 
-		    (strings.Contains(condition.Message, "conversion webhook") || 
-		     strings.Contains(condition.Message, "known conversion webhook failures") || 
-		     strings.Contains(condition.Message, "unavailable resource types") ||
-		     strings.Contains(condition.Message, "failed to list resources") ||
-		     strings.Contains(condition.Message, "Expired: too old resource version")) {
+		if (condition.Type == appv1.ApplicationConditionComparisonError ||
+			condition.Type == appv1.ApplicationConditionSyncError) &&
+			(strings.Contains(condition.Message, "conversion webhook") ||
+				strings.Contains(condition.Message, "known conversion webhook failures") ||
+				strings.Contains(condition.Message, "unavailable resource types") ||
+				strings.Contains(condition.Message, "failed to list resources") ||
+				strings.Contains(condition.Message, "Expired: too old resource version")) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 

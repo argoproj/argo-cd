@@ -26,20 +26,20 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 
 	// Check if application has conversion webhook error conditions
 	hasConversionWebhookIssues := false
-	
+
 	// Check sync operation state for conversion webhook errors
 	if app.Status.OperationState != nil && app.Status.OperationState.Phase == synccommon.OperationFailed {
 		if strings.Contains(app.Status.OperationState.Message, "conversion webhook") {
 			hasConversionWebhookIssues = true
 		}
 	}
-	
+
 	// Also check application conditions
 	for _, condition := range app.Status.Conditions {
-		if (condition.Type == appv1.ApplicationConditionComparisonError || 
-		    condition.Type == appv1.ApplicationConditionSyncError) &&
-		   (strings.Contains(condition.Message, "conversion webhook") || 
-		    strings.Contains(condition.Message, "unavailable resource types")) {
+		if (condition.Type == appv1.ApplicationConditionComparisonError ||
+			condition.Type == appv1.ApplicationConditionSyncError) &&
+			(strings.Contains(condition.Message, "conversion webhook") ||
+				strings.Contains(condition.Message, "unavailable resource types")) {
 			hasConversionWebhookIssues = true
 			break
 		}
