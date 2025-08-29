@@ -114,7 +114,6 @@ func (c *clusterInfoUpdater) updateClusters() {
 	log.Debugf("Successfully saved info of %d clusters", len(clustersFiltered))
 }
 
-
 func (c *clusterInfoUpdater) updateClusterInfo(ctx context.Context, cluster appv1.Cluster, info *cache.ClusterInfo) error {
 	apps, err := c.appLister.List(labels.Everything())
 	if err != nil {
