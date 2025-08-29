@@ -118,8 +118,6 @@ func newSyncOperationResult(app *v1alpha1.Application, op v1alpha1.SyncOperation
 	return syncRes
 }
 
-
-
 func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState) {
 	syncId, err := syncid.Generate()
 	if err != nil {
@@ -164,10 +162,10 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 	compareResult, err := m.CompareAppState(app, project, revisions, sources, false, true, syncOp.Manifests, isMultiSourceSync)
 	if err != nil && !stderrors.Is(err, ErrCompareStateRepo) {
 		state.Phase = common.OperationError
-		
+
 		// Check if this is a conversion webhook error and provide a more helpful message
 		if errorutils.IsConversionWebhookError(err) {
-			state.Message = fmt.Sprintf("Application contains resources with conversion webhook failures. Some resources cannot be properly synchronized. Check cluster status for more details about the affected resource types.")
+			state.Message = "Application contains resources with conversion webhook failures. Some resources cannot be properly synchronized. Check cluster status for more details about the affected resource types."
 		} else {
 			state.Message = err.Error()
 		}
