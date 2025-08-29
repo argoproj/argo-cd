@@ -23,7 +23,7 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 	fixture.EnsureCleanState(t)
 	defer fixture.RecordTestRun(t)
 
-	// Step 1: Bring up working app that will NOT be impacted (to test isolation) 
+	// Step 1: Bring up working app that will NOT be impacted (to test isolation)
 	isolatedAppName := "isolated-guestbook-app"
 	t.Log("📱 Creating isolated app (will NOT be impacted)")
 	Given(t).
@@ -81,7 +81,7 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 		SetAppNamespace(fixture.AppNamespace()).
 		When().
 		Refresh(RefreshTypeHard)
-	
+
 	GivenWithSameState(t).
 		Name(isolatedAppName).
 		SetAppNamespace(fixture.AppNamespace()).
@@ -109,7 +109,7 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 
 	// Step 6: Validate conversion webhook failure isolation behavior
 	t.Log("🔍 Validating conversion webhook failure shows proper error details")
-	// The sync operation above already validated the degraded state; 
+	// The sync operation above already validated the degraded state;
 	// the failure was isolated to the specific CRD resource as expected
 
 	// Step 7: Validate that unimpacted app is not affected
@@ -144,7 +144,7 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(HealthIs(health.HealthStatusHealthy))
-	
+
 	// Also refresh isolated app to confirm it's still healthy
 	GivenWithSameState(t).
 		Name(isolatedAppName).
