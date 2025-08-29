@@ -61,7 +61,7 @@ func NewGenProjectSpecCommand() *cobra.Command {
   		`),
 
 		Run: func(c *cobra.Command, args []string) {
-			proj, err := cmdutil.ConstructAppProj(fileURL, args, opts, c)
+			proj, err := cmdutil.ConstructAppProj(fileURL, args, &opts, c)
 			errors.CheckError(err)
 
 			out, closer, err := getOutWriter(inline, fileURL)
@@ -113,7 +113,7 @@ func getModification(modification string, resource string, scope string, permiss
 	return nil, fmt.Errorf("modification %s is not supported", modification)
 }
 
-func saveProject(ctx context.Context, updated v1alpha1.AppProject, orig v1alpha1.AppProject, projectsIf appclient.AppProjectInterface, dryRun bool) error {
+func saveProject(ctx context.Context, updated *v1alpha1.AppProject, orig *v1alpha1.AppProject, projectsIf appclient.AppProjectInterface, dryRun bool) error {
 	fmt.Printf("===== %s ======\n", updated.Name)
 	target, err := kube.ToUnstructured(&updated)
 	errors.CheckError(err)
@@ -123,7 +123,7 @@ func saveProject(ctx context.Context, updated v1alpha1.AppProject, orig v1alpha1
 	}
 	_ = cli.PrintDiff(updated.Name, target, live)
 	if !dryRun {
-		_, err = projectsIf.Update(ctx, &updated, metav1.UpdateOptions{})
+		_, err = projectsIf.Update(ctx, updated, metav1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("error while updating project:  %w", err)
 		}
@@ -237,7 +237,7 @@ func updateProjects(ctx context.Context, projIf appclient.AppProjectInterface, p
 			proj.Spec.Roles[i] = role
 		}
 		if updated {
-			err = saveProject(ctx, proj, *origProj, projIf, dryRun)
+			err = saveProject(ctx, &proj, origProj, projIf, dryRun)
 			if err != nil {
 				return fmt.Errorf("error saving the project: %w", err)
 			}
