@@ -41,10 +41,10 @@ func (n netError) Timeout() bool   { return false }
 func (n netError) Temporary() bool { return false }
 
 // newTestLiveStateCache creates a minimal liveStateCache instance for testing
-func newTestLiveStateCache(t *testing.T) *liveStateCache {  
+func newTestLiveStateCache(_ *testing.T) *liveStateCache {
 	db := &dbmocks.ArgoDB{}
 	db.On("GetApplicationControllerReplicas").Return(1)
-	
+
 	return &liveStateCache{
 		clusters:        make(map[string]cache.ClusterCache),
 		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
@@ -864,29 +864,29 @@ func TestConversionWebhookGVKTracking(t *testing.T) {
 	server := "test-server"
 	gvkStr1 := "example.com/v1, Kind=Example"
 	gvkStr2 := "example.com/v2, Kind=AnotherExample"
-	
+
 	// Create test cache instance
 	cache := newTestLiveStateCache(t)
-	
+
 	// Test tracking a failed GVK
 	cache.MarkClusterTainted(server, "test reason", gvkStr1, "ConversionError")
 	taintedGVKs := cache.GetTaintedGVKs(server)
 	assert.Contains(t, taintedGVKs, gvkStr1, "GVK should be tracked as failed")
 	assert.NotContains(t, taintedGVKs, gvkStr2, "Untracked GVK should not be marked as failed")
-	
+
 	otherServerGVKs := cache.GetTaintedGVKs("another-server")
 	assert.NotContains(t, otherServerGVKs, gvkStr1, "GVK should not be tracked for a different server")
-	
+
 	// Test tracking multiple GVKs
 	cache.MarkClusterTainted(server, "test reason 2", gvkStr2, "ConversionError")
 	taintedGVKs = cache.GetTaintedGVKs(server)
 	assert.Contains(t, taintedGVKs, gvkStr1, "First GVK should still be tracked")
 	assert.Contains(t, taintedGVKs, gvkStr2, "Second GVK should also be tracked")
-	
+
 	// Test cluster is marked as tainted
 	assert.True(t, cache.IsClusterTainted(server), "Cluster should be marked as tainted")
 	assert.False(t, cache.IsClusterTainted("another-server"), "Other cluster should not be tainted")
-	
+
 	// Test clearing failed GVKs
 	cache.ClearClusterTaints(server)
 	taintedGVKs = cache.GetTaintedGVKs(server)
@@ -926,7 +926,7 @@ func TestExtractGVKFromCacheError(t *testing.T) {
 			expectedGVKStr: "",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var err error
@@ -1009,26 +1009,26 @@ func TestCleanupExpiredFailedGVKs(t *testing.T) {
 	server2 := "test-server-2"
 	gvkStr1 := "example.com/v1, Kind=Example"
 	gvkStr2 := "example.com/v2, Kind=AnotherExample"
-	
+
 	// Track some GVKs
 	c.MarkClusterTainted(server1, "test reason 1", gvkStr1, "ConversionError")
-	c.MarkClusterTainted(server1, "test reason 2", gvkStr2, "ConversionError") 
+	c.MarkClusterTainted(server1, "test reason 2", gvkStr2, "ConversionError")
 	c.MarkClusterTainted(server2, "test reason 3", gvkStr1, "ConversionError")
-	
+
 	// Manually set one of the timestamps to be expired by accessing the taint manager
 	c.taintManager.mu.Lock()
 	expired := time.Now().Add(-failedGVKExpirationTime * 2)
 	c.taintManager.taintTimes[server1][gvkStr1] = expired
 	c.taintManager.taintTimes[server2][gvkStr1] = expired
 	c.taintManager.mu.Unlock()
-	
+
 	// Run the cleanup
 	c.cleanupExpiredFailedGVKs()
-	
+
 	// Check that expired entries were removed but recent ones remain
 	assert.False(t, c.isResourceGVKFailed(server1, gvkStr1), "Expired GVK should have been cleaned up")
 	assert.True(t, c.isResourceGVKFailed(server1, gvkStr2), "Recent GVK should still be tracked")
-	
+
 	// Check that server2 was completely removed since all its entries expired
 	assert.False(t, c.isResourceGVKFailed(server2, gvkStr1), "Expired GVK should have been cleaned up")
 	assert.Empty(t, c.GetTaintedGVKs(server2), "Server with all expired GVKs should have been removed")
@@ -1042,32 +1042,32 @@ func TestGetClustersInfoWithFailedGVKs(t *testing.T) {
 		K8SVersion: "1.26.0",
 	}
 	mockCache.On("GetClusterInfo").Return(clusterInfo)
-	
+
 	c := newTestLiveStateCache(t)
 	c.clusters = map[string]cache.ClusterCache{
 		"test-server": mockCache,
 	}
-	
+
 	// Add failed GVKs using the cluster taint manager
 	gvkStr1 := "example.com/v1, Kind=Example"
 	gvkStr2 := "example.com/v2, Kind=AnotherExample"
-	
+
 	// Mark the cluster as tainted
 	c.MarkClusterTainted("test-server", "Test taint reason", gvkStr1, "conversion_webhook")
 	c.MarkClusterTainted("test-server", "Test taint reason", gvkStr2, "conversion_webhook")
-	
+
 	// Get cluster info
 	infos := c.GetClustersInfo()
-	
+
 	// Verify that the failed GVKs are included in the cluster info
-	require.Equal(t, 1, len(infos), "Should have info for one cluster")
+	require.Len(t, infos, 1, "Should have info for one cluster")
 	info := infos[0]
 	assert.Equal(t, "test-server", info.Server)
 	assert.Equal(t, "1.26.0", info.K8SVersion)
 
 	// Verify that the cluster is marked as tainted
 	assert.True(t, c.IsClusterTainted("test-server"), "Cluster should be marked as tainted")
-	
+
 	// Verify that the GVKs are tracked as tainted
 	taintedGVKs := c.GetTaintedGVKs("test-server")
 	assert.Contains(t, taintedGVKs, gvkStr1, "First GVK should be tracked as tainted")
