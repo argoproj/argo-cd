@@ -568,6 +568,7 @@ export interface AuthSettings {
     execEnabled: boolean;
     appsInAnyNamespaceEnabled: boolean;
     hydratorEnabled: boolean;
+    syncWithReplaceAllowed: boolean;
 }
 
 export interface UserInfo {
