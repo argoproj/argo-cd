@@ -3017,7 +3017,7 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 	customMockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything).Return(nil, conversionError)
 	customMockStateCache.On("IterateHierarchyV2", mock.Anything, mock.Anything, mock.Anything).Return(conversionError)
 	customMockStateCache.On("IterateResources", mock.Anything, mock.Anything).Return(nil)
-	
+
 	// Set up taint manager methods
 	customMockStateCache.On("GetTaintedGVKs", mock.Anything).Return([]string{}, nil)
 
