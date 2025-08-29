@@ -1,0 +1,185 @@
+name: Cherry Pick
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  cherry-pick:
+    name: Cherry Pick
+    if: >
+      github.event.issue.pull_request != '' && github.event.issue.state == 'closed' &&
+      startsWith(github.event.comment.body, '/cherry-pick ')
+    runs-on: ubuntu-latest
+    steps:
+      # For API docs see https://docs.github.com/en/rest/
+      - name: Check if commenter is argoproj organization member
+        id: check-member
+        uses: octokit/request-action@v2.x
+        with:
+          route: GET /orgs/argoproj/members/${{ github.actor }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN || github.token }}
+        continue-on-error: true
+
+      - name: Exit if not organization member
+        if: steps.check-member.outputs.status != '204'
+        run: |
+          echo "❌ Only argoproj organization members can trigger cherry-pick"
+          echo "User ${{ github.actor }} is not a member of the argoproj organization"
+          exit 1
+
+      - name: Get PR details
+        id: pr-details
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+        with:
+          github-token: ${{ secrets.CHERRY_PICK_TOKEN || github.token }}
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            
+            return {
+              merged: pr.merged,
+              merge_commit_sha: pr.merge_commit_sha,
+              title: pr.title,
+              number: pr.number,
+              base_branch: pr.base.ref
+            };
+
+      - name: Check if PR was merged
+        if: fromJSON(steps.pr-details.outputs.result).merged == false
+        run: |
+          echo "❌ PR must be merged before cherry-picking"
+          exit 1
+
+      - name: Parse cherry-pick command
+        id: parse-command
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+        with:
+          script: |
+            const comment = context.payload.comment.body.trim();
+            const match = comment.match(/^\/cherry-pick\s+(.+)$/);
+            
+            if (!match) {
+              core.setFailed('❌ Invalid cherry-pick command format. Use: /cherry-pick <branch>');
+              return;
+            }
+            
+            const targetBranch = match[1].trim();
+            
+            // Basic branch name validation
+            if (!/^[a-zA-Z0-9._/-]+$/.test(targetBranch)) {
+              core.setFailed('❌ Invalid branch name format');
+              return;
+            }
+            
+            return {
+              target_branch: targetBranch
+            };
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.CHERRY_PICK_TOKEN || github.token }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Cherry pick commit
+        id: cherry-pick
+        run: |
+          set -e
+
+          PR_DATA='${{ steps.pr-details.outputs.result }}'
+          PARSE_RESULT='${{ steps.parse-command.outputs.result }}'
+          
+          MERGE_COMMIT=$(echo "$PR_DATA" | jq -r '.merge_commit_sha')
+          TARGET_BRANCH=$(echo "$PARSE_RESULT" | jq -r '.target_branch')
+          PR_NUMBER=$(echo "$PR_DATA" | jq -r '.number')
+          
+          echo "🍒 Cherry-picking commit $MERGE_COMMIT to branch $TARGET_BRANCH"
+          
+          # Check if target branch exists
+          if ! git show-ref --verify --quiet "refs/remotes/origin/$TARGET_BRANCH"; then
+            echo "❌ Target branch '$TARGET_BRANCH' does not exist"
+            exit 1
+          fi
+          
+          # Create new branch for cherry-pick
+          CHERRY_PICK_BRANCH="cherry-pick-${PR_NUMBER}-to-${TARGET_BRANCH}"
+          git checkout -b "$CHERRY_PICK_BRANCH" "origin/$TARGET_BRANCH"
+          
+          # Perform cherry-pick
+          if git cherry-pick -m 1 "$MERGE_COMMIT"; then
+            echo "✅ Cherry-pick successful"
+            
+            # Extract Signed-off-by from the cherry-pick commit
+            SIGNOFF=$(git log -1 --pretty=format:"%B" | grep -E '^Signed-off-by:' || echo "")
+            
+            # Push the new branch
+            git push origin "$CHERRY_PICK_BRANCH"
+            
+            # Save branch name and signoff for PR creation
+            echo "branch_name=$CHERRY_PICK_BRANCH" >> "$GITHUB_OUTPUT"
+            echo "signoff=$SIGNOFF" >> "$GITHUB_OUTPUT"
+            echo "success=true" >> "$GITHUB_OUTPUT"
+            
+            # Extract PR title and number for simple access
+            PR_TITLE=$(echo "$PR_DATA" | jq -r '.title')
+            echo "pr_title=$PR_TITLE" >> "$GITHUB_OUTPUT"
+            echo "pr_number=#$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          else
+            echo "❌ Cherry-pick failed due to conflicts"
+            git cherry-pick --abort
+            echo "success=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+      - name: Create Pull Request
+        if: steps.cherry-pick.outputs.success == 'true'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+        with:
+          github-token: ${{ secrets.CHERRY_PICK_TOKEN || github.token }}
+          script: |
+            const prDetails = JSON.parse('${{ steps.pr-details.outputs.result }}');
+            const parseResult = JSON.parse('${{ steps.parse-command.outputs.result }}');
+            const signoff = '${{ steps.cherry-pick.outputs.signoff }}';
+            
+            const title = `${prDetails.title} (cherry-pick #${prDetails.number})`;
+            const body = `Cherry-picked ${prDetails.title} (#${prDetails.number})
+            
+            ${signoff}`;
+            
+            const { data: pullRequest } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              head: '${{ steps.cherry-pick.outputs.branch_name }}',
+              base: parseResult.target_branch,
+              body: body
+            });
+            
+            // Add comment to original PR
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `🍒 Cherry-pick PR created: #${pullRequest.number}`
+            });
+            
+            console.log(`✅ Created cherry-pick PR: #${pullRequest.number}`);
+
+      - name: Comment on failure
+        if: failure()
+        uses: octokit/request-action@v2.x
+        with:
+          route: POST /repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments
+          body: "❌ Cherry-pick failed. Please check the workflow logs for details."
+        env:
+          GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN || github.token }}
