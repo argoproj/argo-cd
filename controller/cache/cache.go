@@ -1059,7 +1059,6 @@ func isPartialCacheError(err error) bool {
 	return false
 }
 
-
 // extractGVKFromCacheError attempts to extract the GroupVersionKind from various cache errors
 // Returns an empty string if no GVK could be extracted
 func extractGVKFromCacheError(err error) string {
@@ -1089,9 +1088,9 @@ func extractGVKFromCacheError(err error) string {
 
 // clusterTaintManager manages cluster taint state in a thread-safe manner
 type clusterTaintManager struct {
-	mu          sync.RWMutex
-	taints      map[string]map[string]string    // server -> gvk -> error type
-	taintTimes  map[string]map[string]time.Time // server -> gvk -> timestamp
+	mu         sync.RWMutex
+	taints     map[string]map[string]string    // server -> gvk -> error type
+	taintTimes map[string]map[string]time.Time // server -> gvk -> timestamp
 }
 
 // Default expiration time for failed GVKs (30 minutes)
@@ -1130,7 +1129,6 @@ func (ctm *clusterTaintManager) markTainted(server, gvk, errorType, reason strin
 	}
 }
 
-
 // isTainted checks if a cluster is in tainted state
 func (ctm *clusterTaintManager) isTainted(server string) bool {
 	ctm.mu.RLock()
@@ -1158,8 +1156,6 @@ func (ctm *clusterTaintManager) getTaintedGVKs(server string) []string {
 	return gvks
 }
 
-
-
 // getAllTaints returns a copy of all cluster taints
 func (ctm *clusterTaintManager) getAllTaints() map[string]map[string]string {
 	ctm.mu.RLock()
@@ -1175,7 +1171,6 @@ func (ctm *clusterTaintManager) getAllTaints() map[string]map[string]string {
 	}
 	return result
 }
-
 
 // ClearClusterTaints removes all taints for a specific cluster
 // clearTaints removes all taints for a cluster

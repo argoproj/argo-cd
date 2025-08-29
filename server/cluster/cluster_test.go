@@ -755,7 +755,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 func TestClusterInfoWithFailedResourceGVKs(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
 	cache := newServerInMemoryCache()
-	
+
 	// Create a mock cluster with failed resource GVKs
 	mockCluster := v1alpha1.Cluster{
 		Name:       "test-cluster",
@@ -790,7 +790,7 @@ func TestClusterInfoWithFailedResourceGVKs(t *testing.T) {
 	}
 
 	db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
-	
+
 	// Set up mock cache to return our cluster info with failed GVKs
 	err := cache.SetClusterInfo(mockCluster.Server, clusterInfo)
 	require.NoError(t, err)
