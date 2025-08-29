@@ -298,7 +298,7 @@ require (
 )
 
 replace (
-	github.com/argoproj/gitops-engine => github.com/agaudreault/gitops-engine v0.7.1-0.20250820201501-9c694edfc7d5
+	github.com/argoproj/gitops-engine => github.com/agaudreault/gitops-engine v0.7.1-0.20250822182010-8af49beba37e
 
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0

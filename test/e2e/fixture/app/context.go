@@ -1,12 +1,16 @@
 package app
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/certs"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/gpgkeys"
@@ -93,8 +97,15 @@ func GivenWithSameState(t *testing.T) *Context {
 	}
 }
 
+// AppName returns the unique application name for the test context.
+// Unique application names prevents from potential conflicts between test run
+// caused by the tracking annotation on existing objects
 func (c *Context) AppName() string {
-	return c.name
+	suffix := fmt.Sprintf("-%s", fixture.ShortId())
+	if strings.HasSuffix(c.name, suffix) {
+		return c.name
+	}
+	return fixture.DnsFriendly(c.name, suffix)
 }
 
 func (c *Context) AppQualifiedName() string {
@@ -468,5 +479,18 @@ func (c *Context) Sources(sources []v1alpha1.ApplicationSource) *Context {
 func (c *Context) RegisterKustomizeVersion(version, path string) *Context {
 	c.t.Helper()
 	require.NoError(c.t, fixture.RegisterKustomizeVersion(version, path))
+	return c
+}
+
+func (c *Context) Resource(content string) *Context {
+	c.t.Helper()
+	u := test.YamlToUnstructured(content)
+	mapping, err := fixture.Mapper.RESTMapping(u.GroupVersionKind().GroupKind(), u.GroupVersionKind().Version)
+	require.NoError(c.t, err)
+	if mapping == nil {
+		require.NoError(c.t, fmt.Errorf("cannot find mapping for %s", u.GroupVersionKind().String()))
+	}
+	_, err = fixture.DynamicClientset.Resource(mapping.Resource).Namespace(fixture.DeploymentNamespace()).Apply(c.t.Context(), u.GetName(), u, v1.ApplyOptions{FieldManager: "e2e-given-step"})
+	require.NoError(c.t, err)
 	return c
 }

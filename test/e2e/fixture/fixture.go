@@ -20,10 +20,13 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
@@ -83,6 +86,7 @@ const (
 
 var (
 	id                      string
+	shortId                 string
 	deploymentNamespace     string
 	name                    string
 	KubeClientset           kubernetes.Interface
@@ -90,6 +94,7 @@ var (
 	DynamicClientset        dynamic.Interface
 	AppClientset            appclientset.Interface
 	ArgoCDClientset         apiclient.Client
+	Mapper                  meta.RESTMapper
 	adminUsername           string
 	AdminPassword           string
 	apiServerAddress        string
@@ -188,6 +193,7 @@ func init() {
 	AppClientset = appclientset.NewForConfigOrDie(config)
 	KubeClientset = kubernetes.NewForConfigOrDie(config)
 	DynamicClientset = dynamic.NewForConfigOrDie(config)
+	Mapper = restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(KubeClientset.Discovery()))
 	KubeConfig = config
 
 	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, defaultAPIServer)
@@ -292,6 +298,10 @@ func LoginAs(username string) error {
 
 func Name() string {
 	return name
+}
+
+func ShortId() string {
+	return shortId
 }
 
 func repoDirectory() string {
@@ -997,10 +1007,10 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			if err != nil {
 				return err
 			}
-			postFix := "-" + strings.ToLower(randString)
-			id = t.Name() + postFix
-			name = DnsFriendly(t.Name(), "")
-			deploymentNamespace = DnsFriendly("argocd-e2e-"+t.Name(), postFix)
+			shortId = strings.ToLower(randString)
+			id = fmt.Sprintf("%s-%s", t.Name(), shortId)
+			name = DnsFriendly(t.Name(), fmt.Sprintf("-%s", shortId))
+			deploymentNamespace = DnsFriendly("argocd-e2e-"+t.Name(), fmt.Sprintf("-%s", shortId))
 			// create namespace
 			_, err = Run("", "kubectl", "create", "ns", DeploymentNamespace())
 			if err != nil {
