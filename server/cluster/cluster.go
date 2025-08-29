@@ -496,7 +496,7 @@ func (s *Server) toAPIResponse(clust *appv1.Cluster) *appv1.Cluster {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"server": clust.Server,
-			"error": err,
+			"error":  err,
 		}).Warn("Failed to get cluster info from cache")
 	}
 
