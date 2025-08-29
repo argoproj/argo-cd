@@ -1731,10 +1731,10 @@ func TestUseDiffCache(t *testing.T) {
 			noCache:       false,
 			manifestInfos: append(manifestInfos("rev1"), manifestInfos("rev2")...),
 			sources: v1alpha1.ApplicationSources{
-				{
+				v1alpha1.ApplicationSource{
 					RepoURL: "multisource repo1",
 				},
-				{
+				v1alpha1.ApplicationSource{
 					RepoURL: "multisource repo2",
 				},
 			},
@@ -1742,10 +1742,10 @@ func TestUseDiffCache(t *testing.T) {
 				Spec: v1alpha1.ApplicationSpec{
 					Source: nil,
 					Sources: v1alpha1.ApplicationSources{
-						{
+						v1alpha1.ApplicationSource{
 							RepoURL: "multisource repo1",
 						},
-						{
+						v1alpha1.ApplicationSource{
 							RepoURL: "multisource repo2",
 						},
 					},
@@ -1757,10 +1757,10 @@ func TestUseDiffCache(t *testing.T) {
 						ComparedTo: v1alpha1.ComparedTo{
 							Source: v1alpha1.ApplicationSource{},
 							Sources: v1alpha1.ApplicationSources{
-								{
+								v1alpha1.ApplicationSource{
 									RepoURL: "multisource repo1",
 								},
-								{
+								v1alpha1.ApplicationSource{
 									RepoURL: "multisource repo2",
 								},
 							},
