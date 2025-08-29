@@ -45,7 +45,7 @@ import (
 	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 )
 
-var CommitMessageTemplate = `{{ .metadata.subject }}
+var CommitMessageTemplate = `{{.metadata.drySha | trunc 7}}: {{ .metadata.subject }}
 {{- if .metadata.body }}
 
 {{ .metadata.body }}
