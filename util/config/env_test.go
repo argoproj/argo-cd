@@ -148,3 +148,38 @@ func TestFlagWithEqualSign(t *testing.T) {
 
 	assert.Equal(t, "bar", GetFlag("foo", ""))
 }
+
+func TestMultipleHeaderFlags(t *testing.T) {
+	loadOpts(t, "--header 'CF-Access-Client-Id: foo' --header 'CF-Access-Client-Secret: bar'")
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, strings, 2)
+	assert.Equal(t, "CF-Access-Client-Id: foo", strings[0])
+	assert.Equal(t, "CF-Access-Client-Secret: bar", strings[1])
+}
+
+func TestMultipleHeaderFlagsWithOtherFlags(t *testing.T) {
+	loadOpts(t, "--server localhost:8080 --header 'CF-Access-Client-Id: foo' --header 'CF-Access-Client-Secret: bar' --insecure")
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, strings, 2)
+	assert.Equal(t, "CF-Access-Client-Id: foo", strings[0])
+	assert.Equal(t, "CF-Access-Client-Secret: bar", strings[1])
+	
+	// Verify other flags still work
+	assert.Equal(t, "localhost:8080", GetFlag("server", ""))
+	assert.True(t, GetBoolFlag("insecure"))
+}
+
+func TestMultipleHeaderFlagsMixedWithCommaSeparated(t *testing.T) {
+	loadOpts(t, "--header 'CF-Access-Client-Id: foo,CF-Access-Client-Secret: bar' --header 'X-Custom-Header: value'")
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, strings, 2)
+	assert.Equal(t, "CF-Access-Client-Id: foo,CF-Access-Client-Secret: bar", strings[0])
+	assert.Equal(t, "X-Custom-Header: value", strings[1])
+
+}
+
+}
+
