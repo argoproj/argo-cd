@@ -447,13 +447,13 @@ data:
   sourceHydrator.commitMessageTemplate: |
     {{ .metadata.subject }}
     {{- if .metadata.body }}
-      {{ .metadata.body }}
+    {{ .metadata.body }}
     {{- end }}
     {{ range $ref := .metadata.references }}
-      {{- if and $ref.commit $ref.commit.author }}
-        Co-authored-by: {{ $ref.commit.author }}
-      {{- end }}
+    {{- if and $ref.commit $ref.commit.author }}
+    Co-authored-by: {{ $ref.commit.author }}
+    {{- end }}
     {{- end }}
     {{- if .metadata.author }}
-      Co-authored-by: {{ .metadata.author }}
+    Co-authored-by: {{ .metadata.author }}
     {{- end }}
