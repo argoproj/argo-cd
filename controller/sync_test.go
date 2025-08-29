@@ -299,7 +299,7 @@ func TestSyncWindowDeniesSync(t *testing.T) {
 				Name:      "default",
 			},
 			Spec: v1alpha1.AppProjectSpec{
-				SyncWindows: v1alpha1.SyncWindows{{
+				SyncWindows: v1alpha1.SyncWindows{&v1alpha1.SyncWindow{
 					Kind:         "deny",
 					Schedule:     "0 0 * * *",
 					Duration:     "24h",
