@@ -135,7 +135,7 @@ func untarChart(tempDir string, cachedChartPath string, manifestMaxExtractedSize
 	if err != nil {
 		return fmt.Errorf("error opening cached chart path %s: %w", cachedChartPath, err)
 	}
-	return files.Untgz(tempDir, reader, manifestMaxExtractedSize, false)
+	return files.Untgz(tempDir, reader, manifestMaxExtractedSize, false, false)
 }
 
 func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, utilio.Closer, error) {
