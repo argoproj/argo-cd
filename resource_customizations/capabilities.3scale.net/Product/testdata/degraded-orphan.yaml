@@ -1,0 +1,7 @@
+apiVersion: capabilities.3scale.net/v1beta1
+kind: Product
+status:
+  conditions:
+    - type: Orphan
+      status: "True"
+      message: Product spec contains reference(s) to non existing resources

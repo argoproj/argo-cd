@@ -1,0 +1,21 @@
+tests:
+  - healthStatus:
+      status: Degraded
+      message: "3scale APIManager is degraded: MissingWatchedSecrets"
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Healthy
+      message: "3scale APIManager is available"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for 3scale APIManager status..."
+    inputPath: testdata/progressing-1.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for 3scale APIManager status..."
+    inputPath: testdata/progressing-2.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for 3scale APIManager status..."
+    inputPath: testdata/progressing-3.yaml
