@@ -28,5 +28,8 @@
     "tslint-plugin-prettier": "^2.0.1",
     "typescript": "^5.8.3",
     "yarn": "^1.22.22"
+  },
+  "resolutions": {
+    "tmp": "0.2.4"
   }
 }

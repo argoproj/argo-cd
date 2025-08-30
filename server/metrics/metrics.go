@@ -95,8 +95,9 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 
 	return &MetricsServer{
 		Server: &http.Server{
-			Addr:    fmt.Sprintf("%s:%d", host, port),
-			Handler: mux,
+			Addr:        fmt.Sprintf("%s:%d", host, port),
+			Handler:     mux,
+			ReadTimeout: 5 * time.Second,
 		},
 		redisRequestCounter:      redisRequestCounter,
 		redisRequestHistogram:    redisRequestHistogram,
