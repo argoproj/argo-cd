@@ -701,7 +701,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	if err != nil {
 		// Handle cluster cache errors gracefully - this includes conversion webhook errors,
 		// pagination token expiration, and other issues that might result in partial data
-		if errorutils.IsConversionWebhookError(err) {
+		taintedGVKs := m.liveStateCache.GetTaintedGVKs(destCluster.Server)
+		if len(taintedGVKs) > 0 {
 			logCtx.Warnf("Conversion webhook error while getting managed live objects, continuing with empty live state: %v", err)
 			liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
 
@@ -1052,7 +1053,22 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	ts.AddCheckpoint("sync_ms")
 
-	healthStatus, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth)
+	// Get cluster health information for enhanced health analysis
+	var clusterHealth *ClusterHealthStatus
+	if m.liveStateCache != nil {
+		// Create a minimal cluster health analyzer function
+		clusterURL := app.Spec.Destination.Server
+		taintedGVKs := m.liveStateCache.GetTaintedGVKs(clusterURL)
+		if len(taintedGVKs) > 0 {
+			clusterHealth = &ClusterHealthStatus{
+				HasCacheIssues: true,
+				AffectedGVKs:   taintedGVKs,
+				Severity:       SeverityDegraded,
+			}
+		}
+	}
+
+	healthStatus, err := setApplicationHealthWithClusterInfo(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth, clusterHealth)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: "error setting app health: " + err.Error(), LastTransitionTime: &now})
 	}

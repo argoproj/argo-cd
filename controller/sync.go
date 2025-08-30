@@ -33,7 +33,6 @@ import (
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/diff"
-	errorutils "github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
@@ -163,8 +162,10 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 	if err != nil && !stderrors.Is(err, ErrCompareStateRepo) {
 		state.Phase = common.OperationError
 
-		// Check if this is a conversion webhook error and provide a more helpful message
-		if errorutils.IsConversionWebhookError(err) {
+		// Check if cluster has cache issues and provide a more helpful message
+		clusterURL := app.Spec.Destination.Server
+		taintedGVKs := m.liveStateCache.GetTaintedGVKs(clusterURL)
+		if len(taintedGVKs) > 0 {
 			state.Message = "Application contains resources with conversion webhook failures. Some resources cannot be properly synchronized. Check cluster status for more details about the affected resource types."
 		} else {
 			state.Message = err.Error()
