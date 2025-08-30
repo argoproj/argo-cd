@@ -121,6 +121,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 	liveStateCache.EXPECT().Init().Return(nil)
 	liveStateCache.EXPECT().GetClusterCache(mock.Anything).Return(clusterCache, nil)
 	liveStateCache.EXPECT().IsNamespaced(mock.Anything, mock.Anything).Return(true, nil)
+	liveStateCache.EXPECT().GetTaintedGVKs(mock.Anything).Return([]string{})
 
 	result, err := reconcileApplications(ctx, kubeClientset, appClientset, "default", repoServerClientset, "",
 		func(_ db.ArgoDB, _ cache.SharedIndexInformer, _ *settings.SettingsManager, _ *metrics.MetricsServer) statecache.LiveStateCache {

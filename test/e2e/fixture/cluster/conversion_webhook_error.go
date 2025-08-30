@@ -23,13 +23,34 @@ const (
 func VerifyHealthyClusterState(t *testing.T, clusterServer string) {
 	t.Helper()
 
-	// Get cluster info via API
 	clusterURL := fixture.URLEncodeServerAddress(clusterServer)
 	var cluster v1alpha1.Cluster
-	err := fixture.DoHttpJsonRequest("GET", "/api/v1/clusters/"+clusterURL, &cluster)
-	require.NoError(t, err)
 
-	// Log the current connection status for debugging
+	// Wait up to 30 seconds for cluster to become healthy and failedResourceGVKs to be cleared
+	var isSuccessful bool
+	for i := 0; i < 30; i++ {
+		// Get cluster info via API
+		err := fixture.DoHttpJsonRequest("GET", "/api/v1/clusters/"+clusterURL, &cluster)
+		require.NoError(t, err)
+
+		// Check if we have successful status and empty failed GVKs
+		isSuccessful = cluster.Info.ConnectionState.Status == v1alpha1.ConnectionStatusSuccessful
+		hasEmptyFailedGVKs := len(cluster.Info.CacheInfo.FailedResourceGVKs) == 0
+
+		if isSuccessful && hasEmptyFailedGVKs {
+			break
+		}
+
+		time.Sleep(1 * time.Second)
+
+		// Log current status for debugging
+		if i%5 == 0 { // Log every 5 seconds
+			t.Logf("📊 Waiting for healthy status... Current: status=%s, failedGVKs=%v",
+				cluster.Info.ConnectionState.Status, cluster.Info.CacheInfo.FailedResourceGVKs)
+		}
+	}
+
+	// Log the final connection status for debugging
 	t.Logf("📊 Cluster connection status: %s", cluster.Info.ConnectionState.Status)
 	if cluster.Info.ConnectionState.Message != "" {
 		t.Logf("📊 Connection message: %s", cluster.Info.ConnectionState.Message)
