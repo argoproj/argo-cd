@@ -20,8 +20,6 @@ import (
 //
 // This follows the reproduction pattern from ~/workspace/conversion-webhook-repro/scripts
 func TestConversionWebhookFailureIsolation(t *testing.T) {
-	fixture.EnsureCleanState(t)
-	defer fixture.RecordTestRun(t)
 
 	// Step 1: Bring up working app that will NOT be impacted (to test isolation)
 	isolatedAppName := "isolated-guestbook-app"
@@ -39,8 +37,14 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 
-	// Step 2: Bring up working app that will be impacted by broken webhook
+	// Step 2: Set up CRD first, then create app that uses it
 	crdAppName := "crd-using-app"
+	t.Log("🔧 Setting up working CRD first (no conversion webhook)")
+	_, err := fixture.Run("", "kubectl", "apply", "-f", "/tmp/argo-e2e/testdata.git/conversion-webhook-test/crds/crd.yaml")
+	require.NoError(t, err)
+	// Give CRD time to be ready
+	time.Sleep(3 * time.Second)
+
 	t.Log("📱 Creating CRD-using app (will be impacted)")
 	GivenWithSameState(t).
 		Name(crdAppName).
@@ -49,14 +53,6 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 		Path("conversion-webhook-test/resources"). // Only the resources, not the CRD
 		When().
 		CreateApp().
-		And(func() {
-			// Apply CRD right before sync to avoid cleanup
-			t.Log("🔧 Setting up working CRD (no conversion webhook)")
-			_, err := fixture.Run("", "kubectl", "apply", "-f", "/tmp/argo-e2e/testdata.git/conversion-webhook-test/crds/crd.yaml")
-			require.NoError(t, err)
-			// Give CRD time to be ready before sync
-			time.Sleep(2 * time.Second)
-		}).
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -71,7 +67,7 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 	// Step 4: Break the webhook (simulate CRD evolution adding broken conversion webhook)
 	t.Log("🔥 Breaking conversion webhook by updating CRD in-place (simulating production CRD evolution)")
 	// This simulates what happens in production: a working CRD gets updated to add conversion webhook
-	_, err := fixture.Run("", "kubectl", "apply", "-f", "/tmp/argo-e2e/testdata.git/conversion-webhook-test/crds/crd-with-broken-webhook.yaml")
+	_, err = fixture.Run("", "kubectl", "apply", "-f", "/tmp/argo-e2e/testdata.git/conversion-webhook-test/crds/crd-with-broken-webhook.yaml")
 	require.NoError(t, err)
 
 	// Step 5: Trigger hard refresh of both apps
@@ -131,8 +127,8 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 	// Step 8: Fix the webhook (remove conversion webhook from CRD)
 	t.Log("🛠️ Fixing conversion webhook by updating CRD back to working state")
 	// This simulates fixing the CRD by removing the broken conversion webhook
-	_, err2 := fixture.Run("", "kubectl", "apply", "-f", "/tmp/argo-e2e/testdata.git/conversion-webhook-test/crds/crd.yaml")
-	require.NoError(t, err2)
+	_, err = fixture.Run("", "kubectl", "apply", "-f", "/tmp/argo-e2e/testdata.git/conversion-webhook-test/crds/crd.yaml")
+	require.NoError(t, err)
 
 	// Step 9: Trigger sync of CRD app after fix to recover
 	t.Log("🔄 Triggering sync of CRD app after fix to recover")
