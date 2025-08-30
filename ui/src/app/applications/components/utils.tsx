@@ -1716,6 +1716,26 @@ export const getProgressiveSyncStatusIcon = ({status, isButton}: {status: string
     return <i className={className} style={{color}} />;
 };
 
+export const AutoSyncStatusIcon = ({enabled, size}: {enabled: boolean; size?: 'normal' | 'large'}) => {
+    const iconProps = enabled ? {icon: 'fa-circle-play', color: COLORS.sync.synced} : {icon: 'fa-ban', color: COLORS.sync.out_of_sync};
+
+    const fontSize = size === 'large' ? '1.2em' : undefined;
+    const className = `fa ${iconProps.icon}`;
+
+    return (
+        <i
+            className={className}
+            style={{
+                color: iconProps.color,
+                fontSize,
+                marginRight: '4px',
+                position: 'relative',
+                top: '0'
+            }}
+        />
+    );
+};
+
 export const getProgressiveSyncStatusColor = (status: string): string => {
     switch (status) {
         case 'Waiting':
