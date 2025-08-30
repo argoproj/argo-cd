@@ -128,8 +128,8 @@ type Client interface {
 	// CheckoutOrNew checks out the given branch. If the branch does not exist, it creates an empty branch based on
 	// the base branch.
 	CheckoutOrNew(branch, base string, submoduleEnabled bool) (string, error)
-	// RemoveContents removes all files from the git repository.
-	RemoveContents() (string, error)
+	// RemoveContents removes all files from the given paths in the git repository.
+	RemoveContents(paths []string) (string, error)
 	// CommitAndPush commits and pushes changes to the target branch.
 	CommitAndPush(branch, message string) (string, error)
 }
@@ -1022,11 +1022,15 @@ func (m *nativeGitClient) CheckoutOrNew(branch, base string, submoduleEnabled bo
 	return "", nil
 }
 
-// RemoveContents removes all files from the git repository.
-func (m *nativeGitClient) RemoveContents() (string, error) {
-	out, err := m.runCmd("rm", "-r", "--ignore-unmatch", ".")
+// RemoveContents removes all files from the path of git repository.
+func (m *nativeGitClient) RemoveContents(paths []string) (string, error) {
+	if len(paths) == 0 {
+		return "", nil
+	}
+	args := append([]string{"rm", "-r", "--ignore-unmatch"}, paths...)
+	out, err := m.runCmd(args...)
 	if err != nil {
-		return out, fmt.Errorf("failed to clear repo contents: %w", err)
+		return out, fmt.Errorf("failed to clear paths %v: %w", paths, err)
 	}
 	return "", nil
 }
