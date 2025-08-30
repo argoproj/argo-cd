@@ -101,6 +101,35 @@ func (a CompareWith) Pointer() *CompareWith {
 	return &a
 }
 
+// ClusterHealthIssueType represents different types of cluster health issues
+type ClusterHealthIssueType string
+
+const (
+	IssueTypeConversionWebhook ClusterHealthIssueType = "conversion_webhook"
+	IssueTypeUnavailableTypes  ClusterHealthIssueType = "unavailable_types"
+	IssueTypeListFailure       ClusterHealthIssueType = "list_failure"
+	IssueTypeResourceExpired   ClusterHealthIssueType = "resource_expired"
+	IssueTypeTaintedResources  ClusterHealthIssueType = "tainted_resources"
+)
+
+// ClusterHealthSeverity represents the severity of cluster health issues
+type ClusterHealthSeverity string
+
+const (
+	SeverityNone     ClusterHealthSeverity = "none"
+	SeverityDegraded ClusterHealthSeverity = "degraded"
+	SeverityFailed   ClusterHealthSeverity = "failed"
+)
+
+// ClusterHealthStatus provides structured information about cluster cache issues
+type ClusterHealthStatus struct {
+	HasCacheIssues       bool                     `json:"hasCacheIssues"`
+	UsesTaintedResources bool                     `json:"usesTaintedResources"`
+	IssueTypes           []ClusterHealthIssueType `json:"issueTypes"`
+	AffectedGVKs         []string                 `json:"affectedGVKs"`
+	Severity             ClusterHealthSeverity    `json:"severity"`
+}
+
 // ApplicationController is the controller for application resources.
 type ApplicationController struct {
 	cache                *appstatecache.Cache
@@ -626,7 +655,15 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 		return true
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to iterate resource hierarchy v2: %w", err)
+		// Check if cluster has cache issues using taint manager
+		taintedGVKs := ctrl.stateCache.GetTaintedGVKs(destCluster.Server)
+		if len(taintedGVKs) == 0 {
+			return nil, fmt.Errorf("failed to iterate resource hierarchy v2: %w", err)
+		}
+
+		logCtx := log.WithFields(applog.GetAppLogFields(a))
+		logCtx.Warnf("Conversion webhook error while iterating managed resource hierarchy, continuing with limited resource tree: %v", err)
+		// Continue processing with the nodes we have so far instead of failing completely
 	}
 	ts.AddCheckpoint("process_managed_resources_ms")
 	orphanedNodes := make([]appv1.ResourceNode, 0)
@@ -660,7 +697,16 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 		return true
 	})
 	if err != nil {
-		return nil, err
+		// Check if cluster has cache issues using taint manager
+		taintedGVKs := ctrl.stateCache.GetTaintedGVKs(destCluster.Server)
+		if len(taintedGVKs) == 0 {
+			return nil, fmt.Errorf("failed to iterate resource hierarchy v2 for orphaned resources: %w", err)
+		}
+
+		logCtx := log.WithFields(applog.GetAppLogFields(a))
+		logCtx.Warnf("Conversion webhook error while iterating orphaned resource hierarchy, skipping orphaned resource detection: %v", err)
+		// Clear orphaned nodes since we can't reliably detect them
+		orphanedNodes = make([]appv1.ResourceNode, 0)
 	}
 
 	var conditions []appv1.ApplicationCondition
@@ -1810,7 +1856,34 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.ReconciledAt = &now
 	}
 	app.Status.Sync = *compareResult.syncStatus
-	app.Status.Health.Status = compareResult.healthStatus
+	// Analyze cluster health using the centralized function
+	clusterHealth := ctrl.analyzeClusterHealth(app)
+	hasCacheIssues := clusterHealth.HasCacheIssues
+	usesTaintedResources := clusterHealth.UsesTaintedResources
+
+	// Set health status based on the severity of detected issues
+	switch {
+	case usesTaintedResources:
+		// Application directly uses tainted resources - mark as degraded
+		app.Status.Health.Status = health.HealthStatusDegraded
+		// Add a condition explaining why it's degraded
+		now := metav1.Now()
+		app.Status.SetConditions(
+			[]appv1.ApplicationCondition{
+				{
+					Type:               appv1.ApplicationConditionComparisonError,
+					Message:            "Application directly uses resources with known issues in the cluster cache",
+					LastTransitionTime: &now,
+				},
+			},
+			map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionComparisonError: true},
+		)
+	case hasCacheIssues:
+		// Application has cache issues but doesn't directly use tainted resources
+		app.Status.Health.Status = health.HealthStatusDegraded
+	default:
+		app.Status.Health.Status = compareResult.healthStatus
+	}
 	app.Status.Resources = compareResult.resources
 	sort.Slice(app.Status.Resources, func(i, j int) bool {
 		return resourceStatusKey(app.Status.Resources[i]) < resourceStatusKey(app.Status.Resources[j])
@@ -1969,6 +2042,139 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		return true, refreshType, compareWith
 	}
 	return false, refreshType, compareWith
+}
+
+// analyzeClusterHealth provides comprehensive analysis of cluster cache issues using taint-based detection
+func (ctrl *ApplicationController) analyzeClusterHealth(app *appv1.Application) ClusterHealthStatus {
+	clusterURL := app.Spec.Destination.Server
+
+	// Get tainted GVKs from the cluster taint manager (primary source of truth)
+	taintedGVKs := ctrl.stateCache.GetTaintedGVKs(clusterURL)
+
+	var issueTypes []ClusterHealthIssueType
+	var affectedGVKs []string
+	severity := SeverityNone
+	hasCacheIssues := false
+	usesTaintedResources := false
+
+	// 1. Check tainted resources first (authoritative)
+	if len(taintedGVKs) > 0 {
+		hasCacheIssues = true
+		issueTypes = append(issueTypes, IssueTypeTaintedResources)
+		affectedGVKs = append(affectedGVKs, taintedGVKs...)
+		severity = SeverityDegraded
+
+		// Check if the app uses any tainted resources
+		for _, res := range app.Status.Resources {
+			resGVK := fmt.Sprintf("%s/%s, Kind=%s", res.Group, res.Version, res.Kind)
+			if res.Group == "" {
+				resGVK = fmt.Sprintf("%s, Kind=%s", res.Version, res.Kind)
+			}
+			for _, taintedGVK := range taintedGVKs {
+				if resGVK == taintedGVK {
+					usesTaintedResources = true
+					break
+				}
+			}
+			if usesTaintedResources {
+				break
+			}
+		}
+	}
+
+	// 2. Check application operation state for additional issues
+	if app.Status.OperationState != nil {
+		message := app.Status.OperationState.Message
+		if ctrl.checkMessageForIssues(message, &issueTypes) {
+			hasCacheIssues = true
+			if severity == SeverityNone {
+				severity = SeverityDegraded
+			}
+		}
+
+		// Check sync result resources
+		if app.Status.OperationState.SyncResult != nil {
+			for _, res := range app.Status.OperationState.SyncResult.Resources {
+				if ctrl.checkMessageForIssues(res.Message, &issueTypes) {
+					hasCacheIssues = true
+					if severity == SeverityNone {
+						severity = SeverityDegraded
+					}
+				}
+			}
+		}
+	}
+
+	// 3. Check application conditions
+	for _, condition := range app.Status.Conditions {
+		if condition.Type == appv1.ApplicationConditionComparisonError ||
+			condition.Type == appv1.ApplicationConditionSyncError {
+			if ctrl.checkMessageForIssues(condition.Message, &issueTypes) {
+				hasCacheIssues = true
+				if severity == SeverityNone {
+					severity = SeverityDegraded
+				}
+			}
+		}
+	}
+
+	// 4. Check resource health messages
+	for _, res := range app.Status.Resources {
+		if res.Health != nil && res.Health.Message != "" {
+			if ctrl.checkMessageForIssues(res.Health.Message, &issueTypes) {
+				hasCacheIssues = true
+				if severity == SeverityNone {
+					severity = SeverityDegraded
+				}
+			}
+		}
+	}
+
+	return ClusterHealthStatus{
+		HasCacheIssues:       hasCacheIssues,
+		UsesTaintedResources: usesTaintedResources,
+		IssueTypes:           issueTypes,
+		AffectedGVKs:         affectedGVKs,
+		Severity:             severity,
+	}
+}
+
+// checkMessageForIssues checks a message for known cache issues and updates issue types
+func (ctrl *ApplicationController) checkMessageForIssues(message string, issueTypes *[]ClusterHealthIssueType) bool {
+	hasIssue := false
+
+	if strings.Contains(message, "conversion webhook") ||
+		strings.Contains(message, "known conversion webhook failures") {
+		*issueTypes = appendUniqueIssueType(*issueTypes, IssueTypeConversionWebhook)
+		hasIssue = true
+	}
+
+	if strings.Contains(message, "unavailable resource types") {
+		*issueTypes = appendUniqueIssueType(*issueTypes, IssueTypeUnavailableTypes)
+		hasIssue = true
+	}
+
+	if strings.Contains(message, "failed to list resources") {
+		*issueTypes = appendUniqueIssueType(*issueTypes, IssueTypeListFailure)
+		hasIssue = true
+	}
+
+	if strings.Contains(message, "Expired: too old resource version") {
+		*issueTypes = appendUniqueIssueType(*issueTypes, IssueTypeResourceExpired)
+		hasIssue = true
+	}
+
+	return hasIssue
+}
+
+// appendUniqueIssueType adds an issue type if it's not already present
+func appendUniqueIssueType(types []ClusterHealthIssueType, issueType ClusterHealthIssueType) []ClusterHealthIssueType {
+	for _, t := range types {
+		if t == issueType {
+			return types
+		}
+	}
+	return append(types, issueType)
 }
 
 func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) (*appv1.AppProject, bool) {
