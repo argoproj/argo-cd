@@ -20,7 +20,6 @@ import (
 //
 // This follows the reproduction pattern from ~/workspace/conversion-webhook-repro/scripts
 func TestConversionWebhookFailureIsolation(t *testing.T) {
-
 	// Step 1: Bring up working app that will NOT be impacted (to test isolation)
 	isolatedAppName := "isolated-guestbook-app"
 	t.Log("📱 Creating isolated app (will NOT be impacted)")
