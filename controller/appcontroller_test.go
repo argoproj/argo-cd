@@ -3200,8 +3200,12 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 	customMockStateCache.On("IterateHierarchyV2", mock.Anything, mock.Anything, mock.Anything).Return(conversionError)
 	customMockStateCache.On("IterateResources", mock.Anything, mock.Anything).Return(nil)
 
-	// Set up taint manager methods
-	customMockStateCache.On("GetTaintedGVKs", mock.Anything).Return([]string{}, nil)
+	// Set up taint manager methods - return tainted GVKs that match the conversion webhook errors
+	taintedGVKs := []string{
+		"s3.aws.upbound.io/v1beta1, Kind=BucketServerSideEncryptionConfiguration",
+		"conversion.example.com/v1, Kind=Example",
+	}
+	customMockStateCache.On("GetTaintedGVKs", mock.Anything).Return(taintedGVKs)
 
 	// Set up cluster cache mock
 	clusterCacheMock := &mocks.ClusterCache{}
@@ -3254,4 +3258,181 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 	// We expect both types of errors to be reported, but applications should still function
 	assert.True(t, hasConversionError, "Conversion webhook errors should be reported in application conditions")
 	assert.True(t, hasListConversionError, "List conversion webhook errors should be reported in application conditions")
+}
+
+func TestAnalyzeClusterHealth(t *testing.T) {
+	tests := []struct {
+		name           string
+		app            *v1alpha1.Application
+		taintedGVKs    []string
+		expectedStatus ClusterHealthStatus
+	}{
+		{
+			name: "healthy cluster with no issues",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Server: "https://kubernetes.default.svc",
+					},
+				},
+				Status: v1alpha1.ApplicationStatus{
+					Resources: []v1alpha1.ResourceStatus{
+						{Group: "apps", Version: "v1", Kind: "Deployment"},
+					},
+				},
+			},
+			taintedGVKs: []string{},
+			expectedStatus: ClusterHealthStatus{
+				HasCacheIssues:       false,
+				UsesTaintedResources: false,
+				IssueTypes:           nil,
+				AffectedGVKs:         []string{},
+				Severity:             SeverityNone,
+			},
+		},
+		{
+			name: "cluster with tainted GVKs but app doesn't use them",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Server: "https://kubernetes.default.svc",
+					},
+				},
+				Status: v1alpha1.ApplicationStatus{
+					Resources: []v1alpha1.ResourceStatus{
+						{Group: "apps", Version: "v1", Kind: "Deployment"},
+					},
+				},
+			},
+			taintedGVKs: []string{"example.com/v1, Kind=Example"},
+			expectedStatus: ClusterHealthStatus{
+				HasCacheIssues:       true,
+				UsesTaintedResources: false,
+				IssueTypes:           []ClusterHealthIssueType{IssueTypeTaintedResources},
+				AffectedGVKs:         []string{"example.com/v1, Kind=Example"},
+				Severity:             SeverityDegraded,
+			},
+		},
+		{
+			name: "cluster with tainted GVKs and app uses them",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Server: "https://kubernetes.default.svc",
+					},
+				},
+				Status: v1alpha1.ApplicationStatus{
+					Resources: []v1alpha1.ResourceStatus{
+						{Group: "example.com", Version: "v1", Kind: "Example"},
+					},
+				},
+			},
+			taintedGVKs: []string{"example.com/v1, Kind=Example"},
+			expectedStatus: ClusterHealthStatus{
+				HasCacheIssues:       true,
+				UsesTaintedResources: true,
+				IssueTypes:           []ClusterHealthIssueType{IssueTypeTaintedResources},
+				AffectedGVKs:         []string{"example.com/v1, Kind=Example"},
+				Severity:             SeverityDegraded,
+			},
+		},
+		{
+			name: "app with operation state conversion webhook error",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Server: "https://kubernetes.default.svc",
+					},
+				},
+				Status: v1alpha1.ApplicationStatus{
+					OperationState: &v1alpha1.OperationState{
+						Message: "conversion webhook error detected",
+					},
+				},
+			},
+			taintedGVKs: []string{},
+			expectedStatus: ClusterHealthStatus{
+				HasCacheIssues:       true,
+				UsesTaintedResources: false,
+				IssueTypes:           []ClusterHealthIssueType{IssueTypeConversionWebhook},
+				AffectedGVKs:         []string{},
+				Severity:             SeverityDegraded,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a mock state cache
+			mockStateCache := &mockstatecache.LiveStateCache{}
+			mockStateCache.On("GetTaintedGVKs", tt.app.Spec.Destination.Server).Return(tt.taintedGVKs)
+
+			ctrl := &ApplicationController{
+				stateCache: mockStateCache,
+			}
+
+			result := ctrl.analyzeClusterHealth(tt.app)
+
+			assert.Equal(t, tt.expectedStatus.HasCacheIssues, result.HasCacheIssues)
+			assert.Equal(t, tt.expectedStatus.UsesTaintedResources, result.UsesTaintedResources)
+			assert.Equal(t, tt.expectedStatus.Severity, result.Severity)
+			assert.Len(t, result.IssueTypes, len(tt.expectedStatus.IssueTypes))
+			assert.Len(t, result.AffectedGVKs, len(tt.expectedStatus.AffectedGVKs))
+		})
+	}
+}
+
+func TestCheckMessageForIssues(t *testing.T) {
+	ctrl := &ApplicationController{}
+
+	tests := []struct {
+		name              string
+		message           string
+		expectedHasIssue  bool
+		expectedIssueType ClusterHealthIssueType
+	}{
+		{
+			name:              "conversion webhook error",
+			message:           "conversion webhook failed to process request",
+			expectedHasIssue:  true,
+			expectedIssueType: IssueTypeConversionWebhook,
+		},
+		{
+			name:              "unavailable resource types",
+			message:           "found 2 unavailable resource types",
+			expectedHasIssue:  true,
+			expectedIssueType: IssueTypeUnavailableTypes,
+		},
+		{
+			name:              "failed to list resources",
+			message:           "failed to list resources for apps/v1",
+			expectedHasIssue:  true,
+			expectedIssueType: IssueTypeListFailure,
+		},
+		{
+			name:              "expired resource version",
+			message:           "Expired: too old resource version",
+			expectedHasIssue:  true,
+			expectedIssueType: IssueTypeResourceExpired,
+		},
+		{
+			name:             "normal message",
+			message:          "application sync completed successfully",
+			expectedHasIssue: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var issueTypes []ClusterHealthIssueType
+			hasIssue := ctrl.checkMessageForIssues(tt.message, &issueTypes)
+
+			assert.Equal(t, tt.expectedHasIssue, hasIssue)
+			if tt.expectedHasIssue {
+				assert.Contains(t, issueTypes, tt.expectedIssueType)
+			} else {
+				assert.Empty(t, issueTypes)
+			}
+		})
+	}
 }

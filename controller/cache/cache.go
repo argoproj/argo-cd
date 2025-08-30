@@ -968,10 +968,6 @@ func (c *liveStateCache) GetClustersInfo() []clustercache.ClusterInfo {
 		info := clusterCache.GetClusterInfo()
 		info.Server = server
 
-		// Trust the in-band tracking from gitops-engine
-		// The gitops-engine's GetClusterInfo() already populates FailedResourceGVKs with cache-tainting errors
-		// We don't need to overlay our own tracking - just use what the engine provides
-
 		res = append(res, info)
 	}
 	return res
@@ -1057,33 +1053,6 @@ func isPartialCacheError(err error) bool {
 	}
 
 	return false
-}
-
-// extractGVKFromCacheError attempts to extract the GroupVersionKind from various cache errors
-// Returns an empty string if no GVK could be extracted
-func extractGVKFromCacheError(err error) string {
-	if err == nil {
-		return ""
-	}
-	errStr := err.Error()
-
-	// Example error: "conversion webhook for conversion.example.com/v1, Kind=Example failed"
-	// Try to extract the GVK from the error message
-	webhookMatch := strings.Index(errStr, "conversion webhook for ")
-	if webhookMatch < 0 {
-		return ""
-	}
-
-	// Extract the text after "conversion webhook for "
-	start := webhookMatch + len("conversion webhook for ")
-	end := strings.Index(errStr[start:], " failed")
-	if end < 0 {
-		return ""
-	}
-
-	// Extract the GVK string
-	gvkStr := errStr[start : start+end]
-	return strings.TrimSpace(gvkStr)
 }
 
 // clusterTaintManager manages cluster taint state in a thread-safe manner

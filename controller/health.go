@@ -2,10 +2,8 @@ package controller
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -20,35 +18,19 @@ import (
 
 // setApplicationHealth updates the health statuses of all resources performed in the comparison
 func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (health.HealthStatusCode, error) {
+	return setApplicationHealthWithClusterInfo(resources, statuses, resourceOverrides, app, persistResourceHealth, nil)
+}
+
+// setApplicationHealthWithClusterInfo updates the health statuses with optional cluster health information
+func setApplicationHealthWithClusterInfo(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool, clusterHealth *ClusterHealthStatus) (health.HealthStatusCode, error) {
 	var savedErr error
 	var errCount uint
 	var containsResources, containsLiveResources bool
 
-	// Check if application has conversion webhook error conditions
-	hasConversionWebhookIssues := false
-
-	// Check sync operation state for conversion webhook errors
-	if app.Status.OperationState != nil && app.Status.OperationState.Phase == synccommon.OperationFailed {
-		if strings.Contains(app.Status.OperationState.Message, "conversion webhook") {
-			hasConversionWebhookIssues = true
-		}
-	}
-
-	// Also check application conditions
-	for _, condition := range app.Status.Conditions {
-		if (condition.Type == appv1.ApplicationConditionComparisonError ||
-			condition.Type == appv1.ApplicationConditionSyncError) &&
-			(strings.Contains(condition.Message, "conversion webhook") ||
-				strings.Contains(condition.Message, "unavailable resource types")) {
-			hasConversionWebhookIssues = true
-			break
-		}
-	}
-
-	// Start with Healthy status, but set to Unknown if conversion webhook issues are present
+	// Start with Healthy status, but adjust if cluster health issues are detected
 	appHealthStatus := health.HealthStatusHealthy
-	if hasConversionWebhookIssues {
-		// If we have conversion webhook issues, set health to Unknown or Degraded
+	if clusterHealth != nil && clusterHealth.HasCacheIssues {
+		// If we have cluster cache issues, start with Degraded status
 		appHealthStatus = health.HealthStatusDegraded
 	}
 	for i, res := range resources {
