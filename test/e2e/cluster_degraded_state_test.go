@@ -92,7 +92,7 @@ func TestClusterDegradedState(t *testing.T) {
 func TestClusterDegradedStateRecovery(t *testing.T) {
 	// Create a test cluster
 	clusterFixture.
-		GivenWithSameState(t).
+		Given(t).
 		Name("test-recovery").
 		Project(fixture.ProjectName).
 		Upsert(true).

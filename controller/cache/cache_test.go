@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/url"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -185,17 +186,16 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 	fakeClient := fake.NewClientset()
 	settingsMgr := argosettings.NewSettingsManager(t.Context(), fakeClient, "argocd")
 	gitopsEngineClusterCache := &mocks.ClusterCache{}
-	clustersCache := liveStateCache{
+	clustersCache := &liveStateCache{
 		clusters: map[string]cache.ClusterCache{
 			testCluster.Server: gitopsEngineClusterCache,
 		},
 		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
 		settingsMgr:     settingsMgr,
 		taintManager:    newClusterTaintManager(),
-		// Set the lock here so we can reference it later
-		//nolint:govet // We need to overwrite here to have access to the lock
-		lock: liveStateCacheLock,
 	}
+	// Helper function to access the lock for this deadlock test
+	getLock := func() *sync.RWMutex { return &clustersCache.lock }
 	channel := make(chan string)
 	// Mocked lock held by the gitops-engine cluster cache
 	gitopsEngineClusterCacheLock := sync.Mutex{}
@@ -223,9 +223,9 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		// Wait until handleDeleteEvent holds the liveStateCache lock
 		handleDeleteWasCalled.Lock()
 		// Try and obtain the liveStateCache lock
-		clustersCache.lock.Lock()
+		getLock().Lock()
 		t.Log("EnsureSynced: Engine has LiveStateCache lock")
-		clustersCache.lock.Unlock()
+		getLock().Unlock()
 		ensureSyncedCompleted.Unlock()
 	}).Return(nil).Once()
 
@@ -1181,4 +1181,129 @@ func TestGetClustersInfoWithFailedGVKs(t *testing.T) {
 	taintedGVKs := c.GetTaintedGVKs("test-server")
 	assert.Contains(t, taintedGVKs, gvkStr1, "First GVK should be tracked as tainted")
 	assert.Contains(t, taintedGVKs, gvkStr2, "Second GVK should be tracked as tainted")
+}
+
+// extractGVKFromCacheError attempts to extract the GroupVersionKind from various cache errors
+// Returns an empty string if no GVK could be extracted
+// This is a test utility function for analyzing cache error messages
+func extractGVKFromCacheError(err error) string {
+	if err == nil {
+		return ""
+	}
+	errStr := err.Error()
+
+	// Example error: "conversion webhook for conversion.example.com/v1, Kind=Example failed"
+	// Try to extract the GVK from the error message
+	webhookMatch := strings.Index(errStr, "conversion webhook for ")
+	if webhookMatch < 0 {
+		return ""
+	}
+
+	// Extract the text after "conversion webhook for "
+	start := webhookMatch + len("conversion webhook for ")
+	end := strings.Index(errStr[start:], " failed")
+	if end < 0 {
+		return ""
+	}
+
+	// Extract the GVK string
+	gvkStr := errStr[start : start+end]
+	return strings.TrimSpace(gvkStr)
+}
+
+func TestShouldReturnPartialCache(t *testing.T) {
+	// Create a mock taint manager
+	taintManager := newClusterTaintManager()
+
+	cache := &liveStateCache{
+		taintManager: taintManager,
+	}
+
+	tests := []struct {
+		name           string
+		server         string
+		err            error
+		taintedGVKs    []string
+		expectedResult bool
+	}{
+		{
+			name:           "has tainted GVKs and partial cache error",
+			server:         "test-server",
+			err:            errors.New("conversion webhook failed"),
+			taintedGVKs:    []string{"example.com/v1, Kind=Example"},
+			expectedResult: true,
+		},
+		{
+			name:           "no tainted GVKs",
+			server:         "test-server",
+			err:            errors.New("conversion webhook failed"),
+			taintedGVKs:    []string{},
+			expectedResult: false,
+		},
+		{
+			name:           "tainted GVKs but total failure error",
+			server:         "test-server",
+			err:            errors.New("connection refused"),
+			taintedGVKs:    []string{"example.com/v1, Kind=Example"},
+			expectedResult: false,
+		},
+		{
+			name:           "no error",
+			server:         "test-server",
+			err:            nil,
+			taintedGVKs:    []string{"example.com/v1, Kind=Example"},
+			expectedResult: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set up tainted GVKs
+			if len(tt.taintedGVKs) > 0 {
+				for _, gvk := range tt.taintedGVKs {
+					cache.taintManager.markTainted(tt.server, gvk, "TestError", "test reason")
+				}
+			} else {
+				cache.taintManager.clearTaints(tt.server)
+			}
+
+			result := cache.shouldReturnPartialCache(tt.server, tt.err)
+			assert.Equal(t, tt.expectedResult, result)
+
+			// Clean up for next test
+			cache.taintManager.clearTaints(tt.server)
+		})
+	}
+}
+
+func TestClusterTaintManagerMethods(t *testing.T) {
+	taintManager := newClusterTaintManager()
+	server := "test-server"
+	gvk1 := "example.com/v1, Kind=Example"
+	gvk2 := "apps/v1, Kind=Deployment"
+
+	// Test initial state
+	assert.False(t, taintManager.isTainted(server))
+	assert.Empty(t, taintManager.getTaintedGVKs(server))
+	assert.False(t, taintManager.isResourceGVKFailed(server, gvk1))
+
+	// Test marking as tainted
+	taintManager.markTainted(server, gvk1, "ConversionError", "test reason")
+	assert.True(t, taintManager.isTainted(server))
+	assert.Contains(t, taintManager.getTaintedGVKs(server), gvk1)
+	assert.True(t, taintManager.isResourceGVKFailed(server, gvk1))
+	assert.False(t, taintManager.isResourceGVKFailed(server, gvk2))
+
+	// Test multiple GVKs
+	taintManager.markTainted(server, gvk2, "ListError", "test reason 2")
+	taintedGVKs := taintManager.getTaintedGVKs(server)
+	assert.Len(t, taintedGVKs, 2)
+	assert.Contains(t, taintedGVKs, gvk1)
+	assert.Contains(t, taintedGVKs, gvk2)
+
+	// Test clearing taints
+	taintManager.clearTaints(server)
+	assert.False(t, taintManager.isTainted(server))
+	assert.Empty(t, taintManager.getTaintedGVKs(server))
+	assert.False(t, taintManager.isResourceGVKFailed(server, gvk1))
 }
