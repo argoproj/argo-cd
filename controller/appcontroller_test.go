@@ -220,7 +220,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	mockStateCache.EXPECT().IsNamespaced(mock.Anything, mock.Anything).Return(true, nil)
 	mockStateCache.EXPECT().GetManagedLiveObjs(mock.Anything, mock.Anything, mock.Anything).Return(data.managedLiveObjs, nil)
 	mockStateCache.EXPECT().GetVersionsInfo(mock.Anything).Return("v1.2.3", nil, nil)
-	mockStateCache.EXPECT().GetTaintedGVKs(mock.Anything).Return([]string{}, nil)
+	mockStateCache.EXPECT().GetTaintedGVKs(mock.Anything).Return([]string{})
 	response := make(map[kube.ResourceKey]v1alpha1.ResourceNode)
 	for k, v := range data.namespacedResources {
 		response[k] = v.ResourceNode
