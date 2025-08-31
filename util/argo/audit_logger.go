@@ -43,6 +43,9 @@ const (
 	EventReasonResourceActionRan  = "ResourceActionRan"
 	EventReasonOperationStarted   = "OperationStarted"
 	EventReasonOperationCompleted = "OperationCompleted"
+	EventReasonHydrationStarted   = "HydrationStarted"
+	EventReasonHydrationCompleted = "HydrationCompleted"
+	EventReasonHydrationFailed    = "HydrationFailed"
 )
 
 func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, info EventInfo, message string, logFields map[string]string, eventLabels map[string]string) {
