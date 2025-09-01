@@ -7,6 +7,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {
     ApplicationSyncWindowStatusIcon,
+    AutoSyncStatusIcon,
     ComparisonStatusIcon,
     getAppDefaultSource,
     getAppDefaultSyncRevisionExtra,
@@ -221,7 +222,17 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     <div className='application-status-panel__item-value__revision show-for-large'>{syncStatusMessage(application)}</div>
                 </div>
                 <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
-                    {application.spec.syncPolicy?.automated ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}
+                    {application.spec.syncPolicy?.automated?.enabled ? (
+                        <>
+                            <AutoSyncStatusIcon enabled={true} />
+                            Auto sync is enabled.
+                        </>
+                    ) : (
+                        <>
+                            <AutoSyncStatusIcon enabled={false} size='large' />
+                            <span style={{fontWeight: 'bold', fontSize: '1.2em'}}>Auto sync is disabled.</span>
+                        </>
+                    )}
                 </div>
                 {application.status &&
                     application.status.sync &&
