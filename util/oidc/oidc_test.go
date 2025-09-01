@@ -1173,9 +1173,9 @@ func TestGetUserInfo(t *testing.T) {
 	}
 }
 
-func TestIssue24305_CompleteScenario(t *testing.T) {
-	// This test simulates the complete scenario described in issue #24305
-	// where Keycloak OIDC redirect URL validation fails after updating from Helm chart 8.2.0 to 8.3.1
+func TestKeycloakOIDCRedirectURLValidation(t *testing.T) {
+	// This test validates the Keycloak OIDC redirect URL validation
+	// which was failing after updating from Helm chart 8.2.0 to 8.3.1
 
 	// Simulate the configuration from the issue
 	settings := &settings.ArgoCDSettings{
