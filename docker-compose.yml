@@ -1,0 +1,181 @@
+version: '3.8'
+
+services:
+  # Redis for ArgoCD cache
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass argocd
+    networks:
+      - argocd
+
+  # PostgreSQL for ArgoCD data
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: argocd
+      POSTGRES_USER: argocd
+      POSTGRES_PASSWORD: argocd
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - argocd
+
+  # Local Docker Registry (simulates ECR)
+  registry:
+    image: registry:2
+    ports:
+      - "5000:5000"
+    environment:
+      REGISTRY_AUTH: htpasswd
+      REGISTRY_AUTH_HTPASSWD_REALM: Registry Realm
+      REGISTRY_AUTH_HTPASSWD_PATH: /auth/htpasswd
+      REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY: /data
+    volumes:
+      - registry_data:/data
+      - ./registry-auth:/auth
+    networks:
+      - argocd
+
+  # ArgoCD Repo Server (with ECR support)
+  argocd-repo-server:
+    image: argocd-ecr:local
+    build:
+      context: ../
+      dockerfile: Dockerfile
+      target: argocd-base
+    command: ["argocd-repo-server"]
+    environment:
+      - ARGOCD_LOG_LEVEL=debug
+      - ARGOCD_LOG_FORMAT=json
+      - REDIS_SERVER=redis:6379
+      - REDIS_PASSWORD=argocd
+      # Mock AWS environment variables (simulates IRSA)
+      - AWS_REGION=us-west-2
+      - AWS_DEFAULT_REGION=us-west-2
+      - AWS_ACCESS_KEY_ID=mock-access-key
+      - AWS_SECRET_ACCESS_KEY=mock-secret-key
+      - AWS_SESSION_TOKEN=mock-session-token
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+      - postgres
+      - registry
+    volumes:
+      - ../examples:/examples:ro
+      - ../testing:/testing:ro
+    networks:
+      - argocd
+
+  # ArgoCD Server (API & UI)
+  argocd-server:
+    image: argocd-ecr:local
+    command: ["argocd-server", "--insecure"]
+    environment:
+      - ARGOCD_LOG_LEVEL=debug
+      - ARGOCD_LOG_FORMAT=json
+      - REDIS_SERVER=redis:6379
+      - REDIS_PASSWORD=argocd
+      - ARGOCD_DATABASE_PASSWORD=argocd
+      - ARGOCD_DATABASE_USER=argocd
+      - ARGOCD_DATABASE_NAME=argocd
+      - ARGOCD_DATABASE_HOST=postgres
+      - ARGOCD_DATABASE_PORT=5432
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+      - postgres
+      - argocd-repo-server
+    networks:
+      - argocd
+
+  # ArgoCD Application Controller
+  argocd-application-controller:
+    image: argocd-ecr:local
+    command: ["argocd-application-controller"]
+    environment:
+      - ARGOCD_LOG_LEVEL=debug
+      - ARGOCD_LOG_FORMAT=json
+      - REDIS_SERVER=redis:6379
+      - REDIS_PASSWORD=argocd
+      - ARGOCD_DATABASE_PASSWORD=argocd
+      - ARGOCD_DATABASE_USER=argocd
+      - ARGOCD_DATABASE_NAME=argocd
+      - ARGOCD_DATABASE_HOST=postgres
+      - ARGOCD_DATABASE_PORT=5432
+    depends_on:
+      - redis
+      - postgres
+      - argocd-repo-server
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - argocd
+
+  # Test client container for running CLI commands
+  argocd-client:
+    image: argocd-ecr:local
+    command: ["sleep", "3600"]
+    environment:
+      - ARGOCD_SERVER=argocd-server:8080
+      - ARGOCD_LOG_LEVEL=debug
+      # Mock AWS environment
+      - AWS_REGION=us-west-2
+      - AWS_ACCESS_KEY_ID=mock-access-key
+      - AWS_SECRET_ACCESS_KEY=mock-secret-key
+    depends_on:
+      - argocd-server
+    volumes:
+      - ../testing:/testing:ro
+      - ../examples:/examples:ro
+      - ./test-data:/test-data:ro
+    networks:
+      - argocd
+
+  # Local Kubernetes cluster (kind-in-docker)
+  kind-cluster:
+    image: kindest/node:v1.28.0
+    privileged: true
+    environment:
+      - container=docker
+    ports:
+      - "6443:6443"
+    volumes:
+      - /var/lib/docker
+      - ./kind-config:/kind-config:ro
+    networks:
+      - argocd
+
+  # Mock AWS services (LocalStack for ECR simulation)
+  localstack:
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"  # LocalStack edge port
+      - "4510-4559:4510-4559"  # External services port range
+    environment:
+      - SERVICES=ecr,sts,iam
+      - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - AWS_DEFAULT_REGION=us-west-2
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+    volumes:
+      - "./localstack-data:/tmp/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./aws-setup:/docker-entrypoint-initaws.d:ro"
+    networks:
+      - argocd
+
+volumes:
+  postgres_data:
+  registry_data:
+
+networks:
+  argocd:
+    driver: bridge

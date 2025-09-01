@@ -3996,6 +3996,24 @@
             "description": "Whether https should be disabled for an OCI repo.",
             "name": "insecureOciForceHttp",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to use AWS ECR workload identity for authentication.",
+            "name": "useAWSECRWorkloadIdentity",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "AWS ECR region for authentication.",
+            "name": "awsECRRegion",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "AWS ECR registry ID for cross-account access.",
+            "name": "awsECRRegistryID",
+            "in": "query"
           }
         ],
         "responses": {
@@ -4839,6 +4857,24 @@
             "type": "boolean",
             "description": "Whether https should be disabled for an OCI repo.",
             "name": "insecureOciForceHttp",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to use AWS ECR workload identity for authentication.",
+            "name": "useAWSECRWorkloadIdentity",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "AWS ECR region for authentication.",
+            "name": "awsECRRegion",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "AWS ECR registry ID for cross-account access.",
+            "name": "awsECRRegistryID",
             "in": "query"
           }
         ],
@@ -9361,6 +9397,14 @@
       "type": "object",
       "title": "RepoCreds holds the definition for repository credentials",
       "properties": {
+        "awsECRRegion": {
+          "type": "string",
+          "title": "AWSECRRegion specifies the AWS region for ECR (optional, defaults to AWS config if empty)"
+        },
+        "awsECRRegistryID": {
+          "type": "string",
+          "title": "AWSECRRegistryID specifies the AWS account ID for ECR (optional, defaults to current account if empty)"
+        },
         "bearerToken": {
           "type": "string",
           "title": "BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server"
@@ -9431,6 +9475,10 @@
           "type": "string",
           "title": "URL is the URL to which these credentials match"
         },
+        "useAWSECRWorkloadIdentity": {
+          "type": "boolean",
+          "title": "UseAWSECRWorkloadIdentity specifies whether to use AWS ECR with workload identity for authentication"
+        },
         "useAzureWorkloadIdentity": {
           "type": "boolean",
           "title": "UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication"
@@ -9460,6 +9508,14 @@
       "type": "object",
       "title": "Repository is a repository holding application configurations",
       "properties": {
+        "awsECRRegion": {
+          "type": "string",
+          "title": "AWSECRRegion specifies the AWS region for ECR (optional, defaults to AWS config if empty)"
+        },
+        "awsECRRegistryID": {
+          "type": "string",
+          "title": "AWSECRRegistryID specifies the AWS account ID for ECR (optional, defaults to current account if empty)"
+        },
         "bearerToken": {
           "type": "string",
           "title": "BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server"
@@ -9556,6 +9612,10 @@
         "type": {
           "description": "Type specifies the type of the repo. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent.",
           "type": "string"
+        },
+        "useAWSECRWorkloadIdentity": {
+          "type": "boolean",
+          "title": "UseAWSECRWorkloadIdentity specifies whether to use AWS ECR with workload identity for authentication"
         },
         "useAzureWorkloadIdentity": {
           "type": "boolean",

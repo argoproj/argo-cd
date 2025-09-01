@@ -95,6 +95,12 @@ message RepoAccessQuery {
 	string bearerToken = 21;
 	// Whether https should be disabled for an OCI repo
 	bool insecureOciForceHttp = 22;
+	// Whether to use AWS ECR workload identity for authentication
+	bool useAWSECRWorkloadIdentity = 23;
+	// AWS ECR region for authentication
+	string awsECRRegion = 24;
+	// AWS ECR registry ID for cross-account access
+	string awsECRRegistryID = 25;
 }
 
 message RepoResponse {}

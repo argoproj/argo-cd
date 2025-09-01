@@ -18,6 +18,9 @@ export interface HTTPSQuery {
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
+    useAWSECRWorkloadIdentity?: boolean;
+    awsECRRegion?: string;
+    awsECRRegistryID?: string;
     insecureOCIForceHttp: boolean;
 }
 
@@ -109,6 +112,9 @@ export class RepositoriesService {
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
+                useAWSECRWorkloadIdentity: q.useAWSECRWorkloadIdentity,
+                awsECRRegion: q.awsECRRegion,
+                awsECRRegistryID: q.awsECRRegistryID,
                 insecureOCIForceHttp: q.insecureOCIForceHttp
             })
             .then(res => res.body as models.Repository);
@@ -134,6 +140,9 @@ export class RepositoriesService {
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
+                useAWSECRWorkloadIdentity: q.useAWSECRWorkloadIdentity,
+                awsECRRegion: q.awsECRRegion,
+                awsECRRegistryID: q.awsECRRegistryID,
                 insecureOCIForceHttp: q.insecureOCIForceHttp
             })
             .then(res => res.body as models.Repository);
@@ -159,6 +168,9 @@ export class RepositoriesService {
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
+                useAWSECRWorkloadIdentity: q.useAWSECRWorkloadIdentity,
+                awsECRRegion: q.awsECRRegion,
+                awsECRRegistryID: q.awsECRRegistryID,
                 insecureOCIForceHttp: q.insecureOCIForceHttp
             })
             .then(res => res.body as models.Repository);
@@ -184,6 +196,9 @@ export class RepositoriesService {
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
+                useAWSECRWorkloadIdentity: q.useAWSECRWorkloadIdentity,
+                awsECRRegion: q.awsECRRegion,
+                awsECRRegistryID: q.awsECRRegistryID,
                 insecureOCIForceHttp: q.insecureOCIForceHttp
             })
             .then(res => res.body as models.Repository);

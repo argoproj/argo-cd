@@ -1823,6 +1823,15 @@ message RepoCreds {
 
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
   optional bool insecureOCIForceHttp = 26;
+
+  // UseAWSECRWorkloadIdentity specifies whether to use AWS ECR with workload identity for authentication
+  optional bool useAWSECRWorkloadIdentity = 27;
+
+  // AWSECRRegion specifies the AWS region for ECR (optional, defaults to AWS config if empty)
+  optional string awsECRRegion = 28;
+
+  // AWSECRRegistryID specifies the AWS account ID for ECR (optional, defaults to current account if empty)
+  optional string awsECRRegistryID = 29;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1912,6 +1921,15 @@ message Repository {
 
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
   optional bool insecureOCIForceHttp = 26;
+
+  // UseAWSECRWorkloadIdentity specifies whether to use AWS ECR with workload identity for authentication
+  optional bool useAWSECRWorkloadIdentity = 27;
+
+  // AWSECRRegion specifies the AWS region for ECR (optional, defaults to AWS config if empty)
+  optional string awsECRRegion = 28;
+
+  // AWSECRRegistryID specifies the AWS account ID for ECR (optional, defaults to current account if empty)
+  optional string awsECRRegistryID = 29;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

@@ -191,6 +191,9 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repoOpts.Repo.NoProxy = repoOpts.NoProxy
 			repoOpts.Repo.ForceHttpBasicAuth = repoOpts.ForceHttpBasicAuth
 			repoOpts.Repo.UseAzureWorkloadIdentity = repoOpts.UseAzureWorkloadIdentity
+			repoOpts.Repo.UseAWSECRWorkloadIdentity = repoOpts.UseAWSECRWorkloadIdentity
+			repoOpts.Repo.AWSECRRegion = repoOpts.AWSECRRegion
+			repoOpts.Repo.AWSECRRegistryID = repoOpts.AWSECRRegistryID
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {
 				errors.Fatal(errors.ErrorGeneric, "Must specify --name for repos of type 'helm'")
@@ -244,6 +247,9 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				GcpServiceAccountKey:       repoOpts.Repo.GCPServiceAccountKey,
 				ForceHttpBasicAuth:         repoOpts.Repo.ForceHttpBasicAuth,
 				UseAzureWorkloadIdentity:   repoOpts.Repo.UseAzureWorkloadIdentity,
+				UseAWSECRWorkloadIdentity:  repoOpts.Repo.UseAWSECRWorkloadIdentity,
+				AwsECRRegion:               repoOpts.Repo.AWSECRRegion,
+				AwsECRRegistryID:           repoOpts.Repo.AWSECRRegistryID,
 				InsecureOciForceHttp:       repoOpts.Repo.InsecureOCIForceHttp,
 			}
 			_, err = repoIf.ValidateAccess(ctx, &repoAccessReq)

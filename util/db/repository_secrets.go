@@ -338,6 +338,8 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 		Proxy:                      string(secret.Data["proxy"]),
 		NoProxy:                    string(secret.Data["noProxy"]),
 		Project:                    string(secret.Data["project"]),
+		AWSECRRegion:               string(secret.Data["awsECRRegion"]),
+		AWSECRRegistryID:           string(secret.Data["awsECRRegistryID"]),
 		GCPServiceAccountKey:       string(secret.Data["gcpServiceAccountKey"]),
 	}
 
@@ -395,6 +397,13 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	}
 	repository.UseAzureWorkloadIdentity = useAzureWorkloadIdentity
 
+	// AWS ECR Workload Identity boolean field
+	useAWSECRWorkloadIdentity, err := boolOrFalse(secret, "useAWSECRWorkloadIdentity")
+	if err != nil {
+		return repository, err
+	}
+	repository.UseAWSECRWorkloadIdentity = useAWSECRWorkloadIdentity
+
 	return repository, nil
 }
 
@@ -427,6 +436,9 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretString(secret, "gcpServiceAccountKey", repository.GCPServiceAccountKey)
 	updateSecretBool(secret, "forceHttpBasicAuth", repository.ForceHttpBasicAuth)
 	updateSecretBool(secret, "useAzureWorkloadIdentity", repository.UseAzureWorkloadIdentity)
+	updateSecretBool(secret, "useAWSECRWorkloadIdentity", repository.UseAWSECRWorkloadIdentity)
+	updateSecretString(secret, "awsECRRegion", repository.AWSECRRegion)
+	updateSecretString(secret, "awsECRRegistryID", repository.AWSECRRegistryID)
 	addSecretMetadata(secret, s.getSecretType())
 }
 
@@ -445,6 +457,8 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 		GCPServiceAccountKey:       string(secret.Data["gcpServiceAccountKey"]),
 		Proxy:                      string(secret.Data["proxy"]),
 		NoProxy:                    string(secret.Data["noProxy"]),
+		AWSECRRegion:               string(secret.Data["awsECRRegion"]),
+		AWSECRRegistryID:           string(secret.Data["awsECRRegistryID"]),
 	}
 
 	enableOCI, err := boolOrFalse(secret, "enableOCI")
@@ -483,6 +497,13 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 	}
 	repository.UseAzureWorkloadIdentity = useAzureWorkloadIdentity
 
+	// AWS ECR Workload Identity for RepoCreds
+	useAWSECRWorkloadIdentity, err := boolOrFalse(secret, "useAWSECRWorkloadIdentity")
+	if err != nil {
+		return repository, err
+	}
+	repository.UseAWSECRWorkloadIdentity = useAWSECRWorkloadIdentity
+
 	return repository, nil
 }
 
@@ -510,6 +531,9 @@ func (s *secretsRepositoryBackend) repoCredsToSecret(repoCreds *appsv1.RepoCreds
 	updateSecretString(secret, "noProxy", repoCreds.NoProxy)
 	updateSecretBool(secret, "forceHttpBasicAuth", repoCreds.ForceHttpBasicAuth)
 	updateSecretBool(secret, "useAzureWorkloadIdentity", repoCreds.UseAzureWorkloadIdentity)
+	updateSecretBool(secret, "useAWSECRWorkloadIdentity", repoCreds.UseAWSECRWorkloadIdentity)
+	updateSecretString(secret, "awsECRRegion", repoCreds.AWSECRRegion)
+	updateSecretString(secret, "awsECRRegistryID", repoCreds.AWSECRRegistryID)
 	addSecretMetadata(secret, s.getRepoCredSecretType())
 }
 

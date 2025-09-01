@@ -1,0 +1,142 @@
+# ArgoCD ECR Local Development Makefile
+
+CLUSTER_NAME = argocd-ecr-test
+NAMESPACE = argocd
+IMAGE_TAG = argocd-ecr:local
+SERVER_PORT = 8080
+
+.PHONY: help start stop clean status test ui creds logs
+
+help:
+	@echo "🧪 ArgoCD ECR Local Development"
+	@echo "==============================="
+	@echo ""
+	@echo "Commands:"
+	@echo "  make start       - Complete setup and start ArgoCD"
+	@echo "  make ui          - Show credentials and open UI"
+	@echo "  make test        - Test ECR functionality"  
+	@echo "  make status      - Show cluster status"
+	@echo "  make logs        - Show ArgoCD logs"
+	@echo "  make stop        - Stop port forwarding"
+	@echo "  make clean       - Remove cluster and cleanup"
+	@echo "  make patch       - Update with latest code changes"
+
+start:
+	@echo "🚀 Starting ArgoCD ECR development environment..."
+	@make setup
+	@make deploy
+	@make creds
+
+setup:
+	@echo "🔧 Setting up Kind cluster..."
+	@if ! kind get clusters | grep -q "$(CLUSTER_NAME)"; then \
+		kind create cluster --config kind-config.yaml --wait=120s; \
+	fi
+	@kubectl config use-context kind-$(CLUSTER_NAME)
+	@echo "🏗️  Building ArgoCD with ECR support..."
+	@if [ ! -f "./dist/argocd" ]; then make argocd-all; fi
+	@make image IMAGE_TAG=$(IMAGE_TAG)
+	@kind load docker-image $(IMAGE_TAG) --name $(CLUSTER_NAME)
+
+deploy:
+	@echo "🚀 Deploying ArgoCD..."
+	@kubectl create namespace $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+	@kubectl apply -n $(NAMESPACE) -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+	@echo "⏳ Waiting for initial deployment..."
+	@sleep 15
+	@echo "🔄 Patching with ECR image..."
+	@kubectl patch deployment argocd-server -n $(NAMESPACE) --type='merge' -p='{"spec":{"template":{"spec":{"containers":[{"name":"argocd-server","image":"$(IMAGE_TAG)","imagePullPolicy":"Never"}]}}}}'
+	@kubectl patch deployment argocd-repo-server -n $(NAMESPACE) --type='merge' -p='{"spec":{"template":{"spec":{"containers":[{"name":"argocd-repo-server","image":"$(IMAGE_TAG)","imagePullPolicy":"Never"}]}}}}'
+	@kubectl patch statefulset argocd-application-controller -n $(NAMESPACE) --type='merge' -p='{"spec":{"template":{"spec":{"containers":[{"name":"argocd-application-controller","image":"$(IMAGE_TAG)","imagePullPolicy":"Never"}]}}}}'
+	@kubectl annotate serviceaccount argocd-repo-server -n $(NAMESPACE) eks.amazonaws.com/role-arn=arn:aws:iam::123456789:role/argocd-ecr-role --overwrite
+	@echo "⏳ Waiting for ArgoCD to be ready..."
+	@kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n $(NAMESPACE) --timeout=180s
+	@echo "🔌 Setting up port forwarding..."
+	@-pkill -f "kubectl.*port-forward.*argocd-server" 2>/dev/null || true
+	@nohup kubectl port-forward svc/argocd-server -n $(NAMESPACE) $(SERVER_PORT):443 >/dev/null 2>&1 &
+	@sleep 3
+
+creds:
+	@echo "🔑 ArgoCD Credentials:"
+	@echo "  URL: https://localhost:$(SERVER_PORT)"
+	@echo "  Username: admin"
+	@PASSWORD=$$(kubectl -n $(NAMESPACE) get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || echo 'admin'); \
+	echo "  Password: $$PASSWORD"
+
+ui: creds
+	@echo ""
+	@echo "🧪 Test ECR Integration:"
+	@echo "1. Go to Settings > Repositories"
+	@echo "2. Click + Connect Repo"
+	@echo "3. Configure:"
+	@echo "   - URL: oci://123456789.dkr.ecr.us-west-2.amazonaws.com"
+	@echo "   - Type: Helm"
+	@echo "   - Enable OCI: ✓"
+	@echo "   - Use AWS ECR Workload Identity: ✓"
+	@echo ""
+	@open https://localhost:$(SERVER_PORT) 2>/dev/null || echo "Open https://localhost:$(SERVER_PORT) manually"
+
+test:
+	@echo "🧪 Testing ECR Integration"
+	@echo "=========================="
+	@echo -n "ArgoCD Version: "
+	@kubectl exec -n $(NAMESPACE) deployment/argocd-server -- argocd version 2>/dev/null | head -1 || echo "Not available"
+	@echo -n "ECR Flags: "
+	@kubectl exec -n $(NAMESPACE) deployment/argocd-server -- argocd repo add --help | grep -c ecr || echo "0"
+	@echo -n "Unit Tests: "
+	@go test ./util/helm/ -run TestAWSECR 2>/dev/null | grep -c PASS || echo "0"
+	@echo -n "UI Access: "
+	@curl -k -s https://localhost:$(SERVER_PORT)/api/version >/dev/null 2>&1 && echo "✅ Working" || echo "❌ Not accessible"
+	@echo ""
+	@echo "IRSA Configuration:"
+	@kubectl get sa argocd-repo-server -n $(NAMESPACE) -o jsonpath='{.metadata.annotations.eks\.amazonaws\.com/role-arn}' || echo "Not configured"
+
+status:
+	@echo "📊 Development Environment Status"
+	@echo "================================="
+	@echo "Cluster: $(CLUSTER_NAME)"
+	@kind get clusters | grep $(CLUSTER_NAME) >/dev/null && echo "✅ Kind cluster running" || echo "❌ Cluster not found"
+	@echo ""
+	@echo "ArgoCD Pods:"
+	@kubectl get pods -n $(NAMESPACE) 2>/dev/null || echo "❌ ArgoCD not deployed"
+
+logs:
+	@echo "📋 Recent ArgoCD Logs"
+	@echo "===================="
+	@echo "Server logs:"
+	@kubectl logs deployment/argocd-server -n $(NAMESPACE) --tail=5 2>/dev/null || echo "Not available"
+	@echo ""
+	@echo "Repo server logs:"
+	@kubectl logs deployment/argocd-repo-server -n $(NAMESPACE) --tail=5 2>/dev/null || echo "Not available"
+
+logs-ecr:
+	@echo "🔍 Monitoring ECR logs (Ctrl+C to stop)..."
+	@kubectl logs -f deployment/argocd-repo-server -n $(NAMESPACE) | grep --line-buffered -i ecr
+
+restart:
+	@echo "🔄 Restarting ArgoCD services..."
+	@kubectl rollout restart deployment/argocd-server deployment/argocd-repo-server -n $(NAMESPACE)
+	@kubectl rollout restart statefulset/argocd-application-controller -n $(NAMESPACE)
+
+patch:
+	@echo "🔄 Updating with latest code changes..."
+	@make argocd-all
+	@make image IMAGE_TAG=$(IMAGE_TAG)
+	@kind load docker-image $(IMAGE_TAG) --name $(CLUSTER_NAME)
+	@make restart
+	@kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n $(NAMESPACE) --timeout=120s
+	@echo "✅ Updated successfully"
+
+stop:
+	@echo "🛑 Stopping port forwarding..."
+	@-pkill -f "kubectl.*port-forward.*argocd" 2>/dev/null || true
+
+clean: stop
+	@echo "🧹 Cleaning up development environment..."
+	@-kind delete cluster --name $(CLUSTER_NAME) 2>/dev/null || true
+	@-docker rmi $(IMAGE_TAG) 2>/dev/null || true
+	@echo "✅ Cleanup complete"
+
+# Quick commands
+dev: start
+reset: clean start

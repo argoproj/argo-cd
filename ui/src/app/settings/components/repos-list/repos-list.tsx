@@ -47,6 +47,9 @@ export interface NewHTTPSRepoParams {
     // write should be true if saving as a write credential.
     write: boolean;
     useAzureWorkloadIdentity: boolean;
+    useAWSECRWorkloadIdentity: boolean;
+    awsECRRegion: string;
+    awsECRRegistryID: string;
 }
 
 interface NewGitHubAppRepoParams {
@@ -103,6 +106,9 @@ interface NewHTTPSRepoCredsParams {
     // write should be true if saving as a write credential.
     write: boolean;
     useAzureWorkloadIdentity: boolean;
+    useAWSECRWorkloadIdentity: boolean;
+    awsECRRegion: string;
+    awsECRRegistryID: string;
 }
 
 interface NewGitHubAppRepoCredsParams {
@@ -857,6 +863,36 @@ export class ReposList extends React.Component<
                                                             component={CheckboxField}
                                                         />
                                                     </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label='Use AWS ECR Workload Identity'
+                                                            field='useAWSECRWorkloadIdentity'
+                                                            component={CheckboxField}
+                                                        />
+                                                    </div>
+                                                    {formApi.values.useAWSECRWorkloadIdentity && (
+                                                        <div>
+                                                            <div className='argo-form-row'>
+                                                                <FormField
+                                                                    formApi={formApi}
+                                                                    label='AWS ECR Region'
+                                                                    field='awsECRRegion'
+                                                                    component={Text}
+                                                                    placeholder='Auto-detected if empty (e.g., us-west-2)'
+                                                                />
+                                                            </div>
+                                                            <div className='argo-form-row'>
+                                                                <FormField
+                                                                    formApi={formApi}
+                                                                    label='AWS ECR Registry ID'
+                                                                    field='awsECRRegistryID'
+                                                                    component={Text}
+                                                                    placeholder='Current account if empty (e.g., 123456789)'
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                             {this.state.method === ConnectionMethod.GITHUBAPP && (
@@ -1075,6 +1111,9 @@ export class ReposList extends React.Component<
                 enableOCI: params.enableOCI,
                 write: params.write,
                 useAzureWorkloadIdentity: params.useAzureWorkloadIdentity,
+                useAWSECRWorkloadIdentity: params.useAWSECRWorkloadIdentity,
+                awsECRRegion: params.awsECRRegion,
+                awsECRRegistryID: params.awsECRRegistryID,
                 insecureOCIForceHttp: params.insecureOCIForceHttp
             });
         } else {

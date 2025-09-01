@@ -1,0 +1,188 @@
+# ArgoCD ECR Local Development Makefile
+# =====================================
+
+# Configuration
+CLUSTER_NAME ?= argocd-ecr-test
+NAMESPACE ?= argocd
+IMAGE_TAG ?= argocd-ecr:local
+SERVER_PORT ?= 8080
+
+# Colors
+GREEN = \033[0;32m
+BLUE = \033[0;34m
+YELLOW = \033[1;33m
+NC = \033[0m
+
+.PHONY: help start stop clean status test ui
+
+# Default help
+help:
+	@echo "$(BLUE)🧪 ArgoCD ECR Local Development$(NC)"
+	@echo "================================="
+	@echo ""
+	@echo "$(GREEN)Quick Commands:$(NC)"
+	@echo "  make start       - Complete setup and start ArgoCD"
+	@echo "  make ui          - Open ArgoCD UI"
+	@echo "  make test        - Test ECR functionality"
+	@echo "  make stop        - Stop and cleanup"
+	@echo ""
+	@echo "$(GREEN)Development:$(NC)"
+	@echo "  make setup       - Setup cluster and build image"
+	@echo "  make deploy      - Deploy ArgoCD"
+	@echo "  make patch       - Update with latest changes"
+	@echo "  make restart     - Restart ArgoCD services"
+	@echo ""
+	@echo "$(GREEN)Monitoring:$(NC)"
+	@echo "  make status      - Show status"
+	@echo "  make logs        - Show logs"
+	@echo "  make logs-ecr    - Monitor ECR logs"
+
+# Complete setup and start
+start: setup deploy creds
+	@echo "$(GREEN)🎉 ArgoCD ECR ready at https://localhost:$(SERVER_PORT)$(NC)"
+
+# Setup infrastructure
+setup: check-deps create-cluster build-image load-image
+
+# Deploy ArgoCD
+deploy: install-argocd patch-argocd setup-ecr wait-pods port-forward
+
+# Check dependencies
+check-deps:
+	@echo "$(BLUE)Checking dependencies...$(NC)"
+	@command -v kind >/dev/null || { echo "Install kind: brew install kind"; exit 1; }
+	@command -v kubectl >/dev/null || { echo "Install kubectl"; exit 1; }
+	@command -v docker >/dev/null || { echo "Install Docker"; exit 1; }
+
+# Create Kind cluster
+create-cluster:
+	@echo "$(BLUE)Creating Kind cluster...$(NC)"
+	@if ! kind get clusters | grep -q "$(CLUSTER_NAME)"; then \
+		kind create cluster --config kind-config.yaml --wait=120s; \
+	fi
+	@kubectl config use-context kind-$(CLUSTER_NAME)
+
+# Build ArgoCD with ECR
+build-image:
+	@echo "$(BLUE)Building ArgoCD with ECR...$(NC)"
+	@if [ ! -f "./dist/argocd" ]; then make argocd-all; fi
+	@make image IMAGE_TAG=$(IMAGE_TAG)
+
+# Load image into cluster
+load-image:
+	@echo "$(BLUE)Loading image into cluster...$(NC)"
+	@kind load docker-image $(IMAGE_TAG) --name $(CLUSTER_NAME)
+
+# Install ArgoCD
+install-argocd:
+	@echo "$(BLUE)Installing ArgoCD...$(NC)"
+	@kubectl create namespace $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+	@kubectl apply -n $(NAMESPACE) -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# Patch ArgoCD with ECR image
+patch-argocd:
+	@echo "$(BLUE)Patching ArgoCD with ECR support...$(NC)"
+	@kubectl patch deployment argocd-server -n $(NAMESPACE) --type='merge' -p='{"spec":{"template":{"spec":{"containers":[{"name":"argocd-server","image":"$(IMAGE_TAG)","imagePullPolicy":"Never"}]}}}}'
+	@kubectl patch deployment argocd-repo-server -n $(NAMESPACE) --type='merge' -p='{"spec":{"template":{"spec":{"containers":[{"name":"argocd-repo-server","image":"$(IMAGE_TAG)","imagePullPolicy":"Never"}]}}}}'
+	@kubectl patch statefulset argocd-application-controller -n $(NAMESPACE) --type='merge' -p='{"spec":{"template":{"spec":{"containers":[{"name":"argocd-application-controller","image":"$(IMAGE_TAG)","imagePullPolicy":"Never"}]}}}}'
+
+# Setup ECR configuration
+setup-ecr:
+	@echo "$(BLUE)Setting up ECR configuration...$(NC)"
+	@kubectl annotate serviceaccount argocd-repo-server -n $(NAMESPACE) eks.amazonaws.com/role-arn=arn:aws:iam::123456789:role/argocd-ecr-role --overwrite
+
+# Wait for pods
+wait-pods:
+	@echo "$(BLUE)Waiting for ArgoCD to be ready...$(NC)"
+	@kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n $(NAMESPACE) --timeout=180s
+	@kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-repo-server -n $(NAMESPACE) --timeout=180s
+
+# Setup port forwarding
+port-forward:
+	@echo "$(BLUE)Setting up port forwarding...$(NC)"
+	@-pkill -f "kubectl.*port-forward.*argocd-server" >/dev/null 2>&1 || true
+	@nohup kubectl port-forward svc/argocd-server -n $(NAMESPACE) $(SERVER_PORT):443 >/dev/null 2>&1 &
+	@sleep 2
+
+# Show credentials
+creds:
+	@echo "$(GREEN)🔑 ArgoCD Credentials:$(NC)"
+	@echo "  URL: https://localhost:$(SERVER_PORT)"
+	@echo "  Username: admin"
+	@echo "  Password: $$(kubectl -n $(NAMESPACE) get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || echo 'admin')"
+
+# Open UI
+ui: creds
+	@open https://localhost:$(SERVER_PORT) 2>/dev/null || echo "Open https://localhost:$(SERVER_PORT) manually"
+
+# Test ECR functionality
+test:
+	@echo "$(BLUE)Testing ECR integration...$(NC)"
+	@kubectl exec -n $(NAMESPACE) deployment/argocd-server -- argocd version | grep "v3.2.0" && echo "✅ ECR version" || echo "❌ Wrong version"
+	@kubectl exec -n $(NAMESPACE) deployment/argocd-server -- argocd repo add --help | grep -q ecr && echo "✅ ECR flags" || echo "❌ ECR flags missing"
+	@go test ./util/helm/ -run TestAWSECR >/dev/null && echo "✅ Unit tests" || echo "❌ Unit tests failed"
+
+# Show status
+status:
+	@echo "$(BLUE)📊 Status$(NC)"
+	@echo "============"
+	@echo "Cluster: $(CLUSTER_NAME)"
+	@kubectl get pods -n $(NAMESPACE) 2>/dev/null | grep -E "(Running|Ready)" | wc -l | xargs echo "Running pods:"
+	@echo "UI: https://localhost:$(SERVER_PORT)"
+
+# Show logs
+logs:
+	@kubectl logs deployment/argocd-server -n $(NAMESPACE) --tail=10
+
+# Monitor ECR logs
+logs-ecr:
+	@echo "$(BLUE)Monitoring ECR logs (Ctrl+C to stop)...$(NC)"
+	@kubectl logs -f deployment/argocd-repo-server -n $(NAMESPACE) | grep --line-buffered -i ecr
+
+# Restart services
+restart:
+	@echo "$(BLUE)Restarting ArgoCD...$(NC)"
+	@kubectl rollout restart deployment/argocd-server deployment/argocd-repo-server -n $(NAMESPACE)
+	@kubectl rollout restart statefulset/argocd-application-controller -n $(NAMESPACE)
+
+# Update with latest changes
+patch: build-image load-image patch-argocd restart wait-pods
+	@echo "$(GREEN)✅ Updated with latest changes$(NC)"
+
+# Stop port forwarding
+stop:
+	@echo "$(BLUE)Stopping port forwarding...$(NC)"
+	@-pkill -f "kubectl.*port-forward.*argocd" >/dev/null 2>&1 || true
+
+# Clean everything
+clean: stop
+	@echo "$(BLUE)Cleaning up...$(NC)"
+	@-kind delete cluster --name $(CLUSTER_NAME) >/dev/null 2>&1 || true
+	@-docker rmi $(IMAGE_TAG) >/dev/null 2>&1 || true
+	@echo "$(GREEN)✅ Cleanup complete$(NC)"
+
+# Add ECR test repository
+add-ecr-repo:
+	@echo "$(BLUE)Adding ECR test repository...$(NC)"
+	@kubectl apply -f - << 'EOF'
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-ecr-repo
+  namespace: $(NAMESPACE)
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: helm
+  name: test-ecr
+  url: oci://123456789.dkr.ecr.us-west-2.amazonaws.com
+  enableOCI: "true"
+  useAWSECRWorkloadIdentity: "true"
+  awsECRRegion: us-west-2
+EOF
+	@echo "$(GREEN)✅ ECR repository added$(NC)"
+
+# Development shortcuts
+dev: start
+stop-dev: stop
+reset: clean start

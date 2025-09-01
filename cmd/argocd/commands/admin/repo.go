@@ -139,6 +139,9 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			repoOpts.Repo.EnableLFS = repoOpts.EnableLfs
 			repoOpts.Repo.EnableOCI = repoOpts.EnableOci
 			repoOpts.Repo.UseAzureWorkloadIdentity = repoOpts.UseAzureWorkloadIdentity
+			repoOpts.Repo.UseAWSECRWorkloadIdentity = repoOpts.UseAWSECRWorkloadIdentity
+			repoOpts.Repo.AWSECRRegion = repoOpts.AWSECRRegion
+			repoOpts.Repo.AWSECRRegistryID = repoOpts.AWSECRRegistryID
 			repoOpts.Repo.InsecureOCIForceHttp = repoOpts.InsecureOCIForceHTTP
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {

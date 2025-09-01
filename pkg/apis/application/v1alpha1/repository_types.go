@@ -57,6 +57,12 @@ type RepoCreds struct {
 	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
 	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
 	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
+	// UseAWSECRWorkloadIdentity specifies whether to use AWS ECR with workload identity for authentication
+	UseAWSECRWorkloadIdentity bool `json:"useAWSECRWorkloadIdentity,omitempty" protobuf:"bytes,27,opt,name=useAWSECRWorkloadIdentity"`
+	// AWSECRRegion specifies the AWS region for ECR (optional, defaults to AWS config if empty)
+	AWSECRRegion string `json:"awsECRRegion,omitempty" protobuf:"bytes,28,opt,name=awsECRRegion"`
+	// AWSECRRegistryID specifies the AWS account ID for ECR (optional, defaults to current account if empty)
+	AWSECRRegistryID string `json:"awsECRRegistryID,omitempty" protobuf:"bytes,29,opt,name=awsECRRegistryID"`
 }
 
 // Repository is a repository holding application configurations
@@ -114,6 +120,12 @@ type Repository struct {
 	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
 	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
 	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
+	// UseAWSECRWorkloadIdentity specifies whether to use AWS ECR with workload identity for authentication
+	UseAWSECRWorkloadIdentity bool `json:"useAWSECRWorkloadIdentity,omitempty" protobuf:"bytes,27,opt,name=useAWSECRWorkloadIdentity"`
+	// AWSECRRegion specifies the AWS region for ECR (optional, defaults to AWS config if empty)
+	AWSECRRegion string `json:"awsECRRegion,omitempty" protobuf:"bytes,28,opt,name=awsECRRegion"`
+	// AWSECRRegistryID specifies the AWS account ID for ECR (optional, defaults to current account if empty)
+	AWSECRRegistryID string `json:"awsECRRegistryID,omitempty" protobuf:"bytes,29,opt,name=awsECRRegistryID"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification or set to HTTP only
@@ -128,7 +140,7 @@ func (repo *Repository) IsLFSEnabled() bool {
 
 // HasCredentials returns true when the repository has been configured with any credentials
 func (repo *Repository) HasCredentials() bool {
-	return repo.Username != "" || repo.Password != "" || repo.BearerToken != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != "" || repo.UseAzureWorkloadIdentity
+	return repo.Username != "" || repo.Password != "" || repo.BearerToken != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != "" || repo.UseAzureWorkloadIdentity || repo.UseAWSECRWorkloadIdentity
 }
 
 // CopyCredentialsFromRepo copies all credential information from source repository to receiving repository
@@ -170,6 +182,13 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 		repo.InsecureOCIForceHttp = source.InsecureOCIForceHttp
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
 		repo.UseAzureWorkloadIdentity = source.UseAzureWorkloadIdentity
+		repo.UseAWSECRWorkloadIdentity = source.UseAWSECRWorkloadIdentity
+		if repo.AWSECRRegion == "" {
+			repo.AWSECRRegion = source.AWSECRRegion
+		}
+		if repo.AWSECRRegistryID == "" {
+			repo.AWSECRRegistryID = source.AWSECRRegistryID
+		}
 	}
 }
 
@@ -223,6 +242,13 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		repo.InsecureOCIForceHttp = source.InsecureOCIForceHttp
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
 		repo.UseAzureWorkloadIdentity = source.UseAzureWorkloadIdentity
+		repo.UseAWSECRWorkloadIdentity = source.UseAWSECRWorkloadIdentity
+		if repo.AWSECRRegion == "" {
+			repo.AWSECRRegion = source.AWSECRRegion
+		}
+		if repo.AWSECRRegistryID == "" {
+			repo.AWSECRRegistryID = source.AWSECRRegistryID
+		}
 	}
 }
 
@@ -259,6 +285,19 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 			[]byte(repo.TLSClientCertKey),
 			repo.Insecure,
 			workloadidentity.NewWorkloadIdentityTokenProvider(),
+		)
+	}
+
+	// AWS ECR Workload Identity support
+	if repo.UseAWSECRWorkloadIdentity {
+		return helm.NewAWSECRWorkloadIdentityCreds(
+			repo.Repo,
+			repo.AWSECRRegion,
+			repo.AWSECRRegistryID,
+			getCAPath(repo.Repo),
+			[]byte(repo.TLSClientCertData),
+			[]byte(repo.TLSClientCertKey),
+			repo.Insecure,
 		)
 	}
 

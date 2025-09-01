@@ -27,6 +27,9 @@ type RepoOptions struct {
 	GCPServiceAccountKeyPath       string
 	ForceHttpBasicAuth             bool //nolint:revive //FIXME(var-naming)
 	UseAzureWorkloadIdentity       bool
+	UseAWSECRWorkloadIdentity      bool
+	AWSECRRegion                   string
+	AWSECRRegistryID               string
 }
 
 func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
@@ -52,5 +55,8 @@ func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
 	command.Flags().StringVar(&opts.GCPServiceAccountKeyPath, "gcp-service-account-key-path", "", "service account key for the Google Cloud Platform")
 	command.Flags().BoolVar(&opts.ForceHttpBasicAuth, "force-http-basic-auth", false, "whether to force use of basic auth when connecting repository via HTTP")
 	command.Flags().BoolVar(&opts.UseAzureWorkloadIdentity, "use-azure-workload-identity", false, "whether to use azure workload identity for authentication")
+	command.Flags().BoolVar(&opts.UseAWSECRWorkloadIdentity, "use-aws-ecr-workload-identity", false, "whether to use AWS ECR workload identity for authentication")
+	command.Flags().StringVar(&opts.AWSECRRegion, "aws-ecr-region", "", "AWS region for ECR authentication (optional, auto-detects if empty)")
+	command.Flags().StringVar(&opts.AWSECRRegistryID, "aws-ecr-registry-id", "", "AWS account ID for cross-account ECR access (optional)")
 	command.Flags().BoolVar(&opts.InsecureOCIForceHTTP, "insecure-oci-force-http", false, "Use http when accessing an OCI repository")
 }

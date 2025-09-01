@@ -1,0 +1,126 @@
+# AWS ECR Workload Identity Example Configuration
+# This example shows how to configure ArgoCD to authenticate with AWS ECR using IRSA
+
+---
+# 1. Service Account with IRSA annotation
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argocd-repo-server
+  namespace: argocd
+  annotations:
+    # Replace with your IAM role ARN
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789:role/argocd-ecr-role
+    
+---
+# 2. ECR Repository Configuration (Method A: Secret)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-ecr-helm-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: helm
+  name: my-charts
+  url: oci://123456789.dkr.ecr.us-west-2.amazonaws.com
+  enableOCI: "true"
+  
+  # Enable ECR Workload Identity
+  useAWSECRWorkloadIdentity: "true"
+  
+  # Optional: Explicit region (auto-detects from URL if empty)
+  awsECRRegion: us-west-2
+  
+  # Optional: Cross-account registry ID (uses current account if empty)  
+  awsECRRegistryID: "123456789"
+
+---
+# 3. ECR Repository Credentials Template (Method B: RepoCreds)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ecr-credential-template
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repocreds
+stringData:
+  url: *.dkr.ecr.*.amazonaws.com
+  type: helm
+  enableOCI: "true"
+  useAWSECRWorkloadIdentity: "true"
+  # Regional template - works for any ECR registry
+
+---
+# 4. Required IAM Role Policy
+# Create this IAM role and reference it in the ServiceAccount annotation above
+
+# IAM Role Trust Policy (allows EKS service account to assume role):
+# {
+#   "Version": "2012-10-17", 
+#   "Statement": [
+#     {
+#       "Effect": "Allow",
+#       "Principal": {
+#         "Federated": "arn:aws:iam::123456789:oidc-provider/oidc.eks.us-west-2.amazonaws.com/id/OIDCPROVIDERID"
+#       },
+#       "Action": "sts:AssumeRoleWithWebIdentity",
+#       "Condition": {
+#         "StringEquals": {
+#           "oidc.eks.us-west-2.amazonaws.com/id/OIDCPROVIDERID:sub": "system:serviceaccount:argocd:argocd-repo-server",
+#           "oidc.eks.us-west-2.amazonaws.com/id/OIDCPROVIDERID:aud": "sts.amazonaws.com"
+#         }
+#       }
+#     }
+#   ]
+# }
+
+# IAM Role Permissions Policy:
+# {
+#   "Version": "2012-10-17",
+#   "Statement": [
+#     {
+#       "Effect": "Allow",
+#       "Action": [
+#         "ecr:GetAuthorizationToken"
+#       ],
+#       "Resource": "*"
+#     },
+#     {
+#       "Effect": "Allow",
+#       "Action": [
+#         "ecr:BatchCheckLayerAvailability",
+#         "ecr:GetDownloadUrlForLayer", 
+#         "ecr:BatchGetImage"
+#       ],
+#       "Resource": [
+#         "arn:aws:ecr:us-west-2:123456789:repository/*"
+#       ]
+#     }
+#   ]
+# }
+
+---
+# 5. Test Application Using ECR Chart
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: test-ecr-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: oci://123456789.dkr.ecr.us-west-2.amazonaws.com
+    chart: my-helm-chart
+    targetRevision: "1.0.0"
+    helm:
+      values: |
+        # Your chart values here
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
