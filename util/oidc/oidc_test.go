@@ -135,8 +135,7 @@ func TestClientApp_HandleLogin(t *testing.T) {
 
 	t.Run("oidc certificate checking during login should toggle on config", func(t *testing.T) {
 		cdSettings := &settings.ArgoCDSettings{
-			URL:                       "https://argocd.example.com",
-			OIDCTLSInsecureSkipVerify: true,
+			URL: "https://argocd.example.com",
 			OIDCConfigRAW: fmt.Sprintf(`
 name: Test
 issuer: %s
