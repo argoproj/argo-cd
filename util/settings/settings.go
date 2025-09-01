@@ -1401,9 +1401,9 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
 	}
-	// Added logging for better debugging
-    settings.URL = argoCDCM.Data[settingURLKey]
+	settings.URL = argoCDCM.Data[settingURLKey]
 	log.Infof("Loaded main URL: %s", settings.URL)
+
 	if err := validateExternalURL(argoCDCM.Data[settingUIBannerURLKey]); err != nil {
 		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
 	}
@@ -1411,7 +1411,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 		if err := yaml.Unmarshal([]byte(argoCDCM.Data[settingAdditionalUrlsKey]), &settings.AdditionalURLs); err != nil {
 			log.Warnf("Failed to decode all additional URLs in configmap: %v", err)
 		}
-		log.Infof("Loaded additional URLs: %v", settings.AdditionalURLs)
+
 	}
 	for _, url := range settings.AdditionalURLs {
 		if err := validateExternalURL(url); err != nil {
@@ -1476,12 +1476,6 @@ func validateExternalURL(u string) error {
 	if URL.Scheme != "http" && URL.Scheme != "https" {
 		return errors.New("URL must include http or https protocol")
 	}
-	// Ensure the URL has a host
-	if URL.Host == "" {
-		return errors.New("URL must include a valid host")
-	}
-	// Log URL validation for debugging
-	log.Debugf("Validated external URL: %s (scheme: %s, host: %s, path: %s)", u, URL.Scheme, URL.Host, URL.Path)
 	return nil
 }
 
