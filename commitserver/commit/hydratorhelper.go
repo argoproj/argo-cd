@@ -71,12 +71,9 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 			hydratePath = ""
 		}
 
-		// Only create directory if path is not empty (root directory case)
-		if hydratePath != "" {
-			err = root.MkdirAll(hydratePath, 0o755)
-			if err != nil {
-				return fmt.Errorf("failed to create path: %w", err)
-			}
+		err = root.MkdirAll(hydratePath, 0o755)
+		if err != nil {
+			return fmt.Errorf("failed to create path: %w", err)
 		}
 
 		// Write the manifests
