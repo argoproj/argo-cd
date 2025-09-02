@@ -2403,18 +2403,18 @@ func runSyncOptionsTests(t *testing.T, tt struct {
 	t.Helper()
 	// Create a fresh command with flags
 	cmd := &cobra.Command{}
-	cmd.Flags().Bool("replace", false, "test")
-	cmd.Flags().Bool("server-side", false, "test")
-	cmd.Flags().Bool("apply-out-of-sync-only", false, "test")
+	cmd.Flags().Bool(cliFlagKeyReplace, false, "test")
+	cmd.Flags().Bool(cliFlagKeyServerSideApply, false, "test")
+	cmd.Flags().Bool(cliFlagKeyApplyOutOfSyncOnly, false, "test")
 	cmd.Flags().String("sync-options-override-style", "", "test")
 
 	// Setup flags as specified by the test
 	tt.setupFlags(cmd)
 
 	// Get the actual flag values (after they may have been set)
-	replace, _ := cmd.Flags().GetBool("replace")
-	serverSideApply, _ := cmd.Flags().GetBool("server-side")
-	applyOutOfSyncOnly, _ := cmd.Flags().GetBool("apply-out-of-sync-only")
+	replace, _ := cmd.Flags().GetBool(cliFlagKeyReplace)
+	serverSideApply, _ := cmd.Flags().GetBool(cliFlagKeyServerSideApply)
+	applyOutOfSyncOnly, _ := cmd.Flags().GetBool(cliFlagKeyApplyOutOfSyncOnly)
 	styleStr, _ := cmd.Flags().GetString("sync-options-override-style")
 	var style SyncOptionsOverrideStyle
 	if styleStr == "" {
@@ -2466,23 +2466,23 @@ func TestBuildSyncOptionsNoOverride(t *testing.T) {
 		{
 			name: "replace=true passed, override - includes true value",
 			setupFlags: func(cmd *cobra.Command) {
-				_ = cmd.Flags().Set("replace", "true")
+				_ = cmd.Flags().Set(cliFlagKeyReplace, "true")
 			},
 			expectedNil:      false,
-			expectedContains: []string{"Replace=true"},
+			expectedContains: []string{common.SyncOptionReplace},
 		},
 		{
 			name: "apply-out-of-sync-only=true passed, override - includes true value",
 			setupFlags: func(cmd *cobra.Command) {
-				_ = cmd.Flags().Set("apply-out-of-sync-only", "true")
+				_ = cmd.Flags().Set(cliFlagKeyApplyOutOfSyncOnly, "true")
 			},
 			expectedNil:      false,
-			expectedContains: []string{"ApplyOutOfSyncOnly=true"},
+			expectedContains: []string{common.SyncOptionApplyOutOfSyncOnly},
 		},
 		{
 			name: "apply-out-of-sync-only=false passed, no override - should return nil",
 			setupFlags: func(cmd *cobra.Command) {
-				_ = cmd.Flags().Set("apply-out-of-sync-only", "false")
+				_ = cmd.Flags().Set(cliFlagKeyApplyOutOfSyncOnly, "false")
 			},
 			expectedNil:      true,
 			expectedContains: []string{},
@@ -2490,11 +2490,11 @@ func TestBuildSyncOptionsNoOverride(t *testing.T) {
 		{
 			name: "mixed true values passed, override - includes true values",
 			setupFlags: func(cmd *cobra.Command) {
-				_ = cmd.Flags().Set("replace", "true")
-				_ = cmd.Flags().Set("server-side", "true")
+				_ = cmd.Flags().Set(cliFlagKeyReplace, "true")
+				_ = cmd.Flags().Set(cliFlagKeyServerSideApply, "true")
 			},
 			expectedNil:      false,
-			expectedContains: []string{"Replace=true", "ServerSideApply=true"},
+			expectedContains: []string{common.SyncOptionReplace, common.SyncOptionServerSideApply},
 		},
 	}
 
@@ -2525,29 +2525,29 @@ func TestBuildSyncOptionsOverrideReplaceStyle(t *testing.T) {
 		{
 			name: "apply-out-of-sync-only=false passed, with override - includes false value",
 			setupFlags: func(cmd *cobra.Command) {
-				_ = cmd.Flags().Set("apply-out-of-sync-only", "false")
+				_ = cmd.Flags().Set(cliFlagKeyApplyOutOfSyncOnly, "false")
 				_ = cmd.Flags().Set("sync-options-override-style", string(SyncOptionsOverrideReplace))
 			},
 			expectedNil:      false,
-			expectedContains: []string{"ApplyOutOfSyncOnly=false"},
+			expectedContains: []string{common.SyncOptionApplyOutOfSyncOnly + "=false"},
 		},
 		{
 			name: "all flags=true passed, with override",
 			setupFlags: func(cmd *cobra.Command) {
-				_ = cmd.Flags().Set("replace", "true")
-				_ = cmd.Flags().Set("server-side", "true")
-				_ = cmd.Flags().Set("apply-out-of-sync-only", "true")
+				_ = cmd.Flags().Set(cliFlagKeyReplace, "true")
+				_ = cmd.Flags().Set(cliFlagKeyServerSideApply, "true")
+				_ = cmd.Flags().Set(cliFlagKeyApplyOutOfSyncOnly, "true")
 				_ = cmd.Flags().Set("sync-options-override-style", string(SyncOptionsOverrideReplace))
 			},
 			expectedNil:      false,
-			expectedContains: []string{"Replace=true", "ServerSideApply=true", "ApplyOutOfSyncOnly=true"},
+			expectedContains: []string{common.SyncOptionReplace, common.SyncOptionServerSideApply, common.SyncOptionApplyOutOfSyncOnly},
 		},
 		{
 			name: "all flags=false passed, with override - includes all false values",
 			setupFlags: func(cmd *cobra.Command) {
-				_ = cmd.Flags().Set("replace", "false")
-				_ = cmd.Flags().Set("server-side", "false")
-				_ = cmd.Flags().Set("apply-out-of-sync-only", "false")
+				_ = cmd.Flags().Set(cliFlagKeyReplace, "false")
+				_ = cmd.Flags().Set(cliFlagKeyServerSideApply, "false")
+				_ = cmd.Flags().Set(cliFlagKeyApplyOutOfSyncOnly, "false")
 				_ = cmd.Flags().Set("sync-options-override-style", string(SyncOptionsOverrideReplace))
 			},
 			expectedNil:      false,
@@ -2556,13 +2556,13 @@ func TestBuildSyncOptionsOverrideReplaceStyle(t *testing.T) {
 		{
 			name: "mixed true/false values passed, with override - includes both true and false values",
 			setupFlags: func(cmd *cobra.Command) {
-				_ = cmd.Flags().Set("replace", "true")
-				_ = cmd.Flags().Set("server-side", "false")
-				_ = cmd.Flags().Set("apply-out-of-sync-only", "false")
+				_ = cmd.Flags().Set(cliFlagKeyReplace, "true")
+				_ = cmd.Flags().Set(cliFlagKeyServerSideApply, "false")
+				_ = cmd.Flags().Set(cliFlagKeyApplyOutOfSyncOnly, "false")
 				_ = cmd.Flags().Set("sync-options-override-style", string(SyncOptionsOverrideReplace))
 			},
 			expectedNil:      false,
-			expectedContains: []string{"Replace=true", common.SyncOptionDisableServerSideApply, "ApplyOutOfSyncOnly=false"},
+			expectedContains: []string{common.SyncOptionReplace, common.SyncOptionDisableServerSideApply, "ApplyOutOfSyncOnly=false"},
 		},
 	}
 	for _, tt := range tests {
@@ -2593,29 +2593,29 @@ func TestBuildSyncOptionOverridePatchStyle(t *testing.T) {
 			name:                "apply-out-of-sync-only=false passed, spec is true - includes false value",
 			currentSpecSyncOpts: v1alpha1.SyncOptions{}.AddOption(common.SyncOptionApplyOutOfSyncOnly),
 			setupFlags: func(cmd *cobra.Command) {
-				_ = cmd.Flags().Set("apply-out-of-sync-only", "false")
+				_ = cmd.Flags().Set(cliFlagKeyApplyOutOfSyncOnly, "false")
 				_ = cmd.Flags().Set("sync-options-override-style", string(SyncOptionsOverridePatch))
 			},
 			expectedNil:      false,
-			expectedContains: []string{"ApplyOutOfSyncOnly=false"},
+			expectedContains: []string{cliFlagKeyApplyOutOfSyncOnly + "=false"},
 		},
 		{
 			name: "all flags=true passed, with override",
 			setupFlags: func(cmd *cobra.Command) {
-				_ = cmd.Flags().Set("replace", "true")
-				_ = cmd.Flags().Set("server-side", "true")
-				_ = cmd.Flags().Set("apply-out-of-sync-only", "true")
+				_ = cmd.Flags().Set(cliFlagKeyReplace, "true")
+				_ = cmd.Flags().Set(cliFlagKeyServerSideApply, "true")
+				_ = cmd.Flags().Set(cliFlagKeyApplyOutOfSyncOnly, "true")
 				_ = cmd.Flags().Set("sync-options-override-style", string(SyncOptionsOverridePatch))
 			},
 			expectedNil:      false,
-			expectedContains: []string{"Replace=true", "ServerSideApply=true", "ApplyOutOfSyncOnly=true"},
+			expectedContains: []string{common.SyncOptionReplace, common.SyncOptionServerSideApply, common.SyncOptionApplyOutOfSyncOnly},
 		},
 		{
 			name: "all flags=false passed, with override - includes all false values",
 			setupFlags: func(cmd *cobra.Command) {
-				_ = cmd.Flags().Set("replace", "false")
-				_ = cmd.Flags().Set("server-side", "false")
-				_ = cmd.Flags().Set("apply-out-of-sync-only", "false")
+				_ = cmd.Flags().Set(cliFlagKeyReplace, "false")
+				_ = cmd.Flags().Set(cliFlagKeyServerSideApply, "false")
+				_ = cmd.Flags().Set(cliFlagKeyApplyOutOfSyncOnly, "false")
 				_ = cmd.Flags().Set("sync-options-override-style", string(SyncOptionsOverridePatch))
 			},
 			expectedNil:      false,
@@ -2624,13 +2624,13 @@ func TestBuildSyncOptionOverridePatchStyle(t *testing.T) {
 		{
 			name: "mixed true/false values passed, with override - includes both true and false values",
 			setupFlags: func(cmd *cobra.Command) {
-				_ = cmd.Flags().Set("replace", "true")
-				_ = cmd.Flags().Set("server-side", "false")
-				_ = cmd.Flags().Set("apply-out-of-sync-only", "false")
+				_ = cmd.Flags().Set(cliFlagKeyReplace, "true")
+				_ = cmd.Flags().Set(cliFlagKeyServerSideApply, "false")
+				_ = cmd.Flags().Set(cliFlagKeyApplyOutOfSyncOnly, "false")
 				_ = cmd.Flags().Set("sync-options-override-style", string(SyncOptionsOverridePatch))
 			},
 			expectedNil:      false,
-			expectedContains: []string{"Replace=true", common.SyncOptionDisableServerSideApply, "ApplyOutOfSyncOnly=false"},
+			expectedContains: []string{common.SyncOptionReplace, common.SyncOptionDisableServerSideApply, "ApplyOutOfSyncOnly=false"},
 		},
 	}
 	for _, tt := range tests {

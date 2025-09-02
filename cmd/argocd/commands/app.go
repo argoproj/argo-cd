@@ -2082,8 +2082,17 @@ func SyncOptionsOverrideStyleFromString(s string) (SyncOptionsOverrideStyle, err
 	return "", fmt.Errorf("unknown sync options override style : %s", s)
 }
 
+const (
+	syncOptionKeyReplace            = "Replace"
+	syncOptionKeyServerSideApply    = "ServerSideApply"
+	syncOptionKeyApplyOutOfSyncOnly = "ApplyOutOfSyncOnly"
+	cliFlagKeyReplace               = "replace"
+	cliFlagKeyServerSideApply       = "server-side"
+	cliFlagKeyApplyOutOfSyncOnly    = "apply-out-of-sync-only"
+)
+
 // Known sync option keys supported from CLI
-var knownSyncOptionKeys = []string{"Replace", "ServerSideApply", "ApplyOutOfSyncOnly"}
+var knownSyncOptionKeys = []string{syncOptionKeyReplace, syncOptionKeyServerSideApply, syncOptionKeyApplyOutOfSyncOnly}
 
 // parseKnownMap converts a []string of form Key=true|false into a map for the known keys only
 func parseKnownMap(items []string) map[string]bool {
@@ -2092,7 +2101,7 @@ func parseKnownMap(items []string) map[string]bool {
 		parts := strings.SplitN(it, "=", 2)
 		key := parts[0]
 		switch key {
-		case "Replace", "ServerSideApply", "ApplyOutOfSyncOnly":
+		case syncOptionKeyReplace, syncOptionKeyServerSideApply, syncOptionKeyApplyOutOfSyncOnly:
 			m[key] = parts[1] == "true"
 		}
 	}
@@ -2112,16 +2121,16 @@ func serializeKnownMap(m map[string]bool) []string {
 
 // cliMapFromFlags builds a map from flags that were explicitly changed
 func cliMapFromFlags(cmd *cobra.Command, replace, serverSideApply, applyOutOfSyncOnly bool) (map[string]bool, bool) {
-	changed := cmd.Flags().Changed("replace") || cmd.Flags().Changed("server-side") || cmd.Flags().Changed("apply-out-of-sync-only")
+	changed := cmd.Flags().Changed(cliFlagKeyReplace) || cmd.Flags().Changed(cliFlagKeyServerSideApply) || cmd.Flags().Changed(cliFlagKeyApplyOutOfSyncOnly)
 	m := map[string]bool{}
-	if cmd.Flags().Changed("replace") {
-		m["Replace"] = replace
+	if cmd.Flags().Changed(cliFlagKeyReplace) {
+		m[syncOptionKeyReplace] = replace
 	}
-	if cmd.Flags().Changed("server-side") {
-		m["ServerSideApply"] = serverSideApply
+	if cmd.Flags().Changed(cliFlagKeyServerSideApply) {
+		m[syncOptionKeyServerSideApply] = serverSideApply
 	}
-	if cmd.Flags().Changed("apply-out-of-sync-only") {
-		m["ApplyOutOfSyncOnly"] = applyOutOfSyncOnly
+	if cmd.Flags().Changed(cliFlagKeyApplyOutOfSyncOnly) {
+		m[syncOptionKeyApplyOutOfSyncOnly] = applyOutOfSyncOnly
 	}
 	return m, changed
 }

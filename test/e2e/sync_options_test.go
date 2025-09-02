@@ -463,7 +463,7 @@ func TestOverrideReplaceHasCLIOptHasAnotherAppOptCLIWins(t *testing.T) {
 			ns = app.Spec.Destination.Namespace
 			// Set app spec with ApplyOutOfSyncOnly=true
 			app.Spec.SyncPolicy = &SyncPolicy{
-				SyncOptions: SyncOptions{"ServerSideApply=true"},
+				SyncOptions: SyncOptions{SyncOptionServerSideApply},
 			}
 		}).
 		Then().
@@ -493,7 +493,7 @@ func TestOverrideMergeHasCLIOptHasAnotherAppOptBothWin(t *testing.T) {
 			ns = app.Spec.Destination.Namespace
 			// Set app spec with ApplyOutOfSyncOnly=true
 			app.Spec.SyncPolicy = &SyncPolicy{
-				SyncOptions: SyncOptions{"ServerSideApply=true"},
+				SyncOptions: SyncOptions{SyncOptionServerSideApply},
 			}
 		}).
 		Then().
