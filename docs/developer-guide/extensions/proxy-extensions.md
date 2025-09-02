@@ -311,7 +311,8 @@ section for more details.
 
 #### `Argocd-Username`
 
-Will be populated with the username logged in Argo CD.
+Will be populated with the username logged in Argo CD. This is primarily useful for display purposes. 
+To identify a user for programmatic needs, `Argocd-User-Id` is probably a better choice.
 
 #### `Argocd-User-Id`
 
