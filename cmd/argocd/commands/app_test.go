@@ -2529,7 +2529,7 @@ func TestBuildSyncOptionsOverrideReplaceStyle(t *testing.T) {
 				_ = cmd.Flags().Set("sync-options-override-style", string(SyncOptionsOverrideReplace))
 			},
 			expectedNil:      false,
-			expectedContains: []string{common.SyncOptionApplyOutOfSyncOnly + "=false"},
+			expectedContains: []string{syncOptionKeyApplyOutOfSyncOnly + "=false"},
 		},
 		{
 			name: "all flags=true passed, with override",
@@ -2597,7 +2597,7 @@ func TestBuildSyncOptionOverridePatchStyle(t *testing.T) {
 				_ = cmd.Flags().Set("sync-options-override-style", string(SyncOptionsOverridePatch))
 			},
 			expectedNil:      false,
-			expectedContains: []string{cliFlagKeyApplyOutOfSyncOnly + "=false"},
+			expectedContains: []string{syncOptionKeyApplyOutOfSyncOnly + "=false"},
 		},
 		{
 			name: "all flags=true passed, with override",
