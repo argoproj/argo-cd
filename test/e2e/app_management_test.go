@@ -808,7 +808,7 @@ func TestAppWithSecrets(t *testing.T) {
 			assert.Empty(t, diffOutput)
 
 			// make sure resource update error does not print secret details
-			_, err = fixture.RunCli("app", "patch-resource", "test-app-with-secrets", "--resource-name", "test-secret",
+			_, err = fixture.RunCli("app", "patch-resource", app.Name, "--resource-name", "test-secret",
 				"--kind", "Secret", "--patch", `{"op": "add", "path": "/data", "value": "hello"}'`,
 				"--patch-type", "application/json-patch+json")
 			require.ErrorContains(t, err, fmt.Sprintf("failed to patch Secret %s/test-secret", fixture.DeploymentNamespace()))
@@ -1534,10 +1534,9 @@ func assertResourceActions(t *testing.T, appName string, successful bool) {
 
 func TestPermissions(t *testing.T) {
 	appCtx := Given(t)
-	projName := "argo-project"
-	projActions := projectFixture.
-		GivenWithSameState(t).
-		Name(projName).
+	projCtx := projectFixture.GivenWithSameState(t)
+	projActions := projCtx.
+		Name("argo-project").
 		When().
 		Create()
 
@@ -1546,7 +1545,7 @@ func TestPermissions(t *testing.T) {
 
 	appCtx.
 		Path("guestbook-logs").
-		Project(projName).
+		Project(projCtx.GetName()).
 		When().
 		IgnoreErrors().
 		// ensure app is not created if project permissions are missing
@@ -1604,8 +1603,8 @@ func TestPermissions(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		// make sure application resource actiions are failing
-		And(func(_ *Application) {
-			assertResourceActions(t, "test-permissions", false)
+		And(func(a *Application) {
+			assertResourceActions(t, a.GetName(), false)
 		})
 }
 
@@ -2999,38 +2998,45 @@ func TestInstallationID(t *testing.T) {
 }
 
 func TestDeletionConfirmation(t *testing.T) {
+	// TODO
 	ctx := Given(t)
-	ctx.
-		And(func() {
-			_, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(
-				t.Context(), &corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test-configmap",
-						Labels: map[string]string{
-							common.LabelKeyAppInstance: ctx.AppName(),
-						},
-						Annotations: map[string]string{
-							AnnotationSyncOptions: "Prune=confirm",
-						},
+	ctx.And(func() {
+		_, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(
+			t.Context(), &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-configmap",
+					Labels: map[string]string{
+						common.LabelKeyAppInstance: ctx.AppName(),
 					},
-				}, metav1.CreateOptions{})
-			require.NoError(t, err)
-		}).
+					Annotations: map[string]string{
+						AnnotationSyncOptions: "Prune=confirm",
+					},
+				},
+			}, metav1.CreateOptions{})
+		require.NoError(t, err)
+	}).
 		Path(guestbookPath).
 		Async(true).
 		When().
 		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "add", "path": "/metadata/annotations", "value": { "argocd.argoproj.io/sync-options": "Delete=confirm" }}]`).
-		CreateApp().Sync().
-		Then().Expect(OperationPhaseIs(OperationRunning)).
-		When().ConfirmDeletion().
-		Then().Expect(OperationPhaseIs(OperationSucceeded)).
-		When().Delete(true).
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationRunning)).
+		When().
+		ConfirmDeletion().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		When().
+		Delete(true).
 		Then().
 		And(func(app *Application) {
 			assert.NotNil(t, app.DeletionTimestamp)
 		}).
-		When().ConfirmDeletion().
-		Then().Expect(DoesNotExist())
+		When().
+		ConfirmDeletion().
+		Then().
+		Expect(DoesNotExist())
 }
 
 func TestLastTransitionTimeUnchangedError(t *testing.T) {

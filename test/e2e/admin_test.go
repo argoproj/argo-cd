@@ -22,6 +22,8 @@ func TestBackupExportImport(t *testing.T) {
 	appctx := appfixture.GivenWithSameState(t)
 
 	// Create application in test namespace
+	var appTestNamespace Application
+	var appOtherNamespace Application
 	appctx.
 		Path(guestbookPath).
 		Name("exported-app1").
@@ -29,8 +31,9 @@ func TestBackupExportImport(t *testing.T) {
 		CreateApp().
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, "exported-app1", app.Name)
-			assert.Equal(t, fixture.TestNamespace(), app.Namespace)
+			assert.Equal(t, appctx.AppName(), app.Name)
+			assert.Equal(t, appctx.AppNamespace(), app.Namespace)
+			appTestNamespace = *app
 		})
 
 	// Create app in other namespace
@@ -42,8 +45,9 @@ func TestBackupExportImport(t *testing.T) {
 		CreateApp().
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, "exported-app-other-namespace", app.Name)
-			assert.Equal(t, fixture.AppNamespace(), app.Namespace)
+			assert.Equal(t, appctx.AppName(), app.Name)
+			assert.Equal(t, appctx.AppNamespace(), app.Namespace)
+			appOtherNamespace = *app
 		})
 
 	ctx.
@@ -57,8 +61,8 @@ func TestBackupExportImport(t *testing.T) {
 		AndExportedResources(func(exportResources *ExportedResources, err error) {
 			require.NoError(t, err, "export format not valid")
 			assert.True(t, exportResources.HasResource(kube.NewResourceKey("", "ConfigMap", "", "argocd-cm")), "argocd-cm not found in export")
-			assert.True(t, exportResources.HasResource(kube.NewResourceKey(ApplicationSchemaGroupVersionKind.Group, ApplicationSchemaGroupVersionKind.Kind, "", "exported-app1")), "test namespace application not in export")
-			assert.True(t, exportResources.HasResource(kube.NewResourceKey(ApplicationSchemaGroupVersionKind.Group, ApplicationSchemaGroupVersionKind.Kind, fixture.AppNamespace(), "exported-app-other-namespace")), "app namespace application not in export")
+			assert.True(t, exportResources.HasResource(kube.NewResourceKey(ApplicationSchemaGroupVersionKind.Group, ApplicationSchemaGroupVersionKind.Kind, "", appTestNamespace.GetName())), "test namespace application not in export")
+			assert.True(t, exportResources.HasResource(kube.NewResourceKey(ApplicationSchemaGroupVersionKind.Group, ApplicationSchemaGroupVersionKind.Kind, appOtherNamespace.GetNamespace(), appOtherNamespace.GetName())), "app namespace application not in export")
 		})
 
 	// Test import - clean state
@@ -70,9 +74,9 @@ func TestBackupExportImport(t *testing.T) {
 		Then().
 		AndCLIOutput(func(_ string, err error) {
 			require.NoError(t, err, "import finished with error")
-			_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(t.Context(), "exported-app1", metav1.GetOptions{})
+			_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(appTestNamespace.GetNamespace()).Get(t.Context(), appTestNamespace.GetName(), metav1.GetOptions{})
 			require.NoError(t, err, "failed getting test namespace application after import")
-			_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.AppNamespace()).Get(t.Context(), "exported-app-other-namespace", metav1.GetOptions{})
+			_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(appOtherNamespace.GetNamespace()).Get(t.Context(), appOtherNamespace.GetName(), metav1.GetOptions{})
 			require.NoError(t, err, "failed getting app namespace application after import")
 		})
 }
