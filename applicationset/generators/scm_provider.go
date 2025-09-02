@@ -231,6 +231,25 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if awsErr != nil {
 			return nil, fmt.Errorf("error initializing AWS codecommit service: %w", awsErr)
 		}
+	case providerConfig.ScmManager != nil:
+		providerConfig := providerConfig.ScmManager
+		var caCerts []byte
+		var scmError error
+		if providerConfig.CARef != nil {
+			caCerts, scmError = utils.GetConfigMapData(ctx, g.client, providerConfig.CARef, applicationSetInfo.Namespace)
+			if scmError != nil {
+				return nil, fmt.Errorf("error fetching CA certificates from ConfigMap: %w", scmError)
+			}
+		}
+
+		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching SCM-Manager token: %w", err)
+		}
+		provider, err = scm_provider.NewScmManagerProvider(ctx, token, providerConfig.API, providerConfig.AllBranches, providerConfig.Insecure, g.scmRootCAPath, caCerts)
+		if err != nil {
+			return nil, fmt.Errorf("error initializing SCM-Manager provider: %w", err)
+		}
 	default:
 		return nil, errors.New("no SCM provider implementation configured")
 	}

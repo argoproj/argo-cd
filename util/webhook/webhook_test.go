@@ -154,6 +154,24 @@ func TestAzureDevOpsCommitEvent(t *testing.T) {
 	hook.Reset()
 }
 
+func TestScmmWebhook(t *testing.T) {
+	hook := test.NewGlobal()
+	h := NewMockHandler(nil, []string{})
+	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
+	req.Header.Set("X-SCM-Event", "Push")
+	eventJSON, err := os.ReadFile("testdata/scmm-webhook-data.json")
+	require.NoError(t, err)
+	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
+	assert.Equal(t, http.StatusOK, w.Code)
+	expectedLogResult := "Received push event repo: https://scm-manager.org/scm/scm-manager/argocd-test, revision: develop, touchedHead: true"
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	hook.Reset()
+}
+
 // TestGitHubCommitEvent_MultiSource_Refresh makes sure that a webhook will refresh a multi-source app when at least
 // one source matches.
 func TestGitHubCommitEvent_MultiSource_Refresh(t *testing.T) {

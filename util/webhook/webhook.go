@@ -22,6 +22,7 @@ import (
 	"github.com/go-playground/webhooks/v6/gitlab"
 	"github.com/go-playground/webhooks/v6/gogs"
 	gogsclient "github.com/gogits/go-gogs-client"
+	scmmanager "github.com/scm-manager/goscm/argocd"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -68,6 +69,7 @@ type ArgoCDWebhookHandler struct {
 	gogs                   *gogs.Webhook
 	settings               *settings.ArgoCDSettings
 	settingsSrc            settingsSource
+	scmm                   *scmmanager.ArgoCDWebhook
 	queue                  chan any
 	maxWebhookPayloadSizeB int64
 }
@@ -97,6 +99,10 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 	if err != nil {
 		log.Warnf("Unable to init the Azure DevOps webhook")
 	}
+	scmmWebhook, err := scmmanager.New(scmmanager.Options.Secret(set.WebhookScmmSecret))
+	if err != nil {
+		log.Warnf("Unable to init the SCM-Manager Webhook")
+	}
 
 	acdWebhook := ArgoCDWebhookHandler{
 		ns:                     namespace,
@@ -113,6 +119,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		serverCache:            serverCache,
 		settings:               set,
 		db:                     argoDB,
+		scmm:                   scmmWebhook,
 		queue:                  make(chan any, payloadQueueSize),
 		maxWebhookPayloadSizeB: maxWebhookPayloadSizeB,
 	}
@@ -286,6 +293,11 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 			changedFiles = append(changedFiles, commit.Modified...)
 			changedFiles = append(changedFiles, commit.Removed...)
 		}
+
+	case scmmanager.PushEventPayload:
+		webURLs = append(webURLs, payload.Repository.SourceUrl)
+		touchedHead = payload.Branch.DefaultBranch
+		revision = payload.Branch.Name
 	}
 	return webURLs, revision, change, touchedHead, changedFiles
 }
@@ -639,6 +651,11 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		payload, err = a.bitbucketserver.Parse(r, bitbucketserver.RepositoryReferenceChangedEvent, bitbucketserver.DiagnosticsPingEvent)
 		if errors.Is(err, bitbucketserver.ErrHMACVerificationFailed) {
 			log.WithField(common.SecurityField, common.SecurityHigh).Infof("BitBucket webhook HMAC verification failed")
+		}
+	case r.Header.Get("X-SCM-Event") != "":
+		payload, err = a.scmm.Parse(r, scmmanager.PushEvent)
+		if errors.Is(err, scmmanager.ErrSecretVerification) {
+			log.WithField(common.SecurityField, common.SecurityHigh).Infof("SCM Manager webhook verification failed")
 		}
 	default:
 		log.Debug("Ignoring unknown webhook event")

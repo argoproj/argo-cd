@@ -1,0 +1,12 @@
+{
+  "repository": {
+    "namespace": "scmadmin",
+    "name": "argocd-test",
+    "sourceUrl": "https://scm-manager.org/scm/repo/scmadmin/argocd-test"
+  },
+  "sourceBranch": {
+    "defaultBranch": false,
+    "name": "feature/scm_support"
+  },
+  "action": "opened"
+}

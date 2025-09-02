@@ -335,6 +335,45 @@ spec:
 * `tokenRef`: A `Secret` name and key containing the Azure DevOps access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
 
+## SCM-Manager
+
+Fetch pull requests from a repo hosted on a SCM-Manager Server. The Review plugin must be installed on your SCM-Manager to enable pull requests.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  generators:
+  - pullRequest:
+      scmManager:
+        # Repository Namespace. Required.
+        namespace: myproject
+        # Repository Name. Required.
+        name: myrepository
+        # URL of the SCM-Manager server
+        api: https://scm-manager.org/scm
+        # Reference to a Secret containing an access token. (optional)
+        tokenRef:
+          secretName: scmm-token
+          key: token
+        # May be required for self-hosted and self-signed certificates
+        insecure: true
+      # Labels are not supported by SCM-Manager yet.
+      # Filter PRs using the source branch name. (optional)
+      filters:
+      - branchMatch: ".*-argocd"
+  template:
+  # ...
+```
+
+* `namespace`: Required namespace of the SCM-Manager repository.
+* `name`: Required name of the SCM-Manager repository.
+* `api`: Required URL to access the SCM-Manager REST API. For e.g. to fetch all pull requests of your repository.
+* `tokenRef`: A `Secret` name and key containing the SCM-Manager access token to use for requests. If not specified, will make anonymous requests which can only see public repositories. (Optional)
+* `insecure`: `Allow for self-signed certificates, primarily for testing.`
+
 ## Filters
 
 Filters allow selecting which pull requests to generate for. Each filter can declare one or more conditions, all of which must pass. If multiple filters are present, any can match for a repository to be included. If no filters are specified, all pull requests will be processed.
@@ -492,6 +531,15 @@ The Pull Request Generator will requeue when the next action occurs.
 - `merge`
 
 For more information about each event, please refer to the [official documentation](https://docs.gitlab.com/ee/user/project/integrations/webhook_events.html#merge-request-events).
+
+### SCM-Manager webhook configuration
+
+To enable the webhook in SCM-Manager, you need to install the ArgoCD plugin. The plugin is available in the SCM-Manager
+through the plugin center. When this is done, you can configure the webhook either globally or in the repository settings.
+In the settings, go to "Settings/Webhooks" in the global or in the repository navigation and add a new webhook of type
+"ArgoCD". The URL should be the URL of the ArgoCD ApplicationSet webhook server.
+
+![Add Gitlab Webhook](../../assets/applicationset/webhook-config-merge-request-scm-manager.png "Add SCM-Manager webhook")
 
 ## Lifecycle
 
