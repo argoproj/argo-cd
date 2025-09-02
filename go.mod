@@ -3,7 +3,7 @@ module github.com/argoproj/argo-cd/v3
 go 1.25.0
 
 require (
-	code.gitea.io/sdk/gitea v0.21.0
+	code.gitea.io/sdk/gitea v0.22.0
 	dario.cat/mergo v1.0.2
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.19.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.11.0
@@ -20,7 +20,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.9.1
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.16.0
-	github.com/casbin/casbin/v2 v2.120.0
+	github.com/casbin/casbin/v2 v2.121.0
 	github.com/casbin/govaluate v1.9.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/chainguard-dev/git-urls v1.0.2
@@ -33,7 +33,8 @@ require (
 	github.com/felixge/httpsnoop v1.0.4
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gfleury/go-bitbucket-v1 v0.0.0-20240917142304-df385efaac68
-	github.com/go-git/go-git/v5 v5.16.2
+	// DO NOT BUMP UNTIL go-git/go-git#1551 is fixed
+	github.com/go-git/go-git/v5 v5.14.0
 	github.com/go-jose/go-jose/v4 v4.1.2
 	github.com/go-logr/logr v1.4.3
 	github.com/go-openapi/loads v0.22.0
@@ -82,10 +83,10 @@ require (
 	github.com/soheilhy/cmux v0.1.5
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.7
-	github.com/stretchr/testify v1.11.0
+	github.com/stretchr/testify v1.11.1
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/yuin/gopher-lua v1.1.1
-	gitlab.com/gitlab-org/api/client-go v0.142.1
+	gitlab.com/gitlab-org/api/client-go v0.142.4
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.62.0
 	go.opentelemetry.io/otel v1.37.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.37.0
@@ -121,7 +122,7 @@ require (
 	cloud.google.com/go/auth v0.15.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.7 // indirect
 	cloud.google.com/go/compute/metadata v0.7.0 // indirect
-	github.com/42wim/httpsig v1.2.2 // indirect
+	github.com/42wim/httpsig v1.2.3 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity/cache v0.3.2 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.11.2 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
