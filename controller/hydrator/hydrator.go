@@ -303,6 +303,8 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 			Path:           app.Spec.SourceHydrator.DrySource.Path,
 			TargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
 			Helm: 			app.Spec.SourceHydrator.DrySource.Helm,
+			Kustomize: app.Spec.SourceHydrator.DrySource.Kustomize,
+			Directory: app.Spec.SourceHydrator.DrySource.Directory,
 		}
 		if targetRevision == "" {
 			targetRevision = app.Spec.SourceHydrator.DrySource.TargetRevision
