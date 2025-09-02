@@ -89,11 +89,11 @@ func (i *InMemoryCache) Flush() {
 	i.memCache.Flush()
 }
 
-func (i *InMemoryCache) OnUpdated(ctx context.Context, key string, callback func() error) error {
+func (i *InMemoryCache) OnUpdated(_ context.Context, _ string, _ func() error) error {
 	return nil
 }
 
-func (i *InMemoryCache) NotifyUpdated(key string) error {
+func (i *InMemoryCache) NotifyUpdated(_ string) error {
 	return nil
 }
 

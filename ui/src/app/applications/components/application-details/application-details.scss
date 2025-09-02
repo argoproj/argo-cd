@@ -144,6 +144,11 @@ $header: 120px;
             cursor: default !important;
             color: $argo-color-gray-3 !important;
         }
+
+        &:focus {
+            background-color: $argo-color-gray-1;
+            outline: none;
+        }
     }
 
     .argo-table-list__row {

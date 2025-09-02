@@ -1,7 +1,6 @@
 package generators
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,13 +14,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services/plugin"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/applicationset/services/plugin"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestPluginGenerateParams(t *testing.T) {
@@ -629,8 +626,6 @@ func TestPluginGenerateParams(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
-
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			generatorConfig := argoprojiov1alpha1.ApplicationSetGenerator{
@@ -667,11 +662,9 @@ func TestPluginGenerateParams(t *testing.T) {
 				testCase.configmap.Data["baseUrl"] = fakeServer.URL
 			}
 
-			fakeClient := kubefake.NewSimpleClientset(append([]runtime.Object{}, testCase.configmap, testCase.secret)...)
-
 			fakeClientWithCache := fake.NewClientBuilder().WithObjects([]client.Object{testCase.configmap, testCase.secret}...).Build()
 
-			pluginGenerator := NewPluginGenerator(fakeClientWithCache, ctx, fakeClient, "default")
+			pluginGenerator := NewPluginGenerator(fakeClientWithCache, "default")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -691,11 +684,11 @@ func TestPluginGenerateParams(t *testing.T) {
 				require.EqualError(t, err, testCase.expectedError.Error())
 			} else {
 				require.NoError(t, err)
-				expectedJson, err := json.Marshal(testCase.expected)
+				expectedJSON, err := json.Marshal(testCase.expected)
 				require.NoError(t, err)
-				gotJson, err := json.Marshal(got)
+				gotJSON, err := json.Marshal(got)
 				require.NoError(t, err)
-				assert.JSONEq(t, string(expectedJson), string(gotJson))
+				assert.JSONEq(t, string(expectedJSON), string(gotJSON))
 			}
 		})
 	}

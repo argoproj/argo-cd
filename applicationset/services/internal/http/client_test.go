@@ -2,7 +2,6 @@ package http
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -15,7 +14,7 @@ import (
 )
 
 func TestClient(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("Hello, World!"))
 		if err != nil {
@@ -30,8 +29,6 @@ func TestClient(t *testing.T) {
 }
 
 func TestClientDo(t *testing.T) {
-	ctx := context.Background()
-
 	for _, c := range []struct {
 		name            string
 		params          map[string]string
@@ -48,7 +45,7 @@ func TestClientDo(t *testing.T) {
 				"pkey1": "val1",
 				"pkey2": "val2",
 			},
-			fakeServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fakeServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusOK)
 				_, err := w.Write([]byte(`[{
 					"key1": "val1",
@@ -120,12 +117,12 @@ func TestClientDo(t *testing.T) {
 			client, err := NewClient(cc.fakeServer.URL, cc.clientOptionFns...)
 			require.NoError(t, err, "NewClient returned unexpected error")
 
-			req, err := client.NewRequest("POST", "", cc.params, nil)
+			req, err := client.NewRequestWithContext(t.Context(), http.MethodPost, "", cc.params)
 			require.NoError(t, err, "NewRequest returned unexpected error")
 
 			var data []map[string]any
 
-			resp, err := client.Do(ctx, req, &data)
+			resp, err := client.Do(req, &data)
 
 			if cc.expectedError != nil {
 				assert.EqualError(t, err, cc.expectedError.Error())

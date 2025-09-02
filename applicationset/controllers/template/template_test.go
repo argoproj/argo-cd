@@ -13,12 +13,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/generators"
-	genmock "github.com/argoproj/argo-cd/v2/applicationset/generators/mocks"
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	rendmock "github.com/argoproj/argo-cd/v2/applicationset/utils/mocks"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/applicationset/generators"
+	genmock "github.com/argoproj/argo-cd/v3/applicationset/generators/mocks"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	rendmock "github.com/argoproj/argo-cd/v3/applicationset/utils/mocks"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestGenerateApplications(t *testing.T) {
@@ -341,10 +341,10 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 				renderer,
 				nil,
 			)
-			assert.EqualValues(t, cases.expectedApp[0].ObjectMeta.Name, gotApp[0].ObjectMeta.Name)
-			assert.EqualValues(t, cases.expectedApp[0].Spec.Source.TargetRevision, gotApp[0].Spec.Source.TargetRevision)
-			assert.EqualValues(t, cases.expectedApp[0].Spec.Destination.Namespace, gotApp[0].Spec.Destination.Namespace)
-			assert.True(t, maps.Equal(cases.expectedApp[0].ObjectMeta.Labels, gotApp[0].ObjectMeta.Labels))
+			assert.Equal(t, cases.expectedApp[0].Name, gotApp[0].Name)
+			assert.Equal(t, cases.expectedApp[0].Spec.Source.TargetRevision, gotApp[0].Spec.Source.TargetRevision)
+			assert.Equal(t, cases.expectedApp[0].Spec.Destination.Namespace, gotApp[0].Spec.Destination.Namespace)
+			assert.True(t, maps.Equal(cases.expectedApp[0].Labels, gotApp[0].Labels))
 		})
 	}
 }

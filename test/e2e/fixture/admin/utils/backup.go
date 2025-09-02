@@ -13,11 +13,11 @@ type ExportedResources []unstructured.Unstructured
 
 func GetExportedResourcesFromOutput(output string) (ExportedResources, error) {
 	var resources []unstructured.Unstructured
-	docs := strings.Split(output, "---")
+	docs := strings.Split(output, "\n---\n")
 
 	for _, doc := range docs {
 		doc = strings.TrimSpace(doc)
-		if len(doc) == 0 {
+		if doc == "" {
 			continue
 		}
 

@@ -11,8 +11,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
-	"github.com/argoproj/argo-cd/v2/util/security"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/security"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // Provider is a wrapper around go-oidc provider to also provide the following features:
@@ -66,7 +66,7 @@ func (p *providerImpl) newGoOIDCProvider() (*gooidc.Provider, error) {
 	ctx := gooidc.ClientContext(context.Background(), p.client)
 	prov, err := gooidc.NewProvider(ctx, p.issuerURL)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to query provider %q: %w", p.issuerURL, err)
+		return nil, fmt.Errorf("failed to query provider %q: %w", p.issuerURL, err)
 	}
 	s, _ := ParseConfig(prov)
 	log.Infof("OIDC supported scopes: %v", s.ScopesSupported)

@@ -1,0 +1,16 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: ""
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Healthy
+    message: "ApplySuccessful for DashboardSynchronized because Dashboard was successfully applied to 1 instances"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: >-
+      ApplyFailed for DashboardSynchronized because Dashboard failed to be applied for 1 out of 1 instances. Errors:
+
+      - grafana-operator/grafana: Get "https://dashboards.grafana.com/api/search?limit=1000&page=1&type=dash-db": net/http: request canceled while waiting for connection (Client.Timeout exceeded while awaiting headers)
+  inputPath: testdata/degraded.yaml

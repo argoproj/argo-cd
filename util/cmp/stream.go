@@ -15,10 +15,10 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
-	"github.com/argoproj/argo-cd/v2/util/tgzstream"
+	pluginclient "github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
+	"github.com/argoproj/argo-cd/v3/util/tgzstream"
 )
 
 // StreamSender defines the contract to send App files over stream

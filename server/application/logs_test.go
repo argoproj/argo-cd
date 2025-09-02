@@ -76,7 +76,7 @@ func TestMergeLogStreams(t *testing.T) {
 	assert.Equal(t, []string{"1", "2", "3", "4"}, lines)
 }
 
-func TestMergeLogStreams_RaceCondition(t *testing.T) {
+func TestMergeLogStreams_RaceCondition(_ *testing.T) {
 	// Test for regression of this issue: https://github.com/argoproj/argo-cd/issues/7006
 	for i := 0; i < 5000; i++ {
 		first := make(chan logEntry)

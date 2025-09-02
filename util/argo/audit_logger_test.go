@@ -11,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 const (
@@ -36,12 +36,12 @@ func captureLogEntries(run func()) string {
 }
 
 func TestNewAuditLogger(t *testing.T) {
-	logger := NewAuditLogger("default", fake.NewClientset(), _somecomponent, testEnableEventLog)
+	logger := NewAuditLogger(fake.NewClientset(), _somecomponent, testEnableEventLog)
 	assert.NotNil(t, logger)
 }
 
 func TestLogAppProjEvent(t *testing.T) {
-	logger := NewAuditLogger("default", fake.NewClientset(), _somecomponent, testEnableEventLog)
+	logger := NewAuditLogger(fake.NewClientset(), _somecomponent, testEnableEventLog)
 	assert.NotNil(t, logger)
 
 	proj := argoappv1.AppProject{
@@ -82,7 +82,7 @@ func TestLogAppProjEvent(t *testing.T) {
 }
 
 func TestLogAppEvent(t *testing.T) {
-	logger := NewAuditLogger("default", fake.NewClientset(), _somecomponent, testEnableEventLog)
+	logger := NewAuditLogger(fake.NewClientset(), _somecomponent, testEnableEventLog)
 	assert.NotNil(t, logger)
 
 	app := argoappv1.Application{
@@ -128,7 +128,7 @@ func TestLogAppEvent(t *testing.T) {
 }
 
 func TestLogResourceEvent(t *testing.T) {
-	logger := NewAuditLogger("default", fake.NewClientset(), _somecomponent, testEnableEventLog)
+	logger := NewAuditLogger(fake.NewClientset(), _somecomponent, testEnableEventLog)
 	assert.NotNil(t, logger)
 
 	res := argoappv1.ResourceNode{

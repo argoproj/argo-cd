@@ -12,14 +12,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
+	"github.com/argoproj/argo-cd/v3/hack/gen-resources/util"
 
 	"k8s.io/client-go/kubernetes"
 )
 
 type Repo struct {
 	Id  int    `json:"id"`
-	Url string `json:"html_url"`
+	Url string `json:"html_url"` //nolint:revive //FIXME(var-naming)
 }
 
 type RepoGenerator struct {
@@ -33,7 +33,7 @@ func NewRepoGenerator(clientSet *kubernetes.Clientset) Generator {
 
 func fetchRepos(token string, page int) ([]Repo, error) {
 	client := &http.Client{}
-	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("https://api.github.com/repos/argoproj/argocd-example-apps/forks?per_page=100&page=%v", page), nil)
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("https://api.github.com/repos/argoproj/argocd-example-apps/forks?per_page=100&page=%v", page), http.NoBody)
 	req.Header.Set("Authorization", token)
 	resp, err := client.Do(req)
 	if err != nil {

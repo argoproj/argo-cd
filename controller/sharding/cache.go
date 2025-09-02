@@ -5,8 +5,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/db"
 )
 
 type ClusterShardingCache interface {
@@ -19,6 +19,8 @@ type ClusterShardingCache interface {
 	UpdateApp(a *v1alpha1.Application)
 	IsManagedCluster(c *v1alpha1.Cluster) bool
 	GetDistribution() map[string]int
+	GetAppDistribution() map[string]int
+	UpdateShard(shard int) bool
 }
 
 type ClusterSharding struct {
@@ -153,11 +155,12 @@ func (sharding *ClusterSharding) updateDistribution() {
 		}
 
 		existingShard, ok := sharding.Shards[k]
-		if ok && existingShard != shard {
+		switch {
+		case ok && existingShard != shard:
 			log.Infof("Cluster %s has changed shard from %d to %d", k, existingShard, shard)
-		} else if !ok {
+		case !ok:
 			log.Infof("Cluster %s has been assigned to shard %d", k, shard)
-		} else {
+		default:
 			log.Debugf("Cluster %s has not changed shard", k)
 		}
 		sharding.Shards[k] = shard
@@ -165,25 +168,25 @@ func (sharding *ClusterSharding) updateDistribution() {
 }
 
 // hasShardingUpdates returns true if the sharding distribution has explicitly changed
-func hasShardingUpdates(old, new *v1alpha1.Cluster) bool {
-	if old == nil || new == nil {
+func hasShardingUpdates(old, newCluster *v1alpha1.Cluster) bool {
+	if old == nil || newCluster == nil {
 		return false
 	}
 
 	// returns true if the cluster id has changed because some sharding algorithms depend on it.
-	if old.ID != new.ID {
+	if old.ID != newCluster.ID {
 		return true
 	}
 
-	if old.Server != new.Server {
+	if old.Server != newCluster.Server {
 		return true
 	}
 
 	// return false if the shard field has not been modified
-	if old.Shard == nil && new.Shard == nil {
+	if old.Shard == nil && newCluster.Shard == nil {
 		return false
 	}
-	return old.Shard == nil || new.Shard == nil || int64(*old.Shard) != int64(*new.Shard)
+	return old.Shard == nil || newCluster.Shard == nil || int64(*old.Shard) != int64(*newCluster.Shard)
 }
 
 // A read lock should be acquired before calling getClusterAccessor.
@@ -242,4 +245,34 @@ func (sharding *ClusterSharding) UpdateApp(a *v1alpha1.Application) {
 	} else {
 		log.Debugf("Skipping sharding distribution update. No relevant changes")
 	}
+}
+
+// GetAppDistribution should be not be called from a DestributionFunction because
+// it could cause a deadlock when updateDistribution is called.
+func (sharding *ClusterSharding) GetAppDistribution() map[string]int {
+	sharding.lock.RLock()
+	clusters := sharding.Clusters
+	apps := sharding.Apps
+	sharding.lock.RUnlock()
+
+	appDistribution := make(map[string]int, len(clusters))
+
+	for _, a := range apps {
+		if _, ok := appDistribution[a.Spec.Destination.Server]; !ok {
+			appDistribution[a.Spec.Destination.Server] = 0
+		}
+		appDistribution[a.Spec.Destination.Server]++
+	}
+	return appDistribution
+}
+
+// UpdateShard will update the shard of ClusterSharding when the shard has changed.
+func (sharding *ClusterSharding) UpdateShard(shard int) bool {
+	if shard != sharding.Shard {
+		sharding.lock.RLock()
+		sharding.Shard = shard
+		sharding.lock.RUnlock()
+		return true
+	}
+	return false
 }

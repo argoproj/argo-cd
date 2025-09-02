@@ -19,8 +19,8 @@ import (
 	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util"
 )
 
 func (db *db) listSecretsByType(types ...string) ([]*corev1.Secret, error) {
@@ -42,7 +42,7 @@ func (db *db) listSecretsByType(types ...string) ([]*corev1.Secret, error) {
 	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
 	// Objects returned by the lister must be treated as read-only.
 	// To allow us to modify the secrets, make a copy
-	secrets = util.SecretCopy(secrets)
+	secrets = util.SliceCopy(secrets)
 	return secrets, nil
 }
 
@@ -77,7 +77,7 @@ func updateSecretInt(secret *corev1.Secret, key string, value int64) {
 }
 
 func updateSecretString(secret *corev1.Secret, key, value string) {
-	if _, present := secret.Data[key]; present || len(value) > 0 {
+	if _, present := secret.Data[key]; present || value != "" {
 		secret.Data[key] = []byte(value)
 	}
 }

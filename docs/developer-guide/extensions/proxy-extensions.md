@@ -1,8 +1,8 @@
 # Proxy Extensions
 
-!!! warning "Alpha Feature (Since 2.7.0)"
-    This is an experimental, [alpha-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#alpha)
-    feature. It may be removed in future releases or modified in backwards-incompatible ways.
+!!! warning "Beta Feature (Since 2.7.0)"
+    This feature is in the [Beta](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta) stage. 
+    It is generally considered stable, but there may be unhandled edge cases.
 
 ## Overview
 
@@ -184,12 +184,11 @@ the argocd-secret with key 'some.argocd.secret.key'.
 If provided, and multiple services are configured, will have to match
 the application destination name or server to have requests properly
 forwarded to this service URL. If there are multiple backends for the
-same extension this field is required. In this case at least one of
-the two will be required: name or server. It is better to provide both
-values to avoid problems with applications unable to send requests to
-the proper backend service. If only one backend service is
-configured, this field is ignored, and all requests are forwarded to
-the configured one.
+same extension this field is required. In this case, it is necessary
+to provide both values to avoid problems with applications unable to
+send requests to the proper backend service. If only one backend
+service is configured, this field is ignored, and all requests are
+forwarded to the configured one.
 
 #### `extensions.backend.services.cluster.name` (*string*)
 (optional)

@@ -43,7 +43,7 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string}) => {
                                 })
                                 .slice(0, 100) // take top 100 results after filtering to avoid performance issues
                                 .map(app => (
-                                    <li key={app.metadata.name} onClick={() => ctx.navigation.goto(getAppUrl(app))}>
+                                    <li key={app.metadata.name} onClick={() => ctx.navigation.goto(`/${getAppUrl(app)}`)}>
                                         {app.metadata.name} {app.metadata.name === props.appName && ' (current)'}
                                     </li>
                                 ))

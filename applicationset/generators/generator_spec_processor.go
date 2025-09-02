@@ -7,11 +7,11 @@ import (
 	"github.com/jeremywohl/flatten"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 
 	"k8s.io/apimachinery/pkg/labels"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
 	"dario.cat/mergo"
 	log "github.com/sirupsen/logrus"
@@ -158,17 +158,4 @@ func InterpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetG
 	}
 
 	return *interpolatedGenerator, nil
-}
-
-// Fixes https://github.com/argoproj/argo-cd/issues/11982 while ensuring backwards compatibility.
-// This is only a short-term solution and should be removed in a future major version.
-func dropDisabledNestedSelectors(generators []argoprojiov1alpha1.ApplicationSetNestedGenerator) bool {
-	var foundSelector bool
-	for i := range generators {
-		if generators[i].Selector != nil {
-			foundSelector = true
-			generators[i].Selector = nil
-		}
-	}
-	return foundSelector
 }

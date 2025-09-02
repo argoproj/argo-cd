@@ -76,6 +76,13 @@ func TestFindPreviousTagRules(t *testing.T) {
 		{"Rule 3: 1 release candidate", "v2.14.0-rc1", "v2.13.0-rc3", false},
 		// Rule 4: If we're releasing a non-1 release candidate, get the most recent rc tag on the current minor release series.
 		{"Rule 4: non-1 release candidate", "v2.13.0-rc4", "v2.13.0-rc3", false},
+		// Rule 5: If we're releasing a major version RC, get the most recent tag on the previous major release series.
+		{"Rule 5: major version RC", "v3.0.0-rc1", "v2.13.0-rc3", false},
+		// Rule 6: If we're releasing a major version, get the most recent tag on the previous major release series,
+		//         even if it's an RC.
+		{"Rule 6: major version", "v3.0.0", "v2.13.0-rc3", false},
+		// Rule 7: If the proposed tag already exists, don't return it.
+		{"Rule 7: proposed tag already exists", "v2.12.5", "v2.12.4", false},
 	}
 
 	for _, test := range tests {

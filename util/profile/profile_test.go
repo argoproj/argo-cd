@@ -28,7 +28,7 @@ func TestRegisterProfile_FileExist(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	f, err := os.CreateTemp("", "test")
+	f, err := os.CreateTemp(t.TempDir(), "test")
 	require.NoError(t, err)
 	_, err = f.WriteString("true")
 	require.NoError(t, err)
@@ -40,9 +40,7 @@ func TestRegisterProfile_FileExist(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
-	defer func() {
-		enableProfilerFilePath = oldVal
-		_ = f.Close()
-		_ = os.Remove(f.Name())
-	}()
+	enableProfilerFilePath = oldVal
+	_ = f.Close()
+	_ = os.Remove(f.Name())
 }

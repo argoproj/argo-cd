@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	utillog "github.com/argoproj/argo-cd/v2/util/log"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	utillog "github.com/argoproj/argo-cd/v3/util/log"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const invalidURL = ":://localhost/foo/bar"
@@ -267,9 +267,10 @@ func Test_GenerateDexConfig(t *testing.T) {
 		assert.True(t, ok)
 		for i, connectorsIf := range connectors {
 			config := connectorsIf.(map[string]any)["config"].(map[string]any)
-			if i == 0 {
+			switch i {
+			case 0:
 				assert.Equal(t, "foobar", config["clientSecret"])
-			} else if i == 1 {
+			case 1:
 				assert.Equal(t, "barfoo", config["clientSecret"])
 			}
 		}
@@ -293,9 +294,10 @@ func Test_GenerateDexConfig(t *testing.T) {
 		assert.True(t, ok)
 		for i, connectorsIf := range connectors {
 			config := connectorsIf.(map[string]any)["config"].(map[string]any)
-			if i == 0 {
+			switch i {
+			case 0:
 				assert.Equal(t, "foobar", config["clientSecret"])
-			} else if i == 1 {
+			case 1:
 				assert.Equal(t, "barfoo", config["clientSecret"])
 			}
 		}
@@ -481,7 +483,7 @@ func Test_DexReverseProxy(t *testing.T) {
 	})
 
 	t.Run("Bad case", func(t *testing.T) {
-		fakeDex := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		fakeDex := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
 			rw.WriteHeader(http.StatusInternalServerError)
 		}))
 		defer fakeDex.Close()
@@ -490,7 +492,7 @@ func Test_DexReverseProxy(t *testing.T) {
 		fmt.Printf("Fake API Server listening on %s\n", server.URL)
 		defer server.Close()
 		client := &http.Client{
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 				return http.ErrUseLastResponse
 			},
 		}
@@ -511,7 +513,7 @@ func Test_DexReverseProxy(t *testing.T) {
 	})
 
 	t.Run("Round Tripper", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
 			assert.Equal(t, "/", req.URL.String())
 		}))
 		defer server.Close()

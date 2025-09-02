@@ -14,8 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/glob"
+	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/glob"
 )
 
 const (
@@ -23,24 +23,6 @@ const (
 	// in a DefaultServiceAccount configured for a DestinationServiceAccount
 	serviceAccountDisallowedCharSet = "!*[]{}\\/"
 )
-
-type ErrApplicationNotAllowedToUseProject struct {
-	application string
-	namespace   string
-	project     string
-}
-
-func NewErrApplicationNotAllowedToUseProject(application, namespace, project string) error {
-	return &ErrApplicationNotAllowedToUseProject{
-		application: application,
-		namespace:   namespace,
-		project:     project,
-	}
-}
-
-func (err *ErrApplicationNotAllowedToUseProject) Error() string {
-	return fmt.Sprintf("application '%s' in namespace '%s' is not allowed to use project %s", err.application, err.namespace, err.project)
-}
 
 // AppProjectList is list of AppProject resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -152,10 +134,9 @@ func (proj AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) 
 	if err1 == nil || err2 == nil {
 		// If we find this token from either places, we can say there are no error
 		return nil
-	} else {
-		// If we could not locate this taken from either places, we can return any of the errors
-		return err2
 	}
+	// If we could not locate this taken from either places, we can return any of the errors
+	return err2
 }
 
 // TODO: document this method
@@ -253,13 +234,17 @@ func (proj *AppProject) ValidateProject() error {
 	}
 
 	if proj.Spec.SyncWindows.HasWindows() {
-		existingWindows := make(map[string]bool)
+		existingWindows := make(map[uint64]bool)
 		for _, window := range proj.Spec.SyncWindows {
 			if window == nil {
 				continue
 			}
-			if _, ok := existingWindows[window.Kind+window.Schedule+window.Duration]; ok {
-				return status.Errorf(codes.AlreadyExists, "window '%s':'%s':'%s' already exists, update or edit", window.Kind, window.Schedule, window.Duration)
+			windowHash, hashErr := window.HashIdentity()
+			if hashErr != nil {
+				return status.Errorf(codes.Internal, "failed to generate hash for sync window with kind '%s', schedule '%s', and duration '%s': %v", window.Kind, window.Schedule, window.Duration, hashErr)
+			}
+			if _, ok := existingWindows[windowHash]; ok {
+				return status.Errorf(codes.AlreadyExists, "sync window with kind '%s', schedule '%s', and duration '%s' already exists (hash=%d, duplicate detected)", window.Kind, window.Schedule, window.Duration, windowHash)
 			}
 			err := window.Validate()
 			if err != nil {
@@ -268,7 +253,7 @@ func (proj *AppProject) ValidateProject() error {
 			if len(window.Applications) == 0 && len(window.Namespaces) == 0 && len(window.Clusters) == 0 {
 				return status.Errorf(codes.OutOfRange, "window '%s':'%s':'%s' requires one of application, cluster or namespace", window.Kind, window.Schedule, window.Duration)
 			}
-			existingWindows[window.Kind+window.Schedule+window.Duration] = true
+			existingWindows[windowHash] = true
 		}
 	}
 
@@ -367,11 +352,11 @@ func (proj *AppProject) normalizePolicy(policy string) string {
 func (proj *AppProject) ProjectPoliciesString() string {
 	var policies []string
 	for _, role := range proj.Spec.Roles {
-		projectPolicy := fmt.Sprintf("p, proj:%s:%s, projects, get, %s, allow", proj.ObjectMeta.Name, role.Name, proj.ObjectMeta.Name)
+		projectPolicy := fmt.Sprintf("p, proj:%s:%s, projects, get, %s, allow", proj.Name, role.Name, proj.Name)
 		policies = append(policies, projectPolicy)
 		policies = append(policies, role.Policies...)
 		for _, groupName := range role.Groups {
-			policies = append(policies, fmt.Sprintf("g, %s, proj:%s:%s", groupName, proj.ObjectMeta.Name, role.Name))
+			policies = append(policies, fmt.Sprintf("g, %s, proj:%s:%s", groupName, proj.Name, role.Name))
 		}
 	}
 	return strings.Join(policies, "\n")
@@ -400,16 +385,16 @@ func (proj AppProject) IsGroupKindPermitted(gk schema.GroupKind, namespaced bool
 }
 
 // IsLiveResourcePermitted returns whether a live resource found in the cluster is permitted by an AppProject
-func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, server string, name string, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
-	return proj.IsResourcePermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace(), ApplicationDestination{Server: server, Name: name}, projectClusters)
+func (proj AppProject) IsLiveResourcePermitted(un *unstructured.Unstructured, destCluster *Cluster, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
+	return proj.IsResourcePermitted(un.GroupVersionKind().GroupKind(), un.GetNamespace(), destCluster, projectClusters)
 }
 
-func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace string, dest ApplicationDestination, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
+func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, namespace string, destCluster *Cluster, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
 	if !proj.IsGroupKindPermitted(groupKind, namespace != "") {
 		return false, nil
 	}
 	if namespace != "" {
-		return proj.IsDestinationPermitted(ApplicationDestination{Server: dest.Server, Name: dest.Name, Namespace: namespace}, projectClusters)
+		return proj.IsDestinationPermitted(destCluster, namespace, projectClusters)
 	}
 	return true, nil
 }
@@ -461,7 +446,11 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 }
 
 // IsDestinationPermitted validates if the provided application's destination is one of the allowed destinations for the project
-func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
+func (proj AppProject) IsDestinationPermitted(destCluster *Cluster, destNamespace string, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
+	if destCluster == nil {
+		return false, nil
+	}
+	dst := ApplicationDestination{Server: destCluster.Server, Name: destCluster.Name, Namespace: destNamespace}
 	destinationMatched := proj.isDestinationMatched(dst)
 	if destinationMatched && proj.Spec.PermitOnlyProjectScopedClusters {
 		clusters, err := projectClusters(proj.Name)
@@ -490,11 +479,12 @@ func (proj AppProject) isDestinationMatched(dst ApplicationDestination) bool {
 		dstNamespaceMatched := globMatch(item.Namespace, dst.Namespace, true)
 
 		matched := (dstServerMatched || dstNameMatched) && dstNamespaceMatched
-		if matched {
+		switch {
+		case matched:
 			anyDestinationMatched = true
-		} else if (!dstNameMatched && isDenyPattern(item.Name)) || (!dstServerMatched && isDenyPattern(item.Server)) && dstNamespaceMatched {
+		case (!dstNameMatched && isDenyPattern(item.Name)) || (!dstServerMatched && isDenyPattern(item.Server)) && dstNamespaceMatched:
 			return false
-		} else if !dstNamespaceMatched && isDenyPattern(item.Namespace) && dstServerMatched {
+		case !dstNamespaceMatched && isDenyPattern(item.Namespace) && dstServerMatched:
 			return false
 		}
 	}

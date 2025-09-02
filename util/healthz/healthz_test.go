@@ -23,7 +23,7 @@ func TestHealthCheck(t *testing.T) {
 		c <- listener.Addr().String()
 
 		mux := http.NewServeMux()
-		ServeHealthCheck(mux, func(r *http.Request) error {
+		ServeHealthCheck(mux, func(_ *http.Request) error {
 			if sentinel {
 				return errors.New("This is a dummy error")
 			}

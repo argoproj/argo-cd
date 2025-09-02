@@ -37,7 +37,7 @@ export const ApplicationsTable = (props: {
         keys: Key.ENTER,
         action: () => {
             if (selectedApp > -1) {
-                ctxh.navigation.goto(AppUtils.getAppUrl(props.applications[selectedApp]));
+                ctxh.navigation.goto(`/${AppUtils.getAppUrl(props.applications[selectedApp])}`);
                 return true;
             }
             return false;
@@ -57,7 +57,7 @@ export const ApplicationsTable = (props: {
                                         key={AppUtils.appInstanceName(app)}
                                         className={`argo-table-list__row
                 applications-list__entry applications-list__entry--health-${app.status.health.status} ${selectedApp === i ? 'applications-tiles__selected' : ''}`}>
-                                        <div className={`row applications-list__table-row`} onClick={e => ctx.navigation.goto(AppUtils.getAppUrl(app), {}, {event: e})}>
+                                        <div className={`row applications-list__table-row`} onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {}, {event: e})}>
                                             <div className='columns small-4'>
                                                 <div className='row'>
                                                     <div className=' columns small-2'>

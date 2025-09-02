@@ -11,7 +11,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,21 +25,22 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	accountFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/account"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
-	projectFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/project"
-	repoFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
-	"github.com/argoproj/argo-cd/v2/test/e2e/testdata"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	. "github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	clusterFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/cluster"
+	projectFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/project"
+	repoFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
+	"github.com/argoproj/argo-cd/v3/test/e2e/testdata"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
 const (
@@ -53,10 +53,10 @@ const (
 )
 
 // This empty test is here only for clarity, to conform to logs rbac tests structure in account. This exact usecase is covered in the TestAppLogs test
-func TestGetLogsAllowNoSwitch(t *testing.T) {
+func TestGetLogsAllowNoSwitch(_ *testing.T) {
 }
 
-func TestGetLogsDenySwitchOn(t *testing.T) {
+func TestGetLogsDeny(t *testing.T) {
 	fixture.SkipOnEnv(t, "OPENSHIFT")
 
 	accountFixture.Given(t).
@@ -92,7 +92,6 @@ func TestGetLogsDenySwitchOn(t *testing.T) {
 		When().
 		CreateApp().
 		Sync().
-		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
@@ -101,7 +100,7 @@ func TestGetLogsDenySwitchOn(t *testing.T) {
 		})
 }
 
-func TestGetLogsAllowSwitchOn(t *testing.T) {
+func TestGetLogsAllow(t *testing.T) {
 	fixture.SkipOnEnv(t, "OPENSHIFT")
 
 	accountFixture.Given(t).
@@ -142,63 +141,6 @@ func TestGetLogsAllowSwitchOn(t *testing.T) {
 		When().
 		CreateApp().
 		Sync().
-		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
-		Then().
-		Expect(HealthIs(health.HealthStatusHealthy)).
-		And(func(app *Application) {
-			out, err := fixture.RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
-			require.NoError(t, err)
-			assert.Contains(t, out, "Hi")
-		}).
-		And(func(app *Application) {
-			out, err := fixture.RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Pod")
-			require.NoError(t, err)
-			assert.Contains(t, out, "Hi")
-		}).
-		And(func(app *Application) {
-			out, err := fixture.RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Service")
-			require.NoError(t, err)
-			assert.NotContains(t, out, "Hi")
-		})
-}
-
-func TestGetLogsAllowSwitchOff(t *testing.T) {
-	fixture.SkipOnEnv(t, "OPENSHIFT")
-
-	accountFixture.Given(t).
-		Name("test").
-		When().
-		Create().
-		Login().
-		SetPermissions([]fixture.ACL{
-			{
-				Resource: "applications",
-				Action:   "create",
-				Scope:    "*",
-			},
-			{
-				Resource: "applications",
-				Action:   "get",
-				Scope:    "*",
-			},
-			{
-				Resource: "applications",
-				Action:   "sync",
-				Scope:    "*",
-			},
-			{
-				Resource: "projects",
-				Action:   "get",
-				Scope:    "*",
-			},
-		}, "app-creator")
-
-	GivenWithSameState(t).
-		Path("guestbook-logs").
-		When().
-		CreateApp().
-		Sync().
-		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "false").
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
@@ -409,7 +351,7 @@ func TestAppCreation(t *testing.T) {
 		When().
 		// ensure that update replaces spec and merge labels and annotations
 		And(func() {
-			FailOnErr(fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Patch(context.Background(),
+			errors.NewHandler(t).FailOnErr(fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Patch(t.Context(),
 				ctx.GetName(), types.MergePatchType, []byte(`{"metadata": {"labels": { "test": "label" }, "annotations": { "test": "annotation" }}}`), metav1.PatchOptions{}))
 		}).
 		CreateApp("--upsert").
@@ -608,10 +550,10 @@ func TestAppLabels(t *testing.T) {
 		When().
 		CreateApp("-l", "foo=bar").
 		Then().
-		And(func(app *Application) {
-			assert.Contains(t, FailOnErr(fixture.RunCli("app", "list")), fixture.Name())
-			assert.Contains(t, FailOnErr(fixture.RunCli("app", "list", "-l", "foo=bar")), fixture.Name())
-			assert.NotContains(t, FailOnErr(fixture.RunCli("app", "list", "-l", "foo=rubbish")), fixture.Name())
+		And(func(_ *Application) {
+			assert.Contains(t, errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "list")), fixture.Name())
+			assert.Contains(t, errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "list", "-l", "foo=bar")), fixture.Name())
+			assert.NotContains(t, errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "list", "-l", "foo=rubbish")), fixture.Name())
 		}).
 		Given().
 		// remove both name and replace labels means nothing will sync
@@ -634,6 +576,7 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 		When().
 		CreateApp().
 		Sync().
+		Wait().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -672,7 +615,7 @@ func TestAppRollbackSuccessful(t *testing.T) {
 			}}
 			patch, _, err := diff.CreateTwoWayMergePatch(app, appWithHistory, &Application{})
 			require.NoError(t, err)
-			app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+			app, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Patch(t.Context(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 			require.NoError(t, err)
 
 			// sync app and make sure it reaches InSync state
@@ -699,6 +642,58 @@ func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
 		CreateApp().
 		Then().
 		Expect(DoesNotExist())
+}
+
+func TestComparisonFailsIfDestinationClusterIsInvalid(t *testing.T) {
+	clusterActions := clusterFixture.Given(t).
+		Name("temp-cluster").
+		Server(KubernetesInternalAPIServerAddr).
+		When().
+		Create()
+
+	GivenWithSameState(t).
+		Path(guestbookPath).
+		DestName("temp-cluster").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Sync().
+		Then().
+		Expect(Success("")).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		And(func() {
+			clusterActions.DeleteByName()
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(Success("")).
+		Expect(HealthIs(health.HealthStatusUnknown)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
+		Expect(Condition(ApplicationConditionInvalidSpecError, "there are no clusters with this name"))
+}
+
+func TestComparisonFailsIfInClusterDisabled(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		DestServer(KubernetesInternalAPIServerAddr).
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Sync().
+		Then().
+		Expect(Success("")).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		SetParamInSettingConfigMap("cluster.inClusterEnabled", "false").
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(Success("")).
+		Expect(HealthIs(health.HealthStatusUnknown)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
+		Expect(Condition(ApplicationConditionInvalidSpecError, fmt.Sprintf("cluster %q is disabled", KubernetesInternalAPIServerAddr)))
 }
 
 func TestCannotSetInvalidPath(t *testing.T) {
@@ -739,9 +734,9 @@ func TestManipulateApplicationResources(t *testing.T) {
 
 			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
-			defer io.Close(closer)
+			defer utilio.Close(closer)
 
-			_, err = client.DeleteResource(context.Background(), &applicationpkg.ApplicationResourceDeleteRequest{
+			_, err = client.DeleteResource(t.Context(), &applicationpkg.ApplicationResourceDeleteRequest{
 				Name:         &app.Name,
 				Group:        ptr.To(deployment.GroupVersionKind().Group),
 				Kind:         ptr.To(deployment.GroupVersionKind().Kind),
@@ -782,7 +777,7 @@ func assetSecretDataHidden(t *testing.T, manifest string) {
 func TestAppWithSecrets(t *testing.T) {
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	require.NoError(t, err)
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 
 	Given(t).
 		Path("secrets").
@@ -792,7 +787,7 @@ func TestAppWithSecrets(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			res := FailOnErr(client.GetResource(context.Background(), &applicationpkg.ApplicationResourceRequest{
+			res := errors.NewHandler(t).FailOnErr(client.GetResource(t.Context(), &applicationpkg.ApplicationResourceRequest{
 				Namespace:    &app.Spec.Destination.Namespace,
 				Kind:         ptr.To(kube.SecretKind),
 				Group:        ptr.To(""),
@@ -802,14 +797,14 @@ func TestAppWithSecrets(t *testing.T) {
 			})).(*applicationpkg.ApplicationResourceResponse)
 			assetSecretDataHidden(t, res.GetManifest())
 
-			manifests, err := client.GetManifests(context.Background(), &applicationpkg.ApplicationManifestQuery{Name: &app.Name})
-			errors.CheckError(err)
+			manifests, err := client.GetManifests(t.Context(), &applicationpkg.ApplicationManifestQuery{Name: &app.Name})
+			require.NoError(t, err)
 
 			for _, manifest := range manifests.Manifests {
 				assetSecretDataHidden(t, manifest)
 			}
 
-			diffOutput := FailOnErr(fixture.RunCli("app", "diff", app.Name)).(string)
+			diffOutput := errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "diff", app.Name)).(string)
 			assert.Empty(t, diffOutput)
 
 			// make sure resource update error does not print secret details
@@ -821,7 +816,7 @@ func TestAppWithSecrets(t *testing.T) {
 			assert.NotContains(t, err.Error(), "password")
 
 			// patch secret and make sure app is out of sync and diff detects the change
-			FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.DeploymentNamespace()).Patch(context.Background(),
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.DeploymentNamespace()).Patch(t.Context(),
 				"test-secret", types.JSONPatchType, []byte(`[
 	{"op": "remove", "path": "/data/username"},
 	{"op": "add", "path": "/stringData", "value": {"password": "foo"}}
@@ -838,14 +833,14 @@ func TestAppWithSecrets(t *testing.T) {
 			assert.Contains(t, diffOutput, "password: ++++++++++++")
 
 			// local diff should ignore secrets
-			diffOutput = FailOnErr(fixture.RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")).(string)
+			diffOutput = errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")).(string)
 			assert.Empty(t, diffOutput)
 
 			// ignore missing field and make sure diff shows no difference
 			app.Spec.IgnoreDifferences = []ResourceIgnoreDifferences{{
 				Kind: kube.SecretKind, JSONPointers: []string{"/data"},
 			}}
-			FailOnErr(client.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: &app.Spec}))
+			errors.NewHandler(t).FailOnErr(client.UpdateSpec(t.Context(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: &app.Spec}))
 		}).
 		When().
 		Refresh(RefreshTypeNormal).
@@ -853,7 +848,7 @@ func TestAppWithSecrets(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			diffOutput := FailOnErr(fixture.RunCli("app", "diff", app.Name)).(string)
+			diffOutput := errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "diff", app.Name)).(string)
 			assert.Empty(t, diffOutput)
 		}).
 		// verify not committed secret also ignore during diffing
@@ -867,7 +862,7 @@ stringData:
   username: test-username`).
 		Then().
 		And(func(app *Application) {
-			diffOutput := FailOnErr(fixture.RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")).(string)
+			diffOutput := errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")).(string)
 			assert.Empty(t, diffOutput)
 		})
 }
@@ -880,9 +875,9 @@ func TestResourceDiffing(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Patch deployment
-			_, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
+			_, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(t.Context(),
 				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "test" }]`), metav1.PatchOptions{})
 			require.NoError(t, err)
 		}).
@@ -949,7 +944,7 @@ func TestResourceDiffing(t *testing.T) {
 			"value": { "syncOptions": ["RespectIgnoreDifferences=true"] }
 			}]`).
 		And(func() {
-			deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
+			deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
 			require.NoError(t, err)
 			assert.Equal(t, int32(3), *deployment.Spec.RevisionHistoryLimit)
 		}).
@@ -962,14 +957,14 @@ func TestResourceDiffing(t *testing.T) {
 		When().Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
+		And(func(_ *Application) {
+			deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
 			require.NoError(t, err)
 			assert.Equal(t, int32(1), *deployment.Spec.RevisionHistoryLimit)
 		}).
 		When().Sync().Then().Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
+		And(func(_ *Application) {
+			deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
 			require.NoError(t, err)
 			assert.Equal(t, int32(1), *deployment.Spec.RevisionHistoryLimit)
 		})
@@ -990,13 +985,13 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 		And(func() {
 			dummyResIf := fixture.DynamicClientset.Resource(dummiesGVR).Namespace(fixture.DeploymentNamespace())
 			patchData := []byte(`{"spec":{"cpu": "2"}}`)
-			FailOnErr(dummyResIf.Patch(context.Background(), "dummy-crd-instance", types.MergePatchType, patchData, metav1.PatchOptions{}))
+			errors.NewHandler(t).FailOnErr(dummyResIf.Patch(t.Context(), "dummy-crd-instance", types.MergePatchType, patchData, metav1.PatchOptions{}))
 		}).Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		When().
 		And(func() {
-			CheckError(fixture.SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, fixture.SetResourceOverrides(map[string]ResourceOverride{
 				"argoproj.io/Dummy": {
 					KnownTypeFields: []KnownTypeField{{
 						Field: "spec",
@@ -1008,6 +1003,27 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+func TestDuplicatedClusterResourcesAnnotationTracking(t *testing.T) {
+	// This test will fail if the controller fails to fix the tracking annotation for malformed cluster resources
+	// (i.e. resources where metadata.namespace is set). Before the bugfix, this test would fail with a diff in the
+	// tracking annotation.
+	Given(t).
+		SetTrackingMethod(string(TrackingMethodAnnotation)).
+		Path("duplicated-resources").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
+			assert.Empty(t, diffOutput)
+			require.NoError(t, err)
+		})
 }
 
 func TestDuplicatedResources(t *testing.T) {
@@ -1058,9 +1074,9 @@ func TestOldStyleResourceAction(t *testing.T) {
 		And(func(app *Application) {
 			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
-			defer io.Close(closer)
+			defer utilio.Close(closer)
 
-			actions, err := client.ListResourceActions(context.Background(), &applicationpkg.ApplicationResourceRequest{
+			actions, err := client.ListResourceActions(t.Context(), &applicationpkg.ApplicationResourceRequest{
 				Name:         &app.Name,
 				Group:        ptr.To("apps"),
 				Kind:         ptr.To("Deployment"),
@@ -1071,7 +1087,7 @@ func TestOldStyleResourceAction(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, []*ResourceAction{{Name: "sample", Disabled: false}}, actions.Actions)
 
-			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{
+			_, err = client.RunResourceActionV2(t.Context(), &applicationpkg.ResourceActionRunRequestV2{
 				Name:         &app.Name,
 				Group:        ptr.To("apps"),
 				Kind:         ptr.To("Deployment"),
@@ -1082,7 +1098,7 @@ func TestOldStyleResourceAction(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
+			deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
 			require.NoError(t, err)
 
 			assert.Equal(t, "test", deployment.Labels["sample"])
@@ -1115,15 +1131,15 @@ definitions:
       end
       return _copy(object)
     end
-  
+
     job = {}
     job.apiVersion = "batch/v1"
     job.kind = "Job"
-  
+
     job.metadata = {}
     job.metadata.name = obj.metadata.name .. "-123"
     job.metadata.namespace = obj.metadata.namespace
-  
+
     ownerRef = {}
     ownerRef.apiVersion = obj.apiVersion
     ownerRef.kind = obj.kind
@@ -1131,18 +1147,18 @@ definitions:
     ownerRef.uid = obj.metadata.uid
     job.metadata.ownerReferences = {}
     job.metadata.ownerReferences[1] = ownerRef
-  
+
     job.spec = {}
     job.spec.suspend = false
     job.spec.template = {}
     job.spec.template.spec = deepCopy(obj.spec.jobTemplate.spec.template.spec)
-  
+
     impactedResource = {}
     impactedResource.operation = "create"
     impactedResource.resource = job
     result = {}
     result[1] = impactedResource
-  
+
     return result`
 
 func TestNewStyleResourceActionPermitted(t *testing.T) {
@@ -1160,13 +1176,14 @@ func TestNewStyleResourceActionPermitted(t *testing.T) {
 		When().
 		CreateApp().
 		Sync().
+		Wait().
 		Then().
 		And(func(app *Application) {
 			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
-			defer io.Close(closer)
+			defer utilio.Close(closer)
 
-			actions, err := client.ListResourceActions(context.Background(), &applicationpkg.ApplicationResourceRequest{
+			actions, err := client.ListResourceActions(t.Context(), &applicationpkg.ApplicationResourceRequest{
 				Name:         &app.Name,
 				Group:        ptr.To("batch"),
 				Kind:         ptr.To("CronJob"),
@@ -1177,7 +1194,7 @@ func TestNewStyleResourceActionPermitted(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, []*ResourceAction{{Name: "sample", Disabled: false}}, actions.Actions)
 
-			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{
+			_, err = client.RunResourceActionV2(t.Context(), &applicationpkg.ResourceActionRunRequestV2{
 				Name:         &app.Name,
 				Group:        ptr.To("batch"),
 				Kind:         ptr.To("CronJob"),
@@ -1188,7 +1205,7 @@ func TestNewStyleResourceActionPermitted(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			_, err = fixture.KubeClientset.BatchV1().Jobs(fixture.DeploymentNamespace()).Get(context.Background(), "hello-123", metav1.GetOptions{})
+			_, err = fixture.KubeClientset.BatchV1().Jobs(fixture.DeploymentNamespace()).Get(t.Context(), "hello-123", metav1.GetOptions{})
 			require.NoError(t, err)
 		})
 }
@@ -1219,15 +1236,15 @@ definitions:
       end
       return _copy(object)
     end
-  
+
     job = {}
     job.apiVersion = "batch/v1"
     job.kind = "Job"
-  
+
     job.metadata = {}
     job.metadata.name = obj.metadata.name .. "-123"
     job.metadata.namespace = obj.metadata.namespace
-  
+
     ownerRef = {}
     ownerRef.apiVersion = obj.apiVersion
     ownerRef.kind = obj.kind
@@ -1235,25 +1252,26 @@ definitions:
     ownerRef.uid = obj.metadata.uid
     job.metadata.ownerReferences = {}
     job.metadata.ownerReferences[1] = ownerRef
-  
+
     job.spec = {}
     job.spec.suspend = false
     job.spec.template = {}
     job.spec.template.spec = deepCopy(obj.spec.jobTemplate.spec.template.spec)
-  
+
     impactedResource1 = {}
     impactedResource1.operation = "create"
     impactedResource1.resource = job
     result = {}
     result[1] = impactedResource1
 
+    obj.metadata.labels = {}
     obj.metadata.labels["aKey"] = 'aValue'
     impactedResource2 = {}
     impactedResource2.operation = "patch"
     impactedResource2.resource = obj
 
     result[2] = impactedResource2
-  
+
     return result`
 
 func TestNewStyleResourceActionMixedOk(t *testing.T) {
@@ -1271,13 +1289,14 @@ func TestNewStyleResourceActionMixedOk(t *testing.T) {
 		When().
 		CreateApp().
 		Sync().
+		Wait().
 		Then().
 		And(func(app *Application) {
 			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
-			defer io.Close(closer)
+			defer utilio.Close(closer)
 
-			actions, err := client.ListResourceActions(context.Background(), &applicationpkg.ApplicationResourceRequest{
+			actions, err := client.ListResourceActions(t.Context(), &applicationpkg.ApplicationResourceRequest{
 				Name:         &app.Name,
 				Group:        ptr.To("batch"),
 				Kind:         ptr.To("CronJob"),
@@ -1288,7 +1307,7 @@ func TestNewStyleResourceActionMixedOk(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, []*ResourceAction{{Name: "sample", Disabled: false}}, actions.Actions)
 
-			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{
+			_, err = client.RunResourceActionV2(t.Context(), &applicationpkg.ResourceActionRunRequestV2{
 				Name:         &app.Name,
 				Group:        ptr.To("batch"),
 				Kind:         ptr.To("CronJob"),
@@ -1300,10 +1319,10 @@ func TestNewStyleResourceActionMixedOk(t *testing.T) {
 			require.NoError(t, err)
 
 			// Assert new Job was created
-			_, err = fixture.KubeClientset.BatchV1().Jobs(fixture.DeploymentNamespace()).Get(context.Background(), "hello-123", metav1.GetOptions{})
+			_, err = fixture.KubeClientset.BatchV1().Jobs(fixture.DeploymentNamespace()).Get(t.Context(), "hello-123", metav1.GetOptions{})
 			require.NoError(t, err)
 			// Assert the original CronJob was patched
-			cronJob, err := fixture.KubeClientset.BatchV1().CronJobs(fixture.DeploymentNamespace()).Get(context.Background(), "hello", metav1.GetOptions{})
+			cronJob, err := fixture.KubeClientset.BatchV1().CronJobs(fixture.DeploymentNamespace()).Get(t.Context(), "hello", metav1.GetOptions{})
 			assert.Equal(t, "aValue", cronJob.Labels["aKey"])
 			require.NoError(t, err)
 		})
@@ -1322,7 +1341,7 @@ func TestSyncResourceByLabel(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			_, err := fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
-			assert.ErrorContains(t, err, "level=fatal")
+			assert.ErrorContains(t, err, "\"level\":\"fatal\"")
 		})
 }
 
@@ -1339,7 +1358,7 @@ func TestSyncResourceByProject(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			_, err := fixture.RunCli("app", "sync", app.Name, "--project", "this-project-does-not-exist")
-			assert.ErrorContains(t, err, "level=fatal")
+			assert.ErrorContains(t, err, "\"level\":\"fatal\"")
 		})
 }
 
@@ -1387,7 +1406,7 @@ func TestLocalSync(t *testing.T) {
 		CreateApp().
 		Then().
 		And(func(app *Application) {
-			FailOnErr(fixture.RunCli("app", "sync", app.Name, "--local", "testdata/helm"))
+			errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "sync", app.Name, "--local", "testdata/helm"))
 		})
 }
 
@@ -1452,12 +1471,12 @@ func assertResourceActions(t *testing.T, appName string, successful bool) {
 	}
 
 	closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie()
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 
-	deploymentResource, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
+	deploymentResource, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
 	require.NoError(t, err)
 
-	logs, err := cdClient.PodLogs(context.Background(), &applicationpkg.ApplicationPodLogsQuery{
+	logs, err := cdClient.PodLogs(t.Context(), &applicationpkg.ApplicationPodLogsQuery{
 		Group:        ptr.To("apps"),
 		Kind:         ptr.To("Deployment"),
 		Name:         &appName,
@@ -1473,7 +1492,7 @@ func assertResourceActions(t *testing.T, appName string, successful bool) {
 
 	expectedError := "Deployment apps guestbook-ui not found as part of application " + appName
 
-	_, err = cdClient.ListResourceEvents(context.Background(), &applicationpkg.ApplicationResourceEventsQuery{
+	_, err = cdClient.ListResourceEvents(t.Context(), &applicationpkg.ApplicationResourceEventsQuery{
 		Name:              &appName,
 		ResourceName:      ptr.To("guestbook-ui"),
 		ResourceNamespace: ptr.To(fixture.DeploymentNamespace()),
@@ -1481,7 +1500,7 @@ func assertResourceActions(t *testing.T, appName string, successful bool) {
 	})
 	assertError(err, fmt.Sprintf("%s not found as part of application %s", "guestbook-ui", appName))
 
-	_, err = cdClient.GetResource(context.Background(), &applicationpkg.ApplicationResourceRequest{
+	_, err = cdClient.GetResource(t.Context(), &applicationpkg.ApplicationResourceRequest{
 		Name:         &appName,
 		ResourceName: ptr.To("guestbook-ui"),
 		Namespace:    ptr.To(fixture.DeploymentNamespace()),
@@ -1491,7 +1510,7 @@ func assertResourceActions(t *testing.T, appName string, successful bool) {
 	})
 	assertError(err, expectedError)
 
-	_, err = cdClient.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{
+	_, err = cdClient.RunResourceActionV2(t.Context(), &applicationpkg.ResourceActionRunRequestV2{
 		Name:         &appName,
 		ResourceName: ptr.To("guestbook-ui"),
 		Namespace:    ptr.To(fixture.DeploymentNamespace()),
@@ -1502,7 +1521,7 @@ func assertResourceActions(t *testing.T, appName string, successful bool) {
 	})
 	assertError(err, expectedError)
 
-	_, err = cdClient.DeleteResource(context.Background(), &applicationpkg.ApplicationResourceDeleteRequest{
+	_, err = cdClient.DeleteResource(t.Context(), &applicationpkg.ApplicationResourceDeleteRequest{
 		Name:         &appName,
 		ResourceName: ptr.To("guestbook-ui"),
 		Namespace:    ptr.To(fixture.DeploymentNamespace()),
@@ -1564,10 +1583,10 @@ func TestPermissions(t *testing.T) {
 		Expect(Condition(ApplicationConditionInvalidSpecError, sourceError)).
 		And(func(app *Application) {
 			closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie()
-			defer io.Close(closer)
+			defer utilio.Close(closer)
 			appName, appNs := argo.ParseFromQualifiedName(app.Name, "")
 			fmt.Printf("APP NAME: %s\n", appName)
-			tree, err := cdClient.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &appName, AppNamespace: &appNs})
+			tree, err := cdClient.ResourceTree(t.Context(), &applicationpkg.ResourcesQuery{ApplicationName: &appName, AppNamespace: &appNs})
 			require.NoError(t, err)
 			assert.Empty(t, tree.Nodes)
 			assert.Empty(t, tree.OrphanedNodes)
@@ -1585,7 +1604,7 @@ func TestPermissions(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		// make sure application resource actiions are failing
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			assertResourceActions(t, "test-permissions", false)
 		})
 }
@@ -1791,7 +1810,7 @@ func TestSourceNamespaceCanBeMigratedToManagedNamespaceWithoutBeingPrunedOrOutOf
 		Prune(true).
 		Path("guestbook-with-plain-namespace-manifest").
 		When().
-		PatchFile("guestbook-ui-namespace.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/name", "value": "%s"}]`, fixture.DeploymentNamespace())).
+		PatchFile("guestbook-ui-namespace.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/name", "value": %q}]`, fixture.DeploymentNamespace())).
 		CreateApp().
 		Sync().
 		Then().
@@ -1824,14 +1843,14 @@ func TestSelfManagedApps(t *testing.T) {
 	Given(t).
 		Path("self-managed-app").
 		When().
-		PatchFile("resources.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/spec/source/repoURL", "value": "%s"}]`, fixture.RepoURL(fixture.RepoURLTypeFile))).
+		PatchFile("resources.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/spec/source/repoURL", "value": %q}]`, fixture.RepoURL(fixture.RepoURLTypeFile))).
 		CreateApp().
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(a *Application) {
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+			ctx, cancel := context.WithTimeout(t.Context(), time.Second*3)
 			defer cancel()
 
 			reconciledCount := 0
@@ -1906,7 +1925,7 @@ func TestOrphanedResource(t *testing.T) {
 		Expect(NoConditions()).
 		When().
 		And(func() {
-			FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "orphaned-configmap",
 				},
@@ -2012,7 +2031,7 @@ func TestNotPermittedResources(t *testing.T) {
 	}
 	defer func() {
 		log.Infof("Ingress 'sample-ingress' deleted from %s", fixture.TestNamespace())
-		CheckError(fixture.KubeClientset.NetworkingV1().Ingresses(fixture.TestNamespace()).Delete(context.Background(), "sample-ingress", metav1.DeleteOptions{}))
+		require.NoError(t, fixture.KubeClientset.NetworkingV1().Ingresses(fixture.TestNamespace()).Delete(t.Context(), "sample-ingress", metav1.DeleteOptions{}))
 	}()
 
 	svc := &corev1.Service{
@@ -2041,8 +2060,8 @@ func TestNotPermittedResources(t *testing.T) {
 		},
 	}).
 		And(func() {
-			FailOnErr(fixture.KubeClientset.NetworkingV1().Ingresses(fixture.TestNamespace()).Create(context.Background(), ingress, metav1.CreateOptions{}))
-			FailOnErr(fixture.KubeClientset.CoreV1().Services(fixture.DeploymentNamespace()).Create(context.Background(), svc, metav1.CreateOptions{}))
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.NetworkingV1().Ingresses(fixture.TestNamespace()).Create(t.Context(), ingress, metav1.CreateOptions{}))
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().Services(fixture.DeploymentNamespace()).Create(t.Context(), svc, metav1.CreateOptions{}))
 		}).
 		Path(guestbookPath).
 		When().
@@ -2067,8 +2086,8 @@ func TestNotPermittedResources(t *testing.T) {
 		Expect(DoesNotExist())
 
 	// Make sure prohibited resources are not deleted during application deletion
-	FailOnErr(fixture.KubeClientset.NetworkingV1().Ingresses(fixture.TestNamespace()).Get(context.Background(), "sample-ingress", metav1.GetOptions{}))
-	FailOnErr(fixture.KubeClientset.CoreV1().Services(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{}))
+	errors.NewHandler(t).FailOnErr(fixture.KubeClientset.NetworkingV1().Ingresses(fixture.TestNamespace()).Get(t.Context(), "sample-ingress", metav1.GetOptions{}))
+	errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().Services(fixture.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{}))
 }
 
 func TestSyncWithInfos(t *testing.T) {
@@ -2105,7 +2124,7 @@ func TestCreateAppWithNoNameSpaceForGlobalResource(t *testing.T) {
 		CreateWithNoNameSpace().
 		Then().
 		And(func(app *Application) {
-			app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(context.Background(), app.Name, metav1.GetOptions{})
+			app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(t.Context(), app.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 			assert.Empty(t, app.Status.Conditions)
 		})
@@ -2125,7 +2144,7 @@ func TestCreateAppWithNoNameSpaceWhenRequired(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		And(func(app *Application) {
-			updatedApp, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(context.Background(), app.Name, metav1.GetOptions{})
+			updatedApp, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(t.Context(), app.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 
 			assert.Len(t, updatedApp.Status.Conditions, 2)
@@ -2149,13 +2168,26 @@ func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		And(func(app *Application) {
-			updatedApp, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(context.Background(), app.Name, metav1.GetOptions{})
+			updatedApp, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(t.Context(), app.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 
 			assert.Len(t, updatedApp.Status.Conditions, 2)
 			assert.Equal(t, ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[0].Type)
 			assert.Equal(t, ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[1].Type)
 		})
+}
+
+func TestCreateAppWithInClusterDisabled(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		DestServer(KubernetesInternalAPIServerAddr).
+		When().
+		SetParamInSettingConfigMap("cluster.inClusterEnabled", "false").
+		IgnoreErrors().
+		CreateApp().
+		Then().
+		// RPC error messages are quoted: time="2024-12-18T04:13:58Z" level=fatal msg="<Quoted value>"
+		Expect(Error("", fmt.Sprintf(`cluster \"%s\" is disabled`, KubernetesInternalAPIServerAddr)))
 }
 
 func TestListResource(t *testing.T) {
@@ -2175,7 +2207,7 @@ func TestListResource(t *testing.T) {
 		Expect(NoConditions()).
 		When().
 		And(func() {
-			FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "orphaned-configmap",
 				},
@@ -2238,7 +2270,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 		When().
 		CreateApp("--sync-option", "CreateNamespace=true").
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Make sure the namespace we are about to update to does not exist
 			_, err := fixture.Run("", "kubectl", "get", "namespace", updatedNamespace)
 			assert.ErrorContains(t, err, "not found")
@@ -2256,7 +2288,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 		Delete(true).
 		Then().
 		Expect(Success("")).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Verify delete app does not delete the namespace auto created
 			output, err := fixture.Run("", "kubectl", "get", "namespace", updatedNamespace)
 			require.NoError(t, err)
@@ -2319,9 +2351,9 @@ spec:
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(NoConditions()).
 		And(func(app *Application) {
-			assert.Equal(t, map[string]string{"labels.local/from-file": "file", "labels.local/from-args": "args"}, app.ObjectMeta.Labels)
-			assert.Equal(t, map[string]string{"annotations.local/from-file": "file"}, app.ObjectMeta.Annotations)
-			assert.Equal(t, []string{"resources-finalizer.argocd.argoproj.io"}, app.ObjectMeta.Finalizers)
+			assert.Equal(t, map[string]string{"labels.local/from-file": "file", "labels.local/from-args": "args"}, app.Labels)
+			assert.Equal(t, map[string]string{"annotations.local/from-file": "file"}, app.Annotations)
+			assert.Equal(t, []string{ResourcesFinalizerName}, app.Finalizers)
 			assert.Equal(t, path, app.Spec.GetSource().Path)
 			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.GetSource().Helm.Parameters)
 		})
@@ -2358,7 +2390,7 @@ definitions:
 	Given(t).
 		Path("crd-subresource").
 		And(func() {
-			CheckError(fixture.SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, fixture.SetResourceOverrides(map[string]ResourceOverride{
 				"argoproj.io/StatusSubResource": {
 					Actions: actions,
 				},
@@ -2376,38 +2408,38 @@ definitions:
 		And(func(app *Application) {
 			_, err := fixture.RunCli("app", "actions", "run", app.Name, "--kind", "StatusSubResource", "update-both")
 			require.NoError(t, err)
-			text := FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
+			text := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
 			assert.Equal(t, "update-both", text)
-			text = FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.status.bar}")).(string)
+			text = errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.status.bar}")).(string)
 			assert.Equal(t, "update-both", text)
 
 			_, err = fixture.RunCli("app", "actions", "run", app.Name, "--kind", "StatusSubResource", "update-spec")
 			require.NoError(t, err)
-			text = FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
+			text = errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
 			assert.Equal(t, "update-spec", text)
 
 			_, err = fixture.RunCli("app", "actions", "run", app.Name, "--kind", "StatusSubResource", "update-status")
 			require.NoError(t, err)
-			text = FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.status.bar}")).(string)
+			text = errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.status.bar}")).(string)
 			assert.Equal(t, "update-status", text)
 		}).
 		// tests resource actions on a CRD *not* using status subresource
 		And(func(app *Application) {
 			_, err := fixture.RunCli("app", "actions", "run", app.Name, "--kind", "NonStatusSubResource", "update-both")
 			require.NoError(t, err)
-			text := FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
+			text := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
 			assert.Equal(t, "update-both", text)
-			text = FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.status.bar}")).(string)
+			text = errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.status.bar}")).(string)
 			assert.Equal(t, "update-both", text)
 
 			_, err = fixture.RunCli("app", "actions", "run", app.Name, "--kind", "NonStatusSubResource", "update-spec")
 			require.NoError(t, err)
-			text = FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
+			text = errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
 			assert.Equal(t, "update-spec", text)
 
 			_, err = fixture.RunCli("app", "actions", "run", app.Name, "--kind", "NonStatusSubResource", "update-status")
 			require.NoError(t, err)
-			text = FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.status.bar}")).(string)
+			text = errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.status.bar}")).(string)
 			assert.Equal(t, "update-status", text)
 		})
 }
@@ -2443,7 +2475,7 @@ func TestAppWaitOperationInProgress(t *testing.T) {
 	ctx := Given(t)
 	ctx.
 		And(func() {
-			CheckError(fixture.SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, fixture.SetResourceOverrides(map[string]ResourceOverride{
 				"batch/Job": {
 					HealthLua: `return { status = 'Running' }`,
 				},
@@ -2463,7 +2495,7 @@ func TestAppWaitOperationInProgress(t *testing.T) {
 		When().
 		And(func() {
 			_, err := fixture.RunCli("app", "wait", ctx.AppName(), "--suspended")
-			errors.CheckError(err)
+			require.NoError(t, err)
 		})
 }
 
@@ -2552,13 +2584,13 @@ func TestDisableManifestGeneration(t *testing.T) {
 		}).
 		When().
 		And(func() {
-			CheckError(fixture.SetEnableManifestGeneration(map[ApplicationSourceType]bool{
+			require.NoError(t, fixture.SetEnableManifestGeneration(map[ApplicationSourceType]bool{
 				ApplicationSourceTypeKustomize: false,
 			}))
 		}).
 		Refresh(RefreshTypeHard).
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Wait for refresh to complete
 			time.Sleep(1 * time.Second)
 		}).
@@ -2571,7 +2603,7 @@ func TestSwitchTrackingMethod(t *testing.T) {
 	ctx := Given(t)
 
 	ctx.
-		SetTrackingMethod(string(argo.TrackingMethodAnnotation)).
+		SetTrackingMethod(string(TrackingMethodAnnotation)).
 		Path("deployment").
 		When().
 		CreateApp().
@@ -2585,7 +2617,7 @@ func TestSwitchTrackingMethod(t *testing.T) {
 		And(func() {
 			// Add resource with tracking annotation. This should put the
 			// application OutOfSync.
-			FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "other-configmap",
 					Annotations: map[string]string{
@@ -2601,14 +2633,14 @@ func TestSwitchTrackingMethod(t *testing.T) {
 		When().
 		And(func() {
 			// Delete resource to bring application back in sync
-			FailOnErr(nil, fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Delete(context.Background(), "other-configmap", metav1.DeleteOptions{}))
+			errors.NewHandler(t).FailOnErr(nil, fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Delete(t.Context(), "other-configmap", metav1.DeleteOptions{}))
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
-		SetTrackingMethod(string(argo.TrackingMethodLabel)).
+		SetTrackingMethod(string(TrackingMethodLabel)).
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -2619,7 +2651,7 @@ func TestSwitchTrackingMethod(t *testing.T) {
 			// Add a resource with a tracking annotation. This should not
 			// affect the application, because we now use the tracking method
 			// "label".
-			FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "other-configmap",
 					Annotations: map[string]string{
@@ -2636,7 +2668,7 @@ func TestSwitchTrackingMethod(t *testing.T) {
 		And(func() {
 			// Add a resource with the tracking label. The app should become
 			// OutOfSync.
-			FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "extra-configmap",
 					Labels: map[string]string{
@@ -2652,7 +2684,7 @@ func TestSwitchTrackingMethod(t *testing.T) {
 		When().
 		And(func() {
 			// Delete resource to bring application back in sync
-			FailOnErr(nil, fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Delete(context.Background(), "extra-configmap", metav1.DeleteOptions{}))
+			errors.NewHandler(t).FailOnErr(nil, fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Delete(t.Context(), "extra-configmap", metav1.DeleteOptions{}))
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -2663,6 +2695,7 @@ func TestSwitchTrackingMethod(t *testing.T) {
 func TestSwitchTrackingLabel(t *testing.T) {
 	ctx := Given(t)
 
+	require.NoError(t, fixture.SetTrackingMethod(string(TrackingMethodLabel)))
 	ctx.
 		Path("deployment").
 		When().
@@ -2677,7 +2710,7 @@ func TestSwitchTrackingLabel(t *testing.T) {
 		And(func() {
 			// Add extra resource that carries the default tracking label
 			// We expect the app to go out of sync.
-			FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "other-configmap",
 					Labels: map[string]string{
@@ -2693,7 +2726,7 @@ func TestSwitchTrackingLabel(t *testing.T) {
 		When().
 		And(func() {
 			// Delete resource to bring application back in sync
-			FailOnErr(nil, fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Delete(context.Background(), "other-configmap", metav1.DeleteOptions{}))
+			errors.NewHandler(t).FailOnErr(nil, fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Delete(t.Context(), "other-configmap", metav1.DeleteOptions{}))
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -2711,7 +2744,7 @@ func TestSwitchTrackingLabel(t *testing.T) {
 		And(func() {
 			// Create resource with the new tracking label, the application
 			// is expected to go out of sync
-			FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "other-configmap",
 					Labels: map[string]string{
@@ -2727,7 +2760,7 @@ func TestSwitchTrackingLabel(t *testing.T) {
 		When().
 		And(func() {
 			// Delete resource to bring application back in sync
-			FailOnErr(nil, fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Delete(context.Background(), "other-configmap", metav1.DeleteOptions{}))
+			errors.NewHandler(t).FailOnErr(nil, fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Delete(t.Context(), "other-configmap", metav1.DeleteOptions{}))
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -2738,7 +2771,7 @@ func TestSwitchTrackingLabel(t *testing.T) {
 			// Add extra resource that carries the default tracking label
 			// We expect the app to stay in sync, because the configured
 			// label is different.
-			FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "other-configmap",
 					Labels: map[string]string{
@@ -2756,7 +2789,7 @@ func TestSwitchTrackingLabel(t *testing.T) {
 func TestAnnotationTrackingExtraResources(t *testing.T) {
 	ctx := Given(t)
 
-	CheckError(fixture.SetTrackingMethod(string(argo.TrackingMethodAnnotation)))
+	require.NoError(t, fixture.SetTrackingMethod(string(TrackingMethodAnnotation)))
 	ctx.
 		Path("deployment").
 		When().
@@ -2771,7 +2804,7 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		And(func() {
 			// Add a resource with an annotation that is not referencing the
 			// resource.
-			FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "extra-configmap",
 					Annotations: map[string]string{
@@ -2789,14 +2822,14 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		Sync("--prune").
 		And(func() {
 			// The extra configmap must not be pruned, because it's not tracked
-			cm, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Get(context.Background(), "extra-configmap", metav1.GetOptions{})
+			cm, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Get(t.Context(), "extra-configmap", metav1.GetOptions{})
 			require.NoError(t, err)
 			require.Equal(t, "extra-configmap", cm.Name)
 		}).
 		And(func() {
 			// Add a resource with an annotation that is self-referencing the
 			// resource.
-			FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "other-configmap",
 					Annotations: map[string]string{
@@ -2814,9 +2847,9 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		Sync("--prune").
 		And(func() {
 			// The extra configmap must be pruned now, because it's tracked
-			cm, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Get(context.Background(), "other-configmap", metav1.GetOptions{})
+			cm, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Get(t.Context(), "other-configmap", metav1.GetOptions{})
 			require.Error(t, err)
-			require.Equal(t, "", cm.Name)
+			require.Empty(t, cm.Name)
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -2825,7 +2858,7 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		When().
 		And(func() {
 			// Add a cluster-scoped resource that is not referencing itself
-			FailOnErr(fixture.KubeClientset.RbacV1().ClusterRoles().Create(context.Background(), &rbacv1.ClusterRole{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.RbacV1().ClusterRoles().Create(t.Context(), &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "e2e-test-clusterrole",
 					Annotations: map[string]string{
@@ -2845,7 +2878,7 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		When().
 		And(func() {
 			// Add a cluster-scoped resource that is referencing itself
-			FailOnErr(fixture.KubeClientset.RbacV1().ClusterRoles().Create(context.Background(), &rbacv1.ClusterRole{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.RbacV1().ClusterRoles().Create(t.Context(), &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "e2e-other-clusterrole",
 					Annotations: map[string]string{
@@ -2866,9 +2899,9 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		Sync("--prune").
 		And(func() {
 			// The extra configmap must be pruned now, because it's tracked and does not exist in git
-			cr, err := fixture.KubeClientset.RbacV1().ClusterRoles().Get(context.Background(), "e2e-other-clusterrole", metav1.GetOptions{})
+			cr, err := fixture.KubeClientset.RbacV1().ClusterRoles().Get(t.Context(), "e2e-other-clusterrole", metav1.GetOptions{})
 			require.Error(t, err)
-			require.Equal(t, "", cr.Name)
+			require.Empty(t, cr.Name)
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -2922,10 +2955,10 @@ data:
 func TestInstallationID(t *testing.T) {
 	ctx := Given(t)
 	ctx.
-		SetTrackingMethod(string(argo.TrackingMethodAnnotation)).
+		SetTrackingMethod(string(TrackingMethodAnnotation)).
 		And(func() {
 			_, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(
-				context.Background(), &corev1.ConfigMap{
+				t.Context(), &corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-configmap",
 						Annotations: map[string]string{
@@ -2955,11 +2988,11 @@ func TestInstallationID(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			require.Len(t, app.Status.Resources, 2)
-			svc, err := fixture.KubeClientset.CoreV1().Services(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
+			svc, err := fixture.KubeClientset.CoreV1().Services(fixture.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
 			require.NoError(t, err)
 			require.Equal(t, "test", svc.Annotations[common.AnnotationInstallationID])
 
-			deploy, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
+			deploy, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
 			require.NoError(t, err)
 			require.Equal(t, "test", deploy.Annotations[common.AnnotationInstallationID])
 		})
@@ -2970,7 +3003,7 @@ func TestDeletionConfirmation(t *testing.T) {
 	ctx.
 		And(func() {
 			_, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(
-				context.Background(), &corev1.ConfigMap{
+				t.Context(), &corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-configmap",
 						Labels: map[string]string{
@@ -2998,4 +3031,242 @@ func TestDeletionConfirmation(t *testing.T) {
 		}).
 		When().ConfirmDeletion().
 		Then().Expect(DoesNotExist())
+}
+
+func TestLastTransitionTimeUnchangedError(t *testing.T) {
+	// Ensure that, if the health status hasn't changed, the lastTransitionTime is not updated.
+
+	ctx := Given(t)
+	ctx.
+		Path(guestbookPath).
+		When().
+		And(func() {
+			// Manually create an application with an outdated reconciledAt field
+			manifest := fmt.Sprintf(`
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: %s
+spec:
+  project: default
+  source:
+    repoURL: %s
+    path: guestbook
+    targetRevision: HEAD
+  destination:
+    server: https://non-existent-cluster
+    namespace: default
+status:
+  reconciledAt: "2023-01-01T00:00:00Z"
+  health:
+    status: Unknown
+    lastTransitionTime: "2023-01-01T00:00:00Z"
+`, ctx.AppName(), fixture.RepoURL(fixture.RepoURLTypeFile))
+			_, err := fixture.RunWithStdin(manifest, "", "kubectl", "apply", "-n", fixture.ArgoCDNamespace, "-f", "-")
+			require.NoError(t, err)
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		And(func(app *Application) {
+			// Verify the health status is still Unknown
+			assert.Equal(t, health.HealthStatusUnknown, app.Status.Health.Status)
+
+			// Verify the lastTransitionTime has not been updated
+			assert.Equal(t, "2023-01-01T00:00:00Z", app.Status.Health.LastTransitionTime.UTC().Format(time.RFC3339))
+		})
+}
+
+// TestServerSideDiffCommand tests the --server-side-diff flag for the app diff command
+func TestServerSideDiffCommand(t *testing.T) {
+	Given(t).
+		Path("two-nice-pods").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		// Create a diff by modifying a pod
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"test": "server-side-diff"}}]`).
+		AddFile("pod-3.yaml", `apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-3
+  annotations:
+    new: "pod"
+spec:
+  containers:
+    - name: main
+      image: quay.io/argoprojlabs/argocd-e2e-container:0.1
+      imagePullPolicy: IfNotPresent
+      command:
+        - "true"
+  restartPolicy: Never
+`).
+		Refresh(RefreshTypeHard).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		And(func(app *Application) {
+			// Test regular diff command
+			regularOutput, err := fixture.RunCli("app", "diff", app.Name)
+			require.Error(t, err) // diff command returns non-zero exit code when differences found
+			assert.Contains(t, regularOutput, "===== /Pod")
+			assert.Contains(t, regularOutput, "pod-1")
+			assert.Contains(t, regularOutput, "pod-3")
+
+			// Test server-side diff command
+			serverSideOutput, err := fixture.RunCli("app", "diff", app.Name, "--server-side-diff")
+			require.Error(t, err) // diff command returns non-zero exit code when differences found
+			assert.Contains(t, serverSideOutput, "===== /Pod")
+			assert.Contains(t, serverSideOutput, "pod-1")
+			assert.Contains(t, serverSideOutput, "pod-3")
+
+			// Both outputs should contain similar resource headers
+			assert.Contains(t, regularOutput, "test: server-side-diff")
+			assert.Contains(t, serverSideOutput, "test: server-side-diff")
+			assert.Contains(t, regularOutput, "new: pod")
+			assert.Contains(t, serverSideOutput, "new: pod")
+		})
+}
+
+// TestServerSideDiffWithSyncedApp tests server-side diff when app is already synced (no differences)
+func TestServerSideDiffWithSyncedApp(t *testing.T) {
+	Given(t).
+		Path("guestbook").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			// Test regular diff command with synced app
+			regularOutput, err := fixture.RunCli("app", "diff", app.Name)
+			require.NoError(t, err) // no differences, should return 0
+
+			// Test server-side diff command with synced app
+			serverSideOutput, err := fixture.RunCli("app", "diff", app.Name, "--server-side-diff")
+			require.NoError(t, err) // no differences, should return 0
+
+			// Both should produce similar output (minimal/no diff output)
+			// The exact output may vary, but both should succeed without errors
+			assert.NotContains(t, regularOutput, "===== ")
+			assert.NotContains(t, serverSideOutput, "===== ")
+		})
+}
+
+// TestServerSideDiffWithRevision tests server-side diff with a specific revision
+func TestServerSideDiffWithRevision(t *testing.T) {
+	Given(t).
+		Path("two-nice-pods").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/labels", "value": {"version": "v1.1"}}]`).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		And(func(app *Application) {
+			// Get the current revision
+			currentRevision := ""
+			if len(app.Status.History) > 0 {
+				currentRevision = app.Status.History[len(app.Status.History)-1].Revision
+			}
+
+			if currentRevision != "" {
+				// Test server-side diff with current revision (should show no differences)
+				output, err := fixture.RunCli("app", "diff", app.Name, "--server-side-diff", "--revision", currentRevision)
+				require.NoError(t, err) // no differences expected
+				assert.NotContains(t, output, "===== ")
+			}
+		})
+}
+
+// TestServerSideDiffErrorHandling tests error scenarios for server-side diff
+func TestServerSideDiffErrorHandling(t *testing.T) {
+	Given(t).
+		Path("two-nice-pods").
+		When().
+		CreateApp().
+		Then().
+		And(func(_ *Application) {
+			// Test server-side diff with non-existent app should fail gracefully
+			_, err := fixture.RunCli("app", "diff", "non-existent-app", "--server-side-diff")
+			require.Error(t, err)
+			// Error occurred as expected - this verifies the command fails gracefully
+		})
+}
+
+// TestServerSideDiffWithLocal tests server-side diff with --local flag
+func TestServerSideDiffWithLocal(t *testing.T) {
+	Given(t).
+		Path("guestbook").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			// Modify the live deployment in the cluster to create differences
+			// Apply patches to the deployment
+			_, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(t.Context(),
+				"guestbook-ui", types.JSONPatchType, []byte(`[
+					{"op": "add", "path": "/spec/template/spec/containers/0/env", "value": [{"name": "LOCAL_CHANGE", "value": "true"}]},
+					{"op": "replace", "path": "/spec/replicas", "value": 2}
+				]`), metav1.PatchOptions{})
+			require.NoError(t, err)
+
+			// Verify the patch was applied by reading back the deployment
+			modifiedDeployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, int32(2), *modifiedDeployment.Spec.Replicas, "Replica count should be updated to 2")
+			assert.Len(t, modifiedDeployment.Spec.Template.Spec.Containers[0].Env, 1, "Should have one environment variable")
+			assert.Equal(t, "LOCAL_CHANGE", modifiedDeployment.Spec.Template.Spec.Containers[0].Env[0].Name)
+		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		And(func(app *Application) {
+			// Test regular diff with --local (add --server-side-generate to avoid deprecation warning)
+			regularOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
+			require.Error(t, err) // diff command returns non-zero exit code when differences found
+			assert.Contains(t, regularOutput, "===== apps/Deployment")
+			assert.Contains(t, regularOutput, "guestbook-ui")
+			assert.Contains(t, regularOutput, "replicas:")
+
+			// Test server-side diff with --local (add --server-side-generate for consistency)
+			serverSideOutput, err := fixture.RunCli("app", "diff", app.Name, "--server-side-diff", "--local", "testdata", "--server-side-generate")
+			require.Error(t, err) // diff command returns non-zero exit code when differences found
+			assert.Contains(t, serverSideOutput, "===== apps/Deployment")
+			assert.Contains(t, serverSideOutput, "guestbook-ui")
+			assert.Contains(t, serverSideOutput, "replicas:")
+
+			// Both outputs should show similar differences
+			assert.Contains(t, regularOutput, "replicas: 2")
+			assert.Contains(t, serverSideOutput, "replicas: 2")
+		})
+}
+
+func TestServerSideDiffWithLocalValidation(t *testing.T) {
+	Given(t).
+		Path("guestbook").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			// Test that --server-side-diff with --local without --server-side-generate fails with proper error
+			_, err := fixture.RunCli("app", "diff", app.Name, "--server-side-diff", "--local", "testdata")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "--server-side-diff with --local requires --server-side-generate")
+		})
 }

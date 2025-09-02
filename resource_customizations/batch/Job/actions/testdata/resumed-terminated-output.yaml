@@ -1,0 +1,33 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: test-29228857
+spec:
+  suspend: false
+  template:
+    spec:
+      containers:
+        - command:
+            - /bin/sh
+            - -c
+            - date; echo Hello from the Kubernetes cluster
+          image: busybox:1.28
+          imagePullPolicy: IfNotPresent
+          name: hello
+      restartPolicy: OnFailure
+status:
+  conditions:
+    - lastProbeTime: '2025-07-28T22:02:46Z'
+      lastTransitionTime: '2025-07-28T22:02:46Z'
+      message: Job resumed
+      reason: JobResumed
+      status: 'False'
+      type: Suspended
+    - lastTransitionTime: '0001-01-01T00:00:00Z'
+      message: Job was terminated explicitly through Argo CD
+      reason: ManuallyTerminated
+      status: 'True'
+      type: FailureTarget
+  ready: 0
+  startTime: '2025-07-28T22:02:46Z'
+  terminating: 0

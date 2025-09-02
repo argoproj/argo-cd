@@ -6,11 +6,11 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets/utils"
 )
 
 func TestSimpleClusterGeneratorExternalNamespace(t *testing.T) {
@@ -24,7 +24,7 @@ func TestSimpleClusterGeneratorExternalNamespace(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "cluster1-guestbook",
 			Namespace:  externalNamespace,
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -124,7 +124,7 @@ func TestSimpleClusterGenerator(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "cluster1-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -218,7 +218,7 @@ func TestClusterGeneratorWithLocalCluster(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "in-cluster-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -335,7 +335,7 @@ func TestSimpleClusterGeneratorAddingCluster(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "{{name}}-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -353,11 +353,11 @@ func TestSimpleClusterGeneratorAddingCluster(t *testing.T) {
 
 	expectedAppCluster1 := *expectedAppTemplate.DeepCopy()
 	expectedAppCluster1.Spec.Destination.Name = "cluster1"
-	expectedAppCluster1.ObjectMeta.Name = "cluster1-guestbook"
+	expectedAppCluster1.Name = "cluster1-guestbook"
 
 	expectedAppCluster2 := *expectedAppTemplate.DeepCopy()
 	expectedAppCluster2.Spec.Destination.Name = "cluster2"
-	expectedAppCluster2.ObjectMeta.Name = "cluster2-guestbook"
+	expectedAppCluster2.Name = "cluster2-guestbook"
 
 	Given(t).
 		// Create a ClusterGenerator-based ApplicationSet
@@ -417,7 +417,7 @@ func TestSimpleClusterGeneratorDeletingCluster(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "{{name}}-guestbook",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -435,11 +435,11 @@ func TestSimpleClusterGeneratorDeletingCluster(t *testing.T) {
 
 	expectedAppCluster1 := *expectedAppTemplate.DeepCopy()
 	expectedAppCluster1.Spec.Destination.Name = "cluster1"
-	expectedAppCluster1.ObjectMeta.Name = "cluster1-guestbook"
+	expectedAppCluster1.Name = "cluster1-guestbook"
 
 	expectedAppCluster2 := *expectedAppTemplate.DeepCopy()
 	expectedAppCluster2.Spec.Destination.Name = "cluster2"
-	expectedAppCluster2.ObjectMeta.Name = "cluster2-guestbook"
+	expectedAppCluster2.Name = "cluster2-guestbook"
 
 	Given(t).
 		// Create a ClusterGenerator-based ApplicationSet
@@ -501,7 +501,7 @@ func TestClusterGeneratorWithFlatListMode(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "flat-clusters",
 			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",

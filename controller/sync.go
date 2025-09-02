@@ -7,13 +7,13 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 
-	cdcommon "github.com/argoproj/argo-cd/v2/common"
+	cdcommon "github.com/argoproj/argo-cd/v3/common"
 
+	gitopsDiff "github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -27,18 +27,17 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/util/openapi"
 
-	"github.com/argoproj/argo-cd/v2/controller/metrics"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	listersv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/argo/diff"
-	"github.com/argoproj/argo-cd/v2/util/glob"
-	logutils "github.com/argoproj/argo-cd/v2/util/log"
-	"github.com/argoproj/argo-cd/v2/util/lua"
-	"github.com/argoproj/argo-cd/v2/util/rand"
+	"github.com/argoproj/argo-cd/v3/controller/metrics"
+	"github.com/argoproj/argo-cd/v3/controller/syncid"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	applog "github.com/argoproj/argo-cd/v3/util/app/log"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/argo/diff"
+	"github.com/argoproj/argo-cd/v3/util/glob"
+	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
+	logutils "github.com/argoproj/argo-cd/v3/util/log"
+	"github.com/argoproj/argo-cd/v3/util/lua"
 )
-
-var syncIdPrefix uint64
 
 const (
 	// EnvVarSyncWaveDelay is an environment variable which controls the delay in seconds between
@@ -50,7 +49,7 @@ const (
 	serviceAccountDisallowedCharSet = "!*[]{}\\/"
 )
 
-func (m *appStateManager) getOpenAPISchema(server string) (openapi.Resources, error) {
+func (m *appStateManager) getOpenAPISchema(server *v1alpha1.Cluster) (openapi.Resources, error) {
 	cluster, err := m.liveStateCache.GetClusterCache(server)
 	if err != nil {
 		return nil, err
@@ -58,7 +57,7 @@ func (m *appStateManager) getOpenAPISchema(server string) (openapi.Resources, er
 	return cluster.GetOpenAPISchema(), nil
 }
 
-func (m *appStateManager) getGVKParser(server string) (*managedfields.GvkParser, error) {
+func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields.GvkParser, error) {
 	cluster, err := m.liveStateCache.GetClusterCache(server)
 	if err != nil {
 		return nil, err
@@ -66,150 +65,118 @@ func (m *appStateManager) getGVKParser(server string) (*managedfields.GvkParser,
 	return cluster.GetGVKParser(), nil
 }
 
-// getResourceOperations will return the kubectl implementation of the ResourceOperations
-// interface that provides functionality to manage kubernetes resources. Returns a
+// getServerSideDiffDryRunApplier will return the kubectl implementation of the KubeApplier
+// interface that provides functionality to dry run apply kubernetes resources. Returns a
 // cleanup function that must be called to remove the generated kube config for this
 // server.
-func (m *appStateManager) getResourceOperations(server string) (kube.ResourceOperations, func(), error) {
-	clusterCache, err := m.liveStateCache.GetClusterCache(server)
+func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Cluster) (gitopsDiff.KubeApplier, func(), error) {
+	clusterCache, err := m.liveStateCache.GetClusterCache(cluster)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting cluster cache: %w", err)
-	}
-
-	cluster, err := m.db.GetCluster(context.Background(), server)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error getting cluster: %w", err)
 	}
 
 	rawConfig, err := cluster.RawRestConfig()
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting cluster REST config: %w", err)
 	}
-	ops, cleanup, err := m.kubectl.ManageResources(rawConfig, clusterCache.GetOpenAPISchema())
+	ops, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(rawConfig, clusterCache.GetOpenAPISchema(), m.onKubectlRun)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating kubectl ResourceOperations: %w", err)
 	}
 	return ops, cleanup, nil
 }
 
-func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
+func NewOperationState(operation v1alpha1.Operation) *v1alpha1.OperationState {
+	return &v1alpha1.OperationState{
+		Phase:     common.OperationRunning,
+		Operation: operation,
+		StartedAt: metav1.Now(),
+	}
+}
+
+func newSyncOperationResult(app *v1alpha1.Application, op v1alpha1.SyncOperation) *v1alpha1.SyncOperationResult {
+	syncRes := &v1alpha1.SyncOperationResult{}
+
+	if len(op.Sources) > 0 || op.Source != nil {
+		// specific source specified in the SyncOperation
+		if op.Source != nil {
+			syncRes.Source = *op.Source
+		}
+		syncRes.Sources = op.Sources
+	} else {
+		// normal sync case, get sources from the spec
+		syncRes.Sources = app.Spec.Sources
+		syncRes.Source = app.Spec.GetSource()
+	}
+
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
-	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult field.
-	// This ensures that when resuming an operation, we sync to the same revision that we initially
-	// started with.
-	var revision string
-	var syncOp v1alpha1.SyncOperation
-	var syncRes *v1alpha1.SyncOperationResult
-	var source v1alpha1.ApplicationSource
-	var sources []v1alpha1.ApplicationSource
-	revisions := make([]string, 0)
+	// concrete git commit SHA, the revision of the SyncOperationResult will be updated with the SHA
+	syncRes.Revision = op.Revision
+	syncRes.Revisions = op.Revisions
+	return syncRes
+}
+
+func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState) {
+	syncId, err := syncid.Generate()
+	if err != nil {
+		state.Phase = common.OperationError
+		state.Message = fmt.Sprintf("Failed to generate sync ID: %v", err)
+		return
+	}
+	logEntry := log.WithFields(applog.GetAppLogFields(app)).WithField("syncId", syncId)
 
 	if state.Operation.Sync == nil {
-		state.Phase = common.OperationFailed
+		state.Phase = common.OperationError
 		state.Message = "Invalid operation request: no operation specified"
 		return
 	}
-	syncOp = *state.Operation.Sync
 
-	// validates if it should fail the sync if it finds shared resources
-	hasSharedResource, sharedResourceMessage := hasSharedResourceCondition(app)
-	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") &&
-		hasSharedResource {
-		state.Phase = common.OperationFailed
-		state.Message = "Shared resource found: " + sharedResourceMessage
-		return
+	syncOp := *state.Operation.Sync
+
+	if state.SyncResult == nil {
+		state.SyncResult = newSyncOperationResult(app, syncOp)
 	}
 
-	isMultiSourceRevision := app.Spec.HasMultipleSources()
-	rollback := len(syncOp.Sources) > 0 || syncOp.Source != nil
-	if rollback {
-		// rollback case
-		if len(state.Operation.Sync.Sources) > 0 {
-			sources = state.Operation.Sync.Sources
-			isMultiSourceRevision = true
-		} else {
-			source = *state.Operation.Sync.Source
-			sources = make([]v1alpha1.ApplicationSource, 0)
-			isMultiSourceRevision = false
-		}
-	} else {
-		// normal sync case (where source is taken from app.spec.sources)
-		if app.Spec.HasMultipleSources() {
-			sources = app.Spec.Sources
-		} else {
-			// normal sync case (where source is taken from app.spec.source)
-			source = app.Spec.GetSource()
-			sources = make([]v1alpha1.ApplicationSource, 0)
-		}
-	}
-
-	if state.SyncResult != nil {
-		syncRes = state.SyncResult
-		revision = state.SyncResult.Revision
-		revisions = append(revisions, state.SyncResult.Revisions...)
-	} else {
-		syncRes = &v1alpha1.SyncOperationResult{}
-		// status.operationState.syncResult.source. must be set properly since auto-sync relies
-		// on this information to decide if it should sync (if source is different than the last
-		// sync attempt)
-		if isMultiSourceRevision {
-			syncRes.Sources = sources
-		} else {
-			syncRes.Source = source
-		}
-		state.SyncResult = syncRes
-	}
-
-	// if we get here, it means we did not remember a commit SHA which we should be syncing to.
-	// This typically indicates we are just about to begin a brand new sync/rollback operation.
-	// Take the value in the requested operation. We will resolve this to a SHA later.
-	if isMultiSourceRevision {
-		if len(revisions) != len(sources) {
-			revisions = syncOp.Revisions
-		}
-	} else {
-		if revision == "" {
-			revision = syncOp.Revision
-		}
-	}
-
-	proj, err := argo.GetAppProject(app, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr, m.db, context.TODO())
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
-		return
-	} else {
-		isBlocked, err := syncWindowPreventsSync(app, proj)
-		if isBlocked {
-			// If the operation is currently running, simply let the user know the sync is blocked by a current sync window
-			if state.Phase == common.OperationRunning {
-				state.Message = "Sync operation blocked by sync window"
-				if err != nil {
-					state.Message = fmt.Sprintf("%s: %v", state.Message, err)
-				}
+	if isBlocked, err := syncWindowPreventsSync(app, project); isBlocked {
+		// If the operation is currently running, simply let the user know the sync is blocked by a current sync window
+		if state.Phase == common.OperationRunning {
+			state.Message = "Sync operation blocked by sync window"
+			if err != nil {
+				state.Message = fmt.Sprintf("%s: %v", state.Message, err)
 			}
-			return
 		}
+		return
 	}
 
-	if !isMultiSourceRevision {
-		sources = []v1alpha1.ApplicationSource{source}
-		revisions = []string{revision}
+	revisions := state.SyncResult.Revisions
+	sources := state.SyncResult.Sources
+	isMultiSourceSync := len(sources) > 0
+	if !isMultiSourceSync {
+		sources = []v1alpha1.ApplicationSource{state.SyncResult.Source}
+		revisions = []string{state.SyncResult.Revision}
 	}
 
 	// ignore error if CompareStateRepoError, this shouldn't happen as noRevisionCache is true
-	compareResult, err := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, isMultiSourceRevision, rollback)
-	if err != nil && !stderrors.Is(err, CompareStateRepoError) {
+	compareResult, err := m.CompareAppState(app, project, revisions, sources, false, true, syncOp.Manifests, isMultiSourceSync)
+	if err != nil && !stderrors.Is(err, ErrCompareStateRepo) {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
 		return
 	}
-	// We now have a concrete commit SHA. Save this in the sync result revision so that we remember
-	// what we should be syncing to when resuming operations.
 
-	syncRes.Revision = compareResult.syncStatus.Revision
-	syncRes.Revisions = compareResult.syncStatus.Revisions
+	// We are now guaranteed to have a concrete commit SHA. Save this in the sync result revision so that we remember
+	// what we should be syncing to when resuming operations.
+	state.SyncResult.Revision = compareResult.syncStatus.Revision
+	state.SyncResult.Revisions = compareResult.syncStatus.Revisions
+
+	// validates if it should fail the sync on that revision if it finds shared resources
+	hasSharedResource, sharedResourceMessage := hasSharedResourceCondition(app)
+	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") && hasSharedResource {
+		state.Phase = common.OperationFailed
+		state.Message = "Shared resource found: " + sharedResourceMessage
+		return
+	}
 
 	// If there are any comparison or spec errors error conditions do not perform the operation
 	if errConditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
@@ -221,21 +188,21 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	clst, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, m.db)
+	if err != nil {
+		state.Phase = common.OperationError
+		state.Message = fmt.Sprintf("Failed to get destination cluster: %v", err)
+		return
+	}
+
+	rawConfig, err := destCluster.RawRestConfig()
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
 		return
 	}
 
-	rawConfig, err := clst.RawRestConfig()
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = err.Error()
-		return
-	}
-
-	clusterRESTConfig, err := clst.RESTConfig()
+	clusterRESTConfig, err := destCluster.RESTConfig()
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
@@ -250,20 +217,10 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	atomic.AddUint64(&syncIdPrefix, 1)
-	randSuffix, err := rand.String(5)
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = fmt.Sprintf("Failed generate random sync ID: %v", err)
-		return
-	}
-	syncId := fmt.Sprintf("%05d-%s", syncIdPrefix, randSuffix)
-
-	logEntry := log.WithFields(log.Fields{"application": app.QualifiedName(), "syncId": syncId})
-	initialResourcesRes := make([]common.ResourceSyncResult, 0)
-	for i, res := range syncRes.Resources {
+	initialResourcesRes := make([]common.ResourceSyncResult, len(state.SyncResult.Resources))
+	for i, res := range state.SyncResult.Resources {
 		key := kube.ResourceKey{Group: res.Group, Kind: res.Kind, Namespace: res.Namespace, Name: res.Name}
-		initialResourcesRes = append(initialResourcesRes, common.ResourceSyncResult{
+		initialResourcesRes[i] = common.ResourceSyncResult{
 			ResourceKey: key,
 			Message:     res.Message,
 			Status:      res.Status,
@@ -271,8 +228,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			HookType:    res.HookType,
 			SyncPhase:   res.SyncPhase,
 			Version:     res.Version,
+			Images:      res.Images,
 			Order:       i + 1,
-		})
+		}
 	}
 
 	prunePropagationPolicy := metav1.DeletePropagationForeground
@@ -285,7 +243,13 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		prunePropagationPolicy = metav1.DeletePropagationOrphan
 	}
 
-	openAPISchema, err := m.getOpenAPISchema(clst.Server)
+	clientSideApplyManager := common.DefaultClientSideApplyMigrationManager
+	// Check for custom field manager from application annotation
+	if managerValue := app.GetAnnotation(cdcommon.AnnotationClientSideApplyMigrationManager); managerValue != "" {
+		clientSideApplyManager = managerValue
+	}
+
+	openAPISchema, err := m.getOpenAPISchema(destCluster)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("failed to load openAPISchema: %v", err)
@@ -307,17 +271,16 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		reconciliationResult.Target = patchedTargets
 	}
 
-	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
-	if err != nil {
-		log.Errorf("Could not get appInstanceLabelKey: %v", err)
-		return
-	}
 	installationID, err := m.settingsMgr.GetInstallationID()
 	if err != nil {
 		log.Errorf("Could not get installation ID: %v", err)
 		return
 	}
-	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
+	trackingMethod, err := m.settingsMgr.GetTrackingMethod()
+	if err != nil {
+		log.Errorf("Could not get trackingMethod: %v", err)
+		return
+	}
 
 	impersonationEnabled, err := m.settingsMgr.IsImpersonationEnabled()
 	if err != nil {
@@ -325,7 +288,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 	if impersonationEnabled {
-		serviceAccountToImpersonate, err := deriveServiceAccountToImpersonate(proj, app)
+		serviceAccountToImpersonate, err := deriveServiceAccountToImpersonate(project, app, destCluster)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to find a matching service account to impersonate: %v", err)
@@ -345,11 +308,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
 		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *metav1.APIResource) error {
-			if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), res.Namespaced) {
-				return fmt.Errorf("resource %s:%s is not permitted in project %s", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, proj.Name)
+			if !project.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), res.Namespaced) {
+				return fmt.Errorf("resource %s:%s is not permitted in project %s", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, project.Name)
 			}
 			if res.Namespaced {
-				permitted, err := proj.IsDestinationPermitted(v1alpha1.ApplicationDestination{Namespace: un.GetNamespace(), Server: app.Spec.Destination.Server, Name: app.Spec.Destination.Name}, func(project string) ([]*v1alpha1.Cluster, error) {
+				permitted, err := project.IsDestinationPermitted(destCluster, un.GetNamespace(), func(project string) ([]*v1alpha1.Cluster, error) {
 					return m.db.GetProjectClusters(context.TODO(), project)
 				})
 				if err != nil {
@@ -357,7 +320,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 				}
 
 				if !permitted {
-					return fmt.Errorf("namespace %v is not permitted in project '%s'", un.GetNamespace(), proj.Name)
+					return fmt.Errorf("namespace %v is not permitted in project '%s'", un.GetNamespace(), project.Name)
 				}
 			}
 			return nil
@@ -368,7 +331,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			return (len(syncOp.Resources) == 0 ||
 				isPostDeleteHook(target) ||
 				argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)) &&
-				m.isSelfReferencedObj(live, target, app.GetName(), appLabelKey, trackingMethod, installationID)
+				m.isSelfReferencedObj(live, target, app.GetName(), v1alpha1.TrackingMethod(trackingMethod), installationID)
 		}),
 		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
 		sync.WithSyncWaveHook(delayBetweenSyncWaves),
@@ -378,7 +341,12 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		sync.WithReplace(syncOp.SyncOptions.HasOption(common.SyncOptionReplace)),
 		sync.WithServerSideApply(syncOp.SyncOptions.HasOption(common.SyncOptionServerSideApply)),
 		sync.WithServerSideApplyManager(cdcommon.ArgoCDSSAManager),
+		sync.WithClientSideApplyMigration(
+			!syncOp.SyncOptions.HasOption(common.SyncOptionDisableClientSideApplyMigration),
+			clientSideApplyManager,
+		),
 		sync.WithPruneConfirmed(app.IsDeletionConfirmed(state.StartedAt.Time)),
+		sync.WithSkipDryRunOnMissingResource(syncOp.SyncOptions.HasOption(common.SyncOptionSkipDryRunOnMissingResource)),
 	}
 
 	if syncOp.SyncOptions.HasOption("CreateNamespace=true") {
@@ -422,9 +390,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	for _, res := range resState {
 		augmentedMsg, err := argo.AugmentSyncMsg(res, func() ([]kube.APIResourceInfo, error) {
 			if apiVersion == nil {
-				_, apiVersion, err = m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
+				_, apiVersion, err = m.liveStateCache.GetVersionsInfo(destCluster)
 				if err != nil {
-					return nil, fmt.Errorf("failed to get version info from the target cluster %q", app.Spec.Destination.Server)
+					return nil, fmt.Errorf("failed to get version info from the target cluster %q", destCluster.Server)
 				}
 			}
 			return apiVersion, nil
@@ -447,13 +415,14 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			HookPhase: res.HookPhase,
 			Status:    res.Status,
 			Message:   res.Message,
+			Images:    res.Images,
 		})
 	}
 
 	logEntry.WithField("duration", time.Since(start)).Info("sync/terminate complete")
 
 	if !syncOp.DryRun && len(syncOp.Resources) == 0 && state.Phase.Successful() {
-		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, isMultiSourceRevision, state.StartedAt, state.Operation.InitiatedBy)
+		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, compareResult.syncStatus.ComparedTo.Source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, isMultiSourceSync, state.StartedAt, state.Operation.InitiatedBy)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)
@@ -572,7 +541,7 @@ func hasSharedResourceCondition(app *v1alpha1.Application) (bool, string) {
 // Note, this is not foolproof, since a proper fix would require the CRD record
 // status.observedGeneration coupled with a health.lua that verifies
 // status.observedGeneration == metadata.generation
-func delayBetweenSyncWaves(phase common.SyncPhase, wave int, finalWave bool) error {
+func delayBetweenSyncWaves(_ common.SyncPhase, _ int, finalWave bool) error {
 	if !finalWave {
 		delaySec := 2
 		if delaySecStr := os.Getenv(EnvVarSyncWaveDelay); delaySecStr != "" {
@@ -602,7 +571,7 @@ func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject
 
 // deriveServiceAccountToImpersonate determines the service account to be used for impersonation for the sync operation.
 // The returned service account will be fully qualified including namespace and the service account name in the format system:serviceaccount:<namespace>:<service_account>
-func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application *v1alpha1.Application) (string, error) {
+func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application *v1alpha1.Application, destCluster *v1alpha1.Cluster) (string, error) {
 	// spec.Destination.Namespace is optional. If not specified, use the Application's
 	// namespace
 	serviceAccountNamespace := application.Spec.Destination.Namespace
@@ -612,7 +581,7 @@ func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application
 	// Loop through the destinationServiceAccounts and see if there is any destination that is a candidate.
 	// if so, return the service account specified for that destination.
 	for _, item := range project.Spec.DestinationServiceAccounts {
-		dstServerMatched, err := glob.MatchWithError(item.Server, application.Spec.Destination.Server)
+		dstServerMatched, err := glob.MatchWithError(item.Server, destCluster.Server)
 		if err != nil {
 			return "", fmt.Errorf("invalid glob pattern for destination server: %w", err)
 		}
@@ -626,10 +595,9 @@ func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application
 			} else if strings.Contains(item.DefaultServiceAccount, ":") {
 				// service account is specified along with its namespace.
 				return "system:serviceaccount:" + item.DefaultServiceAccount, nil
-			} else {
-				// service account needs to be prefixed with a namespace
-				return fmt.Sprintf("system:serviceaccount:%s:%s", serviceAccountNamespace, item.DefaultServiceAccount), nil
 			}
+			// service account needs to be prefixed with a namespace
+			return fmt.Sprintf("system:serviceaccount:%s:%s", serviceAccountNamespace, item.DefaultServiceAccount), nil
 		}
 	}
 	// if there is no match found in the AppProject.Spec.DestinationServiceAccounts, use the default service account of the destination namespace.

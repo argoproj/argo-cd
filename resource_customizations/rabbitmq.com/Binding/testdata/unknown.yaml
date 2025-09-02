@@ -1,0 +1,16 @@
+apiVersion: rabbitmq.com/v1beta1
+kind: Binding
+metadata:
+  labels:
+    app: example-rabbitmq
+  name: example-rabbitmq
+  namespace: example
+spec:
+  destination: destination
+  destinationType: queue
+  rabbitmqClusterReference:
+    name: example-rabbitmq
+  routingKey: v1.example.request
+  source: operation-requests
+  vhost: /
+status: {}

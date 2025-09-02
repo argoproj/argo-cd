@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func getNestedListGenerator(json string) *argoprojiov1alpha1.ApplicationSetNestedGenerator {
@@ -39,17 +39,19 @@ func getTerminalListGeneratorMultiple(jsons []string) argoprojiov1alpha1.Applica
 func listOfMapsToSet(maps []map[string]any) (map[string]bool, error) {
 	set := make(map[string]bool, len(maps))
 	for _, paramMap := range maps {
-		paramMapAsJson, err := json.Marshal(paramMap)
+		paramMapAsJSON, err := json.Marshal(paramMap)
 		if err != nil {
 			return nil, err
 		}
 
-		set[string(paramMapAsJson)] = false
+		set[string(paramMapAsJSON)] = false
 	}
 	return set, nil
 }
 
 func TestMergeGenerate(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name           string
 		baseGenerators []argoprojiov1alpha1.ApplicationSetNestedGenerator
@@ -210,6 +212,8 @@ func toAPIExtensionsJSON(t *testing.T, g any) *apiextensionsv1.JSON {
 }
 
 func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name        string
 		mergeKeys   []string
