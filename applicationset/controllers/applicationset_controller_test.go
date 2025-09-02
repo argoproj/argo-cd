@@ -4267,20 +4267,32 @@ func TestGetAppsToSync(t *testing.T) {
 							Application: "app2",
 							Status:      v1alpha1.ProgressiveSyncHealthy,
 						},
+						{
+							Application: "app3",
+							Status:      v1alpha1.ProgressiveSyncHealthy,
+						},
+						{
+							Application: "app4",
+							Status:      v1alpha1.ProgressiveSyncHealthy,
+						},
 					},
 				},
 			},
 			currentApps: []v1alpha1.Application{
 				{ObjectMeta: metav1.ObjectMeta{Name: "app1"}},
 				{ObjectMeta: metav1.ObjectMeta{Name: "app2"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "app3"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "app4"}},
 			},
 			appDependencyList: [][]string{
-				{"app1"},
-				{"app2"},
+				{"app1", "app2"},
+				{"app3", "app4"},
 			},
 			expectedMap: map[string]bool{
 				"app1": true,
 				"app2": true,
+				"app3": true,
+				"app4": true,
 			},
 		},
 		{
@@ -6068,7 +6080,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 							Status: v1alpha1.SyncStatusCodeOutOfSync,
 							Health: &v1alpha1.HealthStatus{
 								Status:  health.HealthStatusProgressing,
-								Message: v1alpha1.ProgressiveSyncProgressing,
+								Message: "this is progressing",
 							},
 						},
 					},
@@ -6281,12 +6293,12 @@ func TestApplicationOwnsHandler(t *testing.T) {
 			e: event.UpdateEvent{
 				ObjectOld: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
 					Health: v1alpha1.AppHealthStatus{
-						Status: "Unknown",
+						Status: health.HealthStatusUnknown,
 					},
 				}},
 				ObjectNew: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
 					Health: v1alpha1.AppHealthStatus{
-						Status: v1alpha1.ProgressiveSyncHealthy,
+						Status: health.HealthStatusHealthy,
 					},
 				}},
 			},
@@ -6296,12 +6308,12 @@ func TestApplicationOwnsHandler(t *testing.T) {
 			e: event.UpdateEvent{
 				ObjectOld: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
 					Sync: v1alpha1.SyncStatus{
-						Status: "OutOfSync",
+						Status: v1alpha1.SyncStatusCodeOutOfSync,
 					},
 				}},
 				ObjectNew: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
 					Sync: v1alpha1.SyncStatus{
-						Status: "Synced",
+						Status: v1alpha1.SyncStatusCodeSynced,
 					},
 				}},
 			},
