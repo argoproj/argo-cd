@@ -208,7 +208,22 @@ message ResourceActionParameters {
 	required string value = 2;
 }
 
+// ResourceActionRunRequest is a request to run a resource action.
+// This message is deprecated and replaced by ResourceActionRunRequestV2.
 message ResourceActionRunRequest {
+	option deprecated = true;
+	required string name = 1;
+	optional string namespace = 2;
+	required string resourceName = 3;
+	required string version = 4;
+	optional string group = 5;
+	required string kind = 6;
+	required string action = 7;
+	optional string appNamespace = 8;
+	optional string project = 9;
+}
+
+message ResourceActionRunRequestV2 {
 	required string name = 1;
 	optional string namespace = 2;
 	required string resourceName = 3;
@@ -301,6 +316,19 @@ message ResourcesQuery {
 
 message ManagedResourcesResponse {
 	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceDiff items = 1;
+}
+
+message ApplicationServerSideDiffQuery {
+	required string appName = 1;
+	optional string appNamespace = 2;
+	optional string project = 3;
+	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceDiff liveResources = 4;
+	repeated string targetManifests = 5;
+}
+
+message ApplicationServerSideDiffResponse {
+	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceDiff items = 1;
+	required bool modified = 2;
 }
 
 message LinkInfo {
@@ -427,6 +455,11 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/managed-resources";
 	}
 
+	// ServerSideDiff performs server-side diff calculation using dry-run apply
+	rpc ServerSideDiff(ApplicationServerSideDiffQuery) returns (ApplicationServerSideDiffResponse) {
+		option (google.api.http).get = "/api/v1/applications/{appName}/server-side-diff";
+	}
+
 	// ResourceTree returns resource tree
 	rpc ResourceTree(ResourcesQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationTree) {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/resource-tree";
@@ -470,10 +503,22 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/applications/{name}/resource/actions";
 	}
 
-	// RunResourceAction run resource action
+	// RunResourceAction runs a resource action
+	//
+	// Deprecated: use RunResourceActionV2 instead. This version does not support resource action parameters but is
+	// maintained for backward compatibility. It will be removed in a future release.
 	rpc RunResourceAction(ResourceActionRunRequest) returns (ApplicationResponse) {
+		option deprecated = true;
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/resource/actions"
+			body: "action"
+		};
+	}
+
+	// RunResourceActionV2 runs a resource action with parameters
+	rpc RunResourceActionV2(ResourceActionRunRequestV2) returns (ApplicationResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/applications/{name}/resource/actions/v2"
 			body: "*"
 		};
 	}

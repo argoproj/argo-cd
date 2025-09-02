@@ -118,10 +118,21 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 		return out, "", fmt.Errorf("failed to checkout target branch: %w", err)
 	}
 
-	logCtx.Debug("Clearing repo contents")
-	out, err = gitClient.RemoveContents()
-	if err != nil {
-		return out, "", fmt.Errorf("failed to clear repo: %w", err)
+	logCtx.Debug("Clearing and preparing paths")
+	var pathsToClear []string
+	for _, p := range r.Paths {
+		if p.Path == "" || p.Path == "." {
+			logCtx.Debug("Using root directory for manifests, no directory removal needed")
+		} else {
+			pathsToClear = append(pathsToClear, p.Path)
+		}
+	}
+	if len(pathsToClear) > 0 {
+		logCtx.Debugf("Clearing paths: %v", pathsToClear)
+		out, err := gitClient.RemoveContents(pathsToClear)
+		if err != nil {
+			return out, "", fmt.Errorf("failed to clear paths %v: %w", pathsToClear, err)
+		}
 	}
 
 	logCtx.Debug("Writing manifests")
@@ -218,8 +229,9 @@ type hydratorMetadataFile struct {
 	Author   string   `json:"author,omitempty"`
 	Date     string   `json:"date,omitempty"`
 	// Subject is the subject line of the DRY commit message, i.e. `git show --format=%s`.
-	Subject string `json:"message,omitempty"`
+	Subject string `json:"subject,omitempty"`
 	// Body is the body of the DRY commit message, excluding the subject line, i.e. `git show --format=%b`.
+	// Known Argocd- trailers with valid values are removed, but all other trailers are kept.
 	Body       string                       `json:"body,omitempty"`
 	References []v1alpha1.RevisionReference `json:"references,omitempty"`
 }

@@ -40,7 +40,7 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
@@ -149,7 +149,7 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
@@ -269,7 +269,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
 			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
 			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
 		},
 	}
 	generateExpectedApp := func(name string) v1alpha1.Application {
@@ -281,7 +281,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
@@ -367,7 +367,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
 			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
 			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
 		},
 	}
 	generateExpectedApp := func(name string) v1alpha1.Application {
@@ -379,7 +379,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
@@ -463,7 +463,7 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
@@ -582,7 +582,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
 			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
 			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
 		},
 	}
 	project := "gpg"
@@ -595,7 +595,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: project,
@@ -680,7 +680,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
 			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
 			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
 		},
 	}
 	project := "gpg"
@@ -693,7 +693,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: project,
@@ -772,7 +772,7 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
@@ -1003,7 +1003,7 @@ func TestGitGeneratorPrivateRepo(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
@@ -1080,7 +1080,7 @@ func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
@@ -1157,7 +1157,7 @@ func TestSimpleGitGeneratorPrivateRepoWithNoRepo(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
@@ -1232,7 +1232,7 @@ func TestSimpleGitGeneratorPrivateRepoWithMatchingProject(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
@@ -1308,7 +1308,7 @@ func TestSimpleGitGeneratorPrivateRepoWithMismatchingProject(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
@@ -1384,7 +1384,7 @@ func TestGitGeneratorPrivateRepoWithTemplatedProject(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
@@ -1471,7 +1471,7 @@ func TestGitGeneratorPrivateRepoWithTemplatedProjectAndProjectScopedRepo(t *test
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       name,
 				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",

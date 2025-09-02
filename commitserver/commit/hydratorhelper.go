@@ -2,9 +2,7 @@ package commit
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,11 +15,16 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v3/common"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
 var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
+
+const gitAttributesContents = `*/README.md linguist-generated=true
+*/hydrator.metadata linguist-generated=true`
 
 func init() {
 	// Avoid allowing the user to learn things about the environment.
@@ -48,10 +51,18 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 
 	subject, body, _ := strings.Cut(message, "\n\n")
 
+	_, bodyMinusTrailers := git.GetReferences(log.WithFields(log.Fields{"repo": repoUrl, "revision": drySha}), body)
+
 	// Write the top-level readme.
-	err := writeMetadata(root, "", hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl, Author: author, Subject: subject, Body: body, Date: date, References: references})
+	err := writeMetadata(root, "", hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl, Author: author, Subject: subject, Body: bodyMinusTrailers, Date: date, References: references})
 	if err != nil {
 		return fmt.Errorf("failed to write top-level hydrator metadata: %w", err)
+	}
+
+	// Write .gitattributes
+	err = writeGitAttributes(root)
+	if err != nil {
+		return fmt.Errorf("failed to write git attributes: %w", err)
 	}
 
 	for _, p := range paths {
@@ -60,7 +71,7 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 			hydratePath = ""
 		}
 
-		err = mkdirAll(root, hydratePath)
+		err = root.MkdirAll(hydratePath, 0o755)
 		if err != nil {
 			return fmt.Errorf("failed to create path: %w", err)
 		}
@@ -134,6 +145,30 @@ func writeReadme(root *os.Root, dirPath string, metadata hydratorMetadataFile) e
 	return nil
 }
 
+func writeGitAttributes(root *os.Root) error {
+	gitAttributesFile, err := root.Create(".gitattributes")
+	if err != nil {
+		return fmt.Errorf("failed to create git attributes file: %w", err)
+	}
+
+	defer func() {
+		err = gitAttributesFile.Close()
+		if err != nil {
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
+			}).Errorf("error closing file %q: %v", gitAttributesFile.Name(), err)
+		}
+	}()
+
+	_, err = gitAttributesFile.WriteString(gitAttributesContents)
+	if err != nil {
+		return fmt.Errorf("failed to write git attributes: %w", err)
+	}
+
+	return nil
+}
+
 // writeManifests writes the manifests to the manifest.yaml file, truncating the file if it exists and appending the
 // manifests in the order they are provided.
 func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.HydratedManifestDetails) error {
@@ -173,27 +208,5 @@ func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.Hydrat
 		}
 	}
 
-	return nil
-}
-
-// mkdirAll creates the directory and all its parents if they do not exist. It returns an error if the directory
-// cannot be.
-func mkdirAll(root *os.Root, dirPath string) error {
-	parts := strings.Split(dirPath, string(os.PathSeparator))
-	builtPath := ""
-	for _, part := range parts {
-		if part == "" {
-			continue
-		}
-		builtPath = filepath.Join(builtPath, part)
-		err := root.Mkdir(builtPath, os.ModePerm)
-		if err != nil {
-			if errors.Is(err, fs.ErrExist) {
-				log.WithError(err).Warnf("path %s already exists, skipping", dirPath)
-				continue
-			}
-			return fmt.Errorf("failed to create path: %w", err)
-		}
-	}
 	return nil
 }

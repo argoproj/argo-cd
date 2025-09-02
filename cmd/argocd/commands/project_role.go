@@ -19,11 +19,12 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/jwt"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 )
 
 const (
-	policyTemplate = "p, proj:%s:%s, applications, %s, %s/%s, %s"
+	policyTemplate = "p, proj:%s:%s, %s, %s, %s/%s, %s"
 )
 
 // NewProjectRoleCommand returns a new instance of the `argocd proj role` command
@@ -79,11 +80,26 @@ p, proj:test-project:test-role, applications, update, test-project/project, allo
 JWT Tokens:
 ID          ISSUED-AT                                EXPIRES-AT
 1696759698  2023-10-08T11:08:18+01:00 (3 hours ago)  <none>
+
+# Add a new policy to allow get logs to the project
+$ argocd proj role add-policy test-project test-role -a get -p allow -o project -r logs
+
+# Policy should be updated
+$  argocd proj role get test-project test-role
+Role Name:     test-role
+Description:
+Policies:
+p, proj:test-project:test-role, projects, get, test-project, allow
+p, proj:test-project:test-role, applications, update, test-project/project, allow
+p, proj:test-project:test-role, logs, get, test-project/project, allow
+JWT Tokens:
+ID          ISSUED-AT                                EXPIRES-AT
+1696759698  2023-10-08T11:08:18+01:00 (3 hours ago)  <none>
 `,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
-			if len(args) != 2 {
+			if len(args) != 2 || !rbac.ProjectScoped[opts.resource] {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
@@ -98,7 +114,7 @@ ID          ISSUED-AT                                EXPIRES-AT
 			role, roleIndex, err := proj.GetRoleByName(roleName)
 			errors.CheckError(err)
 
-			policy := fmt.Sprintf(policyTemplate, proj.Name, role.Name, opts.action, proj.Name, opts.object, opts.permission)
+			policy := fmt.Sprintf(policyTemplate, proj.Name, role.Name, opts.resource, opts.action, proj.Name, opts.object, opts.permission)
 			proj.Spec.Roles[roleIndex].Policies = append(role.Policies, policy)
 
 			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
@@ -122,12 +138,28 @@ Description:
 Policies:
 p, proj:test-project:test-role, projects, get, test-project, allow
 p, proj:test-project:test-role, applications, update, test-project/project, allow
+p, proj:test-project:test-role, logs, get, test-project/project, allow
 JWT Tokens:
 ID          ISSUED-AT                                EXPIRES-AT
 1696759698  2023-10-08T11:08:18+01:00 (3 hours ago)  <none>
 
 # Remove the policy to allow update to objects
 $ argocd proj role remove-policy test-project test-role -a update -p allow -o project
+
+# The role should be removed now.
+$ argocd proj role get test-project test-role
+Role Name:     test-role
+Description:
+Policies:
+p, proj:test-project:test-role, projects, get, test-project, allow
+p, proj:test-project:test-role, logs, get, test-project/project, allow
+JWT Tokens:
+ID          ISSUED-AT                                EXPIRES-AT
+1696759698  2023-10-08T11:08:18+01:00 (4 hours ago)  <none>
+
+
+# Remove the logs read policy
+$ argocd proj role remove-policy test-project test-role -a get -p allow -o project -r logs
 
 # The role should be removed now.
 $ argocd proj role get test-project test-role
@@ -142,7 +174,7 @@ ID          ISSUED-AT                                EXPIRES-AT
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
-			if len(args) != 2 {
+			if len(args) != 2 || !rbac.ProjectScoped[opts.resource] {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
@@ -157,7 +189,7 @@ ID          ISSUED-AT                                EXPIRES-AT
 			role, roleIndex, err := proj.GetRoleByName(roleName)
 			errors.CheckError(err)
 
-			policyToRemove := fmt.Sprintf(policyTemplate, proj.Name, role.Name, opts.action, proj.Name, opts.object, opts.permission)
+			policyToRemove := fmt.Sprintf(policyTemplate, proj.Name, role.Name, opts.resource, opts.action, proj.Name, opts.object, opts.permission)
 			duplicateIndex := -1
 			for i, policy := range role.Policies {
 				if policy == policyToRemove {

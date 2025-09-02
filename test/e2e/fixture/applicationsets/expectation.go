@@ -140,8 +140,8 @@ func pods(t *testing.T, namespace string) (*corev1.PodList, error) {
 }
 
 // getDiff returns a string containing a comparison result of two applications (for test output/debug purposes)
-func getDiff(orig, new v1alpha1.Application) (string, error) {
-	bytes, _, err := diff.CreateTwoWayMergePatch(orig, new, orig)
+func getDiff(orig, newApplication v1alpha1.Application) (string, error) {
+	bytes, _, err := diff.CreateTwoWayMergePatch(orig, newApplication, orig)
 	if err != nil {
 		return "", err
 	}
@@ -150,15 +150,15 @@ func getDiff(orig, new v1alpha1.Application) (string, error) {
 }
 
 // getConditionDiff returns a string containing a comparison result of two ApplicationSetCondition (for test output/debug purposes)
-func getConditionDiff(orig, new []v1alpha1.ApplicationSetCondition) (string, error) {
-	if len(orig) != len(new) {
-		return fmt.Sprintf("mismatch between condition sizes: %v %v", len(orig), len(new)), nil
+func getConditionDiff(orig, newApplicationSetCondition []v1alpha1.ApplicationSetCondition) (string, error) {
+	if len(orig) != len(newApplicationSetCondition) {
+		return fmt.Sprintf("mismatch between condition sizes: %v %v", len(orig), len(newApplicationSetCondition)), nil
 	}
 
 	var bytes []byte
 
 	for index := range orig {
-		b, _, err := diff.CreateTwoWayMergePatch(orig[index], new[index], orig[index])
+		b, _, err := diff.CreateTwoWayMergePatch(orig[index], newApplicationSetCondition[index], orig[index])
 		if err != nil {
 			return "", err
 		}

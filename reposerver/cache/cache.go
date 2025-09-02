@@ -496,7 +496,8 @@ func (c *Cache) SetGitFiles(repoURL, revision, pattern string, files map[string]
 
 func (c *Cache) GetGitFiles(repoURL, revision, pattern string) (map[string][]byte, error) {
 	var item map[string][]byte
-	return item, c.cache.GetItem(gitFilesKey(repoURL, revision, pattern), &item)
+	err := c.cache.GetItem(gitFilesKey(repoURL, revision, pattern), &item)
+	return item, err
 }
 
 func gitDirectoriesKey(repoURL, revision string) string {
@@ -512,7 +513,8 @@ func (c *Cache) SetGitDirectories(repoURL, revision string, directories []string
 
 func (c *Cache) GetGitDirectories(repoURL, revision string) ([]string, error) {
 	var item []string
-	return item, c.cache.GetItem(gitDirectoriesKey(repoURL, revision), &item)
+	err := c.cache.GetItem(gitDirectoriesKey(repoURL, revision), &item)
+	return item, err
 }
 
 func (cmr *CachedManifestResponse) shallowCopy() *CachedManifestResponse {
@@ -532,11 +534,11 @@ func (cmr *CachedManifestResponse) shallowCopy() *CachedManifestResponse {
 
 func (cmr *CachedManifestResponse) generateCacheEntryHash() (string, error) {
 	// Copy, then remove the old hash
-	copy := cmr.shallowCopy()
-	copy.CacheEntryHash = ""
+	shallowCopy := cmr.shallowCopy()
+	shallowCopy.CacheEntryHash = ""
 
 	// Hash the JSON representation into a base-64-encoded FNV 64a (we don't need a cryptographic hash algorithm, since this is only for detecting data corruption)
-	bytes, err := json.Marshal(copy)
+	bytes, err := json.Marshal(shallowCopy)
 	if err != nil {
 		return "", err
 	}
