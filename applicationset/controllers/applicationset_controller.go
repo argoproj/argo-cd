@@ -1141,13 +1141,13 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 		}
 
 		statusLogCtx := logCtx.WithFields(log.Fields{
-			"status.application":     currentAppStatus.Application,
+			"app.name":               currentAppStatus.Application,
+			"app.health":             appHealthStatus,
+			"app.sync":               appSyncStatus,
 			"status.status":          currentAppStatus.Status,
 			"status.message":         currentAppStatus.Message,
 			"status.step":            currentAppStatus.Step,
 			"status.targetRevisions": strings.Join(currentAppStatus.TargetRevisions, ","),
-			"app.health":             appHealthStatus,
-			"app.sync":               appSyncStatus,
 		})
 
 		newAppStatus := currentAppStatus.DeepCopy()
@@ -1260,7 +1260,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 
 		for _, appStatus := range applicationSet.Status.ApplicationStatus {
 			statusLogCtx := logCtx.WithFields(log.Fields{
-				"status.application":     appStatus.Application,
+				"app.name":               appStatus.Application,
 				"status.status":          appStatus.Status,
 				"status.message":         appStatus.Message,
 				"status.step":            appStatus.Step,
