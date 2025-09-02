@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       githubHandle:
-        description: 'Github handle of the gitops-engine prepared branch to migrate'
+        description: 'GitHub handle of the gitops-engine prepared branch to migrate'
         required: true
         type: string
       branch:
