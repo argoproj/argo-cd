@@ -16,6 +16,8 @@ import (
 	"github.com/opencontainers/image-spec/specs-go"
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-cd/v3/util/versions"
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/memory"
@@ -335,12 +337,13 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 		allowedMediaTypes []string
 	}
 	tests := []struct {
-		name           string
-		fields         fields
-		revision       string
-		noCache        bool
-		expectedDigest string
-		expectedError  error
+		name             string
+		fields           fields
+		revision         string
+		noCache          bool
+		expectedDigest   string
+		expectedError    error
+		expectedMetadata *versions.RevisionMetadata
 	}{
 		{
 			name:     "resolve semantic version constraint",
@@ -349,6 +352,11 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 				return []string{"1.0.0", "1.1.0", "1.2.0", "2.0.0"}, nil
 			}},
 			expectedDigest: descriptor.Digest.String(),
+			expectedMetadata: &versions.RevisionMetadata{
+				OriginalRevision: "^1.0.0",
+				ResolutionType:   versions.RevisionResolutionRange,
+				ResolvedTag:      "1.2.0",
+			},
 		},
 		{
 			name:     "resolve exact version",
@@ -357,6 +365,11 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 				return []string{"1.0.0", "1.1.0", "1.2.0", "2.0.0"}, nil
 			}},
 			expectedDigest: descriptor.Digest.String(),
+			expectedMetadata: &versions.RevisionMetadata{
+				OriginalRevision: "1.2.0",
+				ResolutionType:   versions.RevisionResolutionVersion,
+				ResolvedTag:      descriptor.Digest.String(),
+			},
 		},
 		{
 			name:     "resolve digest directly",
@@ -365,6 +378,11 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 				return []string{}, errors.New("this should not be invoked")
 			}},
 			expectedDigest: descriptor.Digest.String(),
+			expectedMetadata: &versions.RevisionMetadata{
+				OriginalRevision: descriptor.Digest.String(),
+				ResolutionType:   versions.RevisionResolutionVersion,
+				ResolvedTag:      descriptor.Digest.String(),
+			},
 		},
 		{
 			name:     "no matching version for constraint",
@@ -397,6 +415,11 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 				return []string{"1.0.0", "1.1.0", "1.2.0", "2.0.0", "latest"}, nil
 			}},
 			expectedDigest: descriptor.Digest.String(),
+			expectedMetadata: &versions.RevisionMetadata{
+				OriginalRevision: "latest",
+				ResolutionType:   versions.RevisionResolutionVersion,
+				ResolvedTag:      descriptor.Digest.String(),
+			},
 		},
 		{
 			name:     "resolve with complex semver constraint",
@@ -405,6 +428,11 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 				return []string{"0.9.0", "1.0.0", "1.1.0", "1.2.0", "2.0.0", "2.1.0"}, nil
 			}},
 			expectedDigest: descriptor.Digest.String(),
+			expectedMetadata: &versions.RevisionMetadata{
+				OriginalRevision: ">=1.0.0 <2.0.0",
+				ResolutionType:   versions.RevisionResolutionRange,
+				ResolvedTag:      "1.2.0",
+			},
 		},
 		{
 			name:     "resolve with only non-semver tags",
@@ -422,6 +450,11 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			}},
 			expectedError:  nil,
 			expectedDigest: descriptor.Digest.String(),
+			expectedMetadata: &versions.RevisionMetadata{
+				OriginalRevision: "v1.2.0",
+				ResolutionType:   versions.RevisionResolutionVersion,
+				ResolvedTag:      descriptor.Digest.String(),
+			},
 		},
 		{
 			name:     "resolve with empty tag list",
@@ -437,7 +470,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			c := newClientWithLock(tt.fields.repoURL, globalLock, tt.fields.repo, tt.fields.tagsFunc, func(_ context.Context) error {
 				return nil
 			}, tt.fields.allowedMediaTypes)
-			got, err := c.ResolveRevision(t.Context(), tt.revision, tt.noCache)
+			got, revisionMetadata, err := c.ResolveRevision(t.Context(), tt.revision, tt.noCache)
 			if tt.expectedError != nil {
 				require.EqualError(t, err, tt.expectedError.Error())
 				return
@@ -447,6 +480,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			if got != tt.expectedDigest {
 				t.Errorf("ResolveRevision() got = %v, expectedDigest %v", got, tt.expectedDigest)
 			}
+			require.Equal(t, tt.expectedMetadata, revisionMetadata)
 		})
 	}
 }

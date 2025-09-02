@@ -1233,7 +1233,7 @@ func getLocalObjectsString(ctx context.Context, app *argoappv1.Application, proj
 		ProjectName:                     proj.Name,
 		ProjectSourceRepos:              proj.Spec.SourceRepos,
 		AnnotationManifestGeneratePaths: app.GetAnnotation(argoappv1.AnnotationKeyManifestGeneratePaths),
-	}, true, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+	}, true, &git.NoopCredsStore{}, resource.MustParse("0"), nil, nil)
 	errors.CheckError(err)
 
 	return res.Manifests

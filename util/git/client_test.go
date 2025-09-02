@@ -183,10 +183,10 @@ func Test_ChangedFiles(t *testing.T) {
 	err = runCmd(client.Root(), "git", "commit", "-m", "Changes", "-a")
 	require.NoError(t, err)
 
-	previousSHA, err := client.LsRemote("some-tag")
+	previousSHA, _, err := client.LsRemote("some-tag")
 	require.NoError(t, err)
 
-	commitSHA, err := client.LsRemote("HEAD")
+	commitSHA, _, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
 	// Invalid commits, error
@@ -218,6 +218,7 @@ func Test_SemverTags(t *testing.T) {
 	require.NoError(t, err)
 
 	mapTagRefs := map[string]string{}
+	mapRefsTags := map[string]string{}
 	for _, tag := range []string{
 		"v1.0.0-rc1",
 		"v1.0.0-rc2",
@@ -235,10 +236,11 @@ func Test_SemverTags(t *testing.T) {
 		err = runCmd(client.Root(), "git", "tag", tag)
 		require.NoError(t, err)
 
-		sha, err := client.LsRemote("HEAD")
+		sha, _, err := client.LsRemote("HEAD")
 		require.NoError(t, err)
 
 		mapTagRefs[tag] = sha
+		mapRefsTags[sha] = tag
 	}
 
 	for _, tc := range []struct {
@@ -338,7 +340,7 @@ func Test_SemverTags(t *testing.T) {
 		expected: mapTagRefs["2024-banana"],
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
-			commitSHA, err := client.LsRemote(tc.ref)
+			commitSHA, resolvedTag, err := client.LsRemote(tc.ref)
 			if tc.error {
 				require.Error(t, err)
 				return
@@ -346,6 +348,7 @@ func Test_SemverTags(t *testing.T) {
 			require.NoError(t, err)
 			assert.True(t, IsCommitSHA(commitSHA))
 			assert.Equal(t, tc.expected, commitSHA)
+			assert.Equal(t, mapRefsTags[tc.expected], resolvedTag.ResolvedTag)
 		})
 	}
 }
@@ -395,7 +398,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	err = client.Fetch("")
 	require.NoError(t, err)
 
-	commitSHA, err := client.LsRemote("HEAD")
+	commitSHA, _, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
 	// Call Checkout() with submoduleEnabled=false.
@@ -462,7 +465,7 @@ func Test_IsRevisionPresent(t *testing.T) {
 	err = runCmd(client.Root(), "git", "commit", "-m", "Initial Commit", "-a")
 	require.NoError(t, err)
 
-	commitSHA, err := client.LsRemote("HEAD")
+	commitSHA, _, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
 	// Ensure revision for HEAD is present locally.
