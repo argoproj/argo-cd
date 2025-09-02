@@ -21,6 +21,7 @@ import (
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/hash"
+	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
 var (
@@ -33,6 +34,17 @@ type Cache struct {
 	repoCacheExpiration      time.Duration
 	revisionCacheExpiration  time.Duration
 	revisionCacheLockTimeout time.Duration
+}
+
+type ChartDetailsWithMetadata struct {
+	ChartDetails     *appv1.ChartDetails
+	RevisionMetadata *versions.RevisionMetadata
+}
+
+// SemverResolutionMetadata caches semver constraint resolution metadata to bridge
+// the API gap between ResolveRevision and GenerateManifest calls
+type SemverResolutionMetadata struct {
+	RevisionMetadata *versions.RevisionMetadata
 }
 
 // ClusterRuntimeInfo holds cluster runtime information
@@ -471,15 +483,23 @@ func revisionChartDetailsKey(repoURL, chart, revision string) string {
 	return fmt.Sprintf("chartdetails|%s|%s|%s", repoURL, chart, revision)
 }
 
-func (c *Cache) GetRevisionChartDetails(repoURL, chart, revision string) (*appv1.ChartDetails, error) {
-	item := &appv1.ChartDetails{}
-	return item, c.cache.GetItem(revisionChartDetailsKey(repoURL, chart, revision), item)
+func (c *Cache) GetRevisionChartDetails(repoURL, chart, revision string) (*appv1.ChartDetails, *versions.RevisionMetadata, error) {
+	item := &ChartDetailsWithMetadata{}
+	err := c.cache.GetItem(revisionChartDetailsKey(repoURL, chart, revision), item)
+	if err != nil {
+		// On cache miss, return empty structs instead of nil
+		return &appv1.ChartDetails{}, nil, err
+	}
+	return item.ChartDetails, item.RevisionMetadata, nil
 }
 
-func (c *Cache) SetRevisionChartDetails(repoURL, chart, revision string, item *appv1.ChartDetails) error {
+func (c *Cache) SetRevisionChartDetails(repoURL, chart, revision string, item *appv1.ChartDetails, metadata *versions.RevisionMetadata) error {
 	return c.cache.SetItem(
 		revisionChartDetailsKey(repoURL, chart, revision),
-		item,
+		&ChartDetailsWithMetadata{
+			ChartDetails:     item,
+			RevisionMetadata: metadata,
+		},
 		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
 }
 
@@ -549,4 +569,24 @@ func (cmr *CachedManifestResponse) generateCacheEntryHash() (string, error) {
 	}
 	fnvHash := h.Sum(nil)
 	return base64.URLEncoding.EncodeToString(fnvHash), nil
+}
+
+func semverMetadataKey(repoURL, originalRevision, resolvedTag, commitSHA string) string {
+	return fmt.Sprintf("semver|%s|%s|%s|%s", repoURL, originalRevision, resolvedTag, commitSHA)
+}
+
+func (c *Cache) GetSemverMetadata(repoURL, originalRevision, resolvedTag, commitSHA string) (*versions.RevisionMetadata, error) {
+	item := &SemverResolutionMetadata{}
+	err := c.cache.GetItem(semverMetadataKey(repoURL, originalRevision, resolvedTag, commitSHA), item)
+	if err != nil {
+		return nil, err
+	}
+	return item.RevisionMetadata, nil
+}
+
+func (c *Cache) SetSemverMetadata(repoURL, originalRevision, resolvedTag, commitSHA string, metadata *versions.RevisionMetadata) error {
+	return c.cache.SetItem(
+		semverMetadataKey(repoURL, originalRevision, resolvedTag, commitSHA),
+		&SemverResolutionMetadata{RevisionMetadata: metadata},
+		&cacheutil.CacheActionOpts{Expiration: c.revisionCacheExpiration}) // Use shorter expiration for fresher semver metadata
 }

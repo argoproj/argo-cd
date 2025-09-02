@@ -99,7 +99,7 @@ func TestRepo(repo string, creds Creds, insecure bool, enableLfs bool, proxy str
 	if err != nil {
 		return fmt.Errorf("unable to initialize git client: %w", err)
 	}
-	_, err = client.LsRemote("HEAD")
+	_, _, err = client.LsRemote("HEAD")
 	if err != nil {
 		return fmt.Errorf("unable to ls-remote HEAD on repository: %w", err)
 	}
