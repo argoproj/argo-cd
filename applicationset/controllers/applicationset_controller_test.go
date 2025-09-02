@@ -6671,7 +6671,7 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 				},
 			},
 			enableProgressiveSyncs: false,
-			want:                   false,
+			want:                   true,
 		},
 	}
 
@@ -6818,6 +6818,36 @@ func TestShouldRequeueForApplicationSet(t *testing.T) {
 					},
 				},
 				enableProgressiveSyncs: true,
+			},
+			want: true,
+		},
+		{
+			name: "ApplicationSetWithDeletionTimestamp",
+			args: args{
+				appSetOld: &v1alpha1.ApplicationSet{
+					Status: v1alpha1.ApplicationSetStatus{
+						ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+							{
+								Application: "app1",
+								Status:      "Healthy",
+							},
+						},
+					},
+				},
+				appSetNew: &v1alpha1.ApplicationSet{
+					ObjectMeta: metav1.ObjectMeta{
+						DeletionTimestamp: &metav1.Time{Time: time.Now()},
+					},
+					Status: v1alpha1.ApplicationSetStatus{
+						ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+							{
+								Application: "app1",
+								Status:      "Waiting",
+							},
+						},
+					},
+				},
+				enableProgressiveSyncs: false,
 			},
 			want: true,
 		},

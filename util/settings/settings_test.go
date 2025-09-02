@@ -713,7 +713,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, "foo", options.BuildOptions)
-		assert.Equal(t, []KustomizeVersion{{Name: "v3.2.1", Path: "somePath"}}, options.Versions)
+		assert.Equal(t, []v1alpha1.KustomizeVersion{{Name: "v3.2.1", Path: "somePath"}}, options.Versions)
 	})
 
 	t.Run("Kustomize settings per-version", func(t *testing.T) {
@@ -731,15 +731,15 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, "--global true", got.BuildOptions)
-		want := &KustomizeSettings{
+		want := &v1alpha1.KustomizeOptions{
 			BuildOptions: "--global true",
-			Versions: []KustomizeVersion{
+			Versions: []v1alpha1.KustomizeVersion{
 				{Name: "v3.2.1", Path: "/path_3.2.1"},
 				{Name: "v3.2.3", Path: "/path_3.2.3", BuildOptions: "--options v3.2.3"},
 				{Name: "v3.2.4", Path: "/path_3.2.4", BuildOptions: "--options v3.2.4"},
 			},
 		}
-		sortVersionsByName := func(versions []KustomizeVersion) {
+		sortVersionsByName := func(versions []v1alpha1.KustomizeVersion) {
 			sort.Slice(versions, func(i, j int) bool {
 				return versions[i].Name > versions[j].Name
 			})
@@ -814,10 +814,10 @@ func TestSettingsManager_GetEventLabelKeys(t *testing.T) {
 	}
 }
 
-func TestKustomizeSettings_GetOptions(t *testing.T) {
-	settings := KustomizeSettings{
+func Test_GetKustomizeBinaryPath(t *testing.T) {
+	ko := &v1alpha1.KustomizeOptions{
 		BuildOptions: "--opt1 val1",
-		Versions: []KustomizeVersion{
+		Versions: []v1alpha1.KustomizeVersion{
 			{Name: "v1", Path: "path_v1"},
 			{Name: "v2", Path: "path_v2"},
 			{Name: "v3", Path: "path_v3", BuildOptions: "--opt2 val2"},
@@ -825,35 +825,42 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 	}
 
 	t.Run("VersionDoesNotExist", func(t *testing.T) {
-		_, err := settings.GetOptions(v1alpha1.ApplicationSource{
+		_, err := GetKustomizeBinaryPath(ko, v1alpha1.ApplicationSource{
 			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v4"},
 		})
 		require.Error(t, err)
 	})
 
 	t.Run("DefaultBuildOptions", func(t *testing.T) {
-		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{})
+		ver, err := GetKustomizeBinaryPath(ko, v1alpha1.ApplicationSource{})
 		require.NoError(t, err)
-		assert.Empty(t, ver.BinaryPath)
-		assert.Equal(t, "--opt1 val1", ver.BuildOptions)
+		assert.Empty(t, ver)
 	})
 
 	t.Run("VersionExists", func(t *testing.T) {
-		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{
+		ver, err := GetKustomizeBinaryPath(ko, v1alpha1.ApplicationSource{
 			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v2"},
 		})
 		require.NoError(t, err)
-		assert.Equal(t, "path_v2", ver.BinaryPath)
-		assert.Empty(t, ver.BuildOptions)
+		assert.Equal(t, "path_v2", ver)
 	})
 
 	t.Run("VersionExistsWithBuildOption", func(t *testing.T) {
-		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{
+		ver, err := GetKustomizeBinaryPath(ko, v1alpha1.ApplicationSource{
 			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v3"},
 		})
 		require.NoError(t, err)
-		assert.Equal(t, "path_v3", ver.BinaryPath)
-		assert.Equal(t, "--opt2 val2", ver.BuildOptions)
+		assert.Equal(t, "path_v3", ver)
+	})
+
+	t.Run("ExplicitVersionSet", func(t *testing.T) {
+		// nolint:staticcheck // test for backwards compatibility with deprecated field
+		ko.BinaryPath = "custom_path"
+		ver, err := GetKustomizeBinaryPath(ko, v1alpha1.ApplicationSource{
+			Kustomize: &v1alpha1.ApplicationSourceKustomize{Version: "v3"},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "custom_path", ver)
 	})
 }
 
@@ -1271,8 +1278,253 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		)
 		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
-		require.ErrorContains(t, err, "could not read from secret")
+		require.ErrorContains(t, err, "failed to find any PEM data in certificate input")
 		assert.NotNil(t, settings)
+	})
+	t.Run("Does not parse TLS cert key pair on cache hit", func(t *testing.T) {
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+		}
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            common.ArgoCDSecretName,
+				Namespace:       "default",
+				ResourceVersion: "1",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string][]byte{
+				"server.secretkey": nil,
+			},
+		}
+		tlsSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            externalServerTLSSecretName,
+				Namespace:       "default",
+				ResourceVersion: "1",
+			},
+			Data: map[string][]byte{
+				"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
+				"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
+			},
+		}
+
+		kubeClient := fake.NewClientset(cm, secret, tlsSecret)
+		callCount := 0
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default", func(mgr *SettingsManager) {
+			mgr.tlsCertParser = func(certpem []byte, keypem []byte) (tls.Certificate, error) {
+				callCount++
+
+				return tls.X509KeyPair(certpem, keypem)
+			}
+		})
+
+		// should not be called by initialization
+		assert.Equal(t, 0, callCount)
+
+		// should be called by first call to GetSettings
+		_, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.Equal(t, 1, callCount)
+
+		// should not be called by subsequent call to GetSettings
+		_, err = settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.Equal(t, 1, callCount)
+	})
+	t.Run("Parses TLS cert key pair when TLS secret update causes cache miss", func(t *testing.T) {
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+		}
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            common.ArgoCDSecretName,
+				Namespace:       "default",
+				ResourceVersion: "1",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string][]byte{
+				"server.secretkey": nil,
+			},
+		}
+		tlsSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            externalServerTLSSecretName,
+				Namespace:       "default",
+				ResourceVersion: "1",
+			},
+			Data: map[string][]byte{
+				"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
+				"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
+			},
+		}
+
+		kubeClient := fake.NewClientset(cm, secret, tlsSecret)
+		callCount := 0
+		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default", func(mgr *SettingsManager) {
+			mgr.tlsCertParser = func(certpem []byte, keypem []byte) (tls.Certificate, error) {
+				callCount++
+
+				return tls.X509KeyPair(certpem, keypem)
+			}
+		})
+
+		// should be called by first call to GetSettings
+		settings, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.Equal(t, 1, callCount)
+		assert.NotNil(t, settings.Certificate)
+		assert.True(t, settings.CertificateIsExternal)
+		assert.Equal(t, "localhost", getCNFromCertificate(settings.Certificate))
+
+		// update secret
+		tlsSecret.SetResourceVersion("2")
+		_, err = kubeClient.CoreV1().Secrets("default").Update(t.Context(), tlsSecret, metav1.UpdateOptions{})
+		require.NoError(t, err)
+
+		// allow time for the udpate to resolve to avoid timing issues below
+		time.Sleep(250 * time.Millisecond)
+
+		// should be called again after secret update resolves
+		settings, err = settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.Equal(t, 2, callCount)
+		assert.NotNil(t, settings.Certificate)
+		assert.True(t, settings.CertificateIsExternal)
+		assert.Equal(t, "localhost", getCNFromCertificate(settings.Certificate))
+	})
+	t.Run("Overrides cached internal TLS cert when external TLS secret added", func(t *testing.T) {
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            common.ArgoCDSecretName,
+					Namespace:       "default",
+					ResourceVersion: "1",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"server.secretkey": nil,
+					"tls.crt":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
+					"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		settings, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		// should have internal cert at this point
+		assert.NotNil(t, settings.Certificate)
+		assert.False(t, settings.CertificateIsExternal)
+		assert.Equal(t, "Argo CD E2E", getCNFromCertificate(settings.Certificate))
+
+		externalTLSSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            externalServerTLSSecretName,
+				Namespace:       "default",
+				ResourceVersion: "1",
+			},
+			Data: map[string][]byte{
+				"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
+				"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
+			},
+		}
+		_, err = kubeClient.CoreV1().Secrets("default").Create(t.Context(), externalTLSSecret, metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		// allow time for the create to resolve to avoid timing issues below
+		time.Sleep(250 * time.Millisecond)
+
+		settings, err = settingsManager.GetSettings()
+		require.NoError(t, err)
+		// should now have an external cert
+		assert.NotNil(t, settings.Certificate)
+		assert.True(t, settings.CertificateIsExternal)
+		assert.Equal(t, "localhost", getCNFromCertificate(settings.Certificate))
+	})
+	t.Run("Falls back to internal TLS cert when external TLS secret deleted", func(t *testing.T) {
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            common.ArgoCDSecretName,
+					Namespace:       "default",
+					ResourceVersion: "1",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"server.secretkey": nil,
+					"tls.crt":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.crt")),
+					"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            externalServerTLSSecretName,
+					Namespace:       "default",
+					ResourceVersion: "1",
+				},
+				Data: map[string][]byte{
+					"tls.crt": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt")),
+					"tls.key": []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.key")),
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		settings, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		// should have external cert at this point
+		assert.NotNil(t, settings.Certificate)
+		assert.True(t, settings.CertificateIsExternal)
+		assert.Equal(t, "localhost", getCNFromCertificate(settings.Certificate))
+
+		err = kubeClient.CoreV1().Secrets("default").Delete(t.Context(), externalServerTLSSecretName, metav1.DeleteOptions{})
+		require.NoError(t, err)
+
+		// allow time for the delete to resolve to avoid timing issues below
+		time.Sleep(250 * time.Millisecond)
+
+		settings, err = settingsManager.GetSettings()
+		require.NoError(t, err)
+		// should now have an internal cert
+		assert.NotNil(t, settings.Certificate)
+		assert.False(t, settings.CertificateIsExternal)
+		assert.Equal(t, "Argo CD E2E", getCNFromCertificate(settings.Certificate))
 	})
 	t.Run("No external TLS secret", func(t *testing.T) {
 		kubeClient := fake.NewClientset(
@@ -1387,7 +1639,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 
 	settings, err := settingsManager.GetSettings()
 	require.NoError(t, err)
-	assert.Equal(t, "mywebhooksecret", settings.WebhookGitHubSecret)
+	assert.Equal(t, "mywebhooksecret", settings.GetWebhookGitHubSecret())
 
 	oidcConfig := settings.OIDCConfig()
 	assert.Equal(t, "https://dev-123456.oktapreview.com", oidcConfig.Issuer)

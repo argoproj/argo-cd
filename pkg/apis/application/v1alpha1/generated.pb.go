@@ -1805,38 +1805,10 @@ func (m *EnvEntry) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_EnvEntry proto.InternalMessageInfo
 
-func (m *ErrApplicationNotAllowedToUseProject) Reset()      { *m = ErrApplicationNotAllowedToUseProject{} }
-func (*ErrApplicationNotAllowedToUseProject) ProtoMessage() {}
-func (*ErrApplicationNotAllowedToUseProject) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{63}
-}
-func (m *ErrApplicationNotAllowedToUseProject) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *ErrApplicationNotAllowedToUseProject) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *ErrApplicationNotAllowedToUseProject) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ErrApplicationNotAllowedToUseProject.Merge(m, src)
-}
-func (m *ErrApplicationNotAllowedToUseProject) XXX_Size() int {
-	return m.Size()
-}
-func (m *ErrApplicationNotAllowedToUseProject) XXX_DiscardUnknown() {
-	xxx_messageInfo_ErrApplicationNotAllowedToUseProject.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ErrApplicationNotAllowedToUseProject proto.InternalMessageInfo
-
 func (m *ExecProviderConfig) Reset()      { *m = ExecProviderConfig{} }
 func (*ExecProviderConfig) ProtoMessage() {}
 func (*ExecProviderConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{64}
+	return fileDescriptor_c078c3c476799f44, []int{63}
 }
 func (m *ExecProviderConfig) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1864,7 +1836,7 @@ var xxx_messageInfo_ExecProviderConfig proto.InternalMessageInfo
 func (m *GitDirectoryGeneratorItem) Reset()      { *m = GitDirectoryGeneratorItem{} }
 func (*GitDirectoryGeneratorItem) ProtoMessage() {}
 func (*GitDirectoryGeneratorItem) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{65}
+	return fileDescriptor_c078c3c476799f44, []int{64}
 }
 func (m *GitDirectoryGeneratorItem) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1892,7 +1864,7 @@ var xxx_messageInfo_GitDirectoryGeneratorItem proto.InternalMessageInfo
 func (m *GitFileGeneratorItem) Reset()      { *m = GitFileGeneratorItem{} }
 func (*GitFileGeneratorItem) ProtoMessage() {}
 func (*GitFileGeneratorItem) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{66}
+	return fileDescriptor_c078c3c476799f44, []int{65}
 }
 func (m *GitFileGeneratorItem) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1920,7 +1892,7 @@ var xxx_messageInfo_GitFileGeneratorItem proto.InternalMessageInfo
 func (m *GitGenerator) Reset()      { *m = GitGenerator{} }
 func (*GitGenerator) ProtoMessage() {}
 func (*GitGenerator) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{67}
+	return fileDescriptor_c078c3c476799f44, []int{66}
 }
 func (m *GitGenerator) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1948,7 +1920,7 @@ var xxx_messageInfo_GitGenerator proto.InternalMessageInfo
 func (m *GnuPGPublicKey) Reset()      { *m = GnuPGPublicKey{} }
 func (*GnuPGPublicKey) ProtoMessage() {}
 func (*GnuPGPublicKey) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{68}
+	return fileDescriptor_c078c3c476799f44, []int{67}
 }
 func (m *GnuPGPublicKey) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -1976,7 +1948,7 @@ var xxx_messageInfo_GnuPGPublicKey proto.InternalMessageInfo
 func (m *GnuPGPublicKeyList) Reset()      { *m = GnuPGPublicKeyList{} }
 func (*GnuPGPublicKeyList) ProtoMessage() {}
 func (*GnuPGPublicKeyList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{69}
+	return fileDescriptor_c078c3c476799f44, []int{68}
 }
 func (m *GnuPGPublicKeyList) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2004,7 +1976,7 @@ var xxx_messageInfo_GnuPGPublicKeyList proto.InternalMessageInfo
 func (m *HealthStatus) Reset()      { *m = HealthStatus{} }
 func (*HealthStatus) ProtoMessage() {}
 func (*HealthStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{70}
+	return fileDescriptor_c078c3c476799f44, []int{69}
 }
 func (m *HealthStatus) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2032,7 +2004,7 @@ var xxx_messageInfo_HealthStatus proto.InternalMessageInfo
 func (m *HelmFileParameter) Reset()      { *m = HelmFileParameter{} }
 func (*HelmFileParameter) ProtoMessage() {}
 func (*HelmFileParameter) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{71}
+	return fileDescriptor_c078c3c476799f44, []int{70}
 }
 func (m *HelmFileParameter) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2060,7 +2032,7 @@ var xxx_messageInfo_HelmFileParameter proto.InternalMessageInfo
 func (m *HelmOptions) Reset()      { *m = HelmOptions{} }
 func (*HelmOptions) ProtoMessage() {}
 func (*HelmOptions) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{72}
+	return fileDescriptor_c078c3c476799f44, []int{71}
 }
 func (m *HelmOptions) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2088,7 +2060,7 @@ var xxx_messageInfo_HelmOptions proto.InternalMessageInfo
 func (m *HelmParameter) Reset()      { *m = HelmParameter{} }
 func (*HelmParameter) ProtoMessage() {}
 func (*HelmParameter) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{73}
+	return fileDescriptor_c078c3c476799f44, []int{72}
 }
 func (m *HelmParameter) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2116,7 +2088,7 @@ var xxx_messageInfo_HelmParameter proto.InternalMessageInfo
 func (m *HostInfo) Reset()      { *m = HostInfo{} }
 func (*HostInfo) ProtoMessage() {}
 func (*HostInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{74}
+	return fileDescriptor_c078c3c476799f44, []int{73}
 }
 func (m *HostInfo) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2144,7 +2116,7 @@ var xxx_messageInfo_HostInfo proto.InternalMessageInfo
 func (m *HostResourceInfo) Reset()      { *m = HostResourceInfo{} }
 func (*HostResourceInfo) ProtoMessage() {}
 func (*HostResourceInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{75}
+	return fileDescriptor_c078c3c476799f44, []int{74}
 }
 func (m *HostResourceInfo) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2172,7 +2144,7 @@ var xxx_messageInfo_HostResourceInfo proto.InternalMessageInfo
 func (m *HydrateOperation) Reset()      { *m = HydrateOperation{} }
 func (*HydrateOperation) ProtoMessage() {}
 func (*HydrateOperation) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{76}
+	return fileDescriptor_c078c3c476799f44, []int{75}
 }
 func (m *HydrateOperation) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2200,7 +2172,7 @@ var xxx_messageInfo_HydrateOperation proto.InternalMessageInfo
 func (m *HydrateTo) Reset()      { *m = HydrateTo{} }
 func (*HydrateTo) ProtoMessage() {}
 func (*HydrateTo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{77}
+	return fileDescriptor_c078c3c476799f44, []int{76}
 }
 func (m *HydrateTo) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2228,7 +2200,7 @@ var xxx_messageInfo_HydrateTo proto.InternalMessageInfo
 func (m *Info) Reset()      { *m = Info{} }
 func (*Info) ProtoMessage() {}
 func (*Info) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{78}
+	return fileDescriptor_c078c3c476799f44, []int{77}
 }
 func (m *Info) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2256,7 +2228,7 @@ var xxx_messageInfo_Info proto.InternalMessageInfo
 func (m *InfoItem) Reset()      { *m = InfoItem{} }
 func (*InfoItem) ProtoMessage() {}
 func (*InfoItem) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{79}
+	return fileDescriptor_c078c3c476799f44, []int{78}
 }
 func (m *InfoItem) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2284,7 +2256,7 @@ var xxx_messageInfo_InfoItem proto.InternalMessageInfo
 func (m *JWTToken) Reset()      { *m = JWTToken{} }
 func (*JWTToken) ProtoMessage() {}
 func (*JWTToken) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{80}
+	return fileDescriptor_c078c3c476799f44, []int{79}
 }
 func (m *JWTToken) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2312,7 +2284,7 @@ var xxx_messageInfo_JWTToken proto.InternalMessageInfo
 func (m *JWTTokens) Reset()      { *m = JWTTokens{} }
 func (*JWTTokens) ProtoMessage() {}
 func (*JWTTokens) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{81}
+	return fileDescriptor_c078c3c476799f44, []int{80}
 }
 func (m *JWTTokens) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2340,7 +2312,7 @@ var xxx_messageInfo_JWTTokens proto.InternalMessageInfo
 func (m *JsonnetVar) Reset()      { *m = JsonnetVar{} }
 func (*JsonnetVar) ProtoMessage() {}
 func (*JsonnetVar) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{82}
+	return fileDescriptor_c078c3c476799f44, []int{81}
 }
 func (m *JsonnetVar) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2368,7 +2340,7 @@ var xxx_messageInfo_JsonnetVar proto.InternalMessageInfo
 func (m *KnownTypeField) Reset()      { *m = KnownTypeField{} }
 func (*KnownTypeField) ProtoMessage() {}
 func (*KnownTypeField) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{83}
+	return fileDescriptor_c078c3c476799f44, []int{82}
 }
 func (m *KnownTypeField) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2396,7 +2368,7 @@ var xxx_messageInfo_KnownTypeField proto.InternalMessageInfo
 func (m *KustomizeGvk) Reset()      { *m = KustomizeGvk{} }
 func (*KustomizeGvk) ProtoMessage() {}
 func (*KustomizeGvk) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{84}
+	return fileDescriptor_c078c3c476799f44, []int{83}
 }
 func (m *KustomizeGvk) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2424,7 +2396,7 @@ var xxx_messageInfo_KustomizeGvk proto.InternalMessageInfo
 func (m *KustomizeOptions) Reset()      { *m = KustomizeOptions{} }
 func (*KustomizeOptions) ProtoMessage() {}
 func (*KustomizeOptions) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{85}
+	return fileDescriptor_c078c3c476799f44, []int{84}
 }
 func (m *KustomizeOptions) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2452,7 +2424,7 @@ var xxx_messageInfo_KustomizeOptions proto.InternalMessageInfo
 func (m *KustomizePatch) Reset()      { *m = KustomizePatch{} }
 func (*KustomizePatch) ProtoMessage() {}
 func (*KustomizePatch) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{86}
+	return fileDescriptor_c078c3c476799f44, []int{85}
 }
 func (m *KustomizePatch) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2480,7 +2452,7 @@ var xxx_messageInfo_KustomizePatch proto.InternalMessageInfo
 func (m *KustomizeReplica) Reset()      { *m = KustomizeReplica{} }
 func (*KustomizeReplica) ProtoMessage() {}
 func (*KustomizeReplica) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{87}
+	return fileDescriptor_c078c3c476799f44, []int{86}
 }
 func (m *KustomizeReplica) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2508,7 +2480,7 @@ var xxx_messageInfo_KustomizeReplica proto.InternalMessageInfo
 func (m *KustomizeResId) Reset()      { *m = KustomizeResId{} }
 func (*KustomizeResId) ProtoMessage() {}
 func (*KustomizeResId) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{88}
+	return fileDescriptor_c078c3c476799f44, []int{87}
 }
 func (m *KustomizeResId) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2536,7 +2508,7 @@ var xxx_messageInfo_KustomizeResId proto.InternalMessageInfo
 func (m *KustomizeSelector) Reset()      { *m = KustomizeSelector{} }
 func (*KustomizeSelector) ProtoMessage() {}
 func (*KustomizeSelector) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{89}
+	return fileDescriptor_c078c3c476799f44, []int{88}
 }
 func (m *KustomizeSelector) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -2560,6 +2532,34 @@ func (m *KustomizeSelector) XXX_DiscardUnknown() {
 }
 
 var xxx_messageInfo_KustomizeSelector proto.InternalMessageInfo
+
+func (m *KustomizeVersion) Reset()      { *m = KustomizeVersion{} }
+func (*KustomizeVersion) ProtoMessage() {}
+func (*KustomizeVersion) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c078c3c476799f44, []int{89}
+}
+func (m *KustomizeVersion) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *KustomizeVersion) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	b = b[:cap(b)]
+	n, err := m.MarshalToSizedBuffer(b)
+	if err != nil {
+		return nil, err
+	}
+	return b[:n], nil
+}
+func (m *KustomizeVersion) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_KustomizeVersion.Merge(m, src)
+}
+func (m *KustomizeVersion) XXX_Size() int {
+	return m.Size()
+}
+func (m *KustomizeVersion) XXX_DiscardUnknown() {
+	xxx_messageInfo_KustomizeVersion.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_KustomizeVersion proto.InternalMessageInfo
 
 func (m *ListGenerator) Reset()      { *m = ListGenerator{} }
 func (*ListGenerator) ProtoMessage() {}
@@ -4790,7 +4790,6 @@ func init() {
 	proto.RegisterType((*DuckTypeGenerator)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.DuckTypeGenerator")
 	proto.RegisterMapType((map[string]string)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.DuckTypeGenerator.ValuesEntry")
 	proto.RegisterType((*EnvEntry)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.EnvEntry")
-	proto.RegisterType((*ErrApplicationNotAllowedToUseProject)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ErrApplicationNotAllowedToUseProject")
 	proto.RegisterType((*ExecProviderConfig)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ExecProviderConfig")
 	proto.RegisterMapType((map[string]string)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ExecProviderConfig.EnvEntry")
 	proto.RegisterType((*GitDirectoryGeneratorItem)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.GitDirectoryGeneratorItem")
@@ -4821,6 +4820,7 @@ func init() {
 	proto.RegisterType((*KustomizeReplica)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.KustomizeReplica")
 	proto.RegisterType((*KustomizeResId)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.KustomizeResId")
 	proto.RegisterType((*KustomizeSelector)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.KustomizeSelector")
+	proto.RegisterType((*KustomizeVersion)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.KustomizeVersion")
 	proto.RegisterType((*ListGenerator)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ListGenerator")
 	proto.RegisterType((*ManagedNamespaceMetadata)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ManagedNamespaceMetadata")
 	proto.RegisterMapType((map[string]string)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ManagedNamespaceMetadata.AnnotationsEntry")
@@ -9893,29 +9893,6 @@ func (m *EnvEntry) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *ErrApplicationNotAllowedToUseProject) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *ErrApplicationNotAllowedToUseProject) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *ErrApplicationNotAllowedToUseProject) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	return len(dAtA) - i, nil
-}
-
 func (m *ExecProviderConfig) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -10900,6 +10877,20 @@ func (m *KustomizeOptions) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.Versions) > 0 {
+		for iNdEx := len(m.Versions) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Versions[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintGenerated(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x1a
+		}
+	}
 	i -= len(m.BinaryPath)
 	copy(dAtA[i:], m.BinaryPath)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.BinaryPath)))
@@ -11104,6 +11095,44 @@ func (m *KustomizeSelector) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= size
 		i = encodeVarintGenerated(dAtA, i, uint64(size))
 	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
+func (m *KustomizeVersion) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *KustomizeVersion) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *KustomizeVersion) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	i -= len(m.BuildOptions)
+	copy(dAtA[i:], m.BuildOptions)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.BuildOptions)))
+	i--
+	dAtA[i] = 0x1a
+	i -= len(m.Path)
+	copy(dAtA[i:], m.Path)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Path)))
+	i--
+	dAtA[i] = 0x12
+	i -= len(m.Name)
+	copy(dAtA[i:], m.Name)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Name)))
 	i--
 	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
@@ -13405,21 +13434,6 @@ func (m *ResourceActionParam) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	i -= len(m.Default)
-	copy(dAtA[i:], m.Default)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Default)))
-	i--
-	dAtA[i] = 0x22
-	i -= len(m.Type)
-	copy(dAtA[i:], m.Type)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Type)))
-	i--
-	dAtA[i] = 0x1a
-	i -= len(m.Value)
-	copy(dAtA[i:], m.Value)
-	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Value)))
-	i--
-	dAtA[i] = 0x12
 	i -= len(m.Name)
 	copy(dAtA[i:], m.Name)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Name)))
@@ -17634,15 +17648,6 @@ func (m *EnvEntry) Size() (n int) {
 	return n
 }
 
-func (m *ErrApplicationNotAllowedToUseProject) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	return n
-}
-
 func (m *ExecProviderConfig) Size() (n int) {
 	if m == nil {
 		return 0
@@ -18016,6 +18021,12 @@ func (m *KustomizeOptions) Size() (n int) {
 	n += 1 + l + sovGenerated(uint64(l))
 	l = len(m.BinaryPath)
 	n += 1 + l + sovGenerated(uint64(l))
+	if len(m.Versions) > 0 {
+		for _, e := range m.Versions {
+			l = e.Size()
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
 	return n
 }
 
@@ -18083,6 +18094,21 @@ func (m *KustomizeSelector) Size() (n int) {
 	l = len(m.AnnotationSelector)
 	n += 1 + l + sovGenerated(uint64(l))
 	l = len(m.LabelSelector)
+	n += 1 + l + sovGenerated(uint64(l))
+	return n
+}
+
+func (m *KustomizeVersion) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Name)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.Path)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.BuildOptions)
 	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
@@ -18925,12 +18951,6 @@ func (m *ResourceActionParam) Size() (n int) {
 	var l int
 	_ = l
 	l = len(m.Name)
-	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.Value)
-	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.Type)
-	n += 1 + l + sovGenerated(uint64(l))
-	l = len(m.Default)
 	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
@@ -21070,15 +21090,6 @@ func (this *EnvEntry) String() string {
 	}, "")
 	return s
 }
-func (this *ErrApplicationNotAllowedToUseProject) String() string {
-	if this == nil {
-		return "nil"
-	}
-	s := strings.Join([]string{`&ErrApplicationNotAllowedToUseProject{`,
-		`}`,
-	}, "")
-	return s
-}
 func (this *ExecProviderConfig) String() string {
 	if this == nil {
 		return "nil"
@@ -21393,9 +21404,15 @@ func (this *KustomizeOptions) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForVersions := "[]KustomizeVersion{"
+	for _, f := range this.Versions {
+		repeatedStringForVersions += strings.Replace(strings.Replace(f.String(), "KustomizeVersion", "KustomizeVersion", 1), `&`, ``, 1) + ","
+	}
+	repeatedStringForVersions += "}"
 	s := strings.Join([]string{`&KustomizeOptions{`,
 		`BuildOptions:` + fmt.Sprintf("%v", this.BuildOptions) + `,`,
 		`BinaryPath:` + fmt.Sprintf("%v", this.BinaryPath) + `,`,
+		`Versions:` + repeatedStringForVersions + `,`,
 		`}`,
 	}, "")
 	return s
@@ -21454,6 +21471,18 @@ func (this *KustomizeSelector) String() string {
 		`KustomizeResId:` + strings.Replace(strings.Replace(this.KustomizeResId.String(), "KustomizeResId", "KustomizeResId", 1), `&`, ``, 1) + `,`,
 		`AnnotationSelector:` + fmt.Sprintf("%v", this.AnnotationSelector) + `,`,
 		`LabelSelector:` + fmt.Sprintf("%v", this.LabelSelector) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *KustomizeVersion) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&KustomizeVersion{`,
+		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
+		`Path:` + fmt.Sprintf("%v", this.Path) + `,`,
+		`BuildOptions:` + fmt.Sprintf("%v", this.BuildOptions) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -22085,9 +22114,6 @@ func (this *ResourceActionParam) String() string {
 	}
 	s := strings.Join([]string{`&ResourceActionParam{`,
 		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
-		`Value:` + fmt.Sprintf("%v", this.Value) + `,`,
-		`Type:` + fmt.Sprintf("%v", this.Type) + `,`,
-		`Default:` + fmt.Sprintf("%v", this.Default) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -36079,56 +36105,6 @@ func (m *EnvEntry) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ErrApplicationNotAllowedToUseProject) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowGenerated
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: ErrApplicationNotAllowedToUseProject: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ErrApplicationNotAllowedToUseProject: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		default:
-			iNdEx = preIndex
-			skippy, err := skipGenerated(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
 func (m *ExecProviderConfig) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -39567,6 +39543,40 @@ func (m *KustomizeOptions) Unmarshal(dAtA []byte) error {
 			}
 			m.BinaryPath = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Versions", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Versions = append(m.Versions, KustomizeVersion{})
+			if err := m.Versions[len(m.Versions)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -40240,6 +40250,152 @@ func (m *KustomizeSelector) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.LabelSelector = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *KustomizeVersion) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: KustomizeVersion: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: KustomizeVersion: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Path", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Path = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BuildOptions", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.BuildOptions = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -48005,102 +48161,6 @@ func (m *ResourceActionParam) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Name = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Value", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Value = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Type", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Type = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 4:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Default", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGenerated
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthGenerated
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Default = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

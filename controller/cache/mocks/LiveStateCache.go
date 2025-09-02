@@ -471,69 +471,6 @@ func (_c *LiveStateCache_IsNamespaced_Call) RunAndReturn(run func(server *v1alph
 	return _c
 }
 
-// IterateHierarchy provides a mock function for the type LiveStateCache
-func (_mock *LiveStateCache) IterateHierarchy(server *v1alpha1.Cluster, key kube.ResourceKey, action func(child v1alpha1.ResourceNode, appName string) bool) error {
-	ret := _mock.Called(server, key, action)
-
-	if len(ret) == 0 {
-		panic("no return value specified for IterateHierarchy")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*v1alpha1.Cluster, kube.ResourceKey, func(child v1alpha1.ResourceNode, appName string) bool) error); ok {
-		r0 = returnFunc(server, key, action)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// LiveStateCache_IterateHierarchy_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IterateHierarchy'
-type LiveStateCache_IterateHierarchy_Call struct {
-	*mock.Call
-}
-
-// IterateHierarchy is a helper method to define mock.On call
-//   - server *v1alpha1.Cluster
-//   - key kube.ResourceKey
-//   - action func(child v1alpha1.ResourceNode, appName string) bool
-func (_e *LiveStateCache_Expecter) IterateHierarchy(server interface{}, key interface{}, action interface{}) *LiveStateCache_IterateHierarchy_Call {
-	return &LiveStateCache_IterateHierarchy_Call{Call: _e.mock.On("IterateHierarchy", server, key, action)}
-}
-
-func (_c *LiveStateCache_IterateHierarchy_Call) Run(run func(server *v1alpha1.Cluster, key kube.ResourceKey, action func(child v1alpha1.ResourceNode, appName string) bool)) *LiveStateCache_IterateHierarchy_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 *v1alpha1.Cluster
-		if args[0] != nil {
-			arg0 = args[0].(*v1alpha1.Cluster)
-		}
-		var arg1 kube.ResourceKey
-		if args[1] != nil {
-			arg1 = args[1].(kube.ResourceKey)
-		}
-		var arg2 func(child v1alpha1.ResourceNode, appName string) bool
-		if args[2] != nil {
-			arg2 = args[2].(func(child v1alpha1.ResourceNode, appName string) bool)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *LiveStateCache_IterateHierarchy_Call) Return(err error) *LiveStateCache_IterateHierarchy_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *LiveStateCache_IterateHierarchy_Call) RunAndReturn(run func(server *v1alpha1.Cluster, key kube.ResourceKey, action func(child v1alpha1.ResourceNode, appName string) bool) error) *LiveStateCache_IterateHierarchy_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // IterateHierarchyV2 provides a mock function for the type LiveStateCache
 func (_mock *LiveStateCache) IterateHierarchyV2(server *v1alpha1.Cluster, keys []kube.ResourceKey, action func(child v1alpha1.ResourceNode, appName string) bool) error {
 	ret := _mock.Called(server, keys, action)
