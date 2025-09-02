@@ -546,6 +546,11 @@ export const deletePopup = async (
 };
 
 export async function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
+    // Don't call API for missing resources
+    if (!resource.uid) {
+        return [];
+    }
+    
     return services.applications.getResourceActions(metadata.name, metadata.namespace, resource).then(actions => {
         return actions.map(action => ({
             title: action.displayName ?? action.name,
@@ -604,7 +609,7 @@ export async function getResourceActionsMenuItems(resource: ResourceTreeNode, me
                 return confirmed;
             }
         }));
-    });
+    }).catch(() => [] as ActionMenuItem[]);
 }
 
 function getActionItems(
@@ -692,7 +697,7 @@ function getActionItems(
 
     const resourceActions = getResourceActionsMenuItems(resource, application.metadata, apis);
 
-    const links = services.applications
+    const links = !resource.uid ? Promise.resolve([]) : services.applications
         .getResourceLinks(application.metadata.name, application.metadata.namespace, resource)
         .then(data => {
             return (data.items || []).map(
