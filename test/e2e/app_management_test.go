@@ -2998,7 +2998,6 @@ func TestInstallationID(t *testing.T) {
 }
 
 func TestDeletionConfirmation(t *testing.T) {
-	// TODO
 	ctx := Given(t)
 	ctx.And(func() {
 		_, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(
