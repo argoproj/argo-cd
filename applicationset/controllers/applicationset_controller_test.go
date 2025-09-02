@@ -7106,6 +7106,28 @@ func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 			enableProgressiveSyncs: false,
 			want:                   false,
 		},
+		{
+			name:      "deletionTimestamp present when progressive sync enabled",
+			appSetOld: buildAppSet(map[string]string{}),
+			appSetNew: &v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					DeletionTimestamp: &metav1.Time{Time: time.Now()},
+				},
+			},
+			enableProgressiveSyncs: true,
+			want:                   true,
+		},
+		{
+			name:      "deletionTimestamp present when progressive sync disabled",
+			appSetOld: buildAppSet(map[string]string{}),
+			appSetNew: &v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					DeletionTimestamp: &metav1.Time{Time: time.Now()},
+				},
+			},
+			enableProgressiveSyncs: false,
+			want:                   true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -7251,6 +7273,36 @@ func TestShouldRequeueForApplicationSet(t *testing.T) {
 					},
 				},
 				enableProgressiveSyncs: true,
+			},
+			want: true,
+		},
+		{
+			name: "ApplicationSetWithDeletionTimestamp",
+			args: args{
+				appSetOld: &v1alpha1.ApplicationSet{
+					Status: v1alpha1.ApplicationSetStatus{
+						ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+							{
+								Application: "app1",
+								Status:      "Healthy",
+							},
+						},
+					},
+				},
+				appSetNew: &v1alpha1.ApplicationSet{
+					ObjectMeta: metav1.ObjectMeta{
+						DeletionTimestamp: &metav1.Time{Time: time.Now()},
+					},
+					Status: v1alpha1.ApplicationSetStatus{
+						ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+							{
+								Application: "app1",
+								Status:      "Waiting",
+							},
+						},
+					},
+				},
+				enableProgressiveSyncs: false,
 			},
 			want: true,
 		},
@@ -7487,6 +7539,113 @@ func TestSyncApplication(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := syncApplication(tt.input, tt.prune)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestIsRollingSyncDeletionReversed(t *testing.T) {
+	tests := []struct {
+		name     string
+		appset   *v1alpha1.ApplicationSet
+		expected bool
+	}{
+		{
+			name: "Deletion Order on strategy is set as Reverse",
+			appset: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "environment",
+											Operator: "In",
+											Values: []string{
+												"dev",
+											},
+										},
+									},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "environment",
+											Operator: "In",
+											Values: []string{
+												"staging",
+											},
+										},
+									},
+								},
+							},
+						},
+						DeletionOrder: ReverseDeletionOrder,
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Deletion Order on strategy is set as AllAtOnce",
+			appset: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{},
+						},
+						DeletionOrder: AllAtOnceDeletionOrder,
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Deletion Order on strategy is set as Reverse but no steps in RollingSync",
+			appset: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{},
+						},
+						DeletionOrder: ReverseDeletionOrder,
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Deletion Order on strategy is set as Reverse, but AllAtOnce is explicitly set",
+			appset: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "AllAtOnce",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{},
+						},
+						DeletionOrder: ReverseDeletionOrder,
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Strategy is Nil",
+			appset: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{},
+				},
+			},
+			expected: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isProgressiveSyncDeletionOrderReversed(tt.appset)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

@@ -16,6 +16,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"runtime/debug"
@@ -67,11 +68,18 @@ const (
 	//   https://github.com/argoproj-labs/argocd-notifications/blob/33d345fa838829bb50fca5c08523aba380d2c12b/pkg/controller/state.go#L17
 	NotifiedAnnotationKey             = "notified.notifications.argoproj.io"
 	ReconcileRequeueOnValidationError = time.Minute * 3
+	ReverseDeletionOrder              = "Reverse"
+	AllAtOnceDeletionOrder            = "AllAtOnce"
 )
 
 var defaultPreservedAnnotations = []string{
 	NotifiedAnnotationKey,
 	argov1alpha1.AnnotationKeyRefresh,
+}
+
+type deleteInOrder struct {
+	AppName string
+	Step    int
 }
 
 // ApplicationSetReconciler reconciles a ApplicationSet object
@@ -138,6 +146,19 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				return ctrl.Result{}, err
 			}
 			logCtx.Debugf("ownerReferences referring %s is deleted from generated applications", appsetName)
+		}
+		if isProgressiveSyncDeletionOrderReversed(&applicationSetInfo) {
+			logCtx.Debugf("DeletionOrder is set as Reverse on %s", appsetName)
+			currentApplications, err := r.getCurrentApplications(ctx, applicationSetInfo)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			requeueTime, err := r.performReverseDeletion(ctx, logCtx, applicationSetInfo, currentApplications)
+			if err != nil {
+				return ctrl.Result{}, err
+			} else if requeueTime > 0 {
+				return ctrl.Result{RequeueAfter: requeueTime}, err
+			}
 		}
 		controllerutil.RemoveFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
 		if err := r.Update(ctx, &applicationSetInfo); err != nil {
@@ -361,6 +382,55 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	return ctrl.Result{
 		RequeueAfter: requeueAfter,
 	}, nil
+}
+
+func (r *ApplicationSetReconciler) performReverseDeletion(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, currentApps []argov1alpha1.Application) (time.Duration, error) {
+	requeueTime := 10 * time.Second
+	stepLength := len(appset.Spec.Strategy.RollingSync.Steps)
+
+	// map applications by name using current applications
+	appMap := make(map[string]*argov1alpha1.Application)
+	for _, app := range currentApps {
+		appMap[app.Name] = &app
+	}
+
+	// Get Rolling Sync Step Maps
+	_, appStepMap := r.buildAppDependencyList(logCtx, appset, currentApps)
+	// reverse the AppStepMap to perform deletion
+	var reverseDeleteAppSteps []deleteInOrder
+	for appName, appStep := range appStepMap {
+		reverseDeleteAppSteps = append(reverseDeleteAppSteps, deleteInOrder{appName, stepLength - appStep - 1})
+	}
+
+	sort.Slice(reverseDeleteAppSteps, func(i, j int) bool {
+		return reverseDeleteAppSteps[i].Step < reverseDeleteAppSteps[j].Step
+	})
+
+	for _, step := range reverseDeleteAppSteps {
+		logCtx.Infof("step %v : app %v", step.Step, step.AppName)
+		app := appMap[step.AppName]
+		retrievedApp := argov1alpha1.Application{}
+		if err := r.Get(ctx, types.NamespacedName{Name: app.Name, Namespace: app.Namespace}, &retrievedApp); err != nil {
+			if apierrors.IsNotFound(err) {
+				logCtx.Infof("application %s successfully deleted", step.AppName)
+				continue
+			}
+		}
+		// Check if the application is already being deleted
+		if retrievedApp.DeletionTimestamp != nil {
+			logCtx.Infof("application %s has been marked for deletion, but object not removed yet", step.AppName)
+			if time.Since(retrievedApp.DeletionTimestamp.Time) > 2*time.Minute {
+				return 0, errors.New("application has not been deleted in over 2 minutes")
+			}
+		}
+		// The application has not been deleted yet, trigger its deletion
+		if err := r.Delete(ctx, &retrievedApp); err != nil {
+			return 0, err
+		}
+		return requeueTime, nil
+	}
+	logCtx.Infof("completed reverse deletion for ApplicationSet %v", appset.Name)
+	return 0, nil
 }
 
 func getParametersGeneratedCondition(parametersGenerated bool, message string) argov1alpha1.ApplicationSetCondition {
@@ -738,7 +808,7 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 		return fmt.Errorf("error getting current applications: %w", err)
 	}
 
-	m := make(map[string]bool) // Will holds the app names in appList for the deletion process
+	m := make(map[string]bool) // will hold the app names in appList for the deletion process
 
 	for _, app := range desiredApplications {
 		m[app.Name] = true
@@ -1017,6 +1087,11 @@ func progressiveSyncsRollingSyncStrategyEnabled(appset *argov1alpha1.Application
 	return isRollingSyncStrategy(appset) && len(appset.Spec.Strategy.RollingSync.Steps) > 0
 }
 
+func isProgressiveSyncDeletionOrderReversed(appset *argov1alpha1.ApplicationSet) bool {
+	// When progressive sync is enabled + deletionOrder is set to Reverse (case-insensitive)
+	return progressiveSyncsRollingSyncStrategyEnabled(appset) && strings.EqualFold(appset.Spec.Strategy.DeletionOrder, ReverseDeletionOrder)
+}
+
 func isApplicationHealthy(app argov1alpha1.Application) bool {
 	healthStatusString, syncStatusString, operationPhaseString := statusStrings(app)
 
@@ -1146,15 +1221,10 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 
 	// if we have no RollingUpdate steps, clear out the existing ApplicationStatus entries
 	if progressiveSyncsRollingSyncStrategyEnabled(applicationSet) {
-		updateCountMap := []int{}
-		totalCountMap := []int{}
-
 		length := len(applicationSet.Spec.Strategy.RollingSync.Steps)
 
-		for s := 0; s < length; s++ {
-			updateCountMap = append(updateCountMap, 0)
-			totalCountMap = append(totalCountMap, 0)
-		}
+		updateCountMap := make([]int, length)
+		totalCountMap := make([]int, length)
 
 		// populate updateCountMap with counts of existing Pending and Progressing Applications
 		for _, appStatus := range applicationSet.Status.ApplicationStatus {
@@ -1363,17 +1433,37 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 	needToUpdateStatus := false
 
 	if len(applicationStatuses) != len(applicationSet.Status.ApplicationStatus) {
+		logCtx.WithFields(log.Fields{
+			"current_count":  len(applicationSet.Status.ApplicationStatus),
+			"expected_count": len(applicationStatuses),
+		}).Debug("application status count changed")
 		needToUpdateStatus = true
 	} else {
 		for i := range applicationStatuses {
 			appStatus := applicationStatuses[i]
 			idx := findApplicationStatusIndex(applicationSet.Status.ApplicationStatus, appStatus.Application)
 			if idx == -1 {
+				logCtx.WithFields(log.Fields{"application": appStatus.Application}).Debug("application not found in current status")
 				needToUpdateStatus = true
 				break
 			}
 			currentStatus := applicationSet.Status.ApplicationStatus[idx]
-			if currentStatus.Message != appStatus.Message || currentStatus.Status != appStatus.Status || currentStatus.Step != appStatus.Step {
+			statusChanged := currentStatus.Status != appStatus.Status
+			stepChanged := currentStatus.Step != appStatus.Step
+			messageChanged := currentStatus.Message != appStatus.Message
+
+			if statusChanged || stepChanged || messageChanged {
+				if statusChanged {
+					logCtx.WithFields(log.Fields{"application": appStatus.Application, "previous_status": currentStatus.Status, "new_status": appStatus.Status}).
+						Debug("application status changed")
+				}
+				if stepChanged {
+					logCtx.WithFields(log.Fields{"application": appStatus.Application, "previous_step": currentStatus.Step, "new_step": appStatus.Step}).
+						Debug("application step changed")
+				}
+				if messageChanged {
+					logCtx.WithFields(log.Fields{"application": appStatus.Application}).Debug("application message changed")
+				}
 				needToUpdateStatus = true
 				break
 			}
@@ -1632,14 +1722,15 @@ func shouldRequeueForApplicationSet(appSetOld, appSetNew *argov1alpha1.Applicati
 		}
 	}
 
-	// only compare the applicationset spec, annotations, labels and finalizers, specifically avoiding
+	// only compare the applicationset spec, annotations, labels and finalizers, deletionTimestamp, specifically avoiding
 	// the status field. status is owned by the applicationset controller,
 	// and we do not need to requeue when it does bookkeeping
 	// NB: the ApplicationDestination comes from the ApplicationSpec being embedded
 	// in the ApplicationSetTemplate from the generators
 	if !cmp.Equal(appSetOld.Spec, appSetNew.Spec, cmpopts.EquateEmpty(), cmpopts.EquateComparable(argov1alpha1.ApplicationDestination{})) ||
 		!cmp.Equal(appSetOld.GetLabels(), appSetNew.GetLabels(), cmpopts.EquateEmpty()) ||
-		!cmp.Equal(appSetOld.GetFinalizers(), appSetNew.GetFinalizers(), cmpopts.EquateEmpty()) {
+		!cmp.Equal(appSetOld.GetFinalizers(), appSetNew.GetFinalizers(), cmpopts.EquateEmpty()) ||
+		!cmp.Equal(appSetOld.DeletionTimestamp, appSetNew.DeletionTimestamp, cmpopts.EquateEmpty()) {
 		return true
 	}
 
