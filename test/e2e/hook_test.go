@@ -652,11 +652,18 @@ spec:
 				return p.GetName() == name
 			}),
 			Pod(func(p corev1.Pod) bool {
-				// Completed hooks should not have a finalizer
 				_, isHook := p.GetAnnotations()[AnnotationKeyHook]
 				hasFinalizer := controllerutil.ContainsFinalizer(&p, hook.HookFinalizer)
 				return p.GetName() == name && isHook && !hasFinalizer && p.GetDeletionTimestamp() != nil
 			}))
+	}
+
+	podWithoutFinalizer := func(name string) Expectation {
+		return Pod(func(p corev1.Pod) bool {
+			_, isHook := p.GetAnnotations()[AnnotationKeyHook]
+			hasFinalizer := controllerutil.ContainsFinalizer(&p, hook.HookFinalizer)
+			return p.GetName() == name && isHook && !hasFinalizer
+		})
 	}
 
 	Given(t).
@@ -688,5 +695,8 @@ spec:
 		// terminated hooks finalizer is removed and are deleted successfully
 		Expect(podDeletedOrTerminatingWithoutFinalizer("running-delete-on-success")).
 		Expect(podDeletedOrTerminatingWithoutFinalizer("running-delete-on-create")).
-		Expect(podDeletedOrTerminatingWithoutFinalizer("running-delete-on-failed"))
+		Expect(podDeletedOrTerminatingWithoutFinalizer("running-delete-on-failed")).
+		Expect(podWithoutFinalizer("complete-delete-on-success")).
+		Expect(podWithoutFinalizer("complete-delete-on-create")).
+		Expect(podWithoutFinalizer("complete-delete-on-failed"))
 }

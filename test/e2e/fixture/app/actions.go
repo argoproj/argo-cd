@@ -437,9 +437,7 @@ func (a *Actions) Sync(args ...string) *Actions {
 
 func (a *Actions) ConfirmDeletion() *Actions {
 	a.context.t.Helper()
-
 	a.runCli("app", "confirm-deletion", a.context.AppQualifiedName())
-
 	return a
 }
 

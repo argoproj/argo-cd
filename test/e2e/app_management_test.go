@@ -3027,6 +3027,9 @@ func TestDeletionConfirmation(t *testing.T) {
 		ConfirmDeletion().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
+		Given().
+		// Make sure to sleep a bit so the existing confirmed pruning annotation is after the deletion request
+		Sleep(3).
 		When().
 		Delete(true).
 		Then().
