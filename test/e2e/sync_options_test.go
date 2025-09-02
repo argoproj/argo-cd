@@ -14,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/v3/util/errors"
@@ -202,7 +201,7 @@ func TestSyncWithSkipHook(t *testing.T) {
 func TestSyncWithForceReplace(t *testing.T) {
 	t.Cleanup(func() {
 		// remove finalizer to ensure easy cleanup
-		_, err := Run("", "kubectl", "patch", "deployment", "guestbook-ui", "-n", fixture.DeploymentNamespace(), "-p", `{"metadata":{"finalizers":[]}}`, "--type=merge")
+		_, err := Run("", "kubectl", "patch", "deployment", "guestbook-ui", "-n", DeploymentNamespace(), "-p", `{"metadata":{"finalizers":[]}}`, "--type=merge")
 		require.NoError(t, err)
 	})
 
@@ -217,7 +216,7 @@ func TestSyncWithForceReplace(t *testing.T) {
 		// The finalizers allow us to validate that the existing resource (no finalizers) is just deleted once
 		// and does not get stuck in terminating state
 		When().
-		PatchFile("guestbook-ui-deployment.yaml", fmt.Sprintf(`[{ "op": "add", "path": "/metadata/finalizers", "value": ["%s"]}]`, TestFinalizer)).
+		PatchFile("guestbook-ui-deployment.yaml", fmt.Sprintf(`[{ "op": "add", "path": "/metadata/finalizers", "value": [%q]}]`, TestFinalizer)).
 		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "add", "path": "/metadata/annotations", "value": { "argocd.argoproj.io/sync-options": "Force=true,Replace=true" }}]`).
 		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "add", "path": "/spec/selector/matchLabels/env", "value": "e2e" }, { "op": "add", "path": "/spec/template/metadata/labels/env", "value": "e2e" }]`).
 		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 2 }]`).
