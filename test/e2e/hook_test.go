@@ -104,13 +104,12 @@ func TestPreSyncHookFailure(t *testing.T) {
 		IgnoreErrors().
 		Sync().
 		Then().
-		Expect(Error("hook    Failed   Synced     PreSync  container \"main\" failed", "")).
-		// make sure resource are also printed
-		Expect(Error("pod  OutOfSync  Missing", "")).
-		Expect(OperationPhaseIs(OperationFailed)).
 		// if a pre-sync hook fails, we should not start the main sync
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(ResourceResultNumbering(1)).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Name: "hook", Status: ResultCodeSynced, Message: `container "main" failed with exit code 1`, HookType: HookTypePreSync, HookPhase: OperationFailed, SyncPhase: SyncPhase(HookTypePreSync)})).
+		Expect(ResourceHealthIs("Pod", "pod", health.HealthStatusMissing)).
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeOutOfSync)).
 		Expect(Pod(func(p corev1.Pod) bool {
 			// Completed hooks should not have a finalizer
