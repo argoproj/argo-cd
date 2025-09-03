@@ -81,6 +81,59 @@ func (_c *Dependencies_AddHydrationQueueItem_Call) RunAndReturn(run func(key typ
 	return _c
 }
 
+// GetHydratorCommitMessageTemplate provides a mock function for the type Dependencies
+func (_mock *Dependencies) GetHydratorCommitMessageTemplate() (string, error) {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetHydratorCommitMessageTemplate")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func() (string, error)); ok {
+		return returnFunc()
+	}
+	if returnFunc, ok := ret.Get(0).(func() string); ok {
+		r0 = returnFunc()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func() error); ok {
+		r1 = returnFunc()
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Dependencies_GetHydratorCommitMessageTemplate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetHydratorCommitMessageTemplate'
+type Dependencies_GetHydratorCommitMessageTemplate_Call struct {
+	*mock.Call
+}
+
+// GetHydratorCommitMessageTemplate is a helper method to define mock.On call
+func (_e *Dependencies_Expecter) GetHydratorCommitMessageTemplate() *Dependencies_GetHydratorCommitMessageTemplate_Call {
+	return &Dependencies_GetHydratorCommitMessageTemplate_Call{Call: _e.mock.On("GetHydratorCommitMessageTemplate")}
+}
+
+func (_c *Dependencies_GetHydratorCommitMessageTemplate_Call) Run(run func()) *Dependencies_GetHydratorCommitMessageTemplate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Dependencies_GetHydratorCommitMessageTemplate_Call) Return(s string, err error) *Dependencies_GetHydratorCommitMessageTemplate_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Dependencies_GetHydratorCommitMessageTemplate_Call) RunAndReturn(run func() (string, error)) *Dependencies_GetHydratorCommitMessageTemplate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetProcessableAppProj provides a mock function for the type Dependencies
 func (_mock *Dependencies) GetProcessableAppProj(app *v1alpha1.Application) (*v1alpha1.AppProject, error) {
 	ret := _mock.Called(app)
