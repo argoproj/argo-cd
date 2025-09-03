@@ -9,16 +9,129 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
+	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/hydrator"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/kube"
 )
+
+// isResourceNamespaced determines if a resource is namespace-scoped based on its GroupVersionKind
+func isResourceNamespaced(gvk schema.GroupVersionKind) bool {
+	// Well-known cluster-scoped resources
+	clusterScopedResources := map[string]map[string]bool{
+		"": {
+			"Node":               true,
+			"Namespace":          true,
+			"PersistentVolume":   true,
+			"ClusterRole":        true,
+			"ClusterRoleBinding": true,
+			"StorageClass":       true,
+			"VolumeAttachment":   true,
+			"CSIDriver":          true,
+			"CSINode":            true,
+			"RuntimeClass":       true,
+			"PriorityClass":      true,
+			"IngressClass":       true,
+			"ValidatingAdmissionWebhookConfiguration": true,
+			"MutatingAdmissionWebhookConfiguration":   true,
+		},
+		"apiextensions.k8s.io": {
+			"CustomResourceDefinition": true,
+		},
+		"rbac.authorization.k8s.io": {
+			"ClusterRole":        true,
+			"ClusterRoleBinding": true,
+		},
+		"admissionregistration.k8s.io": {
+			"ValidatingAdmissionWebhook": true,
+			"MutatingAdmissionWebhook":   true,
+		},
+		"storage.k8s.io": {
+			"StorageClass":     true,
+			"VolumeAttachment": true,
+			"CSIDriver":        true,
+			"CSINode":          true,
+		},
+		"node.k8s.io": {
+			"RuntimeClass": true,
+		},
+		"scheduling.k8s.io": {
+			"PriorityClass": true,
+		},
+		"networking.k8s.io": {
+			"IngressClass": true,
+		},
+	}
+
+	if groupMap, exists := clusterScopedResources[gvk.Group]; exists {
+		if _, isClusterScoped := groupMap[gvk.Kind]; isClusterScoped {
+			return false // cluster-scoped
+		}
+	}
+
+	return true
+}
+
+// normalizeNamespaceAndTracking handles namespace scoping and tracking ID generation for manifests
+func normalizeNamespaceAndTracking(objs []*unstructured.Unstructured, app *appv1.Application, logCtx *log.Entry) {
+	resourceTracking := argo.NewResourceTracking()
+
+	for _, obj := range objs {
+		if obj == nil {
+			continue
+		}
+
+		gvk := obj.GroupVersionKind()
+		logCtx.WithField("app", app.QualifiedName()).Debugf("Processing resource: %s", gvk.String())
+
+		// Ensure we have valid kind
+		if gvk.Kind == "" {
+			logCtx.WithField("app", app.QualifiedName()).Warnf("Skipping object with empty kind, GVK: %s", gvk.String())
+			continue
+		}
+
+		// Determine if resource is namespace-scoped
+		isNamespaced := isResourceNamespaced(gvk)
+		logCtx.WithField("app", app.QualifiedName()).Debugf("Resource %s/%s isNamespaced: %t", gvk.Kind, obj.GetName(), isNamespaced)
+
+		currentNamespace := obj.GetNamespace()
+		appNamespace := app.Spec.Destination.Namespace
+
+		if isNamespaced {
+			// Resource is namespace-scoped
+			if currentNamespace == "" && appNamespace != "" {
+				// No namespace present, assign application's namespace
+				obj.SetNamespace(appNamespace)
+				logCtx.WithField("app", app.QualifiedName()).Debugf("Assigned namespace %s to namespace-scoped resource %s/%s", appNamespace, gvk.Kind, obj.GetName())
+			}
+		} else {
+			// Resource is cluster-scoped
+			if currentNamespace != "" {
+				// Namespace present on cluster-scoped resource, clear it
+				obj.SetNamespace("")
+				logCtx.WithField("app", app.QualifiedName()).Debugf("Cleared namespace from cluster-scoped resource %s/%s", gvk.Kind, obj.GetName())
+			}
+		}
+
+		// Add tracking annotation for the resource
+		appInstanceValue := argo.UnstructuredToAppInstanceValue(obj, app.Name, app.Spec.Destination.Namespace)
+		trackingID := resourceTracking.BuildAppInstanceValue(appInstanceValue)
+		err := kube.SetAppInstanceAnnotation(obj, "argocd.argoproj.io/tracking-id", trackingID)
+		if err != nil {
+			logCtx.WithField("app", app.QualifiedName()).Warnf("Failed to set tracking annotation on %s/%s: %v", gvk.Kind, obj.GetName(), err)
+		} else {
+			logCtx.WithField("app", app.QualifiedName()).Debugf("Set tracking annotation on %s/%s", gvk.Kind, obj.GetName())
+		}
+	}
+}
 
 // RepoGetter is an interface that defines methods for getting repository objects. It's a subset of the DB interface to
 // avoid granting access to things we don't need.
@@ -296,6 +409,12 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 		if err != nil {
 			return "", "", fmt.Errorf("failed to get repo objects for app %q: %w", app.QualifiedName(), err)
 		}
+
+		// Log the manifests count for debugging
+		logCtx.WithField("app", app.QualifiedName()).Infof("Retrieved %d manifests for app", len(objs))
+
+		// Process each manifest for namespace handling and tracking ID generation
+		normalizeNamespaceAndTracking(objs, app, logCtx)
 
 		// This should be the DRY SHA. We set it here so that after processing the first app, all apps are hydrated
 		// using the same SHA.
