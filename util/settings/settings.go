@@ -1604,66 +1604,10 @@ func (mgr *SettingsManager) loadTLSCertificateFromSecret(secret *corev1.Secret) 
 	return &cert, nil
 }
 
-// SaveSettings serializes ArgoCDSettings and upserts it into K8s secret/configmap
-func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
-	err := mgr.updateConfigMap(func(argoCDCM *corev1.ConfigMap) error {
-		if settings.URL != "" {
-			argoCDCM.Data[settingURLKey] = settings.URL
-		} else {
-			delete(argoCDCM.Data, settingURLKey)
-		}
-		if settings.DexConfig != "" {
-			argoCDCM.Data[settingDexConfigKey] = settings.DexConfig
-		} else {
-			delete(argoCDCM.Data, settings.DexConfig)
-		}
-		if settings.OIDCConfigRAW != "" {
-			argoCDCM.Data[settingsOIDCConfigKey] = settings.OIDCConfigRAW
-		} else {
-			delete(argoCDCM.Data, settingsOIDCConfigKey)
-		}
-		if settings.UiCssURL != "" {
-			argoCDCM.Data[settingUICSSURLKey] = settings.UiCssURL
-		}
-		if settings.UiBannerContent != "" {
-			argoCDCM.Data[settingUIBannerContentKey] = settings.UiBannerContent
-		} else {
-			delete(argoCDCM.Data, settingUIBannerContentKey)
-		}
-		if settings.UiBannerURL != "" {
-			argoCDCM.Data[settingUIBannerURLKey] = settings.UiBannerURL
-		} else {
-			delete(argoCDCM.Data, settingUIBannerURLKey)
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
+// saveSignatureAndCertificate serializes the server Signature and Certificate ArgoCDSettings and upserts it into the secret
+func (mgr *SettingsManager) saveSignatureAndCertificate(settings *ArgoCDSettings) error {
 	return mgr.updateSecret(func(argoCDSecret *corev1.Secret) error {
 		argoCDSecret.Data[settingServerSignatureKey] = settings.ServerSignature
-		if settings.WebhookGitHubSecret != "" {
-			argoCDSecret.Data[settingsWebhookGitHubSecretKey] = []byte(settings.WebhookGitHubSecret)
-		}
-		if settings.WebhookGitLabSecret != "" {
-			argoCDSecret.Data[settingsWebhookGitLabSecretKey] = []byte(settings.WebhookGitLabSecret)
-		}
-		if settings.WebhookBitbucketUUID != "" {
-			argoCDSecret.Data[settingsWebhookBitbucketUUIDKey] = []byte(settings.WebhookBitbucketUUID)
-		}
-		if settings.WebhookBitbucketServerSecret != "" {
-			argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey] = []byte(settings.WebhookBitbucketServerSecret)
-		}
-		if settings.WebhookGogsSecret != "" {
-			argoCDSecret.Data[settingsWebhookGogsSecretKey] = []byte(settings.WebhookGogsSecret)
-		}
-		if settings.WebhookAzureDevOpsUsername != "" {
-			argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey] = []byte(settings.WebhookAzureDevOpsUsername)
-		}
-		if settings.WebhookAzureDevOpsPassword != "" {
-			argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey] = []byte(settings.WebhookAzureDevOpsPassword)
-		}
 		// we only write the certificate to the secret if it's not externally
 		// managed.
 		if settings.Certificate != nil && !settings.CertificateIsExternal {
@@ -2123,24 +2067,7 @@ func isIncompleteSettingsError(err error) bool {
 // InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
 func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoCDSettings, error) {
 	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
-
-	cdSettings, err := mgr.GetSettings()
-	if err != nil && !isIncompleteSettingsError(err) {
-		return nil, err
-	}
-	if cdSettings == nil {
-		cdSettings = &ArgoCDSettings{}
-	}
-	if cdSettings.ServerSignature == nil {
-		// set JWT signature
-		signature, err := util.MakeSignature(32)
-		if err != nil {
-			return nil, fmt.Errorf("error setting JWT signature: %w", err)
-		}
-		cdSettings.ServerSignature = signature
-		log.Info("Initialized server signature")
-	}
-	err = mgr.UpdateAccount(common.ArgoCDAdminUsername, func(adminAccount *Account) error {
+	err := mgr.UpdateAccount(common.ArgoCDAdminUsername, func(adminAccount *Account) error {
 		if adminAccount.Enabled {
 			now := time.Now().UTC()
 			if adminAccount.PasswordHash == "" {
@@ -2180,6 +2107,23 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		return nil, err
 	}
 
+	cdSettings, err := mgr.GetSettings()
+	if err != nil && !isIncompleteSettingsError(err) {
+		return nil, err
+	}
+	if cdSettings == nil {
+		cdSettings = &ArgoCDSettings{}
+	}
+	if cdSettings.ServerSignature == nil {
+		// set JWT signature
+		signature, err := util.MakeSignature(32)
+		if err != nil {
+			return nil, fmt.Errorf("error setting JWT signature: %w", err)
+		}
+		cdSettings.ServerSignature = signature
+		log.Info("Initialized server signature")
+	}
+
 	if cdSettings.Certificate == nil && !insecureModeEnabled {
 		// generate TLS cert
 		hosts := []string{
@@ -2202,7 +2146,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		log.Info("Initialized TLS certificate")
 	}
 
-	err = mgr.SaveSettings(cdSettings)
+	err = mgr.saveSignatureAndCertificate(cdSettings)
 	if apierrors.IsConflict(err) {
 		// assume settings are initialized by another instance of api server
 		log.Warnf("conflict when initializing settings. assuming updated by another replica")

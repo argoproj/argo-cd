@@ -1532,7 +1532,7 @@ type SyncPolicyAutomated struct {
 	// AllowEmpty allows apps have zero live resources (default: false)
 	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
 	// Enable allows apps to explicitly control automated sync
-	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,4,opt,name=enable"`
+	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,4,opt,name=enabled"`
 }
 
 // SyncStrategy controls the manner in which a sync is performed
