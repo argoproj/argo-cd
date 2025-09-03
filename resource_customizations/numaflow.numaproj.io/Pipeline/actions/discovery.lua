@@ -19,28 +19,42 @@ actions["force-promote"] = {
   ["iconClass"] = "fa-solid fa-fw fa-forward"
 }
 
--- pause/unpause
-local paused = false
-if obj.spec.lifecycle ~= nil and obj.spec.lifecycle.desiredPhase ~= nil and obj.spec.lifecycle.desiredPhase == "Paused" then
-  paused = true
+function isChild(obj)
+  if obj.metadata ~= nil and obj.metadata.ownerReferences ~= nil then
+    for i, ownerRef in ipairs(obj.metadata.ownerReferences) do
+      if ownerRef["kind"] == "PipelineRollout" then
+        return true
+      end
+    end
+    return false
+  end
+  return false
 end
-if paused then
-  if obj.spec.metadata ~= nil and  obj.spec.metadata.annotations ~= nil and obj.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] ~= nil then
-    -- determine which unpausing strategies will be enabled
-    -- if annotation not found, default will be resume slow
-    if obj.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] == "fast" then
-      actions["unpause-fast"]["disabled"] = false
-    elseif obj.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] == "slow, fast" then
-      actions["unpause-gradual"]["disabled"] = false
-      actions["unpause-fast"]["disabled"] = false
+
+-- pause/unpause
+if isChild(obj) == false then
+  local paused = false
+  if obj.spec.lifecycle ~= nil and obj.spec.lifecycle.desiredPhase ~= nil and obj.spec.lifecycle.desiredPhase == "Paused" then
+    paused = true
+  end
+  if paused then
+    if obj.spec.metadata ~= nil and  obj.spec.metadata.annotations ~= nil and obj.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] ~= nil then
+      -- determine which unpausing strategies will be enabled
+      -- if annotation not found, default will be resume slow
+      if obj.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] == "fast" then
+        actions["unpause-fast"]["disabled"] = false
+      elseif obj.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] == "slow, fast" then
+        actions["unpause-gradual"]["disabled"] = false
+        actions["unpause-fast"]["disabled"] = false
+      else
+        actions["unpause-gradual"]["disabled"] = false
+      end
     else
       actions["unpause-gradual"]["disabled"] = false
     end
   else
-    actions["unpause-gradual"]["disabled"] = false
+    actions["pause"]["disabled"] = false
   end
-else
-  actions["pause"]["disabled"] = false
 end
 
 -- force-promote
