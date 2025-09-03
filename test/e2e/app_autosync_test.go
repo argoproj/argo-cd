@@ -94,7 +94,7 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 		})
 }
 
-func TestAutoSyncSelfHealRetryAndRefreshEnabled(t *testing.T) {
+func TestAutoSyncRetryAndRefreshEnabled(t *testing.T) {
 	limits := []int64{
 		100, // Repeat enough times to see we move on to 3rd commit without reaching the limit
 		-1,  // Repeat forever
@@ -107,9 +107,7 @@ func TestAutoSyncSelfHealRetryAndRefreshEnabled(t *testing.T) {
 			// Correctly configured app should be auto-synced once created
 			CreateFromFile(func(app *Application) {
 				app.Spec.SyncPolicy = &SyncPolicy{
-					Automated: &SyncPolicyAutomated{
-						SelfHeal: true,
-					},
+					Automated: &SyncPolicyAutomated{},
 					Retry: &RetryStrategy{
 						Limit:   limit,
 						Refresh: true,
@@ -127,15 +125,14 @@ func TestAutoSyncSelfHealRetryAndRefreshEnabled(t *testing.T) {
 			Then().
 			Expect(OperationPhaseIs(OperationRunning)).
 			Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-			Expect(OperationMessageContains("Retrying attempt #1")).
+			Expect(OperationRetriedTimes(1)).
 			// Wait to make sure the condition is consistent
 			And(func(_ *Application) {
 				time.Sleep(10 * time.Second)
 			}).
 			Expect(OperationPhaseIs(OperationRunning)).
 			Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-			Expect(OperationMessageContains("Retrying attempt #2")).
-
+			Expect(OperationRetriedTimes(2)).
 			// Push fix commit and see the app pick it up
 			When().
 			// Fix declaration
