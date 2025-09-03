@@ -90,12 +90,12 @@ func (_c *UserGetter_GetGroups_Call) RunAndReturn(run func(ctx context.Context) 
 	return _c
 }
 
-// GetUser provides a mock function for the type UserGetter
-func (_mock *UserGetter) GetUser(ctx context.Context) string {
+// GetUserId provides a mock function for the type UserGetter
+func (_mock *UserGetter) GetUserId(ctx context.Context) string {
 	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetUser")
+		panic("no return value specified for GetUserId")
 	}
 
 	var r0 string
@@ -107,18 +107,18 @@ func (_mock *UserGetter) GetUser(ctx context.Context) string {
 	return r0
 }
 
-// UserGetter_GetUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetUser'
-type UserGetter_GetUser_Call struct {
+// UserGetter_GetUserId_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetUserId'
+type UserGetter_GetUserId_Call struct {
 	*mock.Call
 }
 
-// GetUser is a helper method to define mock.On call
+// GetUserId is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *UserGetter_Expecter) GetUser(ctx interface{}) *UserGetter_GetUser_Call {
-	return &UserGetter_GetUser_Call{Call: _e.mock.On("GetUser", ctx)}
+func (_e *UserGetter_Expecter) GetUserId(ctx interface{}) *UserGetter_GetUserId_Call {
+	return &UserGetter_GetUserId_Call{Call: _e.mock.On("GetUserId", ctx)}
 }
 
-func (_c *UserGetter_GetUser_Call) Run(run func(ctx context.Context)) *UserGetter_GetUser_Call {
+func (_c *UserGetter_GetUserId_Call) Run(run func(ctx context.Context)) *UserGetter_GetUserId_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -131,12 +131,63 @@ func (_c *UserGetter_GetUser_Call) Run(run func(ctx context.Context)) *UserGette
 	return _c
 }
 
-func (_c *UserGetter_GetUser_Call) Return(s string) *UserGetter_GetUser_Call {
+func (_c *UserGetter_GetUserId_Call) Return(s string) *UserGetter_GetUserId_Call {
 	_c.Call.Return(s)
 	return _c
 }
 
-func (_c *UserGetter_GetUser_Call) RunAndReturn(run func(ctx context.Context) string) *UserGetter_GetUser_Call {
+func (_c *UserGetter_GetUserId_Call) RunAndReturn(run func(ctx context.Context) string) *UserGetter_GetUserId_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetUsername provides a mock function for the type UserGetter
+func (_mock *UserGetter) GetUsername(ctx context.Context) string {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetUsername")
+	}
+
+	var r0 string
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	return r0
+}
+
+// UserGetter_GetUsername_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetUsername'
+type UserGetter_GetUsername_Call struct {
+	*mock.Call
+}
+
+// GetUsername is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *UserGetter_Expecter) GetUsername(ctx interface{}) *UserGetter_GetUsername_Call {
+	return &UserGetter_GetUsername_Call{Call: _e.mock.On("GetUsername", ctx)}
+}
+
+func (_c *UserGetter_GetUsername_Call) Run(run func(ctx context.Context)) *UserGetter_GetUsername_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *UserGetter_GetUsername_Call) Return(s string) *UserGetter_GetUsername_Call {
+	_c.Call.Return(s)
+	return _c
+}
+
+func (_c *UserGetter_GetUsername_Call) RunAndReturn(run func(ctx context.Context) string) *UserGetter_GetUsername_Call {
 	_c.Call.Return(run)
 	return _c
 }
