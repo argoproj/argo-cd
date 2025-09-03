@@ -405,13 +405,13 @@ func addInvalidGeneratorNames(names map[string]bool, applicationSetInfo *argoapp
 
 	spec, ok := values["spec"].(map[string]any)
 	if !ok {
-		log.Warn("coundn't get spec from kubectl.kubernetes.io/last-applied-configuration annotation")
+		log.Warn("couldn't get spec from kubectl.kubernetes.io/last-applied-configuration annotation")
 		return
 	}
 
 	generators, ok := spec["generators"].([]any)
 	if !ok {
-		log.Warn("coundn't get generators from kubectl.kubernetes.io/last-applied-configuration annotation")
+		log.Warn("couldn't get generators from kubectl.kubernetes.io/last-applied-configuration annotation")
 		return
 	}
 
@@ -422,7 +422,7 @@ func addInvalidGeneratorNames(names map[string]bool, applicationSetInfo *argoapp
 
 	generator, ok := generators[index].(map[string]any)
 	if !ok {
-		log.Warn("coundn't get generator from kubectl.kubernetes.io/last-applied-configuration annotation")
+		log.Warn("couldn't get generator from kubectl.kubernetes.io/last-applied-configuration annotation")
 		return
 	}
 

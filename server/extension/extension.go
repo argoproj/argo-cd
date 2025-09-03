@@ -74,9 +74,13 @@ const (
 	// handler.
 	HeaderArgoCDTargetClusterName = "Argocd-Target-Cluster-Name"
 
-	// HeaderArgoCDUsername is the header name that defines the logged
+	// HeaderArgoCDUsername is the header name that defines the username of the logged
 	// in user authenticated by Argo CD.
 	HeaderArgoCDUsername = "Argocd-Username"
+
+	// HeaderArgoCDUserId is the header name that defines the internal user id of the logged
+	// in user authenticated by Argo CD.
+	HeaderArgoCDUserId = "Argocd-User-Id"
 
 	// HeaderArgoCDGroups is the header name that provides the 'groups'
 	// claim from the users authenticated in Argo CD.
@@ -284,7 +288,8 @@ func (p *DefaultProjectGetter) GetClusters(project string) ([]*v1alpha1.Cluster,
 
 // UserGetter defines the contract to retrieve info from the logged in user.
 type UserGetter interface {
-	GetUser(ctx context.Context) string
+	GetUserId(ctx context.Context) string
+	GetUsername(ctx context.Context) string
 	GetGroups(ctx context.Context) []string
 }
 
@@ -300,9 +305,14 @@ func NewDefaultUserGetter(policyEnf *rbacpolicy.RBACPolicyEnforcer) *DefaultUser
 	}
 }
 
-// GetUser will return the current logged in user
-func (u *DefaultUserGetter) GetUser(ctx context.Context) string {
+// GetUsername will return the username of the current logged in user
+func (u *DefaultUserGetter) GetUsername(ctx context.Context) string {
 	return session.Username(ctx)
+}
+
+// GetUserId will return the user id of the current logged in user
+func (u *DefaultUserGetter) GetUserId(ctx context.Context) string {
+	return session.GetUserIdentifier(ctx)
 }
 
 // GetGroups will return the groups associated with the logged in user.
@@ -783,11 +793,13 @@ func (m *Manager) CallExtension() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		user := m.userGetter.GetUser(r.Context())
+		userId := m.userGetter.GetUserId(r.Context())
+		username := m.userGetter.GetUsername(r.Context())
 		groups := m.userGetter.GetGroups(r.Context())
-		prepareRequest(r, m.namespace, extName, app, user, groups)
+		prepareRequest(r, m.namespace, extName, app, userId, username, groups)
 		m.log.WithFields(log.Fields{
-			HeaderArgoCDUsername:        user,
+			HeaderArgoCDUserId:          userId,
+			HeaderArgoCDUsername:        username,
 			HeaderArgoCDGroups:          strings.Join(groups, ","),
 			HeaderArgoCDNamespace:       m.namespace,
 			HeaderArgoCDApplicationName: fmt.Sprintf("%s:%s", app.GetNamespace(), app.GetName()),
@@ -819,7 +831,7 @@ func registerMetrics(extName string, metrics httpsnoop.Metrics, extensionMetrics
 //   - Cluster destination name
 //   - Cluster destination server
 //   - Argo CD authenticated username
-func prepareRequest(r *http.Request, namespace string, extName string, app *v1alpha1.Application, username string, groups []string) {
+func prepareRequest(r *http.Request, namespace string, extName string, app *v1alpha1.Application, userId string, username string, groups []string) {
 	r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s/%s", URLPrefix, extName))
 	r.Header.Set(HeaderArgoCDNamespace, namespace)
 	if app.Spec.Destination.Name != "" {
@@ -827,6 +839,9 @@ func prepareRequest(r *http.Request, namespace string, extName string, app *v1al
 	}
 	if app.Spec.Destination.Server != "" {
 		r.Header.Set(HeaderArgoCDTargetClusterURL, app.Spec.Destination.Server)
+	}
+	if userId != "" {
+		r.Header.Set(HeaderArgoCDUserId, userId)
 	}
 	if username != "" {
 		r.Header.Set(HeaderArgoCDUsername, username)

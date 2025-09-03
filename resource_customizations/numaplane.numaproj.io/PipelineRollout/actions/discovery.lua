@@ -30,12 +30,12 @@ if obj.spec.pipeline.spec.lifecycle ~= nil and obj.spec.pipeline.spec.lifecycle.
   paused = true
 end
 if paused then
-  if obj.spec.pipeline.spec.metadata ~= nil and  obj.spec.pipeline.spec.metadata.annotations ~= nil and obj.spec.pipeline.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] ~= nil then
+  if obj.spec.pipeline.metadata ~= nil and  obj.spec.pipeline.metadata.annotations ~= nil and obj.spec.pipeline.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] ~= nil then
     -- determine which unpausing strategies will be enabled
     -- if annotation not found, default will be resume slow
-    if obj.spec.pipeline.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] == "fast" then
+    if obj.spec.pipeline.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] == "fast" then
       actions["unpause-fast"]["disabled"] = false
-    elseif obj.spec.pipeline.spec.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] == "slow, fast" then
+    elseif obj.spec.pipeline.metadata.annotations["numaflow.numaproj.io/allowed-resume-strategies"] == "slow, fast" then
       actions["unpause-gradual"]["disabled"] = false
       actions["unpause-fast"]["disabled"] = false
     else
