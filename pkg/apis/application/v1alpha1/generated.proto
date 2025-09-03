@@ -2626,7 +2626,7 @@ message SyncPolicyAutomated {
   optional bool allowEmpty = 3;
 
   // Enable allows apps to explicitly control automated sync
-  optional bool enable = 4;
+  optional bool enabled = 4;
 }
 
 // SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
