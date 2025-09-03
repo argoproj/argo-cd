@@ -282,6 +282,10 @@ func isValidRedirectURL(redirectURL string, allowedURLs []string) bool {
 	if strings.ContainsAny(r.Path, "\r\n") {
 		return false
 	}
+	
+	// Clean the redirect URL path to handle any path traversal attempts
+	cleanRedirectPath := path.Clean(r.Path)
+	
 	for _, baseURL := range allowedURLs {
 		b, err := url.Parse(baseURL)
 		if err != nil {
@@ -291,19 +295,62 @@ func isValidRedirectURL(redirectURL string, allowedURLs []string) bool {
 		if b.Path == "" {
 			b.Path = "/"
 		}
+		
+		// Clean the base URL path for consistent comparison
+		cleanBasePath := path.Clean(b.Path)
+		
 		// scheme and host are mandatory to match.
 		if b.Scheme == r.Scheme && b.Host == r.Host {
-			// If path of redirectURL and allowedURL match, redirectURL is allowed
-			// if b.Path == r.Path {
-			//	 return true
-			// }
+			// If paths are exactly the same, redirectURL is allowed
+			if cleanBasePath == cleanRedirectPath {
+				return true
+			}
+			
+			// If base path is "/", any path is allowed
+			if cleanBasePath == "/" {
+				return true
+			}
+			
 			// If path of redirectURL is within allowed URL's path, redirectURL is allowed
-			if strings.HasPrefix(path.Clean(r.Path), b.Path) {
+			// Use a more robust path comparison that handles edge cases
+			if isPathWithinBase(cleanRedirectPath, cleanBasePath) {
 				return true
 			}
 		}
 	}
 	// No match - redirect URL is not allowed
+	return false
+}
+
+// isPathWithinBase checks if the given path is within the base path
+// This function handles edge cases more robustly than simple string prefix matching
+func isPathWithinBase(path, base string) bool {
+	// Normalize paths to ensure consistent comparison
+	path = strings.TrimSuffix(path, "/")
+	base = strings.TrimSuffix(base, "/")
+	
+	// If base is root, any path is valid
+	if base == "" || base == "/" {
+		return true
+	}
+	
+	// If path is root, it's only valid if base is also root
+	if path == "" || path == "/" {
+		return base == "" || base == "/"
+	}
+	
+	// Check if path starts with base
+	if strings.HasPrefix(path, base) {
+		// Additional check: ensure the next character after base is either '/' or end of string
+		// This prevents partial path segment matches (e.g., "/app" matching "/applications")
+		if len(path) == len(base) {
+			return true
+		}
+		if path[len(base)] == '/' {
+			return true
+		}
+	}
+	
 	return false
 }
 
