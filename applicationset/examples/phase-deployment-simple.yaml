@@ -1,0 +1,67 @@
+# Simple phase deployment example
+# Deploys applications to dev clusters first, then staging, then production
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: simple-phase-deployment
+  namespace: argocd
+spec:
+  generators:
+  - clusters:
+      selector:
+        matchLabels:
+          environment: "*"
+    deploymentStrategy:
+      type: phaseDeployment
+      phases:
+      - name: "development"
+        targets:
+        - clusters: ["dev-cluster"]
+        checks:
+        - name: "basic-health"
+          type: "http"
+          http:
+            url: "https://{{name}}.dev.example.com/health"
+        waitDuration: "30s"
+        
+      - name: "staging"
+        targets:
+        - clusters: ["staging-cluster"]
+        checks:
+        - name: "staging-health"
+          type: "http"
+          http:
+            url: "https://{{name}}.staging.example.com/health"
+        onFailure:
+          action: "stop"
+        waitDuration: "2m"
+        
+      - name: "production"
+        targets:
+        - clusters: ["prod-cluster"]
+        checks:
+        - name: "prod-health"
+          type: "http"
+          http:
+            url: "https://{{name}}.prod.example.com/health"
+        onFailure:
+          action: "rollback"
+          
+  template:
+    metadata:
+      name: "{{name}}"
+      labels:
+        environment: "{{metadata.labels.environment}}"
+    spec:
+      project: "default"
+      source:
+        repoURL: https://github.com/example/manifests
+        targetRevision: HEAD
+        path: overlays/{{metadata.labels.environment}}
+      destination:
+        server: "{{server}}"
+        namespace: "{{name}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true

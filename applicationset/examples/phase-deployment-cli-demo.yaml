@@ -1,0 +1,72 @@
+# CLI Demo ApplicationSet with Phase Deployment Strategy
+# This example is specifically designed for demonstrating CLI phase management commands:
+# - argocd appset phase status phased-deployment-demo
+# - argocd appset phase advance phased-deployment-demo
+# - argocd appset phase rollback phased-deployment-demo
+# - argocd appset phase history phased-deployment-demo
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: phased-deployment-demo
+  namespace: argocd
+spec:
+  generators:
+  - clusters:
+      selector:
+        matchLabels:
+          environment: "*"
+    deploymentStrategy:
+      type: phaseDeployment
+      phases:
+      - name: "dev-canary"
+        targets:
+        - clusters: ["dev-cluster"]
+        checks:
+        - name: "dev-readiness"
+          type: "http"
+          http:
+            url: "https://{{name}}.dev.example.com/ready"
+        waitDuration: "1m"
+        
+      - name: "staging-validation"
+        targets:
+        - clusters: ["staging-cluster"]  
+        checks:
+        - name: "staging-tests"
+          type: "http"
+          http:
+            url: "https://{{name}}.staging.example.com/healthz"
+        onFailure:
+          action: "stop"
+        waitDuration: "5m"
+        
+      - name: "prod-rollout"
+        targets:
+        - clusters: ["prod-cluster"]
+        checks:
+        - name: "prod-health-check"
+          type: "http"
+          http:
+            url: "https://{{name}}.prod.example.com/api/health"
+        onFailure:
+          action: "rollback"
+        waitDuration: "10m"
+          
+  template:
+    metadata:
+      name: "{{name}}"
+      labels:
+        environment: "{{metadata.labels.environment}}"
+    spec:
+      project: "default"
+      source:
+        repoURL: https://github.com/example/manifests
+        targetRevision: HEAD
+        path: overlays/{{metadata.labels.environment}}
+      destination:
+        server: "{{server}}"
+        namespace: "{{name}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true

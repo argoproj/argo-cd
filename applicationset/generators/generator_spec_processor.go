@@ -1,6 +1,7 @@
 package generators
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -74,8 +75,24 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 			}
 			continue
 		}
+		// Apply phase deployment strategy if configured
+		processedParams := params
+		if GetGeneratorWithPhaseDeployment(interpolatedGenerator) {
+			phaseProcessor := NewPhaseDeploymentProcessor(client)
+			var err error
+			processedParams, err = phaseProcessor.ProcessPhaseDeployment(context.TODO(), appSet, interpolatedGenerator, params)
+			if err != nil {
+				log.WithError(err).WithField("generator", g).
+					Error("error processing phase deployment")
+				if firstError == nil {
+					firstError = err
+				}
+				continue
+			}
+		}
+
 		var filterParams []map[string]any
-		for _, param := range params {
+		for _, param := range processedParams {
 			flatParam, err := flattenParameters(param)
 			if err != nil {
 				log.WithError(err).WithField("generator", g).
