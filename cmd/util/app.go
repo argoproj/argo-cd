@@ -35,6 +35,7 @@ type AppOptions struct {
 	env                             string
 	revision                        string
 	revisionHistoryLimit            int
+	logJSONMaxDepth                 int
 	destName                        string
 	destServer                      string
 	destNamespace                   string
@@ -121,6 +122,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().BoolVar(&opts.ignoreMissingValueFiles, "ignore-missing-value-files", false, "Ignore locally missing valueFiles when setting helm template --values")
 	command.Flags().StringVar(&opts.values, "values-literal-file", "", "Filename or URL to import as a literal Helm values block")
 	command.Flags().StringVar(&opts.releaseName, "release-name", "", "Helm release-name")
+	command.Flags().IntVar(&opts.logJSONMaxDepth, "helm-log-json-max-depth", argoappv1.LogJSONDefaultMaxDepth, "The maximum depth of JSON objects to include in logs.")
 	command.Flags().StringVar(&opts.helmVersion, "helm-version", "", "Helm version")
 	command.Flags().BoolVar(&opts.helmPassCredentials, "helm-pass-credentials", false, "Pass credentials to all domain")
 	command.Flags().StringArrayVar(&opts.helmSets, "helm-set", []string{}, "Helm set values on the command line (can be repeated to set several values: --helm-set key1=val1 --helm-set key2=val2)")
@@ -402,6 +404,7 @@ type helmOpts struct {
 	namespace               string
 	kubeVersion             string
 	apiVersions             []string
+	logJSONMaxDepth         int64
 }
 
 func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
@@ -434,6 +437,9 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	}
 	if opts.skipSchemaValidation {
 		src.Helm.SkipSchemaValidation = opts.skipSchemaValidation
+	}
+	if opts.logJSONMaxDepth > 0 {
+		src.Helm.LogJSONMaxDepth = opts.logJSONMaxDepth
 	}
 	if opts.skipTests {
 		src.Helm.SkipTests = opts.skipTests
@@ -703,6 +709,8 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			setHelmOpt(source, helmOpts{helmSetFiles: appOpts.helmSetFiles})
 		case "helm-skip-crds":
 			setHelmOpt(source, helmOpts{skipCrds: appOpts.helmSkipCrds})
+		case "helm-log-json-max-depth":
+			setHelmOpt(source, helmOpts{logJSONMaxDepth: int64(appOpts.logJSONMaxDepth)})
 		case "helm-skip-schema-validation":
 			setHelmOpt(source, helmOpts{skipSchemaValidation: appOpts.helmSkipSchemaValidation})
 		case "helm-skip-tests":

@@ -212,6 +212,9 @@ spec:
                                           type: boolean
                                         kubeVersion:
                                           type: string
+                                        logJSONMaxDepth:
+                                          format: int64
+                                          type: integer
                                         namespace:
                                           type: string
                                         parameters:
@@ -488,6 +491,9 @@ spec:
                                             type: boolean
                                           kubeVersion:
                                             type: string
+                                          logJSONMaxDepth:
+                                            format: int64
+                                            type: integer
                                           namespace:
                                             type: string
                                           parameters:
@@ -894,6 +900,9 @@ spec:
                                           type: boolean
                                         kubeVersion:
                                           type: string
+                                        logJSONMaxDepth:
+                                          format: int64
+                                          type: integer
                                         namespace:
                                           type: string
                                         parameters:
@@ -1170,6 +1179,9 @@ spec:
                                             type: boolean
                                           kubeVersion:
                                             type: string
+                                          logJSONMaxDepth:
+                                            format: int64
+                                            type: integer
                                           namespace:
                                             type: string
                                           parameters:
@@ -1577,6 +1589,9 @@ spec:
                                           type: boolean
                                         kubeVersion:
                                           type: string
+                                        logJSONMaxDepth:
+                                          format: int64
+                                          type: integer
                                         namespace:
                                           type: string
                                         parameters:
@@ -1853,6 +1868,9 @@ spec:
                                             type: boolean
                                           kubeVersion:
                                             type: string
+                                          logJSONMaxDepth:
+                                            format: int64
+                                            type: integer
                                           namespace:
                                             type: string
                                           parameters:
@@ -2238,6 +2256,9 @@ spec:
                                           type: boolean
                                         kubeVersion:
                                           type: string
+                                        logJSONMaxDepth:
+                                          format: int64
+                                          type: integer
                                         namespace:
                                           type: string
                                         parameters:
@@ -2514,6 +2535,9 @@ spec:
                                             type: boolean
                                           kubeVersion:
                                             type: string
+                                          logJSONMaxDepth:
+                                            format: int64
+                                            type: integer
                                           namespace:
                                             type: string
                                           parameters:
@@ -2924,6 +2948,9 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  logJSONMaxDepth:
+                                                    format: int64
+                                                    type: integer
                                                   namespace:
                                                     type: string
                                                   parameters:
@@ -3200,6 +3227,9 @@ spec:
                                                       type: boolean
                                                     kubeVersion:
                                                       type: string
+                                                    logJSONMaxDepth:
+                                                      format: int64
+                                                      type: integer
                                                     namespace:
                                                       type: string
                                                     parameters:
@@ -3606,6 +3636,9 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  logJSONMaxDepth:
+                                                    format: int64
+                                                    type: integer
                                                   namespace:
                                                     type: string
                                                   parameters:
@@ -3882,6 +3915,9 @@ spec:
                                                       type: boolean
                                                     kubeVersion:
                                                       type: string
+                                                    logJSONMaxDepth:
+                                                      format: int64
+                                                      type: integer
                                                     namespace:
                                                       type: string
                                                     parameters:
@@ -4289,6 +4325,9 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  logJSONMaxDepth:
+                                                    format: int64
+                                                    type: integer
                                                   namespace:
                                                     type: string
                                                   parameters:
@@ -4565,6 +4604,9 @@ spec:
                                                       type: boolean
                                                     kubeVersion:
                                                       type: string
+                                                    logJSONMaxDepth:
+                                                      format: int64
+                                                      type: integer
                                                     namespace:
                                                       type: string
                                                     parameters:
@@ -4950,6 +4992,9 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  logJSONMaxDepth:
+                                                    format: int64
+                                                    type: integer
                                                   namespace:
                                                     type: string
                                                   parameters:
@@ -5226,6 +5271,9 @@ spec:
                                                       type: boolean
                                                     kubeVersion:
                                                       type: string
+                                                    logJSONMaxDepth:
+                                                      format: int64
+                                                      type: integer
                                                     namespace:
                                                       type: string
                                                     parameters:
@@ -5619,6 +5667,9 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  logJSONMaxDepth:
+                                                    format: int64
+                                                    type: integer
                                                   namespace:
                                                     type: string
                                                   parameters:
@@ -5895,6 +5946,9 @@ spec:
                                                       type: boolean
                                                     kubeVersion:
                                                       type: string
+                                                    logJSONMaxDepth:
+                                                      format: int64
+                                                      type: integer
                                                     namespace:
                                                       type: string
                                                     parameters:
@@ -6515,6 +6569,9 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  logJSONMaxDepth:
+                                                    format: int64
+                                                    type: integer
                                                   namespace:
                                                     type: string
                                                   parameters:
@@ -6791,6 +6848,9 @@ spec:
                                                       type: boolean
                                                     kubeVersion:
                                                       type: string
+                                                    logJSONMaxDepth:
+                                                      format: int64
+                                                      type: integer
                                                     namespace:
                                                       type: string
                                                     parameters:
@@ -7402,6 +7462,9 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  logJSONMaxDepth:
+                                                    format: int64
+                                                    type: integer
                                                   namespace:
                                                     type: string
                                                   parameters:
@@ -7678,6 +7741,9 @@ spec:
                                                       type: boolean
                                                     kubeVersion:
                                                       type: string
+                                                    logJSONMaxDepth:
+                                                      format: int64
+                                                      type: integer
                                                     namespace:
                                                       type: string
                                                     parameters:
@@ -8080,6 +8146,9 @@ spec:
                                           type: boolean
                                         kubeVersion:
                                           type: string
+                                        logJSONMaxDepth:
+                                          format: int64
+                                          type: integer
                                         namespace:
                                           type: string
                                         parameters:
@@ -8356,6 +8425,9 @@ spec:
                                             type: boolean
                                           kubeVersion:
                                             type: string
+                                          logJSONMaxDepth:
+                                            format: int64
+                                            type: integer
                                           namespace:
                                             type: string
                                           parameters:
@@ -8768,6 +8840,9 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  logJSONMaxDepth:
+                                                    format: int64
+                                                    type: integer
                                                   namespace:
                                                     type: string
                                                   parameters:
@@ -9044,6 +9119,9 @@ spec:
                                                       type: boolean
                                                     kubeVersion:
                                                       type: string
+                                                    logJSONMaxDepth:
+                                                      format: int64
+                                                      type: integer
                                                     namespace:
                                                       type: string
                                                     parameters:
@@ -9450,6 +9528,9 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  logJSONMaxDepth:
+                                                    format: int64
+                                                    type: integer
                                                   namespace:
                                                     type: string
                                                   parameters:
@@ -9726,6 +9807,9 @@ spec:
                                                       type: boolean
                                                     kubeVersion:
                                                       type: string
+                                                    logJSONMaxDepth:
+                                                      format: int64
+                                                      type: integer
                                                     namespace:
                                                       type: string
                                                     parameters:
@@ -10133,6 +10217,9 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  logJSONMaxDepth:
+                                                    format: int64
+                                                    type: integer
                                                   namespace:
                                                     type: string
                                                   parameters:
@@ -10409,6 +10496,9 @@ spec:
                                                       type: boolean
                                                     kubeVersion:
                                                       type: string
+                                                    logJSONMaxDepth:
+                                                      format: int64
+                                                      type: integer
                                                     namespace:
                                                       type: string
                                                     parameters:
@@ -10794,6 +10884,9 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  logJSONMaxDepth:
+                                                    format: int64
+                                                    type: integer
                                                   namespace:
                                                     type: string
                                                   parameters:
@@ -11070,6 +11163,9 @@ spec:
                                                       type: boolean
                                                     kubeVersion:
                                                       type: string
+                                                    logJSONMaxDepth:
+                                                      format: int64
+                                                      type: integer
                                                     namespace:
                                                       type: string
                                                     parameters:
@@ -11463,6 +11559,9 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  logJSONMaxDepth:
+                                                    format: int64
+                                                    type: integer
                                                   namespace:
                                                     type: string
                                                   parameters:
@@ -11739,6 +11838,9 @@ spec:
                                                       type: boolean
                                                     kubeVersion:
                                                       type: string
+                                                    logJSONMaxDepth:
+                                                      format: int64
+                                                      type: integer
                                                     namespace:
                                                       type: string
                                                     parameters:
@@ -12359,6 +12461,9 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  logJSONMaxDepth:
+                                                    format: int64
+                                                    type: integer
                                                   namespace:
                                                     type: string
                                                   parameters:
@@ -12635,6 +12740,9 @@ spec:
                                                       type: boolean
                                                     kubeVersion:
                                                       type: string
+                                                    logJSONMaxDepth:
+                                                      format: int64
+                                                      type: integer
                                                     namespace:
                                                       type: string
                                                     parameters:
@@ -13246,6 +13354,9 @@ spec:
                                                     type: boolean
                                                   kubeVersion:
                                                     type: string
+                                                  logJSONMaxDepth:
+                                                    format: int64
+                                                    type: integer
                                                   namespace:
                                                     type: string
                                                   parameters:
@@ -13522,6 +13633,9 @@ spec:
                                                       type: boolean
                                                     kubeVersion:
                                                       type: string
+                                                    logJSONMaxDepth:
+                                                      format: int64
+                                                      type: integer
                                                     namespace:
                                                       type: string
                                                     parameters:
@@ -13928,6 +14042,9 @@ spec:
                                           type: boolean
                                         kubeVersion:
                                           type: string
+                                        logJSONMaxDepth:
+                                          format: int64
+                                          type: integer
                                         namespace:
                                           type: string
                                         parameters:
@@ -14204,6 +14321,9 @@ spec:
                                             type: boolean
                                           kubeVersion:
                                             type: string
+                                          logJSONMaxDepth:
+                                            format: int64
+                                            type: integer
                                           namespace:
                                             type: string
                                           parameters:
@@ -14596,6 +14716,9 @@ spec:
                                           type: boolean
                                         kubeVersion:
                                           type: string
+                                        logJSONMaxDepth:
+                                          format: int64
+                                          type: integer
                                         namespace:
                                           type: string
                                         parameters:
@@ -14872,6 +14995,9 @@ spec:
                                             type: boolean
                                           kubeVersion:
                                             type: string
+                                          logJSONMaxDepth:
+                                            format: int64
+                                            type: integer
                                           namespace:
                                             type: string
                                           parameters:
@@ -15492,6 +15618,9 @@ spec:
                                           type: boolean
                                         kubeVersion:
                                           type: string
+                                        logJSONMaxDepth:
+                                          format: int64
+                                          type: integer
                                         namespace:
                                           type: string
                                         parameters:
@@ -15768,6 +15897,9 @@ spec:
                                             type: boolean
                                           kubeVersion:
                                             type: string
+                                          logJSONMaxDepth:
+                                            format: int64
+                                            type: integer
                                           namespace:
                                             type: string
                                           parameters:
@@ -16379,6 +16511,9 @@ spec:
                                           type: boolean
                                         kubeVersion:
                                           type: string
+                                        logJSONMaxDepth:
+                                          format: int64
+                                          type: integer
                                         namespace:
                                           type: string
                                         parameters:
@@ -16655,6 +16790,9 @@ spec:
                                             type: boolean
                                           kubeVersion:
                                             type: string
+                                          logJSONMaxDepth:
+                                            format: int64
+                                            type: integer
                                           namespace:
                                             type: string
                                           parameters:
@@ -17134,6 +17272,9 @@ spec:
                                 type: boolean
                               kubeVersion:
                                 type: string
+                              logJSONMaxDepth:
+                                format: int64
+                                type: integer
                               namespace:
                                 type: string
                               parameters:
@@ -17410,6 +17551,9 @@ spec:
                                   type: boolean
                                 kubeVersion:
                                   type: string
+                                logJSONMaxDepth:
+                                  format: int64
+                                  type: integer
                                 namespace:
                                   type: string
                                 parameters:
