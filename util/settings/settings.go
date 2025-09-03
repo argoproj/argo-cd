@@ -45,6 +45,21 @@ import (
 	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 )
 
+var CommitMessageTemplate = `{{.metadata.drySha | trunc 7}}: {{ .metadata.subject }}
+{{- if .metadata.body }}
+
+{{ .metadata.body }}
+{{- end }}
+{{ range $ref := .metadata.references }}
+{{- if and $ref.commit $ref.commit.author }}
+Co-authored-by: {{ $ref.commit.author }}
+{{- end }}
+{{- end }}
+{{- if .metadata.author }}
+Co-authored-by: {{ .metadata.author }}
+{{- end }}
+`
+
 // ArgoCDSettings holds in-memory runtime configuration options.
 type ArgoCDSettings struct {
 	// URL is the externally facing URL users will visit to reach Argo CD.
@@ -494,6 +509,8 @@ const (
 	settingUIBannerPositionKey = "ui.bannerposition"
 	// settingsBinaryUrlsKey designates the key for the argocd binary URLs
 	settingsBinaryUrlsKey = "help.download"
+	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
+	settingsSourceHydratorCommitMessageTemplateKey = "sourceHydrator.commitMessageTemplate"
 	// globalProjectsKey designates the key for global project settings
 	globalProjectsKey = "globalProjects"
 	// initialPasswordSecretName is the name of the secret that will hold the initial admin password
@@ -1003,6 +1020,17 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 	}
 
 	return resourceOverrides, nil
+}
+
+func (mgr *SettingsManager) GetSourceHydratorCommitMessageTemplate() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	if argoCDCM.Data[settingsSourceHydratorCommitMessageTemplateKey] == "" {
+		return CommitMessageTemplate, nil // in case template is not defined return default
+	}
+	return argoCDCM.Data[settingsSourceHydratorCommitMessageTemplateKey], nil
 }
 
 func addStatusOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverride, groupKind string) {
