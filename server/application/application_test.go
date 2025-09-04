@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	stderrors "errors"
 	"fmt"
 	"io"
@@ -3847,4 +3848,89 @@ func TestServerSideDiff(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "application")
 	})
+}
+
+func TestGetApplicationPatch(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name         string
+		original     *v1alpha1.Application
+		updated      *v1alpha1.Application
+		testMutation func(original, updated *v1alpha1.Application)
+		expectedDiff string
+	}{
+		{
+			name:         "Test that identical apps show no difference",
+			original:     newTestApp(),
+			updated:      newTestApp(),
+			testMutation: func(_, _ *v1alpha1.Application) {},
+			expectedDiff: "{\"metadata\": {}, \"spec\": {}}",
+		},
+		{
+			name:     "Test that targetRevision displays correctly",
+			original: newTestApp(),
+			updated:  newTestApp(),
+			testMutation: func(_, updated *v1alpha1.Application) {
+				updated.Spec.Source.TargetRevision = "BRANCH"
+			},
+			expectedDiff: "{\"metadata\": {}, \"spec\": {\"source\":{\"targetRevision\":\"BRANCH\"}}}",
+		},
+		{
+			name:     "Test that Helm Parameters displays correctly",
+			original: newTestApp(),
+			updated:  newTestApp(),
+			testMutation: func(_, updated *v1alpha1.Application) {
+				updated.Spec.Source.Helm = &v1alpha1.ApplicationSourceHelm{
+					Parameters: []v1alpha1.HelmParameter{
+						{
+							Name:  "foo",
+							Value: "bar",
+						},
+					},
+				}
+			},
+			expectedDiff: "{\"metadata\": {}, \"spec\": {\"source\":{\"helm\":{\"parameters\": [{\"name\": \"foo\", \"value\": \"bar\"}]}}}}",
+		},
+		{
+			name:     "Test that Metadata updates displays correctly",
+			original: newTestApp(),
+			updated:  newTestApp(),
+			testMutation: func(_, updated *v1alpha1.Application) {
+				updated.SetAnnotations(map[string]string{"foo": "bar"})
+			},
+			expectedDiff: "{\"metadata\": {\"annotations\":{\"foo\": \"bar\"}}, \"spec\": {}}",
+		},
+		{
+			name:     "Test that Metadata removals displays correctly",
+			original: newTestApp(),
+			updated:  newTestApp(),
+			testMutation: func(original, _ *v1alpha1.Application) {
+				original.SetAnnotations(map[string]string{"foo": "bar"})
+			},
+			expectedDiff: "{\"metadata\": {\"annotations\": null}, \"spec\": {}}",
+		},
+		{
+			name:     "Test that Metadata partial removals displays correctly",
+			original: newTestApp(),
+			updated:  newTestApp(),
+			testMutation: func(original, modified *v1alpha1.Application) {
+				original.SetAnnotations(map[string]string{"foo": "bar", "baz": "foobar"})
+				modified.SetAnnotations(map[string]string{"foo": "bar"})
+			},
+			expectedDiff: "{\"metadata\": {\"annotations\": {\"baz\": null}}, \"spec\": {}}",
+		},
+	}
+	for _, tc := range testCases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			tcc.testMutation(tcc.original, tcc.updated)
+			diff, err := getApplicationPatch(tcc.original, tcc.updated)
+			require.NoError(t, err)
+
+			actual, err := json.Marshal(diff)
+			require.NoError(t, err)
+			assert.JSONEq(t, string(tcc.expectedDiff), string(actual))
+		})
+	}
 }
