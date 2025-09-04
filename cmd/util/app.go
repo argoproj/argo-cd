@@ -273,25 +273,26 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			}
 		}
 	})
-	if flags.Changed("auto-prune") {
-		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
-			log.Fatal("Cannot set --auto-prune: application not configured with automatic sync")
-		}
-		spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
-	}
-	if flags.Changed("self-heal") {
-		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
-			log.Fatal("Cannot set --self-heal: application not configured with automatic sync")
-		}
-		spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
-	}
-	if flags.Changed("allow-empty") {
-		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
-			log.Fatal("Cannot set --allow-empty: application not configured with automatic sync")
-		}
-		spec.SyncPolicy.Automated.AllowEmpty = appOpts.allowEmpty
-	}
 
+	if flags.Changed("auto-prune") || flags.Changed("self-heal") || flags.Changed("allow-empty") {
+		if spec.SyncPolicy == nil {
+			spec.SyncPolicy = &argoappv1.SyncPolicy{}
+		}
+		if spec.SyncPolicy.Automated == nil {
+			disabled := false
+			spec.SyncPolicy.Automated = &argoappv1.SyncPolicyAutomated{Enabled: &disabled}
+		}
+
+		if flags.Changed("auto-prune") {
+			spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
+		}
+		if flags.Changed("self-heal") {
+			spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
+		}
+		if flags.Changed("allow-empty") {
+			spec.SyncPolicy.Automated.AllowEmpty = appOpts.allowEmpty
+		}
+	}
 	return visited
 }
 

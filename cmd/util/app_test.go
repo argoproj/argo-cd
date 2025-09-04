@@ -259,6 +259,36 @@ func Test_setAppSpecOptions(t *testing.T) {
 		require.NoError(t, f.SetFlag("sync-policy", "none"))
 		assert.Nil(t, f.spec.SyncPolicy)
 	})
+	t.Run("AutoPruneFlag", func(t *testing.T) {
+		f.spec.SyncPolicy = nil
+		require.NoError(t, f.SetFlag("auto-prune", "true"))
+		require.NotNil(t, f.spec.SyncPolicy)
+		require.NotNil(t, f.spec.SyncPolicy.Automated)
+		assert.True(t, f.spec.SyncPolicy.Automated.Prune)
+
+		require.NoError(t, f.SetFlag("auto-prune", "false"))
+		assert.False(t, f.spec.SyncPolicy.Automated.Prune)
+	})
+	t.Run("SelfHealFlag", func(t *testing.T) {
+		f.spec.SyncPolicy = nil
+		require.NoError(t, f.SetFlag("self-heal", "true"))
+		require.NotNil(t, f.spec.SyncPolicy)
+		require.NotNil(t, f.spec.SyncPolicy.Automated)
+		assert.True(t, f.spec.SyncPolicy.Automated.SelfHeal)
+
+		require.NoError(t, f.SetFlag("self-heal", "false"))
+		assert.False(t, f.spec.SyncPolicy.Automated.SelfHeal)
+	})
+	t.Run("AllowEmptyFlag", func(t *testing.T) {
+		f.spec.SyncPolicy = nil
+		require.NoError(t, f.SetFlag("allow-empty", "true"))
+		require.NotNil(t, f.spec.SyncPolicy)
+		require.NotNil(t, f.spec.SyncPolicy.Automated)
+		assert.True(t, f.spec.SyncPolicy.Automated.AllowEmpty)
+
+		require.NoError(t, f.SetFlag("allow-empty", "false"))
+		assert.False(t, f.spec.SyncPolicy.Automated.AllowEmpty)
+	})
 	t.Run("SyncOptions", func(t *testing.T) {
 		require.NoError(t, f.SetFlag("sync-option", "a=1"))
 		assert.True(t, f.spec.SyncPolicy.SyncOptions.HasOption("a=1"))
