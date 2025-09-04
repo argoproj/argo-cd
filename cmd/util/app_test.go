@@ -259,6 +259,14 @@ func Test_setAppSpecOptions(t *testing.T) {
 		require.NoError(t, f.SetFlag("sync-policy", "none"))
 		assert.Nil(t, f.spec.SyncPolicy)
 	})
+	t.Run("SyncOptions", func(t *testing.T) {
+		require.NoError(t, f.SetFlag("sync-option", "a=1"))
+		assert.True(t, f.spec.SyncPolicy.SyncOptions.HasOption("a=1"))
+
+		// remove the options using !
+		require.NoError(t, f.SetFlag("sync-option", "!a=1"))
+		assert.Nil(t, f.spec.SyncPolicy)
+	})
 	t.Run("AutoPruneFlag", func(t *testing.T) {
 		f.spec.SyncPolicy = nil
 		require.NoError(t, f.SetFlag("auto-prune", "true"))
@@ -288,14 +296,6 @@ func Test_setAppSpecOptions(t *testing.T) {
 
 		require.NoError(t, f.SetFlag("allow-empty", "false"))
 		assert.False(t, f.spec.SyncPolicy.Automated.AllowEmpty)
-	})
-	t.Run("SyncOptions", func(t *testing.T) {
-		require.NoError(t, f.SetFlag("sync-option", "a=1"))
-		assert.True(t, f.spec.SyncPolicy.SyncOptions.HasOption("a=1"))
-
-		// remove the options using !
-		require.NoError(t, f.SetFlag("sync-option", "!a=1"))
-		assert.Nil(t, f.spec.SyncPolicy)
 	})
 	t.Run("RetryLimit", func(t *testing.T) {
 		require.NoError(t, f.SetFlag("sync-retry-limit", "5"))
