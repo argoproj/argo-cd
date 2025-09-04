@@ -19,6 +19,7 @@ actions["force-promote"] = {
   ["iconClass"] = "fa-solid fa-fw fa-forward"
 }
 
+-- identifies if a MonoVertex is owned by a parent MonoVertexRollout
 function isChild(obj)
   if obj.metadata ~= nil and obj.metadata.ownerReferences ~= nil then
     for i, ownerRef in ipairs(obj.metadata.ownerReferences) do
