@@ -116,10 +116,17 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                 }
 
                 // Get the current application's status from the ApplicationSet resources
+                // Check both applicationStatus (for RollingSync) and resources (for AllAtOnce)
                 const appResource = appSet.status?.applicationStatus?.find(status => status.application === application.metadata.name);
+                let appResourceFromResources = null;
+                if (!appResource) {
+                    appResourceFromResources = appSet.status?.resources?.find(
+                        resource => resource.name === application.metadata.name && resource.namespace === application.metadata.namespace
+                    );
+                }
 
                 // If no application status is found, show a default status
-                if (!appResource) {
+                if (!appResource && !appResourceFromResources) {
                     return (
                         <div className='application-status-panel__item'>
                             {sectionHeader({
@@ -134,21 +141,41 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                     );
                 }
 
+                // Determine strategy type and display accordingly
+                const strategyType = appSet.spec?.strategy?.type || 'AllAtOnce';
+                const isRollingSync = strategyType === 'RollingSync';
+
+                // Use the appropriate resource based on strategy
+                const currentResource = appResource || appResourceFromResources;
+                if (!currentResource) {
+                    return null;
+                }
+
+                // For AllAtOnce, get last transition time from ApplicationSet conditions
+                let lastTransitionTime = appResource?.lastTransitionTime;
+                if (!isRollingSync && !lastTransitionTime) {
+                    const upToDateCondition = appSet.status?.conditions?.find(condition => condition.type === 'ResourcesUpToDate');
+                    lastTransitionTime = upToDateCondition?.lastTransitionTime;
+                }
+
                 return (
                     <div className='application-status-panel__item'>
                         {sectionHeader({
                             title: 'PROGRESSIVE SYNC',
-                            helpContent: 'Shows the current status of progressive sync for applications managed by an ApplicationSet with RollingSync strategy.'
+                            helpContent: `Shows the current status of progressive sync for applications managed by an ApplicationSet with ${strategyType} strategy.`
                         })}
-                        <div className='application-status-panel__item-value' style={{color: getProgressiveSyncStatusColor(appResource.status)}}>
-                            {getProgressiveSyncStatusIcon({status: appResource.status})}&nbsp;{appResource.status}
+                        <div className='application-status-panel__item-value' style={{color: getProgressiveSyncStatusColor(currentResource.status)}}>
+                            {getProgressiveSyncStatusIcon({status: currentResource.status})}&nbsp;{currentResource.status}
                         </div>
-                        <div className='application-status-panel__item-value'>Wave: {appResource.step}</div>
-                        <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
-                            Last Transition: <br />
-                            <Timestamp date={appResource.lastTransitionTime} />
-                        </div>
-                        {appResource.message && <div className='application-status-panel__item-name'>{appResource.message}</div>}
+                        {isRollingSync && appResource?.step && <div className='application-status-panel__item-value'>Wave: {appResource.step}</div>}
+                        {lastTransitionTime && (
+                            <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
+                                Last Transition: <br />
+                                <Timestamp date={lastTransitionTime} />
+                            </div>
+                        )}
+                        {appResource?.message && <div className='application-status-panel__item-name'>{appResource.message}</div>}
+                        {!isRollingSync && <div className='application-status-panel__item-name'>{strategyType} - All applications deployed simultaneously</div>}
                     </div>
                 );
             }}
