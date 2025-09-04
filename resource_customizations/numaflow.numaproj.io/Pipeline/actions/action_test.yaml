@@ -33,18 +33,18 @@ discoveryTests:
   - inputPath: testdata/pipeline-wrong-ref.yaml
     result:
       - name: pause
-        disabled: true
+        disabled: false
         iconClass: 'fa-solid fa-fw fa-pause'
       - name: unpause-gradual
         disabled: false
         iconClass: 'fa-solid fa-fw fa-play'
         displayName: 'Unpause (gradual)'
       - name: unpause-fast
-        disabled: false
+        disabled: true
         iconClass: 'fa-solid fa-fw fa-play'
         displayName: 'Unpause (fast)'
       - name: force-promote
-        disabled: false
+        disabled: true
         iconClass: 'fa-solid fa-fw fa-forward'
         displayName: 'Force Promote'
   - inputPath: testdata/pipeline.yaml

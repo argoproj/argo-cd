@@ -20,6 +20,8 @@ actions["force-promote"] = {
 }
 
 -- identifies if Pipeline is owned by a parent PipelineRollout
+-- if it is, we disable the pause/unpause actions on the Pipeline
+-- to avoid Numaplane self-healing over changes
 function isChild(obj)
   if obj.metadata ~= nil and obj.metadata.ownerReferences ~= nil then
     for i, ownerRef in ipairs(obj.metadata.ownerReferences) do
