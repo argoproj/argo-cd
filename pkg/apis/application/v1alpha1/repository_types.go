@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/helm"
@@ -281,6 +282,33 @@ func (m *Repository) StringForLogging() string {
 		return ""
 	}
 	return fmt.Sprintf("&Repository{Repo: %q, Type: %q, Name: %q, Project: %q}", m.Repo, m.Type, m.Name, m.Project)
+}
+
+// Sanitized returns a copy of the Repository with sensitive information removed.
+func (repo *Repository) Sanitized() *Repository {
+	return &Repository{
+		Repo:                       repo.Repo,
+		Type:                       repo.Type,
+		Name:                       repo.Name,
+		Insecure:                   repo.IsInsecure(),
+		EnableLFS:                  repo.EnableLFS,
+		EnableOCI:                  repo.EnableOCI,
+		Proxy:                      repo.Proxy,
+		NoProxy:                    repo.NoProxy,
+		Project:                    repo.Project,
+		ForceHttpBasicAuth:         repo.ForceHttpBasicAuth,
+		InheritedCreds:             repo.InheritedCreds,
+		GithubAppId:                repo.GithubAppId,
+		GithubAppInstallationId:    repo.GithubAppInstallationId,
+		GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
+	}
+}
+
+func (repo *Repository) Normalize() *Repository {
+	if repo.Type == "" {
+		repo.Type = common.DefaultRepoType
+	}
+	return repo
 }
 
 // Repositories defines a list of Repository configurations
