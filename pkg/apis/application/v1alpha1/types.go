@@ -1934,7 +1934,7 @@ func (c *Cluster) Sanitized() *Cluster {
 		Info:               c.Info,
 		RefreshRequestedAt: c.RefreshRequestedAt,
 		Config: ClusterConfig{
-			AWSAuthConfig:      c.Config.AWSAuthConfig,
+			AWSAuthConfig:   c.Config.AWSAuthConfig,
 			TLSClientConfig: TLSClientConfig{
 				Insecure: c.Config.Insecure,
 			},
