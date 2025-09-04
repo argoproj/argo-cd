@@ -2152,6 +2152,32 @@ type Cluster struct {
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,13,opt,name=annotations"`
 }
 
+func (c *Cluster) Sanitized() *Cluster {
+	return &Cluster{
+		ID:                 c.ID,
+		Server:             c.Server,
+		Name:               c.Name,
+		Project:            c.Project,
+		Namespaces:         c.Namespaces,
+		Shard:              c.Shard,
+		Labels:             c.Labels,
+		Annotations:        c.Annotations,
+		ClusterResources:   c.ClusterResources,
+		ConnectionState:    c.ConnectionState,
+		ServerVersion:      c.ServerVersion,
+		Info:               c.Info,
+		RefreshRequestedAt: c.RefreshRequestedAt,
+		Config: ClusterConfig{
+			AWSAuthConfig:      c.Config.AWSAuthConfig,
+			ProxyUrl:           c.Config.ProxyUrl,
+			DisableCompression: c.Config.DisableCompression,
+			TLSClientConfig: TLSClientConfig{
+				Insecure: c.Config.Insecure,
+			},
+		},
+	}
+}
+
 // Equals returns true if two cluster objects are considered to be equal
 func (c *Cluster) Equals(other *Cluster) bool {
 	if c.Server != other.Server {
