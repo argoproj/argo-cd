@@ -176,6 +176,16 @@ var (
 	factor           int64
 )
 
+// Git cleanup configuration constants
+const (
+	// cleanupGracePeriodMultiplier is the multiplier applied to base grace period for network delays and cleanup overhead
+	cleanupGracePeriodMultiplier = 1.2
+	// cleanupMinGracePeriod is the minimum grace period to handle edge cases
+	cleanupMinGracePeriod = 3 * time.Minute
+	// cleanupTimeoutBufferMultiplier is the multiplier applied to exec timeout to account for normal operations
+	cleanupTimeoutBufferMultiplier = 2
+)
+
 func init() {
 	if countStr := os.Getenv(common.EnvGitAttemptsCount); countStr != "" {
 		cnt, err := strconv.Atoi(countStr)
@@ -438,6 +448,95 @@ func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 	return false
 }
 
+// isCleanupEnabled checks if cleanup is enabled for this repository
+func (m *nativeGitClient) isCleanupEnabled() bool {
+	// Get the cleanup enabled setting (default: false)
+	enabled := strings.ToLower(strings.TrimSpace(os.Getenv(common.EnvGitCleanupEnabled)))
+
+	switch enabled {
+	case "true":
+		log.Debugf("Cleanup enabled for all repositories")
+		return true
+	case "false":
+		return false
+	default:
+		log.Warnf("Invalid cleanup enabled value '%s', valid values are: true, false. Defaulting to false.", enabled)
+		return false
+	}
+}
+
+// getCleanupGracePeriod returns the grace period before cleaning up temporary files
+// It dynamically calculates based on git operation timeouts to avoid interrupting active operations
+func (m *nativeGitClient) getCleanupGracePeriod() time.Duration {
+	// Get the exec timeout used for git operations
+	execTimeout := env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", 90*time.Second, 0, math.MaxInt64)
+
+	// Calculate grace period based on:
+	// 1. Base timeout multiplier for normal operations
+	// 2. Additional buffer for retries (maxAttemptsCount)
+	// 3. Network and process cleanup overhead
+
+	// Base grace period: timeout * buffer * maxAttempts
+	// This accounts for worst-case scenario with retries
+	baseGracePeriod := execTimeout * time.Duration(cleanupTimeoutBufferMultiplier*maxAttemptsCount)
+
+	// Add configured buffer for network delays and cleanup
+	gracePeriod := time.Duration(float64(baseGracePeriod) * cleanupGracePeriodMultiplier)
+
+	// Ensure minimum grace period to handle edge cases
+	if gracePeriod < cleanupMinGracePeriod {
+		gracePeriod = cleanupMinGracePeriod
+	}
+
+	return gracePeriod
+}
+
+// garbageCollection cleans up temporary objects and files from git repository to prevent disk usage buildup
+func (m *nativeGitClient) garbageCollection() error {
+	log.Debugf("Running git cleanup for repository %s", m.repoURL)
+
+	gracePeriod := m.getCleanupGracePeriod()
+	log.Debugf("Using cleanup grace period of %v", gracePeriod)
+
+	// Clean up temporary pack files left by interrupted git operations
+	// These files are not cleaned by git gc and can accumulate to significant sizes
+	// Reference: GitLab Gitaly issue #1656, Gitea issue #21578
+	packDir := filepath.Join(m.root, ".git", "objects", "pack")
+	if entries, err := os.ReadDir(packDir); err == nil {
+		for _, entry := range entries {
+			name := entry.Name()
+			// Match tmp_pack_* and *.pack.temp patterns used by git during fetch/gc
+			if strings.HasPrefix(name, "tmp_pack_") || strings.HasSuffix(name, ".pack.temp") {
+				filePath := filepath.Join(packDir, name)
+				if info, err := entry.Info(); err == nil {
+					age := time.Since(info.ModTime())
+					// Only remove files older than the grace period
+					if age > gracePeriod {
+						log.Debugf("Removing stale temporary pack file: %s (age: %v, size: %d bytes)", name, age, info.Size())
+						if err := os.Remove(filePath); err != nil {
+							log.Warnf("Failed to remove temporary pack file %s: %v", name, err)
+						}
+					} else {
+						log.Debugf("Keeping recent temporary pack file: %s (age: %v)", name, age)
+					}
+				}
+			}
+		}
+	}
+
+	// Clean up temporary object directories
+	tmpObjDir := filepath.Join(m.root, ".git", "objects", "tmp")
+	if _, err := os.Stat(tmpObjDir); err == nil {
+		log.Debugf("Removing temporary objects directory: %s", tmpObjDir)
+		if err := os.RemoveAll(tmpObjDir); err != nil {
+			log.Warnf("Failed to remove temporary objects directory %s: %v", tmpObjDir, err)
+			return fmt.Errorf("failed to remove temporary objects directory: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch(revision string) error {
 	if m.OnFetch != nil {
@@ -446,9 +545,19 @@ func (m *nativeGitClient) Fetch(revision string) error {
 	}
 
 	err := m.fetch(revision)
+	if err != nil {
+		// Run garbage collection only when an error occurs and cleanup is enabled
+		if m.isCleanupEnabled() {
+			log.Warnf("Fetch failed for %s, running cleanup to prevent disk space issues", m.repoURL)
+			if cleanupErr := m.garbageCollection(); cleanupErr != nil {
+				log.Warnf("Cleanup failed for %s: %v", m.repoURL, cleanupErr)
+			}
+		}
+		return err
+	}
 
 	// When we have LFS support enabled, check for large files and fetch them too.
-	if err == nil && m.IsLFSEnabled() {
+	if m.IsLFSEnabled() {
 		largeFiles, err := m.LsLargeFiles()
 		if err == nil && len(largeFiles) > 0 {
 			err = m.runCredentialedCmd("lfs", "fetch", "--all")
@@ -557,8 +666,8 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (stri
 		}
 	}
 	// NOTE
-	// The double “f” in the arguments is not a typo: the first “f” tells
-	// `git clean` to delete untracked files and directories, and the second “f”
+	// The double "f" in the arguments is not a typo: the first "f" tells
+	// `git clean` to delete untracked files and directories, and the second "f"
 	// tells it to clean untracked nested Git repositories (for example a
 	// submodule which has since been removed).
 	if out, err := m.runCmd("clean", "-ffdx"); err != nil {
