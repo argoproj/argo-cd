@@ -36,7 +36,7 @@ discoveryTests:
         disabled: false
         iconClass: 'fa-solid fa-fw fa-pause'
       - name: unpause-gradual
-        disabled: false
+        disabled: true
         iconClass: 'fa-solid fa-fw fa-play'
         displayName: 'Unpause (gradual)'
       - name: unpause-fast
@@ -44,7 +44,7 @@ discoveryTests:
         iconClass: 'fa-solid fa-fw fa-play'
         displayName: 'Unpause (fast)'
       - name: force-promote
-        disabled: true
+        disabled: false
         iconClass: 'fa-solid fa-fw fa-forward'
         displayName: 'Force Promote'
   - inputPath: testdata/pipeline.yaml
