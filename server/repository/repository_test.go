@@ -313,7 +313,7 @@ func TestRepositoryServer(t *testing.T) {
 		testRepo := &appsv1.Repository{
 			Repo:           url,
 			Type:           "git",
-			Username:       "foo",
+			Username:       "",
 			InheritedCreds: true,
 		}
 		db.On("ListRepositories", t.Context()).Return([]*appsv1.Repository{testRepo}, nil)
