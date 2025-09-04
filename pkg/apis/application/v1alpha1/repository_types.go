@@ -290,7 +290,6 @@ func (m *Repository) Sanitized() *Repository {
 		Repo:                       m.Repo,
 		Type:                       m.Type,
 		Name:                       m.Name,
-		Username:                   m.Username,
 		Insecure:                   m.IsInsecure(),
 		EnableLFS:                  m.EnableLFS,
 		EnableOCI:                  m.EnableOCI,
