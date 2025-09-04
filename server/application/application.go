@@ -499,10 +499,16 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			return fmt.Errorf("error getting application cluster config: %w", err)
 		}
 
-		serverVersion, err := s.kubectl.GetServerVersion(config)
+		var ci v1alpha1.ClusterInfo
+		destCluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)
 		if err != nil {
-			return fmt.Errorf("error getting server version: %w", err)
+			return fmt.Errorf("error getting destination cluster: %w", err)
 		}
+		getClusterInfoErr := s.cache.GetClusterInfo(destCluster.Server, &ci)
+		if getClusterInfoErr != nil {
+			return fmt.Errorf("error getting server version: %w", getClusterInfoErr)
+		}
+		serverVersion := ci.ServerVersion
 
 		apiResources, err := s.kubectl.GetAPIResources(config, false, kubecache.NewNoopSettings())
 		if err != nil {
