@@ -1,17 +1,19 @@
 #!/bin/bash
 set -eux -o pipefail
 
-. $(dirname $0)/../tool-versions.sh
+PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")"/../..; pwd)
+INSTALLERS=$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)
 
-PROJECT_ROOT=$(cd $(dirname ${BASH_SOURCE})/../..; pwd)
+. "$INSTALLERS/../tool-versions.sh"
+
 INSTALL_PATH="${BIN:-$INSTALL_PATH}"
 INSTALL_PATH="${INSTALL_PATH:-$PROJECT_ROOT/dist}"
 PATH="${INSTALL_PATH}:${PATH}"
-[ -d $INSTALL_PATH ] || mkdir -p $INSTALL_PATH
+[ -d "$INSTALL_PATH" ] || mkdir -p "$INSTALL_PATH"
 
 KUSTOMIZE_VERSION=${KUSTOMIZE_VERSION:-$kustomize5_version}
 
-if [ -z $INSTALL_OS ]; then
+if [ -z "$INSTALL_OS" ]; then
     echo "install kustomize error: unsupported operating system"
     exit 1
 fi
@@ -27,10 +29,10 @@ case $ARCHITECTURE in
       export TARGET_FILE=kustomize_${KUSTOMIZE_VERSION}_${INSTALL_OS}_${ARCHITECTURE}.tar.gz
       URL=https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_${INSTALL_OS}_$ARCHITECTURE.tar.gz
       BINNAME=kustomize
-      [ -e ${DOWNLOADS}/${TARGET_FILE} ] || curl -sLf --retry 3 -o ${DOWNLOADS}/${TARGET_FILE} "$URL"
-      $(dirname $0)/compare-chksum.sh
-      tar -C /tmp -xf ${DOWNLOADS}/${TARGET_FILE}
-      sudo install -m 0755 /tmp/kustomize $INSTALL_PATH/$BINNAME
+      [ -e "${DOWNLOADS}/${TARGET_FILE}" ] || curl -sLf --retry 3 -o "${DOWNLOADS}/${TARGET_FILE}" "$URL"
+      "$INSTALLERS/compare-chksum.sh"
+      tar -C /tmp -xf "${DOWNLOADS}/${TARGET_FILE}"
+      sudo install -m 0755 /tmp/kustomize "$INSTALL_PATH/$BINNAME"
       ;;
   *)
     case $KUSTOMIZE_VERSION in
@@ -38,21 +40,21 @@ case $ARCHITECTURE in
         export TARGET_FILE=kustomize_${KUSTOMIZE_VERSION}_${INSTALL_OS}_${ARCHITECTURE}
         URL=https://github.com/kubernetes-sigs/kustomize/releases/download/v${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_${INSTALL_OS}_$ARCHITECTURE
         BINNAME=kustomize2
-        [ -e ${DOWNLOADS}/${TARGET_FILE} ] || curl -sLf --retry 3 -o ${DOWNLOADS}/${TARGET_FILE} "$URL"
-        $(dirname $0)/compare-chksum.sh
-        sudo install -m 0755 ${DOWNLOADS}/${TARGET_FILE} $INSTALL_PATH/$BINNAME
+        [ -e "${DOWNLOADS}/${TARGET_FILE}" ] || curl -sLf --retry 3 -o "${DOWNLOADS}/${TARGET_FILE}" "$URL"
+        "$INSTALLERS/compare-chksum.sh"
+        sudo install -m 0755 "${DOWNLOADS}/${TARGET_FILE}" "$INSTALL_PATH/$BINNAME"
         ;;
       *)
         export TARGET_FILE=kustomize_${KUSTOMIZE_VERSION}_${INSTALL_OS}_${ARCHITECTURE}.tar.gz
         URL=https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize/v${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_${INSTALL_OS}_$ARCHITECTURE.tar.gz
         BINNAME=kustomize
-        [ -e ${DOWNLOADS}/${TARGET_FILE} ] || curl -sLf --retry 3 -o ${DOWNLOADS}/${TARGET_FILE} "$URL"
-        $(dirname $0)/compare-chksum.sh
-        tar -C /tmp -xf ${DOWNLOADS}/${TARGET_FILE}
-        sudo install -m 0755 /tmp/kustomize $INSTALL_PATH/$BINNAME
+        [ -e "${DOWNLOADS}/${TARGET_FILE}" ] || curl -sLf --retry 3 -o "${DOWNLOADS}/${TARGET_FILE}" "$URL"
+        "$INSTALLERS/compare-chksum.sh"
+        tar -C /tmp -xf "${DOWNLOADS}/${TARGET_FILE}"
+        sudo install -m 0755 /tmp/kustomize "$INSTALL_PATH/$BINNAME"
         ;;
     esac
     ;;
 esac
 
-$BINNAME version
+"$BINNAME" version
