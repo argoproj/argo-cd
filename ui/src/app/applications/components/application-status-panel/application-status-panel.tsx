@@ -102,16 +102,16 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
             }}
             load={async () => {
                 const appSet = await services.applications.getApplicationSet(appSetRef.name, application.metadata.namespace);
-                // Only return the ApplicationSet if it uses RollingSync strategy
-                if (appSet?.spec?.strategy?.type === 'RollingSync') {
+                // Only return the ApplicationSet if it has a strategy (Progressive Sync enabled)
+                if (appSet?.spec?.strategy) {
                     return appSet;
                 }
-                // Return a special value to indicate no RollingSync strategy
-                return 'NO_ROLLING_SYNC';
+                // Return a special value to indicate no strategy (Progressive Sync disabled)
+                return 'NO_STRATEGY';
             }}>
-            {(appSet: models.ApplicationSet | 'NO_ROLLING_SYNC') => {
-                if (appSet === 'NO_ROLLING_SYNC') {
-                    // If the ApplicationSet doesn't use RollingSync strategy, don't show Progressive Sync at all
+            {(appSet: models.ApplicationSet | 'NO_STRATEGY') => {
+                if (appSet === 'NO_STRATEGY') {
+                    // If the ApplicationSet has no strategy (Progressive Sync disabled), don't show Progressive Sync at all
                     return null;
                 }
 
