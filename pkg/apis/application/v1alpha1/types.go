@@ -1936,7 +1936,7 @@ func (c *Cluster) Sanitized() *Cluster {
 		Config: ClusterConfig{
 			AWSAuthConfig:      c.Config.AWSAuthConfig,
 			TLSClientConfig: TLSClientConfig{
-				Insecure: c.Config.TLSClientConfig.Insecure,
+				Insecure: c.Config.Insecure,
 			},
 		},
 	}
