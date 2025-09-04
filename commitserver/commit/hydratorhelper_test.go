@@ -9,7 +9,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -19,6 +18,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/hydrator"
 )
 
 // tempRoot creates a temporary directory and returns an os.Root object for it.
@@ -73,9 +73,13 @@ func TestWriteForPaths(t *testing.T) {
 
 	now := metav1.NewTime(time.Now())
 	metadata := &appsv1.RevisionMetadata{
-		Author:  "test-author",
-		Date:    &now,
-		Message: "test-message",
+		Author: "test-author",
+		Date:   &now,
+		Message: `test-message
+
+Signed-off-by: Test User <test@example.com>
+Argocd-reference-commit-sha: abc123
+`,
 		References: []appsv1.RevisionReference{
 			{
 				Commit: &appsv1.CommitMetadata{
@@ -97,16 +101,15 @@ func TestWriteForPaths(t *testing.T) {
 	topMetadataBytes, err := os.ReadFile(topMetadataPath)
 	require.NoError(t, err)
 
-	expectedSubject, expectedBody, _ := strings.Cut(metadata.Message, "\n\n")
-
 	var topMetadata hydratorMetadataFile
 	err = json.Unmarshal(topMetadataBytes, &topMetadata)
 	require.NoError(t, err)
 	assert.Equal(t, repoURL, topMetadata.RepoURL)
 	assert.Equal(t, drySha, topMetadata.DrySHA)
 	assert.Equal(t, metadata.Author, topMetadata.Author)
-	assert.Equal(t, expectedSubject, topMetadata.Subject)
-	assert.Equal(t, expectedBody, topMetadata.Body)
+	assert.Equal(t, "test-message", topMetadata.Subject)
+	// The body should exclude the Argocd- trailers.
+	assert.Equal(t, "Signed-off-by: Test User <test@example.com>\n", topMetadata.Body)
 	assert.Equal(t, metadata.Date.Format(time.RFC3339), topMetadata.Date)
 	assert.Equal(t, metadata.References, topMetadata.References)
 
@@ -142,7 +145,7 @@ func TestWriteForPaths(t *testing.T) {
 func TestWriteMetadata(t *testing.T) {
 	root := tempRoot(t)
 
-	metadata := hydratorMetadataFile{
+	metadata := hydrator.HydratorCommitMetadata{
 		RepoURL: "https://github.com/example/repo",
 		DrySHA:  "abc123",
 	}
@@ -154,7 +157,7 @@ func TestWriteMetadata(t *testing.T) {
 	metadataBytes, err := os.ReadFile(metadataPath)
 	require.NoError(t, err)
 
-	var readMetadata hydratorMetadataFile
+	var readMetadata hydrator.HydratorCommitMetadata
 	err = json.Unmarshal(metadataBytes, &readMetadata)
 	require.NoError(t, err)
 	assert.Equal(t, metadata, readMetadata)
@@ -169,7 +172,7 @@ func TestWriteReadme(t *testing.T) {
 	hash := sha256.Sum256(randomData)
 	sha := hex.EncodeToString(hash[:])
 
-	metadata := hydratorMetadataFile{
+	metadata := hydrator.HydratorCommitMetadata{
 		RepoURL: "https://github.com/example/repo",
 		DrySHA:  "abc123",
 		References: []appsv1.RevisionReference{
@@ -220,4 +223,17 @@ func TestWriteManifests(t *testing.T) {
 	manifestBytes, err := os.ReadFile(manifestPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(manifestBytes), "kind")
+}
+
+func TestWriteGitAttributes(t *testing.T) {
+	root := tempRoot(t)
+
+	err := writeGitAttributes(root)
+	require.NoError(t, err)
+
+	gitAttributesPath := filepath.Join(root.Name(), ".gitattributes")
+	gitAttributesBytes, err := os.ReadFile(gitAttributesPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(gitAttributesBytes), "*/README.md linguist-generated=true")
+	assert.Contains(t, string(gitAttributesBytes), "*/hydrator.metadata linguist-generated=true")
 }
