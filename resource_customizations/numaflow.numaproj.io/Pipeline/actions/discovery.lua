@@ -27,7 +27,6 @@ function isChild(obj)
         return true
       end
     end
-    return false
   end
   return false
 end
