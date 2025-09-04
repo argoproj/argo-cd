@@ -58,18 +58,22 @@ const sectionHeader = (info: SectionInfo, onClick?: () => any) => {
     );
 };
 
-const hasApplicationSetParent = (application: models.Application): boolean => {
-    // Only show Progressive Sync for applications that have an ApplicationSet owner reference
-    // The actual strategy validation is done in the ProgressiveSyncStatus component
-    return application.metadata.ownerReferences?.some(ref => ref.kind === 'ApplicationSet') || false;
+const getApplicationSetOwnerRef = (application: models.Application) => {
+    return application.metadata.ownerReferences?.find(ref => ref.kind === 'ApplicationSet');
+};
+
+const extractErrorText = (error: any): string => {
+    const errorChildren = error.props?.children || [];
+    return Array.isArray(errorChildren) ? errorChildren.map(child => (typeof child === 'string' ? child : '')).join('') : String(errorChildren);
+};
+
+const isPermissionError = (error: any): boolean => {
+    const errorText = extractErrorText(error);
+    return errorText.includes('Failed to load data');
 };
 
 const ProgressiveSyncStatus = ({application}: {application: models.Application}) => {
-    if (!hasApplicationSetParent(application)) {
-        return null;
-    }
-
-    const appSetRef = application.metadata.ownerReferences.find(ref => ref.kind === 'ApplicationSet');
+    const appSetRef = getApplicationSetOwnerRef(application);
     if (!appSetRef) {
         return null;
     }
@@ -77,21 +81,10 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
     return (
         <DataLoader
             input={application}
-            errorRenderer={(error: Error) => {
-                // If user doesn't have permission to read ApplicationSet, show permission message
-                if (error.message && error.message.includes('permission denied')) {
-                    return (
-                        <div className='application-status-panel__item'>
-                            {sectionHeader({
-                                title: 'PROGRESSIVE SYNC',
-                                helpContent: 'Shows the current status of progressive sync for applications managed by an ApplicationSet with RollingSync strategy.'
-                            })}
-                            <div className='application-status-panel__item-value'>
-                                <i className='fa fa-lock' style={{color: COLORS.sync.unknown}} /> No Access
-                            </div>
-                            <div className='application-status-panel__item-name'>You don't have permission to view Progressive Sync information</div>
-                        </div>
-                    );
+            errorRenderer={(error: any) => {
+                // If user doesn't have permission to read ApplicationSet, hide the panel
+                if (isPermissionError(error)) {
+                    return null;
                 }
                 // For other errors, show a minimal error state
                 return (
@@ -109,10 +102,15 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
             }}
             load={async () => {
                 const appSet = await services.applications.getApplicationSet(appSetRef.name, application.metadata.namespace);
-                return appSet?.spec?.strategy?.type === 'RollingSync' ? appSet : null;
+                // Only return the ApplicationSet if it uses RollingSync strategy
+                if (appSet?.spec?.strategy?.type === 'RollingSync') {
+                    return appSet;
+                }
+                // Return a special value to indicate no RollingSync strategy
+                return 'NO_ROLLING_SYNC';
             }}>
-            {(appSet: models.ApplicationSet) => {
-                if (!appSet) {
+            {(appSet: models.ApplicationSet | 'NO_ROLLING_SYNC') => {
+                if (appSet === 'NO_ROLLING_SYNC') {
                     // If the ApplicationSet doesn't use RollingSync strategy, don't show Progressive Sync at all
                     return null;
                 }
@@ -162,7 +160,9 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
     const [showProgressiveSync, setShowProgressiveSync] = React.useState(false);
 
     React.useEffect(() => {
-        setShowProgressiveSync(hasApplicationSetParent(application));
+        // Only show Progressive Sync if the application has an ApplicationSet parent
+        // The actual strategy validation will be done inside ProgressiveSyncStatus component
+        setShowProgressiveSync(!!getApplicationSetOwnerRef(application));
     }, [application]);
 
     const today = new Date();
