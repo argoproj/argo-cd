@@ -2257,7 +2257,7 @@ func (c *Cluster) Sanitized() *Cluster {
 			ProxyUrl:           c.Config.ProxyUrl,
 			DisableCompression: c.Config.DisableCompression,
 			TLSClientConfig: TLSClientConfig{
-				Insecure: c.Config.TLSClientConfig.Insecure,
+				Insecure: c.Config.Insecure,
 			},
 		},
 	}
