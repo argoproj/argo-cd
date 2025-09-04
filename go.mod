@@ -114,7 +114,7 @@ require (
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
 	oras.land/oras-go/v2 v2.6.0
 	sigs.k8s.io/controller-runtime v0.21.0
-	sigs.k8s.io/structured-merge-diff/v4 v4.7.0
+	sigs.k8s.io/structured-merge-diff/v6 v6.3.0
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -296,11 +296,11 @@ require (
 	sigs.k8s.io/kustomize/api v0.20.1 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.20.1 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
-	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 )
 
 replace (
 	github.com/argoproj/gitops-engine => github.com/pjiang-dev/gitops-engine v0.0.0-20250903182803-b9da2c00b079
+	github.com/argoproj/notifications-engine => github.com/pjiang-dev/notifications-engine v0.0.0-20250904231019-60ed651a8110
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	golang.org/x/tools => golang.org/x/tools v0.35.0
