@@ -310,7 +310,13 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 			continue
 		}
 		if s.enf.Enforce(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionGet, a.RBACName(s.ns)) {
-			newItems = append(newItems, *a)
+			// Create a deep copy to ensure all metadata fields including annotations are preserved
+			appCopy := a.DeepCopy()
+			// Explicitly copy annotations in case DeepCopy does not preserve them
+			if a.Annotations != nil {
+				appCopy.Annotations = a.Annotations
+			}
+			newItems = append(newItems, *appCopy)
 		}
 	}
 
@@ -776,7 +782,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 	s.inferResourcesStatusHealth(a)
 
 	if q.Refresh == nil {
-		return a, nil
+		return a.DeepCopy(), nil
 	}
 
 	refreshType := v1alpha1.RefreshTypeNormal
@@ -2227,7 +2233,18 @@ func (s *Server) ListLinks(ctx context.Context, req *application.ListAppLinksReq
 		return nil, err
 	}
 
+	// Create deep links object with managed-by URL
 	deepLinksObject := deeplinks.CreateDeepLinksObject(nil, obj, clstObj, nil)
+
+	// If no managed-by URL is set, use the current instance's URL
+	if deepLinksObject[deeplinks.ManagedByURLKey] == nil {
+		settings, err := s.settingsMgr.GetSettings()
+		if err != nil {
+			log.Warnf("Failed to get settings: %v", err)
+		} else if settings.URL != "" {
+			deepLinksObject[deeplinks.ManagedByURLKey] = settings.URL
+		}
+	}
 
 	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(deepLinksObject, obj.GetName(), deepLinks)
 	if len(errorList) > 0 {
