@@ -103,31 +103,34 @@ type Client interface {
 
 // ClientOptions hold address, security, and other settings for the API client.
 type ClientOptions struct {
-	ServerAddr           string
-	PlainText            bool
-	Insecure             bool
-	CertFile             string
-	ClientCertFile       string
-	ClientCertKeyFile    string
-	AuthToken            string
-	ConfigPath           string
-	Context              string
-	UserAgent            string
-	GRPCWeb              bool
-	GRPCWebRootPath      string
-	Core                 bool
-	PortForward          bool
-	PortForwardNamespace string
-	Headers              []string
-	HttpRetryMax         int //nolint:revive //FIXME(var-naming)
-	KubeOverrides        *clientcmd.ConfigOverrides
-	AppControllerName    string
-	ServerName           string
-	RedisHaProxyName     string
-	RedisName            string
-	RedisCompression     string
-	RepoServerName       string
-	PromptsEnabled       bool
+	ServerAddr                     string
+	PlainText                      bool
+	Insecure                       bool
+	CertFile                       string
+	ClientCertFile                 string
+	ClientCertKeyFile              string
+	AuthToken                      string
+	ConfigPath                     string
+	Context                        string
+	UserAgent                      string
+	GRPCWeb                        bool
+	GRPCWebRootPath                string
+	SsoCallbackListenerIsSecure    bool
+	SsoCallbackListenerCertFile    string
+	SsoCallbackListenerCertKeyFile string
+	Core                           bool
+	PortForward                    bool
+	PortForwardNamespace           string
+	Headers                        []string
+	HttpRetryMax                   int //nolint:revive //FIXME(var-naming)
+	KubeOverrides                  *clientcmd.ConfigOverrides
+	AppControllerName              string
+	ServerName                     string
+	RedisHaProxyName               string
+	RedisName                      string
+	RedisCompression               string
+	RepoServerName                 string
+	PromptsEnabled                 bool
 }
 
 type client struct {
