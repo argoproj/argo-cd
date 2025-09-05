@@ -1,7 +1,9 @@
 hs = {}
 
 if obj.spec.suspend == true then
-    hs.status = "Suspended"
+    -- Set to Healthy insted of Suspended until bug is resolved
+    -- See https://github.com/argoproj/argo-cd/issues/24428
+    hs.status = "Healthy"
     hs.message = "CronJob is Suspended"
     return hs
 end
@@ -21,6 +23,7 @@ if obj.status ~= nil then
 
         -- Job is progressing, so lastScheduleTime will always be grater than lastSuccessfulTime
         -- Set to healthy since we do not know if it is Degraded
+        -- See https://github.com/argoproj/argo-cd/issues/24429
         if obj.status.active ~= nil and table.getn(obj.status.active) > 0 then
             hs.status = "Healthy"
             hs.message = "The job is running. Its last execution may not have been successful"
