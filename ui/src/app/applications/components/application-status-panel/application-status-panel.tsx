@@ -91,7 +91,7 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                     <div className='application-status-panel__item'>
                         {sectionHeader({
                             title: 'PROGRESSIVE SYNC',
-                            helpContent: 'Shows the current status of progressive sync for applications managed by an ApplicationSet with RollingSync strategy.'
+                            helpContent: 'Shows the current status of progressive sync for applications managed by an ApplicationSet.'
                         })}
                         <div className='application-status-panel__item-value'>
                             <i className='fa fa-exclamation-triangle' style={{color: COLORS.sync.unknown}} /> Error
@@ -101,7 +101,14 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                 );
             }}
             load={async () => {
-                const appSet = await services.applications.getApplicationSet(appSetRef.name, application.metadata.namespace);
+                // Find ApplicationSet by searching all namespaces dynamically
+                const appSetList = await services.applications.listApplicationSets();
+                const appSet = appSetList.items?.find(item => item.metadata.name === appSetRef.name);
+
+                if (!appSet) {
+                    throw new Error(`ApplicationSet ${appSetRef.name} not found in any namespace`);
+                }
+
                 // Only return the ApplicationSet if it has a strategy (Progressive Sync enabled)
                 if (appSet?.spec?.strategy) {
                     return appSet;
@@ -111,7 +118,7 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
             }}>
             {(appSet: models.ApplicationSet | 'NO_STRATEGY') => {
                 if (appSet === 'NO_STRATEGY') {
-                    // If the ApplicationSet has no strategy (Progressive Sync disabled), don't show Progressive Sync at all
+                    // If the ApplicationSet has no strategy (Progressive Sync disabled), don't show Progressive Sync panel
                     return null;
                 }
 
@@ -125,13 +132,16 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                     );
                 }
 
+                // Determine strategy type and display accordingly
+                const strategyType = appSet.spec?.strategy?.type || 'AllAtOnce';
+
                 // If no application status is found, show a default status
                 if (!appResource && !appResourceFromResources) {
                     return (
                         <div className='application-status-panel__item'>
                             {sectionHeader({
                                 title: 'PROGRESSIVE SYNC',
-                                helpContent: 'Shows the current status of progressive sync for applications managed by an ApplicationSet with RollingSync strategy.'
+                                helpContent: `Shows the current status of progressive sync for applications managed by an ApplicationSet with ${strategyType} strategy.`
                             })}
                             <div className='application-status-panel__item-value'>
                                 <i className='fa fa-clock' style={{color: COLORS.sync.out_of_sync}} /> Waiting
@@ -140,9 +150,6 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                         </div>
                     );
                 }
-
-                // Determine strategy type and display accordingly
-                const strategyType = appSet.spec?.strategy?.type || 'AllAtOnce';
                 const isRollingSync = strategyType === 'RollingSync';
 
                 // Use the appropriate resource based on strategy
