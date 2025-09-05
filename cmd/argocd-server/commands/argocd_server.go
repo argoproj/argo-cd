@@ -91,6 +91,7 @@ func NewCommand() *cobra.Command {
 		syncWithReplaceAllowed   bool
 
 		// ApplicationSet
+		tokenRefStrictMode       bool
 		enableNewGitFileGlobbing bool
 		scmRootCAPath            string
 		allowedScmProviders      []string
@@ -225,6 +226,7 @@ func NewCommand() *cobra.Command {
 				Namespace:               namespace,
 				BaseHRef:                baseHRef,
 				RootPath:                rootPath,
+				ClientConfig:            clientConfig,
 				DynamicClientset:        dynamicClient,
 				KubeControllerClientset: controllerClient,
 				KubeClientset:           kubeclientset,
@@ -251,6 +253,7 @@ func NewCommand() *cobra.Command {
 			}
 
 			appsetOpts := server.ApplicationSetOpts{
+				TokenRefStrictMode:       tokenRefStrictMode,
 				GitSubmoduleEnabled:      gitSubmoduleEnabled,
 				EnableNewGitFileGlobbing: enableNewGitFileGlobbing,
 				ScmRootCAPath:            scmRootCAPath,
@@ -335,6 +338,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableScmProviders, "appset-enable-scm-providers", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS", true), "Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true)")
 	command.Flags().StringSliceVar(&allowedScmProviders, "appset-allowed-scm-providers", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS", []string{}, ","), "The list of allowed custom SCM provider API URLs. This restriction does not apply to SCM or PR generators which do not accept a custom API URL. (Default: Empty = all)")
 	command.Flags().BoolVar(&enableNewGitFileGlobbing, "appset-enable-new-git-file-globbing", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING", false), "Enable new globbing in Git files generator.")
+	command.Flags().BoolVar(&tokenRefStrictMode, "token-ref-strict-mode", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE", false), fmt.Sprintf("Set to true to require secrets referenced by SCM providers to have the %s=%s label set (Default: false)", common.LabelKeySecretType, common.LabelValueSecretTypeSCMCreds))
 	command.Flags().BoolVar(&enableGitHubAPIMetrics, "appset-enable-github-api-metrics", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS", false), "Enable GitHub API metrics for generators that use the GitHub API")
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
