@@ -16,11 +16,18 @@ jobs:
       )
     runs-on: ubuntu-latest
     steps:
+      - name: Generate a token
+        id: generate-token
+        uses: actions/create-github-app-token@a8d616148505b5069dccd32f177bb87d7f39123b # v2.1.1
+        with:
+          app-id: ${{ vars.CHERRYPICK_APP_ID }}
+          private-key: ${{ secrets.CHERRYPICK_APP_PRIVATE_KEY }}
+
       - name: Checkout repository
         uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694  # v4.0.0
         with:
           fetch-depth: 0
-          token: ${{ secrets.CHERRY_PICK_TOKEN || github.token }}
+          token: ${{ steps.generate-token.outputs.token }}
 
       - name: Configure Git
         run: |
@@ -93,7 +100,7 @@ jobs:
           gh pr comment ${{ github.event.pull_request.number }} \
             --body "🍒 Cherry-pick PR created: #$(gh pr list --head ${{ steps.cherry-pick.outputs.branch_name }} --json number --jq '.[0].number')"
         env:
-          GH_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN || github.token }}
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
 
       - name: Comment on failure
         if: failure()
@@ -101,4 +108,4 @@ jobs:
           gh pr comment ${{ github.event.pull_request.number }} \
             --body "❌ Cherry-pick failed. Please check the workflow logs for details."
         env:
-          GH_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN || github.token }}
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
