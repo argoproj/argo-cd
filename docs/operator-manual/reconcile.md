@@ -48,6 +48,18 @@ data:
     - /status
 ```
 
+The default configuration follows. Overriding the default configuration for one key will not affect the other defaults.
+Setting a key to any value, including an empty string, will override the default for that key.
+
+```yaml
+{!util/settings/default_ignore_resource_updates.yaml!}
+```
+
+It is also possible to configure `ignoreResourceUpdates` from within the top-level `resource.customizations` key. If
+an `ignoreResourceUpdates` configuration exists for a specific group and kind in both `resource.customizations` and
+`resource.customizations.ignoreResourceUpdates.<group>_<kind>`, the configuration in `resource.customizations.ignoreResourceUpdates.<group>_<kind>`
+takes precedence.
+
 ### Using ignoreDifferences to ignore reconcile
 
 By default, the existing system-level `ignoreDifferences` customizations will be added to ignore resource updates as well. This helps reduce config management by preventing you to copy all existing ignore differences configurations.
