@@ -252,7 +252,7 @@ func (_c *Dependencies_GetProcessableApps_Call) RunAndReturn(run func() (*v1alph
 }
 
 // GetRepoObjs provides a mock function for the type Dependencies
-func (_mock *Dependencies) GetRepoObjs(app *v1alpha1.Application, source v1alpha1.ApplicationSource, revision string, project *v1alpha1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
+func (_mock *Dependencies) GetRepoObjs(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, revision string, project *v1alpha1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
 	ret := _mock.Called(app, source, revision, project)
 
 	if len(ret) == 0 {

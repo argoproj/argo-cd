@@ -47,7 +47,7 @@ func TestGetRepoObjs(t *testing.T) {
 	source := app.Spec.GetSource()
 	source.RepoURL = "oci://example.com/argo/argo-cd"
 
-	objs, resp, err := ctrl.GetRepoObjs(app, source, "abc123", &v1alpha1.AppProject{
+	objs, resp, err := ctrl.GetRepoObjs(t.Context(), app, source, "abc123", &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "default",
 			Namespace: test.FakeArgoCDNamespace,
