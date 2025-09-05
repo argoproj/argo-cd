@@ -393,10 +393,13 @@ func TestSyncCreateFailure(t *testing.T) {
 func TestSync_ApplyOutOfSyncOnly(t *testing.T) {
 	pod1 := testingutils.NewPod()
 	pod1.SetName("pod-1")
+	pod1.SetNamespace("fake-argocd-ns")
 	pod2 := testingutils.NewPod()
 	pod2.SetName("pod-2")
+	pod2.SetNamespace("fake-argocd-ns")
 	pod3 := testingutils.NewPod()
 	pod3.SetName("pod-3")
+	pod3.SetNamespace("fake-argocd-ns")
 
 	syncCtx := newTestSyncCtx(nil)
 	syncCtx.applyOutOfSyncOnly = true
@@ -503,6 +506,70 @@ func TestSync_ApplyOutOfSyncOnly(t *testing.T) {
 		assert.Equal(t, "pod-1", resources[0].ResourceKey.Name)
 		assert.Equal(t, synccommon.ResultCodeSynced, resources[0].Status)
 		assert.Equal(t, synccommon.OperationRunning, resources[0].HookPhase)
+	})
+}
+
+func TestSync_ApplyOutOfSyncOnly_ClusterResources(t *testing.T) {
+	ns1 := testingutils.NewNamespace()
+	ns1.SetName("ns-1")
+	ns1.SetNamespace("")
+
+	ns2 := testingutils.NewNamespace()
+	ns2.SetName("ns-2")
+	ns1.SetNamespace("")
+
+	ns3 := testingutils.NewNamespace()
+	ns3.SetName("ns-3")
+	ns3.SetNamespace("")
+
+	ns2Target := testingutils.NewNamespace()
+	ns2Target.SetName("ns-2")
+	// set namespace for a cluster scoped resource. This is to simulate the behaviour, where the Application's
+	// spec.destination.namespace is set for all resources that does not have a namespace set, irrespective of whether
+	// the resource is cluster scoped or namespace scoped.
+	//
+	// Refer to https://github.com/argoproj/gitops-engine/blob/8007df5f6c5dd78a1a8cef73569468ce4d83682c/pkg/sync/sync_context.go#L827-L833
+	ns2Target.SetNamespace("ns-2")
+
+	syncCtx := newTestSyncCtx(nil, WithResourceModificationChecker(true, diffResultListClusterResource()))
+	syncCtx.applyOutOfSyncOnly = true
+	fakeDisco := syncCtx.disco.(*fakedisco.FakeDiscovery)
+	fakeDisco.Resources = []*metav1.APIResourceList{
+		{
+			GroupVersion: "v1",
+			APIResources: []metav1.APIResource{
+				{Kind: "Namespace", Group: "", Version: "v1", Namespaced: false, Verbs: standardVerbs},
+			},
+		},
+	}
+
+	t.Run("cluster resource with target ns having namespace filled", func(t *testing.T) {
+		syncCtx.resources = groupResources(ReconciliationResult{
+			Live:   []*unstructured.Unstructured{nil, ns2, ns3},
+			Target: []*unstructured.Unstructured{ns1, ns2Target, ns3},
+		})
+
+		syncCtx.Sync()
+		phase, _, resources := syncCtx.GetState()
+		assert.Equal(t, synccommon.OperationSucceeded, phase)
+		assert.Len(t, resources, 1)
+		for _, r := range resources {
+			switch r.ResourceKey.Name {
+			case "ns-1":
+				// ns-1 namespace does not exist yet in the cluster, so it must create it and resource must go to
+				// synced state.
+				assert.Equal(t, synccommon.ResultCodeSynced, r.Status)
+			case "ns-2":
+				// ns-2 namespace already exist and is synced. However, the target resource has metadata.namespace set for
+				// a cluster resource. This namespace must not be synced again, as the object already exists and
+				// a change in namespace for a cluster resource has no meaning and hence must not be treated as an
+				// out-of-sync resource.
+				t.Error("ns-2 should have been skipped, as no change")
+			case "ns-3":
+				// ns-3 namespace exists and there is no change in the target's metadata.namespace value. So it must not try to sync again.
+				t.Error("ns-3 should have been skipped, as no change")
+			}
+		}
 	})
 }
 
@@ -2356,4 +2423,29 @@ func TestNeedsClientSideApplyMigration(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func diffResultListClusterResource() *diff.DiffResultList {
+	ns1 := testingutils.NewNamespace()
+	ns1.SetName("ns-1")
+	ns2 := testingutils.NewNamespace()
+	ns2.SetName("ns-2")
+	ns3 := testingutils.NewNamespace()
+	ns3.SetName("ns-3")
+
+	diffResultList := diff.DiffResultList{
+		Modified: true,
+		Diffs:    []diff.DiffResult{},
+	}
+
+	nsBytes, _ := json.Marshal(ns1)
+	diffResultList.Diffs = append(diffResultList.Diffs, diff.DiffResult{NormalizedLive: nsBytes, PredictedLive: nsBytes, Modified: false})
+
+	nsBytes, _ = json.Marshal(ns2)
+	diffResultList.Diffs = append(diffResultList.Diffs, diff.DiffResult{NormalizedLive: nsBytes, PredictedLive: nsBytes, Modified: false})
+
+	nsBytes, _ = json.Marshal(ns3)
+	diffResultList.Diffs = append(diffResultList.Diffs, diff.DiffResult{NormalizedLive: nsBytes, PredictedLive: nsBytes, Modified: false})
+
+	return &diffResultList
 }
