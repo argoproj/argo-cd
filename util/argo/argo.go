@@ -589,7 +589,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		if !proj.IsSourcePermitted(spec.SourceHydrator.GetDrySource()) {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.GetSource().RepoURL, spec.Project),
+				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.SourceHydrator.GetDrySource().RepoURL, proj.Name),
 			})
 		}
 	case spec.HasMultipleSources():
@@ -603,7 +603,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 			if !proj.IsSourcePermitted(source) {
 				conditions = append(conditions, argoappv1.ApplicationCondition{
 					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", source.RepoURL, spec.Project),
+					Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", source.RepoURL, proj.Name),
 				})
 			}
 		}
@@ -616,7 +616,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		if !proj.IsSourcePermitted(spec.GetSource()) {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.GetSource().RepoURL, spec.Project),
+				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.GetSource().RepoURL, proj.Name),
 			})
 		}
 	}
@@ -629,22 +629,21 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		})
 		return conditions, nil
 	}
-
-	if destCluster.Server != "" {
-		permitted, err := proj.IsDestinationPermitted(destCluster, spec.Destination.Namespace, func(project string) ([]*argoappv1.Cluster, error) {
-			return db.GetProjectClusters(ctx, project)
+	permitted, err := proj.IsDestinationPermitted(destCluster, spec.Destination.Namespace, func(project string) ([]*argoappv1.Cluster, error) {
+		return db.GetProjectClusters(ctx, project)
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !permitted {
+		server := destCluster.Server
+		if spec.Destination.Name != "" {
+			server = destCluster.Name
+		}
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: fmt.Sprintf("application destination server '%s' and namespace '%s' do not match any of the allowed destinations in project '%s'", server, spec.Destination.Namespace, proj.Name),
 		})
-		if err != nil {
-			return nil, err
-		}
-		if !permitted {
-			conditions = append(conditions, argoappv1.ApplicationCondition{
-				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application destination server '%s' and namespace '%s' do not match any of the allowed destinations in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),
-			})
-		}
-	} else if destCluster.Server == "" {
-		conditions = append(conditions, argoappv1.ApplicationCondition{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: ErrDestinationMissing})
 	}
 	return conditions, nil
 }
@@ -730,7 +729,7 @@ func GetAppProject(ctx context.Context, app *argoappv1.Application, projLister a
 		return nil, err
 	}
 	if !proj.IsAppNamespacePermitted(app, ns) {
-		return nil, argoappv1.NewErrApplicationNotAllowedToUseProject(app.Name, app.Namespace, proj.Name)
+		return nil, NewErrApplicationNotAllowedToUseProject(app.Name, app.Namespace, proj.Name)
 	}
 	return proj, nil
 }
@@ -771,14 +770,6 @@ func verifyGenerateManifests(
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
 				Message: fmt.Sprintf("Unable to get repository: %v", err),
-			})
-			continue
-		}
-		kustomizeOptions, err := kustomizeSettings.GetOptions(source)
-		if err != nil {
-			conditions = append(conditions, argoappv1.ApplicationCondition{
-				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("Error getting Kustomize options: %v", err),
 			})
 			continue
 		}
@@ -841,7 +832,7 @@ func verifyGenerateManifests(
 			Namespace:                       app.Spec.Destination.Namespace,
 			ApplicationSource:               &source,
 			AppLabelKey:                     appLabelKey,
-			KustomizeOptions:                kustomizeOptions,
+			KustomizeOptions:                kustomizeSettings,
 			KubeVersion:                     kubeVersion,
 			ApiVersions:                     apiVersions,
 			HelmOptions:                     helmOptions,

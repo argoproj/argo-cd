@@ -50,7 +50,6 @@ func NewCommand() *cobra.Command {
 	var (
 		clientConfig                   clientcmd.ClientConfig
 		processorsCount                int
-		namespace                      string
 		appLabelSelector               string
 		logLevel                       string
 		logFormat                      string
@@ -178,7 +177,6 @@ func NewCommand() *cobra.Command {
 	clientConfig = addK8SFlagsToCmd(&command)
 	command.Flags().IntVar(&processorsCount, "processors-count", 1, "Processors count.")
 	command.Flags().StringVar(&appLabelSelector, "app-label-selector", "", "App label selector.")
-	command.Flags().StringVar(&namespace, "namespace", "", "Namespace which controller handles. Current namespace if empty.")
 	command.Flags().StringVar(&logLevel, "loglevel", env.StringFromEnv("ARGOCD_NOTIFICATIONS_CONTROLLER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVar(&logFormat, "logformat", env.StringFromEnv("ARGOCD_NOTIFICATIONS_CONTROLLER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().IntVar(&metricsPort, "metrics-port", defaultMetricsPort, "Metrics port")

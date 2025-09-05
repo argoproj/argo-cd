@@ -347,7 +347,6 @@ func (repo *Repository) Sanitized() *Repository {
 		Repo:                       repo.Repo,
 		Type:                       repo.Type,
 		Name:                       repo.Name,
-		Username:                   repo.Username,
 		Insecure:                   repo.IsInsecure(),
 		EnableLFS:                  repo.EnableLFS,
 		EnableOCI:                  repo.EnableOCI,

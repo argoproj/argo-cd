@@ -546,65 +546,73 @@ export const deletePopup = async (
 };
 
 export async function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
-    return services.applications.getResourceActions(metadata.name, metadata.namespace, resource).then(actions => {
-        return actions.map(action => ({
-            title: action.displayName ?? action.name,
-            disabled: !!action.disabled,
-            iconClassName: action.iconClass,
-            action: async () => {
-                const confirmed = false;
-                const title = action.params ? `Enter input parameters for action: ${action.name}` : `Perform ${action.name} action?`;
-                await apis.popup.prompt(
-                    title,
-                    api => (
-                        <div>
-                            {!action.params && (
-                                <div className='argo-form-row'>
-                                    <div> Are you sure you want to perform {action.name} action?</div>
-                                </div>
-                            )}
-                            {action.params &&
-                                action.params.map((param, index) => (
-                                    <div className='argo-form-row' key={index}>
-                                        <FormField label={param.name} field={param.name} formApi={api} component={Text} />
+    // Don't call API for missing resources
+    if (!resource.uid) {
+        return [];
+    }
+
+    return services.applications
+        .getResourceActions(metadata.name, metadata.namespace, resource)
+        .then(actions => {
+            return actions.map(action => ({
+                title: action.displayName ?? action.name,
+                disabled: !!action.disabled,
+                iconClassName: action.iconClass,
+                action: async () => {
+                    const confirmed = false;
+                    const title = action.params ? `Enter input parameters for action: ${action.name}` : `Perform ${action.name} action?`;
+                    await apis.popup.prompt(
+                        title,
+                        api => (
+                            <div>
+                                {!action.params && (
+                                    <div className='argo-form-row'>
+                                        <div> Are you sure you want to perform {action.name} action?</div>
                                     </div>
-                                ))}
-                        </div>
-                    ),
-                    {
-                        submit: async (vals, _, close) => {
-                            try {
-                                const resourceActionParameters = action.params
-                                    ? action.params.map(param => ({
-                                          name: param.name,
-                                          value: vals[param.name] || param.default,
-                                          type: param.type,
-                                          default: param.default
-                                      }))
-                                    : [];
-                                await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name, resourceActionParameters);
-                                close();
-                            } catch (e) {
-                                apis.notifications.show({
-                                    content: <ErrorNotification title='Unable to execute resource action' e={e} />,
-                                    type: NotificationType.Error
-                                });
+                                )}
+                                {action.params &&
+                                    action.params.map((param, index) => (
+                                        <div className='argo-form-row' key={index}>
+                                            <FormField label={param.name} field={param.name} formApi={api} component={Text} />
+                                        </div>
+                                    ))}
+                            </div>
+                        ),
+                        {
+                            submit: async (vals, _, close) => {
+                                try {
+                                    const resourceActionParameters = action.params
+                                        ? action.params.map(param => ({
+                                              name: param.name,
+                                              value: vals[param.name] || param.default,
+                                              type: param.type,
+                                              default: param.default
+                                          }))
+                                        : [];
+                                    await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name, resourceActionParameters);
+                                    close();
+                                } catch (e) {
+                                    apis.notifications.show({
+                                        content: <ErrorNotification title='Unable to execute resource action' e={e} />,
+                                        type: NotificationType.Error
+                                    });
+                                }
                             }
-                        }
-                    },
-                    null,
-                    null,
-                    action.params
-                        ? action.params.reduce((acc, res) => {
-                              acc[res.name] = res.default;
-                              return acc;
-                          }, {} as any)
-                        : {}
-                );
-                return confirmed;
-            }
-        }));
-    });
+                        },
+                        null,
+                        null,
+                        action.params
+                            ? action.params.reduce((acc, res) => {
+                                  acc[res.name] = res.default;
+                                  return acc;
+                              }, {} as any)
+                            : {}
+                    );
+                    return confirmed;
+                }
+            }));
+        })
+        .catch(() => [] as ActionMenuItem[]);
 }
 
 function getActionItems(
@@ -692,20 +700,22 @@ function getActionItems(
 
     const resourceActions = getResourceActionsMenuItems(resource, application.metadata, apis);
 
-    const links = services.applications
-        .getResourceLinks(application.metadata.name, application.metadata.namespace, resource)
-        .then(data => {
-            return (data.items || []).map(
-                link =>
-                    ({
-                        title: link.title,
-                        iconClassName: `fa fa-fw ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
-                        action: () => window.open(link.url, '_blank'),
-                        tooltip: link.description
-                    }) as MenuItem
-            );
-        })
-        .catch(() => [] as MenuItem[]);
+    const links = !resource.uid
+        ? Promise.resolve([])
+        : services.applications
+              .getResourceLinks(application.metadata.name, application.metadata.namespace, resource)
+              .then(data => {
+                  return (data.items || []).map(
+                      link =>
+                          ({
+                              title: link.title,
+                              iconClassName: `fa fa-fw ${link.iconClass ? link.iconClass : 'fa-external-link'}`,
+                              action: () => window.open(link.url, '_blank'),
+                              tooltip: link.description
+                          }) as MenuItem
+                  );
+              })
+              .catch(() => [] as MenuItem[]);
 
     return combineLatest(
         from([items]), // this resolves immediately
@@ -1732,3 +1742,9 @@ export const getProgressiveSyncStatusColor = (status: string): string => {
             return COLORS.sync.unknown;
     }
 };
+
+// constant for podrequests
+export const podRequests = {
+    CPU: 'Requests (CPU)',
+    MEMORY: 'Requests (MEM)'
+} as const;

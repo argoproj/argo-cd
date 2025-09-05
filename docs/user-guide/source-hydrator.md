@@ -174,10 +174,9 @@ code commit.
 git commit -m "Bump image to v1.2.3" \
   # Must be an RFC 5322 name
   --trailer "Argocd-reference-commit-author: Author Name <author@example.com>" \
-  # Must be a valid email address per RFC 5322
-  --trailer "Argocd-reference-commit-author-email: author@example.com" \
   # Must be a hex string 5-40 characters long
   --trailer "Argocd-reference-commit-sha: <code-commit-sha>" \
+  # The subject is the first line of the commit message. It cannot contain newlines.
   --trailer "Argocd-reference-commit-subject: Commit message of the code commit" \
    # The body must be a valid JSON string, including opening and closing quotes
   --trailer 'Argocd-reference-commit-body: "Commit message of the code commit\n\nSigned-off-by: Author Name <author@example.com>"' \
@@ -263,6 +262,55 @@ specified more than once, the last one will be used.
 
 All trailers are optional. If a trailer is not specified, the corresponding field in the metadata will be omitted.
 
+## Commit Message Template
+
+The commit message is generated using a [Go text/template](https://pkg.go.dev/text/template), optionally configured by the user via the argocd-cm ConfigMap. The template is rendered using the values from `hydrator.metadata`. The template can be multi-line, allowing users to define a subject line, body and optional trailers. To define the commit message template, you need to set the `sourceHydrator.commitMessageTemplate` field in argocd-cm ConfigMap.
+
+The template may functions from the [Sprig function library](https://github.com/Masterminds/sprig).
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  sourceHydrator.commitMessageTemplate: |
+    {{.metadata.drySha | trunc 7}}: {{ .metadata.subject }}
+    {{- if .metadata.body }}
+    
+    {{ .metadata.body }}
+    {{- end }}
+    {{ range $ref := .metadata.references }}
+    {{- if and $ref.commit $ref.commit.author }}
+    Co-authored-by: {{ $ref.commit.author }}
+    {{- end }}
+    {{- end }}
+    {{- if .metadata.author }}
+    Co-authored-by: {{ .metadata.author }}
+    {{- end }}
+
+### Credential Templates
+
+Credential templates allow a single credential to be used for multiple repositories. The source hydrator supports credential templates. For example, if you setup credential templates for the URL prefix `https://github.com/argoproj`, these credentials will be used for all repositories with this URL as prefix (e.g. `https://github.com/argoproj/argocd-example-apps`) that do not have their own credentials configured.
+For more information please refer [credential-template](private-repositories.md#credential-templates). 
+An example of repo-write-creds secret.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: private-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-write-creds
+stringData:
+  type: git
+  url: https://github.com/argoproj
+  password: my-password
+  username: my-username
+```
+
 ## Limitations
 
 ### Signature Verification
@@ -276,11 +324,6 @@ verification when Argo CD attempts to sync the hydrated manifests.
 If all the Applications for a given destination repo/branch are under the same project, then the hydrator will use any
 available project-scoped push secrets. If two Applications for a given repo/branch are in different projects, then the
 hydrator will not be able to use a project-scoped push secret and will require a global push secret.
-
-### Credential Templates
-
-Credential templates allow a single credential to be used for multiple repositories. The source hydrator does not 
-currently support credential templates. You will need a separate credential for each repository.
 
 ### `manifest-generate-paths` Annotation Support
 
@@ -323,3 +366,10 @@ from pushing to the hydrated branches, enable branch protection in your SCM.
 
 It is best practice to prefix the hydrated branches with a common prefix, such as `environments/`. This makes it easier
 to configure branch protection rules on the destination repository.
+
+!!! note
+    To maintain reproducibility and determinism in the Hydrator’s output,
+    Argo CD-specific metadata (such as `argocd.argoproj.io/tracking-id`) is
+    not written to Git during hydration. These annotations are added dynamically
+    during application sync and comparison.
+!!!

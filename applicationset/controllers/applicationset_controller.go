@@ -1433,17 +1433,37 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 	needToUpdateStatus := false
 
 	if len(applicationStatuses) != len(applicationSet.Status.ApplicationStatus) {
+		logCtx.WithFields(log.Fields{
+			"current_count":  len(applicationSet.Status.ApplicationStatus),
+			"expected_count": len(applicationStatuses),
+		}).Debug("application status count changed")
 		needToUpdateStatus = true
 	} else {
 		for i := range applicationStatuses {
 			appStatus := applicationStatuses[i]
 			idx := findApplicationStatusIndex(applicationSet.Status.ApplicationStatus, appStatus.Application)
 			if idx == -1 {
+				logCtx.WithFields(log.Fields{"application": appStatus.Application}).Debug("application not found in current status")
 				needToUpdateStatus = true
 				break
 			}
 			currentStatus := applicationSet.Status.ApplicationStatus[idx]
-			if currentStatus.Message != appStatus.Message || currentStatus.Status != appStatus.Status || currentStatus.Step != appStatus.Step {
+			statusChanged := currentStatus.Status != appStatus.Status
+			stepChanged := currentStatus.Step != appStatus.Step
+			messageChanged := currentStatus.Message != appStatus.Message
+
+			if statusChanged || stepChanged || messageChanged {
+				if statusChanged {
+					logCtx.WithFields(log.Fields{"application": appStatus.Application, "previous_status": currentStatus.Status, "new_status": appStatus.Status}).
+						Debug("application status changed")
+				}
+				if stepChanged {
+					logCtx.WithFields(log.Fields{"application": appStatus.Application, "previous_step": currentStatus.Step, "new_step": appStatus.Step}).
+						Debug("application step changed")
+				}
+				if messageChanged {
+					logCtx.WithFields(log.Fields{"application": appStatus.Application}).Debug("application message changed")
+				}
 				needToUpdateStatus = true
 				break
 			}
@@ -1696,24 +1716,21 @@ func shouldRequeueForApplicationSet(appSetOld, appSetNew *argov1alpha1.Applicati
 	}
 
 	// Requeue if any ApplicationStatus.Status changed for Progressive sync strategy
-	// Requeue if deletionTimestamp added
 	if enableProgressiveSyncs {
 		if !cmp.Equal(appSetOld.Status.ApplicationStatus, appSetNew.Status.ApplicationStatus, cmpopts.EquateEmpty()) {
 			return true
 		}
-		if !cmp.Equal(appSetOld.DeletionTimestamp, appSetNew.DeletionTimestamp, cmpopts.EquateEmpty()) {
-			return true
-		}
 	}
 
-	// only compare the applicationset spec, annotations, labels and finalizers, specifically avoiding
+	// only compare the applicationset spec, annotations, labels and finalizers, deletionTimestamp, specifically avoiding
 	// the status field. status is owned by the applicationset controller,
 	// and we do not need to requeue when it does bookkeeping
 	// NB: the ApplicationDestination comes from the ApplicationSpec being embedded
 	// in the ApplicationSetTemplate from the generators
 	if !cmp.Equal(appSetOld.Spec, appSetNew.Spec, cmpopts.EquateEmpty(), cmpopts.EquateComparable(argov1alpha1.ApplicationDestination{})) ||
 		!cmp.Equal(appSetOld.GetLabels(), appSetNew.GetLabels(), cmpopts.EquateEmpty()) ||
-		!cmp.Equal(appSetOld.GetFinalizers(), appSetNew.GetFinalizers(), cmpopts.EquateEmpty()) {
+		!cmp.Equal(appSetOld.GetFinalizers(), appSetNew.GetFinalizers(), cmpopts.EquateEmpty()) ||
+		!cmp.Equal(appSetOld.DeletionTimestamp, appSetNew.DeletionTimestamp, cmpopts.EquateEmpty()) {
 		return true
 	}
 

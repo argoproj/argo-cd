@@ -39,7 +39,7 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
                                     </div>
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-3'>CAPABILITIES</div>
-                                        <div className='columns small-9'>{account.capabilities.join(', ')}</div>
+                                        <div className='columns small-9'>{(account.capabilities || []).join(', ')}</div>
                                     </div>
                                 </div>
                             </div>

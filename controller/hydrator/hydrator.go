@@ -16,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/hydrator"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
@@ -59,6 +60,9 @@ type Dependencies interface {
 	// AddHydrationQueueItem adds a hydration queue item to the queue. This is used to trigger the hydration process for
 	// a group of applications which are hydrating to the same repo and target branch.
 	AddHydrationQueueItem(key types.HydrationQueueKey)
+
+	// GetHydratorCommitMessageTemplate gets the configured template for rendering commit messages.
+	GetHydratorCommitMessageTemplate() (string, error)
 }
 
 // Hydrator is the main struct that implements the hydration logic. It uses the Dependencies interface to access the
@@ -134,21 +138,6 @@ func getHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {
 		DestinationBranch:    destinationBranch,
 	}
 	return key
-}
-
-// uniqueHydrationDestination is used to detect duplicate hydrate destinations.
-type uniqueHydrationDestination struct {
-	// sourceRepoURL must be normalized with git.NormalizeGitURL to ensure that two apps with different URL formats
-	// don't end up in two different hydration queue items. Failing to normalize would result in one hydrated commit for
-	// each unique URL.
-	//nolint:unused // used as part of a map key
-	sourceRepoURL string
-	//nolint:unused // used as part of a map key
-	sourceTargetRevision string
-	//nolint:unused // used as part of a map key
-	destinationBranch string
-	//nolint:unused // used as part of a map key
-	destinationPath string
 }
 
 // ProcessHydrationQueueItem processes a hydration queue item. It retrieves the relevant applications for the given
@@ -234,7 +223,7 @@ func (h *Hydrator) getRelevantAppsForHydration(logCtx *log.Entry, hydrationKey t
 	}
 
 	var relevantApps []*appv1.Application
-	uniqueDestinations := make(map[uniqueHydrationDestination]bool, len(apps.Items))
+	uniquePaths := make(map[string]bool, len(apps.Items))
 	for _, app := range apps.Items {
 		if app.Spec.SourceHydrator == nil {
 			continue
@@ -264,17 +253,12 @@ func (h *Hydrator) getRelevantAppsForHydration(logCtx *log.Entry, hydrationKey t
 			continue
 		}
 
-		uniqueDestinationKey := uniqueHydrationDestination{
-			sourceRepoURL:        git.NormalizeGitURLAllowInvalid(app.Spec.SourceHydrator.DrySource.RepoURL),
-			sourceTargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
-			destinationBranch:    destinationBranch,
-			destinationPath:      app.Spec.SourceHydrator.SyncSource.Path,
-		}
 		// TODO: test the dupe detection
-		if _, ok := uniqueDestinations[uniqueDestinationKey]; ok {
-			return nil, fmt.Errorf("multiple app hydrators use the same destination: %v", uniqueDestinationKey)
+		// TODO: normalize the path to avoid "path/.." from being treated as different from "."
+		if _, ok := uniquePaths[app.Spec.SourceHydrator.SyncSource.Path]; ok {
+			return nil, fmt.Errorf("multiple app hydrators use the same destination: %v", app.Spec.SourceHydrator.SyncSource.Path)
 		}
-		uniqueDestinations[uniqueDestinationKey] = true
+		uniquePaths[app.Spec.SourceHydrator.SyncSource.Path] = true
 
 		relevantApps = append(relevantApps, &app)
 	}
@@ -360,13 +344,22 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 		}
 		logCtx.Warn("no credentials found for repo, continuing without credentials")
 	}
+	// get the commit message template
+	commitMessageTemplate, err := h.dependencies.GetHydratorCommitMessageTemplate()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get hydrated commit message template: %w", err)
+	}
+	commitMessage, errMsg := getTemplatedCommitMessage(repoURL, targetRevision, commitMessageTemplate, revisionMetadata)
+	if errMsg != nil {
+		return "", "", fmt.Errorf("failed to get hydrator commit templated message: %w", errMsg)
+	}
 
 	manifestsRequest := commitclient.CommitHydratedManifestsRequest{
 		Repo:              repo,
 		SyncBranch:        syncBranch,
 		TargetBranch:      targetBranch,
 		DrySha:            targetRevision,
-		CommitMessage:     "[Argo CD Bot] hydrate " + targetRevision,
+		CommitMessage:     commitMessage,
 		Paths:             paths,
 		DryCommitMetadata: revisionMetadata,
 	}
@@ -430,4 +423,19 @@ func appNeedsHydration(app *appv1.Application, statusHydrateTimeout time.Duratio
 	}
 
 	return false, ""
+}
+
+// Gets the multi-line commit message based on the template defined in the configmap. It is a two step process:
+// 1.  Get the metadata template engine would use to render the template
+// 2. Pass the output of Step 1 and Step 2 to template Render
+func getTemplatedCommitMessage(repoURL, revision, commitMessageTemplate string, dryCommitMetadata *appv1.RevisionMetadata) (string, error) {
+	hydratorCommitMetadata, err := hydrator.GetCommitMetadata(repoURL, revision, dryCommitMetadata)
+	if err != nil {
+		return "", fmt.Errorf("failed to get hydrated commit message: %w", err)
+	}
+	templatedCommitMsg, err := hydrator.Render(commitMessageTemplate, hydratorCommitMetadata)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse template %s: %w", commitMessageTemplate, err)
+	}
+	return templatedCommitMsg, nil
 }
