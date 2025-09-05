@@ -266,7 +266,7 @@ spec:
     - /spec/replicas
   - kind: ConfigMap
     jqPathExpressions:
-    - '.data["config.yaml"].auth'
+    - '.data["config.yaml"]'
   # for the specified managedFields managers
   - group: "*"
     kind: "*"
