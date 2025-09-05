@@ -1207,6 +1207,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		logCtx.Warnf("Unable to get destination cluster: %v", err)
 		app.UnSetCascadedDeletion()
 		app.UnSetPostDeleteFinalizer()
+		app.UnSetPostDeleteFinalizer("cleanup")
 		if err := ctrl.updateFinalizers(app); err != nil {
 			return err
 		}
