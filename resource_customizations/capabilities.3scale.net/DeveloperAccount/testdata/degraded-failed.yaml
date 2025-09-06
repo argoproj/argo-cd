@@ -1,0 +1,7 @@
+apiVersion: capabilities.3scale.net/v1beta1
+kind: DeveloperAccount
+status:
+  conditions:
+    - type: Failed
+      status: "True"
+      message: Failure message
