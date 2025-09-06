@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/mocks"
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
@@ -248,6 +249,153 @@ Co-authored-by: test test@test.com
 				return
 			}
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func Test_normalizeNamespaceAndTracking(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name              string
+		objs              []*unstructured.Unstructured
+		app               *v1alpha1.Application
+		expectedNamespace map[string]string
+		expectAnnotation  map[string]bool
+	}{
+		{
+			name: "cluster-scoped resource with namespace should have namespace cleared",
+			objs: []*unstructured.Unstructured{
+				{
+					Object: map[string]any{
+						"apiVersion": "rbac.authorization.k8s.io/v1",
+						"kind":       "ClusterRole",
+						"metadata": map[string]any{
+							"name":      "test-cluster-role",
+							"namespace": "should-be-cleared",
+						},
+					},
+				},
+			},
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Namespace: "target-namespace",
+					},
+				},
+			},
+			expectedNamespace: map[string]string{
+				"test-cluster-role": "",
+			},
+			expectAnnotation: map[string]bool{
+				"test-cluster-role": true,
+			},
+		},
+		{
+			name: "namespace-scoped resource without namespace should get app namespace",
+			objs: []*unstructured.Unstructured{
+				{
+					Object: map[string]any{
+						"apiVersion": "v1",
+						"kind":       "ServiceAccount",
+						"metadata": map[string]any{
+							"name": "test-sa",
+						},
+					},
+				},
+			},
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Namespace: "target-namespace",
+					},
+				},
+			},
+			expectedNamespace: map[string]string{
+				"test-sa": "target-namespace",
+			},
+			expectAnnotation: map[string]bool{
+				"test-sa": true,
+			},
+		},
+		{
+			name: "namespace-scoped resource with existing namespace should keep it",
+			objs: []*unstructured.Unstructured{
+				{
+					Object: map[string]any{
+						"apiVersion": "v1",
+						"kind":       "ServiceAccount",
+						"metadata": map[string]any{
+							"name":      "test-sa-existing",
+							"namespace": "existing-namespace",
+						},
+					},
+				},
+			},
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Namespace: "target-namespace",
+					},
+				},
+			},
+			expectedNamespace: map[string]string{
+				"test-sa-existing": "existing-namespace",
+			},
+			expectAnnotation: map[string]bool{
+				"test-sa-existing": true,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			logCtx := log.WithField("test", tc.name)
+
+			normalizeNamespaceAndTracking(tc.objs, tc.app, logCtx)
+
+			for _, obj := range tc.objs {
+				if obj == nil {
+					continue
+				}
+
+				name := obj.GetName()
+				if name == "" {
+					continue
+				}
+
+				expectedNamespace, exists := tc.expectedNamespace[name]
+				if !exists {
+					continue
+				}
+
+				actualNamespace := obj.GetNamespace()
+				assert.Equal(t, expectedNamespace, actualNamespace,
+					"Object %s should have namespace %q, got %q", name, expectedNamespace, actualNamespace)
+
+				if tc.expectAnnotation[name] {
+					annotations := obj.GetAnnotations()
+					assert.NotNil(t, annotations, "Object %s should have annotations", name)
+					trackingID, exists := annotations["argocd.argoproj.io/tracking-id"]
+					assert.True(t, exists, "Object %s should have tracking annotation", name)
+					assert.NotEmpty(t, trackingID, "Object %s should have non-empty tracking ID", name)
+				}
+			}
 		})
 	}
 }
