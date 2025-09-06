@@ -42,10 +42,10 @@ const sectionLabel = (info: SectionInfo) => (
     <label style={{display: 'flex', alignItems: 'flex-start', fontSize: '12px', fontWeight: 600, color: ARGO_GRAY6_COLOR, minHeight: '18px'}}>
         {info.title}
         {info.helpContent && (
-            <span style={{marginLeft: '5px'}}>
+            <span style={{ marginLeft: '5px'}}>
                 <HelpIcon title={info.helpContent} />
-            </span>
-        )}
+                </span>
+            )}
     </label>
 );
 
