@@ -1118,3 +1118,8 @@ export interface ApplicationSet {
         resources?: ApplicationSetResource[];
     };
 }
+
+export interface ApplicationSetList {
+    metadata: models.ListMeta;
+    items: ApplicationSet[];
+}
