@@ -39,15 +39,19 @@ interface SectionInfo {
 }
 
 const sectionLabel = (info: SectionInfo) => (
-    <label style={{fontSize: '12px', fontWeight: 600, color: ARGO_GRAY6_COLOR}}>
+    <label style={{display: 'flex', alignItems: 'flex-start', fontSize: '12px', fontWeight: 600, color: ARGO_GRAY6_COLOR, minHeight: '18px'}}>
         {info.title}
-        {info.helpContent && <HelpIcon title={info.helpContent} />}
+        {info.helpContent && (
+            <span style={{marginLeft: '5px'}}>
+                <HelpIcon title={info.helpContent} />
+            </span>
+        )}
     </label>
 );
 
 const sectionHeader = (info: SectionInfo, onClick?: () => any) => {
     return (
-        <div style={{display: 'flex', alignItems: 'center', marginBottom: '0.5em'}}>
+        <div style={{display: 'flex', alignItems: 'center'}}>
             {sectionLabel(info)}
             {onClick && (
                 <button className='argo-button application-status-panel__more-button' onClick={onClick}>
@@ -156,7 +160,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item'>
-                <div style={{lineHeight: '19.5px', marginBottom: '0.3em'}}>{sectionLabel({title: 'APP HEALTH', helpContent: 'The health status of your app'})}</div>
+                {sectionHeader({title: 'APP HEALTH', helpContent: 'The health status of your app'})}
                 <div className='application-status-panel__item-value'>
                     <HealthStatusIcon state={application.status.health} />
                     &nbsp;
@@ -282,7 +286,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
             )}
             {application.status.conditions && (
                 <div className={`application-status-panel__item`}>
-                    {sectionLabel({title: 'APP CONDITIONS'})}
+                    {sectionHeader({title: 'APP CONDITIONS'})}
                     <div className='application-status-panel__item-value application-status-panel__conditions' onClick={() => showConditions && showConditions()}>
                         {infos && (
                             <a className='info'>
