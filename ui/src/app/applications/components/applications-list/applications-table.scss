@@ -15,6 +15,15 @@
         }
     }
 
+    .applications-list__table-row.applications-table-row--with-hydrator {
+        .columns.small-4,
+        .columns.small-6 {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+    }
+
     .applications-table-source {
         display: flex;
         justify-content: space-between;
