@@ -219,14 +219,3 @@ Assuming a cluster named `germany01` with the label `metadata.labels.location=Ge
           - merge:
               mergeKeys:
                 - values.merge
-
-1. When using a Merge generator nested inside another Matrix or Merge generator, [Post Selectors](Generators-Post-Selector.md) for this nested generator's generators will only be applied when enabled via `spec.applyNestedSelectors`.
-
-        - merge:
-            generators:
-              - merge:
-                  generators:
-                    - list
-                        elements:
-                          - # (...)
-                      selector: { } # Only applied when applyNestedSelectors is true

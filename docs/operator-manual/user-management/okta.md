@@ -1,7 +1,7 @@
 # Okta
 
 !!! note "Are you using this? Please contribute!"
-    If you're using this IdP please consider [contributing](../../developer-guide/site.md) to this document.
+    If you're using this IdP please consider [contributing](../../developer-guide/docs-site.md) to this document.
 
 A working Single Sign-On configuration using Okta via at least two methods was achieved using:
 
@@ -135,7 +135,7 @@ First, create the OIDC integration:
     ![Okta OIDC app dialogue](../../assets/okta-create-oidc-app.png)
 1. Update the following:
     1. `App Integration name` and `Logo` - set these to suit your needs; they'll be displayed in the Okta catalogue.
-    1. `Sign-in redirect URLs`: Add `https://argocd.example.com/auth/callback`; replacing `argocd.example.com` with your ArgoCD web interface URL. Also add `http://localhost:8085/auth/callback` if you would like to be able to login with the CLI.
+    1. `Sign-in redirect URLs`: Add `https://argocd.example.com/auth/callback`; replacing `argocd.example.com` with your ArgoCD web interface URL.
     1. `Sign-out redirect URIs`: Add `https://argocd.example.com`; substituting the correct domain name as above. 
     1. Either assign groups, or choose to skip this step for now.
     1. Leave the rest of the options as-is, and save the integration.
@@ -170,6 +170,25 @@ Next, create a custom Authorization server:
     ![Default rule](../../assets/okta-auth-rule.png)
 1. Finally, click `Back to Authorization Servers`, and copy the `Issuer URI`. You will need this later.
 
+### CLI login
+
+In order to login with the CLI `argocd login https://argocd.example.com --sso`, Okta requires a separate dedicated App Integration:
+
+1. Create a new `Create App Integration`, and choose `OIDC`, and then `Single-Page Application`.
+1. Update the following:
+    1. `App Integration name` and `Logo` - set these to suit your needs; they'll be displayed in the Okta catalogue.
+    1. `Sign-in redirect URLs`: Add `http://localhost:8085/auth/callback`.
+    1. `Sign-out redirect URIs`: Add `http://localhost:8085`.
+    1. Either assign groups, or choose to skip this step for now.
+    1. Leave the rest of the options as-is, and save the integration.
+    1. Copy the `Client ID` from the newly created app; `cliClientID: <Client ID>` will be used in your `argocd-cm` ConfigMap.
+1. Edit your Authorization Server `Access Policies`:
+    1. Navigate to the Okta API Management at `Security > API`.
+    1. Choose your existing `Authorization Server` that was created previously.
+    1. Click `Access Policies` > `Edit Policy`.
+    1. Assign your newly created `App Integration` by filling in the text box and clicking `Update Policy`.
+    ![Edit Policy](../../assets/okta-auth-policy-edit.png)
+
 If you haven't yet created Okta groups, and assigned them to the application integration, you should do that now:
 
 1. Go to `Directory > Groups`
@@ -190,6 +209,7 @@ oidc.config: |
   # this is the authorization server URI
   issuer: https://example.okta.com/oauth2/aus9abcdefgABCDEFGd7
   clientID: 0oa9abcdefgh123AB5d7
+  cliClientID: gfedcba0987654321GEFDCBA # Optional if using the CLI for SSO
   clientSecret: ABCDEFG1234567890abcdefg
   requestedScopes: ["openid", "profile", "email", "groups"]
   requestedIDTokenClaims: {"groups": {"essential": true}}

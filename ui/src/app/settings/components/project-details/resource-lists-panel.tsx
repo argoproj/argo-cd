@@ -3,7 +3,7 @@ import * as React from 'react';
 import {FormApi} from 'react-form';
 
 import {EditablePanel} from '../../../shared/components';
-import {ApplicationDestination, GroupKind, Groups, Project, ProjectSpec, ResourceKinds} from '../../../shared/models';
+import {ApplicationDestination, ApplicationDestinationServiceAccount, GroupKind, Groups, Project, ProjectSpec, ResourceKinds} from '../../../shared/models';
 
 function removeEl(items: any[], index: number) {
     return items.slice(0, index).concat(items.slice(index + 1));
@@ -164,6 +164,43 @@ function viewDestinationsInfoList(type: field, proj: Project) {
     );
 }
 
+const destinationServiceAccountsInfoByField: {[type: string]: {title: string; helpText: string}} = {
+    destinationServiceAccounts: {
+        title: 'destination service accounts',
+        helpText: 'DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.'
+    }
+};
+
+function viewDestinationServiceAccountsInfoList(type: field, proj: Project) {
+    const info = destinationServiceAccountsInfoByField[type];
+    const list = proj.spec[type] as Array<ApplicationDestinationServiceAccount>;
+    return (
+        <React.Fragment>
+            <p className='project-details__list-title'>
+                {info.title} {helpTip(info.helpText)}
+            </p>
+            {(list || []).length > 0 ? (
+                <React.Fragment>
+                    <div className='row white-box__details-row'>
+                        <div className='columns small-4'>Server</div>
+                        <div className='columns small-8'>Namespace</div>
+                        <div className='columns small-12'>DefaultServiceAccount</div>
+                    </div>
+                    {list.map((destinationServiceAccounts, i) => (
+                        <div className='row white-box__details-row' key={i}>
+                            <div className='columns small-4'>{destinationServiceAccounts.server}</div>
+                            <div className='columns small-8'>{destinationServiceAccounts.namespace}</div>
+                            <div className='columns small-12'>{destinationServiceAccounts.defaultServiceAccount}</div>
+                        </div>
+                    ))}
+                </React.Fragment>
+            ) : (
+                <p>The {info.title} is empty</p>
+            )}
+        </React.Fragment>
+    );
+}
+
 function editList(type: field, formApi: FormApi) {
     const info = infoByField[type];
 
@@ -213,6 +250,10 @@ export const ResourceListsPanel = ({proj, saveProject, title}: {proj: Project; t
                 {!proj.metadata &&
                     Object.keys(sourceNamespacesInfoByField).map(key => <React.Fragment key={key}>{viewSourceNamespacesInfoList(key as field, proj)}</React.Fragment>)}
                 {!proj.metadata && Object.keys(destinationsInfoByField).map(key => <React.Fragment key={key}>{viewDestinationsInfoList(key as field, proj)}</React.Fragment>)}
+                {!proj.metadata &&
+                    Object.keys(destinationServiceAccountsInfoByField).map(key => (
+                        <React.Fragment key={key}>{viewDestinationServiceAccountsInfoList(key as field, proj)}</React.Fragment>
+                    ))}
             </React.Fragment>
         }
         edit={

@@ -65,7 +65,7 @@ func newClient(baseURL string, options ...ClientOptionFunc) (*Client, error) {
 	return c, nil
 }
 
-func (c *Client) NewRequest(method, path string, body interface{}, options []ClientOptionFunc) (*http.Request, error) {
+func (c *Client) NewRequestWithContext(ctx context.Context, method, path string, body any) (*http.Request, error) {
 	// Make sure the given URL end with a slash
 	if !strings.HasSuffix(c.baseURL, "/") {
 		c.baseURL += "/"
@@ -82,7 +82,7 @@ func (c *Client) NewRequest(method, path string, body interface{}, options []Cli
 		}
 	}
 
-	req, err := http.NewRequest(method, c.baseURL+path, buf)
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, buf)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (c *Client) NewRequest(method, path string, body interface{}, options []Cli
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	if len(c.token) != 0 {
+	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
 
@@ -102,7 +102,7 @@ func (c *Client) NewRequest(method, path string, body interface{}, options []Cli
 	return req, nil
 }
 
-func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*http.Response, error) {
+func (c *Client) Do(req *http.Request, v any) (*http.Response, error) {
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
@@ -134,7 +134,7 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*htt
 
 // CheckResponse checks the API response for errors, and returns them if present.
 func CheckResponse(resp *http.Response) error {
-	if c := resp.StatusCode; 200 <= c && c <= 299 {
+	if c := resp.StatusCode; http.StatusOK <= c && c < http.StatusMultipleChoices {
 		return nil
 	}
 
@@ -143,7 +143,7 @@ func CheckResponse(resp *http.Response) error {
 		return fmt.Errorf("API error with status code %d: %w", resp.StatusCode, err)
 	}
 
-	var raw map[string]interface{}
+	var raw map[string]any
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("API error with status code %d: %s", resp.StatusCode, string(data))
 	}

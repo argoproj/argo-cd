@@ -10,8 +10,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	fileutil "github.com/argoproj/argo-cd/v2/test/fixture/path"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	fileutil "github.com/argoproj/argo-cd/v3/test/fixture/path"
 )
 
 func TestPathRoot(t *testing.T) {
@@ -86,9 +86,15 @@ func TestBadSymlinks3(t *testing.T) {
 // No absolute symlinks allowed
 func TestAbsSymlink(t *testing.T) {
 	const testDir = "./testdata/abslink"
-	require.NoError(t, fileutil.CreateSymlink(t, testDir, "/somethingbad", "abslink"))
-	defer os.Remove(path.Join(testDir, "abslink"))
-	err := CheckOutOfBoundsSymlinks(testDir)
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		os.Remove(path.Join(testDir, "abslink"))
+	})
+	t.Chdir(testDir)
+	require.NoError(t, fileutil.CreateSymlink(t, "/somethingbad", "abslink"))
+	t.Chdir(wd)
+	err = CheckOutOfBoundsSymlinks(testDir)
 	var oobError *OutOfBoundsSymlinkError
 	require.ErrorAs(t, err, &oobError)
 	assert.Equal(t, "abslink", oobError.File)
@@ -127,6 +133,8 @@ func getMultiSourceApp(annotation string, paths ...string) *v1alpha1.Application
 }
 
 func Test_AppFilesHaveChanged(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		app            *v1alpha1.Application
@@ -179,14 +187,14 @@ func Test_AppFilesHaveChanged(t *testing.T) {
 		t.Run(ttc.name, func(t *testing.T) {
 			t.Parallel()
 			refreshPaths := GetAppRefreshPaths(ttc.app)
-			if got := AppFilesHaveChanged(refreshPaths, ttc.files); got != ttc.changeExpected {
-				t.Errorf("AppFilesHaveChanged() = %v, want %v", got, ttc.changeExpected)
-			}
+			assert.Equal(t, ttc.changeExpected, AppFilesHaveChanged(refreshPaths, ttc.files), "AppFilesHaveChanged()")
 		})
 	}
 }
 
 func Test_GetAppRefreshPaths(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name          string
 		app           *v1alpha1.Application
@@ -206,9 +214,7 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 		ttc := tt
 		t.Run(ttc.name, func(t *testing.T) {
 			t.Parallel()
-			if got := GetAppRefreshPaths(ttc.app); !assert.ElementsMatch(t, ttc.expectedPaths, got) {
-				t.Errorf("GetAppRefreshPath() = %v, want %v", got, ttc.expectedPaths)
-			}
+			assert.ElementsMatch(t, ttc.expectedPaths, GetAppRefreshPaths(ttc.app), "GetAppRefreshPath()")
 		})
 	}
 }

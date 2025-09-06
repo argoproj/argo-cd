@@ -10,4 +10,6 @@ p, role:user, applicationsets, delete, */*, allow
 p, role:test, certificates, get, *, allow
 p, role:test, logs, get, */*, allow
 p, role:test, exec, create, */*, allow
+p, log-allow-user, logs, get, */*, allow
+p, log-deny-user, logs, get, */*, deny
 g, test, role:user

@@ -29,6 +29,11 @@ not possible using Helm repositories.
     trust models, and it is not necessary (nor possible) to sign the public keys
     you are going to import into ArgoCD.
 
+
+!!!note Limitations
+  Signature verification is not supported for the templated `project` field when 
+  using the Git generator.
+
 ## Signature verification targets
 
 If signature verification is enforced, ArgoCD will verify the signature using
@@ -206,7 +211,7 @@ argocd proj remove-signature-key myproj 4AEE18F83AFDEB23
 #### Showing allowed key IDs for a project
 
 To see which key IDs are allowed for a given project, you can inspect the
-output of the `argocd proj get` command, i.e for a project named `gpg`:
+output of the `argocd proj get` command, i.e. for a project named `gpg`:
 
 ```bash
 $ argocd proj get gpg

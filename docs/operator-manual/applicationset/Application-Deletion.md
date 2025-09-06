@@ -8,7 +8,7 @@ All `Application` resources created by the ApplicationSet controller (from an Ap
 The end result is that when an ApplicationSet is deleted, the following occurs (in rough order):
 
 - The `ApplicationSet` resource itself is deleted
-- Any `Application` resources that were created from this `ApplicationSet` (as identified by owner reference)
+- Any `Application` resources that were created from this `ApplicationSet` (as identified by owner reference) will be deleted
 - Any deployed resources (`Deployments`, `Services`, `ConfigMaps`, etc) on the managed cluster, that were created from that `Application` resource (by Argo CD), will be deleted.
     - Argo CD is responsible for handling this deletion, via [the deletion finalizer](../../../user-guide/app_deletion/#about-the-deletion-finalizer).
     - To preserve deployed resources, set `.syncPolicy.preserveResourcesOnDeletion` to true in the ApplicationSet.

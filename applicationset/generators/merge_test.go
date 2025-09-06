@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func getNestedListGenerator(json string) *argoprojiov1alpha1.ApplicationSetNestedGenerator {
@@ -36,26 +36,28 @@ func getTerminalListGeneratorMultiple(jsons []string) argoprojiov1alpha1.Applica
 	return generator
 }
 
-func listOfMapsToSet(maps []map[string]interface{}) (map[string]bool, error) {
+func listOfMapsToSet(maps []map[string]any) (map[string]bool, error) {
 	set := make(map[string]bool, len(maps))
 	for _, paramMap := range maps {
-		paramMapAsJson, err := json.Marshal(paramMap)
+		paramMapAsJSON, err := json.Marshal(paramMap)
 		if err != nil {
 			return nil, err
 		}
 
-		set[string(paramMapAsJson)] = false
+		set[string(paramMapAsJSON)] = false
 	}
 	return set, nil
 }
 
 func TestMergeGenerate(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name           string
 		baseGenerators []argoprojiov1alpha1.ApplicationSetNestedGenerator
 		mergeKeys      []string
 		expectedErr    error
-		expected       []map[string]interface{}
+		expected       []map[string]any
 	}{
 		{
 			name:           "no generators",
@@ -79,7 +81,7 @@ func TestMergeGenerate(t *testing.T) {
 				*getNestedListGenerator(`{"a": "3_1","b": "different","c": "3_3"}`), // gets ignored because its merge key value isn't in the base params set
 			},
 			mergeKeys: []string{"b"},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{"a": "2_1", "b": "same", "c": "1_3"},
 			},
 		},
@@ -90,7 +92,7 @@ func TestMergeGenerate(t *testing.T) {
 				*getNestedListGenerator(`{"a": "a"}`),
 			},
 			mergeKeys: []string{"b"},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{"a": "a"},
 			},
 		},
@@ -101,7 +103,7 @@ func TestMergeGenerate(t *testing.T) {
 				*getNestedListGenerator(`{"b": "b"}`),
 			},
 			mergeKeys: []string{"b"},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{"a": "a"},
 			},
 		},
@@ -119,7 +121,7 @@ func TestMergeGenerate(t *testing.T) {
 				*getNestedListGenerator(`{"a": "1", "b": "1", "c": "added"}`),
 			},
 			mergeKeys: []string{"a", "b"},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{"a": "1", "b": "1", "c": "added"},
 				{"a": "1", "b": "2"},
 				{"a": "2", "b": "1"},
@@ -141,7 +143,7 @@ func TestMergeGenerate(t *testing.T) {
 				*getNestedListGenerator(`{"a": "1", "b": "3", "d": "added"}`),
 			},
 			mergeKeys: []string{"a", "b"},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{"a": "1", "b": "3", "c": "added", "d": "added"},
 				{"a": "2", "b": "2"},
 			},
@@ -196,7 +198,8 @@ func TestMergeGenerate(t *testing.T) {
 	}
 }
 
-func toAPIExtensionsJSON(t *testing.T, g interface{}) *apiextensionsv1.JSON {
+func toAPIExtensionsJSON(t *testing.T, g any) *apiextensionsv1.JSON {
+	t.Helper()
 	resVal, err := json.Marshal(g)
 	if err != nil {
 		t.Error("unable to unmarshal json", g)
@@ -209,12 +212,14 @@ func toAPIExtensionsJSON(t *testing.T, g interface{}) *apiextensionsv1.JSON {
 }
 
 func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name        string
 		mergeKeys   []string
-		paramSets   []map[string]interface{}
+		paramSets   []map[string]any
 		expectedErr error
-		expected    map[string]map[string]interface{}
+		expected    map[string]map[string]any
 	}{
 		{
 			name:        "no merge keys",
@@ -224,13 +229,13 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 		{
 			name:      "no paramSets",
 			mergeKeys: []string{"key"},
-			expected:  make(map[string]map[string]interface{}),
+			expected:  make(map[string]map[string]any),
 		},
 		{
 			name:      "simple key, unique paramSets",
 			mergeKeys: []string{"key"},
-			paramSets: []map[string]interface{}{{"key": "a"}, {"key": "b"}},
-			expected: map[string]map[string]interface{}{
+			paramSets: []map[string]any{{"key": "a"}, {"key": "b"}},
+			expected: map[string]map[string]any{
 				`{"key":"a"}`: {"key": "a"},
 				`{"key":"b"}`: {"key": "b"},
 			},
@@ -238,23 +243,23 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 		{
 			name:      "simple key object, unique paramSets",
 			mergeKeys: []string{"key"},
-			paramSets: []map[string]interface{}{{"key": map[string]interface{}{"hello": "world"}}, {"key": "b"}},
-			expected: map[string]map[string]interface{}{
-				`{"key":{"hello":"world"}}`: {"key": map[string]interface{}{"hello": "world"}},
+			paramSets: []map[string]any{{"key": map[string]any{"hello": "world"}}, {"key": "b"}},
+			expected: map[string]map[string]any{
+				`{"key":{"hello":"world"}}`: {"key": map[string]any{"hello": "world"}},
 				`{"key":"b"}`:               {"key": "b"},
 			},
 		},
 		{
 			name:        "simple key, non-unique paramSets",
 			mergeKeys:   []string{"key"},
-			paramSets:   []map[string]interface{}{{"key": "a"}, {"key": "b"}, {"key": "b"}},
+			paramSets:   []map[string]any{{"key": "a"}, {"key": "b"}, {"key": "b"}},
 			expectedErr: fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamSets, `{"key":"b"}`),
 		},
 		{
 			name:      "simple key, duplicated key name, unique paramSets",
 			mergeKeys: []string{"key", "key"},
-			paramSets: []map[string]interface{}{{"key": "a"}, {"key": "b"}},
-			expected: map[string]map[string]interface{}{
+			paramSets: []map[string]any{{"key": "a"}, {"key": "b"}},
+			expected: map[string]map[string]any{
 				`{"key":"a"}`: {"key": "a"},
 				`{"key":"b"}`: {"key": "b"},
 			},
@@ -262,18 +267,18 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 		{
 			name:        "simple key, duplicated key name, non-unique paramSets",
 			mergeKeys:   []string{"key", "key"},
-			paramSets:   []map[string]interface{}{{"key": "a"}, {"key": "b"}, {"key": "b"}},
+			paramSets:   []map[string]any{{"key": "a"}, {"key": "b"}, {"key": "b"}},
 			expectedErr: fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamSets, `{"key":"b"}`),
 		},
 		{
 			name:      "compound key, unique paramSets",
 			mergeKeys: []string{"key1", "key2"},
-			paramSets: []map[string]interface{}{
+			paramSets: []map[string]any{
 				{"key1": "a", "key2": "a"},
 				{"key1": "a", "key2": "b"},
 				{"key1": "b", "key2": "a"},
 			},
-			expected: map[string]map[string]interface{}{
+			expected: map[string]map[string]any{
 				`{"key1":"a","key2":"a"}`: {"key1": "a", "key2": "a"},
 				`{"key1":"a","key2":"b"}`: {"key1": "a", "key2": "b"},
 				`{"key1":"b","key2":"a"}`: {"key1": "b", "key2": "a"},
@@ -282,13 +287,13 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 		{
 			name:      "compound key object, unique paramSets",
 			mergeKeys: []string{"key1", "key2"},
-			paramSets: []map[string]interface{}{
-				{"key1": "a", "key2": map[string]interface{}{"hello": "world"}},
+			paramSets: []map[string]any{
+				{"key1": "a", "key2": map[string]any{"hello": "world"}},
 				{"key1": "a", "key2": "b"},
 				{"key1": "b", "key2": "a"},
 			},
-			expected: map[string]map[string]interface{}{
-				`{"key1":"a","key2":{"hello":"world"}}`: {"key1": "a", "key2": map[string]interface{}{"hello": "world"}},
+			expected: map[string]map[string]any{
+				`{"key1":"a","key2":{"hello":"world"}}`: {"key1": "a", "key2": map[string]any{"hello": "world"}},
 				`{"key1":"a","key2":"b"}`:               {"key1": "a", "key2": "b"},
 				`{"key1":"b","key2":"a"}`:               {"key1": "b", "key2": "a"},
 			},
@@ -296,12 +301,12 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 		{
 			name:      "compound key, duplicate key names, unique paramSets",
 			mergeKeys: []string{"key1", "key1", "key2"},
-			paramSets: []map[string]interface{}{
+			paramSets: []map[string]any{
 				{"key1": "a", "key2": "a"},
 				{"key1": "a", "key2": "b"},
 				{"key1": "b", "key2": "a"},
 			},
-			expected: map[string]map[string]interface{}{
+			expected: map[string]map[string]any{
 				`{"key1":"a","key2":"a"}`: {"key1": "a", "key2": "a"},
 				`{"key1":"a","key2":"b"}`: {"key1": "a", "key2": "b"},
 				`{"key1":"b","key2":"a"}`: {"key1": "b", "key2": "a"},
@@ -310,7 +315,7 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 		{
 			name:      "compound key, non-unique paramSets",
 			mergeKeys: []string{"key1", "key2"},
-			paramSets: []map[string]interface{}{
+			paramSets: []map[string]any{
 				{"key1": "a", "key2": "a"},
 				{"key1": "a", "key2": "a"},
 				{"key1": "b", "key2": "a"},
@@ -320,7 +325,7 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 		{
 			name:      "compound key, duplicate key names, non-unique paramSets",
 			mergeKeys: []string{"key1", "key1", "key2"},
-			paramSets: []map[string]interface{}{
+			paramSets: []map[string]any{
 				{"key1": "a", "key2": "a"},
 				{"key1": "a", "key2": "a"},
 				{"key1": "b", "key2": "a"},

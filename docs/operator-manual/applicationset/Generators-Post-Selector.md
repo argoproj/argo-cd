@@ -1,6 +1,6 @@
 # Post Selector all generators
 
-The `selector` field on a generator allows an `ApplciationSet` to post-filter results using [the Kubernetes common labelSelector format](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors) and the generated values.
+The `selector` field on a generator allows an `ApplicationSet` to post-filter results using [the Kubernetes common labelSelector format](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors) and the generated values.
 
 `matchLabels` is a map of `{key,value}` pairs. This `list` generator generates a set of two `Applications`, which is then filtered using `matchLabels` to only the list element containing the key `env` with value `staging`:
 ```
@@ -40,12 +40,12 @@ spec:
         - cluster: engineering-prod
           url: https://kubernetes.default.svc
           env: prod
-      selector:
-        matchExpressions:
-          - key: env
-            operator: In
-            values:
-              - staging
+    selector:
+      matchExpressions:
+        - key: env
+          operator: In
+          values:
+            - staging
 ```
 
 Valid `operators` include `In`, `NotIn`, `Exists`, and `DoesNotExist`. The `values` set must be non-empty in the case of `In` and `NotIn`. 

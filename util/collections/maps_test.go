@@ -6,20 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCopyStringMap(t *testing.T) {
-	out := CopyStringMap(map[string]string{"foo": "bar"})
-	assert.Equal(t, map[string]string{"foo": "bar"}, out)
-}
-
-func TestStringMapsEqual(t *testing.T) {
-	assert.True(t, StringMapsEqual(nil, nil))
-	assert.True(t, StringMapsEqual(nil, map[string]string{}))
-	assert.True(t, StringMapsEqual(map[string]string{}, nil))
-	assert.True(t, StringMapsEqual(map[string]string{"foo": "bar"}, map[string]string{"foo": "bar"}))
-	assert.False(t, StringMapsEqual(map[string]string{"foo": "bar"}, nil))
-	assert.False(t, StringMapsEqual(map[string]string{"foo": "bar"}, map[string]string{"foo": "bar1"}))
-}
-
 func TestMergeStringMaps(t *testing.T) {
 	tests := []struct {
 		name string
@@ -73,7 +59,7 @@ func TestMergeStringMaps(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, MergeStringMaps(tt.args...), "MergeStringMaps(%v)", tt.args)
+			assert.Equalf(t, tt.want, Merge(tt.args...), "Merge[string, string](%v)", tt.args)
 		})
 	}
 }

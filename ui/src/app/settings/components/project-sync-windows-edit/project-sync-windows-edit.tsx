@@ -393,7 +393,7 @@ class ScheduleWrapper extends React.Component<ScheduleProps, any> {
                             this.setValues(dowValues, 4);
                         }}>
                         <option key='wildcard' value='*' className='project-sync-windows-panel__text-wrapper'>
-                            Sunday-Saturday
+                            Every Day
                         </option>
                         <option key='0' value='0'>
                             Sun

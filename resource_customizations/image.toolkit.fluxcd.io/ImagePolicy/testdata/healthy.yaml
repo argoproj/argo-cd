@@ -1,0 +1,19 @@
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: podinfo
+  namespace: argocd
+spec:
+  imageRepositoryRef:
+    name: podinfo
+  policy:
+    semver:
+      range: x.x.x
+status:
+  conditions:
+  - lastTransitionTime: "2024-07-16T12:00:00Z"
+    message: Latest image tag for 'stefanprodan/podinfo' resolved to 5.1.4
+    observedGeneration: 1
+    reason: Succeeded
+    status: "True"
+    type: Ready

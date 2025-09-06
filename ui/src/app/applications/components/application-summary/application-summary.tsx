@@ -1,5 +1,5 @@
 /* eslint-disable no-prototype-builtins */
-import {AutocompleteField, DropDownMenu, ErrorNotification, FormField, FormSelect, HelpIcon, NotificationType} from 'argo-ui';
+import {AutocompleteField, Checkbox, DropDownMenu, ErrorNotification, FormField, FormSelect, HelpIcon, NotificationType} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {
@@ -66,6 +66,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const updateApp = notificationSubscriptions.withNotificationSubscriptions(props.updateApp);
 
     const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
+    const isHydrator = app.spec.sourceHydrator && true;
+    const repoType = source.repoURL.startsWith('oci://') ? 'oci' : (source.hasOwnProperty('chart') && 'helm') || 'git';
 
     const attributes = [
         {
@@ -172,19 +174,15 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         },
         !hasMultipleSources && {
             title: 'REPO URL',
-            view: <Repo url={source.repoURL} />,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.repoURL' component={Text} />
+            view: <Repo url={source?.repoURL} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field={getRepoField(isHydrator)} component={Text} />
         },
         ...(!hasMultipleSources
             ? isHelm
                 ? [
                       {
                           title: 'CHART',
-                          view: (
-                              <span>
-                                  {source.chart}:{source.targetRevision}
-                              </span>
-                          ),
+                          view: <span>{source && `${source.chart}:${source.targetRevision}`}</span>,
                           edit: (formApi: FormApi) =>
                               hasMultipleSources ? (
                                   helpTip('CHART is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
@@ -239,7 +237,14 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                               hasMultipleSources ? (
                                   helpTip('TARGET REVISION is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
                               ) : (
-                                  <RevisionFormField helpIconTop={'0'} hideLabel={true} formApi={formApi} repoURL={source.repoURL} />
+                                  <RevisionFormField
+                                      helpIconTop={'0'}
+                                      hideLabel={true}
+                                      formApi={formApi}
+                                      fieldValue={getTargetRevisionField(isHydrator)}
+                                      repoURL={source.repoURL}
+                                      repoType={repoType}
+                                  />
                               )
                       },
                       {
@@ -253,7 +258,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                               hasMultipleSources ? (
                                   helpTip('PATH is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
                               ) : (
-                                  <FormField formApi={formApi} field='spec.source.path' component={Text} />
+                                  <FormField formApi={formApi} field={getPathField(isHydrator)} component={Text} />
                               )
                       }
                   ]
@@ -263,7 +268,12 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             view: app.spec.revisionHistoryLimit,
             edit: (formApi: FormApi) => (
                 <div style={{position: 'relative'}}>
-                    <FormField formApi={formApi} field='spec.revisionHistoryLimit' componentProps={{style: {paddingRight: '1em'}, placeholder: '10'}} component={NumberField} />
+                    <FormField
+                        formApi={formApi}
+                        field='spec.revisionHistoryLimit'
+                        componentProps={{style: {paddingRight: '1em', right: '1em'}, placeholder: '10'}}
+                        component={NumberField}
+                    />
                     <div style={{position: 'absolute', right: '0', top: '0'}}>
                         <HelpIcon
                             title='This limits the number of items kept in the apps revision history.
@@ -339,19 +349,17 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         attributes.push({
             title: 'URLs',
             view: (
-                <React.Fragment>
-                    <div className='application-summary__links-rows'>
-                        {urls
-                            .map(item => item.split('|'))
-                            .map((parts, i) => (
-                                <div className='application-summary__links-row'>
-                                    <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='__blank'>
-                                        {parts[0]} &nbsp;
-                                    </a>
-                                </div>
-                            ))}
-                    </div>
-                </React.Fragment>
+                <div className='application-summary__links-rows'>
+                    {urls
+                        .map(item => item.split('|'))
+                        .map((parts, i) => (
+                            <div className='application-summary__links-row'>
+                                <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='_blank'>
+                                    {parts[0]} &nbsp;
+                                </a>
+                            </div>
+                        ))}
+                </div>
             )
         });
     }
@@ -371,7 +379,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         });
     }
 
-    async function setAutoSync(ctx: ContextApis, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean) {
+    async function setAutoSync(ctx: ContextApis, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean, enable: boolean) {
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
         if (confirmed) {
             try {
@@ -380,7 +388,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 if (!updatedApp.spec.syncPolicy) {
                     updatedApp.spec.syncPolicy = {};
                 }
-                updatedApp.spec.syncPolicy.automated = {prune, selfHeal};
+
+                updatedApp.spec.syncPolicy.automated = {prune, selfHeal, enabled: enable};
                 await updateApp(updatedApp, {validate: false});
             } catch (e) {
                 ctx.notifications.show({
@@ -489,7 +498,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         <div className='application-summary'>
             <EditablePanel
                 save={updateApp}
-                view={hasMultipleSources ? <>This is a multi-source app, see the Sources tab for repository URLs and source-related information.</> : <></>}
+                view={hasMultipleSources ? <>This is a multi-source app, see the Sources tab for repository URLs and source-related information.</> : null}
                 validate={input => ({
                     'spec.project': !input.spec.project && 'Project name is required',
                     'spec.destination.server': !input.spec.destination.server && input.spec.destination.hasOwnProperty('server') && 'Cluster server is required',
@@ -506,9 +515,13 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                         <div className='white-box__details'>
                             <p>SYNC POLICY</p>
                             <div className='row white-box__details-row'>
-                                <div className='columns small-3'>{(app.spec.syncPolicy && app.spec.syncPolicy.automated && <span>AUTOMATED</span>) || <span>NONE</span>}</div>
+                                <div className='columns small-3'>
+                                    {(app.spec.syncPolicy && app.spec.syncPolicy.automated && app.spec.syncPolicy.automated.enabled !== false && <span>AUTOMATED</span>) || (
+                                        <span>NONE</span>
+                                    )}
+                                </div>
                                 <div className='columns small-9'>
-                                    {(app.spec.syncPolicy && app.spec.syncPolicy.automated && (
+                                    {(app.spec.syncPolicy && app.spec.syncPolicy.automated && app.spec.syncPolicy.automated.enabled !== false && (
                                         <button className='argo-button argo-button--base' onClick={() => unsetAutoSync(ctx)}>
                                             <Spinner show={changeSync} style={{marginRight: '5px'}} />
                                             Disable Auto-Sync
@@ -517,7 +530,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                         <button
                                             className='argo-button argo-button--base'
                                             onClick={() =>
-                                                setAutoSync(ctx, 'Enable Auto-Sync?', 'Are you sure you want to enable automated application synchronization?', false, false)
+                                                setAutoSync(ctx, 'Enable Auto-Sync?', 'Are you sure you want to enable automated application synchronization?', false, false, true)
                                             }>
                                             <Spinner show={changeSync} style={{marginRight: '5px'}} />
                                             Enable Auto-Sync
@@ -528,6 +541,30 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
 
                             {app.spec.syncPolicy && app.spec.syncPolicy.automated && (
                                 <React.Fragment>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-12'>
+                                            <div className='checkbox-container'>
+                                                <Checkbox
+                                                    onChange={async (val: boolean) => {
+                                                        setAutoSync(
+                                                            ctx,
+                                                            val ? 'Enable Auto-Sync?' : 'Disable Auto-Sync?',
+                                                            val
+                                                                ? 'If checked, application will automatically sync when changes are detected'
+                                                                : 'Are you sure you want to disable automated application synchronization',
+                                                            app.spec.syncPolicy.automated.prune,
+                                                            app.spec.syncPolicy.automated.selfHeal,
+                                                            val
+                                                        );
+                                                    }}
+                                                    checked={app.spec.syncPolicy?.automated ? app.spec.syncPolicy.automated.enabled !== false : false}
+                                                    id='enable-auto-sync'
+                                                />
+                                                <label htmlFor='enable-auto-sync'>ENABLE AUTO-SYNC</label>
+                                                <HelpIcon title='If checked, application will automatically sync when changes are detected' />
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-3'>PRUNE RESOURCES</div>
                                         <div className='columns small-9'>
@@ -540,7 +577,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                             'Disable Prune Resources?',
                                                             'Are you sure you want to disable resource pruning during automated application synchronization?',
                                                             false,
-                                                            app.spec.syncPolicy.automated.selfHeal
+                                                            app.spec.syncPolicy.automated.selfHeal,
+                                                            app.spec.syncPolicy.automated.enabled
                                                         )
                                                     }>
                                                     Disable
@@ -554,7 +592,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                             'Enable Prune Resources?',
                                                             'Are you sure you want to enable resource pruning during automated application synchronization?',
                                                             true,
-                                                            app.spec.syncPolicy.automated.selfHeal
+                                                            app.spec.syncPolicy.automated.selfHeal,
+                                                            app.spec.syncPolicy.automated.enabled
                                                         )
                                                     }>
                                                     Enable
@@ -574,7 +613,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                             'Disable Self Heal?',
                                                             'Are you sure you want to disable automated self healing?',
                                                             app.spec.syncPolicy.automated.prune,
-                                                            false
+                                                            false,
+                                                            app.spec.syncPolicy.automated.enabled
                                                         )
                                                     }>
                                                     Disable
@@ -588,7 +628,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                             'Enable Self Heal?',
                                                             'Are you sure you want to enable automated self healing?',
                                                             app.spec.syncPolicy.automated.prune,
-                                                            true
+                                                            true,
+                                                            app.spec.syncPolicy.automated.enabled
                                                         )
                                                     }>
                                                     Enable
@@ -615,4 +656,20 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             />
         </div>
     );
+};
+
+/** Get the repository URL field based on the hydrator status */
+const getRepoField = (isHydrator: boolean): string => {
+    const repoURLField = isHydrator ? 'spec.sourceHydrator.drySource.repoURL' : 'spec.source.repoURL';
+    return repoURLField;
+};
+
+const getTargetRevisionField = (isHydrator: boolean): string => {
+    const targetRevisionField = isHydrator ? 'spec.sourceHydrator.drySource.targetRevision' : 'spec.source.targetRevision';
+    return targetRevisionField;
+};
+
+const getPathField = (isHydrator: boolean): string => {
+    const pathField = isHydrator ? 'spec.sourceHydrator.drySource.path' : 'spec.source.path';
+    return pathField;
 };

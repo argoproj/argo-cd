@@ -2,14 +2,15 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/gpg"
+	"github.com/argoproj/argo-cd/v3/common"
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/gpg"
 )
 
 // Validates a single GnuPG key and returns the key's ID
@@ -38,10 +39,10 @@ func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 
 	// Each key/value pair in the config map must exactly contain one public key, with the (short) GPG key ID as key
 	if len(parsed) != 1 {
-		return nil, fmt.Errorf("More than one key found in input data")
+		return nil, errors.New("more than one key found in input data")
 	}
 
-	var retKey *appsv1.GnuPGPublicKey = nil
+	var retKey *appsv1.GnuPGPublicKey
 	// Is there a better way to get the first element from a map without knowing its key?
 	for _, k := range parsed {
 		retKey = k
@@ -50,13 +51,12 @@ func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 	if retKey != nil {
 		retKey.KeyData = keyData
 		return retKey, nil
-	} else {
-		return nil, fmt.Errorf("Could not find the GPG key")
 	}
+	return nil, errors.New("could not find the GPG key")
 }
 
 // ListConfiguredGPGPublicKeys returns a list of all configured GPG public keys from the ConfigMap
-func (db *db) ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*appsv1.GnuPGPublicKey, error) {
+func (db *db) ListConfiguredGPGPublicKeys(_ context.Context) (map[string]*appsv1.GnuPGPublicKey, error) {
 	log.Debugf("Loading PGP public keys from config map")
 	result := make(map[string]*appsv1.GnuPGPublicKey)
 	keysCM, err := db.settingsMgr.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
@@ -69,18 +69,18 @@ func (db *db) ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*apps
 	// This is not optimal, but the executil from argo-pkg does not support writing to
 	// stdin of the forked process. So for now, we must live with that.
 	for k, p := range keysCM.Data {
-		if expectedKeyID := gpg.KeyID(k); expectedKeyID != "" {
-			parsedKey, err := validatePGPKey(p)
-			if err != nil {
-				return nil, fmt.Errorf("Could not parse GPG key for entry '%s': %s", expectedKeyID, err.Error())
-			}
-			if expectedKeyID != parsedKey.KeyID {
-				return nil, fmt.Errorf("Key parsed for entry with key ID '%s' had different key ID '%s'", expectedKeyID, parsedKey.KeyID)
-			}
-			result[parsedKey.KeyID] = parsedKey
-		} else {
-			return nil, fmt.Errorf("Found entry with key '%s' in ConfigMap, but this is not a valid PGP key ID", k)
+		expectedKeyID := gpg.KeyID(k)
+		if expectedKeyID == "" {
+			return nil, fmt.Errorf("found entry with key '%s' in ConfigMap, but this is not a valid PGP key ID", k)
 		}
+		parsedKey, err := validatePGPKey(p)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse GPG key for entry '%s': %s", expectedKeyID, err.Error())
+		}
+		if expectedKeyID != parsedKey.KeyID {
+			return nil, fmt.Errorf("key parsed for entry with key ID '%s' had different key ID '%s'", expectedKeyID, parsedKey.KeyID)
+		}
+		result[parsedKey.KeyID] = parsedKey
 	}
 
 	return result, nil
@@ -99,10 +99,6 @@ func (db *db) AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*
 	keysCM, err := db.settingsMgr.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 	if err != nil {
 		return nil, nil, err
-	}
-
-	if keysCM.Data == nil {
-		keysCM.Data = make(map[string]string)
 	}
 
 	for kid, key := range keys {
@@ -131,12 +127,8 @@ func (db *db) DeleteGPGPublicKey(ctx context.Context, keyID string) error {
 		return err
 	}
 
-	if keysCM.Data == nil {
-		return fmt.Errorf("No such key configured: %s", keyID)
-	}
-
 	if _, ok := keysCM.Data[keyID]; !ok {
-		return fmt.Errorf("No such key configured: %s", keyID)
+		return fmt.Errorf("no such key configured: %s", keyID)
 	}
 
 	delete(keysCM.Data, keyID)

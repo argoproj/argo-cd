@@ -1,4 +1,4 @@
-# Helm
+ # Helm
 
 ## Declarative
 
@@ -42,10 +42,10 @@ spec:
     namespace: nginx
 ```
 
-!!! note "When using multiple ways to provide values"
+!!! note "When using Helm there are multiple ways to provide values"
     Order of precedence is `parameters > valuesObject > values > valueFiles > helm repository values.yaml` (see [Here](./helm.md#helm-value-precedence) for a more detailed example)
 
-See [here](../operator-manual/declarative-setup.md#helm-chart-repositories) for more info about how to configure private Helm repositories.
+See [here](../operator-manual/declarative-setup.md#helm) for more info about how to configure private Helm repositories and private OCI registries.
 
 ## Values Files
 
@@ -170,18 +170,18 @@ Values injections have the following order of precedence
     highest -> parameters
 ```
 
-so values/valuesObject trumps valueFiles, and parameters trump both.
+So valuesObject trumps values - therefore values will be ignored, and both valuesObject and values trump valueFiles.
+Parameters trump all of them.
 
-Precedence of valueFiles themselves is the order they are defined in
+Precedence of multiple valueFiles:
+When multiple valueFiles are specified, the last file listed has the highest precedence:
 
 ```
-if we have
-
 valueFiles:
   - values-file-2.yaml
   - values-file-1.yaml
 
-the last values-file i.e. values-file-1.yaml will trump the first
+In this case, values-file-1.yaml will override values from values-file-2.yaml.
 ```
 
 When multiple of the same key are found the last one wins i.e 
@@ -233,11 +233,8 @@ source:
   helm:
     fileParameters:
       - name: some.key
-        value: path/to/file.ext
+        path: path/to/file.ext
 ```
-
-!!! warning "Reference in multiple sources not supported"
-    Please note that using a multiple sources application will not let you load the file by reference. See [argoproj/argo-cd#13220](https://github.com/argoproj/argo-cd/issues/13220)
 
 ## Helm Release Name
 
@@ -268,7 +265,7 @@ Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Ar
 
 | Helm Annotation                 | Notes                                                                                         |
 | ------------------------------- |-----------------------------------------------------------------------------------------------|
-| `helm.sh/hook: crd-install`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |
+| `helm.sh/hook: crd-install`     | Supported as equivalent to normal Argo CD CRD handling.                                |
 | `helm.sh/hook: pre-delete`      | Not supported. In Helm stable there are 3 cases used to clean up CRDs and 3 to clean-up jobs. |
 | `helm.sh/hook: pre-rollback`    | Not supported. Never used in Helm stable.                                                     |
 | `helm.sh/hook: pre-install`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |
@@ -295,7 +292,6 @@ Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl a
 ### Hook Tips
 
 * Make your hook idempotent.
-* Annotate `crd-install` with `hook-weight: "-2"` to make sure it runs to success before any install or upgrade hooks.
 * Annotate  `pre-install` and `post-install` with `hook-weight: "-1"`. This will make sure it runs to success before any upgrade hooks.
 * Annotate `pre-upgrade` and `post-upgrade` with `hook-delete-policy: before-hook-creation` to make sure it runs on every sync.
 
@@ -321,7 +317,7 @@ The Argo CD application controller periodically compares Git state against the l
 the `helm template <CHART>` command to generate the helm manifests. Because the random value is
 regenerated every time the comparison is made, any application which makes use of the `randAlphaNum`
 function will always be in an `OutOfSync` state. This can be mitigated by explicitly setting a
-value in the values.yaml or using `argocd app set` command to overide the value such that the value
+value in the values.yaml or using `argocd app set` command to override the value such that the value
 is stable between each comparison. For example:
 
 ```bash
@@ -393,9 +389,9 @@ RUN helm plugin install ${GCS_PLUGIN_REPO} --version ${GCS_PLUGIN_VERSION}
 ENV HELM_PLUGINS="/home/argocd/.local/share/helm/plugins/"
 ```
 
-You have to remember about `HELM_PLUGINS` environment property - this is required for plugins to work correctly.
+The `HELM_PLUGINS` environment property required for ArgoCD to locale plugins correctly.
 
-After that you have to use your custom image for ArgoCD installation.
+Once built, use the custom image for ArgoCD installation.
 
 ### Using `initContainers`
 Another option is to install Helm plugins via Kubernetes `initContainers`.
@@ -421,7 +417,7 @@ repoServer:
       value: /helm-working-dir
   initContainers:
     - name: helm-gcp-authentication
-      image: alpine/helm:3.8.1
+      image: alpine/helm:3.16.1
       volumeMounts:
         - name: helm-working-dir
           mountPath: /helm-working-dir
@@ -500,4 +496,43 @@ spec:
   source:
     helm:
       skipCrds: true
+```
+
+## Helm `--skip-schema-validation`
+
+Helm validates the values.yaml file using a values.schema.json file. See [Schema files](https://helm.sh/docs/topics/charts/#schema-files) for details.
+
+If needed, it is possible to skip the schema validation step with the `helm-skip-schema-validation` flag on the cli:
+
+```bash
+argocd app set helm-guestbook --helm-skip-schema-validation
+```
+
+Or using declarative syntax:
+
+```yaml
+spec:
+  source:
+    helm:
+      skipSchemaValidation: true
+```
+
+
+## Helm `--skip-tests`
+
+By default, Helm includes test manifests when rendering templates. Argo CD currently skips manifests that include hooks not supported by Argo CD, including [Helm test hooks](https://helm.sh/docs/topics/chart_tests/). While this feature covers many testing use cases, it is not totally congruent with --skip-tests, so the --skip-tests option can be used.
+
+If needed, it is possible to skip the test manifests installation step with the `helm-skip-tests` flag on the cli:
+
+```bash
+argocd app set helm-guestbook --helm-skip-tests
+```
+
+Or using declarative syntax:
+
+```yaml
+spec:
+  source:
+    helm:
+      skipTests: true # or false
 ```

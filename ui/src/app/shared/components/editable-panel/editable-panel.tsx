@@ -113,16 +113,14 @@ export class EditablePanel<T = {}> extends React.Component<EditablePanelProps<T>
                                     </div>
                                 )}
                                 {this.props.collapsible && (
-                                    <React.Fragment>
-                                        <div className='editable-panel__collapsible-button'>
-                                            <i
-                                                className={`fa fa-angle-${this.state.collapsed ? 'down' : 'up'} filter__collapse`}
-                                                onClick={() => {
-                                                    this.setState({collapsed: !this.state.collapsed});
-                                                }}
-                                            />
-                                        </div>
-                                    </React.Fragment>
+                                    <div className='editable-panel__collapsible-button'>
+                                        <i
+                                            className={`fa fa-angle-${this.state.collapsed ? 'down' : 'up'} filter__collapse`}
+                                            onClick={() => {
+                                                this.setState({collapsed: !this.state.collapsed});
+                                            }}
+                                        />
+                                    </div>
                                 )}
                                 {this.props.title && <p>{this.props.title}</p>}
                                 {(!this.state.edit && (

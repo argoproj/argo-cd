@@ -1,0 +1,14 @@
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: Bucket
+metadata:
+  name: minio-bucket
+  namespace: default
+spec:
+  interval: 5m0s
+  endpoint: minio.example.com
+  insecure: true
+  secretRef:
+    name: minio-bucket-secret
+  bucketName: example
+status:
+  conditions: []

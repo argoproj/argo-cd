@@ -42,6 +42,10 @@
         right: 1em;
     }
 
+    .source-panel-buttons {
+        margin-bottom: 10px;
+    }
+
     .argo-field {
         line-height: 1.15;
     }
@@ -64,6 +68,10 @@
 
     .select {
         padding-bottom: 0;
+
+        .select__value{
+            min-height: 28px;
+        }
     }
 
     .row.application-retry-options {

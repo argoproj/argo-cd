@@ -5,9 +5,9 @@ import (
 	"os"
 	"testing"
 
-	utils "github.com/argoproj/argo-cd/v2/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,7 +25,7 @@ func captureStdout(callback func()) (string, error) {
 	}()
 
 	callback()
-	utils.Close(w)
+	utilio.Close(w)
 
 	data, err := io.ReadAll(r)
 	if err != nil {
@@ -52,6 +52,21 @@ func Test_userDisplayName_sub(t *testing.T) {
 	claims := jwt.MapClaims{"iss": "qux", "sub": "foo", "groups": []string{"baz"}}
 	actualName := userDisplayName(claims)
 	expectedName := "foo"
+	assert.Equal(t, expectedName, actualName)
+}
+
+func Test_userDisplayName_federatedClaims(t *testing.T) {
+	claims := jwt.MapClaims{
+		"iss":    "qux",
+		"sub":    "foo",
+		"groups": []string{"baz"},
+		"federated_claims": map[string]any{
+			"connector_id": "dex",
+			"user_id":      "ldap-123",
+		},
+	}
+	actualName := userDisplayName(claims)
+	expectedName := "ldap-123"
 	assert.Equal(t, expectedName, actualName)
 }
 

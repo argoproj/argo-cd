@@ -1,7 +1,8 @@
 import {DataLoader, SlidingPanel, Tooltip} from 'argo-ui';
-import * as React from 'react';
+import React, {useState} from 'react';
 import {VersionMessage} from '../../models';
 import {services} from '../../services';
+import {ThemeWrapper} from '../layout/layout';
 
 interface VersionPanelProps {
     isShown: boolean;
@@ -11,41 +12,11 @@ interface VersionPanelProps {
 
 type CopyState = 'success' | 'failed' | undefined;
 
-export class VersionPanel extends React.Component<VersionPanelProps, {copyState: CopyState}> {
-    private readonly header = 'Argo CD Server Version';
+export function VersionPanel({isShown, onClose, version}: VersionPanelProps) {
+    const [copyState, setCopyState] = useState<CopyState>(undefined);
+    const header = 'Argo CD Server Version';
 
-    constructor(props: VersionPanelProps) {
-        super(props);
-        this.state = {copyState: undefined};
-    }
-
-    public render() {
-        return (
-            <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                {pref => (
-                    <DataLoader load={() => this.props.version}>
-                        {version => {
-                            return (
-                                <div className={'theme-' + pref.theme}>
-                                    <SlidingPanel header={this.header} isShown={this.props.isShown} onClose={() => this.props.onClose()} hasCloseButton={true} isNarrow={true}>
-                                        <div className='argo-table-list'>{this.buildVersionTable(version)}</div>
-                                        <div>
-                                            <Tooltip content='Copy all version info as JSON'>{this.getCopyButton(version)}</Tooltip>
-                                        </div>
-                                    </SlidingPanel>
-                                </div>
-                            );
-                        }}
-                    </DataLoader>
-                )}
-            </DataLoader>
-        );
-    }
-
-    /**
-     * Formats the version data and renders the table rows.
-     */
-    private buildVersionTable(version: VersionMessage): JSX.Element {
+    const buildVersionTable = (version: VersionMessage): JSX.Element => {
         const formattedVersion = {
             'Argo CD': version.Version,
             'Build Date': version.BuildDate,
@@ -59,36 +30,34 @@ export class VersionPanel extends React.Component<VersionPanelProps, {copyState:
         };
 
         return (
-            <React.Fragment>
-                {Object.entries(formattedVersion).map(([key, value]) => {
-                    return (
-                        <div className='argo-table-list__row' key={key}>
-                            <div className='row'>
-                                <div className='columns small-4' title={key}>
-                                    <strong>{key}</strong>
-                                </div>
-                                <div className='columns'>
-                                    {value && (
-                                        <Tooltip content={value}>
-                                            <span>{value}</span>
-                                        </Tooltip>
-                                    )}
-                                </div>
+            <>
+                {Object.entries(formattedVersion).map(([key, value]) => (
+                    <div className='argo-table-list__row' key={key}>
+                        <div className='row'>
+                            <div className='columns small-4' title={key}>
+                                <strong>{key}</strong>
+                            </div>
+                            <div className='columns'>
+                                {value && (
+                                    <Tooltip content={value}>
+                                        <span>{value}</span>
+                                    </Tooltip>
+                                )}
                             </div>
                         </div>
-                    );
-                })}
-            </React.Fragment>
+                    </div>
+                ))}
+            </>
         );
-    }
+    };
 
-    private getCopyButton(version: VersionMessage): JSX.Element {
+    const getCopyButton = (version: VersionMessage): JSX.Element => {
         let img: string;
         let text: string;
-        if (this.state.copyState === 'success') {
+        if (copyState === 'success') {
             img = 'fa-check';
             text = 'Copied';
-        } else if (this.state.copyState === 'failed') {
+        } else if (copyState === 'failed') {
             img = 'fa-times';
             text = 'Copy Failed';
         } else {
@@ -97,24 +66,42 @@ export class VersionPanel extends React.Component<VersionPanelProps, {copyState:
         }
 
         return (
-            <button className='argo-button argo-button--base' style={{marginTop: '1em', minWidth: '18ch'}} onClick={() => this.onCopy(version)}>
+            <button className='argo-button argo-button--base' style={{marginTop: '1em', minWidth: '18ch'}} onClick={() => onCopy(version)}>
                 <i className={'fa ' + img} />
                 &nbsp;&nbsp;{text}
             </button>
         );
-    }
+    };
 
-    private async onCopy(version: VersionMessage): Promise<void> {
+    const onCopy = async (version: VersionMessage): Promise<void> => {
         const stringifiedVersion = JSON.stringify(version, undefined, 4) + '\n';
         try {
             await navigator.clipboard.writeText(stringifiedVersion);
-            this.setState({copyState: 'success'});
+            setCopyState('success');
         } catch (err) {
-            this.setState({copyState: 'failed'});
+            setCopyState('failed');
         }
-
         setTimeout(() => {
-            this.setState({copyState: undefined});
+            setCopyState(undefined);
         }, 750);
-    }
+    };
+
+    return (
+        <DataLoader load={() => services.viewPreferences.getPreferences()}>
+            {pref => (
+                <DataLoader load={() => version}>
+                    {version => (
+                        <ThemeWrapper theme={pref.theme}>
+                            <SlidingPanel header={header} isShown={isShown} onClose={onClose} hasCloseButton={true} isNarrow={true}>
+                                <div className='argo-table-list'>{buildVersionTable(version)}</div>
+                                <div>
+                                    <Tooltip content='Copy all version info as JSON'>{getCopyButton(version)}</Tooltip>
+                                </div>
+                            </SlidingPanel>
+                        </ThemeWrapper>
+                    )}
+                </DataLoader>
+            )}
+        </DataLoader>
+    );
 }

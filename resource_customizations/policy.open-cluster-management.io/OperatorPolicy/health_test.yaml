@@ -1,0 +1,48 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: Waiting for the status to be reported
+    inputPath: testdata/progressing_no_status.yaml
+  - healthStatus:
+      status: Degraded
+      message: >-
+        NonCompliant; the policy spec is valid, the policy does not specify an
+        OperatorGroup but one already exists in the namespace - assuming that
+        OperatorGroup is correct, the Subscription required by the policy was
+        not found, there are no relevant InstallPlans in the namespace, the
+        ClusterServiceVersion required by the policy was not found, no CRDs were
+        found for the operator, there are no relevant deployments because the 
+        ClusterServiceVersion is missing, CatalogSource was found
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Progressing
+      message: Waiting for the status to be updated
+    inputPath: testdata/progressing_old_generation.yaml
+  - healthStatus:
+      status: Progressing
+      message: Waiting for the compliance condition
+    inputPath: testdata/progressing_no_compliance.yaml
+  - healthStatus:
+      status: Healthy
+      message: >-
+        Compliant; the policy spec is valid, the policy does not specify an
+        OperatorGroup but one already exists in the namespace - assuming that
+        OperatorGroup is correct, the Subscription matches what is required by
+        the policy, no InstallPlans requiring approval were found,
+        ClusterServiceVersion (argocd-operator.v0.11.0) - install strategy
+        completed with no errors, there are CRDs present for the operator, all
+        operator Deployments have their minimum availability, CatalogSource was
+        found
+    inputPath: testdata/healthy_no_generation.yaml
+  - healthStatus:
+      status: Healthy
+      message: >-
+        Compliant; the policy spec is valid, the policy does not specify an
+        OperatorGroup but one already exists in the namespace - assuming that
+        OperatorGroup is correct, the Subscription matches what is required by
+        the policy, no InstallPlans requiring approval were found,
+        ClusterServiceVersion (argocd-operator.v0.11.0) - install strategy
+        completed with no errors, there are CRDs present for the operator, all
+        operator Deployments have their minimum availability, CatalogSource was
+        found
+    inputPath: testdata/healthy_with_generation.yaml

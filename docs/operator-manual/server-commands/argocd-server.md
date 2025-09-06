@@ -30,6 +30,7 @@ argocd-server [flags]
       --app-state-cache-expiration duration             Cache expiration for app state (default 1h0m0s)
       --application-namespaces strings                  List of additional namespaces where application resources can be managed in
       --appset-allowed-scm-providers strings            The list of allowed custom SCM provider API URLs. This restriction does not apply to SCM or PR generators which do not accept a custom API URL. (Default: Empty = all)
+      --appset-enable-github-api-metrics                Enable GitHub API metrics for generators that use the GitHub API
       --appset-enable-new-git-file-globbing             Enable new globbing in Git files generator.
       --appset-enable-scm-providers                     Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true) (default true)
       --appset-scm-root-ca-path string                  Provide Root CA Path for self-signed TLS Certificates
@@ -51,14 +52,16 @@ argocd-server [flags]
       --disable-auth                                    Disable client authentication
       --disable-compression                             If true, opt-out of response compression for all requests to the server
       --enable-gzip                                     Enable GZIP compression (default true)
+      --enable-k8s-event none                           Enable ArgoCD to use k8s event. For disabling all events, set the value as none. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated) (default [all])
       --enable-proxy-extension                          Enable Proxy Extension feature
       --gloglevel int                                   Set the glog logging level
   -h, --help                                            help for argocd-server
+      --hydrator-enabled                                Feature flag to enable Hydrator. Default ("false")
       --insecure                                        Run server without TLS
       --insecure-skip-tls-verify                        If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                               Path to a kube config. Only required if out-of-cluster
-      --logformat string                                Set the logging format. One of: text|json (default "text")
-      --login-attempts-expiration duration              Cache expiration for failed login attempts (default 24h0m0s)
+      --logformat string                                Set the logging format. One of: json|text (default "json")
+      --login-attempts-expiration duration              Cache expiration for failed login attempts. DEPRECATED: this flag is unused and will be removed in a future version. (default 24h0m0s)
       --loglevel string                                 Set the logging level. One of: debug|info|warn|error (default "info")
       --metrics-address string                          Listen for metrics on given address (default "0.0.0.0")
       --metrics-port int                                Start metrics on given port (default 8083)
@@ -103,6 +106,7 @@ argocd-server [flags]
       --sentinelmaster string                           Redis sentinel master group name. (default "master")
       --server string                                   The address and port of the Kubernetes API server
       --staticassets string                             Directory path that contains additional static assets (default "/shared/app")
+      --sync-with-replace-allowed                       Whether to allow users to select replace for syncs from UI/CLI (default true)
       --tls-server-name string                          If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --tlsciphers string                               The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
       --tlsmaxversion string                            The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")

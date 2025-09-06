@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: HTTPRoute is healthy
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "Parent example-gateway: BackendRef service-does-not-exist not found"
+  inputPath: testdata/degraded_resolved_refs.yaml
+- healthStatus:
+    status: Degraded
+    message: "Parent example-gateway: Route has not been accepted due to invalid configuration"
+  inputPath: testdata/degraded_accepted.yaml
+- healthStatus:
+    status: Progressing
+    message: "Parent example-gateway: Route is still being programmed"
+  inputPath: testdata/progressing.yaml

@@ -1,0 +1,39 @@
+apiVersion: iam.aws.crossplane.io/v1beta1
+kind: Policy
+metadata:
+  name: example
+spec:
+  deletionPolicy: Delete
+  forProvider:
+    description: example
+    document: "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\":
+      \"Allow\",\n      \"Action\": [\n        \"s3:*\",\n      ], \n      \"Resource\":
+      [\n          \"arn:aws:s3:::example\"\n      ]\n    }\n  ]\n}\n"
+    name: example
+    tags:
+    - key: crossplane-name
+      value: example
+    - key: crossplane-providerconfig
+      value: provider-aws
+    - key: crossplane-kind
+      value: policy.iam.aws.crossplane.io
+  providerConfigRef:
+    name: provider-aws
+status:
+  atProvider:
+    arn: arn:aws:iam::123:policy/example
+    attachmentCount: 1
+    defaultVersionId: v1
+    isAttachable: true
+    policyId: ABC
+  conditions:
+  - lastTransitionTime: "2024-07-11T11:01:01Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2024-07-11T11:01:01Z"
+    message: 'observe failed: cannot check if policy is up to date: invalid character
+      '']'' looking for beginning of value'
+    reason: ReconcileError
+    status: "False"
+    type: Synced
