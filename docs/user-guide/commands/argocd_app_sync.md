@@ -71,6 +71,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --source-names stringArray                          List of source names. Default is an empty array.
       --source-positions int64Slice                       List of source positions. Default is empty array. Counting start at 1. (default [])
       --strategy string                                   Sync strategy (one of: apply|hook)
+      --sync-options-override-style string                How to apply CLI sync options: 'replace' to fully override app spec with specified values and nullify unspecified values, or 'patch' to override app spec with specified values and leave unspecified values as is
       --timeout uint                                      Time out after this many seconds
 ```
 
