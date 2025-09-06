@@ -90,7 +90,7 @@ export default {
 
             let eventSource = new EventSource(fullUrl);
             eventSource.onmessage = msg => observer.next(msg.data);
-            eventSource.onerror = e => () => {
+            eventSource.onerror = e => {
                 observer.error(e);
                 onError.next(e);
             };
