@@ -44,7 +44,7 @@ type Dependencies interface {
 
 	// GetRepoObjs returns the repository objects for the given application, source, and revision. It calls the repo-
 	// server and gets the manifests (objects).
-	GetRepoObjs(app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error)
+	GetRepoObjs(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error)
 
 	// GetWriteCredentials returns the repository credentials for the given repository URL and project. These are to be
 	// sent to the commit server to write the hydrated manifests.
@@ -292,7 +292,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 		}
 
 		// TODO: enable signature verification
-		objs, resp, err := h.dependencies.GetRepoObjs(app, drySource, targetRevision, project)
+		objs, resp, err := h.dependencies.GetRepoObjs(context.Background(), app, drySource, targetRevision, project)
 		if err != nil {
 			return "", "", fmt.Errorf("failed to get repo objects for app %q: %w", app.QualifiedName(), err)
 		}
