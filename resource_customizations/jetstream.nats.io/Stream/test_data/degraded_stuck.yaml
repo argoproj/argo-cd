@@ -1,0 +1,16 @@
+apiVersion: jetstream.nats.io/v1beta2
+kind: Stream
+metadata:
+  name: stream-name
+spec:
+  subjects:
+    - subject.name
+  tlsFirst: false
+status:
+  conditions:
+    - lastTransitionTime: '2025-05-14T14:22:01.962295009Z'
+      message: Creating stream
+      reason: Creating
+      status: 'True'
+      type: Ready
+  observedGeneration: 0
