@@ -169,7 +169,7 @@ func Test_getRelevantAppsForHydration_RepoURLNormalization(t *testing.T) {
 	}
 
 	logCtx := log.WithField("test", "RepoURLNormalization")
-	relevantApps, err := hydrator.getRelevantAppsForHydration(logCtx, hydrationKey)
+	relevantApps, _, err := hydrator.getRelevantAppsAndProjectsForHydration(logCtx, hydrationKey)
 
 	require.NoError(t, err)
 	assert.Len(t, relevantApps, 2, "Expected both apps to be considered relevant despite URL differences")
