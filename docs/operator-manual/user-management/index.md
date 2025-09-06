@@ -321,16 +321,16 @@ data:
     issuer: https://dev-123456.oktapreview.com
     clientID: aaaabbbbccccddddeee
     clientSecret: $oidc.okta.clientSecret
-    
-    # Optional list of allowed aud claims. If omitted or empty, defaults to the clientID value above (and the 
-    # cliClientID, if that is also specified). If you specify a list and want the clientID to be allowed, you must 
+
+    # Optional list of allowed aud claims. If omitted or empty, defaults to the clientID value above (and the
+    # cliClientID, if that is also specified). If you specify a list and want the clientID to be allowed, you must
     # explicitly include it in the list.
     # Token verification will pass if any of the token's audiences matches any of the audiences in this list.
     allowedAudiences:
     - aaaabbbbccccddddeee
     - qqqqwwwweeeerrrrttt
 
-    # Optional. If false, tokens without an audience will always fail validation. If true, tokens without an audience 
+    # Optional. If false, tokens without an audience will always fail validation. If true, tokens without an audience
     # will always pass validation.
     # Defaults to true for Argo CD < 2.6.0. Defaults to false for Argo CD >= 2.6.0.
     skipAudienceCheckWhenTokenHasNoAudience: true
@@ -356,6 +356,21 @@ data:
 !!! note
     The callback address should be the /auth/callback endpoint of your Argo CD URL
     (e.g. https://argocd.example.com/auth/callback).
+
+!!! note "CLI SSO Requirements"
+    The Argo CD CLI:
+
+    - Always uses the OAuth 2.0 Authorization Code Flow with PKCE (if supported by the IdP).
+    - Never sends an OIDC *client secret* in token requests.
+    - Requires `cliClientID` to be a **public client** in the IdP (no client secret, auth method `"none"`).
+    - “Client secret” here means the OIDC application credential in your IdP, not a Kubernetes `Secret`.
+    - Ignores `enablePKCEAuthentication` in `argocd-cm` — PKCE is always on in the CLI.
+    - If the IdP expects a client secret for the CLI client, login will fail with an `invalid_client` error.
+
+    **Example:**
+    ```bash
+    argocd login <ARGOCD_SERVER> --sso
+    ```
 
 ### Requesting additional ID token claims
 
@@ -404,7 +419,7 @@ oidc.config: |
 
 ### Configuring a custom logout URL for your OIDC provider
 
-Optionally, if your OIDC provider exposes a logout API and you wish to configure a custom logout URL for the purposes of invalidating 
+Optionally, if your OIDC provider exposes a logout API and you wish to configure a custom logout URL for the purposes of invalidating
 any active session post logout, you can do so by specifying it as follows:
 
 ```yaml
@@ -433,7 +448,7 @@ You are not required to specify a logoutRedirectURL as this is automatically gen
 
 If your OIDC provider is setup with a certificate which is not signed by one of the well known certificate authorities
 you can provide a custom certificate which will be used in verifying the OIDC provider's TLS certificate when
-communicating with it.  
+communicating with it.
 Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certificate:
 
 ```yaml
@@ -452,8 +467,8 @@ Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certifi
 
 `argocd-secret` can be used to store sensitive data which can be referenced by ArgoCD. Values starting with `$` in configmaps are interpreted as follows:
 
-- If value has the form: `$<secret>:a.key.in.k8s.secret`, look for a k8s secret with the name `<secret>` (minus the `$`), and read its value. 
-- Otherwise, look for a key in the k8s secret named `argocd-secret`. 
+- If value has the form: `$<secret>:a.key.in.k8s.secret`, look for a k8s secret with the name `<secret>` (minus the `$`), and read its value.
+- Otherwise, look for a key in the k8s secret named `argocd-secret`.
 
 #### Example
 
@@ -472,7 +487,7 @@ metadata:
 type: Opaque
 data:
   ...
-  # The secret value must be base64 encoded **once** 
+  # The secret value must be base64 encoded **once**
   # this value corresponds to: `printf "hello-world" | base64`
   oidc.auth0.clientSecret: "aGVsbG8td29ybGQ="
   ...
@@ -551,14 +566,14 @@ data:
 
 By default, all connections made by the API server to OIDC providers (either external providers or the bundled Dex
 instance) must pass certificate validation. These connections occur when getting the OIDC provider's well-known
-configuration, when getting the OIDC provider's keys, and  when exchanging an authorization code or verifying an ID 
+configuration, when getting the OIDC provider's keys, and  when exchanging an authorization code or verifying an ID
 token as part of an OIDC login flow.
 
 Disabling certificate verification might make sense if:
 * You are using the bundled Dex instance **and** your Argo CD instance has TLS configured with a self-signed certificate
   **and** you understand and accept the risks of skipping OIDC provider cert verification.
 * You are using an external OIDC provider **and** that provider uses an invalid certificate **and** you cannot solve
-  the problem by setting `oidcConfig.rootCA` **and** you understand and accept the risks of skipping OIDC provider cert 
+  the problem by setting `oidcConfig.rootCA` **and** you understand and accept the risks of skipping OIDC provider cert
   verification.
 
 If either of those two applies, then you can disable OIDC provider certificate verification by setting
