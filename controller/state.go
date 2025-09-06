@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -883,6 +884,15 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		// namespace from being pruned.
 		isManagedNs := isManagedNamespace(targetObj, app) && liveObj == nil
 
+		// Check if this resource has ignoreDifferences configured
+		hasIgnoreDifferences := false
+		if targetObj != nil {
+			gvk := targetObj.GroupVersionKind()
+			ignoreConfig := argodiff.NewIgnoreDiffConfig(app.Spec.IgnoreDifferences, resourceOverrides)
+			hasIgnore, _ := ignoreConfig.HasIgnoreDifference(gvk.Group, gvk.Kind, targetObj.GetName(), targetObj.GetNamespace())
+			hasIgnoreDifferences = hasIgnore
+		}
+
 		switch {
 		case resState.Hook || ignore.Ignore(obj) || (targetObj != nil && hookutil.Skip(targetObj)) || !isSelfReferencedObj:
 			// For resource hooks, skipped resources or objects that may have
@@ -894,6 +904,17 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			// * target and live resource are different
 			// * target resource not defined and live resource is extra
 			// * target resource present but live resource is missing
+			// However, if ignoreDifferences is configured for this resource and the diff
+			// shows no actual differences (after normalization), mark as Synced
+			if hasIgnoreDifferences && diffResult.Modified && len(diffResult.NormalizedLive) > 0 && len(diffResult.PredictedLive) > 0 {
+				// Check if the normalized live and predicted live are actually the same
+				// This handles the case where ignoreDifferences is configured but diffResult.Modified
+				// is still true due to timing or other issues
+				if bytes.Equal(diffResult.NormalizedLive, diffResult.PredictedLive) {
+					resState.Status = v1alpha1.SyncStatusCodeSynced
+					break
+				}
+			}
 			resState.Status = v1alpha1.SyncStatusCodeOutOfSync
 			// we ignore the status if the obj needs pruning AND we have the annotation
 			needsPruning := targetObj == nil && liveObj != nil
