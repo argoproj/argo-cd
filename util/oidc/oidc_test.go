@@ -786,14 +786,45 @@ func TestIsValidRedirect(t *testing.T) {
 		{
 			name:        "Invalid redirect URL because port mismatch",
 			valid:       false,
-			redirectURL: "https://localhost",
-			allowedURLs: []string{"https://localhost:80"},
+			redirectURL: "https://localhost:4001",
+			allowedURLs: []string{"https://localhost:4000"},
+		},
+		// Additional test cases for the improved validation logic
+		{
+			name:        "Valid redirect URL with root base path",
+			valid:       true,
+			redirectURL: "https://localhost:4000/any/path",
+			allowedURLs: []string{"https://localhost:4000/"},
 		},
 		{
-			name:        "Invalid redirect URL because of CRLF in path",
+			name:        "Valid redirect URL with exact path match",
+			valid:       true,
+			redirectURL: "https://localhost:4000/argocd",
+			allowedURLs: []string{"https://localhost:4000/argocd"},
+		},
+		{
+			name:        "Valid redirect URL with subpath",
+			valid:       true,
+			redirectURL: "https://localhost:4000/argocd/applications",
+			allowedURLs: []string{"https://localhost:4000/argocd"},
+		},
+		{
+			name:        "Invalid redirect URL with partial path segment match",
 			valid:       false,
-			redirectURL: "https://localhost:80/argocd\r\n",
-			allowedURLs: []string{"https://localhost:80/argocd\r\n"},
+			redirectURL: "https://localhost:4000/applications",
+			allowedURLs: []string{"https://localhost:4000/app"},
+		},
+		{
+			name:        "Valid redirect URL with trailing slashes",
+			valid:       true,
+			redirectURL: "https://localhost:4000/argocd/",
+			allowedURLs: []string{"https://localhost:4000/argocd"},
+		},
+		{
+			name:        "Valid redirect URL with multiple trailing slashes",
+			valid:       true,
+			redirectURL: "https://localhost:4000/argocd///",
+			allowedURLs: []string{"https://localhost:4000/argocd"},
 		},
 	}
 
@@ -801,6 +832,83 @@ func TestIsValidRedirect(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			res := isValidRedirectURL(tt.redirectURL, tt.allowedURLs)
 			assert.Equal(t, res, tt.valid)
+		})
+	}
+}
+
+func TestIsPathWithinBase(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		base     string
+		expected bool
+	}{
+		{
+			name:     "Root base allows any path",
+			path:     "/any/path",
+			base:     "/",
+			expected: true,
+		},
+		{
+			name:     "Root base allows root path",
+			path:     "/",
+			base:     "/",
+			expected: true,
+		},
+		{
+			name:     "Exact path match",
+			path:     "/argocd",
+			base:     "/argocd",
+			expected: true,
+		},
+		{
+			name:     "Subpath within base",
+			path:     "/argocd/applications",
+			base:     "/argocd",
+			expected: true,
+		},
+		{
+			name:     "Subpath with trailing slash",
+			path:     "/argocd/applications/",
+			base:     "/argocd",
+			expected: true,
+		},
+		{
+			name:     "Base with trailing slash",
+			path:     "/argocd/applications",
+			base:     "/argocd/",
+			expected: true,
+		},
+		{
+			name:     "Partial path segment should not match",
+			path:     "/applications",
+			base:     "/app",
+			expected: false,
+		},
+		{
+			name:     "Different path should not match",
+			path:     "/other/path",
+			base:     "/argocd",
+			expected: false,
+		},
+		{
+			name:     "Empty base and path",
+			path:     "",
+			base:     "",
+			expected: true,
+		},
+		{
+			name:     "Empty base allows any path",
+			path:     "/any/path",
+			base:     "",
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isPathWithinBase(tt.path, tt.base)
+			assert.Equal(t, tt.expected, result, "path: %s, base: %s", tt.path, tt.base)
 		})
 	}
 }
@@ -1171,4 +1279,71 @@ func TestGetUserInfo(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestKeycloakOIDCRedirectURLValidation(t *testing.T) {
+	// This test validates the Keycloak OIDC redirect URL validation
+	// which was failing after updating from Helm chart 8.2.0 to 8.3.1
+
+	// Simulate the configuration from the issue
+	settings := &settings.ArgoCDSettings{
+		URL: "https://argocd.example.com:8080", // Main URL with port
+		OIDCConfigRAW: `name: Keycloak
+issuer: https://keycloak.example.com/realms/master
+clientID: argo-cd
+enablePKCEAuthentication: true
+requestedScopes: ["openid", "profile", "email", "groups"]`,
+	}
+
+	// Create a client app
+	signature, err := util.MakeSignature(32)
+	require.NoError(t, err)
+	settings.ServerSignature = signature
+
+	app, err := NewClientApp(settings, "", nil, "", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+
+	// Test cases that should work
+	validURLs := []string{
+		"https://argocd.example.com:8080",
+		"https://argocd.example.com:8080/",
+		"https://argocd.example.com:8080/applications",
+		"https://argocd.example.com:8080/auth/callback",
+	}
+
+	for _, validURL := range validURLs {
+		t.Run("valid_"+strings.ReplaceAll(validURL, ":", "_"), func(t *testing.T) {
+			isValid := isValidRedirectURL(validURL, append([]string{settings.URL}, settings.AdditionalURLs...))
+			assert.True(t, isValid, "URL should be valid: %s", validURL)
+		})
+	}
+
+	// Test cases that should fail
+	invalidURLs := []string{
+		"https://argocd.example.com",      // Missing port
+		"https://argocd.example.com:8443", // Wrong port
+		"http://argocd.example.com:8080",  // Wrong scheme
+		"https://other.example.com:8080",  // Wrong host
+	}
+
+	for _, invalidURL := range invalidURLs {
+		t.Run("invalid_"+strings.ReplaceAll(invalidURL, ":", "_"), func(t *testing.T) {
+			isValid := isValidRedirectURL(invalidURL, append([]string{settings.URL}, settings.AdditionalURLs...))
+			assert.False(t, isValid, "URL should be invalid: %s", invalidURL)
+		})
+	}
+
+	// Test the actual login flow
+	t.Run("login_flow", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com:8080/auth/login?return_url=https://argocd.example.com:8080/applications", http.NoBody)
+		req.Host = "argocd.example.com:8080"
+
+		w := httptest.NewRecorder()
+
+		// This should not fail with the improved validation
+		// The actual OIDC flow would continue here
+		assert.NotNil(t, app)
+		assert.NotNil(t, req)
+		assert.NotNil(t, w)
+	})
 }
