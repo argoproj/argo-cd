@@ -1411,7 +1411,6 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 		if err := yaml.Unmarshal([]byte(argoCDCM.Data[settingAdditionalUrlsKey]), &settings.AdditionalURLs); err != nil {
 			log.Warnf("Failed to decode all additional URLs in configmap: %v", err)
 		}
-
 	}
 	for _, url := range settings.AdditionalURLs {
 		if err := validateExternalURL(url); err != nil {
