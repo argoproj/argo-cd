@@ -2529,7 +2529,7 @@ func TestBuildSyncOptionsOverrideReplaceStyle(t *testing.T) {
 				_ = cmd.Flags().Set("sync-options-override-style", string(SyncOptionsOverrideReplace))
 			},
 			expectedNil:      false,
-			expectedContains: []string{syncOptionKeyApplyOutOfSyncOnly + "=false"},
+			expectedContains: []string{common.SyncOptionDisableApplyOutOfSyncOnly},
 		},
 		{
 			name: "all flags=true passed, with override",
@@ -2551,7 +2551,7 @@ func TestBuildSyncOptionsOverrideReplaceStyle(t *testing.T) {
 				_ = cmd.Flags().Set("sync-options-override-style", string(SyncOptionsOverrideReplace))
 			},
 			expectedNil:      false,
-			expectedContains: []string{"Replace=false", common.SyncOptionDisableServerSideApply, "ApplyOutOfSyncOnly=false"},
+			expectedContains: []string{common.SyncOptionDisableReplace, common.SyncOptionDisableServerSideApply, common.SyncOptionDisableApplyOutOfSyncOnly},
 		},
 		{
 			name: "mixed true/false values passed, with override - includes both true and false values",
@@ -2562,7 +2562,7 @@ func TestBuildSyncOptionsOverrideReplaceStyle(t *testing.T) {
 				_ = cmd.Flags().Set("sync-options-override-style", string(SyncOptionsOverrideReplace))
 			},
 			expectedNil:      false,
-			expectedContains: []string{common.SyncOptionReplace, common.SyncOptionDisableServerSideApply, "ApplyOutOfSyncOnly=false"},
+			expectedContains: []string{common.SyncOptionReplace, common.SyncOptionDisableServerSideApply, common.SyncOptionDisableApplyOutOfSyncOnly},
 		},
 	}
 	for _, tt := range tests {
