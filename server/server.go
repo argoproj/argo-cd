@@ -1649,6 +1649,12 @@ var pathPatters = []*regexp.Regexp{
 	regexp.MustCompile(`/api/v1/repocreds/[^/]+`),
 	regexp.MustCompile(`/api/v1/repositories/[^/]+/apps`),
 	regexp.MustCompile(`/api/v1/repositories/[^/]+/apps/[^/]+`),
+	regexp.MustCompile(`/api/v1/repositories/[^/]+/refs`),
+	regexp.MustCompile(`/api/v1/repositories/[^/]+/oci-tags`),
+	regexp.MustCompile(`/api/v1/repositories/[^/]+/helmcharts`),
+	regexp.MustCompile(`/api/v1/repositories/[^/]+/validate`),
+	regexp.MustCompile(`/api/v1/write-repositories/[^/]+`),
+	regexp.MustCompile(`/api/v1/write-repositories/[^/]+/validate`),
 	regexp.MustCompile(`/settings/clusters/[^/]+`),
 }
 
@@ -1688,6 +1694,12 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req any, _ *grpc.UnarySe
 			return nil, err
 		}
 		req.Repo.Repo = repo
+	case *repositorypkg.RepoAccessQuery:
+		repo, err := url.QueryUnescape(req.Repo)
+		if err != nil {
+			return nil, err
+		}
+		req.Repo = repo
 	case *repocredspkg.RepoCredsQuery:
 		pattern, err := url.QueryUnescape(req.Url)
 		if err != nil {
