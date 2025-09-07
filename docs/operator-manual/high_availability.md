@@ -205,7 +205,7 @@ If the manifest generation has no side effects then requests are processed in pa
 ### Manifest Paths Annotation
 
 Argo CD aggressively caches generated manifests and uses the repository commit SHA as a cache key. A new commit to the Git repository invalidates the cache for all applications configured in the repository.
-This can negatively affect repositories with multiple applications. You can use [webhooks](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/webhook.md) and the `argocd.argoproj.io/manifest-generate-paths` Application CRD annotation to solve this problem and improve performance.
+This can negatively affect repositories with multiple applications. You can use the `argocd.argoproj.io/manifest-generate-paths` Application CRD annotation to solve this problem and improve performance.
 
 Note: The `argocd.argoproj.io/manifest-generate-paths` annotation is available for use with webhooks. Since Argo CD v2.11, this annotation can also be used **without configuring any webhooks**. Webhooks are not a pre-condition for this feature. You can rely on the annotation alone to optimize manifest generation for all applications.
 
