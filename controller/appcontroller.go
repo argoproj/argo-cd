@@ -1197,7 +1197,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	isValid, cluster := ctrl.isValidDestination(app)
 	if !isValid {
 		app.UnSetCascadedDeletion()
-		app.UnSetPostDeleteFinalizer()
+		app.UnSetPostDeleteFinalizerAll()
 		if err := ctrl.updateFinalizers(app); err != nil {
 			return err
 		}
