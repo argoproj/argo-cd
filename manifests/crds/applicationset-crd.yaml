@@ -410,7 +410,7 @@ spec:
                                       properties:
                                         path:
                                           minLength: 1
-                                          pattern: ^(?!\.?$)(?!\/?$).+
+                                          pattern: ^.{2,}|[^./]$
                                           type: string
                                         targetBranch:
                                           type: string
@@ -1094,7 +1094,7 @@ spec:
                                       properties:
                                         path:
                                           minLength: 1
-                                          pattern: ^(?!\.?$)(?!\/?$).+
+                                          pattern: ^.{2,}|[^./]$
                                           type: string
                                         targetBranch:
                                           type: string
@@ -1779,7 +1779,7 @@ spec:
                                       properties:
                                         path:
                                           minLength: 1
-                                          pattern: ^(?!\.?$)(?!\/?$).+
+                                          pattern: ^.{2,}|[^./]$
                                           type: string
                                         targetBranch:
                                           type: string
@@ -2442,7 +2442,7 @@ spec:
                                       properties:
                                         path:
                                           minLength: 1
-                                          pattern: ^(?!\.?$)(?!\/?$).+
+                                          pattern: ^.{2,}|[^./]$
                                           type: string
                                         targetBranch:
                                           type: string
@@ -3130,7 +3130,7 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^(?!\.?$)(?!\/?$).+
+                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -3814,7 +3814,7 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^(?!\.?$)(?!\/?$).+
+                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -4499,7 +4499,7 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^(?!\.?$)(?!\/?$).+
+                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -5162,7 +5162,7 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^(?!\.?$)(?!\/?$).+
+                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -5833,7 +5833,7 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^(?!\.?$)(?!\/?$).+
+                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -6731,7 +6731,7 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^(?!\.?$)(?!\/?$).+
+                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -7620,7 +7620,7 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^(?!\.?$)(?!\/?$).+
+                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -8300,7 +8300,7 @@ spec:
                                       properties:
                                         path:
                                           minLength: 1
-                                          pattern: ^(?!\.?$)(?!\/?$).+
+                                          pattern: ^.{2,}|[^./]$
                                           type: string
                                         targetBranch:
                                           type: string
@@ -8990,7 +8990,7 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^(?!\.?$)(?!\/?$).+
+                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -9674,7 +9674,7 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^(?!\.?$)(?!\/?$).+
+                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -10359,7 +10359,7 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^(?!\.?$)(?!\/?$).+
+                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -11022,7 +11022,7 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^(?!\.?$)(?!\/?$).+
+                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -11693,7 +11693,7 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^(?!\.?$)(?!\/?$).+
+                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -12591,7 +12591,7 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^(?!\.?$)(?!\/?$).+
+                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -13480,7 +13480,7 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^(?!\.?$)(?!\/?$).+
+                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   targetBranch:
                                                     type: string
@@ -14164,7 +14164,7 @@ spec:
                                       properties:
                                         path:
                                           minLength: 1
-                                          pattern: ^(?!\.?$)(?!\/?$).+
+                                          pattern: ^.{2,}|[^./]$
                                           type: string
                                         targetBranch:
                                           type: string
@@ -14834,7 +14834,7 @@ spec:
                                       properties:
                                         path:
                                           minLength: 1
-                                          pattern: ^(?!\.?$)(?!\/?$).+
+                                          pattern: ^.{2,}|[^./]$
                                           type: string
                                         targetBranch:
                                           type: string
@@ -15732,7 +15732,7 @@ spec:
                                       properties:
                                         path:
                                           minLength: 1
-                                          pattern: ^(?!\.?$)(?!\/?$).+
+                                          pattern: ^.{2,}|[^./]$
                                           type: string
                                         targetBranch:
                                           type: string
@@ -16621,7 +16621,7 @@ spec:
                                       properties:
                                         path:
                                           minLength: 1
-                                          pattern: ^(?!\.?$)(?!\/?$).+
+                                          pattern: ^.{2,}|[^./]$
                                           type: string
                                         targetBranch:
                                           type: string
@@ -17378,7 +17378,7 @@ spec:
                             properties:
                               path:
                                 minLength: 1
-                                pattern: ^(?!\.?$)(?!\/?$).+
+                                pattern: ^.{2,}|[^./]$
                                 type: string
                               targetBranch:
                                 type: string

@@ -2641,7 +2641,7 @@ message SyncSource {
   //
   // +kubebuilder:validation:Required
   // +kubebuilder:validation:MinLength=1
-  // +kubebuilder:validation:Pattern=`^(?!\.?$)(?!\/?$).+`
+  // +kubebuilder:validation:Pattern=`^.{2,}|[^./]$`
   optional string path = 2;
 }
 
