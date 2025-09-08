@@ -307,12 +307,20 @@ func (s *Server) GetDetailedProject(ctx context.Context, q *project.ProjectQuery
 	}
 	proj.NormalizeJWTTokens()
 	globalProjects := argo.GetGlobalProjects(proj, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.settingsMgr)
+	var apiRepos []*v1alpha1.Repository
+	for _, repo := range repositories {
+		apiRepos = append(apiRepos, repo.Normalize().Sanitized())
+	}
+	var apiClusters []*v1alpha1.Cluster
+	for _, cluster := range clusters {
+		apiClusters = append(apiClusters, cluster.Sanitized())
+	}
 
 	return &project.DetailedProjectsResponse{
 		GlobalProjects: globalProjects,
 		Project:        proj,
-		Repositories:   repositories,
-		Clusters:       clusters,
+		Repositories:   apiRepos,
+		Clusters:       apiClusters,
 	}, err
 }
 
