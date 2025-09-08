@@ -44,7 +44,7 @@ type Dependencies interface {
 
 	// GetRepoObjs returns the repository objects for the given application, source, and revision. It calls the repo-
 	// server and gets the manifests (objects).
-	GetRepoObjs(app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error)
+	GetRepoObjs(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error)
 
 	// GetWriteCredentials returns the repository credentials for the given repository URL and project. These are to be
 	// sent to the commit server to write the hydrated manifests.
@@ -285,7 +285,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	// TODO: parallelize this loop
 	for _, app := range apps {
 		var pathDetails *commitclient.PathDetails
-		targetRevision, pathDetails, err = h.getManifests(app, targetRevision, projects[app.Spec.Project])
+		targetRevision, pathDetails, err = h.getManifests(context.Background(), app, targetRevision, projects[app.Spec.Project])
 		if err != nil {
 			return "", "", fmt.Errorf("failed to get manifests for app %q: %w", app.QualifiedName(), err)
 		}
@@ -354,7 +354,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 // (a git SHA), and path details for the commit server.
 //
 // If the given target revision is empty, it uses the target revision from the app dry source spec.
-func (h *Hydrator) getManifests(app *appv1.Application, targetRevision string, project *appv1.AppProject) (revision string, pathDetails *commitclient.PathDetails, err error) {
+func (h *Hydrator) getManifests(ctx context.Context, app *appv1.Application, targetRevision string, project *appv1.AppProject) (revision string, pathDetails *commitclient.PathDetails, err error) {
 	drySource := appv1.ApplicationSource{
 		RepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
 		Path:           app.Spec.SourceHydrator.DrySource.Path,
@@ -365,7 +365,7 @@ func (h *Hydrator) getManifests(app *appv1.Application, targetRevision string, p
 	}
 
 	// TODO: enable signature verification
-	objs, resp, err := h.dependencies.GetRepoObjs(app, drySource, targetRevision, project)
+	objs, resp, err := h.dependencies.GetRepoObjs(ctx, app, drySource, targetRevision, project)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to get repo objects for app %q: %w", app.QualifiedName(), err)
 	}

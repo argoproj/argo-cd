@@ -72,7 +72,7 @@ type managedResource struct {
 type AppStateManager interface {
 	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) (*comparisonResult, error)
 	SyncAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState)
-	GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error)
+	GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error)
 }
 
 // comparisonResult holds the state of an application after the reconciliation
@@ -127,9 +127,9 @@ type appStateManager struct {
 // task to the repo-server. It returns the list of generated manifests as unstructured
 // objects. It also returns the full response from all calls to the repo server as the
 // second argument.
-func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error) {
+func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error) {
 	ts := stats.NewTimingStats()
-	helmRepos, err := m.db.ListHelmRepositories(context.Background())
+	helmRepos, err := m.db.ListHelmRepositories(ctx)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to list Helm repositories: %w", err)
 	}
@@ -138,7 +138,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		return nil, nil, false, fmt.Errorf("failed to get permitted Helm repositories for project %q: %w", proj.Name, err)
 	}
 
-	ociRepos, err := m.db.ListOCIRepositories(context.Background())
+	ociRepos, err := m.db.ListOCIRepositories(ctx)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to list OCI repositories: %w", err)
 	}
@@ -148,7 +148,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 
 	ts.AddCheckpoint("repo_ms")
-	helmRepositoryCredentials, err := m.db.GetAllHelmRepositoryCredentials(context.Background())
+	helmRepositoryCredentials, err := m.db.GetAllHelmRepositoryCredentials(ctx)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get Helm credentials: %w", err)
 	}
@@ -157,7 +157,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		return nil, nil, false, fmt.Errorf("failed to get permitted Helm credentials for project %q: %w", proj.Name, err)
 	}
 
-	ociRepositoryCredentials, err := m.db.GetAllOCIRepositoryCredentials(context.Background())
+	ociRepositoryCredentials, err := m.db.GetAllOCIRepositoryCredentials(ctx)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get OCI credentials: %w", err)
 	}
@@ -192,7 +192,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		return nil, nil, false, fmt.Errorf("failed to get installation ID: %w", err)
 	}
 
-	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, m.db)
+	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, m.db)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get destination cluster: %w", err)
 	}
@@ -218,7 +218,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	// Store the map of all sources having ref field into a map for applications with sources field
 	// If it's for a rollback process, the refSources[*].targetRevision fields are the desired
 	// revisions for the rollback
-	refSources, err := argo.GetRefSources(context.Background(), sources, app.Spec.Project, m.db.GetRepository, revisions)
+	refSources, err := argo.GetRefSources(ctx, sources, app.Spec.Project, m.db.GetRepository, revisions)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get ref sources: %w", err)
 	}
@@ -231,7 +231,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		if len(revisions) < len(sources) || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
 		}
-		repo, err := m.db.GetRepository(context.Background(), source.RepoURL, proj.Name)
+		repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
 		}
@@ -255,7 +255,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 
 		if !source.IsHelm() && !source.IsOCI() && syncedRevision != "" && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
 			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
-			updateRevisionResult, err := repoClient.UpdateRevisionForPaths(context.Background(), &apiclient.UpdateRevisionForPathsRequest{
+			updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
 				Repo:               repo,
 				Revision:           revision,
 				SyncedRevision:     syncedRevision,
@@ -301,7 +301,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		}
 
 		log.Debugf("Generating Manifest for source %s revision %s", source, revision)
-		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		manifestInfo, err := repoClient.GenerateManifest(ctx, &apiclient.ManifestRequest{
 			Repo:                            repo,
 			Repos:                           repos,
 			Revision:                        revision,
@@ -594,7 +594,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 
-		targetObjs, manifestInfos, revisionsMayHaveChanges, err = m.GetRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project, true)
+		targetObjs, manifestInfos, revisionsMayHaveChanges, err = m.GetRepoObjs(context.Background(), app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project, true)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			msg := "Failed to load target state: " + err.Error()
