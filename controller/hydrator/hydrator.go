@@ -282,8 +282,6 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	syncBranch := apps[0].Spec.SourceHydrator.SyncSource.TargetBranch
 	targetBranch := apps[0].Spec.GetHydrateToSource().TargetRevision
 
-	var err error
-
 	// Get a static SHA revision from the first app so that all apps are hydrated from the same revision.
 	targetRevision, pathDetails, err := h.getManifests(context.Background(), apps[0], "", projects[apps[0].Spec.Project])
 	if err != nil {
@@ -297,13 +295,12 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	for _, app := range apps[1:] {
 		app := app
 		eg.Go(func() error {
-			var appPathDetails *commitclient.PathDetails
-			_, appPathDetails, err = h.getManifests(ctx, app, targetRevision, projects[app.Spec.Project])
+			_, pathDetails, err = h.getManifests(ctx, app, targetRevision, projects[app.Spec.Project])
 			if err != nil {
 				return fmt.Errorf("failed to get manifests for app %q: %w", app.QualifiedName(), err)
 			}
 			mu.Lock()
-			paths = append(paths, appPathDetails)
+			paths = append(paths, pathDetails)
 			mu.Unlock()
 			return nil
 		})

@@ -48,6 +48,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
@@ -970,6 +972,9 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 	))
 	sOpts = append(sOpts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	grpcS := grpc.NewServer(sOpts...)
+
+	healthService := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcS, healthService)
 
 	versionpkg.RegisterVersionServiceServer(grpcS, server.serviceSet.VersionService)
 	clusterpkg.RegisterClusterServiceServer(grpcS, server.serviceSet.ClusterService)
