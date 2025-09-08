@@ -136,7 +136,6 @@ spec:
   ignoreDifferences:
     - group: "*"
       kind: "Application"
-      namespace: "*"
       jsonPointers:
         # Allow manually disabling auto sync for apps, useful for debugging.
         - /spec/syncPolicy/automated
