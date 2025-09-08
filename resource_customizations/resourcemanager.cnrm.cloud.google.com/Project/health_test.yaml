@@ -19,3 +19,7 @@ tests:
     status: Progressing
     message: "Update in progress"
   inputPath: testdata/update_in_progress.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Update in progress'
+  inputPath: testdata/generation.yaml
