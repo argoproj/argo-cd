@@ -14,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -222,7 +221,7 @@ func TestManagedByURLAnnotation(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test-app",
 				Annotations: map[string]string{
-					common.AnnotationKeyManagedByURL: managedByURL,
+					v1alpha1.AnnotationKeyManagedByURL: managedByURL,
 				},
 			},
 		}
@@ -265,7 +264,7 @@ func TestManagedByURLAnnotation(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test-app",
 				Annotations: map[string]string{
-					common.AnnotationKeyManagedByURL: "",
+					v1alpha1.AnnotationKeyManagedByURL: "",
 				},
 			},
 		}
@@ -290,9 +289,9 @@ func TestManagedByURLAnnotation(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test-app",
 				Annotations: map[string]string{
-					common.AnnotationKeyManagedByURL: managedByURL,
-					"argocd.argoproj.io/deep-link-1": "https://grafana.example.com/d/argo/argo-cd-application-dashboard",
-					"argocd.argoproj.io/deep-link-2": "https://kibana.example.com/app/kibana#/discover",
+					v1alpha1.AnnotationKeyManagedByURL: managedByURL,
+					"argocd.argoproj.io/deep-link-1":   "https://grafana.example.com/d/argo/argo-cd-application-dashboard",
+					"argocd.argoproj.io/deep-link-2":   "https://kibana.example.com/app/kibana#/discover",
 				},
 			},
 		}
