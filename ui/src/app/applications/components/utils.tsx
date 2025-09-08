@@ -8,6 +8,7 @@ import * as moment from 'moment';
 import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime, map} from 'rxjs/operators';
 import {AppContext, Context, ContextApis} from '../../shared/context';
+import {isValidURL} from '../../shared/utils';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
@@ -1814,8 +1815,16 @@ export function getApplicationLinkURL(app: any, baseHref: string, node?: any): {
 
     let url, isExternal;
     if (managedByURL) {
-        url = managedByURL + '/applications/' + app.metadata.namespace + '/' + app.metadata.name;
-        isExternal = true;
+        // Validate the managed-by URL using the same validation as external links
+        if (!isValidURL(managedByURL)) {
+            // If URL is invalid, fall back to local URL for security
+            console.warn(`Invalid managed-by URL for application ${app.metadata.name}: ${managedByURL}`);
+            url = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
+            isExternal = false;
+        } else {
+            url = managedByURL + '/applications/' + app.metadata.namespace + '/' + app.metadata.name;
+            isExternal = true;
+        }
     } else {
         url = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
         isExternal = false;
@@ -1834,8 +1843,16 @@ export function getApplicationLinkURLFromNode(node: any, baseHref: string): {url
 
     let url, isExternal;
     if (managedByURL) {
-        url = managedByURL + '/applications/' + node.namespace + '/' + node.name;
-        isExternal = true;
+        // Validate the managed-by URL using the same validation as external links
+        if (!isValidURL(managedByURL)) {
+            // If URL is invalid, fall back to local URL for security
+            console.warn(`Invalid managed-by URL for application ${node.name}: ${managedByURL}`);
+            url = baseHref + 'applications/' + node.namespace + '/' + node.name;
+            isExternal = false;
+        } else {
+            url = managedByURL + '/applications/' + node.namespace + '/' + node.name;
+            isExternal = true;
+        }
     } else {
         url = baseHref + 'applications/' + node.namespace + '/' + node.name;
         isExternal = false;

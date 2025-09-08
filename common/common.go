@@ -230,8 +230,6 @@ const (
 	// Skip reconcile when the value is "true" or any other string values that can be strconv.ParseBool() to be true.
 	AnnotationKeyAppSkipReconcile = "argocd.argoproj.io/skip-reconcile"
 
-	// AnnotationKeyManagedByURL contains the URL of the Argo CD instance managing the application
-	AnnotationKeyManagedByURL = "argocd.argoproj.io/managed-by-url"
 	// LabelKeyComponentRepoServer is the label key to identify the component as repo-server
 	LabelKeyComponentRepoServer = "app.kubernetes.io/component"
 	// LabelValueComponentRepoServer is the label value for the repo-server component

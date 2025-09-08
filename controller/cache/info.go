@@ -494,7 +494,7 @@ func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 
 func populateApplicationInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	// Add managed-by-url annotation to info if present
-	if managedByURL, ok := un.GetAnnotations()[common.AnnotationKeyManagedByURL]; ok {
+	if managedByURL, ok := un.GetAnnotations()[v1alpha1.AnnotationKeyManagedByURL]; ok {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "managed-by-url", Value: managedByURL})
 	}
 }

@@ -9,9 +9,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
@@ -38,7 +38,7 @@ func TestManagedByURLWithAnnotation(t *testing.T) {
 				if appObj.Annotations == nil {
 					appObj.Annotations = make(map[string]string)
 				}
-				appObj.Annotations[common.AnnotationKeyManagedByURL] = managedByURL
+				appObj.Annotations[v1alpha1.AnnotationKeyManagedByURL] = managedByURL
 
 				_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Update(t.Context(), appObj, metav1.UpdateOptions{})
 				if err == nil {
@@ -75,7 +75,7 @@ func TestManagedByURLWithAnnotation(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			// Test that the managed-by-url annotation is preserved
-			assert.Equal(t, managedByURL, app.Annotations[common.AnnotationKeyManagedByURL])
+			assert.Equal(t, managedByURL, app.Annotations[v1alpha1.AnnotationKeyManagedByURL])
 
 			// Test that the application links include the managed-by-url in the deep links
 			conn, appClient, err := fixture.ArgoCDClientset.NewApplicationClient()
