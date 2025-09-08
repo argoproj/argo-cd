@@ -12,8 +12,8 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/TomOnTime/utfutil v1.0.0
 	github.com/alicebob/miniredis/v2 v2.35.0
-	github.com/argoproj/gitops-engine v0.7.1-0.20250902195153-dab4cc0b8ad1
-	github.com/argoproj/notifications-engine v0.4.1-0.20250710034121-3ec18d4536a7
+	github.com/argoproj/gitops-engine v0.7.1-0.20250908182407-97ad5b59a627
+	github.com/argoproj/notifications-engine v0.4.1-0.20250908182349-da04400446ff
 	github.com/argoproj/pkg v0.13.6
 	github.com/argoproj/pkg/v2 v2.0.1
 	github.com/aws/aws-sdk-go v1.55.7
@@ -299,8 +299,6 @@ require (
 )
 
 replace (
-	github.com/argoproj/gitops-engine => github.com/pjiang-dev/gitops-engine v0.0.0-20250903182803-b9da2c00b079
-	github.com/argoproj/notifications-engine => github.com/pjiang-dev/notifications-engine v0.0.0-20250904231019-60ed651a8110
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	golang.org/x/tools => golang.org/x/tools v0.35.0
