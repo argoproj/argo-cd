@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/managedfields"
-	"sigs.k8s.io/structured-merge-diff/v4/merge"
+	"sigs.k8s.io/structured-merge-diff/v6/merge"
 )
 
 // NewVersionConverter will expose the version converter from the
