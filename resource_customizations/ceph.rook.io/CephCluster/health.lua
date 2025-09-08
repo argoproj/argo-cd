@@ -47,9 +47,9 @@ end
 
 -- Check state - https://github.com/rook/rook/blob/v1.17.7/pkg/apis/ceph.rook.io/v1/types.go#L621
 if obj.status.state ~= nil then
-    if hs.status == "Healthy" or hs.status == "Connected" then
+    if hs.status == "Healthy" then
         append_to_message("Ceph cluster state is " .. obj.status.state)
-        if obj.status.state == "Created" then
+        if obj.status.state == "Created" or obj.status.state == "Connected" then
             hs.status = "Healthy"
         elseif obj.status.state == "Error" then
             hs.status = "Degraded"
