@@ -1,6 +1,6 @@
 local actions = {}
 actions["restart"] = {
-    ["iconClass"] = "fa fa-fw fa-plus",
+    ["iconClass"] = "fa fa-fw fa-recycle",
     ["displayName"] = "Rollout restart Cluster"
 }
 actions["reload"] = {
