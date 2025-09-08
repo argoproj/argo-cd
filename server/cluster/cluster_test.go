@@ -864,7 +864,7 @@ func TestCreateDeepLinksObject_ManagedByURL(t *testing.T) {
 			Object: map[string]any{
 				"metadata": map[string]any{
 					"annotations": map[string]any{
-						common.AnnotationKeyManagedByURL: "https://example.com/argo",
+						appv1.AnnotationKeyManagedByURL: "https://example.com/argo",
 					},
 				},
 			},
