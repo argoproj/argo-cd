@@ -21,7 +21,6 @@ rules:
   - events
   verbs:
   - list    # supports listing events in UI
-  - create # supports creating events on resource actions
 - apiGroups:
   - ""
   resources:
