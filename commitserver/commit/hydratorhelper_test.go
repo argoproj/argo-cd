@@ -18,6 +18,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/hydrator"
 )
 
 // tempRoot creates a temporary directory and returns an os.Root object for it.
@@ -144,7 +145,7 @@ Argocd-reference-commit-sha: abc123
 func TestWriteMetadata(t *testing.T) {
 	root := tempRoot(t)
 
-	metadata := hydratorMetadataFile{
+	metadata := hydrator.HydratorCommitMetadata{
 		RepoURL: "https://github.com/example/repo",
 		DrySHA:  "abc123",
 	}
@@ -156,7 +157,7 @@ func TestWriteMetadata(t *testing.T) {
 	metadataBytes, err := os.ReadFile(metadataPath)
 	require.NoError(t, err)
 
-	var readMetadata hydratorMetadataFile
+	var readMetadata hydrator.HydratorCommitMetadata
 	err = json.Unmarshal(metadataBytes, &readMetadata)
 	require.NoError(t, err)
 	assert.Equal(t, metadata, readMetadata)
@@ -171,7 +172,7 @@ func TestWriteReadme(t *testing.T) {
 	hash := sha256.Sum256(randomData)
 	sha := hex.EncodeToString(hash[:])
 
-	metadata := hydratorMetadataFile{
+	metadata := hydrator.HydratorCommitMetadata{
 		RepoURL: "https://github.com/example/repo",
 		DrySHA:  "abc123",
 		References: []appsv1.RevisionReference{
