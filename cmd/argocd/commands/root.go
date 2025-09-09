@@ -37,7 +37,7 @@ func NewCommand() *cobra.Command {
 	)
 
 	command := &cobra.Command{
-		Use:   cliName,
+		Use:   common.CLI,
 		Short: "argocd controls a Argo CD server",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)

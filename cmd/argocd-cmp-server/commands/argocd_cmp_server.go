@@ -18,11 +18,6 @@ import (
 	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
 )
 
-const (
-	// CLIName is the name of the CLI
-	cliName = "argocd-cmp-server"
-)
-
 func NewCommand() *cobra.Command {
 	var (
 		configFilePath string
@@ -32,7 +27,7 @@ func NewCommand() *cobra.Command {
 		otlpAttrs      []string
 	)
 	command := cobra.Command{
-		Use:               cliName,
+		Use:               common.CMPServer,
 		Short:             "Run ArgoCD ConfigManagementPlugin Server",
 		Long:              "ArgoCD ConfigManagementPlugin Server is an internal service which runs as sidecar container in reposerver deployment. The following configuration options are available:",
 		DisableAutoGenTag: true,
