@@ -248,7 +248,7 @@ jobs:
           # Fetch all tag information
           git fetch --prune --tags --force
 
-          LATEST_TAG=$(git -c 'versionsort.suffix=-rc' tag --list --sort=version:refname | tail -n1)
+          LATEST_TAG=$(git -c 'versionsort.suffix=-rc' tag --list 'v[0-9]*' --sort=version:refname | tail -n1)
 
           PRE_RELEASE=false
           # Check if latest tag is a pre-release
