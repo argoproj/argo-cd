@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -279,17 +282,32 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	syncBranch := apps[0].Spec.SourceHydrator.SyncSource.TargetBranch
 	targetBranch := apps[0].Spec.GetHydrateToSource().TargetRevision
 
-	var paths []*commitclient.PathDetails
-	var targetRevision string
-	var err error
-	// TODO: parallelize this loop
-	for _, app := range apps {
-		var pathDetails *commitclient.PathDetails
-		targetRevision, pathDetails, err = h.getManifests(context.Background(), app, targetRevision, projects[app.Spec.Project])
-		if err != nil {
-			return "", "", fmt.Errorf("failed to get manifests for app %q: %w", app.QualifiedName(), err)
-		}
-		paths = append(paths, pathDetails)
+	// Get a static SHA revision from the first app so that all apps are hydrated from the same revision.
+	targetRevision, pathDetails, err := h.getManifests(context.Background(), apps[0], "", projects[apps[0].Spec.Project])
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get manifests for app %q: %w", apps[0].QualifiedName(), err)
+	}
+	paths := []*commitclient.PathDetails{pathDetails}
+
+	eg, ctx := errgroup.WithContext(context.Background())
+	var mu sync.Mutex
+
+	for _, app := range apps[1:] {
+		app := app
+		eg.Go(func() error {
+			_, pathDetails, err = h.getManifests(ctx, app, targetRevision, projects[app.Spec.Project])
+			if err != nil {
+				return fmt.Errorf("failed to get manifests for app %q: %w", app.QualifiedName(), err)
+			}
+			mu.Lock()
+			paths = append(paths, pathDetails)
+			mu.Unlock()
+			return nil
+		})
+	}
+	err = eg.Wait()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get manifests for apps: %w", err)
 	}
 
 	// If all the apps are under the same project, use that project. Otherwise, use an empty string to indicate that we
