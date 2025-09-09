@@ -31,7 +31,7 @@ func (ctrl *ApplicationController) GetProcessableApps() (*appv1.ApplicationList,
 	return ctrl.getAppList(metav1.ListOptions{})
 }
 
-func (ctrl *ApplicationController) GetRepoObjs(origApp *appv1.Application, drySource appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
+func (ctrl *ApplicationController) GetRepoObjs(ctx context.Context, origApp *appv1.Application, drySource appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
 	drySources := []appv1.ApplicationSource{drySource}
 	dryRevisions := []string{revision}
 
@@ -50,7 +50,7 @@ func (ctrl *ApplicationController) GetRepoObjs(origApp *appv1.Application, drySo
 	delete(app.Annotations, appv1.AnnotationKeyManifestGeneratePaths)
 
 	// FIXME: use cache and revision cache
-	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(app, drySources, appLabelKey, dryRevisions, true, true, false, project, false)
+	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(ctx, app, drySources, appLabelKey, dryRevisions, true, true, false, project, false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get repo objects: %w", err)
 	}
@@ -96,4 +96,13 @@ func (ctrl *ApplicationController) PersistAppHydratorStatus(orig *appv1.Applicat
 
 func (ctrl *ApplicationController) AddHydrationQueueItem(key types.HydrationQueueKey) {
 	ctrl.hydrationQueue.AddRateLimited(key)
+}
+
+func (ctrl *ApplicationController) GetHydratorCommitMessageTemplate() (string, error) {
+	sourceHydratorCommitMessageKey, err := ctrl.settingsMgr.GetSourceHydratorCommitMessageTemplate()
+	if err != nil {
+		return "", fmt.Errorf("failed to get sourceHydrator commit message template key: %w", err)
+	}
+
+	return sourceHydratorCommitMessageKey, nil
 }

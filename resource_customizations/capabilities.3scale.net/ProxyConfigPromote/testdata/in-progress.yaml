@@ -1,0 +1,7 @@
+apiVersion: capabilities.3scale.net/v1beta1
+kind: ProxyConfigPromote
+status:
+  conditions:
+    - type: In-progress
+      status: "True"
+      message: Proxy configuration promotion is in progress

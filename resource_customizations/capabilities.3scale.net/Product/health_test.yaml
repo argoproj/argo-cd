@@ -1,0 +1,21 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "3scale Product is synced"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Failure message"
+    inputPath: testdata/degraded-failed.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Product configuration is invalid - missing required hits metric"
+    inputPath: testdata/degraded-invalid.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Product spec contains reference(s) to non existing resources"
+    inputPath: testdata/degraded-orphan.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for 3scale Product status..."
+    inputPath: testdata/progressing.yaml
