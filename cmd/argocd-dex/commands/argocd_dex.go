@@ -25,13 +25,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/tls"
 )
 
-const (
-	cliName = "argocd-dex"
-)
-
 func NewCommand() *cobra.Command {
 	command := &cobra.Command{
-		Use:               cliName,
+		Use:               common.Dex,
 		Short:             "argocd-dex tools used by Argo CD",
 		Long:              "argocd-dex has internal utility tools used by Argo CD",
 		DisableAutoGenTag: true,
