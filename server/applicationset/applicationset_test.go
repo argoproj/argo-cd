@@ -392,7 +392,7 @@ func TestCreateAppSetWrongNamespace(t *testing.T) {
 
 func TestCreateAppSetDryRun(t *testing.T) {
 	testAppSet := newTestAppSet()
-	appServer := newTestAppSetServer(t, nil)
+	appServer := newTestAppSetServer(t)
 	testAppSet.Spec.Template.Name = "{{name}}"
 	testAppSet.Spec.Generators = []appsv1.ApplicationSetGenerator{
 		{
@@ -405,7 +405,7 @@ func TestCreateAppSetDryRun(t *testing.T) {
 		Applicationset: testAppSet,
 		DryRun:         true,
 	}
-	result, err := appServer.Create(context.Background(), &createReq)
+	result, err := appServer.Create(t.Context(), &createReq)
 
 	require.NoError(t, err)
 	assert.Len(t, result.Status.Resources, 2)
@@ -423,7 +423,7 @@ func TestCreateAppSetDryRun(t *testing.T) {
 
 func TestCreateAppSetDryRunWithDuplicate(t *testing.T) {
 	testAppSet := newTestAppSet()
-	appServer := newTestAppSetServer(t, nil)
+	appServer := newTestAppSetServer(t)
 	testAppSet.Spec.Template.Name = "{{name}}"
 	testAppSet.Spec.Generators = []appsv1.ApplicationSetGenerator{
 		{
@@ -436,7 +436,7 @@ func TestCreateAppSetDryRunWithDuplicate(t *testing.T) {
 		Applicationset: testAppSet,
 		DryRun:         true,
 	}
-	result, err := appServer.Create(context.Background(), &createReq)
+	result, err := appServer.Create(t.Context(), &createReq)
 
 	require.NoError(t, err)
 	assert.Len(t, result.Status.Resources, 1)
