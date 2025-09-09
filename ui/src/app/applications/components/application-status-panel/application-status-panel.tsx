@@ -62,16 +62,6 @@ const getApplicationSetOwnerRef = (application: models.Application) => {
     return application.metadata.ownerReferences?.find(ref => ref.kind === 'ApplicationSet');
 };
 
-const extractErrorText = (error: any): string => {
-    const errorChildren = error.props?.children || [];
-    return Array.isArray(errorChildren) ? errorChildren.map(child => (typeof child === 'string' ? child : '')).join('') : String(errorChildren);
-};
-
-const isPermissionError = (error: any): boolean => {
-    const errorText = extractErrorText(error);
-    return errorText.includes('Failed to load data');
-};
-
 const ProgressiveSyncStatus = ({application}: {application: models.Application}) => {
     const appSetRef = getApplicationSetOwnerRef(application);
     if (!appSetRef) {
@@ -81,12 +71,8 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
     return (
         <DataLoader
             input={application}
-            errorRenderer={(error: any) => {
-                // If user doesn't have permission to read ApplicationSet, hide the panel
-                if (isPermissionError(error)) {
-                    return null;
-                }
-                // For other errors, show a minimal error state
+            errorRenderer={() => {
+                // For any errors, show a minimal error state
                 return (
                     <div className='application-status-panel__item'>
                         {sectionHeader({
@@ -101,6 +87,9 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                 );
             }}
             load={async () => {
+                // Check if user has permission to read ApplicationSets
+                const canReadApplicationSets = await services.accounts.canI('applicationsets', 'get', application.spec.project + '/' + application.metadata.name);
+
                 // Find ApplicationSet by searching all namespaces dynamically
                 const appSetList = await services.applications.listApplicationSets();
                 const appSet = appSetList.items?.find(item => item.metadata.name === appSetRef.name);
@@ -109,16 +98,16 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                     throw new Error(`ApplicationSet ${appSetRef.name} not found in any namespace`);
                 }
 
-                // Only return the ApplicationSet if it has a strategy (Progressive Sync enabled)
-                if (appSet?.spec?.strategy) {
-                    return appSet;
-                }
-                // Return a special value to indicate no strategy (Progressive Sync disabled)
-                return 'NO_STRATEGY';
+                return {canReadApplicationSets, appSet};
             }}>
-            {(appSet: models.ApplicationSet | 'NO_STRATEGY') => {
-                if (appSet === 'NO_STRATEGY') {
-                    // If the ApplicationSet has no strategy (Progressive Sync disabled), don't show Progressive Sync panel
+            {({canReadApplicationSets, appSet}: {canReadApplicationSets: boolean; appSet: models.ApplicationSet}) => {
+                // If user doesn't have permission to read ApplicationSets, don't show Progressive Sync panel
+                if (!canReadApplicationSets) {
+                    return null;
+                }
+
+                // If the ApplicationSet has no strategy (Progressive Sync disabled), don't show Progressive Sync panel
+                if (!appSet?.spec?.strategy) {
                     return null;
                 }
 
