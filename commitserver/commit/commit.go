@@ -159,15 +159,17 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 
 	logCtx.Debug("Clearing and preparing paths")
 	var pathsToClear []string
+	// range over the paths configured and skip those application
+	// paths that are referencing to root path
 	for _, p := range r.Paths {
 		if hydrator.IsRootPath(p.Path) {
 			// skip adding paths that are referencing root directory
 			logCtx.Debugf("Path %s is referencing root directory, ignoring the path", p.Path)
 			continue
 		}
-
 		pathsToClear = append(pathsToClear, p.Path)
 	}
+
 	if len(pathsToClear) > 0 {
 		logCtx.Debugf("Clearing paths: %v", pathsToClear)
 		out, err := gitClient.RemoveContents(pathsToClear)
