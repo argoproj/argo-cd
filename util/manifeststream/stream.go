@@ -183,7 +183,7 @@ func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver,
 	if err != nil {
 		return nil, nil, fmt.Errorf("error receiving tgz file: %w", err)
 	}
-	err = files.Untgz(destDir, tgzFile, maxExtractedSize, false, false)
+	err = files.Untgz(destDir, tgzFile, maxExtractedSize, false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error decompressing tgz file: %w", err)
 	}

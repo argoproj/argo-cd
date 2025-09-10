@@ -159,7 +159,7 @@ func TestUntgz(t *testing.T) {
 		destDir := filepath.Join(tmpDir, "untgz1")
 
 		// when
-		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false, false)
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
 
 		// then
 		require.NoError(t, err)
@@ -169,7 +169,7 @@ func TestUntgz(t *testing.T) {
 		assert.Contains(t, names, "applicationset/latest/kustomization.yaml")
 		assert.Contains(t, names, "applicationset/stable/kustomization.yaml")
 		assert.Contains(t, names, "applicationset/readme-symlink")
-		assert.Equal(t, filepath.Join(destDir, "README.md"), names["applicationset/readme-symlink"])
+		assert.Equal(t, "../README.md", names["applicationset/readme-symlink"])
 	})
 	t.Run("will protect against symlink exploit", func(t *testing.T) {
 		// given
@@ -182,7 +182,7 @@ func TestUntgz(t *testing.T) {
 		destDir := filepath.Join(tmpDir, "untgz2")
 
 		// when
-		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false, false)
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
 
 		// then
 		assert.ErrorContains(t, err, "illegal filepath in symlink")
@@ -198,7 +198,7 @@ func TestUntgz(t *testing.T) {
 		destDir := filepath.Join(tmpDir, "untgz2")
 
 		// when
-		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false, true)
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
 
 		// then
 		assert.ErrorContains(t, err, "illegal filepath in symlink")
@@ -214,7 +214,7 @@ func TestUntgz(t *testing.T) {
 		destDir := filepath.Join(tmpDir, "untgz1")
 
 		// when
-		err := files.Untgz(destDir, tgzFile, math.MaxInt64, true, false)
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, true)
 		require.NoError(t, err)
 
 		// then
@@ -233,7 +233,7 @@ func TestUntgz(t *testing.T) {
 		destDir := filepath.Join(tmpDir, "symlink-relativize")
 
 		// when
-		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false, true)
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
 
 		// then
 		require.NoError(t, err)
