@@ -2312,7 +2312,7 @@ func TestNamespacedSyncOptionReplaceFromCLI(t *testing.T) {
 		SetAppNamespace(fixture.AppNamespace()).
 		SetTrackingMethod("annotation").
 		Path("config-map").
-		Replace().
+		Replace(true).
 		When().
 		CreateApp().
 		Sync().

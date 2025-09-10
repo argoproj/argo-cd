@@ -199,6 +199,13 @@ func ResourceResultIs(result v1alpha1.ResourceResult) Expectation {
 	}
 }
 
+func SyncOperationOptionsAre(expectedOptions v1alpha1.SyncOptions) Expectation {
+	return func(c *Consequences) (state, string) {
+		actual := c.app().Status.OperationState.Operation.Sync.SyncOptions
+		return simple(reflect.DeepEqual(actual, expectedOptions), fmt.Sprintf("sync operation options should be %v, is %v", expectedOptions, actual))
+	}
+}
+
 func sameResourceResult(res1, res2 v1alpha1.ResourceResult) bool {
 	return res1.Kind == res2.Kind &&
 		res1.Group == res2.Group &&

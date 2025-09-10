@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
@@ -150,11 +151,12 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
-func TestSyncWithApplyOutOfSyncOnly(t *testing.T) {
+func TestLegacyBehaviorCLIOptsTrueAppOptsEmptyCLIWins(t *testing.T) {
+	// cli options true, app spec options empty - cli wins
 	var ns string
 	Given(t).
 		Path(guestbookPath).
-		ApplyOutOfSyncOnly().
+		ApplyOutOfSyncOnly(true).
 		When().
 		CreateFromFile(func(app *Application) {
 			ns = app.Spec.Destination.Namespace
@@ -171,6 +173,342 @@ func TestSyncWithApplyOutOfSyncOnly(t *testing.T) {
 		// Only one resource should be in sync result
 		Expect(ResourceResultNumbering(1)).
 		Expect(ResourceResultIs(ResourceResult{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: ns, Name: "guestbook-ui", Message: "deployment.apps/guestbook-ui configured", SyncPhase: SyncPhaseSync, HookPhase: OperationRunning, Status: ResultCodeSynced, Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}}))
+}
+
+func TestLegacyBehaviorCLIOptsTrueAppOptsFalseCLIWins(t *testing.T) {
+	// cli options true, app spec options false - cli wins
+	var ns string
+	Given(t).
+		Path(guestbookPath).
+		ApplyOutOfSyncOnly(true).
+		When().
+		CreateFromFile(func(app *Application) {
+			ns = app.Spec.Destination.Namespace
+			app.Spec.SyncPolicy = &SyncPolicy{
+				SyncOptions: SyncOptions{"ApplyOutOfSyncOnly=false"},
+			}
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 1 }]`).
+		Sync().
+		Then().
+		// Only one resource should be in sync result
+		Expect(ResourceResultNumbering(1)).
+		Expect(ResourceResultIs(ResourceResult{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: ns, Name: "guestbook-ui", Message: "deployment.apps/guestbook-ui configured", SyncPhase: SyncPhaseSync, HookPhase: OperationRunning, Status: ResultCodeSynced, Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}}))
+}
+
+func TestLegacyBehaviorCLIOptsFalseSpecWins(t *testing.T) {
+	// cli options false, app spec options exist - spec wins
+	var ns string
+	Given(t).
+		Path(guestbookPath).
+		ApplyOutOfSyncOnly(false). // This should NOT override app spec without --sync-options-override-style=...
+		When().
+		CreateFromFile(func(app *Application) {
+			ns = app.Spec.Destination.Namespace
+			// Set app spec with ApplyOutOfSyncOnly=true
+			app.Spec.SyncPolicy = &SyncPolicy{
+				SyncOptions: SyncOptions{SyncOptionApplyOutOfSyncOnly},
+			}
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 1 }]`).
+		Sync().
+		Then().
+		// Only out-of-sync resources should be synced (app spec ApplyOutOfSyncOnly=true should be used)
+		Expect(ResourceResultNumbering(1)).
+		Expect(ResourceResultIs(ResourceResult{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: ns, Name: "guestbook-ui", Message: "deployment.apps/guestbook-ui configured", SyncPhase: SyncPhaseSync, HookPhase: OperationRunning, Status: ResultCodeSynced, Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}}))
+}
+
+func TestLegacyBehaviorCLIOptsTrueAnotherAppOptsTrueCLIWins(t *testing.T) {
+	// one cli option true, another spec option true - CLI wins
+	var ns string
+	Given(t).
+		Path(guestbookPath).
+		ApplyOutOfSyncOnly(true).
+		When().
+		CreateFromFile(func(app *Application) {
+			ns = app.Spec.Destination.Namespace
+			// Set app spec with ServerSideApply=true
+			app.Spec.SyncPolicy = &SyncPolicy{
+				SyncOptions: SyncOptions{SyncOptionServerSideApply},
+			}
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 1 }]`).
+		Sync().
+		Then().
+		Expect(SyncOperationOptionsAre(SyncOptions{SyncOptionApplyOutOfSyncOnly})).
+		// Only out-of-sync resources should be synced (app spec ApplyOutOfSyncOnly=true should be used)
+		Expect(ResourceResultNumbering(1)).
+		Expect(ResourceResultIs(ResourceResult{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: ns, Name: "guestbook-ui", Message: "deployment.apps/guestbook-ui configured", SyncPhase: SyncPhaseSync, HookPhase: OperationRunning, Status: ResultCodeSynced, Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}}))
+}
+
+func TestLegacyBehaviorCLIOptsEmptySpecWins(t *testing.T) {
+	// cli options empty, app spec options exist - app spec wins
+	var ns string
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateFromFile(func(app *Application) {
+			ns = app.Spec.Destination.Namespace
+			// Set app spec with ApplyOutOfSyncOnly=true
+			app.Spec.SyncPolicy = &SyncPolicy{
+				SyncOptions: SyncOptions{SyncOptionApplyOutOfSyncOnly},
+			}
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 1 }]`).
+		Sync().
+		Then().
+		// Only out-of-sync resources should be synced (app spec ApplyOutOfSyncOnly=true should be used)
+		Expect(ResourceResultNumbering(1)).
+		Expect(ResourceResultIs(ResourceResult{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: ns, Name: "guestbook-ui", Message: "deployment.apps/guestbook-ui configured", SyncPhase: SyncPhaseSync, HookPhase: OperationRunning, Status: ResultCodeSynced, Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}}))
+}
+
+func TestDefaultOverrideCLIOptsTrueAppOptsFalseCLIWins(t *testing.T) {
+	// default behavior, cli options true, app spec options false - cli wins
+	var ns string
+	Given(t).
+		Path(guestbookPath).
+		ApplyOutOfSyncOnly(true).
+		When().
+		CreateFromFile(func(app *Application) {
+			ns = app.Spec.Destination.Namespace
+			// Set app spec with ApplyOutOfSyncOnly=true
+			app.Spec.SyncPolicy = &SyncPolicy{
+				SyncOptions: SyncOptions{"ApplyOutOfSyncOnly=false"},
+			}
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 1 }]`).
+		Sync().
+		Then().
+		// Only out-of-sync resources should be synced (app spec ApplyOutOfSyncOnly=true should be used)
+		Expect(ResourceResultNumbering(1)).
+		Expect(ResourceResultIs(ResourceResult{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: ns, Name: "guestbook-ui", Message: "deployment.apps/guestbook-ui configured", SyncPhase: SyncPhaseSync, HookPhase: OperationRunning, Status: ResultCodeSynced, Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}}))
+}
+
+func TestDefaultOverrideCLIOptsMixedAppOptsEmptyOnlyTrueOptsWin(t *testing.T) {
+	// default behavior, aome cli options true, some false, app spec empty - only true cli options win
+	var ns string
+	Given(t).
+		Path(guestbookPath).
+		ApplyOutOfSyncOnly(true).
+		Replace(false).
+		When().
+		CreateFromFile(func(app *Application) {
+			ns = app.Spec.Destination.Namespace
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 1 }]`).
+		Sync().
+		Then().
+		Expect(SyncOperationOptionsAre(SyncOptions{SyncOptionApplyOutOfSyncOnly})).
+		// Only out-of-sync resources should be synced (app spec ApplyOutOfSyncOnly=true should be used)
+		Expect(ResourceResultNumbering(1)).
+		Expect(ResourceResultIs(ResourceResult{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: ns, Name: "guestbook-ui", Message: "deployment.apps/guestbook-ui configured", SyncPhase: SyncPhaseSync, HookPhase: OperationRunning, Status: ResultCodeSynced, Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}}))
+}
+
+func TestOverrideReplaceCLIOptsTrueAppOptsFalseCLIWins(t *testing.T) {
+	// override style replace, cli options true, app spec options false - cli wins
+	var ns string
+	Given(t).
+		Path(guestbookPath).
+		ApplyOutOfSyncOnly(true).
+		SyncOptionsOverrideStyle(commands.SyncOptionsOverrideReplace).
+		When().
+		CreateFromFile(func(app *Application) {
+			ns = app.Spec.Destination.Namespace
+			// Set app spec with ApplyOutOfSyncOnly=true
+			app.Spec.SyncPolicy = &SyncPolicy{
+				SyncOptions: SyncOptions{"ApplyOutOfSyncOnly=false"},
+			}
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 1 }]`).
+		Sync().
+		Then().
+		// Only out-of-sync resources should be synced (app spec ApplyOutOfSyncOnly=true should be used)
+		Expect(ResourceResultNumbering(1)).
+		Expect(ResourceResultIs(ResourceResult{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: ns, Name: "guestbook-ui", Message: "deployment.apps/guestbook-ui configured", SyncPhase: SyncPhaseSync, HookPhase: OperationRunning, Status: ResultCodeSynced, Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}}))
+}
+
+func TestOverrideReplaceCLIOptsTrueAppOptsEmptyCLIWins(t *testing.T) {
+	// override style replace, cli options true, app spec options empty - cli wins
+	var ns string
+	Given(t).
+		Path(guestbookPath).
+		ApplyOutOfSyncOnly(true).
+		SyncOptionsOverrideStyle(commands.SyncOptionsOverrideReplace).
+		When().
+		CreateFromFile(func(app *Application) {
+			ns = app.Spec.Destination.Namespace
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 1 }]`).
+		Sync().
+		Then().
+		// Only out-of-sync resources should be synced (app spec ApplyOutOfSyncOnly=true should be used)
+		Expect(ResourceResultNumbering(1)).
+		Expect(ResourceResultIs(ResourceResult{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: ns, Name: "guestbook-ui", Message: "deployment.apps/guestbook-ui configured", SyncPhase: SyncPhaseSync, HookPhase: OperationRunning, Status: ResultCodeSynced, Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}}))
+}
+
+func TestOverrideReplaceCLIOptsFalseAppOptsTrueCLIWins(t *testing.T) {
+	// override style replace, cli options false, app spec options true - cli wins
+	var ns string
+	Given(t).
+		Path(guestbookPath).
+		ApplyOutOfSyncOnly(false).
+		SyncOptionsOverrideStyle(commands.SyncOptionsOverrideReplace).
+		When().
+		CreateFromFile(func(app *Application) {
+			ns = app.Spec.Destination.Namespace
+			app.Spec.SyncPolicy = &SyncPolicy{
+				SyncOptions: SyncOptions{SyncOptionApplyOutOfSyncOnly},
+			}
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 1 }]`).
+		Sync().
+		Then().
+		// All resources should be in sync result as CLI sync options take precedence over the Application spec sync options.
+		Expect(ResourceResultNumbering(2)).
+		Expect(ResourceResultIs(ResourceResult{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: ns, Name: "guestbook-ui", Message: "deployment.apps/guestbook-ui configured", SyncPhase: SyncPhaseSync, HookPhase: OperationRunning, Status: ResultCodeSynced, Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}})).
+		Expect(ResourceResultIs(ResourceResult{Group: "", Version: "v1", Kind: "Service", Namespace: ns, Name: "guestbook-ui", Status: ResultCodeSynced, Message: "service/guestbook-ui unchanged", HookPhase: OperationRunning, SyncPhase: SyncPhaseSync}))
+}
+
+func TestOverrideReplaceCLIOptsEmptyAppOptsTrueCLIWins(t *testing.T) {
+	// override true, cli options empty, app spec options true - CLI wins
+	var ns string
+	Given(t).
+		Path(guestbookPath).
+		SyncOptionsOverrideStyle(commands.SyncOptionsOverrideReplace).
+		When().
+		CreateFromFile(func(app *Application) {
+			ns = app.Spec.Destination.Namespace
+			app.Spec.SyncPolicy = &SyncPolicy{
+				SyncOptions: SyncOptions{SyncOptionApplyOutOfSyncOnly},
+			}
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 1 }]`).
+		Sync().
+		Then().
+		// All resources should be in sync result as CLI sync options take precedence over the Application spec sync options.
+		Expect(ResourceResultNumbering(2)).
+		Expect(ResourceResultIs(ResourceResult{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: ns, Name: "guestbook-ui", Message: "deployment.apps/guestbook-ui configured", SyncPhase: SyncPhaseSync, HookPhase: OperationRunning, Status: ResultCodeSynced, Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}})).
+		Expect(ResourceResultIs(ResourceResult{Group: "", Version: "v1", Kind: "Service", Namespace: ns, Name: "guestbook-ui", Status: ResultCodeSynced, Message: "service/guestbook-ui unchanged", HookPhase: OperationRunning, SyncPhase: SyncPhaseSync}))
+}
+
+func TestOverrideReplaceHasCLIOptHasAnotherAppOptCLIWins(t *testing.T) {
+	// override style replace, cli option exists, another app spec option exists - cli wins
+	var ns string
+	Given(t).
+		Path(guestbookPath).
+		ApplyOutOfSyncOnly(true).
+		SyncOptionsOverrideStyle(commands.SyncOptionsOverrideReplace).
+		When().
+		CreateFromFile(func(app *Application) {
+			ns = app.Spec.Destination.Namespace
+			// Set app spec with ApplyOutOfSyncOnly=true
+			app.Spec.SyncPolicy = &SyncPolicy{
+				SyncOptions: SyncOptions{SyncOptionServerSideApply},
+			}
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 1 }]`).
+		Sync().
+		Then().
+		Expect(SyncOperationOptionsAre(SyncOptions{SyncOptionApplyOutOfSyncOnly})).
+		// Only out-of-sync resources should be synced (app spec ApplyOutOfSyncOnly=true should be used)
+		Expect(ResourceResultNumbering(1)).
+		Expect(ResourceResultIs(ResourceResult{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: ns, Name: "guestbook-ui", Message: "deployment.apps/guestbook-ui configured", SyncPhase: SyncPhaseSync, HookPhase: OperationRunning, Status: ResultCodeSynced, Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}}))
+}
+
+func TestOverrideMergeHasCLIOptHasAnotherAppOptBothWin(t *testing.T) {
+	// override style merge, cli option exists, another app spec option exists - both win
+	var ns string
+	Given(t).
+		Path(guestbookPath).
+		ApplyOutOfSyncOnly(true).
+		SyncOptionsOverrideStyle(commands.SyncOptionsOverridePatch).
+		When().
+		CreateFromFile(func(app *Application) {
+			ns = app.Spec.Destination.Namespace
+			// Set app spec with ApplyOutOfSyncOnly=true
+			app.Spec.SyncPolicy = &SyncPolicy{
+				SyncOptions: SyncOptions{SyncOptionServerSideApply},
+			}
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 1 }]`).
+		Sync().
+		Then().
+		Expect(SyncOperationOptionsAre(SyncOptions{SyncOptionServerSideApply, SyncOptionApplyOutOfSyncOnly})).
+		// Only out-of-sync resources should be synced (app spec ApplyOutOfSyncOnly=true should be used)
+		Expect(ResourceResultNumbering(1)).
+		Expect(ResourceResultIs(ResourceResult{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: ns, Name: "guestbook-ui", Message: "deployment.apps/guestbook-ui serverside-applied", SyncPhase: SyncPhaseSync, HookPhase: OperationRunning, Status: ResultCodeSynced, Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}}))
 }
 
 func TestSyncWithSkipHook(t *testing.T) {

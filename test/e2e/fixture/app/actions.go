@@ -420,14 +420,25 @@ func (a *Actions) Sync(args ...string) *Actions {
 		args = append(args, "--force")
 	}
 
-	if a.context.applyOutOfSyncOnly {
-		args = append(args, "--apply-out-of-sync-only")
+	if a.context.applyOutOfSyncOnly != nil {
+		if *a.context.applyOutOfSyncOnly {
+			args = append(args, "--apply-out-of-sync-only=true")
+		} else {
+			args = append(args, "--apply-out-of-sync-only=false")
+		}
 	}
 
-	if a.context.replace {
-		args = append(args, "--replace")
+	if a.context.replace != nil {
+		if *a.context.replace {
+			args = append(args, "--replace=true")
+		} else {
+			args = append(args, "--replace=false")
+		}
 	}
 
+	if a.context.syncOptionsOverrideStyle != "" {
+		args = append(args, "--sync-options-override-style", a.context.syncOptionsOverrideStyle)
+	}
 	//  are you adding new context values? if you only use them for this func, then use args instead
 
 	a.runCli(args...)
