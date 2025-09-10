@@ -9963,7 +9963,7 @@
         },
         "refresh": {
           "type": "boolean",
-          "title": "Refresh indicates if a new revision should trigger a new sync (default: false)"
+          "title": "Refresh indicates if the latest revision should be used on retry instead of the initial one (default: false)"
         }
       }
     },
