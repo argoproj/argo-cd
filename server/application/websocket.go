@@ -162,7 +162,7 @@ func (t *terminalSession) performValidationsAndReconnect(p []byte) (int, error) 
 	}
 
 	// check if token still valid
-	_, newToken, err := t.sessionManager.VerifyToken(*t.token)
+	_, newToken, err := t.sessionManager.VerifyToken(t.ctx, *t.token)
 	// err in case if token is revoked, newToken in case if refresh happened
 	if err != nil || newToken != "" {
 		// need to send reconnect code in case if token was refreshed
