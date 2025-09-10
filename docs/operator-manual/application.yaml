@@ -266,7 +266,8 @@ spec:
     - /spec/replicas
   - kind: ConfigMap
     jqPathExpressions:
-    - '.data["config.yaml"].auth'
+    # Example: Ignore changes to a specific key inside a ConfigMap
+    - '.data["config.yaml"]'
   # for the specified managedFields managers
   - group: "*"
     kind: "*"
