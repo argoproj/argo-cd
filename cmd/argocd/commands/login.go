@@ -38,13 +38,14 @@ import (
 // NewLoginCommand returns a new instance of `argocd login` command
 func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		ctxName          string
-		username         string
-		password         string
-		sso              bool
-		ssoPort          int
-		skipTestTLS      bool
-		ssoLaunchBrowser bool
+		ctxName            string
+		username           string
+		password           string
+		sso                bool
+		ssoListenerAddress string
+		ssoPort            int
+		skipTestTLS        bool
+		ssoLaunchBrowser   bool
 	)
 	command := &cobra.Command{
 		Use:   "login SERVER",
@@ -138,7 +139,7 @@ argocd login cd.argoproj.io --core`,
 					errors.CheckError(err)
 					oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
 					errors.CheckError(err)
-					tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser)
+					tokenString, refreshToken = oauth2Login(ctx, ssoListenerAddress, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser)
 				}
 				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 				claims := jwt.MapClaims{}
@@ -184,6 +185,7 @@ argocd login cd.argoproj.io --core`,
 	command.Flags().StringVar(&username, "username", "", "The username of an account to authenticate")
 	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
 	command.Flags().BoolVar(&sso, "sso", false, "Perform SSO login")
+	command.Flags().StringVar(&ssoListenerAddress, "sso-listener-address", DefaultSSOListenerAddress, "Address to listen on for OAuth2 login application")
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
 	command.Flags().BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
 	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the system default browser when performing SSO login")
@@ -204,6 +206,7 @@ func userDisplayName(claims jwt.MapClaims) string {
 // returns the JWT token and a refresh token (if supported)
 func oauth2Login(
 	ctx context.Context,
+	listenerAddress string,
 	port int,
 	oidcSettings *settingspkg.OIDCConfig,
 	oauth2conf *oauth2.Config,
@@ -304,7 +307,8 @@ func oauth2Login(
 		fmt.Fprint(w, successPage)
 		completionChan <- ""
 	}
-	srv := &http.Server{Addr: "localhost:" + strconv.Itoa(port)}
+	addr := fmt.Sprintf("%s:%s", listenerAddress, strconv.Itoa(port))
+	srv := &http.Server{Addr: addr}
 	http.HandleFunc("/auth/callback", callbackHandler)
 
 	// Redirect user to login & consent page to ask for permission for the scopes specified above.
