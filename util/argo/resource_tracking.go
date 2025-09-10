@@ -3,6 +3,8 @@ package argo
 import (
 	"errors"
 	"fmt"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	log "github.com/sirupsen/logrus"
 	"regexp"
 	"strings"
 
@@ -136,6 +138,17 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		}
 		return kube.SetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance, rt.BuildAppInstanceValue(appInstanceValue))
 	}
+
+	// attach parent annotation to app-of-apps resources
+	groupVersionKind := un.GroupVersionKind()
+	if groupVersionKind.Group == application.Group && groupVersionKind.Kind == application.ApplicationKind {
+		err := kube.SetAppInstanceAnnotation(un, common.AnnotationAppParent, fmt.Sprintf("%s/%s", namespace, val))
+		if err != nil {
+			log.Warnf("failed to set application parent '%s/%s' for %s: %d", namespace, val, un.GetName(), err)
+		}
+	}
+
+	// attach tracking label to all resources
 	switch trackingMethod {
 	case v1alpha1.TrackingMethodLabel:
 		err := kube.SetAppInstanceLabel(un, key, val)
