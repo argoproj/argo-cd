@@ -17,7 +17,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// CLI names
+// Argo CD component names
 const (
 	CLI                      = "argocd"
 	ApplicationController    = "argocd-application-controller"
