@@ -221,6 +221,14 @@ func (f *appOptionsFixture) SetFlag(key, value string) error {
 	return err
 }
 
+func (f *appOptionsFixture) Reset() {
+	f.spec = &v1alpha1.ApplicationSpec{
+		Source: &v1alpha1.ApplicationSource{},
+	}
+	f.command = &cobra.Command{}
+	AddAppFlags(f.command, f.options)
+}
+
 func (f *appOptionsFixture) SetFlagWithSourcePosition(key, value string, sourcePosition int) error {
 	err := f.command.Flags().Set(key, value)
 	if err != nil {
@@ -268,33 +276,48 @@ func Test_setAppSpecOptions(t *testing.T) {
 		assert.Nil(t, f.spec.SyncPolicy)
 	})
 	t.Run("AutoPruneFlag", func(t *testing.T) {
-		f.spec.SyncPolicy = nil
+		f.Reset()
+
+		// syncPolicy is nil (automated.enabled = false)
 		require.NoError(t, f.SetFlag("auto-prune", "true"))
-		require.NotNil(t, f.spec.SyncPolicy)
-		require.NotNil(t, f.spec.SyncPolicy.Automated)
+		require.NotNil(t, f.spec.SyncPolicy.Automated.Enabled)
+		assert.False(t, *f.spec.SyncPolicy.Automated.Enabled)
 		assert.True(t, f.spec.SyncPolicy.Automated.Prune)
 
+		// automated.enabled = true
+		*f.spec.SyncPolicy.Automated.Enabled = true
 		require.NoError(t, f.SetFlag("auto-prune", "false"))
+		assert.True(t, *f.spec.SyncPolicy.Automated.Enabled)
 		assert.False(t, f.spec.SyncPolicy.Automated.Prune)
 	})
 	t.Run("SelfHealFlag", func(t *testing.T) {
-		f.spec.SyncPolicy = nil
+		f.Reset()
+
+		// syncPolicy is nil (automated.enabled = false)
 		require.NoError(t, f.SetFlag("self-heal", "true"))
-		require.NotNil(t, f.spec.SyncPolicy)
-		require.NotNil(t, f.spec.SyncPolicy.Automated)
+		require.NotNil(t, f.spec.SyncPolicy.Automated.Enabled)
+		assert.False(t, *f.spec.SyncPolicy.Automated.Enabled)
 		assert.True(t, f.spec.SyncPolicy.Automated.SelfHeal)
 
+		// automated.enabled = true
+		*f.spec.SyncPolicy.Automated.Enabled = true
 		require.NoError(t, f.SetFlag("self-heal", "false"))
+		assert.True(t, *f.spec.SyncPolicy.Automated.Enabled)
 		assert.False(t, f.spec.SyncPolicy.Automated.SelfHeal)
 	})
 	t.Run("AllowEmptyFlag", func(t *testing.T) {
-		f.spec.SyncPolicy = nil
+		f.Reset()
+
+		// syncPolicy is nil (automated.enabled = false)
 		require.NoError(t, f.SetFlag("allow-empty", "true"))
-		require.NotNil(t, f.spec.SyncPolicy)
-		require.NotNil(t, f.spec.SyncPolicy.Automated)
+		require.NotNil(t, f.spec.SyncPolicy.Automated.Enabled)
+		assert.False(t, *f.spec.SyncPolicy.Automated.Enabled)
 		assert.True(t, f.spec.SyncPolicy.Automated.AllowEmpty)
 
+		// automated.enabled = true
+		*f.spec.SyncPolicy.Automated.Enabled = true
 		require.NoError(t, f.SetFlag("allow-empty", "false"))
+		assert.True(t, *f.spec.SyncPolicy.Automated.Enabled)
 		assert.False(t, f.spec.SyncPolicy.Automated.AllowEmpty)
 	})
 	t.Run("RetryLimit", func(t *testing.T) {
