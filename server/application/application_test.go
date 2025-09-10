@@ -2134,6 +2134,39 @@ func TestSyncGit(t *testing.T) {
 func TestRollbackApp(t *testing.T) {
 	testApp := newTestApp()
 	testApp.Status.History = []v1alpha1.RevisionHistory{{
+		ID:        1,
+		Revision:  "abc",
+		Revisions: []string{"abc"},
+		Source:    *testApp.Spec.Source.DeepCopy(),
+		Sources:   []v1alpha1.ApplicationSource{*testApp.Spec.Source.DeepCopy()},
+	}}
+	appServer := newTestAppServer(t, testApp)
+
+	updatedApp, err := appServer.Rollback(t.Context(), &application.ApplicationRollbackRequest{
+		Name: &testApp.Name,
+		Id:   ptr.To(int64(1)),
+	})
+
+	require.NoError(t, err)
+
+	assert.NotNil(t, updatedApp.Operation)
+	assert.NotNil(t, updatedApp.Operation.Sync)
+	assert.NotNil(t, updatedApp.Operation.Sync.Source)
+	assert.Equal(t, testApp.Status.History[0].Source, *updatedApp.Operation.Sync.Source)
+	assert.Equal(t, testApp.Status.History[0].Sources, updatedApp.Operation.Sync.Sources)
+	assert.Equal(t, testApp.Status.History[0].Revision, updatedApp.Operation.Sync.Revision)
+	assert.Equal(t, testApp.Status.History[0].Revisions, updatedApp.Operation.Sync.Revisions)
+}
+
+func TestRollbackApp_WithRefresh(t *testing.T) {
+	testApp := newTestApp()
+	testApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+		Retry: &v1alpha1.RetryStrategy{
+			Refresh: true,
+		},
+	}
+
+	testApp.Status.History = []v1alpha1.RevisionHistory{{
 		ID:       1,
 		Revision: "abc",
 		Source:   *testApp.Spec.Source.DeepCopy(),
@@ -2148,9 +2181,8 @@ func TestRollbackApp(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.NotNil(t, updatedApp.Operation)
-	assert.NotNil(t, updatedApp.Operation.Sync)
-	assert.NotNil(t, updatedApp.Operation.Sync.Source)
-	assert.Equal(t, "abc", updatedApp.Operation.Sync.Revision)
+	assert.NotNil(t, updatedApp.Operation.Retry)
+	assert.False(t, updatedApp.Operation.Retry.Refresh, "refresh should never be set on rollback")
 }
 
 func TestUpdateAppProject(t *testing.T) {
