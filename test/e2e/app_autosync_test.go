@@ -94,17 +94,17 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 		})
 }
 
+// TestAutoSyncRetryAndRefreshEnabled verifies that auto-sync+refresh picks up fixed commits automatically
 func TestAutoSyncRetryAndRefreshEnabled(t *testing.T) {
 	limits := []int64{
-		100, // Repeat enough times to see we move on to 3rd commit without reaching the limit
+		100, // Repeat enough times to see we move on to the 3rd commit without reaching the limit
 		-1,  // Repeat forever
 	}
 
 	for _, limit := range limits {
 		Given(t).
 			Path(guestbookPath).
-			When().
-			// Correctly configured app should be auto-synced once created
+			When(). // I create an app with auto-sync and Refresh
 			CreateFromFile(func(app *Application) {
 				app.Spec.SyncPolicy = &SyncPolicy{
 					Automated: &SyncPolicyAutomated{},
@@ -114,15 +114,14 @@ func TestAutoSyncRetryAndRefreshEnabled(t *testing.T) {
 					},
 				}
 			}).
-			Then().
+			Then(). // It should auto-sync correctly
 			Expect(OperationPhaseIs(OperationSucceeded)).
 			Expect(SyncStatusIs(SyncStatusCodeSynced)).
 			Expect(NoConditions()).
-			// Broken commit should make the app stuck retrying indefinitely
-			When().
+			When(). // Auto-sync encounters broken commit
 			PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
 			Refresh(RefreshTypeNormal).
-			Then().
+			Then(). // It should keep on trying to sync it
 			Expect(OperationPhaseIs(OperationRunning)).
 			Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 			Expect(OperationRetriedTimes(1)).
@@ -133,13 +132,11 @@ func TestAutoSyncRetryAndRefreshEnabled(t *testing.T) {
 			Expect(OperationPhaseIs(OperationRunning)).
 			Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 			Expect(OperationRetriedTimes(2)).
-			// Push fix commit and see the app pick it up
-			When().
-			// Fix declaration
+			When(). // I push a fixed commit (while auto-sync in progress)
 			PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 42}]`).
 			Refresh(RefreshTypeNormal).
-			Then().
-			// Wait for the sync retry to pick up new commit
+			Then(). // Argo CD should pick it up and sync it successfully
+			// Wait for the sync retry to pick up a new commit
 			And(func(_ *Application) {
 				time.Sleep(10 * time.Second)
 			}).
@@ -147,4 +144,55 @@ func TestAutoSyncRetryAndRefreshEnabled(t *testing.T) {
 			Expect(SyncStatusIs(SyncStatusCodeSynced)).
 			Expect(OperationPhaseIs(OperationSucceeded))
 	}
+}
+
+// TestAutoSyncRetryAndRefreshManualSync verifies that auto-sync+refresh do not pick new commits on manual sync
+func TestAutoSyncRetryAndRefreshManualSync(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When(). // I create an app with auto-sync and Refresh
+		CreateFromFile(func(app *Application) {
+			app.Spec.SyncPolicy = &SyncPolicy{
+				Automated: &SyncPolicyAutomated{},
+				Retry: &RetryStrategy{
+					Limit:   -1,
+					Refresh: true,
+				},
+			}
+		}).
+		Then(). // It should auto-sync correctly
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		When(). // I manually sync the app on a broken commit
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
+		Sync("--async").
+		Then(). // Argo should keep on retrying
+		Expect(OperationPhaseIs(OperationRunning)).
+		Expect(OperationRetriedTimes(1)).
+		And(func(_ *Application) {
+			// Wait to make sure the condition is consistent
+			time.Sleep(10 * time.Second)
+		}).
+		Expect(OperationPhaseIs(OperationRunning)).
+		Expect(OperationRetriedTimes(2)).
+		When(). // I push a fixed commit (during manual sync)
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 42}]`).
+		Then(). // Argo CD should keep on retrying the one from the tyme of the sync start
+		And(func(_ *Application) {
+			// Wait to make sure the condition is consistent
+			time.Sleep(10 * time.Second)
+		}).
+		Expect(OperationRetriedTimes(3)).
+		When(). // I terminate the stuck sync and start a new manual one (when ref points to fixed commit)
+		TerminateOp().
+		And(func() {
+			// Wait for the operation to terminate before starting new sync
+			time.Sleep(1 * time.Second)
+		}).
+		Sync("--async").
+		Then(). // Argo CD syncs successfully
+		Expect(NoConditions()).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(OperationPhaseIs(OperationSucceeded))
 }

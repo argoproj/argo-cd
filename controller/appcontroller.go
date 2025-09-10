@@ -1425,9 +1425,13 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			}
 
 			if state.Operation.Retry.Refresh {
-				logCtx.Infof("Refreshing the retry")
-				state.Operation.Sync.Revision = ""
-				state.Operation.Sync.Revisions = nil
+				if app.Operation != nil && app.Operation.InitiatedBy.Automated {
+					logCtx.Infof("Refreshing the retry")
+					state.Operation.Sync.Revision = ""
+					state.Operation.Sync.Revisions = nil
+				} else {
+					logCtx.Infof("Not refreshing the retry during manual sync")
+				}
 			}
 
 			// Get rid of sync results and null out previous operation completion time
