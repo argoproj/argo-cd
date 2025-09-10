@@ -32,10 +32,13 @@ func OperationPhaseIs(expected common.OperationPhase) Expectation {
 	return func(c *Consequences) (state, string) {
 		operationState := c.app().Status.OperationState
 		actual := common.OperationRunning
+		msg := ""
 		if operationState != nil {
 			actual = operationState.Phase
+			msg = operationState.Message
 		}
-		return simple(actual == expected, fmt.Sprintf("operation phase should be %s, is %s", expected, actual))
+		message := fmt.Sprintf("operation phase should be %s, is %s, message: '%s'", expected, actual, msg)
+		return simple(actual == expected, message)
 	}
 }
 

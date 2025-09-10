@@ -700,6 +700,8 @@ spec:
                                         limit:
                                           format: int64
                                           type: integer
+                                        refresh:
+                                          type: boolean
                                       type: object
                                     syncOptions:
                                       items:
@@ -1382,6 +1384,8 @@ spec:
                                         limit:
                                           format: int64
                                           type: integer
+                                        refresh:
+                                          type: boolean
                                       type: object
                                     syncOptions:
                                       items:
@@ -2065,6 +2069,8 @@ spec:
                                         limit:
                                           format: int64
                                           type: integer
+                                        refresh:
+                                          type: boolean
                                       type: object
                                     syncOptions:
                                       items:
@@ -2726,6 +2732,8 @@ spec:
                                         limit:
                                           format: int64
                                           type: integer
+                                        refresh:
+                                          type: boolean
                                       type: object
                                     syncOptions:
                                       items:
@@ -3412,6 +3420,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -4094,6 +4104,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -4777,6 +4789,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -5438,6 +5452,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -6107,6 +6123,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -7003,6 +7021,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -7890,6 +7910,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -8568,6 +8590,8 @@ spec:
                                         limit:
                                           format: int64
                                           type: integer
+                                        refresh:
+                                          type: boolean
                                       type: object
                                     syncOptions:
                                       items:
@@ -9256,6 +9280,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -9938,6 +9964,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -10621,6 +10649,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -11282,6 +11312,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -11951,6 +11983,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -12847,6 +12881,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -13734,6 +13770,8 @@ spec:
                                                   limit:
                                                     format: int64
                                                     type: integer
+                                                  refresh:
+                                                    type: boolean
                                                 type: object
                                               syncOptions:
                                                 items:
@@ -14416,6 +14454,8 @@ spec:
                                         limit:
                                           format: int64
                                           type: integer
+                                        refresh:
+                                          type: boolean
                                       type: object
                                     syncOptions:
                                       items:
@@ -15084,6 +15124,8 @@ spec:
                                         limit:
                                           format: int64
                                           type: integer
+                                        refresh:
+                                          type: boolean
                                       type: object
                                     syncOptions:
                                       items:
@@ -15980,6 +16022,8 @@ spec:
                                         limit:
                                           format: int64
                                           type: integer
+                                        refresh:
+                                          type: boolean
                                       type: object
                                     syncOptions:
                                       items:
@@ -16867,6 +16911,8 @@ spec:
                                         limit:
                                           format: int64
                                           type: integer
+                                        refresh:
+                                          type: boolean
                                       type: object
                                     syncOptions:
                                       items:
@@ -17622,6 +17668,8 @@ spec:
                               limit:
                                 format: int64
                                 type: integer
+                              refresh:
+                                type: boolean
                             type: object
                           syncOptions:
                             items:
