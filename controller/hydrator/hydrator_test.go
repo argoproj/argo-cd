@@ -294,9 +294,10 @@ func Test_getRelevantAppsForHydration_RootPathSkipped(t *testing.T) {
 	}
 
 	logCtx := log.WithField("test", "RootPathSkipped")
-	relevantApps, err := hydrator.getRelevantAppsForHydration(logCtx, hydrationKey)
+	relevantApps, proj, err := hydrator.getRelevantAppsAndProjectsForHydration(logCtx, hydrationKey)
 	require.Error(t, err)
 	assert.Empty(t, relevantApps, "Expected no apps to be returned because SyncSource.Path resolves to root")
+	assert.Nil(t, proj)
 }
 
 func TestIsRootPath(t *testing.T) {

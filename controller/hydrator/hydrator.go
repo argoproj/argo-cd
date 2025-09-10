@@ -255,11 +255,6 @@ func (h *Hydrator) getRelevantAppsAndProjectsForHydration(logCtx *log.Entry, hyd
 		path := app.Spec.SourceHydrator.SyncSource.Path
 		// ensure that the path is always set to a path that doesn't resolve to the root of the repo
 		if IsRootPath(path) {
-			logCtx.Warnf(
-				"App %q has SyncSource.Path %q which resolves to the repository root. "+
-					"SyncSource.Path must point to a subdirectory within the repository, not the root.",
-				app.QualifiedName(), path,
-			)
 			return nil, nil, fmt.Errorf("app %q has path %q which resolves to repository root", app.QualifiedName(), path)
 		}
 

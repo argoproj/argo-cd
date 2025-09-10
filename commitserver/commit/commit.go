@@ -163,9 +163,10 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 		if hydrator.IsRootPath(p.Path) {
 			// skip adding paths that are referencing root directory
 			logCtx.Debugf("Path %s is referencing root directory, ignoring the path", p.Path)
-		} else {
-			pathsToClear = append(pathsToClear, p.Path)
+			continue
 		}
+
+		pathsToClear = append(pathsToClear, p.Path)
 	}
 	if len(pathsToClear) > 0 {
 		logCtx.Debugf("Clearing paths: %v", pathsToClear)
