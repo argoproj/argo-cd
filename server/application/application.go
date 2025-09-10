@@ -2523,6 +2523,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		Kind:         q.Kind,
 		Version:      q.Version,
 		Group:        q.Group,
+		Action:       q.Action,
 		Project:      q.Project,
 	}
 	return s.RunResourceActionV2(ctx, qV2)

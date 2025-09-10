@@ -526,5 +526,4 @@ data:
       when: app.status.operationState != nil and app.status.operationState.phase in ['Succeeded']
 kind: ConfigMap
 metadata:
-  creationTimestamp: null
   name: argocd-notifications-cm

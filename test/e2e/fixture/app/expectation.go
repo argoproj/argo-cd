@@ -53,6 +53,15 @@ func OperationMessageContains(text string) Expectation {
 	}
 }
 
+func OperationRetriedTimes(expected int64) Expectation {
+	return func(c *Consequences) (state, string) {
+		operationState := c.app().Status.OperationState
+		actual := operationState.RetryCount
+		message := fmt.Sprintf("operation state retry cound should be %d, is %d, message: '%s'", expected, actual, operationState.Message)
+		return simple(actual == expected, message)
+	}
+}
+
 func simple(success bool, message string) (state, string) {
 	if success {
 		return succeeded, message
