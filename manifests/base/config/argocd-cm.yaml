@@ -21,10 +21,6 @@ data:
       - '.metadata.annotations."argocd.argoproj.io/refresh"'
       - '.metadata.annotations."argocd.argoproj.io/hydrate"'
       - '.operation'
-  resource.customizations.ignoreDifferences.argoproj.io_Application: |
-    jqPathExpressions:
-      - '.metadata.annotations."argocd.argoproj.io/refresh"'
-      - '.metadata.annotations."argocd.argoproj.io/hydrate"'
   resource.customizations.ignoreResourceUpdates.argoproj.io_Rollout: |
     jqPathExpressions:
       - '.metadata.annotations."notified.notifications.argoproj.io"'

@@ -1019,6 +1019,10 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 		log.Warnf("Unrecognized value for ignoreResourceStatusField - %s, ignore status for all resources", diffOptions.IgnoreResourceStatusField)
 	}
 
+	// Add default ignore rules for Application annotations
+	addIgnoreDiffJQPathOverrideToGK(resourceOverrides, "argoproj.io/Application", ".metadata.annotations.\"argocd.argoproj.io/refresh\"")
+	addIgnoreDiffJQPathOverrideToGK(resourceOverrides, "argoproj.io/Application", ".metadata.annotations.\"argocd.argoproj.io/hydrate\"")
+
 	return resourceOverrides, nil
 }
 
@@ -1051,6 +1055,17 @@ func addIgnoreDiffItemOverrideToGK(resourceOverrides map[string]v1alpha1.Resourc
 	} else {
 		resourceOverrides[groupKind] = v1alpha1.ResourceOverride{
 			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{ignoreItem}},
+		}
+	}
+}
+
+func addIgnoreDiffJQPathOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverride, groupKind, jqPath string) {
+	if val, ok := resourceOverrides[groupKind]; ok {
+		val.IgnoreDifferences.JQPathExpressions = append(val.IgnoreDifferences.JQPathExpressions, jqPath)
+		resourceOverrides[groupKind] = val
+	} else {
+		resourceOverrides[groupKind] = v1alpha1.ResourceOverride{
+			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JQPathExpressions: []string{jqPath}},
 		}
 	}
 }
