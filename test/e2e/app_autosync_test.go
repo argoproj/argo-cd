@@ -178,7 +178,7 @@ func TestAutoSyncRetryAndRefreshManualSync(t *testing.T) {
 		Expect(OperationRetriedTimes(2)).
 		When(). // I push a fixed commit (during manual sync)
 		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 42}]`).
-		Then(). // Argo CD should keep on retrying the one from the tyme of the sync start
+		Then(). // Argo CD should keep on retrying the one from the time of the sync start
 		And(func(_ *Application) {
 			// Wait to make sure the condition is consistent
 			time.Sleep(10 * time.Second)
@@ -195,4 +195,65 @@ func TestAutoSyncRetryAndRefreshManualSync(t *testing.T) {
 		Expect(NoConditions()).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(OperationPhaseIs(OperationSucceeded))
+}
+
+func TestAutoSyncRetryAndRefreshAppRefChange(t *testing.T) {
+	var workingRevision string
+	var brokenRevision string
+
+	Given(t).
+		Path(guestbookPath).
+		When(). // I create an app with auto-sync and Refresh
+		CreateFromFile(func(app *Application) {
+			app.Spec.SyncPolicy = &SyncPolicy{
+				Automated: &SyncPolicyAutomated{},
+				Retry: &RetryStrategy{
+					Limit:   -1,
+					Refresh: true,
+				},
+			}
+		}).
+		Then(). // It should auto-sync correctly
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		And(func(app *Application) {
+			workingRevision = app.Status.Sync.Revision
+			println("WR: " + workingRevision)
+		}).
+		When(). // I push a broken commit
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
+		Refresh(RefreshTypeNormal).
+		Then(). // Argo should keep on retrying
+		Expect(OperationPhaseIs(OperationRunning)).
+		Expect(OperationRetriedTimes(1)).
+		And(func(app *Application) {
+			// Wait to make sure the condition is consistent
+			time.Sleep(10 * time.Second)
+			brokenRevision = app.Operation.Sync.Revision
+			println("BR: " + workingRevision)
+		}).
+		Expect(OperationPhaseIs(OperationRunning)).
+		Expect(OperationRetriedTimes(2)).
+		When(). // I change app spec to use working revision
+		PatchApp(`[{"op": "replace", "path": "/spec/source/targetRevision", "value": "` + workingRevision + `"}]`).
+		Then(). // Argo CD should keep on retrying the one from the time of the sync start
+		Expect(OperationPhaseIs(OperationRunning)).
+		And(func(app *Application) {
+			// Argo CD have not moved to the declared (broken) revision
+			assert.Equal(t, brokenRevision, app.Operation.Sync.Revision)
+			assert.NotEqual(t, workingRevision, app.Operation.Sync.Revision)
+		}).
+		Expect(OperationRetriedTimes(2)).
+		And(func(_ *Application) {
+			// Wait to make sure the condition is consistent
+			time.Sleep(30 * time.Second)
+		}).
+		Expect(OperationPhaseIs(OperationRunning)).
+		And(func(app *Application) {
+			// Argo CD have not moved to the declared (broken) revision
+			assert.Equal(t, brokenRevision, app.Operation.Sync.Revision)
+			assert.NotEqual(t, workingRevision, app.Operation.Sync.Revision)
+		}).
+		Expect(OperationRetriedTimes(3))
 }
