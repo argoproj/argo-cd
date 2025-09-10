@@ -2053,6 +2053,7 @@ func TestSyncAndTerminate(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Operation)
+	assert.Equal(t, testApp.Spec.GetSource(), *app.Operation.Sync.Source)
 
 	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
@@ -2129,6 +2130,28 @@ func TestSyncGit(t *testing.T) {
 	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, "Unknown user initiated sync locally", events.Items[1].Message)
+}
+
+func TestSync_WithRefresh(t *testing.T) {
+	ctx := t.Context()
+	appServer := newTestAppServer(t)
+	testApp := newTestApp()
+	testApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+		Retry: &v1alpha1.RetryStrategy{
+			Refresh: true,
+		},
+	}
+	testApp.Spec.Source.RepoURL = "https://github.com/argoproj/argo-cd.git"
+	createReq := application.ApplicationCreateRequest{
+		Application: testApp,
+	}
+	app, err := appServer.Create(ctx, &createReq)
+	require.NoError(t, err)
+	app, err = appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
+	require.NoError(t, err)
+	assert.NotNil(t, app)
+	assert.NotNil(t, app.Operation)
+	assert.True(t, app.Operation.Retry.Refresh)
 }
 
 func TestRollbackApp(t *testing.T) {
