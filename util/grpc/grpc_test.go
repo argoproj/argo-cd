@@ -93,7 +93,7 @@ func TestBlockingDial_ProxyEnvironmentHandling(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
 
-			conn, err := BlockingDial(ctx, "tcp", tt.address, nil)
+			conn, err := BlockingNewClient(ctx, "tcp", tt.address, nil)
 
 			if tt.expectError {
 				require.Error(t, err)
