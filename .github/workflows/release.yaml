@@ -52,17 +52,17 @@ jobs:
           # Fetch all tag information
           git fetch --prune --tags --force
 
-          LATEST_TAG=$(git -c 'versionsort.suffix=-rc' tag --list --sort=version:refname | tail -n1)
+          LATEST_RELEASE_TAG=$(git -c 'versionsort.suffix=-rc' tag --list --sort=version:refname | grep -v '-' | tail -n1)
 
           PRE_RELEASE=false
           # Check if latest tag is a pre-release
-          if echo $LATEST_TAG | grep -E -- '-rc[0-9]+$';then
+          if echo ${{ github.ref_name }} | grep -E -- '-rc[0-9]+$';then
             PRE_RELEASE=true
           fi
 
           IS_LATEST=false
-          # Ensure latest tag matches github.ref_name & not a pre-release
-          if [[ $LATEST_TAG == ${{ github.ref_name }} ]] && [[ $PRE_RELEASE != 'true' ]];then
+          # Ensure latest release tag matches github.ref_name
+          if [[ $LATEST_RELEASE_TAG == ${{ github.ref_name }} ]];then
             IS_LATEST=true
           fi
           echo "is_pre_release=$PRE_RELEASE" >> $GITHUB_OUTPUT
