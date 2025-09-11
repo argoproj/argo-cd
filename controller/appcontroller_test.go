@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -1243,6 +1244,134 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		require.ElementsMatch(t, expectedNames, deletedResources, "Deleted resources should match expected names")
 		// finalizer is not removed
 		assert.False(t, patched)
+	})
+
+}
+
+func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
+	type fixture struct {
+		application *v1alpha1.Application
+		project     *v1alpha1.AppProject
+		controller  *ApplicationController
+	}
+
+	setup := func(destinationNamespace, serviceAccountName string) *fixture {
+		app := newFakeApp()
+		app.Status.OperationState = nil
+		app.Status.History = nil
+		now := metav1.Now()
+		app.DeletionTimestamp = &now
+
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: test.FakeArgoCDNamespace,
+				Name:      "default",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos: []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "*",
+					},
+				},
+				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
+					{
+						Server:                "https://localhost:6443",
+						Namespace:             destinationNamespace,
+						DefaultServiceAccount: serviceAccountName,
+					},
+				},
+			},
+		}
+
+		additionalObjs := []runtime.Object{}
+		if serviceAccountName != "" {
+			syncServiceAccount := &corev1.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      serviceAccountName,
+					Namespace: test.FakeDestNamespace,
+				},
+			}
+			additionalObjs = append(additionalObjs, syncServiceAccount)
+		}
+
+		data := fakeData{
+			apps: []runtime.Object{app, project},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    "https://localhost:6443",
+				Revision:  "abc123",
+			},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+			configMapData: map[string]string{
+				"application.sync.impersonation.enabled": strconv.FormatBool(true),
+			},
+			additionalObjs: additionalObjs,
+		}
+		ctrl := newFakeController(&data, nil)
+		return &fixture{
+			application: app,
+			project:     project,
+			controller:  ctrl,
+		}
+	}
+
+	t.Run("cascaded deletion with impersonation enabled but no matching service account", func(t *testing.T) {
+		// given impersonation is enabled but no matching service account exists
+		f := setup(test.FakeArgoCDNamespace, "")
+
+		// when
+		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+
+		// then deletion should fail due to impersonation error
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "error deriving service account to impersonate")
+	})
+
+	t.Run("cascaded deletion with impersonation enabled and empty service account", func(t *testing.T) {
+		// given impersonation is enabled with empty service account name
+		f := setup(test.FakeDestNamespace, "")
+
+		// when
+		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+
+		// then deletion should fail due to invalid service account
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "default service account contains invalid chars")
+	})
+
+	t.Run("cascaded deletion with impersonation enabled and valid service account", func(t *testing.T) {
+		// given impersonation is enabled with valid service account
+		f := setup(test.FakeDestNamespace, "test-sa")
+
+		// when
+		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+
+		// then deletion should succeed
+		require.NoError(t, err)
+	})
+
+	t.Run("unrelated cluster with impersonation enabled", func(t *testing.T) {
+		// given impersonation is enabled but cluster has no matching default service account
+		f := setup(test.FakeDestNamespace, "test-sa")
+		f.application.Spec.Destination.Server = "https://unrelated-cluster:6443"
+		f.application.Spec.Destination.Name = "unrelated"
+
+		// when
+		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+
+		// then deletion should still succeed by removing finalizers
+		require.NoError(t, err)
 	})
 }
 
