@@ -71,7 +71,7 @@ func writeFile(srcPath string, inclusions []string, exclusions []string, writer 
 //   - a full path
 //   - points to an empty directory or
 //   - points to a non-existing directory
-func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) error {
+func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool, relativizeSymlinks bool) error {
 	if !filepath.IsAbs(dstPath) {
 		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
 	}
@@ -81,7 +81,7 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 		return fmt.Errorf("error reading file: %w", err)
 	}
 	defer gzr.Close()
-	return untar(dstPath, io.LimitReader(gzr, maxSize), preserveFileMode)
+	return untar(dstPath, io.LimitReader(gzr, maxSize), preserveFileMode, relativizeSymlinks)
 }
 
 // Untar will loop over the tar reader creating the file structure at dstPath.
@@ -89,12 +89,12 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 //   - a full path
 //   - points to an empty directory or
 //   - points to a non-existing directory
-func Untar(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) error {
+func Untar(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool, relativizeSymlinks bool) error {
 	if !filepath.IsAbs(dstPath) {
 		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
 	}
 
-	return untar(dstPath, io.LimitReader(r, maxSize), preserveFileMode)
+	return untar(dstPath, io.LimitReader(r, maxSize), preserveFileMode, relativizeSymlinks)
 }
 
 // untar will loop over the tar reader creating the file structure at dstPath.
@@ -102,7 +102,7 @@ func Untar(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 //   - a full path
 //   - points to an empty directory or
 //   - points to a non existing directory
-func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
+func untar(dstPath string, r io.Reader, preserveFileMode bool, relativizeSymlinks bool) error {
 	tr := tar.NewReader(r)
 
 	for {
@@ -136,16 +136,27 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 		case tar.TypeSymlink:
 			// Sanity check to protect against symlink exploit
 			linkTarget := filepath.Join(filepath.Dir(target), header.Linkname)
-			realPath, err := filepath.EvalSymlinks(linkTarget)
+			realLinkTarget, err := filepath.EvalSymlinks(linkTarget)
 			if os.IsNotExist(err) {
-				realPath = linkTarget
+				realLinkTarget = linkTarget
 			} else if err != nil {
 				return fmt.Errorf("error checking symlink realpath: %w", err)
 			}
-			if !Inbound(realPath, dstPath) {
+			if !Inbound(realLinkTarget, dstPath) {
 				return fmt.Errorf("illegal filepath in symlink: %s", linkTarget)
 			}
-			err = os.Symlink(realPath, target)
+
+			if relativizeSymlinks {
+				// Relativizing all symlink targets because path.CheckOutOfBoundsSymlinks disallows any absolute symlinks
+				// and it makes more sense semantically to view symlinks in archives as relative.
+				// Inbound ensures that we never allow symlinks that break out of the target directory.
+				realLinkTarget, err = filepath.Rel(filepath.Dir(target), realLinkTarget)
+				if err != nil {
+					return fmt.Errorf("error relativizing link target: %w", err)
+				}
+			}
+
+			err = os.Symlink(realLinkTarget, target)
 			if err != nil {
 				return fmt.Errorf("error creating symlink: %w", err)
 			}

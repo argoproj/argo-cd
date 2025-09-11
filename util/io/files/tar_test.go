@@ -159,7 +159,7 @@ func TestUntgz(t *testing.T) {
 		destDir := filepath.Join(tmpDir, "untgz1")
 
 		// when
-		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false, false)
 
 		// then
 		require.NoError(t, err)
@@ -182,7 +182,23 @@ func TestUntgz(t *testing.T) {
 		destDir := filepath.Join(tmpDir, "untgz2")
 
 		// when
-		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false, false)
+
+		// then
+		assert.ErrorContains(t, err, "illegal filepath in symlink")
+	})
+	t.Run("will protect against symlink exploit when relativizing symlinks", func(t *testing.T) {
+		// given
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+		tgzFile := createTgz(t, filepath.Join(getTestDataDir(t), "symlink-exploit"), tmpDir)
+
+		defer tgzFile.Close()
+
+		destDir := filepath.Join(tmpDir, "untgz2")
+
+		// when
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false, true)
 
 		// then
 		assert.ErrorContains(t, err, "illegal filepath in symlink")
@@ -198,14 +214,31 @@ func TestUntgz(t *testing.T) {
 		destDir := filepath.Join(tmpDir, "untgz1")
 
 		// when
-		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, true, false)
 		require.NoError(t, err)
 
 		// then
 
 		scriptFileInfo, err := os.Stat(path.Join(destDir, "script.sh"))
 		require.NoError(t, err)
-		assert.Equal(t, os.FileMode(0o644), scriptFileInfo.Mode())
+		assert.Equal(t, os.FileMode(0o755), scriptFileInfo.Mode())
+	})
+	t.Run("relativizes symlinks", func(t *testing.T) {
+		// given
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+		tgzFile := createTgz(t, getTestAppDir(t), tmpDir)
+		defer tgzFile.Close()
+
+		destDir := filepath.Join(tmpDir, "symlink-relativize")
+
+		// when
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false, true)
+
+		// then
+		require.NoError(t, err)
+		names := readFiles(t, destDir)
+		assert.Equal(t, "../README.md", names["applicationset/readme-symlink"])
 	})
 }
 
