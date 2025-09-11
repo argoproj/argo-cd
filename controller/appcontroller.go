@@ -301,13 +301,13 @@ func NewApplicationController(
 						return err
 					}
 					for _, app := range apps {
+						ctrl.clusterSharding.AddApp(app)
 						if !ctrl.canProcessApp(app) {
 							continue
 						}
 						key, err := cache.MetaNamespaceKeyFunc(app)
 						if err == nil {
 							ctrl.appRefreshQueue.AddRateLimited(key)
-							ctrl.clusterSharding.AddApp(app)
 						}
 					}
 				}
@@ -2437,6 +2437,12 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 	_, err := informer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj any) {
+				newApp, newOK := obj.(*appv1.Application)
+				if newOK {
+					if ctrl.isAppNamespaceAllowed(newApp) {
+						ctrl.clusterSharding.AddApp(newApp)
+					}
+				}
 				if !ctrl.canProcessApp(obj) {
 					return
 				}
@@ -2444,12 +2450,16 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				if err == nil {
 					ctrl.appRefreshQueue.AddRateLimited(key)
 				}
-				newApp, newOK := obj.(*appv1.Application)
-				if err == nil && newOK {
-					ctrl.clusterSharding.AddApp(newApp)
-				}
 			},
 			UpdateFunc: func(old, new any) {
+				oldApp, oldOK := old.(*appv1.Application)
+				newApp, newOK := new.(*appv1.Application)
+				if oldOK && newOK {
+					if ctrl.isAppNamespaceAllowed(newApp) {
+						ctrl.clusterSharding.UpdateApp(newApp)
+					}
+				}
+
 				if !ctrl.canProcessApp(new) {
 					return
 				}
@@ -2462,8 +2472,6 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				var compareWith *CompareWith
 				var delay *time.Duration
 
-				oldApp, oldOK := old.(*appv1.Application)
-				newApp, newOK := new.(*appv1.Application)
 				if oldOK && newOK {
 					if automatedSyncEnabled(oldApp, newApp) {
 						log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
@@ -2483,9 +2491,14 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				if ctrl.hydrator != nil {
 					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 				}
-				ctrl.clusterSharding.UpdateApp(newApp)
 			},
 			DeleteFunc: func(obj any) {
+				delApp, delOK := obj.(*appv1.Application)
+				if delOK {
+					if ctrl.isAppNamespaceAllowed(delApp) {
+						ctrl.clusterSharding.DeleteApp(delApp)
+					}
+				}
 				if !ctrl.canProcessApp(obj) {
 					return
 				}
@@ -2495,10 +2508,6 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				if err == nil {
 					// for deletes, we immediately add to the refresh queue
 					ctrl.appRefreshQueue.Add(key)
-				}
-				delApp, delOK := obj.(*appv1.Application)
-				if err == nil && delOK {
-					ctrl.clusterSharding.DeleteApp(delApp)
 				}
 			},
 		},
