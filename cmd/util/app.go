@@ -90,6 +90,7 @@ type AppOptions struct {
 	retryBackoffDuration            time.Duration
 	retryBackoffMaxDuration         time.Duration
 	retryBackoffFactor              int64
+	retryRefresh                    bool
 	ref                             string
 	SourceName                      string
 	drySourceRepo                   string
@@ -168,6 +169,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().DurationVar(&opts.retryBackoffDuration, "sync-retry-backoff-duration", argoappv1.DefaultSyncRetryDuration, "Sync retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().DurationVar(&opts.retryBackoffMaxDuration, "sync-retry-backoff-max-duration", argoappv1.DefaultSyncRetryMaxDuration, "Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().Int64Var(&opts.retryBackoffFactor, "sync-retry-backoff-factor", argoappv1.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed sync retry")
+	command.Flags().BoolVar(&opts.retryRefresh, "sync-retry-refresh", false, "Indicates if the latest revision should be used on retry instead of the initial one")
 	command.Flags().StringVar(&opts.ref, "ref", "", "Ref is reference to another source within sources field")
 	command.Flags().StringVar(&opts.SourceName, "source-name", "", "Name of the source from the list of sources of the app.")
 }
@@ -261,6 +263,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 						MaxDuration: appOpts.retryBackoffMaxDuration.String(),
 						Factor:      ptr.To(appOpts.retryBackoffFactor),
 					},
+					Refresh: appOpts.retryRefresh,
 				}
 			case appOpts.retryLimit == 0:
 				if spec.SyncPolicy.IsZero() {
@@ -271,6 +274,14 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			default:
 				log.Fatalf("Invalid sync-retry-limit [%d]", appOpts.retryLimit)
 			}
+		case "sync-retry-refresh":
+			if spec.SyncPolicy == nil {
+				spec.SyncPolicy = &argoappv1.SyncPolicy{}
+			}
+			if spec.SyncPolicy.Retry == nil {
+				spec.SyncPolicy.Retry = &argoappv1.RetryStrategy{}
+			}
+			spec.SyncPolicy.Retry.Refresh = appOpts.retryRefresh
 		}
 	})
 	if flags.Changed("auto-prune") {
