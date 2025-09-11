@@ -2636,7 +2636,12 @@ message SyncSource {
   optional string targetBranch = 1;
 
   // Path is a directory path within the git repository where hydrated manifests should be committed to and synced
-  // from. If hydrateTo is set, this is just the path from which hydrated manifests will be synced.
+  // from. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which
+  // hydrated manifests will be synced.
+  //
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:MinLength=1
+  // +kubebuilder:validation:Pattern=`^.{2,}|[^./]$`
   optional string path = 2;
 }
 
