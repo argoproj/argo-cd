@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,6 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/hydrator"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
@@ -43,7 +47,7 @@ type Dependencies interface {
 
 	// GetRepoObjs returns the repository objects for the given application, source, and revision. It calls the repo-
 	// server and gets the manifests (objects).
-	GetRepoObjs(app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error)
+	GetRepoObjs(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error)
 
 	// GetWriteCredentials returns the repository credentials for the given repository URL and project. These are to be
 	// sent to the commit server to write the hydrated manifests.
@@ -59,6 +63,9 @@ type Dependencies interface {
 	// AddHydrationQueueItem adds a hydration queue item to the queue. This is used to trigger the hydration process for
 	// a group of applications which are hydrating to the same repo and target branch.
 	AddHydrationQueueItem(key types.HydrationQueueKey)
+
+	// GetHydratorCommitMessageTemplate gets the configured template for rendering commit messages.
+	GetHydratorCommitMessageTemplate() (string, error)
 }
 
 // Hydrator is the main struct that implements the hydration logic. It uses the Dependencies interface to access the
@@ -136,21 +143,6 @@ func getHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {
 	return key
 }
 
-// uniqueHydrationDestination is used to detect duplicate hydrate destinations.
-type uniqueHydrationDestination struct {
-	// sourceRepoURL must be normalized with git.NormalizeGitURL to ensure that two apps with different URL formats
-	// don't end up in two different hydration queue items. Failing to normalize would result in one hydrated commit for
-	// each unique URL.
-	//nolint:unused // used as part of a map key
-	sourceRepoURL string
-	//nolint:unused // used as part of a map key
-	sourceTargetRevision string
-	//nolint:unused // used as part of a map key
-	destinationBranch string
-	//nolint:unused // used as part of a map key
-	destinationPath string
-}
-
 // ProcessHydrationQueueItem processes a hydration queue item. It retrieves the relevant applications for the given
 // hydration key, hydrates their latest commit, and updates their status accordingly. If the hydration fails, it marks
 // the operation as failed and logs the error. If successful, it updates the operation to indicate that hydration was
@@ -213,12 +205,12 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 }
 
 func (h *Hydrator) hydrateAppsLatestCommit(logCtx *log.Entry, hydrationKey types.HydrationQueueKey) ([]*appv1.Application, string, string, error) {
-	relevantApps, err := h.getRelevantAppsForHydration(logCtx, hydrationKey)
+	relevantApps, projects, err := h.getRelevantAppsAndProjectsForHydration(logCtx, hydrationKey)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("failed to get relevant apps for hydration: %w", err)
 	}
 
-	dryRevision, hydratedRevision, err := h.hydrate(logCtx, relevantApps)
+	dryRevision, hydratedRevision, err := h.hydrate(logCtx, relevantApps, projects)
 	if err != nil {
 		return relevantApps, dryRevision, "", fmt.Errorf("failed to hydrate apps: %w", err)
 	}
@@ -226,15 +218,16 @@ func (h *Hydrator) hydrateAppsLatestCommit(logCtx *log.Entry, hydrationKey types
 	return relevantApps, dryRevision, hydratedRevision, nil
 }
 
-func (h *Hydrator) getRelevantAppsForHydration(logCtx *log.Entry, hydrationKey types.HydrationQueueKey) ([]*appv1.Application, error) {
+func (h *Hydrator) getRelevantAppsAndProjectsForHydration(logCtx *log.Entry, hydrationKey types.HydrationQueueKey) ([]*appv1.Application, map[string]*appv1.AppProject, error) {
 	// Get all apps
 	apps, err := h.dependencies.GetProcessableApps()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list apps: %w", err)
+		return nil, nil, fmt.Errorf("failed to list apps: %w", err)
 	}
 
 	var relevantApps []*appv1.Application
-	uniqueDestinations := make(map[uniqueHydrationDestination]bool, len(apps.Items))
+	projects := make(map[string]*appv1.AppProject)
+	uniquePaths := make(map[string]bool, len(apps.Items))
 	for _, app := range apps.Items {
 		if app.Spec.SourceHydrator == nil {
 			continue
@@ -253,9 +246,11 @@ func (h *Hydrator) getRelevantAppsForHydration(logCtx *log.Entry, hydrationKey t
 		}
 
 		var proj *appv1.AppProject
+		// We can't short-circuit this even if we have seen this project before, because we need to verify that this
+		// particular app is allowed to use this project. That logic is in GetProcessableAppProj.
 		proj, err = h.dependencies.GetProcessableAppProj(&app)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get project %q for app %q: %w", app.Spec.Project, app.QualifiedName(), err)
+			return nil, nil, fmt.Errorf("failed to get project %q for app %q: %w", app.Spec.Project, app.QualifiedName(), err)
 		}
 		permitted := proj.IsSourcePermitted(app.Spec.GetSource())
 		if !permitted {
@@ -263,75 +258,56 @@ func (h *Hydrator) getRelevantAppsForHydration(logCtx *log.Entry, hydrationKey t
 			logCtx.Warnf("App %q is not permitted to use source %q", app.QualifiedName(), app.Spec.Source.String())
 			continue
 		}
+		projects[app.Spec.Project] = proj
 
-		uniqueDestinationKey := uniqueHydrationDestination{
-			sourceRepoURL:        git.NormalizeGitURLAllowInvalid(app.Spec.SourceHydrator.DrySource.RepoURL),
-			sourceTargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
-			destinationBranch:    destinationBranch,
-			destinationPath:      app.Spec.SourceHydrator.SyncSource.Path,
-		}
 		// TODO: test the dupe detection
-		if _, ok := uniqueDestinations[uniqueDestinationKey]; ok {
-			return nil, fmt.Errorf("multiple app hydrators use the same destination: %v", uniqueDestinationKey)
+		// TODO: normalize the path to avoid "path/.." from being treated as different from "."
+		if _, ok := uniquePaths[app.Spec.SourceHydrator.SyncSource.Path]; ok {
+			return nil, nil, fmt.Errorf("multiple app hydrators use the same destination: %v", app.Spec.SourceHydrator.SyncSource.Path)
 		}
-		uniqueDestinations[uniqueDestinationKey] = true
+		uniquePaths[app.Spec.SourceHydrator.SyncSource.Path] = true
 
 		relevantApps = append(relevantApps, &app)
 	}
-	return relevantApps, nil
+	return relevantApps, projects, nil
 }
 
-func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string, string, error) {
+func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, projects map[string]*appv1.AppProject) (string, string, error) {
 	if len(apps) == 0 {
 		return "", "", nil
 	}
+
+	// These values are the same for all apps being hydrated together, so just get them from the first app.
 	repoURL := apps[0].Spec.SourceHydrator.DrySource.RepoURL
 	syncBranch := apps[0].Spec.SourceHydrator.SyncSource.TargetBranch
 	targetBranch := apps[0].Spec.GetHydrateToSource().TargetRevision
-	var paths []*commitclient.PathDetails
-	projects := make(map[string]bool, len(apps))
-	var targetRevision string
-	// TODO: parallelize this loop
-	for _, app := range apps {
-		project, err := h.dependencies.GetProcessableAppProj(app)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to get project: %w", err)
-		}
-		projects[project.Name] = true
-		drySource := appv1.ApplicationSource{
-			RepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
-			Path:           app.Spec.SourceHydrator.DrySource.Path,
-			TargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
-		}
-		if targetRevision == "" {
-			targetRevision = app.Spec.SourceHydrator.DrySource.TargetRevision
-		}
 
-		// TODO: enable signature verification
-		objs, resp, err := h.dependencies.GetRepoObjs(app, drySource, targetRevision, project)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to get repo objects for app %q: %w", app.QualifiedName(), err)
-		}
+	// Get a static SHA revision from the first app so that all apps are hydrated from the same revision.
+	targetRevision, pathDetails, err := h.getManifests(context.Background(), apps[0], "", projects[apps[0].Spec.Project])
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get manifests for app %q: %w", apps[0].QualifiedName(), err)
+	}
+	paths := []*commitclient.PathDetails{pathDetails}
 
-		// This should be the DRY SHA. We set it here so that after processing the first app, all apps are hydrated
-		// using the same SHA.
-		targetRevision = resp.Revision
+	eg, ctx := errgroup.WithContext(context.Background())
+	var mu sync.Mutex
 
-		// Set up a ManifestsRequest
-		manifestDetails := make([]*commitclient.HydratedManifestDetails, len(objs))
-		for i, obj := range objs {
-			objJSON, err := json.Marshal(obj)
+	for _, app := range apps[1:] {
+		app := app
+		eg.Go(func() error {
+			_, pathDetails, err = h.getManifests(ctx, app, targetRevision, projects[app.Spec.Project])
 			if err != nil {
-				return "", "", fmt.Errorf("failed to marshal object: %w", err)
+				return fmt.Errorf("failed to get manifests for app %q: %w", app.QualifiedName(), err)
 			}
-			manifestDetails[i] = &commitclient.HydratedManifestDetails{ManifestJSON: string(objJSON)}
-		}
-
-		paths = append(paths, &commitclient.PathDetails{
-			Path:      app.Spec.SourceHydrator.SyncSource.Path,
-			Manifests: manifestDetails,
-			Commands:  resp.Commands,
+			mu.Lock()
+			paths = append(paths, pathDetails)
+			mu.Unlock()
+			return nil
 		})
+	}
+	err = eg.Wait()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get manifests for apps: %w", err)
 	}
 
 	// If all the apps are under the same project, use that project. Otherwise, use an empty string to indicate that we
@@ -360,13 +336,22 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 		}
 		logCtx.Warn("no credentials found for repo, continuing without credentials")
 	}
+	// get the commit message template
+	commitMessageTemplate, err := h.dependencies.GetHydratorCommitMessageTemplate()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get hydrated commit message template: %w", err)
+	}
+	commitMessage, errMsg := getTemplatedCommitMessage(repoURL, targetRevision, commitMessageTemplate, revisionMetadata)
+	if errMsg != nil {
+		return "", "", fmt.Errorf("failed to get hydrator commit templated message: %w", errMsg)
+	}
 
 	manifestsRequest := commitclient.CommitHydratedManifestsRequest{
 		Repo:              repo,
 		SyncBranch:        syncBranch,
 		TargetBranch:      targetBranch,
 		DrySha:            targetRevision,
-		CommitMessage:     "[Argo CD Bot] hydrate " + targetRevision,
+		CommitMessage:     commitMessage,
 		Paths:             paths,
 		DryCommitMetadata: revisionMetadata,
 	}
@@ -381,6 +366,43 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 		return targetRevision, "", fmt.Errorf("failed to commit hydrated manifests: %w", err)
 	}
 	return targetRevision, resp.HydratedSha, nil
+}
+
+// getManifests gets the manifests for the given application and target revision. It returns the resolved revision
+// (a git SHA), and path details for the commit server.
+//
+// If the given target revision is empty, it uses the target revision from the app dry source spec.
+func (h *Hydrator) getManifests(ctx context.Context, app *appv1.Application, targetRevision string, project *appv1.AppProject) (revision string, pathDetails *commitclient.PathDetails, err error) {
+	drySource := appv1.ApplicationSource{
+		RepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
+		Path:           app.Spec.SourceHydrator.DrySource.Path,
+		TargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
+	}
+	if targetRevision == "" {
+		targetRevision = app.Spec.SourceHydrator.DrySource.TargetRevision
+	}
+
+	// TODO: enable signature verification
+	objs, resp, err := h.dependencies.GetRepoObjs(ctx, app, drySource, targetRevision, project)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to get repo objects for app %q: %w", app.QualifiedName(), err)
+	}
+
+	// Set up a ManifestsRequest
+	manifestDetails := make([]*commitclient.HydratedManifestDetails, len(objs))
+	for i, obj := range objs {
+		objJSON, err := json.Marshal(obj)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to marshal object: %w", err)
+		}
+		manifestDetails[i] = &commitclient.HydratedManifestDetails{ManifestJSON: string(objJSON)}
+	}
+
+	return resp.Revision, &commitclient.PathDetails{
+		Path:      app.Spec.SourceHydrator.SyncSource.Path,
+		Manifests: manifestDetails,
+		Commands:  resp.Commands,
+	}, nil
 }
 
 func (h *Hydrator) getRevisionMetadata(ctx context.Context, repoURL, project, revision string) (*appv1.RevisionMetadata, error) {
@@ -430,4 +452,19 @@ func appNeedsHydration(app *appv1.Application, statusHydrateTimeout time.Duratio
 	}
 
 	return false, ""
+}
+
+// Gets the multi-line commit message based on the template defined in the configmap. It is a two step process:
+// 1.  Get the metadata template engine would use to render the template
+// 2. Pass the output of Step 1 and Step 2 to template Render
+func getTemplatedCommitMessage(repoURL, revision, commitMessageTemplate string, dryCommitMetadata *appv1.RevisionMetadata) (string, error) {
+	hydratorCommitMetadata, err := hydrator.GetCommitMetadata(repoURL, revision, dryCommitMetadata)
+	if err != nil {
+		return "", fmt.Errorf("failed to get hydrated commit message: %w", err)
+	}
+	templatedCommitMsg, err := hydrator.Render(commitMessageTemplate, hydratorCommitMetadata)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse template %s: %w", commitMessageTemplate, err)
+	}
+	return templatedCommitMsg, nil
 }

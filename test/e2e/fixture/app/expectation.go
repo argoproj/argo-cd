@@ -64,6 +64,13 @@ func SyncStatusIs(expected v1alpha1.SyncStatusCode) Expectation {
 	}
 }
 
+func HydrationPhaseIs(expected v1alpha1.HydrateOperationPhase) Expectation {
+	return func(c *Consequences) (state, string) {
+		actual := c.app().Status.SourceHydrator.CurrentOperation.Phase
+		return simple(actual == expected, fmt.Sprintf("hydration phase to be %s, is %s", expected, actual))
+	}
+}
+
 func Condition(conditionType v1alpha1.ApplicationConditionType, conditionMessage string) Expectation {
 	return func(c *Consequences) (state, string) {
 		got := c.app().Status.Conditions
