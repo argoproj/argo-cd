@@ -53,12 +53,12 @@ func OperationMessageContains(text string) Expectation {
 	}
 }
 
-func OperationRetriedTimes(expected int64) Expectation {
+func OperationRetriedMinimumTimes(minRetries int64) Expectation {
 	return func(c *Consequences) (state, string) {
 		operationState := c.app().Status.OperationState
 		actual := operationState.RetryCount
-		message := fmt.Sprintf("operation state retry cound should be %d, is %d, message: '%s'", expected, actual, operationState.Message)
-		return simple(actual == expected, message)
+		message := fmt.Sprintf("operation state retry cound should be at least %d, is %d, message: '%s'", minRetries, actual, operationState.Message)
+		return simple(actual >= minRetries, message)
 	}
 }
 
@@ -123,6 +123,16 @@ func StatusExists() Expectation {
 			return succeeded, message
 		}
 		return pending, message
+	}
+}
+
+func Status(f func(v1alpha1.ApplicationStatus) (bool, string)) Expectation {
+	return func(c *Consequences) (state, string) {
+		ok, msg := f(c.app().Status)
+		if !ok {
+			return pending, msg
+		}
+		return succeeded, msg
 	}
 }
 
@@ -359,7 +369,7 @@ func Success(message string, matchers ...func(string, string) bool) Expectation 
 	}
 	return func(c *Consequences) (state, string) {
 		if c.actions.lastError != nil {
-			return failed, "error"
+			return failed, fmt.Errorf("error: %w", c.actions.lastError).Error()
 		}
 		if !match(c.actions.lastOutput, message) {
 			return failed, fmt.Sprintf("output did not contain '%s'", message)

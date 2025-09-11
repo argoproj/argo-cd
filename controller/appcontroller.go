@@ -1424,23 +1424,21 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				return
 			}
 
+			// Remove the desired revisions if the sync failed and we are retrying. The latest revision from the source will be used.
+			extraMsg := ""
 			if state.Operation.Retry.Refresh {
-				if app.Operation != nil && app.Operation.InitiatedBy.Automated {
-					logCtx.Infof("Refreshing the retry")
-					state.Operation.Sync.Revision = ""
-					state.Operation.Sync.Revisions = nil
-				} else {
-					logCtx.Infof("Not refreshing the retry during manual sync")
-				}
+				extraMsg += " with latest revisions"
+				state.Operation.Sync.Revision = ""
+				state.Operation.Sync.Revisions = nil
 			}
 
 			// Get rid of sync results and null out previous operation completion time
 			// This will start the retry attempt
-			state.Message = fmt.Sprintf("Retrying operation. Attempt #%d", state.RetryCount)
+			state.Message = fmt.Sprintf("Retrying operation%s. Attempt #%d", extraMsg, state.RetryCount)
 			state.FinishedAt = nil
 			state.SyncResult = nil
 			ctrl.setOperationState(app, state)
-			logCtx.Infof("Retrying operation. Attempt #%d", state.RetryCount)
+			logCtx.Infof("Retrying operation%s. Attempt #%d", extraMsg, state.RetryCount)
 		default:
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
 		}
@@ -2139,16 +2137,20 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		}
 	}
 
+	source := ptr.To(app.Spec.GetSource())
 	desiredRevisions := []string{syncStatus.Revision}
 	if app.Spec.HasMultipleSources() {
+		source = nil
 		desiredRevisions = syncStatus.Revisions
 	}
 
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
+			Source:      source,
 			Revision:    syncStatus.Revision,
 			Prune:       app.Spec.SyncPolicy.Automated.Prune,
 			SyncOptions: app.Spec.SyncPolicy.SyncOptions,
+			Sources:     app.Spec.Sources,
 			Revisions:   syncStatus.Revisions,
 		},
 		InitiatedBy: appv1.OperationInitiator{Automated: true},

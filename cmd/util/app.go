@@ -169,7 +169,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().DurationVar(&opts.retryBackoffDuration, "sync-retry-backoff-duration", argoappv1.DefaultSyncRetryDuration, "Sync retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().DurationVar(&opts.retryBackoffMaxDuration, "sync-retry-backoff-max-duration", argoappv1.DefaultSyncRetryMaxDuration, "Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().Int64Var(&opts.retryBackoffFactor, "sync-retry-backoff-factor", argoappv1.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed sync retry")
-	command.Flags().BoolVar(&opts.retryRefresh, "sync-retry-refresh", false, "Set if a new revision should trigger a new sync")
+	command.Flags().BoolVar(&opts.retryRefresh, "sync-retry-refresh", false, "Indicates if the latest revision should be used on retry instead of the initial one")
 	command.Flags().StringVar(&opts.ref, "ref", "", "Ref is reference to another source within sources field")
 	command.Flags().StringVar(&opts.SourceName, "source-name", "", "Name of the source from the list of sources of the app.")
 }

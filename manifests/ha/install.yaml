@@ -112,8 +112,8 @@ spec:
                     format: int64
                     type: integer
                   refresh:
-                    description: 'Refresh indicates if a new revision should trigger
-                      a new sync (default: false)'
+                    description: 'Refresh indicates if the latest revision should
+                      be used on retry instead of the initial one (default: false)'
                     type: boolean
                 type: object
               sync:
@@ -1943,8 +1943,8 @@ spec:
                         format: int64
                         type: integer
                       refresh:
-                        description: 'Refresh indicates if a new revision should trigger
-                          a new sync (default: false)'
+                        description: 'Refresh indicates if the latest revision should
+                          be used on retry instead of the initial one (default: false)'
                         type: boolean
                     type: object
                   syncOptions:
@@ -2915,8 +2915,9 @@ spec:
                             format: int64
                             type: integer
                           refresh:
-                            description: 'Refresh indicates if a new revision should
-                              trigger a new sync (default: false)'
+                            description: 'Refresh indicates if the latest revision
+                              should be used on retry instead of the initial one (default:
+                              false)'
                             type: boolean
                         type: object
                       sync:

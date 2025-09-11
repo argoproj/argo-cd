@@ -2112,6 +2112,60 @@ func TestSyncWithInfos(t *testing.T) {
 		})
 }
 
+// TestSyncWithRetryAndRefreshEnabled verifies that sync+refresh picks up new commits automatically on the original source
+// at the time the sync was triggered
+func TestSyncWithRetryAndRefreshEnabled(t *testing.T) {
+	Given(t).
+		Timeout(2). // Quick timeout since Sync operation is expected to retry forever
+		Path(guestbookPath).
+		When().
+		CreateFromFile(func(app *Application) {
+			app.Spec.SyncPolicy = &SyncPolicy{
+				Retry: &RetryStrategy{
+					Limit:   -1, // Repeat forever
+					Refresh: true,
+					Backoff: &Backoff{
+						Duration:    time.Second.String(),
+						Factor:      ptr.To(int64(1)),
+						MaxDuration: time.Second.String(),
+					},
+				},
+			}
+		}).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
+		IgnoreErrors().
+		Sync().
+		DoNotIgnoreErrors().
+		Then().
+		Expect(OperationPhaseIs(OperationRunning)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(OperationRetriedMinimumTimes(1)).
+		When().
+		PatchApp(`[{"op": "add", "path": "/spec/source/path", "value": "failure-during-sync"}]`).
+		// push a fixed commit on HEAD branch
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 42}]`).
+		IgnoreErrors().
+		Sync().
+		DoNotIgnoreErrors().
+		Then().
+		Expect(Status(func(status ApplicationStatus) (bool, string) {
+			// Validate that the history contains the sync to the previous sources
+			// The history will only contain  successful sync
+			if len(status.History) != 2 {
+				return false, "expected len to be 2"
+			}
+			if status.History[1].Source.Path != guestbookPath {
+				return false, fmt.Sprintf("expected source path to be '%s'", guestbookPath)
+			}
+			return true, ""
+		}))
+}
+
 // Given: argocd app create does not provide --dest-namespace
 //
 //	Manifest contains resource console which does not require namespace
