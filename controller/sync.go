@@ -446,11 +446,11 @@ func normalizeTargetResources(openAPISchema openapi.Resources, cr *comparisonRes
 
 	for idx, live := range cr.reconciliationResult.Live {
 		normalizedTarget := normalized.Targets[idx]
-		gvk := normalizedTarget.GroupVersionKind()
 		if normalizedTarget == nil {
 			patchedTargets = append(patchedTargets, nil)
 			continue
 		}
+		gvk := normalizedTarget.GroupVersionKind()
 
 		originalTarget := cr.reconciliationResult.Target[idx]
 		if live == nil {
@@ -465,13 +465,10 @@ func normalizeTargetResources(openAPISchema openapi.Resources, cr *comparisonRes
 		)
 
 		// Load patch meta struct or OpenAPI schema for CRDs
-		if obj, err := scheme.Scheme.New(gvk); err == nil {
-			var meta strategicpatch.PatchMetaFromStruct
-			if meta, err = strategicpatch.NewPatchMetaFromStruct(obj); err != nil {
+		if versionedObject, err = scheme.Scheme.New(gvk); err == nil {
+			if lookupPatchMeta, err = strategicpatch.NewPatchMetaFromStruct(versionedObject); err != nil {
 				return nil, err
 			}
-			lookupPatchMeta = meta
-			versionedObject = obj
 		} else if crdSchema := openAPISchema.LookupResource(gvk); crdSchema != nil {
 			lookupPatchMeta = strategicpatch.NewPatchMetaFromOpenAPI(crdSchema)
 		}
@@ -506,7 +503,7 @@ func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMet
 		return nil, err
 	}
 	if lookupPatchMeta != nil {
-		return strategicpatch.CreateThreeWayMergePatch(originalJSON, modifiedJSON, originalJSON, lookupPatchMeta, true)
+		return strategicpatch.CreateThreeWayMergePatch(modifiedJSON, modifiedJSON, originalJSON, lookupPatchMeta, true)
 	}
 
 	return jsonpatch.CreateMergePatch(originalJSON, modifiedJSON)
