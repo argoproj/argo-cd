@@ -1245,13 +1245,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		// finalizer is not removed
 		assert.False(t, patched)
 	})
-
 }
 
 func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 	type fixture struct {
 		application *v1alpha1.Application
-		project     *v1alpha1.AppProject
 		controller  *ApplicationController
 	}
 
@@ -1313,7 +1311,6 @@ func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 		ctrl := newFakeController(&data, nil)
 		return &fixture{
 			application: app,
-			project:     project,
 			controller:  ctrl,
 		}
 	}
