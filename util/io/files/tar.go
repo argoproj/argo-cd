@@ -147,6 +147,9 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool, relativizeSymlink
 			}
 
 			if relativizeSymlinks {
+				// Relativizing all symlink targets because path.CheckOutOfBoundsSymlinks disallows any absolute symlinks
+				// and it makes more sense semantically to view symlinks in archives as relative.
+				// Inbound ensures that we never allow symlinks that break out of the target directory.
 				realLinkTarget, err = filepath.Rel(filepath.Dir(target), realLinkTarget)
 				if err != nil {
 					return fmt.Errorf("error relativizing link target: %w", err)
