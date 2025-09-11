@@ -60,6 +60,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	clusterinventoryv1alpha1 "sigs.k8s.io/cluster-inventory-api/apis/v1alpha1"
 )
 
 const (
@@ -185,7 +186,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				Message: err.Error(),
 				Reason:  string(applicationSetReason),
 				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
-			}, parametersGenerated,
+			},
+			parametersGenerated,
 		)
 		// In order for the controller SDK to respect RequeueAfter, the error must be nil
 		return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, nil
@@ -211,7 +213,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				Message: err.Error(),
 				Reason:  argov1alpha1.ApplicationSetReasonApplicationValidationError,
 				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
-			}, parametersGenerated,
+			},
+			parametersGenerated,
 		)
 		return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, nil
 	}
@@ -283,7 +286,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				Message: message,
 				Reason:  argov1alpha1.ApplicationSetReasonApplicationValidationError,
 				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
-			}, parametersGenerated,
+			},
+			parametersGenerated,
 		)
 	}
 
@@ -304,7 +308,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 					Message: err.Error(),
 					Reason:  argov1alpha1.ApplicationSetReasonUpdateApplicationError,
 					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
-				}, parametersGenerated,
+				},
+				parametersGenerated,
 			)
 			return ctrl.Result{}, err
 		}
@@ -318,7 +323,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 					Message: err.Error(),
 					Reason:  argov1alpha1.ApplicationSetReasonCreateApplicationError,
 					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
-				}, parametersGenerated,
+				},
+				parametersGenerated,
 			)
 			return ctrl.Result{}, err
 		}
@@ -334,7 +340,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 					Message: err.Error(),
 					Reason:  argov1alpha1.ApplicationSetReasonDeleteApplicationError,
 					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
-				}, parametersGenerated,
+				},
+				parametersGenerated,
 			)
 			return ctrl.Result{}, err
 		}
@@ -352,7 +359,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 					Message: err.Error(),
 					Reason:  argov1alpha1.ApplicationSetReasonRefreshApplicationError,
 					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
-				}, parametersGenerated,
+				},
+				parametersGenerated,
 			)
 			return ctrl.Result{}, err
 		}
@@ -368,7 +376,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				Message: "All applications have been generated successfully",
 				Reason:  argov1alpha1.ApplicationSetReasonApplicationSetUpToDate,
 				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
-			}, parametersGenerated,
+			},
+			parametersGenerated,
 		); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -381,7 +390,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	return ctrl.Result{
 		RequeueAfter: requeueAfter,
-	}, nil
+	},
+	}
 }
 
 func (r *ApplicationSetReconciler) performReverseDeletion(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, currentApps []argov1alpha1.Application) (time.Duration, error) {
@@ -643,6 +653,12 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 				Client: mgr.GetClient(),
 				Log:    log.WithField("type", "createSecretEventHandler"),
 			}).
+		Watches(
+			&clusterinventoryv1alpha1.ClusterProfile{},
+			&clusterProfileEventHandler{
+				Client: mgr.GetClient(),
+				Log:    log.WithField("type", "createClusterProfileEventHandler"),
+			}).
 		Complete(r)
 }
 
@@ -786,7 +802,7 @@ func (r *ApplicationSetReconciler) createInCluster(ctx context.Context, logCtx *
 
 func (r *ApplicationSetReconciler) getCurrentApplications(ctx context.Context, applicationSet argov1alpha1.ApplicationSet) ([]argov1alpha1.Application, error) {
 	var current argov1alpha1.ApplicationList
-	err := r.List(ctx, &current, client.MatchingFields{".metadata.controller": applicationSet.Name}, client.InNamespace(applicationSet.Namespace))
+	err := r.List(ctx, &current, client.MatchingFields{`.metadata.controller`: applicationSet.Name}, client.InNamespace(applicationSet.Namespace))
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving applications: %w", err)
 	}
@@ -828,7 +844,7 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 				if firstError != nil {
 					firstError = err
 				}
-				continue
+			continue
 			}
 
 			err = r.Delete(ctx, &app)
@@ -837,7 +853,7 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 				if firstError != nil {
 					firstError = err
 				}
-				continue
+			continue
 			}
 			r.Recorder.Eventf(&applicationSet, corev1.EventTypeNormal, "Deleted", "Deleted Application %q", app.Name)
 			logCtx.Log(log.InfoLevel, "Deleted application")
@@ -1320,7 +1336,8 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusConditio
 				Message: "ApplicationSet is performing rollout of step " + progressingStep,
 				Reason:  argov1alpha1.ApplicationSetReasonApplicationSetModified,
 				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
-			}, true,
+			},
+			true,
 		)
 	} else {
 		_ = r.setApplicationSetStatusCondition(ctx,
@@ -1330,7 +1347,8 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusConditio
 				Message: "ApplicationSet Rollout has completed",
 				Reason:  argov1alpha1.ApplicationSetReasonApplicationSetRolloutComplete,
 				Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
-			}, true,
+			},
+			true,
 		)
 	}
 	return applicationSet.Status.Conditions
@@ -1654,7 +1672,7 @@ func shouldRequeueForApplication(appOld *argov1alpha1.Application, appNew *argov
 
 		if appOld.Status.OperationState != nil && appNew.Status.OperationState != nil {
 			if appOld.Status.OperationState.Phase != appNew.Status.OperationState.Phase ||
-				appOld.Status.OperationState.StartedAt != appNew.Status.OperationState.StartedAt {
+					appOld.Status.OperationState.StartedAt != appNew.Status.OperationState.StartedAt {
 				return true
 			}
 		}

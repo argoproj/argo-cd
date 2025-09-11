@@ -13,6 +13,35 @@ import (
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argoappsetv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	clusterinventory "sigs.k8s.io/cluster-inventory-api/apis/v1alpha1"
+
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+)
+
+const (
+	// Argo CD constants.
+	argoCDNamespace = "argocd"
+	// https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#clusters
+	argoCDSecretType = "argocd.argoproj.io/secret-type"
+
+	// Annotations.
+	managedByAnnotation   = "multicluster.x-k8s.io/managed-by-cp-syncer"
+	clusterProfileOrigin  = "clusterprofile.x-k8s.io/origin"
+	gkeEndpointAnnotation = "gateway.gke.io/endpoint"
+
+	secretConfig = `{
+	"execProviderConfig": {
+		"command": "argocd-k8s-auth",
+		"args": ["gcp"],
+		"apiVersion": "client.authentication.k8s.io/v1beta1"
+	},
+	"tlsClientConfig": {
+		"insecure": false,
+		"caData": ""
+	}
+}`
 )
 
 var _ Generator = (*ClusterProfileGenerator)(nil)
@@ -33,14 +62,14 @@ func NewClusterProfileGenerator(ctx context.Context, c client.Client, namespace 
 	return g
 }
 
-// GetRequeueAfter never requeue the cluster profile generator because the `clusterSecretEventHandler` will requeue the appsets
-// when the cluster secrets change
+// GetRequeueAfter never requeue the cluster profile generator because the `clusterProfileEventHandler` will requeue the appsets
+// when the cluster profiles change
 func (g *ClusterProfileGenerator) GetRequeueAfter(_ *argoappsetv1alpha1.ApplicationSetGenerator) time.Duration {
 	return NoRequeueAfter
 }
 
 func (g *ClusterProfileGenerator) GetTemplate(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) *argoappsetv1alpha1.ApplicationSetTemplate {
-	return &appSetGenerator.ClusterProfiles.Template
+	return &appSetGenerator.ClusterProfile.Template
 }
 
 func (g *ClusterProfileGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator, appSet *argoappsetv1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
@@ -49,7 +78,7 @@ func (g *ClusterProfileGenerator) GenerateParams(appSetGenerator *argoappsetv1al
 		return nil, ErrEmptyAppSetGenerator
 	}
 
-	if appSetGenerator.ClusterProfiles == nil {
+	if appSetGenerator.ClusterProfile == nil {
 		return nil, ErrEmptyAppSetGenerator
 	}
 
@@ -59,17 +88,25 @@ func (g *ClusterProfileGenerator) GenerateParams(appSetGenerator *argoappsetv1al
 		return nil, fmt.Errorf("error listing cluster profiles: %w", err)
 	}
 
-	paramHolder := &paramHolder{isFlatMode: appSetGenerator.ClusterProfiles.FlatList}
+	paramHolder := &paramHolder{isFlatMode: appSetGenerator.ClusterProfile.FlatList}
 	logCtx.Debugf("Using flat mode = %t for cluster profile generator", paramHolder.isFlatMode)
 
 	for _, cluster := range clusterProfiles.Items {
-		if !g.matchesSelector(&cluster, &appSetGenerator.ClusterProfiles.Selector) {
+		if !g.matchesSelector(&cluster, &appSetGenerator.ClusterProfile.Selector) {
 			continue
+		}
+
+		if appSetGenerator.ClusterProfile.Values["generateSecrets"] == true {
+			// Generate or update the cluster's corresponding secret
+			if err := g.createOrUpdateClusterSecret(g.ctx, &cluster); err != nil {
+				logCtx.WithError(err).Error("Failed to reconcile secret")
+				return nil, err
+			}
 		}
 
 		params := g.getClusterParameters(cluster, appSet)
 
-		err := appendTemplatedValues(appSetGenerator.ClusterProfiles.Values, params, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
+		err := appendTemplatedValues(appSetGenerator.ClusterProfile.Values, params, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 		if err != nil {
 			return nil, fmt.Errorf("error appending templated values for cluster: %w", err)
 		}
@@ -79,6 +116,45 @@ func (g *ClusterProfileGenerator) GenerateParams(appSetGenerator *argoappsetv1al
 	}
 
 	return paramHolder.consolidate(), nil
+}
+
+func (g *ClusterProfileGenerator) PruneSecrets(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator, appSet *argoappsetv1alpha1.ApplicationSet) error {
+	logCtx := log.WithField("applicationset", appSet.GetName()).WithField("namespace", appSet.GetNamespace())
+	if appSetGenerator.ClusterProfile.Values["generateSecrets"] != true {
+		return nil
+	}
+
+	// List all ClusterProfile objects
+	clusterProfiles := &clusterinventory.ClusterProfileList{}
+	if err := g.List(g.ctx, clusterProfiles); err != nil {
+		return fmt.Errorf("error listing cluster profiles: %w", err)
+	}
+
+	managedSecrets := &corev1.SecretList{}
+	if err := g.List(g.ctx, managedSecrets, client.InNamespace(argoCDNamespace), client.HasLabels{managedByAnnotation}); err != nil {
+		return fmt.Errorf("error listing managed secrets: %w", err)
+	}
+
+	for _, secret := range managedSecrets.Items {
+		found := false
+		for _, cluster := range clusterProfiles.Items {
+			if secret.Annotations[clusterProfileOrigin] == fmt.Sprintf("%s/%s", cluster.Namespace, cluster.Name) {
+				if g.matchesSelector(&cluster, &appSetGenerator.ClusterProfile.Selector) {
+					found = true
+					break
+				}
+			}
+		}
+
+		if !found {
+			logCtx.Infof("Pruning secret %s for cluster profile %s", secret.Name, secret.Annotations[clusterProfileOrigin])
+			if err := g.Delete(g.ctx, &secret); err != nil {
+				return fmt.Errorf("error pruning secret %s: %w", secret.Name, err)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (g *ClusterProfileGenerator) matchesSelector(cluster *clusterinventory.ClusterProfile, selector *metav1.LabelSelector) bool {
@@ -129,4 +205,90 @@ func (g *ClusterProfileGenerator) getClusterParameters(cluster clusterinventory.
 		}
 	}
 	return params
+}
+
+// deleteClusterSecret removes the associated secret if it exists and is managed by this controller.
+func (g *ClusterProfileGenerator) deleteClusterSecret(ctx context.Context, req types.NamespacedName) error {
+	logger := log.FromContext(ctx)
+	secretName := types.NamespacedName{
+		Namespace: argoCDNamespace,
+		Name:      fmt.Sprintf("%s.%s", req.Namespace, req.Name),
+	}
+
+	secret := &corev1.Secret{}
+	if err := g.Get(ctx, secretName, secret); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to get secret: %w", err)
+	}
+
+	if !g.isSecretManaged(secret, req.String()) {
+		return nil
+	}
+
+	logger.Info("Deleting managed secret", "secret", secretName)
+	if err := g.Delete(ctx, secret); err != nil {
+		return fmt.Errorf("failed to delete secret: %w", err)
+	}
+
+	return nil
+}
+
+func (g *ClusterProfileGenerator) isSecretManaged(secret *corev1.Secret, cpOrigin string) bool {
+	if secret.Annotations == nil {
+		return false
+	}
+	if secret.Annotations[managedByAnnotation] != "true" {
+		return false
+	}
+	return secret.Annotations[clusterProfileOrigin] == cpOrigin
+}
+
+func (g *ClusterProfileGenerator) createOrUpdateClusterSecret(ctx context.Context, cp *clusterinventory.ClusterProfile) error {
+	logger := log.FromContext(ctx)
+
+	serverURL, ok := cp.Annotations[gkeEndpointAnnotation]
+	if !ok {
+		return fmt.Errorf("cluster endpoint annotation %q not found", gkeEndpointAnnotation)
+	}
+
+	secretName := fmt.Sprintf("%s.%s", cp.Namespace, cp.Name)
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: argoCDNamespace,
+		},
+	}
+
+	logger.Info("Reconciling secret", "name", secretName)
+	if _, err := controllerutil.CreateOrUpdate(ctx, g.Client, secret, func() error {
+		return g.mutateSecret(secret, cp, serverURL, secretName)
+	}); err != nil {
+		return fmt.Errorf("failed to create/update secret: %w", err)
+	}
+
+	return nil
+}
+
+func (g *ClusterProfileGenerator) mutateSecret(secret *corev1.Secret, cp *clusterinventory.ClusterProfile, serverURL, secretName string) error {
+	if secret.Labels == nil {
+		secret.Labels = make(map[string]string)
+	}
+	secret.Labels[argoCDSecretType] = "cluster"
+
+	if secret.Annotations == nil {
+		secret.Annotations = make(map[string]string)
+	}
+	secret.Annotations[managedByAnnotation] = "true"
+	secret.Annotations[clusterProfileOrigin] = fmt.Sprintf("%s/%s", cp.Namespace, cp.Name)
+
+	secret.Type = corev1.SecretTypeOpaque
+	secret.Data = map[string][]byte{
+		"name":   []byte(secretName),
+		"server": []byte(serverURL),
+		"config": []byte(secretConfig),
+	}
+
+	return nil
 }
