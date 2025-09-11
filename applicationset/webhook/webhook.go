@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html"
 	"net/http"
@@ -188,6 +189,34 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		log.Info("Queue is full, discarding webhook payload")
 		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
 	}
+}
+
+func (h *WebhookHandler) HandleRequest(_ http.ResponseWriter, r *http.Request) error {
+	var payload any
+	var err error
+
+	switch {
+	case r.Header.Get("X-GitHub-Event") != "":
+		payload, err = h.github.Parse(r, github.PushEvent, github.PullRequestEvent, github.PingEvent)
+	case r.Header.Get("X-Gitlab-Event") != "":
+		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents)
+	case r.Header.Get("X-Vss-Activityid") != "":
+		payload, err = h.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
+	default:
+		return errors.New("unknown webhook event")
+	}
+
+	if err != nil {
+		return fmt.Errorf("webhook processing failed: %w", err)
+	}
+
+	select {
+	case h.queue <- payload:
+	default:
+		return errors.New("webhook processing failed: queue is full")
+	}
+
+	return nil
 }
 
 func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
