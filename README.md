@@ -1,3 +1,14 @@
+# Ongoing migration 
+The gitops-engine repository is migrating to https://github.com/argoproj/argo-cd.
+
+As part of this migration, we are going to:
+
+- close PRs with no updates older than 1 year
+- ask ppl to update the remaining PRs that had some update in the last year but are outdated.
+- review the pending recent open PRs that we deem important
+
+Hold on your PRs until the migration is complete.
+
 # GitOps Engine
 
 Various GitOps operators address different use-cases and provide different user experiences but all have similar set of core features. The team behind
