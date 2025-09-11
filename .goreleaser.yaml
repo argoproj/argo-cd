@@ -49,13 +49,15 @@ archives:
       - argocd-cli
     name_template: |-
       {{ .ProjectName }}-{{ .Os }}-{{ .Arch }}
-    formats: [ binary ]
+    formats: [binary]
 
 checksum:
   name_template: 'cli_checksums.txt'
   algorithm: sha256
 
 release:
+  ## Lets see if GORELEASER_MAKE_LATEST will be use by default
+  # make_latest: '{{ .Env.GORELEASER_MAKE_LATEST }}'
   prerelease: auto
   draft: false
   header: |
