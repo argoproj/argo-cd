@@ -56,8 +56,7 @@ checksum:
   algorithm: sha256
 
 release:
-  ## Lets see if GORELEASER_MAKE_LATEST will be use by default
-  # make_latest: '{{ .Env.GORELEASER_MAKE_LATEST }}'
+  make_latest: '{{ .Env.GORELEASER_MAKE_LATEST }}'
   prerelease: auto
   draft: false
   header: |
