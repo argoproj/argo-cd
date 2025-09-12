@@ -18,7 +18,7 @@ argocd proj windows add my-project \
 --duration 3600 \
 --prune
 
-#Delete a sync window from a project 
+#Delete a sync window from a project
 argocd proj windows delete <project-name> <window-id>
 
 #List project sync windows

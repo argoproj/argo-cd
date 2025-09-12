@@ -64,6 +64,11 @@ Change the argocd-server service type to `LoadBalancer`:
 ```bash
 kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
 ```
+After a short wait, your cloud provider will assign an external IP address to the service. You can retrieve this IP with:
+
+```bash
+kubectl get svc argocd-server -n argocd -o=jsonpath='{.status.loadBalancer.ingress[0].ip}'
+```
 
 ### Ingress
 Follow the [ingress documentation](operator-manual/ingress.md) on how to configure Argo CD with ingress.

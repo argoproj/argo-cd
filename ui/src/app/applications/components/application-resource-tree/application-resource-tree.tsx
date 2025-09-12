@@ -67,6 +67,7 @@ export interface ApplicationResourceTreeProps {
     filters?: string[];
     setTreeFilterGraph?: (filterGraph: any[]) => void;
     nameDirection: boolean;
+    nameWrap: boolean;
     setNodeExpansion: (node: string, isExpanded: boolean) => any;
     getNodeExpansion: (node: string) => boolean;
 }
@@ -209,7 +210,7 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
         const numberA = Number(a);
         const numberB = Number(b);
         if (isNaN(numberA) || isNaN(numberB)) {
-            return a.localeCompare(b);
+            return a.localeCompare(b, undefined, {numeric: true});
         }
         return Math.sign(numberA - numberB);
     }
@@ -228,13 +229,13 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
         return (
             orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
             compareRevision(getRevision(second), getRevision(first)) ||
-            nodeKey(first).localeCompare(nodeKey(second)) ||
+            nodeKey(first).localeCompare(nodeKey(second), undefined, {numeric: true}) ||
             0
         );
     }
     return (
         orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
-        nodeKey(first).localeCompare(nodeKey(second)) ||
+        nodeKey(first).localeCompare(nodeKey(second), undefined, {numeric: true}) ||
         compareRevision(getRevision(first), getRevision(second)) ||
         0
     );
@@ -445,7 +446,8 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
         <div
             className={classNames('application-resource-tree__node', {
                 'active': fullName === props.selectedNodeFullName,
-                'application-resource-tree__node--orphaned': node.orphaned
+                'application-resource-tree__node--orphaned': node.orphaned,
+                'application-resource-tree__node--grouped-node': !showPodGroupByStatus
             })}
             title={describeNode(node)}
             style={{
@@ -464,7 +466,11 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                     <br />
                     {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
                 </div>
-                <div className='application-resource-tree__node-content'>
+                <div
+                    className={classNames('application-resource-tree__node-content', {
+                        'application-resource-tree__fullname': props.nameWrap,
+                        'application-resource-tree__wrappedname': !props.nameWrap
+                    })}>
                     <span
                         className={classNames('application-resource-tree__node-title', {
                             'application-resource-tree__direction-right': props.nameDirection,
@@ -744,7 +750,11 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 <br />
                 {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
             </div>
-            <div className='application-resource-tree__node-content'>
+            <div
+                className={classNames('application-resource-tree__node-content', {
+                    'application-resource-tree__fullname': props.nameWrap,
+                    'application-resource-tree__wrappedname': !props.nameWrap
+                })}>
                 <div
                     className={classNames('application-resource-tree__node-title', {
                         'application-resource-tree__direction-right': props.nameDirection,

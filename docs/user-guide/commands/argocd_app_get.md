@@ -57,6 +57,7 @@ argocd app get APPNAME [flags]
       --show-params            Show application parameters and overrides
       --source-name string     Name of the source from the list of sources of the app.
       --source-position int    Position of the source from the list of sources of the app. Counting starts at 1. (default -1)
+      --timeout uint           Time out after this many seconds
 ```
 
 ### Options inherited from parent commands

@@ -4,8 +4,15 @@ DIST_DIR=${CURRENT_DIR}/dist
 CLI_NAME=argocd
 BIN_NAME=argocd
 
+UNAME_S:=$(shell uname)
+IS_DARWIN:=$(if $(filter Darwin, $(UNAME_S)),true,false)
+
 # When using OSX/Darwin, you might need to enable CGO for local builds
-CGO_FLAG?=0
+DEFAULT_CGO_FLAG:=0
+ifeq ($(IS_DARWIN),true)
+    DEFAULT_CGO_FLAG:=1
+endif
+CGO_FLAG?=${DEFAULT_CGO_FLAG}
 
 GEN_RESOURCES_CLI_NAME=argocd-resources-gen
 
@@ -35,6 +42,17 @@ endif
 
 DOCKER_SRCDIR?=$(GOPATH)/src
 DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
+
+# Allows you to control which Docker network the test-util containers attach to.
+# This is particularly useful if you are running Kubernetes in Docker (e.g., k3d)
+# and want the test containers to reach the Kubernetes API via an already-existing Docker network.
+DOCKER_NETWORK ?= default
+
+ifneq ($(DOCKER_NETWORK),default)
+DOCKER_NETWORK_ARG := --network $(DOCKER_NETWORK)
+else
+DOCKER_NETWORK_ARG :=
+endif
 
 ARGOCD_PROCFILE?=Procfile
 
@@ -106,11 +124,11 @@ define run-in-test-server
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
-		-v /tmp:/tmp${VOLUME_MOUNT} \
 		-w ${DOCKER_WORKDIR} \
 		-p ${ARGOCD_E2E_APISERVER_PORT}:8080 \
 		-p 4000:4000 \
 		-p 5000:5000 \
+		$(DOCKER_NETWORK_ARG)\
 		$(PODMAN_ARGS) \
 		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
 		bash -c "$(1)"
@@ -131,8 +149,8 @@ define run-in-test-client
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
-		-v /tmp:/tmp${VOLUME_MOUNT} \
 		-w ${DOCKER_WORKDIR} \
+		$(DOCKER_NETWORK_ARG)\
 		$(PODMAN_ARGS) \
 		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
 		bash -c "$(1)"
@@ -149,7 +167,11 @@ PATH:=$(PATH):$(PWD)/hack
 DOCKER_PUSH?=false
 IMAGE_NAMESPACE?=
 # perform static compilation
-STATIC_BUILD?=true
+DEFAULT_STATIC_BUILD:=true
+ifeq ($(IS_DARWIN),true)
+    DEFAULT_STATIC_BUILD:=false
+endif
+STATIC_BUILD?=${DEFAULT_STATIC_BUILD}
 # build development images
 DEV_IMAGE?=false
 ARGOCD_GPG_ENABLED?=true
@@ -587,11 +609,13 @@ install-test-tools-local:
 	./hack/install.sh kustomize
 	./hack/install.sh helm
 	./hack/install.sh gotestsum
+	./hack/install.sh oras
 
 # Installs all tools required for running codegen (Linux packages)
 .PHONY: install-codegen-tools-local
 install-codegen-tools-local:
 	./hack/install.sh codegen-tools
+	./hack/install.sh codegen-go-tools
 
 # Installs all tools required for running codegen (Go packages)
 .PHONY: install-go-tools-local

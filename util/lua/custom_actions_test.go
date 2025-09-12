@@ -15,6 +15,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 )
@@ -25,13 +26,9 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 	if un == nil {
 		return nil
 	}
-	if un.GetKind() == "Job" {
-		err := unstructured.SetNestedField(un.Object, map[string]any{"name": "not sure why this works"}, "metadata")
-		if err != nil {
-			return fmt.Errorf("failed to normalize Job: %w", err)
-		}
-	}
 	switch un.GetKind() {
+	case "Job":
+		return t.normalizeJob(un)
 	case "DaemonSet", "Deployment", "StatefulSet":
 		err := unstructured.SetNestedStringMap(un.Object, map[string]string{"kubectl.kubernetes.io/restartedAt": "0001-01-01T00:00:00Z"}, "spec", "template", "metadata", "annotations")
 		if err != nil {
@@ -84,6 +81,28 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 	return nil
 }
 
+func (t testNormalizer) normalizeJob(un *unstructured.Unstructured) error {
+	if conditions, exist, err := unstructured.NestedSlice(un.Object, "status", "conditions"); err != nil {
+		return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+	} else if exist {
+		changed := false
+		for i := range conditions {
+			condition := conditions[i].(map[string]any)
+			cType := condition["type"].(string)
+			if cType == "FailureTarget" {
+				condition["lastTransitionTime"] = "0001-01-01T00:00:00Z"
+				changed = true
+			}
+		}
+		if changed {
+			if err := unstructured.SetNestedSlice(un.Object, conditions, "status", "conditions"); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+		}
+	}
+	return nil
+}
+
 type ActionTestStructure struct {
 	DiscoveryTests []IndividualDiscoveryTest `yaml:"discoveryTests"`
 	ActionTests    []IndividualActionTest    `yaml:"actionTests"`
@@ -95,10 +114,12 @@ type IndividualDiscoveryTest struct {
 }
 
 type IndividualActionTest struct {
-	Action             string `yaml:"action"`
-	InputPath          string `yaml:"inputPath"`
-	ExpectedOutputPath string `yaml:"expectedOutputPath"`
-	InputStr           string `yaml:"input"`
+	Action               string            `yaml:"action"`
+	InputPath            string            `yaml:"inputPath"`
+	ExpectedOutputPath   string            `yaml:"expectedOutputPath"`
+	ExpectedErrorMessage string            `yaml:"expectedErrorMessage"`
+	InputStr             string            `yaml:"input"`
+	Parameters           map[string]string `yaml:"parameters"`
 }
 
 func TestLuaResourceActionsScript(t *testing.T) {
@@ -146,8 +167,34 @@ func TestLuaResourceActionsScript(t *testing.T) {
 
 				require.NoError(t, err)
 
+				// Log the action Lua script
+				t.Logf("Action Lua script: %s", action.ActionLua)
+
+				// Parse action parameters
+				var params []*applicationpkg.ResourceActionParameters
+				if test.Parameters != nil {
+					for k, v := range test.Parameters {
+						params = append(params, &applicationpkg.ResourceActionParameters{
+							Name:  &k,
+							Value: &v,
+						})
+					}
+				}
+
+				if len(params) > 0 {
+					// Log the parameters
+					t.Logf("Parameters: %+v", params)
+				}
+
 				require.NoError(t, err)
-				impactedResources, err := vm.ExecuteResourceAction(sourceObj, action.ActionLua)
+				impactedResources, err := vm.ExecuteResourceAction(sourceObj, action.ActionLua, params)
+
+				// Handle expected errors
+				if test.ExpectedErrorMessage != "" {
+					assert.EqualError(t, err, test.ExpectedErrorMessage)
+					return
+				}
+
 				require.NoError(t, err)
 
 				// Treat the Lua expected output as a list
@@ -179,12 +226,12 @@ func TestLuaResourceActionsScript(t *testing.T) {
 						assert.Equal(t, sourceObj.GetNamespace(), result.GetNamespace())
 					case CreateOperation:
 						switch result.GetKind() {
-						case "Job":
-						case "Workflow":
+						case "Job", "Workflow":
 							// The name of the created resource is derived from the source object name, so the returned name is not actually equal to the testdata output name
 							result.SetName(expectedObj.GetName())
 						}
 					}
+
 					// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
 					diffResult, err := diff.Diff(expectedObj, result, diff.WithNormalizer(testNormalizer{}))
 					require.NoError(t, err)

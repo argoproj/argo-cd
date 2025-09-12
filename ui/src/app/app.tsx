@@ -1,4 +1,4 @@
-import {DataLoader, NavigationManager, NotificationType, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
+import {DataLoader, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
 import {createBrowserHistory} from 'history';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -19,8 +19,6 @@ import {hashCode} from './shared/utils';
 import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 import {AuthSettings} from './shared/models';
-import {PKCEVerification} from './login/components/pkce-verify';
-import {getPKCERedirectURI, pkceLogin} from './login/components/utils';
 import {SystemLevelExtension} from './shared/services/extensions-service';
 
 services.viewPreferences.init();
@@ -36,8 +34,7 @@ const routes: Routes = {
     '/applications': {component: applications.component},
     '/settings': {component: settings.component},
     '/user-info': {component: userInfo.component},
-    '/help': {component: help.component},
-    '/pkce/verify': {component: PKCEVerification, noLayout: true}
+    '/help': {component: help.component}
 };
 
 interface NavItem {
@@ -88,10 +85,7 @@ async function isExpiredSSO() {
     return false;
 }
 
-export class App extends React.Component<
-    {},
-    {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; extensionsLoaded: boolean; authSettings: AuthSettings}
-> {
+export class App extends React.Component<{}, {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; authSettings: AuthSettings}> {
     public static childContextTypes = {
         history: PropTypes.object,
         apis: PropTypes.object
@@ -111,7 +105,7 @@ export class App extends React.Component<
 
     constructor(props: {}) {
         super(props);
-        this.state = {popupProps: null, error: null, showVersionPanel: false, navItems: [], routes: null, extensionsLoaded: false, authSettings: null};
+        this.state = {popupProps: null, error: null, showVersionPanel: false, navItems: [], routes: null, authSettings: null};
         this.popupManager = new PopupManager();
         this.notificationsManager = new NotificationsManager();
         this.navigationManager = new NavigationManager(history);
@@ -151,7 +145,7 @@ export class App extends React.Component<
             document.head.appendChild(link);
         }
 
-        this.setState({...this.state, navItems: this.navItems, routes: this.routes, extensionsLoaded: false, authSettings});
+        this.setState({...this.state, navItems: this.navItems, routes: this.routes, authSettings});
     }
 
     public componentWillUnmount() {
@@ -222,7 +216,6 @@ export class App extends React.Component<
                                             />
                                         );
                                     })}
-                                    {this.state.extensionsLoaded && <Redirect path='*' to='/' />}
                                 </Switch>
                             </Router>
                         </AuthSettingsCtx.Provider>
@@ -254,18 +247,7 @@ export class App extends React.Component<
                 // If basehref is the default `/` it will become an empty string.
                 const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
                 if (isSSO) {
-                    const authSettings = await services.authService.settings();
-
-                    if (authSettings?.oidcConfig?.enablePKCEAuthentication) {
-                        pkceLogin(authSettings.oidcConfig, getPKCERedirectURI().toString()).catch(err => {
-                            this.getChildContext().apis.notifications.show({
-                                type: NotificationType.Error,
-                                content: err?.message || JSON.stringify(err)
-                            });
-                        });
-                    } else {
-                        window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
-                    }
+                    window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
                 } else {
                     history.push(`/login?return_url=${encodeURIComponent(location.href)}`);
                 }
@@ -294,6 +276,6 @@ export class App extends React.Component<
         extendedRoutes[extension.path] = {
             component: component as React.ComponentType<React.ComponentProps<any>>
         };
-        this.setState({...this.state, navItems: extendedNavItems, routes: extendedRoutes, extensionsLoaded: true});
+        this.setState({...this.state, navItems: extendedNavItems, routes: extendedRoutes});
     }
 }

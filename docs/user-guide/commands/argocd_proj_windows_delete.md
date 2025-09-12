@@ -12,7 +12,7 @@ argocd proj windows delete PROJECT ID [flags]
 
 ```
 
-#Delete a sync window from a project (default) with ID 0 
+#Delete a sync window from a project (default) with ID 0
 argocd proj windows delete default 0
 
 #Delete a sync window from a project (new-project) with ID 1

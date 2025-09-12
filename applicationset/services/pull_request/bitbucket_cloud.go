@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/ktrysmt/go-bitbucket"
 )
@@ -17,10 +18,19 @@ type BitbucketCloudService struct {
 }
 
 type BitbucketCloudPullRequest struct {
-	ID     int                             `json:"id"`
-	Title  string                          `json:"title"`
-	Source BitbucketCloudPullRequestSource `json:"source"`
-	Author BitbucketCloudPullRequestAuthor `json:"author"`
+	ID          int                                  `json:"id"`
+	Title       string                               `json:"title"`
+	Source      BitbucketCloudPullRequestSource      `json:"source"`
+	Author      BitbucketCloudPullRequestAuthor      `json:"author"`
+	Destination BitbucketCloudPullRequestDestination `json:"destination"`
+}
+
+type BitbucketCloudPullRequestDestination struct {
+	Branch BitbucketCloudPullRequestDestinationBranch `json:"branch"`
+}
+
+type BitbucketCloudPullRequestDestinationBranch struct {
+	Name string `json:"name"`
 }
 
 type BitbucketCloudPullRequestSource struct {
@@ -108,8 +118,17 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 		RepoSlug: b.repositorySlug,
 	}
 
+	pullRequests := []*PullRequest{}
+
 	response, err := b.client.Repositories.PullRequests.Gets(opts)
 	if err != nil {
+		// A standard Http 404 error is not returned for Bitbucket Cloud,
+		// so checking the error message for a specific pattern
+		if strings.Contains(err.Error(), "404 Not Found") {
+			// return a custom error indicating that the repository is not found,
+			// but also return the empty result since the decision to continue or not in this case is made by the caller
+			return pullRequests, NewRepositoryNotFoundError(err)
+		}
 		return nil, fmt.Errorf("error listing pull requests for %s/%s: %w", b.owner, b.repositorySlug, err)
 	}
 
@@ -133,14 +152,14 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 		return nil, fmt.Errorf("error unmarshalling json to type '[]BitbucketCloudPullRequest': %w", err)
 	}
 
-	pullRequests := []*PullRequest{}
 	for _, pull := range pulls {
 		pullRequests = append(pullRequests, &PullRequest{
-			Number:  pull.ID,
-			Title:   pull.Title,
-			Branch:  pull.Source.Branch.Name,
-			HeadSHA: pull.Source.Commit.Hash,
-			Author:  pull.Author.Nickname,
+			Number:       pull.ID,
+			Title:        pull.Title,
+			Branch:       pull.Source.Branch.Name,
+			TargetBranch: pull.Destination.Branch.Name,
+			HeadSHA:      pull.Source.Commit.Hash,
+			Author:       pull.Author.Nickname,
 		})
 	}
 
