@@ -28,6 +28,7 @@ argocd login cd.argoproj.io --core
 ### Options
 
 ```
+      --callback string      Scheme, Host and Port for the callback URL
   -h, --help                 help for login
       --name string          Name to use for the context
       --password string      The password of an account to authenticate
